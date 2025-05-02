@@ -477,7 +477,7 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 		case err == nil:
 			// OK
 		case errors.Is(err, os.ErrNotExist):
-			if err := ExtractTarGz(localTarget.Path, ""); err != nil {
+			if err := extractTarGz(localTarget.Path); err != nil {
 				return nil, fmt.Errorf("extract %q: %w", localTarget.Path, err)
 			}
 			s, err = os.Stat(localTarget.ExecPath)
@@ -629,7 +629,7 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 	}
 
 	if strings.HasSuffix(tmpPath, ".tar.gz") {
-		if err := ExtractTarGz(tmpPath, ""); err != nil {
+		if err := extractTarGz(tmpPath); err != nil {
 			return fmt.Errorf("extract %q: %w", tmpPath, err)
 		}
 		tmpDirPath := filepath.Join(filepath.Dir(tmpPath), localTarget.Info.ExtractedExecSubPath[0])
@@ -660,25 +660,26 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 	return nil
 }
 
-// extractTagGz extracts the contents of the provided tar.gz file.
-// path is the path to the .tar.gz file
-// destPath is optionally the directory to extract the file to (blank -> the same dir as where the .tar.gz file is)
-func ExtractTarGz(path string, destDir string) error {
+func extractTarGz(path string) error {
 	tarGzFile, err := secure.OpenFile(path, os.O_RDONLY, 0o755)
 	if err != nil {
 		return fmt.Errorf("open %q: %w", path, err)
 	}
 	defer tarGzFile.Close()
 
+	if err = ExtractOpenTarGzFile(tarGzFile, filepath.Dir(path)); err != nil {
+		return fmt.Errorf("extract %q: %w", path, err)
+	}
+
+	return nil
+}
+
+func ExtractOpenTarGzFile(tarGzFile *os.File, destDir string) error {
 	gzipReader, err := gzip.NewReader(tarGzFile)
 	if err != nil {
-		return fmt.Errorf("gzip reader %q: %w", path, err)
+		return fmt.Errorf("gzip reader: %w", err)
 	}
 	defer gzipReader.Close()
-
-	if destDir == "" {
-		destDir = filepath.Dir(path)
-	}
 
 	tarReader := tar.NewReader(gzipReader)
 	for {
@@ -689,7 +690,7 @@ func ExtractTarGz(path string, destDir string) error {
 		case errors.Is(err, io.EOF):
 			return nil
 		default:
-			return fmt.Errorf("tar reader %q: %w", path, err)
+			return fmt.Errorf("tar reader: %w", err)
 		}
 
 		// Prevent zip-slip attack.

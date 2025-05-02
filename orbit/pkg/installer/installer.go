@@ -67,7 +67,7 @@ type Runner struct {
 	execCmdFn func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error)
 
 	// extractTarGzFn is the function to call to extract a tarball. If nil, the
-	// implementation in the updates package will be used.
+	// implementation in the updates package, wrapped with an OS file open, will be used.
 	extractTarGzFn func(path string, destDir string) error
 
 	// can be set for tests to replace os.RemoveAll, which is called to remove
@@ -333,7 +333,18 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 
 		extractFn := r.extractTarGzFn
 		if extractFn == nil {
-			extractFn = update.ExtractTarGz
+			extractFn = func(path string, destDir string) error {
+				tarGzFile, err := os.Open(path)
+				if err != nil {
+					return fmt.Errorf("oepn file for extraction: %w", err)
+				}
+
+				if err = update.ExtractOpenTarGzFile(tarGzFile, destDir); err != nil {
+					return fmt.Errorf("extract %q: %w", path, err)
+				}
+
+				return nil
+			}
 		}
 
 		if err = extractFn(installerPath, extractDestination); err != nil {
