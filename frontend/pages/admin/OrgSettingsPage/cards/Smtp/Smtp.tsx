@@ -12,10 +12,10 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import validEmail from "components/forms/validators/valid_email";
-import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Card from "components/Card";
 
 import {
   IAppConfigFormProps,
@@ -222,18 +222,24 @@ const Smtp = ({
   };
 
   const renderSesEnabled = () => {
-    const header = "Email already configured";
-    const info = (
-      <>
-        To configure SMTP,{" "}
-        <CustomLink
-          url={isPremiumTier ? CONTACT_FLEET_LINK : "https://fleetdm.com/slack"}
-          text="get help"
-          newTab
-        />
-      </>
+    const sesBaseClass = `${baseClass}__ses-enabled`;
+    return (
+      <Card paddingSize="xxlarge" className={`${sesBaseClass}__ses-enabled`}>
+        <div className={`${sesBaseClass}__content`}>
+          <p className={`${sesBaseClass}__title`}>Email already configured</p>
+          <p>
+            To configure SMTP,{" "}
+            <CustomLink
+              url={
+                isPremiumTier ? CONTACT_FLEET_LINK : "https://fleetdm.com/slack"
+              }
+              text="get help"
+              newTab
+            />
+          </p>
+        </div>
+      </Card>
     );
-    return <EmptyTable header={header} info={info} />;
   };
 
   const renderSmtpForm = () => {
