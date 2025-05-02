@@ -8,7 +8,10 @@
       "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/138.0/mac/en-US/Firefox%20138.0.dmg",
       "install_script_ref": "d6537bcd",
       "uninstall_script_ref": "824ca465",
-      "sha256": "41ef4466ac515b1aa81b827f1c44bfc442d9663e96070da7b3bc2ced30215fcb"
+      "sha256": "41ef4466ac515b1aa81b827f1c44bfc442d9663e96070da7b3bc2ced30215fcb",
+      "default_categories": [
+        "Browsers"
+      ]
     }
   ],
   "refs": {

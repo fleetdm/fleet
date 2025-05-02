@@ -388,6 +388,20 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	appID.ValidatedLabels = validatedLabels
+
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, appID.Categories)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(appID.Categories) {
+		return &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", appID.Categories),
+		}
+	}
+	appID.CategoryIDs = catIDs
+
 	app := &fleet.VPPApp{
 		VPPAppTeam:       appID,
 		BundleIdentifier: assetMD.BundleID,
@@ -475,7 +489,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	return apps, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*fleet.VPPAppStoreApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -524,6 +538,20 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if meta.IconURL != nil {
 		appToWrite.IconURL = *meta.IconURL
 	}
+
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, categories)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(categories) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", categories),
+		}
+	}
+
+	appToWrite.CategoryIDs = catIDs
 
 	// check if labels have changed
 	var existingLabels fleet.LabelIdentsWithScope

@@ -7,5 +7,6 @@
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/teamviewer_uninstall.ps1",
   "installer_arch": "x64",
   "installer_type": "exe",
-  "installer_scope": "machine"
+  "installer_scope": "machine",
+  "default_categories": ["Communication"]
 }

@@ -645,6 +645,16 @@ const (
 
 	// Config
 	InvalidServerURLMsg = `Fleet server URL must use “https” or “http”.`
+
+	// NDES/SCEP validation
+	MultipleSCEPPayloadsErrMsg          = "Add only one SCEP payload."
+	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload."
+)
+
+// Error message variables
+var (
+	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarSCEPRenewalID)
+	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + FleetVarSCEPRenewalID + "\" can't be used if variables for SCEP URL and Challenge are not specified."
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

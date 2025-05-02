@@ -15531,7 +15531,7 @@
     "columns": [
       {
         "name": "domain",
-        "description": "System or manager-chosen domain key",
+        "description": "System or manager-chosen domain key. Equivalent to a configuration profile's `PayloadType`",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -15567,7 +15567,7 @@
       },
       {
         "name": "username",
-        "description": "policy only applies to the listed user. Blank if global.",
+        "description": "Policy only applies to the listed user. Blank if global.",
         "type": "text",
         "notes": "",
         "hidden": false,

@@ -78,6 +78,12 @@ WHERE
 	app.LabelsExcludeAny = exclAny
 	app.LabelsIncludeAny = inclAny
 
+	categories, err := ds.getCategoriesForVPPApp(ctx, app.VPPAppsTeamsID)
+	if err != nil {
+		return nil, err
+	}
+	app.Categories = categories
+
 	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
@@ -85,6 +91,22 @@ WHERE
 	app.AutomaticInstallPolicies = policies
 
 	return &app, nil
+}
+
+func (ds *Datastore) getCategoriesForVPPApp(ctx context.Context, vppAppsTeamID uint) ([]string, error) {
+	stmt := `
+SELECT
+	sc.name
+FROM software_categories sc
+JOIN vpp_app_team_software_categories vatsc ON sc.id = vatsc.software_category_id
+WHERE vatsc.vpp_app_team_id = ?`
+
+	var categories []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, vppAppsTeamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get categories for vpp app")
+	}
+
+	return categories, nil
 }
 
 func (ds *Datastore) getVPPAppLabels(ctx context.Context, vppAppsTeamsID uint) ([]fleet.SoftwareScopeLabel, error) {
@@ -470,6 +492,12 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 		if app.ValidatedLabels != nil {
 			if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *app.ValidatedLabels, softwareTypeVPP); err != nil {
 				return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam setOrUpdateSoftwareInstallerLabelsDB transaction")
+			}
+		}
+
+		if app.CategoryIDs != nil {
+			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, vppAppTeamID, app.CategoryIDs, softwareTypeVPP); err != nil {
+				return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam setOrUpdateSoftwareInstallerCategoriesDB transaction")
 			}
 		}
 

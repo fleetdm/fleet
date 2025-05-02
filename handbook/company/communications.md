@@ -703,7 +703,13 @@ Follow the process to [request an offsite](https://fleetdm.com/handbook/company/
 
 ### Attending conferences
 
+The Head of Marketing is responsible for executing and organizing all [marketing-related events](https://fleetdm.com/handbook/marketing#settle-event-strategy
+).
+
+The relevant department head should approve and organize all other event types (trainings, developer conferences, meetups, etc.).
+
 When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
+
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/8c3eeeb4-f322-44cf-8405-4f94f10fde6d">
 

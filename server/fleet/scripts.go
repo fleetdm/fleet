@@ -559,3 +559,32 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		return false
 	}
 }
+
+var BatchExecuteIncompatiblePlatform = "incompatible-platform"
+var BatchExecuteIncompatibleFleetd = "incompatible-fleetd"
+
+type BatchExecutionSummary struct {
+	ScriptID   uint                 `json:"script_id" db:"script_id"`
+	ScriptName string               `json:"script_name" db:"script_name"`
+	TeamID     *uint                `json:"team_id" db:"team_id"`
+	Hosts      []BatchExecutionHost `json:"hosts"`
+}
+
+type BatchExecutionHost struct {
+	HostID          uint    `json:"host_id" db:"host_id"`
+	HostDisplayName string  `json:"host_display_name" db:"hostname"`
+	ExecutionID     *string `json:"execution_id,omitempty" db:"execution_id"`
+	Error           *string `json:"error,omitempty" db:"error"`
+}
+
+// ValidateScriptPlatform returns whether a script can run on a host based on its host.Platform
+func ValidateScriptPlatform(scriptName, platform string) bool {
+	switch filepath.Ext(scriptName) {
+	case ".sh":
+		return IsUnixLike(platform)
+	case ".ps1":
+		return platform == "windows"
+	default:
+		return false
+	}
+}

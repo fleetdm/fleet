@@ -32,6 +32,10 @@
       }
     }
 
+    .table-container__search-input .input-with-icon {
+      min-width: 305px; // Fit placeholder text
+    }
+
     .data-table-block {
       .data-table__table {
         thead {
