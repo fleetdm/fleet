@@ -75,12 +75,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			Platform:         fleet.IOSPlatform,
 			LabelsExcludeAny: payload.LabelsExcludeAny,
 			LabelsIncludeAny: payload.LabelsIncludeAny,
+			Categories:       payload.Categories,
 		}, {
 			AppStoreID:       payload.AppStoreID,
 			SelfService:      false,
 			Platform:         fleet.IPadOSPlatform,
 			LabelsExcludeAny: payload.LabelsExcludeAny,
 			LabelsIncludeAny: payload.LabelsIncludeAny,
+			Categories:       payload.Categories,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
@@ -88,6 +90,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			InstallDuringSetup: payload.InstallDuringSetup,
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
 			LabelsIncludeAny:   payload.LabelsIncludeAny,
+			Categories:         payload.Categories,
 		}}...)
 	}
 
@@ -117,6 +120,18 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
 			}
+			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+			}
+
+			if len(catIDs) != len(payload.Categories) {
+				return nil, &fleet.BadRequestError{
+					Message:     "some or all of the categories provided don't exist",
+					InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+				}
+			}
+
 			vppAppTeams = append(vppAppTeams, fleet.VPPAppTeam{
 				VPPAppID: fleet.VPPAppID{
 					AdamID:   payload.AppStoreID,
@@ -125,6 +140,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				SelfService:        payload.SelfService,
 				InstallDuringSetup: payload.InstallDuringSetup,
 				ValidatedLabels:    validatedLabels,
+				CategoryIDs:        catIDs,
 			})
 		}
 
