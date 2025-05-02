@@ -13,6 +13,7 @@ import { IPaginatedListHandle } from "components/PaginatedList";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -29,7 +30,6 @@ import {
 import PoliciesPaginatedList, {
   IFormPolicy,
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
-import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
