@@ -72,6 +72,7 @@ const getSoftwareNameCellData = (
   let isSelfService = false;
   let installType: "manual" | "automatic" | undefined;
   let iconUrl: string | null = null;
+  let automaticInstallPoliciesCount = 0;
   if (software_package) {
     hasPackage = true;
     isSelfService = software_package.self_service;
@@ -80,6 +81,8 @@ const getSoftwareNameCellData = (
       software_package.automatic_install_policies.length > 0
         ? "automatic"
         : "manual";
+    automaticInstallPoliciesCount =
+      software_package.automatic_install_policies?.length || 0;
   } else if (app_store_app) {
     hasPackage = true;
     isSelfService = app_store_app.self_service;
@@ -89,6 +92,8 @@ const getSoftwareNameCellData = (
       app_store_app.automatic_install_policies.length > 0
         ? "automatic"
         : "manual";
+    automaticInstallPoliciesCount =
+      app_store_app.automatic_install_policies?.length || 0;
   }
 
   const isAllTeams = teamId === undefined;
@@ -101,6 +106,7 @@ const getSoftwareNameCellData = (
     isSelfService,
     installType,
     iconUrl,
+    automaticInstallPoliciesCount,
   };
 };
 
@@ -131,6 +137,9 @@ const generateTableHeaders = (
             isSelfService={nameCellData.isSelfService}
             installType={nameCellData.installType}
             iconUrl={nameCellData.iconUrl ?? undefined}
+            automaticInstallPoliciesCount={
+              nameCellData.automaticInstallPoliciesCount
+            }
           />
         );
       },
