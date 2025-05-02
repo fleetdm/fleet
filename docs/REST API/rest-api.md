@@ -5199,7 +5199,8 @@ Deletes the label specified by ID.
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
-- [Get OS settings status](#get-os-settings-status)
+- [Get OS settings summary](#get-os-settings-summary)
+- [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
 - [Resend custom OS setting (configuration profile)](resend-custom-os-setting-configuration-profile)
 - [Batch-resend custom OS setting (configuration profile)](batch-resend-custom-os-setting-configuration-profile)
 
@@ -5596,7 +5597,7 @@ The summary can optionally be filtered by team ID.
 ```
 
 
-### Get OS settings status
+### Get OS settings summary
 
 > [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
@@ -5611,13 +5612,42 @@ optionally be filtered by `team_id`. If no `team_id` is specified, team profiles
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | _Available in Fleet Premium_. The team ID to filter profiles.              |
+| profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
 
 #### Example
 
 Get aggregate status counts of profiles for to macOS and Windows hosts that are assigned to "No team".
 
 `GET /api/v1/fleet/configuration_profiles/summary`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "verified": 123,
+  "verifying": 123,
+  "failed": 123,
+  "pending": 123
+}
+```
+
+### Get OS setting (configuration profile) status
+
+Get status counts of a single OS settings (configuration profile) enforced on hosts.
+
+`GET /api/v1/fleet/configuration_profile/:profile_uuid/status`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| team_id                   | string | query | _Available in Fleet Premium_. The team ID to filter profiles.              |
+
+#### Example
+
+`GET /api/v1/fleet/configuration_profile/f663713f-04ee-40f0-a95a-7af428c351a9/status`
 
 ##### Default response
 
