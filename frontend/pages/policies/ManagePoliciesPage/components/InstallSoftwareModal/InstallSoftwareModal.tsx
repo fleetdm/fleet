@@ -287,7 +287,7 @@ const InstallSoftwareModal = ({
                   </span>
                 ) : null;
               }}
-              footer={
+              helpText={
                 <>
                   If compatible with the host, the selected software will be
                   installed when hosts fail the policy. Host counts will reset

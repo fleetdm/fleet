@@ -330,7 +330,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
-        if (data.software?.length > 0) {
+        const hasSoftwareResults = data.software?.length > 0;
+        const viewingVulnSoftwareTab = softwareNavTabIndex === 1;
+
+        // Prevent card from hiding if returns results or on-clicking vuln tab if software has no vulnerabilities
+        if (hasSoftwareResults || viewingVulnSoftwareTab) {
           setSoftwareTitleDetail &&
             setSoftwareTitleDetail(
               <LastUpdatedText

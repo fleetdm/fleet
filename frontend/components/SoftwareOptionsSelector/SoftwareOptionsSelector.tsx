@@ -80,7 +80,7 @@ const SoftwareOptionsSelector = ({
         value={formData.selfService}
         onChange={(newVal: boolean) => onToggleSelfService(newVal)}
         className={`${baseClass}__self-service-checkbox`}
-        tooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
+        labelTooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
         disabled={isSelfServiceDisabled}
       >
         Self-service
@@ -90,7 +90,7 @@ const SoftwareOptionsSelector = ({
           value={formData.automaticInstall}
           onChange={(newVal: boolean) => onToggleAutomaticInstall(newVal)}
           className={`${baseClass}__automatic-install-checkbox`}
-          tooltipContent={
+          labelTooltipContent={
             showAutomaticInstallTooltip && getAutomaticInstallTooltip()
           }
           disabled={isAutomaticInstallDisabled}

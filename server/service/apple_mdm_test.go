@@ -629,7 +629,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 		},
 	}
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
 		return &cp, nil
 	}
 	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -741,7 +741,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
 	r := bytes.NewReader(mcBytes)
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
 		require.Equal(t, "Foo", cp.Name)
 		assert.Equal(t, identifier, cp.Identifier)
 		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
@@ -1834,6 +1834,37 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			</plist>`, mobileconfig.FleetFileVaultPayloadType))},
 			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
 		},
+		{
+			"uses a Fleet Variable",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[][]byte{[]byte(`<?xml version="1.0" encoding="UTF-8"?>
+			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+			<plist version="1.0">
+			<dict>
+				<key>PayloadContent</key>
+				<array>
+					<dict>
+						<key>Username</key>
+						<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+					</dict>
+				</array>
+				<key>PayloadDisplayName</key>
+				<string>Config Profile Name</string>
+				<key>PayloadIdentifier</key>
+				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadType</key>
+				<string>Configuration</string>
+				<key>PayloadUUID</key>
+				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
+				<key>PayloadVersion</key>
+				<integer>1</integer>
+			</dict>
+			</plist>`)},
+			`profile variables are not supported by this deprecated endpoint`,
+		},
 	}
 	for name := range fleetmdm.FleetReservedProfileNames() {
 		testCases = append(testCases,
@@ -2684,7 +2715,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		return appCfg, nil
 	}
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 		assert.Empty(t, payload)
 		return nil
 	}
@@ -2903,7 +2934,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Equal(t, fleet.MDMOperationTypeInstall, updatedProfile.OperationType)
 		return nil
 	}
-	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 		assert.Empty(t, payload)
 		return nil
 	}
@@ -2987,7 +3018,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		return nil
 	}
 	populateTargets()
-	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 		require.Len(t, payload, 1)
 		assert.NotNil(t, payload[0].ChallengeRetrievedAt)
 		return nil
@@ -3011,7 +3042,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	expectedURL := "https://test.example.com" + apple_mdm.SCEPProxyPath + url.QueryEscape(fmt.Sprintf("%s,%s,NDES", hostUUID, "p1"))
 	updatedProfile = nil
 	populateTargets()
-	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 		assert.Empty(t, payload)
 		return nil
 	}
@@ -4327,7 +4358,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		}
 	}
 	hostProfilesToInstallMap := map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		hostProfileUUID{HostUUID: hostUUID, ProfileUUID: "p1"}: &fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{HostUUID: hostUUID, ProfileUUID: "p1"}: {
 			ProfileUUID:       "p1",
 			ProfileIdentifier: "com.add.profile",
 			HostUUID:          hostUUID,
@@ -4643,6 +4674,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		name    string
 		profile string
 		errMsg  string
+		vars    []string
 	}{
 		{
 			name: "DigiCert badCA",
@@ -4704,6 +4736,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: digiCertForValidation("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName}", "Name",
 				"com.apple.security.pkcs12"),
 			errMsg: "",
+			vars:   []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName"},
 		},
 		{
 			name: "DigiCert 2 profiles with swapped variables",
@@ -4716,6 +4749,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: digiCertForValidation2("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName}",
 				"$FLEET_VAR_DIGICERT_PASSWORD_caName2", "$FLEET_VAR_DIGICERT_DATA_caName2"),
 			errMsg: "",
+			vars:   []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "DIGICERT_PASSWORD_caName2", "DIGICERT_DATA_caName2"},
 		},
 		{
 			name: "Custom SCEP badCA",
@@ -4726,13 +4760,13 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		{
 			name:    "Custom SCEP challenge missing",
 			profile: customSCEPForValidation("challenge", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName", "Name", "com.apple.security.scep"),
-			errMsg:  "Missing $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
+			errMsg:  "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
 		},
 		{
 			name: "Custom SCEP url missing",
 			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "https://bozo.com", "Name",
 				"com.apple.security.scep"),
-			errMsg: "Missing $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+			errMsg: "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
 		},
 		{
 			name: "Custom SCEP challenge and url CA names don't match",
@@ -4755,16 +4789,23 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg: "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName is already present in configuration profile",
 		},
 		{
+			name: "Custom SCEP renewal ID shows up in the wrong place",
+			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+				"$FLEET_VAR_SCEP_RENEWAL_ID",
+				"com.apple.security.scep"),
+			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's common name (CN).",
+		},
+		{
 			name: "Custom SCEP profile is not scep",
 			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
 				"Name", "com.apple.security.SCEP"),
-			errMsg: "Variables $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName and $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName can only be included in the 'com.apple.security.scep' payload",
+			errMsg: fleet.SCEPVariablesNotInSCEPPayloadErrMsg,
 		},
 		{
 			name: "Custom SCEP challenge is not a fleet variable",
 			profile: customSCEPForValidation("x$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "in the 'com.apple.security.scep' payload under Challenge and URL, respectively",
+			errMsg: fleet.SCEPVariablesNotInSCEPPayloadErrMsg,
 		},
 		{
 			name: "Custom SCEP url is not a fleet variable",
@@ -4777,17 +4818,25 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"Name", "com.apple.security.scep"),
 			errMsg: "",
+			vars:   []string{"CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
 			name: "Custom SCEP 2 profiles with swapped variables",
 			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName2}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2"),
-			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
+			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
+		},
+		{
+			name: "Custom SCEP 2 valid profiles should error",
+			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
+				"challenge", "http://example2.com"),
+			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
 		},
 		{
 			name:    "Custom SCEP and DigiCert profiles happy path",
-			profile: customSCEPDigiCertValidationMobileconfig,
+			profile: customSCEPDigiCertForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}"),
 			errMsg:  "",
+			vars:    []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
 			name:    "Custom profile with IdP variables and unknown variable",
@@ -4798,15 +4847,104 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name:    "Custom profile with IdP variables happy path",
 			profile: customProfileForValidation("value"),
 			errMsg:  "",
+			vars:    []string{"HOST_END_USER_IDP_USERNAME", "HOST_END_USER_IDP_USERNAME_LOCAL_PART", "HOST_END_USER_IDP_GROUPS"},
+		},
+		{
+			name: "Custom SCEP and NDES 2 valid profiles should error",
+			profile: customSCEPForValidation2("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
+				"$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
+		},
+		{
+			name:    "NDES challenge missing",
+			profile: customSCEPForValidation("challenge", "$FLEET_VAR_NDES_SCEP_PROXY_URL", "Name", "com.apple.security.scep"),
+			errMsg:  fleet.NDESSCEPVariablesMissingErrMsg,
+		},
+		{
+			name: "NDES url missing",
+			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "https://bozo.com", "Name",
+				"com.apple.security.scep"),
+			errMsg: fleet.NDESSCEPVariablesMissingErrMsg,
+		},
+		{
+			name: "NDES challenge shows up an extra time",
+			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"$FLEET_VAR_NDES_SCEP_CHALLENGE",
+				"com.apple.security.scep"),
+			errMsg: "$FLEET_VAR_NDES_SCEP_CHALLENGE is already present in configuration profile",
+		},
+		{
+			name: "NDES url shows up an extra time",
+			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"com.apple.security.scep"),
+			errMsg: "$FLEET_VAR_NDES_SCEP_PROXY_URL is already present in configuration profile",
+		},
+		{
+			name: "NDES renewal ID shows up in the wrong place",
+			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"$FLEET_VAR_SCEP_RENEWAL_ID",
+				"com.apple.security.scep"),
+			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's common name (CN).",
+		},
+		{
+			name: "NDES profile is not scep",
+			profile: customSCEPForValidation("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
+				"Name", "com.apple.security.SCEP"),
+			errMsg: fleet.SCEPVariablesNotInSCEPPayloadErrMsg,
+		},
+		{
+			name: "NDES challenge is not a fleet variable",
+			profile: customSCEPForValidation("x$FLEET_VAR_NDES_SCEP_CHALLENGE", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_CHALLENGE\" must exactly match SCEP payload's 'Challenge' field. Got: x$FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
+			name: "NDES url is not a fleet variable",
+			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_PROXY_URL\" must exactly match SCEP payload's 'URL' field. Got: x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+		},
+		{
+			name: "SCEP renewal ID without other variables",
+			profile: customSCEPForValidation("challenge", "url",
+				"Name", "com.apple.security.scep"),
+			errMsg: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg,
+		},
+		{
+			name: "NDES happy path",
+			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+				"Name", "com.apple.security.scep"),
+			errMsg: "",
+			vars:   []string{"NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL", "SCEP_RENEWAL_ID"},
+		},
+		{
+			name: "NDES 2 valid profiles should error",
+			profile: customSCEPForValidation2("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+				"challenge", "http://example2.com"),
+			errMsg: fleet.MultipleSCEPPayloadsErrMsg,
+		},
+		{
+			name:    "NDES and DigiCert profiles happy path",
+			profile: customSCEPDigiCertForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}"),
+			errMsg:  "",
+			vars: []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL",
+				"SCEP_RENEWAL_ID"},
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateConfigProfileFleetVariables(appConfig, tc.profile)
+			vars, err := validateConfigProfileFleetVariables(appConfig, tc.profile)
 			if tc.errMsg != "" {
 				assert.ErrorContains(t, err, tc.errMsg)
+				assert.Empty(t, vars)
 			} else {
 				assert.NoError(t, err)
+				gotVars := make([]string, 0, len(vars))
+				for v := range vars {
+					gotVars = append(gotVars, v)
+				}
+				assert.ElementsMatch(t, tc.vars, gotVars)
 			}
 		})
 	}
@@ -4833,6 +4971,11 @@ func customSCEPForValidation(challenge, url, name, payloadType string) string {
 	return fmt.Sprintf(customSCEPValidationMobileconfig, challenge, url, name, payloadType)
 }
 
+func customSCEPForValidationWithoutRenewalID(challenge, url, name, payloadType string) string {
+	configProfile := strings.ReplaceAll(customSCEPValidationMobileconfig, "$FLEET_VAR_SCEP_RENEWAL_ID", "")
+	return fmt.Sprintf(configProfile, challenge, url, name, payloadType)
+}
+
 //go:embed testdata/profiles/custom-scep-validation2.mobileconfig
 var customSCEPValidation2Mobileconfig string
 
@@ -4842,6 +4985,10 @@ func customSCEPForValidation2(challenge1, url1, challenge2, url2 string) string 
 
 //go:embed testdata/profiles/custom-scep-digicert-validation.mobileconfig
 var customSCEPDigiCertValidationMobileconfig string
+
+func customSCEPDigiCertForValidation(challenge, url string) string {
+	return fmt.Sprintf(customSCEPDigiCertValidationMobileconfig, challenge, url)
+}
 
 //go:embed testdata/profiles/custom-profile-validation.mobileconfig
 var customProfileValidationMobileconfig string

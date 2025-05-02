@@ -747,7 +747,7 @@ Returns all information about the Fleet's configuration.
 
 The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned for admin and GitOps users with global access. Learn more about roles and permissions [here](https://fleetdm.com/guides/role-based-access).
 
-`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
 `GET /api/v1/fleet/config`
 
@@ -2241,6 +2241,7 @@ None.
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
 - [Batch-delete hosts by filter or ids](#batch-delete-hosts-by-filter-or-ids)
+- [Update custom human-device mapping](#update-custom-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
@@ -3657,6 +3658,55 @@ Request (`filters` is specified and empty, to delete all hosts):
 ##### Default response
 
 `Status: 200`
+
+### Update custom human-device mapping
+
+`PUT /api/v1/fleet/hosts/:id/device_mapping`
+
+Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+| email      | string            | body | **Required**. The custom email.                                               |
+
+#### Example
+
+`PUT /api/v1/fleet/hosts/1/device_mapping`
+
+##### Request body
+
+```json
+{
+	"email": "user@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+	"host_id": 1,
+	"device_mapping": [
+	  {
+  		"email": "user@example.com",
+  		"source": "mdm_idp_accounts"
+		},
+		{
+  		"email": "user@example.com",
+  		"source": "google_chrome_profiles"
+		},
+		{
+  		"email": "user@example.com",
+  		"source": "custom"
+		}
+	]
+}
+```
 
 
 ### Get host's device health report
@@ -7480,6 +7530,8 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 Resets [automation](https://fleetdm.com/docs/using-fleet/automations#policy-automations) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
 
+Currently, this API endpoint only resets ticket and webhook automations.
+
 `POST /api/v1/fleet/automations/reset`
 
 #### Parameters
@@ -10688,7 +10740,7 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/teams/:id`
 
-`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
 #### Parameters
 
