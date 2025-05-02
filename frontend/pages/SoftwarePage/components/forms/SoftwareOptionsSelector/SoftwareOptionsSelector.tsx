@@ -7,11 +7,57 @@ import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
-import { ISoftwareVppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
-import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import {
+  CATEGORIES_ITEMS,
+  ICategory,
+} from "pages/hosts/details/cards/Software/SelfService/helpers";
+import Button from "components/buttons/Button";
 
 const baseClass = "software-options-selector";
+
+interface ICategoriesSelector {
+  onSelectCategory: ({ name, value }: { name: string; value: boolean }) => void;
+  selectedCategories: any; // TODO
+  onClickPreviewEndUserExperience: () => void;
+}
+
+const CategoriesSelector = ({
+  onSelectCategory,
+  selectedCategories,
+  onClickPreviewEndUserExperience,
+}: ICategoriesSelector) => {
+  return (
+    <>
+      <div className="form-field__label">Categories</div>
+      <div className={`${baseClass}__categories-selector`}>
+        {CATEGORIES_ITEMS.map((cat: ICategory) => {
+          return (
+            <div className={`${baseClass}__label`} key={cat.id}>
+              <Checkbox
+                className={`${baseClass}__checkbox`}
+                name={cat.value}
+                value={selectedCategories.includes(cat.value)}
+                onChange={onSelectCategory}
+                parseTarget
+              />
+              <div className={`${baseClass}__label-name`}>{cat.label}</div>
+            </div>
+          );
+        })}
+      </div>
+      <Button
+        variant="text-link"
+        onClick={onClickPreviewEndUserExperience}
+        className={`${baseClass}__preview-button`}
+      >
+        Preview end user experience
+      </Button>
+    </>
+  );
+};
 
 interface ISoftwareOptionsSelector {
   formData:
@@ -21,6 +67,8 @@ interface ISoftwareOptionsSelector {
   /** Only used in create mode not edit mode for FMA, VPP, and custom packages */
   onToggleAutomaticInstall: (value: boolean) => void;
   onToggleSelfService: (value: boolean) => void;
+  onClickPreviewEndUserExperience: () => void;
+  onSelectCategory: ({ name, value }: { name: string; value: boolean }) => void;
   platform?: string;
   className?: string;
   isCustomPackage?: boolean;
@@ -37,6 +85,8 @@ const SoftwareOptionsSelector = ({
   formData,
   onToggleAutomaticInstall,
   onToggleSelfService,
+  onClickPreviewEndUserExperience,
+  onSelectCategory,
   platform,
   className,
   isCustomPackage,
@@ -71,8 +121,11 @@ const SoftwareOptionsSelector = ({
     return <>Automatically install only on hosts missing this software.</>;
   };
 
+  // Ability to set categories when adding software is in a future ticket #28061
+  const canSelectSoftwareCategories = formData.selfService && isEditingSoftware;
+
   return (
-    <div className="form-field">
+    <div className={`form-field ${classNames}`}>
       <div className="form-field__label">Options</div>
       {isPlatformIosOrIpados && (
         <p>
@@ -81,15 +134,24 @@ const SoftwareOptionsSelector = ({
           for each host.
         </p>
       )}
-      <Checkbox
-        value={formData.selfService}
-        onChange={(newVal: boolean) => onToggleSelfService(newVal)}
-        className={`${baseClass}__self-service-checkbox`}
-        labelTooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
-        disabled={isSelfServiceDisabled}
-      >
-        Self-service
-      </Checkbox>
+      <div className={`${baseClass}__self-service`}>
+        <Checkbox
+          value={formData.selfService}
+          onChange={(newVal: boolean) => onToggleSelfService(newVal)}
+          className={`${baseClass}__self-service-checkbox`}
+          labelTooltipContent={!isSelfServiceDisabled && SELF_SERVICE_TOOLTIP}
+          disabled={isSelfServiceDisabled}
+        >
+          Self-service
+        </Checkbox>
+        {canSelectSoftwareCategories && (
+          <CategoriesSelector
+            onSelectCategory={onSelectCategory}
+            selectedCategories={formData.categories}
+            onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
+          />
+        )}
+      </div>
       {!isEditingSoftware && (
         <Checkbox
           value={formData.automaticInstall}
