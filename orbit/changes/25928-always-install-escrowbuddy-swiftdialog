@@ -1,1 +1,1 @@
-EscrowBuddy and SwiftDialog are now always installed on macOS hosts
+* Changed orbit to unconditionally install Escrow Buddy and Swift Dialog on macOS hosts
