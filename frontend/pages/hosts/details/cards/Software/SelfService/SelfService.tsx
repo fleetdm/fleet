@@ -1,10 +1,10 @@
 import React, {
   useCallback,
+  useState,
   useContext,
   useMemo,
-  useEffect,
   useRef,
-  useState,
+  useEffect,
 } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -18,9 +18,12 @@ import deviceApi, {
 } from "services/entities/device_user";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { pluralize } from "utilities/strings/stringUtils";
 import { getPathWithQueryParams } from "utilities/url";
 
+import { SingleValue } from "react-select-5";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import TableContainer from "components/TableContainer";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
@@ -28,20 +31,31 @@ import DataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
 import SearchField from "components/forms/fields/SearchField";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
+import {
+  InstallOrCommandUuid,
+  generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig,
+} from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
-import SelfServiceItem from "./SelfServiceItem";
-import { InstallOrCommandUuid } from "./SelfServiceItem/SelfServiceItem";
+
+import {
+  CATEGORIES_NAV_ITEMS,
+  filterSoftwareByCategory,
+  ICategory,
+} from "./helpers";
+import CategoriesMenu from "./CategoriesMenu";
 
 const baseClass = "software-self-service";
 
 // These default params are not subject to change by the user
 const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
-  per_page: 24, // Divisible by 2, 3, 4 so pagination renders well on responsive widths
+  per_page: 9999, // Note: There is no pagination on this page because of time constraints (e.g. categories and install statuses are not filtered by API)
   order_key: "name",
   order_direction: "asc",
   self_service: true,
+  category_id: undefined,
 } as const;
 
 export interface ISoftwareSelfServiceProps {
@@ -207,6 +221,19 @@ const SoftwareSelfService = ({
     router.push(
       getPathWithQueryParams(pathname, {
         query: value,
+        category_id: queryParams.category_id,
+        page: 0, // Always reset to page 0 when searching
+      })
+    );
+  };
+
+  const onCategoriesDropdownChange = (
+    option: SingleValue<CustomOptionType>
+  ) => {
+    router.push(
+      getPathWithQueryParams(pathname, {
+        category_id: option?.value !== "undefined" ? option?.value : undefined,
+        query: queryParams.query,
         page: 0, // Always reset to page 0 when searching
       })
     );
@@ -216,19 +243,21 @@ const SoftwareSelfService = ({
     router.push(
       getPathWithQueryParams(pathname, {
         query: queryParams.query,
+        category_id: queryParams.category_id,
         page: queryParams.page + 1,
       })
     );
-  }, [pathname, queryParams.page, queryParams.query, router]);
+  }, [pathname, queryParams, router]);
 
   const onPrevPage = useCallback(() => {
     router.push(
       getPathWithQueryParams(pathname, {
         query: queryParams.query,
+        category_id: queryParams.category_id,
         page: queryParams.page - 1,
       })
     );
-  }, [pathname, queryParams.page, queryParams.query, router]);
+  }, [pathname, queryParams, router]);
 
   // TODO: handle empty state better, this is just a placeholder for now
   // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
@@ -242,31 +271,44 @@ const SoftwareSelfService = ({
     !selfServiceData?.meta.has_previous_results &&
     queryParams.query !== "";
 
-  const renderSelfServiceCard = () => {
-    const renderHeader = () => {
-      const itemCount = selfServiceData?.count || 0;
+  const tableConfig = useMemo(() => {
+    return generateDeviceSoftwareTableConfig({
+      deviceToken,
+      onInstall,
+      onShowInstallerDetails,
+    });
+  }, [router]);
 
-      return (
-        <div className={`${baseClass}__header`}>
-          <div className={`${baseClass}__items-count`}>
-            {`${itemCount} ${pluralize(itemCount, "item")}`}
-          </div>
-          <div className={`${baseClass}__search`}>
-            <SearchField
-              placeholder="Search by name"
-              onChange={onSearchQueryChange}
-            />
-          </div>
-        </div>
-      );
-    };
+  const renderSelfServiceCard = () => {
+    const renderHeaderFilters = () => (
+      <div className={`${baseClass}__header-filters`}>
+        <SearchField
+          placeholder="Search by name"
+          onChange={onSearchQueryChange}
+          defaultValue={queryParams.query}
+        />
+        <DropdownWrapper
+          options={CATEGORIES_NAV_ITEMS.map((category: ICategory) => ({
+            ...category,
+            value: String(category.id), // DropdownWrapper only accepts string
+          }))}
+          value={String(queryParams.category_id) || ""}
+          onChange={onCategoriesDropdownChange}
+          name="categories-dropdown"
+          className={`${baseClass}__categories-dropdown`}
+        />
+      </div>
+    );
+
+    const renderCategoriesMenu = () => (
+      <CategoriesMenu
+        queryParams={queryParams}
+        categories={CATEGORIES_NAV_ITEMS}
+      />
+    );
 
     if (isLoading) {
-      return (
-        <>
-          <Spinner />
-        </>
-      );
+      return <Spinner />;
     }
 
     if (isError) {
@@ -276,12 +318,15 @@ const SoftwareSelfService = ({
     if (isEmpty || !selfServiceData) {
       return (
         <>
-          {renderHeader()}
-          <EmptyTable
-            graphicName="empty-software"
-            header="No self-service software available yet"
-            info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
-          />
+          {renderHeaderFilters()}
+          <div className={`${baseClass}__table`}>
+            {renderCategoriesMenu()}
+            <EmptyTable
+              graphicName="empty-software"
+              header="No self-service software available yet"
+              info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
+            />
+          </div>
         </>
       );
     }
@@ -289,8 +334,11 @@ const SoftwareSelfService = ({
     if (isFetching) {
       return (
         <>
-          {renderHeader()}
-          <Spinner />
+          {renderHeaderFilters()}
+          <div className={`${baseClass}__table`}>
+            {renderCategoriesMenu()}
+            <Spinner />
+          </div>
         </>
       );
     }
@@ -298,44 +346,54 @@ const SoftwareSelfService = ({
     if (isEmptySearch) {
       return (
         <>
-          {renderHeader()}
-          <EmptyTable
-            graphicName="empty-search-question"
-            header="No items match the current search criteria"
-            info={
-              <>
-                Not finding what you&apos;re looking for?{" "}
-                <CustomLink url={contactUrl} text="reach out to IT" newTab />
-              </>
-            }
-          />
+          {renderHeaderFilters()}
+          <div className={`${baseClass}__table`}>
+            {renderCategoriesMenu()}
+            <EmptyTable
+              graphicName="empty-search-question"
+              header="No items match the current search criteria"
+              info={
+                <>
+                  Not finding what you&apos;re looking for?{" "}
+                  <CustomLink url={contactUrl} text="reach out to IT" newTab />
+                </>
+              }
+            />
+          </div>
         </>
       );
     }
 
     return (
       <>
-        {renderHeader()}
-        <div className={`${baseClass}__items`}>
-          {selfServiceData.software.map((s) => {
-            let uuid =
-              s.software_package?.last_install?.install_uuid ??
-              s.app_store_app?.last_install?.command_uuid;
-            if (!uuid) {
-              uuid = "";
+        {renderHeaderFilters()}
+        <div className={`${baseClass}__table`}>
+          {renderCategoriesMenu()}
+          <TableContainer
+            columnConfigs={tableConfig}
+            data={filterSoftwareByCategory(
+              selfServiceData?.software || [],
+              queryParams.category_id
+            )}
+            isLoading={isLoading}
+            defaultSortHeader={DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_key}
+            defaultSortDirection={
+              DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_direction
             }
-            const key = `${s.id}${uuid}`;
-            return (
-              <SelfServiceItem
-                key={key}
-                deviceToken={deviceToken}
-                software={s}
-                onInstall={onInstall}
-                onShowInstallerDetails={onShowInstallerDetails}
-              />
-            );
-          })}
+            pageIndex={0}
+            disableNextPage={selfServiceData?.meta.has_next_results === false}
+            pageSize={DEFAULT_SELF_SERVICE_QUERY_PARAMS.per_page}
+            emptyComponent={() => (
+              <EmptySoftwareTable noSearchQuery={isEmptySearch} />
+            )}
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            searchable={false}
+            disableTableHeader
+            disableCount
+          />
         </div>
+
         <Pagination
           disableNext={selfServiceData.meta.has_next_results === false}
           disablePrev={selfServiceData.meta.has_previous_results === false}

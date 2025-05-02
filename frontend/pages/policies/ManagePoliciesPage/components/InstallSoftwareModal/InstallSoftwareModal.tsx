@@ -13,6 +13,7 @@ import { IPaginatedListHandle } from "components/PaginatedList";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -64,15 +65,17 @@ const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
   let versionString = "";
 
   if (vppOption) {
-    platformString = "macOS (App Store) • ";
+    platformString = "macOS (App Store)";
     versionString = title.app_store_app?.version || "";
   } else {
     if (title.platform && title.extension) {
       platformString = `${PLATFORM_DISPLAY_NAMES[title.platform]} (.${
         title.extension
-      }) • `;
+      })`;
     }
-    versionString = title.software_package?.version || "";
+    versionString = title.software_package?.version
+      ? ` • ${title.software_package?.version}`
+      : "";
   }
 
   return `${platformString}${versionString}`;
@@ -115,7 +118,11 @@ const InstallSoftwareModal = ({
     {
       select: (data): IEnhancedSoftwareTitle[] =>
         data.software_titles.map((title) => {
-          const extension = title.software_package?.name.split(".").pop();
+          const extension =
+            (title.software_package &&
+              getExtensionFromFileName(title.software_package?.name)) ||
+            undefined;
+
           return {
             ...title,
             platform: formatSoftwarePlatform(title.source),
@@ -287,7 +294,7 @@ const InstallSoftwareModal = ({
                   </span>
                 ) : null;
               }}
-              footer={
+              helpText={
                 <>
                   If compatible with the host, the selected software will be
                   installed when hosts fail the policy. Host counts will reset

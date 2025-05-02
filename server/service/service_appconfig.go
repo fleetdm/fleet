@@ -165,6 +165,13 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					FilesystemConfig: conf.Filesystem,
 				},
 			}
+		case "webhook":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "webhook",
+				Config: fleet.WebhookConfig{
+					WebhookConfig: conf.Webhook,
+				},
+			}
 		case "kinesis":
 			*lp.target = fleet.LoggingPlugin{
 				Plugin: "kinesis",

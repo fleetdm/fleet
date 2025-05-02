@@ -124,8 +124,7 @@ const Info = ({
           >
             <p className={`${baseClass}__section-description`}>
               This logo is displayed in the top navigation, setup experience
-              window, and MDM migration dialog. Please use recommended sizes.
-              Please use{" "}
+              window, and MDM migration dialog. Please use{" "}
               <CustomLink
                 url="https://fleetdm.com/learn-more-about/organization-logo-size"
                 text="recommended sizes"
