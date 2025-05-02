@@ -660,6 +660,7 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 	return nil
 }
 
+// extractTarGz extracts the contents of the provided tar.gz file.
 func extractTarGz(path string) error {
 	tarGzFile, err := secure.OpenFile(path, os.O_RDONLY, 0o755)
 	if err != nil {
