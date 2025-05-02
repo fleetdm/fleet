@@ -16388,7 +16388,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	}
 
 	// Non-existent maintained app
-	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
+	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 123123}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
 	insertedApps := maintained_apps.SyncApps(t, s.ds)
