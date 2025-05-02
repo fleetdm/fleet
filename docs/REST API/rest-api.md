@@ -2332,6 +2332,8 @@ the `software` table.
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
+| profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
+| profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
@@ -5658,7 +5660,8 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
   "verified": 123,
   "verifying": 123,
   "failed": 123,
-  "pending": 123
+  "pending": 123,
+  "counts_updated_at": "2024-10-04T10:00:00Z"
 }
 ```
 
