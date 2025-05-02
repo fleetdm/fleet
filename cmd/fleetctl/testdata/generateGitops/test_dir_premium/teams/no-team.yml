@@ -1,20 +1,21 @@
 controls:
-  enable_disk_encryption: false
+  enable_disk_encryption: true
   ios_updates:
-    deadline:
-    minimum_version:
+    deadline: "2025-12-31"
+    minimum_version: "18.1"
   ipados_updates:
-    deadline:
-    minimum_version:
+    deadline: "2026-12-31"
+    minimum_version: "18.2"
+  macos_setup: 'TODO: update with your macos_setup configuration'
   macos_updates:
-    deadline:
-    minimum_version:
+    deadline: "2024-12-31"
+    minimum_version: "15.1"
   scripts:
   - path: ../lib/no-team/scripts/Script Z.ps1
   windows_enabled_and_configured: true
   windows_updates:
-    deadline_days:
-    grace_period_days:
+    deadline_days: 5
+    grace_period_days: 2
 name: No team
 policies:
 - calendar_events_enabled: false

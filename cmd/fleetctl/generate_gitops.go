@@ -313,7 +313,17 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fileName = "default.yml"
 		}
 
-		var mdmConfig fleet.TeamMDM
+		// Set mdm to the global config by default.
+		// We'll override this for teams other than no-team.
+		mdmConfig := fleet.TeamMDM{
+			EnableDiskEncryption: cmd.AppConfig.MDM.EnableDiskEncryption.Value,
+			MacOSUpdates:         cmd.AppConfig.MDM.MacOSUpdates,
+			IOSUpdates:           cmd.AppConfig.MDM.IOSUpdates,
+			IPadOSUpdates:        cmd.AppConfig.MDM.IPadOSUpdates,
+			WindowsUpdates:       cmd.AppConfig.MDM.WindowsUpdates,
+			MacOSSetup:           cmd.AppConfig.MDM.MacOSSetup,
+		}
+
 		if team == nil {
 			// Generate org settings, agent options and labels for the global config.
 			orgSettings, err := cmd.generateOrgSettings()
@@ -324,15 +334,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 			cmd.FilesToWrite["default.yml"] = map[string]interface{}{
 				"org_settings": orgSettings,
-			}
-
-			mdmConfig = fleet.TeamMDM{
-				EnableDiskEncryption: cmd.AppConfig.MDM.EnableDiskEncryption.Value,
-				MacOSUpdates:         cmd.AppConfig.MDM.MacOSUpdates,
-				IOSUpdates:           cmd.AppConfig.MDM.IOSUpdates,
-				IPadOSUpdates:        cmd.AppConfig.MDM.IPadOSUpdates,
-				WindowsUpdates:       cmd.AppConfig.MDM.WindowsUpdates,
-				MacOSSetup:           cmd.AppConfig.MDM.MacOSSetup,
 			}
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
