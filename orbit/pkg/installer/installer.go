@@ -338,6 +338,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 				if err != nil {
 					return fmt.Errorf("oepn file for extraction: %w", err)
 				}
+				defer tarGzFile.Close()
 
 				if err = update.ExtractOpenTarGzFile(tarGzFile, destDir); err != nil {
 					return fmt.Errorf("extract %q: %w", path, err)
