@@ -303,8 +303,14 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		ptrTeamId = &teamID
 	}
 
-	hashBuf := bytes.NewBuffer(nil)
-	if err := file.CheckPKGSignature(io.TeeReader(pkg, hashBuf)); err != nil {
+	// Read the pkg into a buffer
+	buff := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buff, pkg); err != nil {
+		return err
+	}
+	buffReader := bytes.NewReader(buff.Bytes())
+
+	if err := file.CheckPKGSignature(buffReader); err != nil {
 		msg := "invalid package"
 		if errors.Is(err, file.ErrInvalidType) || errors.Is(err, file.ErrNotSigned) {
 			msg = err.Error()
@@ -316,9 +322,23 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		}
 	}
 
-	pkgBuf := bytes.NewBuffer(nil)
+	buffReader.Reset(buff.Bytes())
+	hasDistribution, err := file.XARHasDistribution(buffReader)
+	if err != nil {
+		return &fleet.BadRequestError{
+			Message:     err.Error(),
+			InternalErr: err,
+		}
+	}
+	if !hasDistribution {
+		return &fleet.BadRequestError{
+			Message: "Couldn’t add. Bootstrap package must be distribution package. Learn more at: https://fleetdm.com/learn-more-about/macos-distribution-packages",
+		}
+	}
+
+	buffReader.Reset(buff.Bytes())
 	hash := sha256.New()
-	if _, err := io.Copy(hash, io.TeeReader(hashBuf, pkgBuf)); err != nil {
+	if _, err := io.Copy(hash, buffReader); err != nil {
 		return err
 	}
 
@@ -327,7 +347,7 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		Name:   name,
 		Token:  uuid.New().String(),
 		Sha256: hash.Sum(nil),
-		Bytes:  pkgBuf.Bytes(),
+		Bytes:  buff.Bytes(),
 	}
 	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp, svc.bootstrapPackageStore); err != nil {
 		return err
