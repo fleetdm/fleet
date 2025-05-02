@@ -88,6 +88,20 @@ describe("SoftwareOptionsSelector", () => {
     expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("disables checkboxes when disableOptions is true", () => {
+    renderComponent({ disableOptions: true });
+
+    const selfServiceCheckbox = screen
+      .getByText("Self-service")
+      .closest('[role="checkbox"]');
+    const automaticInstallCheckbox = screen
+      .getByText("Automatic install")
+      .closest('[role="checkbox"]');
+
+    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "true");
+    expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
+  });
+
   it("renders the InfoBanner when automaticInstall is true and isCustomPackage is true", () => {
     renderComponent({
       formData: { ...defaultProps.formData, automaticInstall: true },
@@ -128,6 +142,32 @@ describe("SoftwareOptionsSelector", () => {
   });
 
   it("does not render automatic install checkbox when isEditingSoftware is true", () => {
+    renderComponent({ isEditingSoftware: true });
+
+    expect(screen.queryByText("Automatic install")).not.toBeInTheDocument();
+  });
+
+  it("displays platform-specific message for iOS", () => {
+    renderComponent({ platform: "ios" });
+
+    expect(
+      screen.getByText(
+        /Currently, self-service and automatic installation are not available for iOS and iPadOS/i
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("displays platform-specific message for iPadOS", () => {
+    renderComponent({ platform: "ipados" });
+
+    expect(
+      screen.getByText(
+        /Currently, self-service and automatic installation are not available for iOS and iPadOS/i
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("does not render automatic install checkbox in edit mode", () => {
     renderComponent({ isEditingSoftware: true });
 
     expect(screen.queryByText("Automatic install")).not.toBeInTheDocument();
