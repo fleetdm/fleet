@@ -2150,7 +2150,7 @@ CREATE TABLE `software_installer_software_categories` (
   `software_installer_id` int unsigned NOT NULL,
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  KEY `software_installer_id` (`software_installer_id`),
+  UNIQUE KEY `idx_unique_software_installer_id_software_category_id` (`software_installer_id`,`software_category_id`),
   KEY `software_category_id` (`software_category_id`),
   CONSTRAINT `software_installer_software_categories_ibfk_1` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE,
   CONSTRAINT `software_installer_software_categories_ibfk_2` FOREIGN KEY (`software_category_id`) REFERENCES `software_categories` (`id`) ON DELETE CASCADE
@@ -2360,7 +2360,7 @@ CREATE TABLE `vpp_app_team_software_categories` (
   `vpp_app_team_id` int unsigned NOT NULL,
   `created_at` datetime(6) DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  KEY `vpp_app_team_id` (`vpp_app_team_id`),
+  UNIQUE KEY `idx_unique_vpp_app_team_id_software_category_id` (`vpp_app_team_id`,`software_category_id`),
   KEY `software_category_id` (`software_category_id`),
   CONSTRAINT `vpp_app_team_software_categories_ibfk_1` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE,
   CONSTRAINT `vpp_app_team_software_categories_ibfk_2` FOREIGN KEY (`software_category_id`) REFERENCES `software_categories` (`id`) ON DELETE CASCADE
