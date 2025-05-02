@@ -373,8 +373,8 @@ func TestInstallerRun(t *testing.T) {
 		r.removeAllFn = func(s string) error {
 			removedDir = s
 			removeAllFnCalled = true
-			require.NoError(t, os.Remove(filepath.Join(tmpDir, "extracted", "install-script"+scriptExtension)))
-			require.NoError(t, os.Remove(filepath.Join(tmpDir, "extracted", "post-install-script"+scriptExtension)))
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "install-script"+scriptExtension)))
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "post-install-script"+scriptExtension)))
 			require.NoError(t, os.Remove(filepath.Join(tmpDir, "extracted")))
 
 			return nil
@@ -389,8 +389,8 @@ func TestInstallerRun(t *testing.T) {
 		require.True(t, tmpDirFnCalled)
 
 		require.True(t, execCalled)
-		require.Contains(t, executedScripts, filepath.Join(tmpDir, "extracted", "install-script"+scriptExtension))
-		require.Contains(t, executedScripts, filepath.Join(tmpDir, "extracted", "post-install-script"+scriptExtension))
+		require.Contains(t, executedScripts, filepath.Join(tmpDir, "install-script"+scriptExtension))
+		require.Contains(t, executedScripts, filepath.Join(tmpDir, "post-install-script"+scriptExtension))
 		require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, "extracted"))
 
 		require.True(t, queryFnCalled)

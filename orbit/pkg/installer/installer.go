@@ -417,10 +417,6 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string, fileName string) (string, int, error) {
 	// run script in installer directory
 	installerDir := filepath.Dir(installerPath)
-	if filepath.Base(installerPath) == extractionDirectoryName {
-		installerDir = installerPath // extracted archives use extraction path rather than installer filename
-	}
-
 	scriptPath := filepath.Join(installerDir, fileName)
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
 		return "", -1, fmt.Errorf("writing script: %w", err)
