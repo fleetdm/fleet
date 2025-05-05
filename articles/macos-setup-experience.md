@@ -213,7 +213,7 @@ By default, Fleet's agent (fleetd) is automatically installed during automatic e
 
 First, generate your fleetd package by running the command `fleetctl package`, ensuring you do **not** use the `--use-system-configuration` flag. 
 
-Next, incorporate the generated fleetd package into your bootstrap package and add a script to modify fleetd's [launchd template](https://github.com/fleetdm/fleet/blob/fleet-v4.66.0/orbit/pkg/packaging/macos_templates.go#L96) with the required options.
+Next, add fleetd to your bootstrap package. To customize fleetd further, you can also add a script to modify fleetd's [launchd template](https://github.com/fleetdm/fleet/blob/fleet-v4.66.0/orbit/pkg/packaging/macos_templates.go#L96).
 
 Then, navigate to **Controls > Setup Experience > Bootstrap package** in the Fleet interface and upload your bootstrap package. Make sure to check the option **Install Fleet’s agent (fleetd) manually** and then select **Save**.
 
