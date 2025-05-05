@@ -646,6 +646,9 @@ const (
 	// Config
 	InvalidServerURLMsg = `Fleet server URL must use “https” or “http”.`
 
+	// macOS setup experience
+	BootstrapPkgNotDistributionErrMsg = "Couldn’t add. Bootstrap package must be a distribution package. Learn more at: https://fleetdm.com/learn-more-about/macos-distribution-packages"
+
 	// NDES/SCEP validation
 	MultipleSCEPPayloadsErrMsg          = "Add only one SCEP payload."
 	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload."

@@ -331,9 +331,7 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		}
 	}
 	if !hasDistribution {
-		return &fleet.BadRequestError{
-			Message: "Couldn’t add. Bootstrap package must be distribution package. Learn more at: https://fleetdm.com/learn-more-about/macos-distribution-packages",
-		}
+		return &fleet.BadRequestError{Message: fleet.BootstrapPkgNotDistributionErrMsg}
 	}
 
 	buffReader.Reset(buff.Bytes())
