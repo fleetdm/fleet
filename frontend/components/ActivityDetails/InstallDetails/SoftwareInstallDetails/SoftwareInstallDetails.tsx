@@ -126,7 +126,6 @@ export const SoftwareInstallDetails = ({
   }
 
   if (isError) {
-    // Handle 404 error
     if (error?.status === 404) {
       const description =
         "Install details are no longer available for this activity.";

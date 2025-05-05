@@ -74,9 +74,11 @@ export const AppInstallDetails = ({
     }
   );
 
-  console.log("APPINSTALLDETAILS");
+  if (isLoading) {
+    return <Spinner />;
+  }
+
   if (isError) {
-    // Handle 404 error
     if (error?.status === 404) {
       const description =
         "Install details are no longer available for this activity.";
@@ -87,7 +89,6 @@ export const AppInstallDetails = ({
       );
     }
 
-    // Handle 401 error
     if (error?.status === 401) {
       const description = "Close this modal and try again.";
       return deviceAuthToken ? (
