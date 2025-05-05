@@ -5508,7 +5508,6 @@ Resends a configuration profile for the specified host.
 
 ### Batch-resend custom OS setting (configuration profile)
 
-_Available in Fleet Premium_
 
 `POST /api/v1/fleet/configuration_profiles/resend/batch`
 
