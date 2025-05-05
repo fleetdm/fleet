@@ -629,7 +629,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 		},
 	}
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []string) (*fleet.MDMAppleConfigProfile, error) {
 		return &cp, nil
 	}
 	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -741,7 +741,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
 	r := bytes.NewReader(mcBytes)
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []string) (*fleet.MDMAppleConfigProfile, error) {
 		require.Equal(t, "Foo", cp.Name)
 		assert.Equal(t, identifier, cp.Identifier)
 		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
@@ -3555,7 +3555,15 @@ func TestMDMApplePreassignEndpoints(t *testing.T) {
 	}
 }
 
-func mobileconfigForTest(name, identifier string) []byte {
+func mobileconfigForTest(name, identifier string, vars ...string) []byte {
+	var varsStr strings.Builder
+	for i, v := range vars {
+		if !strings.HasPrefix(v, "FLEET_VAR_") {
+			v = "FLEET_VAR_" + v
+		}
+		varsStr.WriteString(fmt.Sprintf("<key>Var %d</key><string>$%s</string>", i, v))
+	}
+
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -3572,9 +3580,10 @@ func mobileconfigForTest(name, identifier string) []byte {
 	<string>%s</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
+	%s
 </dict>
 </plist>
-`, name, identifier, uuid.New().String()))
+`, name, identifier, uuid.New().String(), varsStr.String()))
 }
 
 func declBytesForTest(identifier string, payloadContent string) []byte {

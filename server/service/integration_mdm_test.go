@@ -5625,6 +5625,7 @@ func (s *integrationMDMTestSuite) checkStoredIdPInfo(t *testing.T, uuid, usernam
 
 func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 
 	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
@@ -5783,6 +5784,69 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	)
 	require.NoError(t, err)
 
+	// mark any pending command as acknowledged at this point
+	s.awaitTriggerProfileSchedule(t)
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// add two profiles to no team, one that uses the IdP username and one that uses groups
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1", fleet.FleetVarHostEndUserIDPUsername)},
+		{Name: "N2", Contents: mobileconfigForTest("N2", "I2", fleet.FleetVarHostEndUserIDPGroups)},
+	}}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 	mysql.DumpTable(t, q, "mdm_apple_configuration_profiles", "team_id", "identifier", "name")
+	// 	mysql.DumpTable(t, q, "host_mdm_apple_profiles", "host_uuid", "status", "operation_type", "profile_name")
+	// 	return nil
+	// })
+
+	// one will be failed (no IdP groups), and the other will succeed and be sent to the host
+	// ask for commands and verify that we get InstallProfile for the username N1 profile
+	var installProfCmd *mdm.Command
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		if cmd.Command.RequestType == "InstallProfile" {
+			installProfCmd = cmd
+		}
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotNil(t, installProfCmd)
+	var decodedCmd struct {
+		Command struct {
+			Payload []byte
+		}
+	}
+	err = plist.Unmarshal(installProfCmd.Raw, &decodedCmd)
+	require.NoError(t, err)
+	// variable was replaced with the IdP username
+	require.Contains(t, string(decodedCmd.Command.Payload), "some_other_username")
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host.MDM.Profiles)
+	var expectedCount int
+	for _, prof := range *hostResp.Host.MDM.Profiles {
+		switch prof.Name {
+		case "N1": // profile with username
+			expectedCount++
+			require.NotNil(t, prof.Status)
+			require.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+		case "N2": // profile with group
+			expectedCount++
+			require.NotNil(t, prof.Status)
+			require.Equal(t, fleet.MDMDeliveryFailed, *prof.Status)
+		}
+	}
+	require.Equal(t, 2, expectedCount)
+
 	// Also add a group to the SCIM user
 	createGroup1Payload := map[string]interface{}{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
@@ -5796,8 +5860,65 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	var createGroup1Resp map[string]interface{}
 	s.DoJSON("POST", "/api/latest/fleet/scim/Groups", createGroup1Payload, http.StatusCreated, &createGroup1Resp)
 
+	// this marked profile N2 as pending for the host as the groups changed
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host.MDM.Profiles)
+	expectedCount = 0
+	for _, prof := range *hostResp.Host.MDM.Profiles {
+		switch prof.Name {
+		case "N1": // profile with username
+			expectedCount++
+			require.NotNil(t, prof.Status)
+			require.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+		case "N2": // profile with group
+			expectedCount++
+			require.NotNil(t, prof.Status)
+			require.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
+		}
+	}
+	require.Equal(t, 2, expectedCount)
+
+	// reconcile profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	// ask for commands and verify that we get InstallProfile for the group N2 profile
+	installProfCmd = nil
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		if cmd.Command.RequestType == "InstallProfile" {
+			installProfCmd = cmd
+		}
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.NotNil(t, installProfCmd)
+	err = plist.Unmarshal(installProfCmd.Raw, &decodedCmd)
+	require.NoError(t, err)
+	// variable was replaced with the IdP group
+	require.Contains(t, string(decodedCmd.Command.Payload), "Test Group 1")
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+
+	// check that both profiles are now delivered
+	require.NotNil(t, hostResp.Host.MDM.Profiles)
+	expectedCount = 0
+	for _, prof := range *hostResp.Host.MDM.Profiles {
+		switch prof.Name {
+		case "N1": // profile with username
+			expectedCount++
+			require.NotNil(t, prof.Status)
+			require.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+		case "N2": // profile with group
+			expectedCount++
+			require.NotNil(t, prof.Status)
+			require.Equal(t, fleet.MDMDeliveryVerifying, *prof.Status)
+		}
+	}
+	require.Equal(t, 2, expectedCount)
+
 	checkEndUser = func() {
 		require.Len(t, hostResp.Host.EndUsers, 1)
 		endUser := hostResp.Host.EndUsers[0]
