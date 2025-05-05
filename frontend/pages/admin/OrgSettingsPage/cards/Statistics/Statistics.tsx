@@ -72,7 +72,7 @@ const Statistics = ({
           <Checkbox
             onChange={onInputChange}
             name="enableUsageStatistics"
-            value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
+            value={enableUsageStatistics} // Set to true for all premium customers
             parseTarget
             disabled={isPremiumTier}
           >

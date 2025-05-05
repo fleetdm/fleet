@@ -687,6 +687,11 @@ the way that the Fleet server works.
 				}
 			}
 
+			// Some premium users are allowed to disable statistics with a flag
+			if !config.License.EnableAnalytics {
+				appCfg.ServerSettings.EnableAnalytics = false
+			}
+
 			// save the app config with the updated MDM.Enabled value
 			if err := ds.SaveAppConfig(context.Background(), appCfg); err != nil {
 				initFatal(err, "saving app config")
