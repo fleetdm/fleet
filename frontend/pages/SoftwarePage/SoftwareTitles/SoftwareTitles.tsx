@@ -174,7 +174,7 @@ const SoftwareTitles = ({
   }
 
   if (isTitlesError || isVersionsError || isTitlesAFIError) {
-    return <TableDataError variant="page" />;
+    return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (

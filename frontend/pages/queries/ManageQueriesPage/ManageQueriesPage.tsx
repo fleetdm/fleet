@@ -281,7 +281,7 @@ const ManageQueriesPage = ({
 
   const renderQueriesTable = () => {
     if (queriesError) {
-      return <TableDataError variant="page" />;
+      return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
     return (
       <QueriesTable

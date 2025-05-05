@@ -151,7 +151,7 @@ const ActivityFeed = ({
   };
 
   const renderError = () => {
-    return <DataError variant="card" />;
+    return <DataError verticalPaddingSize="pad-large" />;
   };
 
   const renderNoActivities = () => {

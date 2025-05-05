@@ -90,7 +90,7 @@ const Software = ({
             </TabList>
             <TabPanel>
               {!isSoftwareFetching && errorSoftware ? (
-                <DataError variant="card" />
+                <DataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer
                   columnConfigs={tableHeaders}
@@ -113,7 +113,7 @@ const Software = ({
             </TabPanel>
             <TabPanel>
               {!isSoftwareFetching && errorSoftware ? (
-                <DataError variant="card" />
+                <DataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer
                   columnConfigs={tableHeaders}

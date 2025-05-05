@@ -100,7 +100,7 @@ const SoftwareFleetMaintained = ({
   }
 
   if (isError) {
-    return <DataError variant="page" />;
+    return <DataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (

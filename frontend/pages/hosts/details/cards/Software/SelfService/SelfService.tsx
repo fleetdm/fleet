@@ -430,7 +430,65 @@ const SoftwareSelfService = ({
           </>
         }
       />
+<<<<<<< HEAD
       {renderSelfServiceCard()}
+=======
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        <>
+          {isError && <DataError verticalPaddingSize="pad-xxxlarge" />}
+          {!isError && (
+            <div className={baseClass}>
+              {isEmpty ? (
+                <EmptyTable
+                  graphicName="empty-software"
+                  header="No self-service software available yet"
+                  info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
+                />
+              ) : (
+                <>
+                  <div className={`${baseClass}__items-count`}>
+                    <b>{`${data.count} ${pluralize(data.count, "item")}`}</b>
+                  </div>
+                  <div className={`${baseClass}__items`}>
+                    {data.software.map((s) => {
+                      let uuid =
+                        s.software_package?.last_install?.install_uuid ??
+                        s.app_store_app?.last_install?.command_uuid;
+                      if (!uuid) {
+                        uuid = "";
+                      }
+                      // concatenating uuid so item updates with fresh data on refetch
+                      const key = `${s.id}${uuid}`;
+                      return (
+                        <SelfServiceItem
+                          key={key}
+                          deviceToken={deviceToken}
+                          software={s}
+                          onInstall={refetch}
+                        />
+                      );
+                    })}
+                  </div>
+                  <Pagination
+                    disableNext={data.meta.has_next_results === false}
+                    disablePrev={data.meta.has_previous_results === false}
+                    hidePagination={
+                      data.meta.has_next_results === false &&
+                      data.meta.has_previous_results === false
+                    }
+                    onNextPage={onNextPage}
+                    onPrevPage={onPrevPage}
+                    className={`${baseClass}__pagination`}
+                  />
+                </>
+              )}
+            </div>
+          )}
+        </>
+      )}
+>>>>>>> 22a5e194df (More use of variants)
     </Card>
   );
 };

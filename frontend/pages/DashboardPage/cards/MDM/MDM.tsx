@@ -152,7 +152,7 @@ const Mdm = ({
             </TabList>
             <TabPanel>
               {error ? (
-                <DataError variant="card" />
+                <DataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer<IRowProps>
                   className={`${baseClass}__mdm-solutions-table`}
@@ -175,7 +175,7 @@ const Mdm = ({
             </TabPanel>
             <TabPanel>
               {error ? (
-                <DataError variant="card" />
+                <DataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer
                   className={`${baseClass}__mdm-status-table`}

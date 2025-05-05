@@ -244,7 +244,7 @@ const SoftwareVulnerabilities = ({
   }
 
   if (isError) {
-    return <TableDataError variant="page" />;
+    return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (

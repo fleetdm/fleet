@@ -142,7 +142,7 @@ const OperatingSystems = ({
       )}
       <div style={opacity}>
         {error?.status && error?.status >= 500 ? (
-          <DataError variant="card" />
+          <DataError verticalPaddingSize="pad-large" />
         ) : (
           <OSTable
             currentTeamId={currentTeamId}

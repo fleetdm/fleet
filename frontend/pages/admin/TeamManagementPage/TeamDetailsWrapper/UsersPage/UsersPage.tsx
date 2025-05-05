@@ -397,7 +397,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       {loadingUsersError ||
       loadingTeamsError ||
       (!currentTeamDetails && !isLoadingTeams && !isLoadingUsers) ? (
-        <TableDataError variant="page" />
+        <TableDataError verticalPaddingSize="pad-xxxlarge" />
       ) : (
         <TableContainer
           resultsTitle="users"

@@ -559,7 +559,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
 
   const HostCountCards = errorHosts ? (
     <Card borderRadiusSize="large">
-      <DataError variant="card" />
+      <DataError verticalPaddingSize="pad-large" />
     </Card>
   ) : (
     <>

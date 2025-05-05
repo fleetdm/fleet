@@ -252,7 +252,7 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     if (isErrorFleetApp || isErrorLabels) {
-      return <DataError className={`${baseClass}__data-error`} />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (fleetApp) {

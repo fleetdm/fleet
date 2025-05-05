@@ -381,7 +381,7 @@ const HostSoftware = ({
     }
     return (
       <>
-        {isError && <DataError />}
+        {isError && <DataError verticalPaddingSize="pad-xxxlarge" />}
         {!isError && (
           <HostSoftwareTable
             isLoading={

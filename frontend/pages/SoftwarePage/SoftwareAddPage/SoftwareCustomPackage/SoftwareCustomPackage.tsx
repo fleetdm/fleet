@@ -161,7 +161,7 @@ const SoftwareCustomPackage = ({
     }
 
     if (isErrorLabels) {
-      return <DataError className={`${baseClass}__data-error`} />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     return (
