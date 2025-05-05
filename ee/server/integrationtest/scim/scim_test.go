@@ -1801,6 +1801,127 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		assert.True(t, primaryFound, "One email should be marked as primary")
 	})
 
+	t.Run("Add a new email", func(t *testing.T) {
+		// First, ensure we have a clean starting state with one email
+		setupEmailsPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"emails": []map[string]interface{}{
+							{
+								"value":   "work-email@example.com",
+								"type":    "work",
+								"primary": true,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
+
+		// Now add a new email
+		addEmailPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "add",
+					"path": "emails",
+					"value": []map[string]interface{}{
+						{
+							"value":   "added-email@example.com",
+							"type":    "home",
+							"primary": false,
+						},
+					},
+				},
+			},
+		}
+
+		var addEmailResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addEmailPayload, http.StatusOK, &addEmailResp)
+
+		// Verify both emails are present
+		emails, ok := addEmailResp["emails"].([]interface{})
+		require.True(t, ok, "Response should have emails array")
+		assert.Equal(t, 2, len(emails), "Should have 2 emails after adding one")
+
+		// Check that both the original and new emails are present
+		emailValues := make([]string, 0, 2)
+		emailTypes := make(map[string]string)
+		for _, e := range emails {
+			email, ok := e.(map[string]interface{})
+			assert.True(t, ok, "Email should be an object")
+			emailValue := email["value"].(string)
+			emailValues = append(emailValues, emailValue)
+			emailTypes[emailValue] = email["type"].(string)
+		}
+
+		assert.Contains(t, emailValues, "work-email@example.com", "Original work email should still be present")
+		assert.Contains(t, emailValues, "added-email@example.com", "Added home email should be present")
+		assert.Equal(t, "work", emailTypes["work-email@example.com"], "Original email should be of type work")
+		assert.Equal(t, "home", emailTypes["added-email@example.com"], "Added email should be of type home")
+	})
+
+	t.Run("Delete an email by type", func(t *testing.T) {
+		// First, ensure we have both work and home emails
+		setupEmailsPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"emails": []map[string]interface{}{
+							{
+								"value":   "work-email@example.com",
+								"type":    "work",
+								"primary": true,
+							},
+							{
+								"value":   "home-email@example.com",
+								"type":    "home",
+								"primary": false,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
+
+		// Delete the home email
+		deleteEmailPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "remove",
+					"path": `emails[type eq "home"]`,
+				},
+			},
+		}
+
+		var deleteEmailResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deleteEmailPayload, http.StatusOK, &deleteEmailResp)
+
+		// Verify only work email remains
+		emails, ok := deleteEmailResp["emails"].([]interface{})
+		require.True(t, ok, "Response should have emails array")
+		assert.Equal(t, 1, len(emails), "Should have only 1 email after deleting home email")
+
+		// Check that only the work email remains
+		email, ok := emails[0].(map[string]interface{})
+		assert.True(t, ok, "Email should be an object")
+		assert.Equal(t, "work-email@example.com", email["value"], "Work email should remain")
+		assert.Equal(t, "work", email["type"], "Remaining email should be of type work")
+		assert.Equal(t, true, email["primary"], "Work email should be primary")
+	})
+
 	t.Run("Patch emails by type filter", func(t *testing.T) {
 		// First, ensure we have both work and home emails
 		setupEmailsPayload := map[string]interface{}{
@@ -2518,6 +2639,59 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 		var patchActiveWithPathResp map[string]interface{}
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchActiveWithPathPayload, http.StatusOK, &patchActiveWithPathResp)
 		assert.Equal(t, false, patchActiveWithPathResp["active"], "active should be updated to false with explicit path")
+	})
+
+	t.Run("Add a new attribute", func(t *testing.T) {
+		// Add externalId attribute
+		addExternalIdPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "add",
+					"path":  "externalId",
+					"value": "external-id-123",
+				},
+			},
+		}
+
+		var addExternalIdResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addExternalIdPayload, http.StatusOK, &addExternalIdResp)
+		assert.Equal(t, "external-id-123", addExternalIdResp["externalId"], "externalId should be added")
+	})
+
+	t.Run("Delete an attribute", func(t *testing.T) {
+		// First, ensure the user has an externalId
+		setupExternalIdPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"externalId": "external-id-to-delete",
+					},
+				},
+			},
+		}
+
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupExternalIdPayload, http.StatusOK, &setupResp)
+		assert.Equal(t, "external-id-to-delete", setupResp["externalId"], "externalId should be set")
+
+		// Now delete the externalId
+		deleteExternalIdPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "remove",
+					"path": "externalId",
+				},
+			},
+		}
+
+		var deleteExternalIdResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deleteExternalIdPayload, http.StatusOK, &deleteExternalIdResp)
+		_, hasExternalId := deleteExternalIdResp["externalId"]
+		assert.False(t, hasExternalId, "externalId should be deleted")
 	})
 
 	// Failure tests using table-driven approach

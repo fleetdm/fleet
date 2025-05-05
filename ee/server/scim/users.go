@@ -442,6 +442,11 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			}
 			for k, v := range newValues {
 				switch k {
+				case externalIdAttr:
+					err = u.patchExternalId(op.Op, v, user)
+					if err != nil {
+						return scim.Resource{}, err
+					}
 				case userNameAttr:
 					err = u.patchUserName(op.Op, v, user)
 					if err != nil {
@@ -476,6 +481,11 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					level.Info(u.logger).Log("msg", "unsupported patch value field", "field", k)
 					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 				}
+			}
+		case op.Path.String() == externalIdAttr:
+			err = u.patchExternalId(op.Op, op.Value, user)
+			if err != nil {
+				return scim.Resource{}, err
 			}
 		case op.Path.String() == userNameAttr:
 			err = u.patchUserName(op.Op, op.Value, user)
@@ -551,9 +561,13 @@ func (u *UserHandler) patchEmailsWithPathFiltering(op scim.PatchOperation, user 
 		level.Info(u.logger).Log("msg", "email not found", "email_type", emailType, "op", fmt.Sprintf("%v", op))
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
+	fmt.Printf("%v\n", op)
+	fmt.Printf("op.Path.SubAttribute: %v\n", op.Path.SubAttribute)
 	if op.Path.SubAttribute == nil {
 		if op.Op == scim.PatchOperationRemove {
-			user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex)
+			fmt.Printf("index: %d user.Emails: %v\n", emailIndex, user.Emails)
+			user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex+1)
+			fmt.Printf("user.Emails: %v\n", user.Emails)
 			return nil
 		}
 		// The value for emails comes in as an array.
@@ -565,7 +579,7 @@ func (u *UserHandler) patchEmailsWithPathFiltering(op scim.PatchOperation, user 
 		switch op.Op {
 		case scim.PatchOperationReplace:
 			if len(userEmails) == 0 {
-				user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex)
+				user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex+1)
 				return nil
 			}
 			if len(userEmails) != 1 {
@@ -724,6 +738,19 @@ func (u *UserHandler) patchActive(op string, v interface{}, user *fleet.ScimUser
 		return err
 	}
 	user.Active = &active
+	return nil
+}
+
+func (u *UserHandler) patchExternalId(op string, v interface{}, user *fleet.ScimUser) error {
+	if op == scim.PatchOperationRemove || v == nil {
+		user.ExternalID = nil
+		return nil
+	}
+	externalId, err := getConcreteType[string](u, v, externalIdAttr)
+	if err != nil {
+		return err
+	}
+	user.ExternalID = ptr.String(externalId)
 	return nil
 }
 
