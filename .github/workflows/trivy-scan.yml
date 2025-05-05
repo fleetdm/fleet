@@ -8,6 +8,7 @@ on:
   pull_request:
     paths:
       - "**.tf"
+      - ".github/workflows/trivy-scan.yml"
   workflow_dispatch:
   schedule:
     - cron: "0 4 * * *" # Nightly 4AM UTC
@@ -53,17 +54,24 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Run Trivy vulnerability scanner in repo mode
-        uses: aquasecurity/trivy-action@062f2592684a31eb3aa050cc61e7ca1451cecd3d # 0.18.0
+        uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5 # v0.30.0
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
         with:
           scan-type: "fs"
+          scan-ref: .
           ignore-unfixed: false
           format: "sarif"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH,MEDIUM,LOW"
           trivyignores: "./security/code/.trivyignore"
+
+      - name: Upload Trivy scan results as artifact
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: trivy-results.sarif
+          path: ./trivy-results.sarif
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@8a470fddafa5cbb6266ee11b37ef4d8aae19c571 # v3.24.6
