@@ -1538,6 +1538,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
 		return vppToken, nil
 	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
+	}
 
 	createFakeITunesAndVPPServices(t)
 
@@ -2845,6 +2848,9 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 			return nil, sql.ErrNoRows
 		}
 		return token, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
 	}
 
 	buf, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_vpp.yml", "-f", "testdata/gitops/team_vpp_valid_app.yml"})
