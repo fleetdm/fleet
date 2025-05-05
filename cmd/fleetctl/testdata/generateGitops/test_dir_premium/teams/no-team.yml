@@ -6,6 +6,10 @@ controls:
   ipados_updates:
     deadline: "2026-12-31"
     minimum_version: "18.2"
+  macos_migration:
+    enable: true
+    mode: voluntary
+    webhook_url: https://some-macos-migration-webhook-url.com
   macos_setup: 'TODO: update with your macos_setup configuration'
   macos_updates:
     deadline: "2024-12-31"
@@ -13,6 +17,7 @@ controls:
   scripts:
   - path: ../lib/no-team/scripts/Script Z.ps1
   windows_enabled_and_configured: true
+  windows_migration_enabled: true
   windows_updates:
     deadline_days: 5
     grace_period_days: 2
