@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1718,9 +1720,16 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	profilesVariablesByIdentifier, err := validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
+	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
+	}
+	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
+	for identifier, variables := range profilesVariablesByIdentifierMap {
+		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
+			Identifier:     identifier,
+			FleetVariables: slices.Collect(maps.Keys(variables)),
+		})
 	}
 
 	// Now that validation is done, we remove the exposed secret variables from the profiles

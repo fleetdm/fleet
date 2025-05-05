@@ -36,7 +36,7 @@ import (
 // addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
 var addHostMDMCommandsBatchSize = 10000
 
-func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
+func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 	stmt := `
 INSERT INTO
@@ -107,7 +107,9 @@ INSERT INTO
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
-		if err := batchSetProfileVariableAssociationsDB(ctx, tx, map[string]map[string]struct{}{profUUID: usesFleetVars}, "darwin"); err != nil {
+		if err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+			{ProfileUUID: profUUID, FleetVariables: usesFleetVars},
+		}, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile variable associations")
 		}
 
@@ -1857,7 +1859,7 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMAppleConfigProfile,
-	profilesVariablesByIdentifier map[string]map[string]struct{},
+	profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updatedDB bool, err error) {
 	const loadExistingProfiles = `
 SELECT
@@ -2003,11 +2005,19 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrap(ctx, err, "load inserted/updated profiles")
 		}
 
+		lookupVariablesByIdentifier := make(map[string][]string, len(profilesVariablesByIdentifier))
+		for _, p := range profilesVariablesByIdentifier {
+			lookupVariablesByIdentifier[p.Identifier] = p.FleetVariables
+		}
+
 		// collect the profiles+variables that need to be upserted, keyed by
 		// profile UUID as needed by the batch-set profile variables function.
-		profilesVarsToUpsert := make(map[string]map[string]struct{}, len(insertedUpdatedProfs))
+		profilesVarsToUpsert := make([]fleet.MDMProfileUUIDFleetVariables, 0, len(insertedUpdatedProfs))
 		for _, p := range insertedUpdatedProfs {
-			profilesVarsToUpsert[p.ProfileUUID] = profilesVariablesByIdentifier[p.Identifier]
+			profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
+				ProfileUUID:    p.ProfileUUID,
+				FleetVariables: lookupVariablesByIdentifier[p.Identifier],
+			})
 		}
 
 		if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "darwin"); err != nil {

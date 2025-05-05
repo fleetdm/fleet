@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -431,7 +432,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		// TODO what happens if mode is not set?s
 	}
 
-	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, profileVars)
+	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, slices.Collect(maps.Keys(profileVars)))
 	if err != nil {
 		var existsErr endpoint_utils.ExistsErrorInterface
 		if errors.As(err, &existsErr) {

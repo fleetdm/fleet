@@ -762,7 +762,7 @@ type UpdateVulnerabilityHostCountsFunc func(ctx context.Context, maxRoutines int
 
 type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
-type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error)
+type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error)
 
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
@@ -1068,7 +1068,7 @@ type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindow
 
 type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
-type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables map[string]map[string]struct{}) (updates fleet.MDMProfilesUpdates, err error)
+type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
@@ -3190,7 +3190,7 @@ type DataStore struct {
 	RenewMDMManagedCertificatesFunc        RenewMDMManagedCertificatesFunc
 	RenewMDMManagedCertificatesFuncInvoked bool
 
-	ListHostMDMManagedCertificatesFunc ListHostMDMManagedCertificatesFunc
+	ListHostMDMManagedCertificatesFunc        ListHostMDMManagedCertificatesFunc
 	ListHostMDMManagedCertificatesFuncInvoked bool
 
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
@@ -5891,7 +5891,7 @@ func (s *DataStore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 	return s.IsCVEKnownToFleetFunc(ctx, cve)
 }
 
-func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
+func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
@@ -6962,7 +6962,7 @@ func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp f
 	return s.SetOrUpdateMDMWindowsConfigProfileFunc(ctx, cp)
 }
 
-func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables map[string]map[string]struct{}) (updates fleet.MDMProfilesUpdates, err error) {
+func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error) {
 	s.mu.Lock()
 	s.BatchSetMDMProfilesFuncInvoked = true
 	s.mu.Unlock()
