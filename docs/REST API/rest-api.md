@@ -5644,7 +5644,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| profile_uuid                   | string | query | **Required**. The UUID of the existing configuration profile you'd like to resend.              |
+| profile_uuid                   | string | query | **Required**. The UUID of configuration profile.             |
 
 #### Example
 
