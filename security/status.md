@@ -55,6 +55,16 @@ Following is the vulnerability report of Fleet components.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-10T15:42:55.967763-03:00
 
+### CVE-2024-8260
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet doesn't run on Windows, so it's not affected by this vulnerability.
+- **Products:**
+  - `fleet`
+  - `pkg:golang/github.com/open-policy-agent/opa`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-05-05T20:54:14.90724-03:00
+
 ### CVE-2024-12797
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
