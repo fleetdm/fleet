@@ -6847,7 +6847,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\n- Available for ChromeOS 91+.",
+    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\n- On ChromeOS, this table will only display information about _removable_ storage media, such as USB sticks or external hard drives.\n\n- Available for ChromeOS 91+.",
     "examples": "```\nSELECT * FROM disk_info;\n```",
     "columns": [
       {
