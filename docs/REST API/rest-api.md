@@ -5613,7 +5613,7 @@ optionally be filtered by `team_id`. If no `team_id` is specified, team profiles
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
+| team_id                   | string | query | _Available in Fleet Premium_. The team ID to filter profiles.              |
 
 #### Example
 
