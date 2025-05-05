@@ -66,7 +66,7 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return err
 	}
 
-	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, hsip, currS)
+	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, hsip, currS, ds.logger)
 	if err != nil {
 		return err
 	}
@@ -122,6 +122,7 @@ func hostSoftwareInstalledPathsDelta(
 	reported map[string]struct{},
 	stored []fleet.HostSoftwareInstalledPath,
 	hostSoftware []fleet.Software,
+	logger log.Logger,
 ) (
 	toInsert []fleet.HostSoftwareInstalledPath,
 	toDelete []uint,
@@ -172,7 +173,7 @@ func hostSoftwareInstalledPathsDelta(
 		// because this executes after 'ds.UpdateHostSoftware'
 		s, ok := sUnqStrLook[unqStr]
 		if !ok {
-			// this condition is only expected occur for electron helper apps on macOS where multiple helper apps share the same bundle identifier
+			level.Debug(logger).Log("msg", "skipping installed path for software not found", "host_id", hostID, "unq_str", unqStr)
 			continue
 		}
 

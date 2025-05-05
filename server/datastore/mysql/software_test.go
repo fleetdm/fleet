@@ -2927,7 +2927,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("empty args", func(t *testing.T) {
-		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, nil, nil, nil)
+		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, nil, nil, nil, nil)
 		require.Empty(t, toI)
 		require.Empty(t, toD)
 		require.NoError(t, err)
@@ -2944,7 +2944,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			})
 		}
 
-		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, nil, stored, software)
+		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, nil, stored, software, nil)
 		require.NoError(t, err)
 
 		require.Empty(t, toI)
@@ -2966,7 +2966,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		reported[fmt.Sprintf("/some/path/%d%s%s%s%s", software[2].ID, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, software[2].ToUniqueStr())] = struct{}{}
 
 		var stored []fleet.HostSoftwareInstalledPath
-		_, _, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, nil)
+		_, _, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, nil, nil)
 		require.Error(t, err)
 	})
 
@@ -3005,7 +3005,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 			InstalledPath: fmt.Sprintf("/some/path/%d", software[3].ID),
 		})
 
-		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, software)
+		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, software, nil)
 		require.NoError(t, err)
 
 		require.Len(t, toD, 3)
