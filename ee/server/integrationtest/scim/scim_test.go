@@ -2642,18 +2642,18 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 				errorMessage: errors.ScimErrorInvalidValue.Detail,
 			},
 			{
-				name: "unsupported operation (add instead of replace)",
+				name: "unsupported operation",
 				payload: map[string]interface{}{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
 					"Operations": []map[string]interface{}{
 						{
-							"op":    "add", // Only "replace" is supported
+							"op":    "bad",
 							"path":  "active",
 							"value": false,
 						},
 					},
 				},
-				errorMessage: "Bad Request",
+				errorMessage: errors.ScimErrorInvalidValue.Detail,
 			},
 			{
 				name: "no path and invalid value format",
