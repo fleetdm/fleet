@@ -2722,7 +2722,7 @@ func filterVppAppsByLabel(
 	hostVPPInstalledTitles map[uint]*hostSoftware,
 ) (map[string]*hostSoftware, map[string]*hostSoftware, error) {
 	filteredbyVppAppID := make(map[string]*hostSoftware, len(byVppAppID))
-	additionalVppApps := make(map[string]*hostSoftware, len(hostVPPInstalledTitles))
+	otherVppAppsInInventory := make(map[string]*hostSoftware, len(hostVPPInstalledTitles))
 	vppAppIDsToCheck := make([]string, 0, len(byVppAppID))
 
 	for _, st := range byVppAppID {
@@ -2851,12 +2851,12 @@ func filterVppAppsByLabel(
 			if _, ok := byVppAppID[validAppApp.AdamId]; ok {
 				filteredbyVppAppID[validAppApp.AdamId] = byVppAppID[validAppApp.AdamId]
 			} else if svpp, ok := hostVPPInstalledTitles[validAppApp.TitleId]; ok {
-				additionalVppApps[validAppApp.AdamId] = svpp
+				otherVppAppsInInventory[validAppApp.AdamId] = svpp
 			}
 		}
 	}
 
-	return filteredbyVppAppID, additionalVppApps, nil
+	return filteredbyVppAppID, otherVppAppsInInventory, nil
 }
 
 func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint, selfServiceOnly bool, isMDMEnrolled bool) ([]*hostSoftware, error) {
