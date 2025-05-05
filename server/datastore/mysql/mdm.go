@@ -123,7 +123,7 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 }
 
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariablesByIdentifier map[string]map[string]struct{},
+	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updates fleet.MDMProfilesUpdates, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -131,7 +131,7 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
 		}
 
-		// for now, only apple profiles support variables
+		// for now, only apple profiles support Fleet variables
 		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
@@ -1506,7 +1506,7 @@ func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.
 func batchSetProfileVariableAssociationsDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
-	profileVariablesByUUID map[string]map[string]struct{},
+	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
 	platform string,
 ) error {
 	if len(profileVariablesByUUID) == 0 {
@@ -1525,8 +1525,13 @@ func batchSetProfileVariableAssociationsDB(
 
 	// collect the profile uuids to clear
 	profileUUIDsToDelete := make([]string, 0, len(profileVariablesByUUID))
-	for profileUUID := range profileVariablesByUUID {
-		profileUUIDsToDelete = append(profileUUIDsToDelete, profileUUID)
+	// small optimization - if there are no variables to insert, we can stop here
+	var varsToSet bool
+	for _, profVars := range profileVariablesByUUID {
+		profileUUIDsToDelete = append(profileUUIDsToDelete, profVars.ProfileUUID)
+		if len(profVars.FleetVariables) > 0 {
+			varsToSet = true
+		}
 	}
 
 	// delete variables associated with those profiles
@@ -1539,14 +1544,6 @@ func batchSetProfileVariableAssociationsDB(
 		return ctxerr.Wrap(ctx, err, "deleting variables for profiles")
 	}
 
-	// small optimization - if there are no variables to insert, we can stop here
-	var varsToSet bool
-	for _, vars := range profileVariablesByUUID {
-		if len(vars) > 0 {
-			varsToSet = true
-			break
-		}
-	}
 	if !varsToSet {
 		return nil
 	}
@@ -1572,18 +1569,18 @@ func batchSetProfileVariableAssociationsDB(
 		VarID       uint
 	}
 	profVars := make([]profVarTuple, 0, len(profileVariablesByUUID))
-	for profUUID, vars := range profileVariablesByUUID {
-		for v := range vars {
+	for _, pv := range profileVariablesByUUID {
+		for _, v := range pv.FleetVariables {
 			// variables received here do not have the FLEET_VAR_ prefix, but variables
 			// in the fleet_variables table do.
 			v = "FLEET_VAR_" + v
 			for _, def := range varDefs {
 				if !def.IsPrefix && def.Name == v {
-					profVars = append(profVars, profVarTuple{profUUID, def.ID})
+					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
 					break
 				}
 				if def.IsPrefix && strings.HasPrefix(v, def.Name) {
-					profVars = append(profVars, profVarTuple{profUUID, def.ID})
+					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
 					break
 				}
 			}
