@@ -1,5 +1,5 @@
 .label-filter-select {
-  width: 300px;
+  width: 305px;
 
   svg {
     transition: transform 0.25s ease;
@@ -165,7 +165,7 @@
 
 @media (min-width: $table-controls-break) {
   .label-filter-select {
-    min-width: 220px;
+    min-width: 305px;
 
     &__single-value {
       max-width: 210px !important; // Must override default styling of .css-qc6sy-singleValue
