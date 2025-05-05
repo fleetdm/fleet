@@ -627,17 +627,11 @@ func (ts *withServer) updateSoftwareInstaller(
 ) {
 	t.Helper()
 
-	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
-	require.NoError(t, err)
-	defer tfr.Close()
-
-	payload.InstallerFile = tfr
-
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
 	// add the software field
-	if payload.Filename != "" {
+	if payload.Filename != "" && payload.InstallerFile != nil {
 		fw, err := w.CreateFormFile("software", payload.Filename)
 		require.NoError(t, err)
 		n, err := io.Copy(fw, payload.InstallerFile)
@@ -679,6 +673,11 @@ func (ts *withServer) updateSoftwareInstaller(
 	if payload.LabelsExcludeAny != nil {
 		for _, l := range payload.LabelsExcludeAny {
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
+	if payload.Categories != nil {
+		for _, c := range payload.Categories {
+			require.NoError(t, w.WriteField("categories", c))
 		}
 	}
 

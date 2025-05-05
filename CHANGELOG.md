@@ -1,3 +1,12 @@
+## Fleet 4.67.2 (Apr 27, 2025)
+
+- Fixed software deduplication when migrating from < 4.67.0 for cases where exactly two software entries would be merged into one, and for cases where the same bundle ID has more than one version, each with more than one that needs to be converted into a single software entry.
+- Included host software installed paths migration in the above database migration, instead of waiting for software ingestion to repopulate/clean up affected rows.
+
+## Fleet 4.67.1 (Apr 26, 2025)
+
+- Removed updates of existing macOS software names on software ingestion to remediate a significant database performance regression introduced in 4.67.0.
+
 ## Fleet 4.67.0 (Apr 24, 2025)
 
 ### Security Engineers

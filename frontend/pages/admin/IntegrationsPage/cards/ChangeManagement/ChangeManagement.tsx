@@ -1,24 +1,29 @@
-import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
-import SectionHeader from "components/SectionHeader";
 import React, { useContext, useState } from "react";
+
+import { useQuery } from "react-query";
+
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+
+import configAPI from "services/entities/config";
+
+import { IConfig } from "interfaces/config";
+import { IFormField } from "interfaces/form_field";
+import { getErrorReason } from "interfaces/errors";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import validUrl from "components/forms/validators/valid_url";
 import TooltipWrapper from "components/TooltipWrapper";
-import { IConfig } from "interfaces/config";
-import { IFormField } from "interfaces/form_field";
-import { useQuery } from "react-query";
-
-import configAPI from "services/entities/config";
-import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import { AppContext } from "context/app";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 const baseClass = "change-management";
 
@@ -77,6 +82,10 @@ const ChangeManagement = () => {
       },
     }
   );
+
+  const { isPremiumTier } = useContext(AppContext);
+
+  if (!isPremiumTier) return <PremiumFeatureMessage />;
 
   const { gitOpsModeEnabled, repoURL } = formData;
 
