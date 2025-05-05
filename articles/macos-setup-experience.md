@@ -209,7 +209,7 @@ To manage setup experience software and script using Fleet's best practice GitOp
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-By default, Fleet installs the fleetd agent during automatic enrollment (ADE) on macOS hosts. If you need to customize the fleetd configuration, follow these steps to install it manually using a bootstrap package.
+By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent, you can install it using a bootstrap package.
 
 First, generate your fleetd package by running the command `fleetctl package`, ensuring you do **not** use the `--use-system-configuration` flag. 
 
