@@ -733,7 +733,6 @@ func (c *Client) ApplyGroup(
 					_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{AppStoreID: app.AppStoreID}]
 					installDuringSetup = &ok
 				}
-				fmt.Printf("app.Categories: %v\n", app.Categories)
 				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
