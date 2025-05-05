@@ -2723,6 +2723,8 @@ func filterVppAppsByLabel(
 ) (map[string]*hostSoftware, map[string]*hostSoftware, error) {
 	filteredbyVppAppID := make(map[string]*hostSoftware, len(byVppAppID))
 	otherVppAppsInInventory := make(map[string]*hostSoftware, len(hostVPPInstalledTitles))
+	// This is the list of VPP apps that are installed on the host by fleet or the user
+	// that we want to check are in scope or not
 	vppAppIDsToCheck := make([]string, 0, len(byVppAppID))
 
 	for _, st := range byVppAppID {
@@ -2846,7 +2848,10 @@ func filterVppAppsByLabel(
 			return nil, nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel executing query")
 		}
 
-		// go through the returned list of validVppApps and add all the apps that meet the label criteria to be returned
+		// differentiate between VPP apps that were installed by Fleet (show install details +
+		// ability to reinstall in self-service) vs. VPP apps that Fleet knows about but either
+		// weren't installed by Fleet or were installed by Fleet but are no longer in scope
+		// (treat as in inventory and not re-installable in self-service)
 		for _, validAppApp := range validVppApps {
 			if _, ok := byVppAppID[validAppApp.AdamId]; ok {
 				filteredbyVppAppID[validAppApp.AdamId] = byVppAppID[validAppApp.AdamId]
@@ -3546,7 +3551,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		return nil, nil, err
 	}
 
-	filteredByVPPAdamID, additionalFiltered, err := filterVppAppsByLabel(
+	filteredByVPPAdamID, otherVppAppsInInventory, err := filterVppAppsByLabel(
 		ds,
 		ctx,
 		host,
@@ -3559,7 +3564,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	// We ignored the VPP apps that were installed on the host while filtering in filterSoftwareInstallersByLabel
 	// so we need to add them back in if they are allowed by filterVppAppsByLabel
-	for _, value := range additionalFiltered {
+	for _, value := range otherVppAppsInInventory {
 		if st, ok := bySoftwareTitleID[value.ID]; ok {
 			filteredBySoftwareTitleID[value.ID] = st
 		}
@@ -3586,7 +3591,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	// we need to avoid adding them to byVPPAdamID
 	// but we need to store them in filteredByVPPAdamID so they are able to be
 	// promoted when returning the software title
-	for key, value := range additionalFiltered {
+	for key, value := range otherVppAppsInInventory {
 		if _, ok := filteredByVPPAdamID[key]; !ok {
 			filteredByVPPAdamID[key] = value
 		}
