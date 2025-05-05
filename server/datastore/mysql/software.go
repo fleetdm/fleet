@@ -65,7 +65,7 @@ func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 		return err
 	}
 
-	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, hsip, currS)
+	toI, toD, err := hostSoftwareInstalledPathsDelta(hostID, reported, hsip, currS, ds.logger)
 	if err != nil {
 		return err
 	}
@@ -121,6 +121,7 @@ func hostSoftwareInstalledPathsDelta(
 	reported map[string]struct{},
 	stored []fleet.HostSoftwareInstalledPath,
 	hostSoftware []fleet.Software,
+	logger log.Logger,
 ) (
 	toInsert []fleet.HostSoftwareInstalledPath,
 	toDelete []uint,
@@ -167,12 +168,12 @@ func hostSoftwareInstalledPathsDelta(
 		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 3)
 		installedPath, teamIdentifier, unqStr := parts[0], parts[1], parts[2]
 
-		// Shouldn't be possible ... everything 'reported' should be in the the software table
+		// Shouldn't be a common occurence ... everything 'reported' should be in the the software table
 		// because this executes after 'ds.UpdateHostSoftware'
 		s, ok := sUnqStrLook[unqStr]
 		if !ok {
-			err = fmt.Errorf("reported installed path for %s does not belong to any stored software entry", unqStr)
-			return
+			level.Debug(logger).Log("msg", "skipping installed path for software not found", "host_id", hostID, "unq_str", unqStr)
+			continue
 		}
 
 		if _, ok := iSPathLookup[key]; ok {
