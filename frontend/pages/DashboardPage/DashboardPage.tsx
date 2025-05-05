@@ -331,10 +331,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
         const hasSoftwareResults = data.software?.length > 0;
-        const viewingVulnSoftwareTab = softwareNavTabIndex === 1;
 
-        // Prevent card from hiding if returns results or on-clicking vuln tab if software has no vulnerabilities
-        if (hasSoftwareResults || viewingVulnSoftwareTab) {
+        if (hasSoftwareResults) {
           setSoftwareTitleDetail &&
             setSoftwareTitleDetail(
               <LastUpdatedText
@@ -351,21 +349,19 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               />
             );
           setShowSoftwareCard(true);
-        } else {
-          setShowSoftwareCard(false);
         }
       },
     }
   );
 
+  const shouldFetchSoftwareCount =
+    isSoftwareEnabled && // Needed to prevent race condition with fetching software
+    !isSoftwareFetching &&
+    (!software?.software || software?.software.length === 0);
+
   // If no vulnerable software, !software?.software can return undefined
   // Must check non-vuln software count > 0 to show software card iff API returning undefined
-  const { data: softwareCount } = useQuery<
-    ISoftwareCountResponse,
-    Error,
-    number,
-    ISoftwareCountQueryKey[]
-  >(
+  useQuery<ISoftwareCountResponse, Error, number, ISoftwareCountQueryKey[]>(
     [
       {
         scope: "softwareCount",
@@ -374,11 +370,17 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ],
     ({ queryKey }) => softwareAPI.getCount(queryKey[0]),
     {
-      enabled: isRouteOk && !software?.software,
+      enabled: isRouteOk && shouldFetchSoftwareCount,
       keepPreviousData: true,
       refetchOnWindowFocus: false,
       retry: 1,
       select: (data) => data.count,
+      onSuccess: (count) => {
+        console.log("!isSoftwareLoading", !isSoftwareLoading);
+        console.log("!software?.software", !software?.software);
+        debugger;
+        setShowSoftwareCard(!!count && count > 0);
+      },
     }
   );
 
@@ -453,12 +455,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     munki_versions: munkiVersions,
     counts_updated_at: munkiCountsUpdatedAt,
   } = macAdminsData || {};
-
-  useEffect(() => {
-    softwareCount && softwareCount > 0
-      ? setShowSoftwareCard(true)
-      : setShowSoftwareCard(false);
-  }, [softwareCount]);
 
   // Sets selected platform label id for links to filtered manage host page
   useEffect(() => {
