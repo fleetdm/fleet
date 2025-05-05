@@ -3,6 +3,7 @@
 
 import React from "react";
 import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 
 import { SoftwareInstallStatus } from "interfaces/software";
 import mdmApi from "services/entities/mdm";
@@ -13,6 +14,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
 import { IMdmCommandResult } from "interfaces/mdm";
 import { IActivityDetails } from "interfaces/activity";
@@ -43,9 +45,9 @@ export const AppInstallDetails = ({
   software_title = "",
   deviceAuthToken,
 }: IAppInstallDetails) => {
-  const { data: result, isLoading, isError } = useQuery<
+  const { data: result, isLoading, isError, error } = useQuery<
     IMdmCommandResult,
-    Error
+    AxiosError
   >(
     ["mdm_command_results", command_uuid],
     async () => {
@@ -72,10 +74,28 @@ export const AppInstallDetails = ({
     }
   );
 
-  if (isLoading) {
-    return <Spinner />;
-  } else if (isError) {
-    return <DataError description="Close this modal and try again." />;
+  console.log("APPINSTALLDETAILS");
+  if (isError) {
+    // Handle 404 error
+    if (error?.status === 404) {
+      const description =
+        "Install details are no longer available for this activity.";
+      return deviceAuthToken ? (
+        <DeviceUserError description={description} />
+      ) : (
+        <DataError description={description} excludeIssueLink />
+      );
+    }
+
+    // Handle 401 error
+    if (error?.status === 401) {
+      const description = "Close this modal and try again.";
+      return deviceAuthToken ? (
+        <DeviceUserError description={description} />
+      ) : (
+        <DataError description={description} />
+      );
+    }
   } else if (!result) {
     // FIXME: It's currently possible that the command results API response is empty for pending
     // commands. As a temporary workaround to handle this case, we'll ignore the empty response and

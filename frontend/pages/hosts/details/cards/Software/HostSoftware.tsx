@@ -41,6 +41,7 @@ import {
   getInstallErrorMessage,
   getUninstallErrorMessage,
 } from "./helpers";
+import DeviceUserError from "components/DeviceUserError";
 
 const baseClass = "software-card";
 
@@ -381,7 +382,12 @@ const HostSoftware = ({
     }
     return (
       <>
-        {isError && <DataError verticalPaddingSize="pad-xxxlarge" />}
+        {isError &&
+          (isMyDevicePage ? (
+            <DeviceUserError />
+          ) : (
+            <DataError verticalPaddingSize="pad-xxxlarge" />
+          ))}
         {!isError && (
           <HostSoftwareTable
             isLoading={
