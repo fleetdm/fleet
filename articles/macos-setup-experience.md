@@ -44,6 +44,8 @@ Fleet supports installing a bootstrap package on macOS hosts that automatically 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
+The bootstrap package is also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`.
+
 The following are examples of what some organizations deploy using a bootstrap package:
 
 * Munki client to install and keep software up to date on your Macs
