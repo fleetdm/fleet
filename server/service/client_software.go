@@ -42,7 +42,6 @@ func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.Softwa
 func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
-	fmt.Printf("softwareInstallers: %v\n", softwareInstallers)
 	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
 		return nil, err
 	}
