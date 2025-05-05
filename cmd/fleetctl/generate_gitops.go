@@ -507,6 +507,13 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		})
 	}
 
+	if cmd.CLI.String("team") != "global" {
+		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
+			Filename: "---",
+			Note:     "Warning: Software categories are not supported by this tool yet. If you have added any categories to software items, add them to the appropriate team .yml file.",
+		})
+	}
+
 	if len(cmd.Messages.Notes) > 0 {
 		fmt.Fprintf(cmd.CLI.App.Writer, "Other notes:\n")
 		for _, note := range cmd.Messages.Notes {
@@ -850,7 +857,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		result[jsonFieldName(mdmT, "IPadOSUpdates")] = teamMdm.IPadOSUpdates
 		result[jsonFieldName(mdmT, "WindowsUpdates")] = teamMdm.WindowsUpdates
 
-		if teamId == nil {
+		if teamId == nil || *teamId == 0 {
 			mdmT := reflect.TypeOf(fleet.MDM{})
 			result[jsonFieldName(mdmT, "WindowsMigrationEnabled")] = cmd.AppConfig.MDM.WindowsMigrationEnabled
 			result[jsonFieldName(mdmT, "MacOSMigration")] = cmd.AppConfig.MDM.MacOSMigration
