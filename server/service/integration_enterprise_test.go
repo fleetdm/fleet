@@ -17529,3 +17529,106 @@ done
 	require.Equal(t, file.GetInstallScript("pkg"), stResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
 }
+
+func (s *integrationEnterpriseTestSuite) TestBatchSoftwareCategories() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	// create a team
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	token := "good_token"
+	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &team1.ID, HostIDs: []uint{host.ID}}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// create an HTTP server to host the software installer
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/ruby.deb":
+			file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+			require.NoError(t, err)
+			defer file.Close()
+			w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+			_, err = io.Copy(w, file)
+			require.NoError(t, err)
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	})
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	// do a request with an invalid category
+	rubyURL := srv.URL + "/ruby.deb"
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{URL: rubyURL, SHA256: "foobar", Categories: []string{"Not Found"}, SelfService: true},
+	}
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	errMsg := waitBatchSetSoftwareInstallersFailed(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Equal(t, "some or all of the categories provided don't exist", errMsg)
+
+	testCases := []struct {
+		desc       string
+		categories []string
+	}{
+		{
+			desc:       "valid categories 1",
+			categories: []string{"Developer tools", "Browsers"},
+		},
+		{
+			desc:       "valid categories 2",
+			categories: []string{"Developer tools", "Browsers"},
+		},
+		{
+			desc: "empty categories",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			softwareToInstall[0].URL = rubyURL
+			softwareToInstall[0].SHA256 = ""
+			softwareToInstall[0].Categories = tc.categories
+			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+			packages := waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+			require.Len(t, packages, 1)
+			require.NotNil(t, packages[0].TitleID)
+			require.Equal(t, rubyURL, packages[0].URL)
+			require.NotNil(t, packages[0].TeamID)
+			require.Equal(t, team1.ID, *packages[0].TeamID)
+
+			// check that categories come back on individual title fetch
+			stResp := getSoftwareTitleResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
+			require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
+			require.Equal(t, "ruby", stResp.SoftwareTitle.Name)
+			require.Equal(t, rubyURL, stResp.SoftwareTitle.SoftwarePackage.URL)
+			require.ElementsMatch(t, tc.categories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+
+			// check that the categories come back on the My device page
+			res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
+			getDeviceSw := getDeviceSoftwareResponse{}
+			err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
+			require.NoError(t, err)
+			require.Len(t, getDeviceSw.Software, 1)
+			require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+			require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+			require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+			require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+			require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
+			require.Equal(t, stResp.SoftwareTitle.SoftwarePackage.Name, getDeviceSw.Software[0].SoftwarePackage.Name)
+			require.Equal(t, stResp.SoftwareTitle.SoftwarePackage.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
+			require.ElementsMatch(t, tc.categories, getDeviceSw.Software[0].SoftwarePackage.Categories)
+		})
+	}
+}
