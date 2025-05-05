@@ -175,7 +175,10 @@ export const SoftwareInstallDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <SoftwareInstallDetails {...details} />
+          <SoftwareInstallDetails
+            {...details}
+            deviceAuthToken={deviceAuthToken}
+          />
         </div>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>
