@@ -24,6 +24,7 @@ import { AppContext } from "context/app";
 import Card from "components/Card/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner";
 import SoftwareFiltersModal from "pages/SoftwarePage/components/modals/SoftwareFiltersModal";
 
@@ -41,7 +42,6 @@ import {
   getInstallErrorMessage,
   getUninstallErrorMessage,
 } from "./helpers";
-import DeviceUserError from "components/DeviceUserError";
 
 const baseClass = "software-card";
 

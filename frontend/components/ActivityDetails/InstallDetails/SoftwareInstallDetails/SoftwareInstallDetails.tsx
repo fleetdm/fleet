@@ -120,7 +120,6 @@ export const SoftwareInstallDetails = ({
     }
   );
 
-  console.log("SOFTWAREINSTALLDETAILS");
   if (isLoading) {
     return <Spinner />;
   }
@@ -136,7 +135,6 @@ export const SoftwareInstallDetails = ({
       );
     }
 
-    // Handle 401 error
     if (error?.status === 401) {
       const description = "Close this modal and try again.";
       return deviceAuthToken ? (
