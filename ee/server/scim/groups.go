@@ -149,9 +149,6 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 			members = append(members, map[string]interface{}{
 				"value": scimUserID(userID),
 				"type":  "User",
-				// 2025/05/06: Microsoft does not properly support $ref attribute on groups
-				// https://learn.microsoft.com/en-us/answers/questions/1457148/scim-validator-patch-group-remove-member-test-comp
-				// "$ref":  "Users/" + scimUserID(userID),
 			})
 		}
 		groupResource.Attributes[membersAttr] = members
@@ -353,6 +350,11 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 			if err != nil {
 				return scim.Resource{}, err
 			}
+		case op.Path.AttributePath.String() == membersAttr:
+			err = g.patchMembersWithPathFiltering(r.Context(), op, group)
+			if err != nil {
+				return scim.Resource{}, err
+			}
 		default:
 			level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -504,6 +506,102 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 	}
 
 	return nil
+}
+
+// patchMembersWithPathFiltering handles patch operations with path filtering for members
+// This supports paths like members[value eq "422"] for add/replace/remove operations
+func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op scim.PatchOperation, group *fleet.ScimGroup) error {
+	memberID, err := g.getMemberID(op)
+	if err != nil {
+		return err
+	}
+
+	// Check if the member exists in the group
+	memberFound := false
+	var memberIndex int
+	for i, id := range group.ScimUsers {
+		if id == memberID {
+			memberIndex = i
+			memberFound = true
+			break
+		}
+	}
+
+	// For remove operations, remove the member if found
+	if op.Op == scim.PatchOperationRemove {
+		if !memberFound {
+			level.Info(g.logger).Log("msg", "member not found", "member_id", memberID, "op", fmt.Sprintf("%v", op))
+			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		}
+		group.ScimUsers = append(group.ScimUsers[:memberIndex], group.ScimUsers[memberIndex+1:]...)
+		return nil
+	}
+
+	// For add operations, add the member if not found
+	if op.Op == scim.PatchOperationAdd && !memberFound {
+		// Verify the user exists
+		userExists, err := g.ds.ScimUsersExist(ctx, []uint{memberID})
+		if err != nil {
+			level.Error(g.logger).Log("msg", "error checking user existence", "err", err)
+			return err
+		}
+		if !userExists {
+			level.Info(g.logger).Log("msg", "user not found", "user_id", memberID)
+			return errors.ScimErrorBadParams([]string{scimUserID(memberID)})
+		}
+		group.ScimUsers = append(group.ScimUsers, memberID)
+		return nil
+	}
+
+	// For replace operations with a value
+	if op.Op == scim.PatchOperationReplace {
+		if !memberFound {
+			level.Info(g.logger).Log("msg", "member not found for replace operation", "members.value", memberID, "op", fmt.Sprintf("%v", op))
+			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		}
+
+		// If the value is nil or an empty object, remove the member
+		if op.Value == nil {
+			group.ScimUsers = append(group.ScimUsers[:memberIndex], group.ScimUsers[memberIndex+1:]...)
+			return nil
+		}
+
+		// Otherwise, we don't change anything since we're already filtering by the member ID
+		// and there are no other attributes to modify for a member
+		return nil
+	}
+
+	return nil
+}
+
+// getMemberID extracts the member ID from a path expression like members[value eq "422"]
+func (g *GroupHandler) getMemberID(op scim.PatchOperation) (uint, error) {
+	attrExpression, ok := op.Path.ValueExpression.(*filter.AttributeExpression)
+	if !ok {
+		level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path)
+		return 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+
+	// Only matching by member value (user ID) is supported
+	if attrExpression.AttributePath.String() != valueAttr || attrExpression.Operator != filter.EQ {
+		level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path, "expression", attrExpression.AttributePath.String())
+		return 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+
+	memberIDStr, ok := attrExpression.CompareValue.(string)
+	if !ok {
+		level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path, "compare_value", attrExpression.CompareValue)
+		return 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+
+	// Extract user ID from the value
+	userID, err := extractUserIDFromValue(memberIDStr)
+	if err != nil {
+		level.Info(g.logger).Log("msg", "invalid user ID format", "value", memberIDStr, "err", err)
+		return 0, errors.ScimErrorBadParams([]string{memberIDStr})
+	}
+
+	return userID, nil
 }
 
 func scimGroupID(groupID uint) string {

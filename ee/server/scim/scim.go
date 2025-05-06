@@ -138,18 +138,14 @@ func RegisterSCIM(
 						Mutability:  schema.AttributeMutabilityImmutable(),
 						Name:        "value",
 					}),
-					schema.SimpleReferenceParams(schema.ReferenceParams{
-						Description:    optional.NewString("The URI corresponding to a SCIM resource that is a member of this Group."),
-						Mutability:     schema.AttributeMutabilityImmutable(),
-						Name:           "$ref",
-						ReferenceTypes: []schema.AttributeReferenceType{"User"},
-					}),
 					schema.SimpleStringParams(schema.StringParams{
 						CanonicalValues: []string{"User"},
 						Description:     optional.NewString("A label indicating the type of resource, e.g., 'User' or 'Group'."),
 						Mutability:      schema.AttributeMutabilityImmutable(),
 						Name:            "type",
 					}),
+					// Note (2025/05/06): Microsoft does not properly support $ref attribute on group members
+					// https://learn.microsoft.com/en-us/answers/questions/1457148/scim-validator-patch-group-remove-member-test-comp
 				},
 			}),
 		},
