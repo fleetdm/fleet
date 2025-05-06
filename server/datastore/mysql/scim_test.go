@@ -1212,9 +1212,11 @@ func testListScimGroups(t *testing.T, ds *Datastore) {
 	}
 
 	// Test 1: List all groups
-	allGroups, totalResults, err := ds.ListScimGroups(t.Context(), fleet.ScimListOptions{
-		StartIndex: 1,
-		PerPage:    10,
+	allGroups, totalResults, err := ds.ListScimGroups(t.Context(), fleet.ScimGroupsListOptions{
+		ScimListOptions: fleet.ScimListOptions{
+			StartIndex: 1,
+			PerPage:    10,
+		},
 	})
 	require.Nil(t, err)
 	assert.GreaterOrEqual(t, len(allGroups), 3) // There might be other groups from previous tests
@@ -1233,18 +1235,22 @@ func testListScimGroups(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 3, foundGroups)
 
 	// Test 2: Pagination - first page with 2 items
-	page1Groups, totalPage1, err := ds.ListScimGroups(t.Context(), fleet.ScimListOptions{
-		StartIndex: 1,
-		PerPage:    2,
+	page1Groups, totalPage1, err := ds.ListScimGroups(t.Context(), fleet.ScimGroupsListOptions{
+		ScimListOptions: fleet.ScimListOptions{
+			StartIndex: 1,
+			PerPage:    2,
+		},
 	})
 	require.Nil(t, err)
 	assert.Equal(t, 2, len(page1Groups))
 	assert.GreaterOrEqual(t, totalPage1, uint(3)) // Total should be at least 3
 
 	// Test 3: Pagination - second page with 2 items
-	page2Groups, totalPage2, err := ds.ListScimGroups(t.Context(), fleet.ScimListOptions{
-		StartIndex: 3, // StartIndex is 1-based, so for the second page with 2 items per page, we start at index 3
-		PerPage:    2,
+	page2Groups, totalPage2, err := ds.ListScimGroups(t.Context(), fleet.ScimGroupsListOptions{
+		ScimListOptions: fleet.ScimListOptions{
+			StartIndex: 3, // StartIndex is 1-based, so for the second page with 2 items per page, we start at index 3
+			PerPage:    2,
+		},
 	})
 	require.Nil(t, err)
 	assert.GreaterOrEqual(t, len(page2Groups), 1) // At least 1 item on the second page
@@ -1256,6 +1262,33 @@ func testListScimGroups(t *testing.T, ds *Datastore) {
 			assert.NotEqual(t, p1Group.ID, p2Group.ID, "Groups should not appear on multiple pages")
 		}
 	}
+
+	// Test 4: Filter by display name
+	displayName := "List Test Group 2"
+	filteredGroups, totalFilteredResults, err := ds.ListScimGroups(t.Context(), fleet.ScimGroupsListOptions{
+		ScimListOptions: fleet.ScimListOptions{
+			StartIndex: 1,
+			PerPage:    10,
+		},
+		DisplayNameFilter: &displayName,
+	})
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(filteredGroups), "Should find exactly one group with the specified display name")
+	assert.Equal(t, uint(1), totalFilteredResults)
+	assert.Equal(t, displayName, filteredGroups[0].DisplayName)
+
+	// Test 5: Filter by non-existent display name
+	nonExistentName := "Non-Existent Group"
+	emptyResults, totalEmptyResults, err := ds.ListScimGroups(t.Context(), fleet.ScimGroupsListOptions{
+		ScimListOptions: fleet.ScimListOptions{
+			StartIndex: 1,
+			PerPage:    10,
+		},
+		DisplayNameFilter: &nonExistentName,
+	})
+	require.Nil(t, err)
+	assert.Empty(t, emptyResults, "Should find no groups with a non-existent display name")
+	assert.Equal(t, uint(0), totalEmptyResults)
 }
 
 func testScimUserCreateValidation(t *testing.T, ds *Datastore) {

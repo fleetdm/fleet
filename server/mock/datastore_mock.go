@@ -1332,7 +1332,7 @@ type ReplaceScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) erro
 
 type DeleteScimGroupFunc func(ctx context.Context, id uint) error
 
-type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error)
+type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimGroupsListOptions) (groups []fleet.ScimGroup, totalResults uint, err error)
 
 type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, error)
 
@@ -7901,7 +7901,7 @@ func (s *DataStore) DeleteScimGroup(ctx context.Context, id uint) error {
 	return s.DeleteScimGroupFunc(ctx, id)
 }
 
-func (s *DataStore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
+func (s *DataStore) ListScimGroups(ctx context.Context, opts fleet.ScimGroupsListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
 	s.mu.Lock()
 	s.ListScimGroupsFuncInvoked = true
 	s.mu.Unlock()

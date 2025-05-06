@@ -3,6 +3,7 @@ package scim
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/scim2/filter-parser/v2"
 )
 
 const (
@@ -170,15 +172,37 @@ func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (s
 		count = maxResults
 	}
 
-	opts := fleet.ScimListOptions{
-		StartIndex: uint(startIndex), // nolint:gosec // ignore G115
-		PerPage:    uint(count),      // nolint:gosec // ignore G115
+	opts := fleet.ScimGroupsListOptions{
+		ScimListOptions: fleet.ScimListOptions{
+			StartIndex: uint(startIndex), // nolint:gosec // ignore G115
+			PerPage:    uint(count),      // nolint:gosec // ignore G115
+		},
 	}
 
 	resourceFilter := r.URL.Query().Get("filter")
 	if resourceFilter != "" {
-		level.Info(g.logger).Log("msg", "group filter not supported", "filter", resourceFilter)
-		return scim.Page{}, nil
+		expr, err := filter.ParseAttrExp([]byte(resourceFilter))
+		if err != nil {
+			level.Error(g.logger).Log("msg", "failed to parse filter", "filter", resourceFilter, "err", err)
+			return scim.Page{}, errors.ScimErrorInvalidFilter
+		}
+		if !strings.EqualFold(expr.AttributePath.String(), "displayName") || expr.Operator != "eq" {
+			level.Info(g.logger).Log("msg", "unsupported filter", "filter", resourceFilter)
+			return scim.Page{}, nil
+		}
+		displayName, ok := expr.CompareValue.(string)
+		if !ok {
+			level.Error(g.logger).Log("msg", "unsupported value", "value", expr.CompareValue)
+			return scim.Page{}, nil
+		}
+
+		// Decode URL-encoded characters
+		displayName, err = url.QueryUnescape(displayName)
+		if err != nil {
+			level.Error(g.logger).Log("msg", "failed to decode displayName", "displayName", displayName, "err", err)
+			return scim.Page{}, nil
+		}
+		opts.DisplayNameFilter = &displayName
 	}
 
 	groups, totalResults, err := g.ds.ListScimGroups(r.Context(), opts)

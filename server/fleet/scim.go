@@ -91,6 +91,13 @@ type ScimUsersListOptions struct {
 	EmailValueFilter *string
 }
 
+type ScimGroupsListOptions struct {
+	ScimListOptions
+
+	// DisplayNameFilter filters by displayName
+	DisplayNameFilter *string
+}
+
 type ScimGroup struct {
 	ID          uint    `db:"id"`
 	ExternalID  *string `db:"external_id"`

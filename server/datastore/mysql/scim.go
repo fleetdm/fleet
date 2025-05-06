@@ -884,7 +884,7 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 }
 
 // ListScimGroups retrieves a list of SCIM groups with pagination
-func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
+func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimGroupsListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
 	// Default pagination values if not provided
 	if opts.StartIndex == 0 {
 		opts.StartIndex = 1
@@ -900,16 +900,25 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOpti
 		FROM scim_groups
 	`
 
+	// Add where clause based on filters
+	var whereClause string
+	var params []interface{}
+
+	if opts.DisplayNameFilter != nil {
+		whereClause = " WHERE scim_groups.display_name = ?"
+		params = append(params, *opts.DisplayNameFilter)
+	}
+
 	// First, get the total count without pagination
-	countQuery := "SELECT COUNT(DISTINCT id) FROM (" + baseQuery + ") AS filtered_groups"
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &totalResults, countQuery)
+	countQuery := "SELECT COUNT(DISTINCT id) FROM (" + baseQuery + whereClause + ") AS filtered_groups"
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &totalResults, countQuery, params...)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "count total scim groups")
 	}
 
 	// Add pagination to the main query
-	query := baseQuery + " ORDER BY scim_groups.id LIMIT ? OFFSET ?"
-	params := []interface{}{opts.PerPage, opts.StartIndex - 1}
+	query := baseQuery + whereClause + " ORDER BY scim_groups.id LIMIT ? OFFSET ?"
+	params = append(params, opts.PerPage, opts.StartIndex-1)
 
 	// Execute the query
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &groups, query, params...)

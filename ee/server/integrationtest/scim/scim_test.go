@@ -455,6 +455,49 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	assert.True(t, ok, "Resources should be an array")
 	assert.GreaterOrEqual(t, len(resources), 1, "Should have at least 1 group")
 
+	// Create a second group with a different display name for filtering tests
+	secondGroupID, _ := createTestGroup(t, s, "Second Test Group", []string{userID})
+
+	// Test filtering groups by displayName - first group
+	var filterResp1 map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &filterResp1, "filter", `displayName eq "Test Group"`)
+	assert.EqualValues(t, filterResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources1, ok := filterResp1["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 1, len(filterResources1), "Should have exactly 1 group matching the filter")
+
+	// Verify it's the correct group
+	if len(filterResources1) > 0 {
+		group, ok := filterResources1[0].(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		assert.Equal(t, groupID, group["id"], "Should be the first group")
+		assert.Equal(t, "Test Group", group["displayName"], "Should have the correct display name")
+	}
+
+	// Test filtering groups by displayName - second group
+	var filterResp2 map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &filterResp2, "filter", `displayName eq "Second Test Group"`)
+	assert.EqualValues(t, filterResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources2, ok := filterResp2["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Equal(t, 1, len(filterResources2), "Should have exactly 1 group matching the filter")
+
+	// Verify it's the correct group
+	if len(filterResources2) > 0 {
+		group, ok := filterResources2[0].(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		assert.Equal(t, secondGroupID, group["id"], "Should be the second group")
+		assert.Equal(t, "Second Test Group", group["displayName"], "Should have the correct display name")
+	}
+
+	// Test filtering groups by non-existent displayName
+	var filterResp3 map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &filterResp3, "filter", `displayName eq "Non-Existent Group"`)
+	assert.EqualValues(t, filterResp3["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources3, ok := filterResp3["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.Empty(t, filterResources3, "Should have no groups matching the filter")
+
 	// Test updating a group
 	updateGroupPayload := map[string]interface{}{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
@@ -530,6 +573,9 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	s.DoJSON(t, "DELETE", scimPath("/Groups/"+groupID), nil, http.StatusNotFound, &deleteAgainResp)
 	assert.EqualValues(t, deleteAgainResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, deleteAgainResp["detail"], "not found")
+
+	// Delete the second group we created
+	s.Do(t, "DELETE", scimPath("/Groups/"+secondGroupID), nil, http.StatusNoContent)
 
 	// Delete the user we created
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
