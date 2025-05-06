@@ -14,7 +14,7 @@ describe("ReadHostDiskEncryptionKeyActivityItem", () => {
     );
 
     expect(screen.getByText("Test User")).toBeVisible();
-    expect(screen.getByText(/locked this host/i)).toBeVisible();
+    expect(screen.getByText(/viewed the disk encryption key/i)).toBeVisible();
   });
 
   it("does not render the cancel icon", () => {
