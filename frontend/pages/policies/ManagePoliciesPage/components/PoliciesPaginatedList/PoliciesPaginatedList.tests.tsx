@@ -41,17 +41,6 @@ const teamPolicies = [
   createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
 ];
 
-const globalPoliciesNoMac = [
-  createMockPolicy({ team_id: null, name: "Inherited policy 1" }),
-  createMockPolicy({ id: 2, team_id: null, name: "Inherited policy 2" }),
-  createMockPolicy({ id: 3, team_id: null, name: "Inherited policy 3" }),
-];
-
-const teamPoliciesNoMac = [
-  createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
-  createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
-];
-
 const globalPoliciesHandler = http.get(baseUrl("/policies"), () => {
   return HttpResponse.json({
     policies: globalPolicies,
