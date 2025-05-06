@@ -728,7 +728,11 @@ func (c *Client) ApplyGroup(
 			if err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 			}
-			tmSoftwarePackagesPayloads[tmName] = softwarePayloads
+			if existingPayloads, ok := tmSoftwarePackagesPayloads[tmName]; ok {
+				tmSoftwarePackagesPayloads[tmName] = append(existingPayloads, softwarePayloads...)
+			} else {
+				tmSoftwarePackagesPayloads[tmName] = softwarePayloads
+			}
 		}
 
 		tmSoftwareApps := extractTmSpecsSoftwareApps(specs.Teams)
