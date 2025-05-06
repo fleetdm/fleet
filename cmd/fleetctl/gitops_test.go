@@ -2572,6 +2572,9 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 					},
 				}, nil
 			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
+			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "./testdata/gitops/global_config_no_paths.yml"
@@ -2776,6 +2779,9 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 						Query:               "SELECT 1 from osquery_info",
 					},
 				}, nil
+			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
 			}
 
 			found := make(map[string]uint)
