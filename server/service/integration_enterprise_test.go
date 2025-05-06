@@ -16848,14 +16848,11 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", host.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 1)
-	// TODO We have to have software packages to show software install timestamp
-	// However, having a software package also indicates that the software is available for install
-	// despite what the label scoping says. We need to figure out some other way to deal with these
-	// two cases.
-	// assert.NotNil(t, getHostSw.Software[0].SoftwarePackage.LastInstall)
+	// TODO this is a corner case where we have visibility on a descoped uninstall, but this will disappear
+	// once we complete the uninstall because at that point we'll be relying solely on inventory to determine software
+	// status, because we should be treating descoped installers as if they don't exist.
 	assert.Equal(t, fleet.SoftwareUninstallPending, *getHostSw.Software[0].Status)
-	// require.NotNil(t, getHostSw.Software[0].SoftwarePackage.LastUninstall)
-	// uninstallExecutionID := getHostSw.Software[0].SoftwarePackage.LastUninstall.ExecutionID
+	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
 
 	var uninstallExecutionID string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
