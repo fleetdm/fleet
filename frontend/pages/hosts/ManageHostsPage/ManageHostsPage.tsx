@@ -1779,7 +1779,7 @@ const ManageHostsPage = ({
       {showAddHostsModal && renderAddHostsModal()}
       {showTransferHostModal && renderTransferHostModal()}
       {showDeleteHostModal && renderDeleteHostModal()}
-      {showRunScriptBatchModal && currentTeamId && (
+      {showRunScriptBatchModal && currentTeamId !== undefined && (
         <RunScriptBatchModal
           selectedHostIds={selectedHostIds}
           onCancel={toggleRunScriptBatchModal}
