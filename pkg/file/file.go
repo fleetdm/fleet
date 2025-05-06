@@ -267,6 +267,7 @@ func ExtractTarGz(path string, destDir string, maxFileSize int64) error {
 						}
 						return fmt.Errorf("failed to extract file %q inside %q: %w", header.Name, path, err)
 					}
+					readBytes += chunkSize
 				}
 
 				return nil
