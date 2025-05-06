@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"mime"
 	"net/http"
 	"net/url"
 	"path"
@@ -1692,7 +1691,7 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
-	downloadURLFn := func(ctx context.Context, url string) (http.Header, *fleet.TempFileReader, error) {
+	downloadURLFn := func(ctx context.Context, url string) (*http.Response, *fleet.TempFileReader, error) {
 		client := fleethttp.NewClient()
 		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
 
@@ -1744,7 +1743,7 @@ func (svc *Service) softwareBatchUpload(
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
 		}
 
-		return resp.Header, tfr, nil
+		return resp, tfr, nil
 	}
 
 	var g errgroup.Group
@@ -1865,22 +1864,13 @@ func (svc *Service) softwareBatchUpload(
 				}
 
 				var filename string
-				headers, tfr, err := downloadURLFn(ctx, p.URL)
+				resp, tfr, err := downloadURLFn(ctx, p.URL)
 				if err != nil {
 					return err
 				}
 
 				installer.InstallerFile = tfr
-
-				// set the filename before adding metadata, as it is used as fallback
-				cdh, ok := headers["Content-Disposition"]
-				if ok && len(cdh) > 0 {
-					_, params, err := mime.ParseMediaType(cdh[0])
-					if err == nil {
-						filename = params["filename"]
-					}
-				}
-
+				filename = maintained_apps.FilenameFromResponse(resp)
 				installer.Filename = filename
 			}
 
