@@ -201,9 +201,11 @@ func ExtractFilenameFromURLPath(p string, defaultExtension string) string {
 // This implementation uses os.* calls without permission checks, as we're
 // running this operation in the context of fleetd running as root on a host
 // (e.g. for installs), so we have different constraints than fleetctl building
-// a package.
-func ExtractTarGz(path string, destDir string) error {
-	tarGzFile, err := secure.OpenFile(path, os.O_RDONLY, 0o755)
+// a package. destDir should be provided by the code rather than user input to
+// avoid directory traversal attacks. maxFileSize indicates how large we want
+// to allow the max file size to be when decompressing, as a zip bomb mitigation.
+func ExtractTarGz(path string, destDir string, maxFileSize int64) error {
+	tarGzFile, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("open %q: %w", path, err)
 	}
@@ -216,6 +218,7 @@ func ExtractTarGz(path string, destDir string) error {
 	defer gzipReader.Close()
 
 	tarReader := tar.NewReader(gzipReader)
+
 	for {
 		header, err := tarReader.Next()
 		switch {
@@ -227,12 +230,13 @@ func ExtractTarGz(path string, destDir string) error {
 			return fmt.Errorf("tar reader: %w", err)
 		}
 
-		// Prevent zip-slip attack.
+		// Prevent zip-slip attack (which, combined with a trusted destDir, remediates the potential directory traversal
+		// attack below)
 		if strings.Contains(header.Name, "..") {
 			return fmt.Errorf("invalid path in tar.gz: %q", header.Name)
 		}
 
-		targetPath := filepath.Join(destDir, header.Name)
+		targetPath := filepath.Join(destDir, header.Name) // nolint:gosec // see above notes on dir traversal
 
 		switch header.Typeflag {
 		case tar.TypeDir:
@@ -247,9 +251,24 @@ func ExtractTarGz(path string, destDir string) error {
 				}
 				defer outFile.Close()
 
-				if _, err := io.Copy(outFile, tarReader); err != nil {
-					return fmt.Errorf("failed to copy %q: %w", header.Name, err)
+				// CopyN call to avoid zip bomb DoS since we have less control over arbitrary .tar.gz archives
+				// than in e.g. a TUF case.
+				var readBytes int64
+				chunkSize := int64(65536) // 64KiB
+				for {
+					if readBytes+chunkSize > maxFileSize {
+						return fmt.Errorf("aborted extraction of oversized file after %d bytes", readBytes)
+					}
+
+					_, err := io.CopyN(outFile, tarReader, chunkSize)
+					if err != nil {
+						if err == io.EOF {
+							break
+						}
+						return fmt.Errorf("failed to extract file %q inside %q: %w", header.Name, path, err)
+					}
 				}
+
 				return nil
 			}()
 			if err != nil {

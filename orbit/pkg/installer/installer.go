@@ -333,7 +333,9 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 
 		extractFn := r.extractTarGzFn
 		if extractFn == nil {
-			extractFn = file.ExtractTarGz
+			extractFn = func(path string, destDir string) error {
+				return file.ExtractTarGz(path, destDir, 2*1024*1024*1024*1024) // 2 TiB limit per extracted file
+			}
 		}
 
 		if err = extractFn(installerPath, extractDestination); err != nil {
