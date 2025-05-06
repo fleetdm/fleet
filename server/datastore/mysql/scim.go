@@ -1169,7 +1169,7 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		JOIN hosts h
 			ON h.uuid = hmap.host_uuid
 		JOIN mdm_apple_configuration_profiles macp
-			ON macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL) AND
+			ON (macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL)) AND
 				 macp.profile_uuid = hmap.profile_uuid
 		JOIN mdm_configuration_profile_variables mcpv
 			ON mcpv.apple_profile_uuid = macp.profile_uuid
