@@ -6057,10 +6057,13 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
 	require.NoError(t, err)
 	require.Len(t, software, 2)
+	// software[0] was inserted into software/host_software in the ad-hoc SQL execution above, so has an installed version
 	require.Equal(t, softwareAlreadyInstalled.Name, software[0].Name)
 	require.Equal(t, softwareAlreadyInstalled.Version, software[0].InstalledVersions[0].Version)
 	require.Equal(t, installer1.Version, software[0].SoftwarePackage.Version)
+	require.Len(t, software[0].InstalledVersions, 1)
 	require.Equal(t, mutationResults.Inserted[0].Name, software[1].Name)
+	// software[1] is *not* installed but *is* available for install
 	require.Nil(t, software[1].InstalledVersions)
 	require.Equal(t, selfServiceinstaller.Version, software[1].SoftwarePackage.Version)
 
