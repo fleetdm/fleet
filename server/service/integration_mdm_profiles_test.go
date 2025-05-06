@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -5908,4 +5909,206 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host2.UUID)
 	require.NoError(t, err)
 	assert.Len(t, profiles, 3)
+}
+
+func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// create a few hosts
+	host1, mdmDevice1 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host3, mdmDevice3 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	type failTuple struct {
+		hostUUID    string
+		profileName string
+	}
+	type command struct {
+		Command struct {
+			RequestType string
+			Payload     []byte
+		}
+	}
+	extractAppleNameRegexp := regexp.MustCompile(`(?m)<string>(N\d)</string>`)
+	extractWindowsNameRegexp := regexp.MustCompile(`(?m)./Foo/(N\d)`)
+	runDevicesAcknowledge := func(failTuples ...failTuple) {
+		errChain := []mdm.ErrorChain{
+			{
+				ErrorCode:            4,
+				ErrorDomain:          "RMErrorDomain",
+				LocalizedDescription: "FooBar",
+			},
+		}
+
+		failLookup := make(map[string]bool, len(failTuples))
+		for _, tup := range failTuples {
+			failLookup[fmt.Sprintf("%s-%s", tup.hostUUID, tup.profileName)] = true
+		}
+
+		// apple devices
+		for _, device := range []*mdmtest.TestAppleMDMClient{mdmDevice1, mdmDevice2} {
+			cmd, err := device.Idle()
+			for cmd != nil {
+				// the actual profile is base64-encoded in the Payload field
+				var decodedCmd command
+				err = plist.Unmarshal(cmd.Raw, &decodedCmd)
+				require.NoError(t, err)
+
+				name := extractAppleNameRegexp.FindStringSubmatch(string(decodedCmd.Command.Payload))
+				if name != nil && failLookup[fmt.Sprintf("%s-%s", device.UUID, name[1])] {
+					cmd, err = device.Err(cmd.CommandUUID, errChain)
+					require.NoError(t, err)
+				} else {
+					cmd, err = device.Acknowledge(cmd.CommandUUID)
+					require.NoError(t, err)
+				}
+			}
+		}
+
+		// windows device
+		cmds, err := mdmDevice3.StartManagementSession()
+		require.NoError(t, err)
+		fmt.Println(">>>> Windows got ", len(cmds))
+		msgID, err := mdmDevice3.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			status := syncml.CmdStatusOK
+			var name []string
+			if len(c.Cmd.AddCommands) > 0 {
+				uri := c.Cmd.AddCommands[0].GetTargetURI()
+				fmt.Println(">>>> windows cmd: ", uri)
+				name = extractWindowsNameRegexp.FindStringSubmatch(uri)
+			}
+			if name != nil && failLookup[fmt.Sprintf("%s-%s", mdmDevice3.DeviceID, name[1])] {
+				status = syncml.CmdStatusBadRequest
+				fmt.Println(">>>> windows bad request for : ", name)
+			}
+
+			mdmDevice3.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
+				Cmd:     ptr.String(c.Verb),
+				Data:    ptr.String(status),
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = mdmDevice3.SendResponse()
+		require.NoError(t, err)
+	}
+
+	// register a couple profiles for Apple and one for Windows
+	profN1 := mobileconfigForTest("N1", "I1")
+	profN2 := mobileconfigForTest("N2", "I2")
+	profN3 := syncMLForTest("./Foo/N3")
+	declN4 := declarationForTest("N4")
+	batchRequest := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: profN1},
+		{Name: "N2", Contents: profN2},
+		{Name: "N3", Contents: profN3},
+		{Name: "N4", Contents: declN4},
+	}}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent)
+
+	// list the profiles to get the UUIDs
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
+	profNameToUUID := make(map[string]string)
+	for _, prof := range listResp.Profiles {
+		profNameToUUID[prof.Name] = prof.ProfileUUID
+	}
+
+	// try to batch-resend a non-existing profile
+	batchReq := batchResendMDMProfileToHostsRequest{ProfileUUID: "zzzz"} // not a known prefix
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusNotFound)
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: "azzzz"} // unknown Apple profile
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusNotFound)
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: "wzzzz"} // unknown Windows profile
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusNotFound)
+
+	// batch-resend with an invalid filter
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToUUID["N1"]}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryPending)
+	res := s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusBadRequest)
+	msg := extractServerErrorText(res.Body)
+	require.Contains(t, msg, "Invalid profile_status filter value, only 'failed' is currently supported.")
+
+	// batch-resend with an Apple DDM
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToUUID["N4"]}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	res = s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusBadRequest)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, "Can't resend declaration (DDM) profiles.")
+
+	// batch-resend an Apple and a Windows profile, does nothing as it is not delivered yet
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToUUID["N1"]}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToUUID["N3"]}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
+
+	s.awaitTriggerProfileSchedule(t)
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		host1: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+		host2: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		host3: {
+			{Name: "N3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+
+	// acknowledge the Apple profiles, failing I2 on both hosts, and fail the Windows one
+	runDevicesAcknowledge(failTuple{host1.UUID, "N2"}, failTuple{host2.UUID, "N2"}, failTuple{mdmDevice3.DeviceID, "N3"})
+	runDevicesAcknowledge(failTuple{host1.UUID, "N2"}, failTuple{host2.UUID, "N2"}, failTuple{mdmDevice3.DeviceID, "N3"})
+	runDevicesAcknowledge(failTuple{host1.UUID, "N2"}, failTuple{host2.UUID, "N2"}, failTuple{mdmDevice3.DeviceID, "N3"})
+
+	// batch-resend N2 profile
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToUUID["N2"]}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
+
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		host1: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+		host2: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		host3: {
+			{Name: "N3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryFailed},
+		},
+	})
+
+	_ = ctx
+	_, _, _, _, _, _ = host1, mdmDevice1, host2, mdmDevice2, host3, mdmDevice3
 }
