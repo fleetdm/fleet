@@ -5917,6 +5917,12 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, host, false)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
+	anotherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, anotherHost, false)
+
+	thirdHost := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, thirdHost, false)
+
 	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
 
 	// create a software installer
@@ -5938,8 +5944,75 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		Platform:          "darwin",
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	}
-	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer1)
+	installerID1, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, installer1)
 	require.NoError(t, err)
+	// self-service software installer
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	selfServiceinstaller := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello 2",
+		PreInstallQuery:   "SELECT 2",
+		PostInstallScript: "world 2",
+		UninstallScript:   "goodbye 2",
+		InstallerFile:     tfr2,
+		StorageID:         "storage 2",
+		Filename:          "file2",
+		Title:             "file2",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		BundleIdentifier:  "bi2",
+		Platform:          "darwin",
+		SelfService:       true,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	selfServiceInstallerID, selfServiceTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, selfServiceinstaller)
+	require.NoError(t, err)
+
+	// install software installer on host via fleet
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, thirdHost.ID, selfServiceInstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                thirdHost.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+	installedSoftware := []fleet.Software{
+		{
+			Name:    "file2",
+			Version: "1.0",
+			Source:  "apps",
+			TitleID: &selfServiceTitleID,
+		},
+	}
+	mutationResults, err := ds.UpdateHostSoftware(ctx, thirdHost.ID, installedSoftware)
+	require.NoError(t, err)
+	assert.Len(t, mutationResults.Inserted, len(installedSoftware))
+
+	softwareAlreadyInstalled := fleet.Software{Name: "file1", Version: "1.0.1", Source: "apps", BundleIdentifier: "bi1"}
+	// Host has software installed, but not by Fleet, that matches the software installer available
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		titleIDUint := titleID
+		softwareAlreadyInstalled.TitleID = &titleIDUint
+		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id) VALUES (?, ?, ?, ?, ?)`,
+			softwareAlreadyInstalled.Name, softwareAlreadyInstalled.Source, softwareAlreadyInstalled.BundleIdentifier, softwareAlreadyInstalled.Version, titleID)
+		if err != nil {
+			return err
+		}
+		softwareID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		softwareAlreadyInstalled.ID = uint(softwareID)
+		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
+			anotherHost.ID, softwareID)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
 
 	// we should see installer1, since it has no label associated yet
 	opts := fleet.HostSoftwareTitleListOptions{
@@ -5957,6 +6030,12 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 			Version:     installer1.Version,
 			Platform:    installer1.Platform,
 			SelfService: ptr.Bool(false),
+		},
+		selfServiceinstaller.Filename: {
+			Name:        selfServiceinstaller.Filename,
+			Version:     selfServiceinstaller.Version,
+			Platform:    selfServiceinstaller.Platform,
+			SelfService: ptr.Bool(true),
 		},
 	}
 
@@ -5976,6 +6055,29 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkSoftware(software)
 
+	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 2)
+	// software[0] was inserted into software/host_software in the ad-hoc SQL execution above, so has an installed version
+	require.Equal(t, softwareAlreadyInstalled.Name, software[0].Name)
+	require.Equal(t, softwareAlreadyInstalled.Version, software[0].InstalledVersions[0].Version)
+	require.Equal(t, installer1.Version, software[0].SoftwarePackage.Version)
+	require.Len(t, software[0].InstalledVersions, 1)
+	require.Equal(t, mutationResults.Inserted[0].Name, software[1].Name)
+	// software[1] is *not* installed but *is* available for install
+	require.Nil(t, software[1].InstalledVersions)
+	require.Equal(t, selfServiceinstaller.Version, software[1].SoftwarePackage.Version)
+
+	software, _, err = ds.ListHostSoftware(ctx, thirdHost, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 2)
+	require.Equal(t, softwareAlreadyInstalled.Name, software[0].Name)
+	require.Nil(t, software[0].InstalledVersions)
+	require.Equal(t, installer1.Version, software[0].SoftwarePackage.Version)
+	require.Equal(t, mutationResults.Inserted[0].Name, software[1].Name)
+	require.Equal(t, mutationResults.Inserted[0].Version, software[1].InstalledVersions[0].Version)
+	require.Equal(t, selfServiceinstaller.Version, software[1].SoftwarePackage.Version)
+
 	// installer1 should be in scope since it has no labels
 	scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
 	require.NoError(t, err)
@@ -5984,19 +6086,34 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	hostsInScope, err := ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, installerID1)
 	require.NoError(t, err)
 	require.Contains(t, hostsInScope, host.ID)
+	require.Contains(t, hostsInScope, anotherHost.ID)
+	require.Contains(t, hostsInScope, thirdHost.ID)
 
 	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1" + t.Name()})
 	require.NoError(t, err)
 
-	// assign the label to the host
+	// assign the label to the hosts
 	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{label1.ID}))
 	host.LabelUpdatedAt = time.Now()
 	err = ds.UpdateHost(ctx, host)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddLabelsToHost(ctx, anotherHost.ID, []uint{label1.ID}))
+	anotherHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, anotherHost)
+	require.NoError(t, err)
+	require.NoError(t, ds.AddLabelsToHost(ctx, thirdHost.ID, []uint{label1.ID}))
+	anotherHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, anotherHost)
+	require.NoError(t, err)
 	time.Sleep(time.Second)
 
-	// assign the label to the software installer
+	// assign the label to the software installers
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}},
+	}, softwareTypeInstaller)
+	require.NoError(t, err)
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), selfServiceInstallerID, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
 		ByName:     map[string]fleet.LabelIdent{label1.Name: {LabelName: label1.Name, LabelID: label1.ID}},
 	}, softwareTypeInstaller)
@@ -6007,6 +6124,18 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, software)
 
+	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].InstalledVersions[0].Version, softwareAlreadyInstalled.Version)
+	require.Nil(t, software[0].SoftwarePackage)
+
+	software, _, err = ds.ListHostSoftware(ctx, thirdHost, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].InstalledVersions[0].Version, selfServiceinstaller.Version)
+	require.Nil(t, software[0].SoftwarePackage)
+
 	hostsNotInScope, err := ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, installerID1)
 	require.NoError(t, err)
 	require.Contains(t, hostsNotInScope, host.ID)
@@ -6015,6 +6144,26 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, installerID1, host.ID)
 	require.NoError(t, err)
 	require.False(t, scoped)
+
+	// self-service flag
+	selfServiceOpts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 10}, IncludeAvailableForInstall: true, SelfServiceOnly: true, IsMDMEnrolled: true}
+	// softwareAlreadyInstalled should not be returned because it is not self service
+	software, _, err = ds.ListHostSoftware(ctx, anotherHost, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	// selfServiceinstaller is self service however, excluded by label so should not be returned
+	software, _, err = ds.ListHostSoftware(ctx, thirdHost, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+
+	selfServiceOpts.OnlyAvailableForInstall = true
+	software, _, err = ds.ListHostSoftware(ctx, anotherHost, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
+	software, _, err = ds.ListHostSoftware(ctx, thirdHost, selfServiceOpts)
+	require.NoError(t, err)
+	require.Len(t, software, 0)
 
 	// Update the label to be "include any"
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), installerID1, fleet.LabelIdentsWithScope{
@@ -6039,13 +6188,13 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
 		InstallerFile:     tfr1,
-		StorageID:         "storage2",
-		Filename:          "file2",
-		Title:             "file2",
+		StorageID:         "storage3",
+		Filename:          "file3",
+		Title:             "file3",
 		Version:           "2.0",
 		Source:            "apps",
 		UserID:            user1.ID,
-		BundleIdentifier:  "bi2",
+		BundleIdentifier:  "bi3",
 		Platform:          "darwin",
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	}
@@ -6109,13 +6258,13 @@ func testListHostSoftwareWithLabelScoping(t *testing.T, ds *Datastore) {
 		PostInstallScript: "world",
 		UninstallScript:   "goodbye",
 		InstallerFile:     tfr1,
-		StorageID:         "storage3",
-		Filename:          "file3",
-		Title:             "file3",
+		StorageID:         "storage4",
+		Filename:          "file4",
+		Title:             "file4",
 		Version:           "3.0",
 		Source:            "apps",
 		UserID:            user1.ID,
-		BundleIdentifier:  "bi3",
+		BundleIdentifier:  "bi4",
 		Platform:          "darwin",
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	}
@@ -6957,6 +7106,31 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
+	thirdHost := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, thirdHost, false)
+	// have a pre-installed vpp app
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		vppApp.Name, "0.1.10", "apps", vppApp.BundleIdentifier, vppApp.TitleID, hex.EncodeToString([]byte("vpp1v0.1.10")),
+	)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	softwareID, err := res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_software (host_id, software_id)
+		VALUES (?, ?)
+	`, thirdHost.ID, softwareID)
+	require.NoError(t, err)
+	// update host label timestamp
+	require.NoError(t, ds.AddLabelsToHost(ctx, thirdHost.ID, []uint{label1.ID}))
+	thirdHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, thirdHost)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
 	// Assign the label to the VPP app. Now we should have an empty list
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
@@ -6970,7 +7144,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 
 	hostsNotInScope, err = ds.GetExcludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
-	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}}, hostsNotInScope)
+	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}, thirdHost.ID: {}}, hostsNotInScope)
 
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
@@ -6983,11 +7157,25 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.Equal(t, software[0].Name, vppApp.Name)
 	expectedStatus := fleet.SoftwareInstallerStatus("installed")
 	require.Equal(t, software[0].Status, &expectedStatus)
-	require.NotNil(t, software[0].AppStoreApp)
+	// but should not be available for install because of the ExcludeAny label
+	require.Nil(t, software[0].AppStoreApp)
+
+	// vpp app is installed, so should come back in list of software
+	software, _, err = ds.ListHostSoftware(ctx, thirdHost, opts)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].Name, vppApp.Name)
+	// nil because it was pre-installed on host
+	require.Nil(t, software[0].Status)
+	// but should not be available for install because of the ExcludeAny label
+	require.Nil(t, software[0].AppStoreApp)
 
 	// filtering by only available for install should exclude the vpp app
 	opts.OnlyAvailableForInstall = true
 	software, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	checkSoftware(software, installer1.Filename, vppApp.Name)
+	software, _, err = ds.ListHostSoftware(ctx, thirdHost, opts)
 	require.NoError(t, err)
 	checkSoftware(software, installer1.Filename, vppApp.Name)
 	opts.OnlyAvailableForInstall = false
