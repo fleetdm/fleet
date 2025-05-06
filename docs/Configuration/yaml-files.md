@@ -349,13 +349,13 @@ controls:
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: 2024-12-31
+    deadline: "2024-12-31"
     minimum_version: "15.1"
   ios_updates: # Available in Fleet Premium
-    deadline: 2024-12-31
+    deadline: "2024-12-31"
     minimum_version: "18.1"
   ipados_updates: # Available in Fleet Premium
-    deadline: 2024-12-31
+    deadline: "2024-12-31"
     minimum_version: "18.1"
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
