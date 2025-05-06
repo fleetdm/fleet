@@ -33,6 +33,7 @@ func TestSCIM(t *testing.T) {
 		{"UpdateGroup", testUpdateGroup},
 		{"PatchUserEmails", testPatchUserEmails},
 		{"PatchUserAttributes", testPatchUserAttributes},
+		{"PatchGroupAttributes", testPatchGroupAttributes},
 		{"UsersPagination", testUsersPagination},
 		{"GroupsPagination", testGroupsPagination},
 		{"UsersAndGroups", testUsersAndGroups},
@@ -512,39 +513,6 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	// Verify members were removed
 	_, membersExist := updateResp["members"]
 	assert.False(t, membersExist, "Members should not be present or should be empty")
-
-	// Test patching a group (updating just the displayName)
-	patchGroupPayload := map[string]interface{}{
-		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
-			{
-				"op":    "replace",
-				"path":  "displayName",
-				"value": "Patched Test Group",
-			},
-		},
-	}
-
-	var patchResp map[string]interface{}
-	s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchGroupPayload, http.StatusOK, &patchResp)
-	assert.Equal(t, "Patched Test Group", patchResp["displayName"])
-
-	// Test patching a group without path attribute (updating just the displayName)
-	patchGroupPayload = map[string]interface{}{
-		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
-			{
-				"op": "replace",
-				"value": map[string]interface{}{
-					"displayName": "Patched Again Test Group",
-				},
-			},
-		},
-	}
-
-	patchResp = nil
-	s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchGroupPayload, http.StatusOK, &patchResp)
-	assert.Equal(t, "Patched Again Test Group", patchResp["displayName"])
 
 	// Test deleting a group
 	s.Do(t, "DELETE", scimPath("/Groups/"+groupID), nil, http.StatusNoContent)
@@ -3579,6 +3547,155 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			})
 		}
 	})
+}
+
+func testPatchGroupAttributes(t *testing.T, s *Suite) {
+	// Create a test user to be added as a member of the group
+	userID, _ := createTestUser(t, s, "group-patch-test@example.com")
+
+	// Create a test group
+	createGroupPayload := map[string]interface{}{
+		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
+		"displayName": "Original Group Name",
+		"externalId":  "original-external-id",
+		"members": []map[string]interface{}{
+			{
+				"value": userID,
+			},
+		},
+	}
+
+	var createResp map[string]interface{}
+	s.DoJSON(t, "POST", scimPath("/Groups"), createGroupPayload, http.StatusCreated, &createResp)
+	groupID := createResp["id"].(string)
+
+	t.Run("Replace displayName with explicit path", func(t *testing.T) {
+		patchDisplayNamePayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  "displayName",
+					"value": "Updated Group Name",
+				},
+			},
+		}
+
+		var patchResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchDisplayNamePayload, http.StatusOK, &patchResp)
+		assert.Equal(t, "Updated Group Name", patchResp["displayName"], "displayName should be updated")
+	})
+
+	t.Run("Replace externalId with explicit path", func(t *testing.T) {
+		patchExternalIdPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "replace",
+					"path":  "externalId",
+					"value": "updated-external-id",
+				},
+			},
+		}
+
+		var patchResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchExternalIdPayload, http.StatusOK, &patchResp)
+		assert.Equal(t, "updated-external-id", patchResp["externalId"], "externalId should be updated")
+	})
+
+	t.Run("Remove and add operation for externalId", func(t *testing.T) {
+		// First, remove the externalId
+		removeExternalIdPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "remove",
+					"path": "externalId",
+				},
+			},
+		}
+
+		var removeResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), removeExternalIdPayload, http.StatusOK, &removeResp)
+		_, hasExternalId := removeResp["externalId"]
+		assert.False(t, hasExternalId, "externalId should be removed")
+
+		// Now add a new externalId
+		addExternalIdPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "add",
+					"path":  "externalId",
+					"value": "added-external-id",
+				},
+			},
+		}
+
+		var addResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), addExternalIdPayload, http.StatusOK, &addResp)
+		assert.Equal(t, "added-external-id", addResp["externalId"], "externalId should be added")
+	})
+
+	t.Run("Multiple operations in one request", func(t *testing.T) {
+		multiOperationPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":    "add",
+					"path":  "externalId",
+					"value": "multi-op-external-id",
+				},
+				{
+					"op":    "replace",
+					"path":  "displayName",
+					"value": "Multi-Op Group Name",
+				},
+			},
+		}
+
+		var multiOpResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), multiOperationPayload, http.StatusOK, &multiOpResp)
+		assert.Equal(t, "multi-op-external-id", multiOpResp["externalId"], "externalId should be added")
+		assert.Equal(t, "Multi-Op Group Name", multiOpResp["displayName"], "displayName should be updated")
+	})
+
+	t.Run("Operations without path attribute", func(t *testing.T) {
+		noPathPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"displayName": "No-Path Group Name",
+						"externalId":  "no-path-external-id",
+					},
+				},
+			},
+		}
+
+		var noPathResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), noPathPayload, http.StatusOK, &noPathResp)
+		assert.Equal(t, "no-path-external-id", noPathResp["externalId"], "externalId should be updated")
+		assert.Equal(t, "No-Path Group Name", noPathResp["displayName"], "displayName should be updated")
+	})
+
+	t.Run("Attempt to remove required displayName attribute", func(t *testing.T) {
+		removeDisplayNamePayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "remove",
+					"path": "displayName",
+				},
+			},
+		}
+
+		var errorResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), removeDisplayNamePayload, http.StatusBadRequest, &errorResp)
+		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for removing required attribute")
+	})
+
 }
 
 func scimPath(suffix string) string {

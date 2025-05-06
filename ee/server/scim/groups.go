@@ -280,8 +280,7 @@ func (g *GroupHandler) Delete(r *http.Request, id string) error {
 }
 
 // Patch
-// Only supporting replacing the "displayName" attribute.
-// Note: Okta does not use PATCH endpoint to update groups (2025/04/01)
+// Supporting add/replace/remove operations for "displayName" and "externalId" attributes.
 func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
 	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
@@ -299,51 +298,99 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 	}
 
 	for _, op := range operations {
-		if op.Op != "replace" {
+		if op.Op != scim.PatchOperationAdd && op.Op != scim.PatchOperationReplace && op.Op != scim.PatchOperationRemove {
 			level.Info(g.logger).Log("msg", "unsupported patch operation", "op", op.Op)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 		switch {
 		case op.Path == nil:
+			if op.Op == scim.PatchOperationRemove {
+				level.Info(g.logger).Log("msg", "the 'path' attribute is REQUIRED for 'remove' operations", "op", op.Op)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
 			newValues, ok := op.Value.(map[string]interface{})
 			if !ok {
 				level.Info(g.logger).Log("msg", "unsupported patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			if len(newValues) != 1 {
-				level.Info(g.logger).Log("msg", "too many patch values", "value", op.Value)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			for k, v := range newValues {
+				switch k {
+				case externalIdAttr:
+					err = g.patchExternalId(op.Op, v, group)
+					if err != nil {
+						return scim.Resource{}, err
+					}
+				case displayNameAttr:
+					err = g.patchDisplayName(op.Op, v, group)
+					if err != nil {
+						return scim.Resource{}, err
+					}
+				default:
+					level.Info(g.logger).Log("msg", "unsupported patch value field", "field", k)
+					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				}
 			}
-			displayName, err := getRequiredResource[string](newValues, displayNameAttr)
+		case op.Path.String() == externalIdAttr:
+			err = g.patchExternalId(op.Op, op.Value, group)
 			if err != nil {
-				level.Info(g.logger).Log("msg", "failed to get active value", "value", op.Value)
 				return scim.Resource{}, err
 			}
-			group.DisplayName = displayName
 		case op.Path.String() == displayNameAttr:
-			displayName, ok := op.Value.(string)
-			if !ok {
-				level.Error(g.logger).Log("msg", "unsupported 'displayName' patch value", "value", op.Value)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			err = g.patchDisplayName(op.Op, op.Value, group)
+			if err != nil {
+				return scim.Resource{}, err
 			}
-			group.DisplayName = displayName
 		default:
 			level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 	}
 
-	err = g.ds.ReplaceScimGroup(r.Context(), group)
-	switch {
-	case fleet.IsNotFound(err):
-		level.Info(g.logger).Log("msg", "failed to find group to patch", "id", id)
-		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
-	case err != nil:
-		level.Error(g.logger).Log("msg", "failed to patch group", "id", id, "err", err)
-		return scim.Resource{}, err
+	if len(operations) != 0 {
+		err = g.ds.ReplaceScimGroup(r.Context(), group)
+		switch {
+		case fleet.IsNotFound(err):
+			level.Info(g.logger).Log("msg", "failed to find group to patch", "id", id)
+			return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+		case err != nil:
+			level.Error(g.logger).Log("msg", "failed to patch group", "id", id, "err", err)
+			return scim.Resource{}, err
+		}
 	}
 
 	return createGroupResource(group), nil
+}
+
+func (g *GroupHandler) patchExternalId(op string, v interface{}, group *fleet.ScimGroup) error {
+	if op == scim.PatchOperationRemove || v == nil {
+		group.ExternalID = nil
+		return nil
+	}
+	externalId, ok := v.(string)
+	if !ok {
+		level.Info(g.logger).Log("msg", fmt.Sprintf("unsupported '%s' value", externalIdAttr), "value", v)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
+	}
+	group.ExternalID = &externalId
+	return nil
+}
+
+func (g *GroupHandler) patchDisplayName(op string, v interface{}, group *fleet.ScimGroup) error {
+	if op == scim.PatchOperationRemove {
+		level.Info(g.logger).Log("msg", "cannot remove required attribute", "attribute", displayNameAttr)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+	displayName, ok := v.(string)
+	if !ok {
+		level.Info(g.logger).Log("msg", fmt.Sprintf("unsupported '%s' value", displayNameAttr), "value", v)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
+	}
+	if displayName == "" {
+		level.Info(g.logger).Log("msg", fmt.Sprintf("'%s' cannot be empty", displayNameAttr), "value", v)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
+	}
+	group.DisplayName = displayName
+	return nil
 }
 
 func scimGroupID(groupID uint) string {
