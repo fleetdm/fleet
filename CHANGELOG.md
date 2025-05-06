@@ -1,3 +1,9 @@
+## Fleet 4.68.0 (May 05, 2025)
+
+### Bug fixes
+
+null
+
 ## Fleet 4.67.2 (Apr 27, 2025)
 
 - Fixed software deduplication when migrating from < 4.67.0 for cases where exactly two software entries would be merged into one, and for cases where the same bundle ID has more than one version, each with more than one that needs to be converted into a single software entry.
