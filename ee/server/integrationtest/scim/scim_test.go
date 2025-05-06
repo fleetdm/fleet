@@ -542,9 +542,6 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	assert.EqualValues(t, deleteAgainResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, deleteAgainResp["detail"], "not found")
 
-	// Delete the second group we created
-	s.Do(t, "DELETE", scimPath("/Groups/"+secondGroupID), nil, http.StatusNoContent)
-
 	// Delete the user we created
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 }
