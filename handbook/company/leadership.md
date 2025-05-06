@@ -128,6 +128,8 @@ Then, to finalize a new advisor after signing is complete:
 
 ## Hiring a consultant
 
+> **To hire a consultant**, [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the Digital Experience team.
+
 In addition to [core team members](#hiring-a-new-team-member), from time to time Fleet hires consultants who may work for only a handful of hours on short projects.
 
 **Who ISN'T a consultant?**: If a consultant plans to work _more_ than 10 hours per week, or for _longer_ than 6 weeks, they should instead be hired as a [core team member](#hiring-a-new-team-member).
@@ -158,8 +160,6 @@ Consultants:
 - do NOT fill any existing [open position](#creating-a-new-position)
 
 Consultants [track time using the company's tools](#tracking-hours) and sign [Fleet's consulting agreement](#sending-a-consulting-agreement).
-
-To hire a consultant, [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the Digital Experience team.
 
 
 ### Sending a consulting agreement
