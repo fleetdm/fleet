@@ -1382,6 +1382,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			) error {
 				act := activity.(fleet.ActivityTypeReadHostDiskEncryptionKey)
 				require.Equal(t, tt.host.ID, act.HostID)
+				require.Equal(t, []uint{tt.host.ID}, act.HostIDs())
 				require.EqualValues(t, act.HostDisplayName, tt.host.DisplayName())
 				return nil
 			}
