@@ -6040,6 +6040,11 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToPayload["N2"].ProfileUUID}
 	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
 	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeResentConfigurationProfileBatch{}.ActivityName(),
+		fmt.Sprintf(`{"profile_name": %q, "host_count": %d}`, "N2", 2),
+		0,
+	)
 
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		host1: {
@@ -6085,4 +6090,10 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 			{Name: "N3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 	})
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeResentConfigurationProfileBatch{}.ActivityName(),
+		fmt.Sprintf(`{"profile_name": %q, "host_count": %d}`, "N3", 1),
+		0,
+	)
 }
