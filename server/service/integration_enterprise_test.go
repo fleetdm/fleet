@@ -16979,14 +16979,34 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 1)
 
+	// installer should be out of scope since the label is "exclude any"
+	scoped, err := s.ds.IsSoftwareInstallerLabelScoped(ctx, installerID, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+
+	// host should be excluded from the software installer
+	hostsNotInScope, err := s.ds.GetExcludedHostIDMapForSoftwareInstaller(ctx, installerID)
+	require.NoError(t, err)
+	require.Contains(t, hostsNotInScope, host.ID)
+
 	// uninstall the software
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", host.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 1)
-	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage.LastInstall)
+	// TODO this is a corner case where we have visibility on a descoped uninstall, but this will disappear
+	// once we complete the uninstall because at that point we'll be relying solely on inventory to determine software
+	// status, because we should be treating descoped installers as if they don't exist.
 	assert.Equal(t, fleet.SoftwareUninstallPending, *getHostSw.Software[0].Status)
-	require.NotNil(t, getHostSw.Software[0].SoftwarePackage.LastUninstall)
-	uninstallExecutionID := getHostSw.Software[0].SoftwarePackage.LastUninstall.ExecutionID
+	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
+
+	var uninstallExecutionID string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &uninstallExecutionID, `
+			SELECT execution_id
+			FROM host_software_installs
+			WHERE host_id = ? AND status='pending_uninstall'
+		`, host.ID)
+	})
 
 	// Host sends failed uninstall result
 	var orbitPostScriptResp orbitPostScriptResultResponse
@@ -16998,7 +17018,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	// Now that the software is uninstalled, we should no longer see it in the host software list,
 	// because it is de-scoped via labels.
 	getHostSw = getHostSoftwareResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?available_for_install=true", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Empty(t, getHostSw.Software)
 }
 
