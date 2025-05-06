@@ -1615,3 +1615,7 @@ func batchSetProfileVariableAssociationsDB(
 	}
 	return nil
 }
+
+func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) ([]uint, error) {
+	panic("unimplemented")
+}
