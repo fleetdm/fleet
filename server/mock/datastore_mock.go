@@ -1046,6 +1046,8 @@ type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet
 
 type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
+type BatchResendMDMProfileToHostsFunc func(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) ([]uint, error)
+
 type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error)
 
 type GetLinuxDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error)
@@ -2874,6 +2876,9 @@ type DataStore struct {
 
 	ResendHostMDMProfileFunc        ResendHostMDMProfileFunc
 	ResendHostMDMProfileFuncInvoked bool
+
+	BatchResendMDMProfileToHostsFunc        BatchResendMDMProfileToHostsFunc
+	BatchResendMDMProfileToHostsFuncInvoked bool
 
 	GetHostMDMProfileInstallStatusFunc        GetHostMDMProfileInstallStatusFunc
 	GetHostMDMProfileInstallStatusFuncInvoked bool
@@ -6898,6 +6903,13 @@ func (s *DataStore) ResendHostMDMProfile(ctx context.Context, hostUUID string, p
 	s.ResendHostMDMProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResendHostMDMProfileFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) ([]uint, error) {
+	s.mu.Lock()
+	s.BatchResendMDMProfileToHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchResendMDMProfileToHostsFunc(ctx, profileUUID, filters)
 }
 
 func (s *DataStore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error) {
