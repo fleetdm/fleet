@@ -1708,7 +1708,7 @@ func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string
 
 type ActivityTypeResentConfigurationProfileBatch struct {
 	ProfileName string `json:"profile_name"`
-	HostCount   int    `json:"host_count"`
+	HostCount   int64  `json:"host_count"`
 }
 
 func (a ActivityTypeResentConfigurationProfileBatch) ActivityName() string {

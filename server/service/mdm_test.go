@@ -1998,8 +1998,8 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
-	ds.BatchResendMDMProfileToHostsFunc = func(ctx context.Context, profUUID string, filters fleet.BatchResendMDMProfileFilters) ([]uint, error) {
-		return nil, nil
+	ds.BatchResendMDMProfileToHostsFunc = func(ctx context.Context, profUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
+		return 0, nil
 	}
 
 	checkShouldFail := func(t *testing.T, err error, shouldFail bool) {

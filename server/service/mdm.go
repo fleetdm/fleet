@@ -2886,16 +2886,16 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	hostIDs, err := svc.ds.BatchResendMDMProfileToHosts(ctx, profileUUID, filters)
+	count, err := svc.ds.BatchResendMDMProfileToHosts(ctx, profileUUID, filters)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if len(hostIDs) > 0 {
+	if count > 0 {
 		if err := svc.NewActivity(
 			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfileBatch{
 				ProfileName: profileName,
-				HostCount:   len(hostIDs),
+				HostCount:   count,
 			}); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for batch-resend of profile")
 		}
