@@ -456,7 +456,9 @@ func testSyncAndRemoveApps(t *testing.T, ds *Datastore) {
 func testGetMaintainedAppBySlug(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
 	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 2"})
+	require.NoError(t, err)
 	user := test.NewUser(t, ds, "green banana", "yellow@banana.com", true)
 	require.NoError(t, err)
 
