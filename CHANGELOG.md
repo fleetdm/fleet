@@ -1,3 +1,8 @@
+## Fleet 4.67.3 (May 6, 2025)
+
+- Removed error caused by macOS electron helper apps during ingestion.
+- Added a temporary index during macOS software names migration to speed up host software installed paths cleanup introduced in 4.67.2. This change only affects upgrades from pre-4.67.0 versions.
+
 ## Fleet 4.67.2 (Apr 27, 2025)
 
 - Fixed software deduplication when migrating from < 4.67.0 for cases where exactly two software entries would be merged into one, and for cases where the same bundle ID has more than one version, each with more than one that needs to be converted into a single software entry.

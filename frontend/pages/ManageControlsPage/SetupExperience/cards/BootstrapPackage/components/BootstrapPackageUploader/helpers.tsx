@@ -1,5 +1,8 @@
+import React from "react";
 import { AxiosResponse } from "axios";
 import { IApiError } from "interfaces/errors";
+import CustomLink from "components/CustomLink";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 export const UPLOAD_ERROR_MESSAGES = {
   wrongType: {
@@ -10,6 +13,21 @@ export const UPLOAD_ERROR_MESSAGES = {
     condition: (reason: string) => reason.includes("file is not"),
     message:
       "Couldn’t upload. The package must be signed. Click “Learn more” below to learn how to sign.",
+  },
+  noDistribution: {
+    condition: (reason: string) =>
+      reason.includes("Bootstrap package must be a distribution package"),
+    message: (
+      <>
+        Couldn&apos;t upload. Bootstrap package must be a distribution package.{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/macos-distribution-packages`}
+          text="Learn more"
+          newTab
+          variant="flash-message-link"
+        />
+      </>
+    ),
   },
   default: {
     condition: () => false,
