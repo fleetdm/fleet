@@ -2493,6 +2493,7 @@ func hostSoftwareInstalls(ds *Datastore, ctx context.Context, hostID uint) ([]*h
         )
         SELECT
 			software_installers.id AS installer_id,
+			software_installers.self_service AS package_self_service,
 			software_titles.id AS id,
 			lsia.*
 		FROM
@@ -2598,8 +2599,6 @@ func filterSoftwareInstallersByLabel(
 	ctx context.Context,
 	host *fleet.Host,
 	bySoftwareTitleID map[uint]*hostSoftware,
-	onlyAvailableForInstall bool,
-	selfServiceOnly bool,
 ) (map[uint]*hostSoftware, error) {
 	if len(bySoftwareTitleID) == 0 {
 		return bySoftwareTitleID, nil
@@ -2609,12 +2608,8 @@ func filterSoftwareInstallersByLabel(
 	softwareInstallersIDsToCheck := make([]uint, 0, len(bySoftwareTitleID))
 
 	for _, st := range bySoftwareTitleID {
-		if (onlyAvailableForInstall || selfServiceOnly) || (st.LastUninstallUninstalledAt != nil && st.LastInstallInstalledAt != nil &&
-			st.LastUninstallUninstalledAt.After(*st.LastInstallInstalledAt) &&
-			st.ExitCode != nil && *st.ExitCode == 0) {
+		if st.InstallerID != nil {
 			softwareInstallersIDsToCheck = append(softwareInstallersIDsToCheck, *st.InstallerID)
-		} else {
-			filteredbySoftwareTitleID[st.ID] = st
 		}
 	}
 
@@ -2742,30 +2737,29 @@ func filterVppAppsByLabel(
 	ctx context.Context,
 	host *fleet.Host,
 	byVppAppID map[string]*hostSoftware,
-	onlyAvailableForInstall bool,
-	selfServiceOnly bool,
-) (map[string]*hostSoftware, error) {
-	if len(byVppAppID) == 0 {
-		return byVppAppID, nil
-	}
-
+	hostVPPInstalledTitles map[uint]*hostSoftware,
+) (map[string]*hostSoftware, map[string]*hostSoftware, error) {
 	filteredbyVppAppID := make(map[string]*hostSoftware, len(byVppAppID))
+	otherVppAppsInInventory := make(map[string]*hostSoftware, len(hostVPPInstalledTitles))
+	// This is the list of VPP apps that are installed on the host by fleet or the user
+	// that we want to check are in scope or not
 	vppAppIDsToCheck := make([]string, 0, len(byVppAppID))
 
 	for _, st := range byVppAppID {
-		if onlyAvailableForInstall || selfServiceOnly {
+		vppAppIDsToCheck = append(vppAppIDsToCheck, *st.VPPAppAdamID)
+	}
+	for _, st := range hostVPPInstalledTitles {
+		if st.VPPAppAdamID != nil {
 			vppAppIDsToCheck = append(vppAppIDsToCheck, *st.VPPAppAdamID)
-		} else if st.VPPAppAdamID != nil {
-			filteredbyVppAppID[*st.VPPAppAdamID] = st
 		}
 	}
 
-	var globalOrTeamID uint
-	if host.TeamID != nil {
-		globalOrTeamID = *host.TeamID
-	}
-
 	if len(vppAppIDsToCheck) > 0 {
+		var globalOrTeamID uint
+		if host.TeamID != nil {
+			globalOrTeamID = *host.TeamID
+		}
+
 		labelSqlFilter := `
 			WITH no_labels AS (
 				SELECT
@@ -2855,12 +2849,12 @@ func filterVppAppsByLabel(
 			"global_or_team_id":     globalOrTeamID,
 		})
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel building named query args")
+			return nil, nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel building named query args")
 		}
 
 		labelSqlFilter, args, err = sqlx.In(labelSqlFilter, args...)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel building in query args")
+			return nil, nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel building in query args")
 		}
 
 		var validVppApps []struct {
@@ -2869,16 +2863,23 @@ func filterVppAppsByLabel(
 		}
 		err = sqlx.SelectContext(ctx, ds.reader(ctx), &validVppApps, labelSqlFilter, args...)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel executing query")
+			return nil, nil, ctxerr.Wrap(ctx, err, "filterVppAppsByLabel executing query")
 		}
 
-		// go through the returned list of validVppApps and add all the apps that meet the label criteria to be returned
+		// differentiate between VPP apps that were installed by Fleet (show install details +
+		// ability to reinstall in self-service) vs. VPP apps that Fleet knows about but either
+		// weren't installed by Fleet or were installed by Fleet but are no longer in scope
+		// (treat as in inventory and not re-installable in self-service)
 		for _, validAppApp := range validVppApps {
-			filteredbyVppAppID[validAppApp.AdamId] = byVppAppID[validAppApp.AdamId]
+			if _, ok := byVppAppID[validAppApp.AdamId]; ok {
+				filteredbyVppAppID[validAppApp.AdamId] = byVppAppID[validAppApp.AdamId]
+			} else if svpp, ok := hostVPPInstalledTitles[validAppApp.TitleId]; ok {
+				otherVppAppsInInventory[validAppApp.AdamId] = svpp
+			}
 		}
 	}
 
-	return filteredbyVppAppID, nil
+	return filteredbyVppAppID, otherVppAppsInInventory, nil
 }
 
 func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTeamID uint, selfServiceOnly bool, isMDMEnrolled bool) ([]*hostSoftware, error) {
@@ -2940,7 +2941,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                     hvsi2.removed = 0 AND
 					hvsi2.canceled = 0 AND
                     (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
-			LEFT JOIN
+			INNER JOIN
 				vpp_apps_teams vat ON hvsi.adam_id = vat.adam_id AND hvsi.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
             INNER JOIN
 				vpp_apps ON hvsi.adam_id = vpp_apps.adam_id AND hvsi.platform = vpp_apps.platform
@@ -3146,31 +3147,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			bySoftwareTitleID[s.ID].ExitCode = s.ExitCode
 		}
 	}
-	originalLength := len(bySoftwareTitleID)
-	bySoftwareTitleID, err = filterSoftwareInstallersByLabel(
-		ds,
-		ctx,
-		host,
-		bySoftwareTitleID,
-		opts.OnlyAvailableForInstall,
-		opts.SelfServiceOnly,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(bySoftwareTitleID) != originalLength {
-		// we have removed some software installers, we need to remove the corresponding software
-		for index, s := range hostSoftwareInstalls {
-			if _, ok := bySoftwareTitleID[s.ID]; !ok {
-				hostSoftwareInstalls = append(hostSoftwareInstalls[:index], hostSoftwareInstalls[index+1:]...)
-			}
-		}
-		for index, s := range hostSoftwareUninstalls {
-			if _, ok := bySoftwareTitleID[s.ID]; !ok {
-				hostSoftwareUninstalls = append(hostSoftwareUninstalls[:index], hostSoftwareUninstalls[index+1:]...)
-			}
-		}
-	}
 
 	hostInstalledSoftware, err := hostInstalledSoftware(ds, ctx, host.ID)
 	hostInstalledSoftwareTitleSet := make(map[uint]struct{})
@@ -3201,32 +3177,18 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if s.VPPAppAdamID != nil {
 			// If a VPP app is already installed on the host, we don't need to double count it
 			// until we merge the two fetch queries later on in this method
-			// we have to manually remove any VPP apps that are also being returned by the host_software table
+			// until then if the host_software record is not a software installer, we delete it and keep the vpp app
 			if _, exists := hostInstalledSoftwareTitleSet[s.ID]; exists {
-				continue
+				installedTitle := bySoftwareTitleID[s.ID]
+				if installedTitle.InstallerID == nil {
+					// not a software installer, so
+					s.LastOpenedAt = installedTitle.LastOpenedAt
+					delete(bySoftwareTitleID, s.ID)
+				} else {
+					continue
+				}
 			}
 			byVPPAdamID[*s.VPPAppAdamID] = s
-		}
-	}
-	// filter out VPP apps due to label scoping
-	originalLength = len(byVPPAdamID)
-	byVPPAdamID, err = filterVppAppsByLabel(
-		ds,
-		ctx,
-		host,
-		byVPPAdamID,
-		opts.OnlyAvailableForInstall,
-		opts.SelfServiceOnly,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(byVPPAdamID) != originalLength {
-		// we have removed some vpp apps, we need to remove the corresponding vpp apps
-		for index, v := range hostVPPInstalls {
-			if _, ok := byVPPAdamID[*v.VPPAppAdamID]; !ok {
-				hostVPPInstalls = append(hostVPPInstalls[:index], hostVPPInstalls[index+1:]...)
-			}
 		}
 	}
 
@@ -3240,17 +3202,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			installedVppsByAdamID[*s.VPPAppAdamID] = s
 		}
 	}
-	installedVppsByAdamID, err = filterVppAppsByLabel(
-		ds,
-		ctx,
-		host,
-		installedVppsByAdamID,
-		opts.OnlyAvailableForInstall,
-		opts.SelfServiceOnly,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
+
 	hostVPPInstalledTitles := make(map[uint]*hostSoftware)
 	for _, s := range installedVppsByAdamID {
 		hostVPPInstalledTitles[s.ID] = s
@@ -3270,6 +3222,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				st.id,
 				st.name,
 				st.source,
+				si.id as installer_id,
 				si.self_service as package_self_service,
 				si.filename as package_name,
 				si.version as package_version,
@@ -3491,11 +3444,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					tmpByVPPAdamID[*s.VPPAppAdamID] = s
 				}
 			}
-			// software installed on the host not by fleet and there exists a software installer that matches this software
-			// so that makes it available for install
-			installedInstallersSql := `
+		}
+		// software installed on the host not by fleet and there exists a software installer that matches this software
+		// so that makes it available for install
+		installedInstallersSql := `
 			SELECT
-				software.title_id
+				software.title_id,
+				software_installers.id AS installer_id
 			FROM
 				host_software
 			INNER JOIN
@@ -3506,19 +3461,24 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				  AND software_installers.global_or_team_id = ?
 			WHERE host_software.host_id = ?
 			`
-			var installedSoftwareTitleIDs []uint
-			err = sqlx.SelectContext(ctx, ds.reader(ctx), &installedSoftwareTitleIDs, installedInstallersSql, namedArgs["host_compatible_platforms"], globalOrTeamID, host.ID)
-			if err != nil {
-				return nil, nil, err
+		type InstalledSoftwareTitle struct {
+			TitleID     uint `db:"title_id"`     // Represents the ID of the software title
+			InstallerID uint `db:"installer_id"` // Represents the ID of the software installer
+		}
+		var installedSoftwareTitleIDs []InstalledSoftwareTitle
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &installedSoftwareTitleIDs, installedInstallersSql, namedArgs["host_compatible_platforms"], globalOrTeamID, host.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, s := range installedSoftwareTitleIDs {
+			if software := bySoftwareTitleID[s.TitleID]; software != nil {
+				tempBySoftwareTitleID[s.TitleID] = software
+				software.InstallerID = &s.InstallerID
 			}
-			for _, s := range installedSoftwareTitleIDs {
-				if software := bySoftwareTitleID[s]; software != nil {
-					tempBySoftwareTitleID[s] = software
-				}
-			}
-			// software installed on the host not by fleet and there exists a vpp app that matches this software
-			// so that makes it available for install
-			installedVPPAppsSql := `
+		}
+		// software installed on the host not by fleet and there exists a vpp app that matches this software
+		// so that makes it available for install
+		installedVPPAppsSql := `
 			SELECT
 				vpp_apps.title_id AS id,
 				vpp_apps.adam_id AS vpp_app_adam_id,
@@ -3537,23 +3497,22 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			WHERE
 				host_software.host_id = :host_id
 			`
-			installedVPPAppsSql, args, err := sqlx.Named(installedVPPAppsSql, namedArgs)
-			if err != nil {
-				return nil, nil, err
-			}
-			installedVPPAppsSql, args, err = sqlx.In(installedVPPAppsSql, args...)
-			if err != nil {
-				return nil, nil, err
-			}
-			var installedVPPAppIDs []*hostSoftware
-			err = sqlx.SelectContext(ctx, ds.reader(ctx), &installedVPPAppIDs, installedVPPAppsSql, args...)
-			if err != nil {
-				return nil, nil, err
-			}
-			for _, s := range installedVPPAppIDs {
-				tempBySoftwareTitleID[s.ID] = s
-				hostVPPInstalledTitles[s.ID] = s
-			}
+		installedVPPAppsSql, args, err := sqlx.Named(installedVPPAppsSql, namedArgs)
+		if err != nil {
+			return nil, nil, err
+		}
+		installedVPPAppsSql, args, err = sqlx.In(installedVPPAppsSql, args...)
+		if err != nil {
+			return nil, nil, err
+		}
+		var installedVPPAppIDs []*hostSoftware
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &installedVPPAppIDs, installedVPPAppsSql, args...)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, s := range installedVPPAppIDs {
+			tempBySoftwareTitleID[s.ID] = s
+			hostVPPInstalledTitles[s.ID] = s
 		}
 		for _, s := range availableSoftwareTitles {
 			// If it's a VPP app
@@ -3596,6 +3555,63 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if opts.OnlyAvailableForInstall {
 			bySoftwareTitleID = tempBySoftwareTitleID
 			byVPPAdamID = tmpByVPPAdamID
+		}
+	}
+
+	// filter out software installers due to label scoping
+	filteredBySoftwareTitleID, err := filterSoftwareInstallersByLabel(
+		ds,
+		ctx,
+		host,
+		bySoftwareTitleID,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	filteredByVPPAdamID, otherVppAppsInInventory, err := filterVppAppsByLabel(
+		ds,
+		ctx,
+		host,
+		byVPPAdamID,
+		hostVPPInstalledTitles,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// We ignored the VPP apps that were installed on the host while filtering in filterSoftwareInstallersByLabel
+	// so we need to add them back in if they are allowed by filterVppAppsByLabel
+	for _, value := range otherVppAppsInInventory {
+		if st, ok := bySoftwareTitleID[value.ID]; ok {
+			filteredBySoftwareTitleID[value.ID] = st
+		}
+	}
+
+	if opts.OnlyAvailableForInstall {
+		bySoftwareTitleID = filteredBySoftwareTitleID
+		byVPPAdamID = filteredByVPPAdamID
+	}
+	// self service impacts inventory, when a software title is excluded because of a filter,
+	// it should be excluded from the inventory as well, because we cannot "reinstall" it on the self service page
+	if opts.SelfServiceOnly {
+		for _, software := range bySoftwareTitleID {
+			if software.PackageSelfService != nil && *software.PackageSelfService {
+				if filteredBySoftwareTitleID[software.ID] == nil {
+					// remove the software title from bySoftwareTitleID
+					delete(bySoftwareTitleID, software.ID)
+				}
+			}
+		}
+	}
+
+	// since these host installed vpp apps are already added in bySoftwareTitleID,
+	// we need to avoid adding them to byVPPAdamID
+	// but we need to store them in filteredByVPPAdamID so they are able to be
+	// promoted when returning the software title
+	for key, value := range otherVppAppsInInventory {
+		if _, ok := filteredByVPPAdamID[key]; !ok {
+			filteredByVPPAdamID[key] = value
 		}
 	}
 
@@ -4082,7 +4098,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 			// promote the package name and version to the proper destination fields
 			if softwareTitleRecord.PackageName != nil {
-				hydrateHostSoftwareRecordFromDb(softwareTitleRecord, softwareTitle)
+				if _, ok := filteredBySoftwareTitleID[softwareTitleRecord.ID]; ok {
+					hydrateHostSoftwareRecordFromDb(softwareTitleRecord, softwareTitle)
+				}
 			}
 
 			// This happens when there is a software installed on the host but it is also a vpp record, so we want
@@ -4096,7 +4114,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 			// promote the VPP app id and version to the proper destination fields
 			if softwareTitleRecord.VPPAppAdamID != nil {
-				promoteSoftwareTitleVPPApp(softwareTitleRecord)
+				if _, ok := filteredByVPPAdamID[*softwareTitleRecord.VPPAppAdamID]; ok {
+					promoteSoftwareTitleVPPApp(softwareTitleRecord)
+				}
 			}
 
 			if _, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; !ok {
