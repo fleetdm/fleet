@@ -333,19 +333,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 
 		extractFn := r.extractTarGzFn
 		if extractFn == nil {
-			extractFn = func(path string, destDir string) error {
-				tarGzFile, err := os.Open(path)
-				if err != nil {
-					return fmt.Errorf("oepn file for extraction: %w", err)
-				}
-				defer tarGzFile.Close()
-
-				if err = update.ExtractOpenTarGzFile(tarGzFile, destDir); err != nil {
-					return fmt.Errorf("extract %q: %w", path, err)
-				}
-
-				return nil
-			}
+			extractFn = file.ExtractTarGz
 		}
 
 		if err = extractFn(installerPath, extractDestination); err != nil {

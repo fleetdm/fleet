@@ -1,8 +1,10 @@
 package file
 
 import (
+	"archive/tar"
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -14,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -192,4 +195,68 @@ func ExtractFilenameFromURLPath(p string, defaultExtension string) string {
 	}
 
 	return b
+}
+
+// ExtractTarGz extracts the contents of the provided tar.gz file.
+// This implementation uses os.* calls without permission checks, as we're
+// running this operation in the context of fleetd running as root on a host
+// (e.g. for installs), so we have different constraints than fleetctl building
+// a package.
+func ExtractTarGz(path string, destDir string) error {
+	tarGzFile, err := secure.OpenFile(path, os.O_RDONLY, 0o755)
+	if err != nil {
+		return fmt.Errorf("open %q: %w", path, err)
+	}
+	defer tarGzFile.Close()
+
+	gzipReader, err := gzip.NewReader(tarGzFile)
+	if err != nil {
+		return fmt.Errorf("gzip reader: %w", err)
+	}
+	defer gzipReader.Close()
+
+	tarReader := tar.NewReader(gzipReader)
+	for {
+		header, err := tarReader.Next()
+		switch {
+		case err == nil:
+			// OK
+		case errors.Is(err, io.EOF):
+			return nil
+		default:
+			return fmt.Errorf("tar reader: %w", err)
+		}
+
+		// Prevent zip-slip attack.
+		if strings.Contains(header.Name, "..") {
+			return fmt.Errorf("invalid path in tar.gz: %q", header.Name)
+		}
+
+		targetPath := filepath.Join(destDir, header.Name)
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(targetPath, constant.DefaultDirMode); err != nil {
+				return fmt.Errorf("mkdir %q: %w", header.Name, err)
+			}
+		case tar.TypeReg:
+			err := func() error {
+				outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY, header.FileInfo().Mode())
+				if err != nil {
+					return fmt.Errorf("failed to create %q: %w", header.Name, err)
+				}
+				defer outFile.Close()
+
+				if _, err := io.Copy(outFile, tarReader); err != nil {
+					return fmt.Errorf("failed to copy %q: %w", header.Name, err)
+				}
+				return nil
+			}()
+			if err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown flag type %q: %d", header.Name, header.Typeflag)
+		}
+	}
 }
