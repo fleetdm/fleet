@@ -3696,6 +3696,268 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for removing required attribute")
 	})
 
+	t.Run("Add members to group", func(t *testing.T) {
+		// First, ensure the group has a known state with just the original user
+		setupPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "replace",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": userID,
+						},
+					},
+				},
+			},
+		}
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
+
+		// Verify setup was successful
+		members, ok := setupResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 1, len(members), "Group should have 1 member after setup")
+
+		// Now add the second user to the group
+		secondUserID, _ := createTestUser(t, s, "second-group-patch-test@example.com")
+		addMembersPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "add",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": secondUserID,
+						},
+					},
+				},
+			},
+		}
+
+		var addResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), addMembersPayload, http.StatusOK, &addResp)
+
+		// Verify both users are now in the group
+		members, ok = addResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 2, len(members), "Group should have 2 members after adding one")
+
+		// Check that both users are present
+		memberValues := make([]string, 0, 2)
+		for _, m := range members {
+			member, ok := m.(map[string]interface{})
+			assert.True(t, ok, "Member should be an object")
+			memberValues = append(memberValues, member["value"].(string))
+		}
+		assert.Contains(t, memberValues, userID, "Original user should still be in the group")
+		assert.Contains(t, memberValues, secondUserID, "Second user should be added to the group")
+	})
+
+	t.Run("Replace members in group", func(t *testing.T) {
+		// First, ensure the group has a known state with multiple members
+		setupUserID, _ := createTestUser(t, s, "setup-user@example.com")
+		defer s.Do(t, "DELETE", scimPath("/Users/"+setupUserID), nil, http.StatusNoContent)
+
+		setupPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "replace",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": userID,
+						},
+						{
+							"value": setupUserID,
+						},
+					},
+				},
+			},
+		}
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
+
+		// Verify setup was successful
+		members, ok := setupResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 2, len(members), "Group should have 2 members after setup")
+
+		// Now replace all members with just the new user
+		newUserID, _ := createTestUser(t, s, "replace-members-test@example.com")
+		replaceMembersPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "replace",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": newUserID,
+						},
+					},
+				},
+			},
+		}
+
+		var replaceResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), replaceMembersPayload, http.StatusOK, &replaceResp)
+
+		// Verify only the new user is in the group
+		members, ok = replaceResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 1, len(members), "Group should have only 1 member after replacing")
+
+		// Check that only the new user is present
+		member, ok := members[0].(map[string]interface{})
+		assert.True(t, ok, "Member should be an object")
+		assert.Equal(t, newUserID, member["value"], "New user should be the only member")
+	})
+
+	t.Run("Remove all members from group", func(t *testing.T) {
+		// First, ensure the group has members to remove
+		setupUserID, _ := createTestUser(t, s, "remove-test-user@example.com")
+		setupPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "replace",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": userID,
+						},
+						{
+							"value": setupUserID,
+						},
+					},
+				},
+			},
+		}
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
+
+		// Verify setup was successful
+		members, ok := setupResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 2, len(members), "Group should have 2 members after setup")
+
+		// Now remove all members
+		removeMembersPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "remove",
+					"path": "members",
+				},
+			},
+		}
+
+		var removeResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), removeMembersPayload, http.StatusOK, &removeResp)
+
+		// Verify no members are in the group
+		_, hasMembers := removeResp["members"]
+		assert.False(t, hasMembers, "Group should have no members after removing all")
+	})
+
+	t.Run("Add members without path attribute", func(t *testing.T) {
+		// First, ensure the group has no members
+		setupPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "remove",
+					"path": "members",
+				},
+			},
+		}
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
+
+		// Verify setup was successful
+		_, hasMembers := setupResp["members"]
+		assert.False(t, hasMembers, "Group should have no members after setup")
+
+		// Now add a member without specifying path
+		addMembersNoPathPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "add",
+					"value": map[string]interface{}{
+						"members": []map[string]interface{}{
+							{
+								"value": userID,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		var addNoPathResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), addMembersNoPathPayload, http.StatusOK, &addNoPathResp)
+
+		// Verify the user is now in the group
+		var members []interface{}
+		var ok bool
+		members, ok = addNoPathResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 1, len(members), "Group should have 1 member after adding")
+
+		// Check that the user is present
+		member, ok := members[0].(map[string]interface{})
+		assert.True(t, ok, "Member should be an object")
+		assert.Equal(t, userID, member["value"], "Original user should be added back to the group")
+	})
+
+	t.Run("Invalid member ID format", func(t *testing.T) {
+		// Try to add a member with invalid ID format
+		invalidMemberPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "add",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": "invalid-user-id",
+						},
+					},
+				},
+			},
+		}
+
+		var errorResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), invalidMemberPayload, http.StatusBadRequest, &errorResp)
+		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for invalid member ID format")
+	})
+
+	t.Run("Non-existent member ID", func(t *testing.T) {
+		// Try to add a member with non-existent ID
+		nonExistentMemberPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "add",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": "4294967295", // Non-existent user ID
+						},
+					},
+				},
+			},
+		}
+
+		var errorResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), nonExistentMemberPayload, http.StatusBadRequest, &errorResp)
+		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for non-existent member ID")
+	})
 }
 
 func scimPath(suffix string) string {

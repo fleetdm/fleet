@@ -42,6 +42,7 @@ func TestScim(t *testing.T) {
 		{"DeleteScimGroup", testDeleteScimGroup},
 		{"ListScimGroups", testListScimGroups},
 		{"ScimLastRequest", testScimLastRequest},
+		{"ScimUsersExist", testScimUsersExist},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 	}
 	for _, c := range cases {
@@ -2110,4 +2111,64 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+}
+
+func testScimUsersExist(t *testing.T, ds *Datastore) {
+	// Create test users
+	users := createTestScimUsers(t, ds)
+	userIDs := make([]uint, len(users))
+	for i, user := range users {
+		userIDs[i] = user.ID
+	}
+
+	// Test 1: Empty slice should return true
+	exist, err := ds.ScimUsersExist(t.Context(), []uint{})
+	require.NoError(t, err)
+	assert.True(t, exist, "Empty slice should return true")
+
+	// Test 2: All existing users should return true
+	exist, err = ds.ScimUsersExist(t.Context(), userIDs)
+	require.NoError(t, err)
+	assert.True(t, exist, "All existing users should return true")
+
+	// Test 3: Mix of existing and non-existing users should return false
+	nonExistentIDs := append(userIDs, 99999)
+	exist, err = ds.ScimUsersExist(t.Context(), nonExistentIDs)
+	require.NoError(t, err)
+	assert.False(t, exist, "Mix of existing and non-existing users should return false")
+
+	// Test 4: Only non-existing users should return false
+	exist, err = ds.ScimUsersExist(t.Context(), []uint{99999, 100000})
+	require.NoError(t, err)
+	assert.False(t, exist, "Only non-existing users should return false")
+
+	// Test 5: Test with a large number of IDs to verify batching works
+	// First, create a large number of test users
+	largeUserIDs := make([]uint, 0, 25000)
+	largeUserIDs = append(largeUserIDs, userIDs...) // Add existing users
+
+	// Add some non-existent IDs to test batching with mixed results
+	for i := 0; i < 24990; i++ {
+		largeUserIDs = append(largeUserIDs, uint(1000000+i))
+	}
+
+	exist, err = ds.ScimUsersExist(t.Context(), largeUserIDs)
+	require.NoError(t, err)
+	assert.False(t, exist, "Large batch with non-existing users should return false")
+
+	// Test 6: Test with a large number of existing IDs
+	// This is a bit tricky to test thoroughly without creating thousands of users,
+	// so we'll just verify the function handles a large slice without errors
+	largeExistingIDs := make([]uint, 0, 25000)
+	for i := 0; i < 25000; i++ {
+		if i < len(userIDs) {
+			largeExistingIDs = append(largeExistingIDs, userIDs[i%len(userIDs)])
+		} else {
+			largeExistingIDs = append(largeExistingIDs, userIDs[i%len(userIDs)])
+		}
+	}
+
+	exist, err = ds.ScimUsersExist(t.Context(), largeExistingIDs)
+	require.NoError(t, err)
+	assert.True(t, exist, "Large batch with only existing users should return true")
 }

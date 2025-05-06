@@ -33,6 +33,8 @@ func RegisterSCIM(
 	config := scim.ServiceProviderConfig{
 		DocumentationURI: optional.NewString("https://fleetdm.com/docs/get-started/why-fleet"),
 		MaxResults:       maxResults,
+		SupportFiltering: true,
+		SupportPatch:     true,
 	}
 
 	// The common attributes are id, externalId, and meta.

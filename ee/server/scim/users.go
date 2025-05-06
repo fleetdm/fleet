@@ -566,23 +566,33 @@ func (u *UserHandler) patchEmailsWithPathFiltering(op scim.PatchOperation, user 
 			user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex+1)
 			return nil
 		}
-		// The value for emails comes in as an array.
-		userEmails, ok := op.Value.([]interface{})
-		if !ok {
+
+		// For add and replace operations, we need to extract the emails
+		var emailsList []interface{}
+		// Handle different value formats
+		switch val := op.Value.(type) {
+		case []interface{}:
+			// Direct array of members
+			emailsList = val
+		case map[string]interface{}:
+			// Single member as a map
+			emailsList = []interface{}{val}
+		default:
 			level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
 			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
+
 		switch op.Op {
 		case scim.PatchOperationReplace:
-			if len(userEmails) == 0 {
+			if len(emailsList) == 0 {
 				user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex+1)
 				return nil
 			}
-			if len(userEmails) != 1 {
-				level.Info(u.logger).Log("msg", "only 1 email should be present for replacement", "emails", userEmails)
+			if len(emailsList) != 1 {
+				level.Info(u.logger).Log("msg", "only 1 email should be present for replacement", "emails", emailsList)
 				return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			userEmail, err := u.extractEmail(userEmails[0], op)
+			userEmail, err := u.extractEmail(emailsList[0], op)
 			if err != nil {
 				return err
 			}
@@ -592,13 +602,13 @@ func (u *UserHandler) patchEmailsWithPathFiltering(op scim.PatchOperation, user 
 			}
 			user.Emails[emailIndex] = userEmail
 		case scim.PatchOperationAdd:
-			if len(userEmails) == 0 {
-				level.Info(u.logger).Log("msg", "no emails provided to add", "emails", userEmails)
+			if len(emailsList) == 0 {
+				level.Info(u.logger).Log("msg", "no emails provided to add", "emails", emailsList)
 				return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			var newEmails []fleet.ScimUserEmail
-			for e := range userEmails {
-				userEmail, err := u.extractEmail(userEmails[e], op)
+			for e := range emailsList {
+				userEmail, err := u.extractEmail(emailsList[e], op)
 				if err != nil {
 					return err
 				}
@@ -784,18 +794,29 @@ func (u *UserHandler) patchEmails(v interface{}, op scim.PatchOperation, user *f
 		user.Emails = nil
 		return nil
 	}
-	emailsValue, ok := v.([]interface{})
-	if !ok {
+
+	// For add and replace operations, we need to extract the emails
+	var emailsList []interface{}
+	// Handle different value formats
+	switch val := v.(type) {
+	case []interface{}:
+		// Direct array of members
+		emailsList = val
+	case map[string]interface{}:
+		// Single member as a map
+		emailsList = []interface{}{val}
+	default:
 		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
-	if op.Op == scim.PatchOperationAdd && len(emailsValue) == 0 {
-		level.Info(u.logger).Log("msg", "no emails provided to add", "emails", emailsValue)
+
+	if op.Op == scim.PatchOperationAdd && len(emailsList) == 0 {
+		level.Info(u.logger).Log("msg", "no emails provided to add", "emails", emailsList)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
 	// Convert the emails to the expected format
-	userEmails := make([]fleet.ScimUserEmail, 0, len(emailsValue))
-	for _, emailIntf := range emailsValue {
+	userEmails := make([]fleet.ScimUserEmail, 0, len(emailsList))
+	for _, emailIntf := range emailsList {
 		userEmail, err := u.extractEmail(emailIntf, op)
 		if err != nil {
 			return err

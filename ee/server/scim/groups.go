@@ -1,6 +1,7 @@
 package scim
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -280,7 +281,7 @@ func (g *GroupHandler) Delete(r *http.Request, id string) error {
 }
 
 // Patch
-// Supporting add/replace/remove operations for "displayName" and "externalId" attributes.
+// Supporting add/replace/remove operations for "displayName", "externalId", and "members" attributes.
 func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
 	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
@@ -325,6 +326,11 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 					if err != nil {
 						return scim.Resource{}, err
 					}
+				case membersAttr:
+					err = g.patchMembers(r.Context(), op.Op, v, group)
+					if err != nil {
+						return scim.Resource{}, err
+					}
 				default:
 					level.Info(g.logger).Log("msg", "unsupported patch value field", "field", k)
 					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -337,6 +343,11 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 			}
 		case op.Path.String() == displayNameAttr:
 			err = g.patchDisplayName(op.Op, op.Value, group)
+			if err != nil {
+				return scim.Resource{}, err
+			}
+		case op.Path.String() == membersAttr:
+			err = g.patchMembers(r.Context(), op.Op, op.Value, group)
 			if err != nil {
 				return scim.Resource{}, err
 			}
@@ -390,6 +401,106 @@ func (g *GroupHandler) patchDisplayName(op string, v interface{}, group *fleet.S
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
 	}
 	group.DisplayName = displayName
+	return nil
+}
+
+// patchMembers handles add/replace/remove operations for the members attribute
+func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{}, group *fleet.ScimGroup) error {
+	if op == scim.PatchOperationRemove {
+		// Remove all members
+		group.ScimUsers = []uint{}
+		return nil
+	}
+
+	// For add and replace operations, we need to extract the member IDs
+	var membersList []interface{}
+
+	// Handle different value formats
+	switch val := v.(type) {
+	case []interface{}:
+		// Direct array of members
+		membersList = val
+	case map[string]interface{}:
+		// Single member as a map
+		membersList = []interface{}{val}
+	case []map[string]interface{}:
+		// Array of member maps
+		for _, m := range val {
+			membersList = append(membersList, m)
+		}
+	default:
+		level.Info(g.logger).Log("msg", "unsupported members value format", "value", v)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
+	}
+
+	// Process the members
+	userIDs := make([]uint, 0, len(membersList))
+	valueStrings := make([]string, 0, len(membersList))
+
+	for _, memberIntf := range membersList {
+		member, ok := memberIntf.(map[string]interface{})
+		if !ok {
+			level.Info(g.logger).Log("msg", "member must be an object", "member", memberIntf)
+			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", memberIntf)})
+		}
+
+		// Get the value attribute which contains the user ID
+		valueIntf, ok := member["value"]
+		if !ok || valueIntf == nil {
+			level.Info(g.logger).Log("msg", "member missing value attribute", "member", member)
+			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", member)})
+		}
+
+		valueStr, ok := valueIntf.(string)
+		if !ok {
+			level.Info(g.logger).Log("msg", "member value must be a string", "value", valueIntf)
+			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", valueIntf)})
+		}
+		valueStrings = append(valueStrings, valueStr)
+
+		// Extract user ID from the value
+		userID, err := extractUserIDFromValue(valueStr)
+		if err != nil {
+			level.Info(g.logger).Log("msg", "invalid user ID format", "value", valueStr, "err", err)
+			return errors.ScimErrorBadParams([]string{valueStr})
+		}
+
+		userIDs = append(userIDs, userID)
+	}
+
+	// Verify all users exist in a single database call
+	if len(userIDs) > 0 {
+		allExist, err := g.ds.ScimUsersExist(ctx, userIDs)
+		if err != nil {
+			level.Error(g.logger).Log("msg", "error checking users existence", "err", err)
+			return err
+		}
+		if !allExist {
+			level.Info(g.logger).Log("msg", "one or more users not found", "userIDs", userIDs)
+			return errors.ScimErrorBadParams(valueStrings)
+		}
+	}
+
+	// For add operation, append to existing members
+	if op == scim.PatchOperationAdd {
+		// Create a map to track existing user IDs to avoid duplicates
+		existingUsers := make(map[uint]bool)
+		for _, id := range group.ScimUsers {
+			existingUsers[id] = true
+		}
+
+		// Add new users that don't already exist in the group
+		for _, id := range userIDs {
+			if !existingUsers[id] {
+				group.ScimUsers = append(group.ScimUsers, id)
+				existingUsers[id] = true
+			}
+		}
+	} else {
+		// For replace operation, replace all members
+		group.ScimUsers = userIDs
+	}
+
 	return nil
 }
 

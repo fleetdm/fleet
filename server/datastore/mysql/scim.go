@@ -1259,3 +1259,51 @@ func emailsRequireUpdate(currentEmails, newEmails []fleet.ScimUserEmail) bool {
 
 	return false
 }
+
+// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
+// If the slice is empty, it returns true
+// This method processes IDs in batches to handle large numbers of IDs efficiently
+func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error) {
+	if len(ids) == 0 {
+		return true, nil
+	}
+
+	// Create a map to track which IDs we've found
+	foundIDs := make(map[uint]bool, len(ids))
+
+	batchSize := 10000
+	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
+		query, args, err := sqlx.In(`
+			SELECT id
+			FROM scim_users
+			WHERE id IN (?)
+		`, batchIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare scim users exist batch query")
+		}
+
+		var foundBatchIDs []uint
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if scim users exist in batch")
+		}
+
+		// Mark found IDs
+		for _, id := range foundBatchIDs {
+			foundIDs[id] = true
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// Check if all IDs were found
+	for _, id := range ids {
+		if !foundIDs[id] {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
