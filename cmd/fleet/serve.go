@@ -687,9 +687,9 @@ the way that the Fleet server works.
 				}
 			}
 
-			// Some premium users are allowed to disable statistics with a flag
-			if !config.License.EnableAnalytics {
-				appCfg.ServerSettings.EnableAnalytics = false
+			// Some premium users are allowed to disable statistics with a flag, default enabled
+			if license.IsPremium() {
+				appCfg.ServerSettings.EnableAnalytics = config.License.EnableAnalytics
 			}
 
 			// save the app config with the updated MDM.Enabled value

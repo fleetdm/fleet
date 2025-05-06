@@ -140,6 +140,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		// allow to explicitly set mdm pusher to nil
 		mdmPusher = opts[0].MDMPusher
+		if opts[0].LicenseEnableAnalytics != nil {
+			fleetConfig.License.EnableAnalytics = *opts[0].LicenseEnableAnalytics
+		}
 	}
 
 	ctx := license.NewContext(context.Background(), lic)
@@ -324,38 +327,39 @@ func (svc *mockMailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
 type TestServerOpts struct {
-	Logger                kitlog.Logger
-	License               *fleet.LicenseInfo
-	SkipCreateTestUsers   bool
-	Rs                    fleet.QueryResultStore
-	Lq                    fleet.LiveQueryStore
-	Pool                  fleet.RedisPool
-	FailingPolicySet      fleet.FailingPolicySet
-	Clock                 clock.Clock
-	Task                  *async.Task
-	EnrollHostLimiter     fleet.EnrollHostLimiter
-	Is                    fleet.InstallerStore
-	FleetConfig           *config.FleetConfig
-	MDMStorage            fleet.MDMAppleStore
-	DEPStorage            nanodep_storage.AllDEPStorage
-	SCEPStorage           scep_depot.Depot
-	MDMPusher             nanomdm_push.Pusher
-	HTTPServerConfig      *http.Server
-	StartCronSchedules    []TestNewScheduleFunc
-	UseMailService        bool
-	APNSTopic             string
-	ProfileMatcher        fleet.ProfileMatcher
-	EnableCachedDS        bool
-	NoCacheDatastore      bool
-	SoftwareInstallStore  fleet.SoftwareInstallerStore
-	BootstrapPackageStore fleet.MDMBootstrapPackageStore
-	KeyValueStore         fleet.KeyValueStore
-	EnableSCEPProxy       bool
-	WithDEPWebview        bool
-	FeatureRoutes         []endpoint_utils.HandlerRoutesFunc
-	SCEPConfigService     fleet.SCEPConfigService
-	DigiCertService       fleet.DigiCertService
-	EnableSCIM            bool
+	Logger                 kitlog.Logger
+	License                *fleet.LicenseInfo
+	SkipCreateTestUsers    bool
+	Rs                     fleet.QueryResultStore
+	Lq                     fleet.LiveQueryStore
+	Pool                   fleet.RedisPool
+	FailingPolicySet       fleet.FailingPolicySet
+	Clock                  clock.Clock
+	Task                   *async.Task
+	EnrollHostLimiter      fleet.EnrollHostLimiter
+	Is                     fleet.InstallerStore
+	FleetConfig            *config.FleetConfig
+	MDMStorage             fleet.MDMAppleStore
+	DEPStorage             nanodep_storage.AllDEPStorage
+	SCEPStorage            scep_depot.Depot
+	MDMPusher              nanomdm_push.Pusher
+	HTTPServerConfig       *http.Server
+	StartCronSchedules     []TestNewScheduleFunc
+	UseMailService         bool
+	APNSTopic              string
+	ProfileMatcher         fleet.ProfileMatcher
+	EnableCachedDS         bool
+	NoCacheDatastore       bool
+	SoftwareInstallStore   fleet.SoftwareInstallerStore
+	BootstrapPackageStore  fleet.MDMBootstrapPackageStore
+	KeyValueStore          fleet.KeyValueStore
+	EnableSCEPProxy        bool
+	WithDEPWebview         bool
+	FeatureRoutes          []endpoint_utils.HandlerRoutesFunc
+	SCEPConfigService      fleet.SCEPConfigService
+	DigiCertService        fleet.DigiCertService
+	EnableSCIM             bool
+	LicenseEnableAnalytics *bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {

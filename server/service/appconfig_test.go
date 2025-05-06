@@ -1448,35 +1448,49 @@ func TestModifyEnableAnalytics(t *testing.T) {
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
 	testCases := []struct {
-		name             string
-		expectedEnabled  bool
-		newEnabled       bool
-		initialEnabled   bool
-		licenseTier      string
-		initialURL       string
-		newURL           string
-		expectedURL      string
-		shouldFailModify bool
+		name                    string
+		expectedEnabled         bool
+		newEnabled              bool
+		initialEnabled          bool
+		licenseTier             string
+		initialURL              string
+		newURL                  string
+		expectedURL             string
+		shouldFailModify        bool
+		licenseAnalyticsEnabled bool
+		enableDefault           bool
 	}{
 		{
 			name:            "fleet free",
 			expectedEnabled: false,
 			initialEnabled:  true,
 			newEnabled:      false,
+			enableDefault:   true,
 			licenseTier:     fleet.TierFree,
 		},
 		{
-			name:            "fleet premium",
-			expectedEnabled: true,
-			initialEnabled:  true,
-			newEnabled:      false,
-			licenseTier:     fleet.TierPremium,
+			name:                    "fleet premium default analytics",
+			expectedEnabled:         true,
+			initialEnabled:          true,
+			newEnabled:              false,
+			licenseTier:             fleet.TierPremium,
+			licenseAnalyticsEnabled: true,
+			enableDefault:           true,
+		},
+		{
+			name:                    "fleet premium analytics disabled",
+			expectedEnabled:         false,
+			initialEnabled:          false,
+			newEnabled:              true,
+			licenseTier:             fleet.TierPremium,
+			licenseAnalyticsEnabled: false,
+			enableDefault:           false,
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}, LicenseEnableAnalytics: &tt.licenseAnalyticsEnabled})
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
@@ -1484,7 +1498,7 @@ func TestModifyEnableAnalytics(t *testing.T) {
 					OrgName: "Test",
 				},
 				ServerSettings: fleet.ServerSettings{
-					EnableAnalytics: true,
+					EnableAnalytics: tt.enableDefault,
 					ServerURL:       "https://localhost:8080",
 				},
 			}

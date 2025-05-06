@@ -452,9 +452,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// If the license is Premium, we should always send usage statisics.
-	if license.IsPremium() && svc.config.License.EnableAnalytics {
-		appConfig.ServerSettings.EnableAnalytics = true
+	// Premium users cannot change this setting in the UI, only by launch flag
+	if license.IsPremium() {
+		appConfig.ServerSettings.EnableAnalytics = oldAppConfig.ServerSettings.EnableAnalytics
 	}
 
 	fleet.ValidateGoogleCalendarIntegrations(appConfig.Integrations.GoogleCalendar, invalid)
