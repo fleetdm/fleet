@@ -88,6 +88,16 @@ Following is the vulnerability report of Fleet components.
 
 ## `fleetdm/fleetctl` docker image
 
+### CVE-2025-46569
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use OPA.
+- **Products:**
+  - `fleetctl`
+  - `pkg:golang/github.com/open-policy-agent/opa`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-05-06T07:47:31.187848-03:00
+
 ### CVE-2025-31115
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
