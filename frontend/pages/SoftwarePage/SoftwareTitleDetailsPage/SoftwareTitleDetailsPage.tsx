@@ -163,11 +163,12 @@ const SoftwareTitleDetailsPage = ({
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
         onDelete={onDeleteInstaller}
         refetchSoftwareTitle={refetchSoftwareTitle}
+        isLoading={isSoftwareTitleLoading}
       />
     );
   };
 
-  const renderSoftwareVersionsCard = (title: ISoftwareTitleDetails) => {
+  const renderSoftwareSummaryAndVersions = (title: ISoftwareTitleDetails) => {
     // Hide versions card for tgz_packages only
     if (title.source === "tgz_packages") return null;
 
@@ -175,9 +176,24 @@ const SoftwareTitleDetailsPage = ({
       <Card
         borderRadiusSize="xxlarge"
         includeShadow
-        className={`${baseClass}__versions-section`}
+        className="software-summary-and-versions"
       >
-        <h2>Versions</h2>
+        <SoftwareDetailsSummary
+          title={title.name}
+          type={formatSoftwareType(title)}
+          versions={title.versions?.length ?? 0}
+          hosts={title.hosts_count}
+          countsUpdatedAt={title.counts_updated_at}
+          queryParams={{
+            software_title_id: softwareId,
+            team_id: teamIdForApi,
+          }}
+          name={title.name}
+          source={title.source}
+          iconUrl={
+            title.app_store_app ? title.app_store_app.icon_url : undefined
+          }
+        />
         <SoftwareTitleDetailsTable
           router={router}
           data={title.versions ?? []}
@@ -208,26 +224,8 @@ const SoftwareTitleDetailsPage = ({
     if (softwareTitle) {
       return (
         <>
-          <SoftwareDetailsSummary
-            title={softwareTitle.name}
-            type={formatSoftwareType(softwareTitle)}
-            versions={softwareTitle.versions?.length ?? 0}
-            hosts={softwareTitle.hosts_count}
-            countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{
-              software_title_id: softwareId,
-              team_id: teamIdForApi,
-            }}
-            name={softwareTitle.name}
-            source={softwareTitle.source}
-            iconUrl={
-              softwareTitle.app_store_app
-                ? softwareTitle.app_store_app.icon_url
-                : undefined
-            }
-          />
+          {renderSoftwareSummaryAndVersions(softwareTitle)}
           {renderSoftwareInstallerCard(softwareTitle)}
-          {renderSoftwareVersionsCard(softwareTitle)}
         </>
       );
     }

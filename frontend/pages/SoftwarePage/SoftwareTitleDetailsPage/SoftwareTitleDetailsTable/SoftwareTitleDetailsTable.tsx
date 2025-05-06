@@ -14,11 +14,13 @@ import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
+import Card from "components/Card";
 
 import generateSoftwareTitleDetailsTableConfig from "./SoftwareTitleDetailsTableConfig";
 
 const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_PAGE_SIZE = 5;
 
 const baseClass = "software-title-details-table";
 
@@ -39,27 +41,29 @@ const SoftwareLastUpdatedInfo = (lastUpdatedAt: string) => {
 
 const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
   return (
-    <EmptyTable
-      header={
-        isAvailableForInstall
-          ? "No versions detected."
-          : "No versions detected for this software item."
-      }
-      info={
-        isAvailableForInstall ? (
-          "Install this software on a host to see versions."
-        ) : (
-          <>
-            Expecting to see versions?{" "}
-            <CustomLink
-              url={GITHUB_NEW_ISSUE_LINK}
-              text="File an issue on GitHub"
-              newTab
-            />
-          </>
-        )
-      }
-    />
+    <Card borderRadiusSize="medium">
+      <EmptyTable
+        header={
+          isAvailableForInstall
+            ? "No versions detected."
+            : "No versions detected for this software item."
+        }
+        info={
+          isAvailableForInstall ? (
+            "Install this software on a host to see versions."
+          ) : (
+            <>
+              Expecting to see versions?{" "}
+              <CustomLink
+                url={GITHUB_NEW_ISSUE_LINK}
+                text="File an issue on GitHub"
+                newTab
+              />
+            </>
+          )
+        }
+      />
+    </Card>
   );
 };
 
@@ -113,7 +117,7 @@ const SoftwareTitleDetailsTable = ({
 
   const renderVersionsCount = () => (
     <>
-      <TableCount name="versions" count={data?.length} />
+      {data?.length > 0 && <TableCount name="versions" count={data?.length} />}
       {countsUpdatedAt && SoftwareLastUpdatedInfo(countsUpdatedAt)}
     </>
   );
@@ -129,10 +133,12 @@ const SoftwareTitleDetailsTable = ({
       isAllPagesSelected={false}
       defaultSortHeader={DEFAULT_SORT_HEADER}
       defaultSortDirection={DEFAULT_SORT_DIRECTION}
-      disablePagination
+      pageSize={DEFAULT_PAGE_SIZE}
+      isClientSidePagination
       disableMultiRowSelect
       onSelectSingleRow={handleRowSelect}
       renderCount={renderVersionsCount}
+      hideFooter={data?.length <= DEFAULT_PAGE_SIZE} // Removes footer space
     />
   );
 };
