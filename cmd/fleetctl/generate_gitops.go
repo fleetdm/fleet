@@ -509,15 +509,18 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 	if cmd.CLI.String("team") != "global" {
 		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
-			Filename: "---",
-			Note:     "Warning: Software categories are not supported by this tool yet. If you have added any categories to software items, add them to the appropriate team .yml file.",
+			Note: "Warning: Software categories are not supported by this tool yet. If you have added any categories to software items, add them to the appropriate team .yml file.",
 		})
 	}
 
 	if len(cmd.Messages.Notes) > 0 {
 		fmt.Fprintf(cmd.CLI.App.Writer, "Other notes:\n")
 		for _, note := range cmd.Messages.Notes {
-			fmt.Fprintf(cmd.CLI.App.Writer, " • %s: %s\n", note.Filename, note.Note)
+			if note.Filename != "" {
+				fmt.Fprintf(cmd.CLI.App.Writer, " • %s: %s\n", note.Filename, note.Note)
+			} else {
+				fmt.Fprintf(cmd.CLI.App.Writer, " • %s\n", note.Note)
+			}
 		}
 	}
 
@@ -866,7 +869,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
 		}
 
-		if teamMdm.MacOSSetup.BootstrapPackage.Value != "" || teamMdm.MacOSSetup.EnableEndUserAuthentication || teamMdm.MacOSSetup.MacOSSetupAssistant.Value != "" || teamMdm.MacOSSetup.Script.Value != "" || teamMdm.MacOSSetup.Software.Valid {
+		// TODO -- add an IsSet() method to MacOSSSetup to encapsulate this logic.
+		if teamMdm.MacOSSetup.BootstrapPackage.Value != "" || teamMdm.MacOSSetup.EnableEndUserAuthentication || teamMdm.MacOSSetup.MacOSSetupAssistant.Value != "" || teamMdm.MacOSSetup.Script.Value != "" || (teamMdm.MacOSSetup.Software.Valid && len(teamMdm.MacOSSetup.Software.Value) > 0) {
 			result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your macos_setup configuration"
 			cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 				Filename: teamName,
