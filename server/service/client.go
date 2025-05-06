@@ -565,6 +565,15 @@ func (c *Client) ApplyGroup(
 			logfn("[+] applied fleet config\n")
 		}
 
+		if viaGitOps && (windowsCustomSettings == nil || macosCustomSettings == nil) {
+			if windowsCustomSettings == nil {
+				windowsCustomSettings = []fleet.MDMProfileSpec{}
+			}
+			if macosCustomSettings == nil {
+				macosCustomSettings = []fleet.MDMProfileSpec{}
+			}
+		}
+
 		// We apply profiles after the main AppConfig org_settings because profiles may
 		// contain Fleet variables that are set in org_settings, such as $FLEET_VAR_DIGICERT_PASSWORD_My_CA
 		//

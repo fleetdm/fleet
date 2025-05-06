@@ -911,6 +911,96 @@ software:
 	require.ErrorAs(t, err, &nfe)
 }
 
+func (s *enterpriseIntegrationGitopsTestSuite) TestRemoveCustomSettingsFromDefaultYAML() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+
+	// setup custom settings profile
+	profileFile, err := os.CreateTemp(t.TempDir(), "*.mobileconfig")
+	require.NoError(t, err)
+	_, err = profileFile.WriteString(test.GenerateMDMAppleProfile("test", "test", uuid.NewString()))
+	require.NoError(t, err)
+	err = profileFile.Close()
+	require.NoError(t, err)
+
+	contents, err := os.ReadFile(profileFile.Name())
+	if err != nil {
+		fmt.Println("Error reading profile file:", err)
+	} else {
+		fmt.Println("Profile contents:\n", string(contents))
+	}
+
+	// global file setup with custom settings
+	const (
+		globalTemplateWithCustomSettings = `
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`
+	)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(globalTemplateWithCustomSettings, profileFile.Name()))
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+
+	profiles, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(profiles))
+
+	// global file setup without custom settings
+	const (
+		globalTemplateWithoutCustomSettings = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`
+	)
+
+	globalFile, err = os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplateWithoutCustomSettings)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+
+	// Check profile does not exist
+	profiles, err = s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(profiles))
+}
+
 func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetup() {
 	t := s.T()
 	ctx := context.Background()
@@ -1048,5 +1138,4 @@ team_settings:
 	appConfig, err = s.DS.AppConfig(ctx)
 	require.NoError(t, err)
 	assert.True(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
-
 }
