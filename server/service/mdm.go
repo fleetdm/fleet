@@ -2838,7 +2838,8 @@ func batchResendMDMProfileToHostsEndpoint(ctx context.Context, request interface
 
 func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) error {
 	// do a basic authz check that before we can make a more specific check based
-	// on the team of the profile.
+	// on the team of the profile (just to ensure the user has _some_
+	// authorization before loading the profile).
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -2853,7 +2854,10 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 	}
 
 	// get the profile to get the team it belongs to
-	var teamID *uint
+	var (
+		teamID      *uint
+		profileName string
+	)
 	switch {
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
 		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
@@ -2861,12 +2865,14 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 			return err
 		}
 		teamID = prof.TeamID
+		profileName = prof.Name
 	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
 		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
 		if err != nil {
 			return err
 		}
 		teamID = prof.TeamID
+		profileName = prof.Name
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
 		return &fleet.BadRequestError{
 			Message: "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles.",
@@ -2884,7 +2890,15 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
-	// TODO(mna): create activity with the number of hosts.
-	_ = hostIDs
+
+	if len(hostIDs) > 0 {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfileBatch{
+				ProfileName: profileName,
+				HostCount:   len(hostIDs),
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for batch-resend of profile")
+		}
+	}
 	return nil
 }
