@@ -75,7 +75,7 @@ Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updat
 2. The EM is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the EM will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
 3. Then, the EM builds the app's `outputs/` on the same PR. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
 4. The Product Designer is responsible for testing the app. If the app is a new app, add an icon for the app to the PR. App icons are located [here in the repository](https://github.com/fleetdm/fleet/tree/main/frontend/pages/SoftwarePage/components/icons).
-5. On the same PR, edit the fleetctl docker-compose.yml by adding the following environment variable twice, after the two instances for `FLEET_OSQUERY_HOST_IDENTIFIER`:
+5. In your local copy of the fleetdm/fleet repository, edit the fleetctl docker-compose.yml by adding the following environment variable twice, after the two instances for `FLEET_OSQUERY_HOST_IDENTIFIER`:
 
 ```
 FLEET_DEV_MAINTAINED_APPS_BASE_URL: https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs`
