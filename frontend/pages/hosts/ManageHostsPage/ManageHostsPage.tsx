@@ -80,7 +80,7 @@ import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TableDataError from "components/DataError";
+import DataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
@@ -1485,7 +1485,7 @@ const ManageHostsPage = ({
     }
 
     if (hasErrors) {
-      return <TableDataError />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
     if (maybeEmptyHosts) {
       const emptyState = () => {

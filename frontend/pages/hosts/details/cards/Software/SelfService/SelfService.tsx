@@ -312,7 +312,7 @@ const SoftwareSelfService = ({
     }
 
     if (isError) {
-      return <DataError />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (isEmpty || !selfServiceData) {

@@ -48,18 +48,6 @@
     }
   }
 
-  &__error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: $pad-xlarge 0;
-
-    &__inner {
-      display: flex;
-      flex-direction: row;
-    }
-  }
-
   &__wrapper {
     border: solid 1px $ui-fleet-black-10;
     border-radius: 6px;

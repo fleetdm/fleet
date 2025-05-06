@@ -229,7 +229,7 @@ const DeviceUserPage = ({
   const {
     data: dupResponse,
     isLoading: isLoadingHost,
-    error: loadingDeviceUserError,
+    error: isDeviceUserError,
     refetch: refetchHostDetails,
   } = useQuery<IDeviceUserResponse, Error>(
     ["host", deviceAuthToken],
@@ -709,7 +709,7 @@ const DeviceUserPage = ({
           </ul>
         </div>
       </nav>
-      {loadingDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
+      {isDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
     </div>
   );
 };

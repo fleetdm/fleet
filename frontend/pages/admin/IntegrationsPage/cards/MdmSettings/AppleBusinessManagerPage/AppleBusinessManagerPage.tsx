@@ -159,11 +159,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
     // TODO: error UI
     if (showDataError) {
-      return (
-        <div>
-          <DataError />
-        </div>
-      );
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (abmTokens?.length === 0) {

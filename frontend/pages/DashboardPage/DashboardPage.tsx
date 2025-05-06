@@ -60,6 +60,7 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 import Card from "components/Card";
+import DataError from "components/DataError";
 
 import {
   LOW_DISK_SPACE_GB,
@@ -556,7 +557,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ]
   );
 
-  const HostCountCards = (
+  const HostCountCards = errorHosts ? (
+    <Card borderRadiusSize="large">
+      <DataError verticalPaddingSize="pad-large" />
+    </Card>
+  ) : (
     <>
       <PlatformHostCounts
         androidDevEnabled={!!config?.android_enabled}
@@ -570,7 +575,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         androidCount={androidCount}
         builtInLabels={labels}
         selectedPlatform={selectedPlatform}
-        errorHosts={!!errorHosts}
         totalHostCount={
           !isHostSummaryFetching && !errorHosts
             ? hostSummaryData?.totals_hosts_count
@@ -580,7 +584,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <MetricsHostCounts
         currentTeamId={teamIdForApi}
         selectedPlatform={selectedPlatform}
-        errorHosts={!!errorHosts}
         totalHostCount={
           !isHostSummaryFetching && !errorHosts
             ? hostSummaryData?.totals_hosts_count
