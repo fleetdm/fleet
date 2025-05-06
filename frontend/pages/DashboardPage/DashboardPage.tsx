@@ -60,6 +60,7 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 import Card from "components/Card";
+import DataError from "components/DataError";
 
 import {
   LOW_DISK_SPACE_GB,
@@ -330,7 +331,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
-        if (data.software?.length > 0) {
+        const hasSoftwareResults = data.software?.length > 0;
+        const viewingVulnSoftwareTab = softwareNavTabIndex === 1;
+
+        // Prevent card from hiding if returns results or on-clicking vuln tab if software has no vulnerabilities
+        if (hasSoftwareResults || viewingVulnSoftwareTab) {
           setSoftwareTitleDetail &&
             setSoftwareTitleDetail(
               <LastUpdatedText
@@ -552,7 +557,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ]
   );
 
-  const HostCountCards = (
+  const HostCountCards = errorHosts ? (
+    <Card borderRadiusSize="large">
+      <DataError verticalPaddingSize="pad-large" />
+    </Card>
+  ) : (
     <>
       <PlatformHostCounts
         androidDevEnabled={!!config?.android_enabled}
@@ -566,7 +575,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         androidCount={androidCount}
         builtInLabels={labels}
         selectedPlatform={selectedPlatform}
-        errorHosts={!!errorHosts}
         totalHostCount={
           !isHostSummaryFetching && !errorHosts
             ? hostSummaryData?.totals_hosts_count
@@ -576,7 +584,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <MetricsHostCounts
         currentTeamId={teamIdForApi}
         selectedPlatform={selectedPlatform}
-        errorHosts={!!errorHosts}
         totalHostCount={
           !isHostSummaryFetching && !errorHosts
             ? hostSummaryData?.totals_hosts_count

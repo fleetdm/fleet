@@ -1,3 +1,56 @@
+## Fleet 4.67.3 (May 6, 2025)
+
+- Removed error caused by macOS electron helper apps during ingestion.
+- Added a temporary index during macOS software names migration to speed up host software installed paths cleanup introduced in 4.67.2. This change only affects upgrades from pre-4.67.0 versions.
+
+## Fleet 4.67.2 (Apr 27, 2025)
+
+- Fixed software deduplication when migrating from < 4.67.0 for cases where exactly two software entries would be merged into one, and for cases where the same bundle ID has more than one version, each with more than one that needs to be converted into a single software entry.
+- Included host software installed paths migration in the above database migration, instead of waiting for software ingestion to repopulate/clean up affected rows.
+
+## Fleet 4.67.1 (Apr 26, 2025)
+
+- Removed updates of existing macOS software names on software ingestion to remediate a significant database performance regression introduced in 4.67.0.
+
+## Fleet 4.67.0 (Apr 24, 2025)
+
+### Security Engineers
+- Added ability to set labels on policies via GitOps.
+- Added backend support for labels on policies.
+- Added ability to cancel upcoming host activities in the UI.
+- Added the `DELETE /api/latest/fleet/hosts/:id/activities/upcoming/:activity_id` endpoint to cancel an upcoming activity for a host.
+- Added support for native Windows ARM64 in fleetd (`fleetctl package --arch=arm64 --type=msi`).
+
+### IT Admins
+- Added SCIM integration, which allows IdP email, full name, and groups to be visible in host vitals. SCIM data is also used for getting the end user's full name during end user authentication of macOS setup flow, if needed. Currently, only Okta IdP is supported.
+- Added a new IDP section to the integrations page where users can see their SCIM connection status.
+- Added new users card on host details and my device page that shows host end user and IDP information.
+- Added ability to set labels on policies via GitOps.
+- Added backend support for labels on policies.
+- Added ability to cancel upcoming host activities in the UI.
+- Added the `DELETE /api/latest/fleet/hosts/:id/activities/upcoming/:activity_id` endpoint to cancel an upcoming activity for a host.
+- Added support for native Windows ARM64 in fleetd (`fleetctl package --arch=arm64 --type=msi`).
+- Added logging for invalid Windows MDM SOAP message and return 400 instead of 5XX to help debug Windows MDM issues.
+- Removed Apple MDM profile validation checks for com.apple.MCX keys (dontAllowFDEDisable and dontAllowFDEEnable) due to customer feedback.
+- Fixed a bug where BYOD iDevices deleted in Fleet but still enrolled in MDM were not re-created on the next MDM checkin.
+- Fixed an issue with how names for macOS software titles were calculated and prevents duplicate entries being created if the software is renamed by end users.
+
+### Other improvements and bug fixes
+- Added support for `vmodule` hidden osquery flag to assist with debugging.
+- Added an additional statistic item to count ABM pending hosts.
+- Added a timeout so the desktop app retries if not displayed after 1 minute.
+- Updated UI to allow adding labels when saving or editing polices.
+- Included newly created host ids in activities generated when hosts enroll in fleet.
+- Moved view all host link onto host count of software, OS, and vulnerability details pages
+- Updated Go to v1.24.1.
+- Updated UI tables to truncate with tooltips for software, query, and policy names and improved keyboard accessibility to those clickable elements.
+- Updated to accept any "http://" or "https://" prefixed URL to allow for easier testing.
+- Updated apmhttp package to fix upload of medium/big sized software packages in environments where APM tracing is enabled.
+- Fixed UI Gitops Mode getting cleared when other settings are modified.
+- Fixed invalid default serial numbers being displayed for some hosts.
+- Fixed pagination resetting the platform filter on the operating system UI table.
+- Fixed issue where `fleetctl gitops --dry-run` would sometimes fail when creating and using labels in the same run.
+
 ## Fleet 4.66.0 (Apr 4, 2025)
 
 ### Security Engineers

@@ -8,7 +8,10 @@
       "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.2.664.0",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "d3c95af7",
-      "sha256": "abadabc597ec33ade211d161936cb17d0e7fd50f43208d23ac29b4f77fd8a855"
+      "sha256": "abadabc597ec33ade211d161936cb17d0e7fd50f43208d23ac29b4f77fd8a855",
+      "default_categories": [
+        "Productivity"
+      ]
     }
   ],
   "refs": {

@@ -1,4 +1,4 @@
-# Example Open positon entry:
+# Example Open position entry:
 # - jobTitle:
 #   department: 
 #   hiringManagerName: 
@@ -22,7 +22,7 @@
       - 💭 Manage and optimize scalable distributed systems in the cloud.
       - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
       - 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-      - 🌟 Contribute to the overall success of the [MDM](https://fleetdm.com/handbook/company/product-groups#mdm-group) product group by ensuring users receive valuable new features.
+      - 🌟 Contribute to the overall success of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features .
   experience: |
       - 💭 3-5 years of experience in backend/SaaS development.
       - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
@@ -90,9 +90,10 @@
 
 - jobTitle: 🎐 Solutions Consultant
   department: Sales
-  hiringManagerName: Mike Mcneil
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/mikermcneil/
-  hiringManagerGithubUsername: mikermcneil
+  hiringManagerName: Allen Houchins
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
+  hiringManagerGithubUsername: allenhouchins
+  onTargetEarnings: '$135,000 - $175,000'
   responsibilities: |
       - ⏫ Work hand-in-hand with the Sales team by participating in calls with potential customers to show them a demonstration of Fleet in action.
       - 📖 You’ll provide commentary, detailed technical explanations, examples from your experience, and answer customer questions based on your experience managing Apple, Windows, and Linux devices with MDM and other tools (osquery).
@@ -112,3 +113,27 @@
       - 🤝 Collaboration: You work best in a participatory, team-based environment.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
+
+
+- jobTitle: 🌐 Apprentice
+  department: 🌐 Digital Experience
+  hiringManagerName: Sam Pfluger
+  hiringManagerGithubUsername: sampfluger88
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/sampfluger88/
+  responsibilities: |
+      - 👥 Work to own day-to-day AR/AP responsibilities including sending invoices, tracking payments, following up with customers, and ensuring data accuracy.
+      - 🧑‍🔬 Perform processes as described in the [Digital Experience](https://fleetdm.com/handbook/digital-experience) and [Finance](https://fleetdm.com/handbook/finance) handbook pages.
+      - 📖 Maintain and update the structure and content of the company handbook.
+      - 🗣️ Act as secondary/backup point of contact for Fleet to aid in both internal and external initiatives.
+      - 🗓️ Comfort navigating Slack, Salesforce, GitHub, and Google Suite to stay in sync and get work done.
+      - 🧪 Help implement and drive change management for any new or modified processes and tools across the team and/or the organization.
+      - 📈 Collect and report data to help drive business decisions and KPIs.
+  experience: |
+       - 🏃‍♂️ Strong desire to build a technical and operational-based skill set.
+       - 🚀 Detail-oriented, highly organized, and able to move quickly to solve complex problems using boring solutions.
+       - 🫀 Experience dealing with sensitive personal information of team members and customers.
+       - 🛠️ Strong writing and oral communication, capable of understanding and translating technical concepts and personas.
+       - 🤝 Ability to work in a process-driven team-based environment.
+       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+       - ➕ Bonus: Customer service\support background.
+

@@ -8,7 +8,10 @@
       "installer_url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Word_16.96.25041326_Installer.pkg",
       "install_script_ref": "3a40cd50",
       "uninstall_script_ref": "24415163",
-      "sha256": "12031659488a5c58adcc716cd671d26552dcb2084a8341aa30cc8d60171ced8a"
+      "sha256": "12031659488a5c58adcc716cd671d26552dcb2084a8341aa30cc8d60171ced8a",
+      "default_categories": [
+        "Productivity"
+      ]
     }
   ],
   "refs": {

@@ -471,6 +471,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.POST("/api/_version_/fleet/scripts/run", runScriptEndpoint, runScriptRequest{})
 	ue.POST("/api/_version_/fleet/scripts/run/sync", runScriptSyncEndpoint, runScriptSyncRequest{})
+	ue.POST("/api/_version_/fleet/scripts/run/batch", batchScriptRunEndpoint, batchScriptRunRequest{})
 	ue.GET("/api/_version_/fleet/scripts/results/{execution_id}", getScriptResultEndpoint, getScriptResultRequest{})
 	ue.POST("/api/_version_/fleet/scripts", createScriptEndpoint, createScriptRequest{})
 	ue.GET("/api/_version_/fleet/scripts", listScriptsEndpoint, listScriptsRequest{})
@@ -804,6 +805,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("install_self_service", desktopQuota),
 	).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
 	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_software_install_results", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/software/install/{install_uuid}/results", getDeviceSoftwareInstallResultsEndpoint,
+		getDeviceSoftwareInstallResultsRequest{})
+	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_certificates", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/certificates", listDeviceCertificatesEndpoint, listDeviceCertificatesRequest{})
 
@@ -812,6 +817,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	demdm.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_mdm", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/mdm/apple/manual_enrollment_profile", getDeviceMDMManualEnrollProfileEndpoint, getDeviceMDMManualEnrollProfileRequest{})
+	demdm.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_software_mdm_command_results", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint,
+		getDeviceMDMCommandResultsRequest{})
 
 	demdm.WithCustomMiddleware(
 		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota),

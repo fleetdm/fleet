@@ -5,15 +5,65 @@ Following is the vulnerability report of Fleet components.
 
 ## `fleetdm/fleet` docker image
 
-### CVE-2023-32698
+### CVE-2025-46569
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleet does not use OPA in server mode, it uses it as a library
+- **Products:**
+  - `fleet`
+  - `pkg:golang/github.com/open-policy-agent/opa@0.44.0`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-05-05T20:29:07.016171-03:00
+
+### CVE-2025-30204
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The token format being validated before the call to ParseUnverified
+- **Products:**
+  - `fleet`
+  - `pkg:golang/github.com/golang-jwt/jwt/v4`
+- **Justification:** `inline_mitigations_already_exist`
+- **Timestamp:** 2025-04-10T15:23:54.60648-03:00
+
+### CVE-2025-26519
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleet does not perform any EUC-KR to UTF-8 translation by libc
+- **Products:**
+  - `fleet`
+  - `pkg:apk/alpine/musl@1.2.5-r8?os_name=alpine&os_version=3.21`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-14T16:30:01.904498-03:00
+
+### CVE-2025-21614
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
 - **Products:**
   - `fleet`
-  - `pkg:golang/github.com/goreleaser/nfpm/v2`
+  - `pkg:golang/github.com/go-git/go-git/v5`
 - **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2025-04-10T15:28:30.406734-03:00
+- **Timestamp:** 2025-04-10T15:43:15.232143-03:00
+
+### CVE-2025-21613
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
+- **Products:**
+  - `fleet`
+  - `pkg:golang/github.com/go-git/go-git/v5`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-10T15:42:55.967763-03:00
+
+### CVE-2024-8260
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet doesn't run on Windows, so it's not affected by this vulnerability.
+- **Products:**
+  - `fleet`
+  - `pkg:golang/github.com/open-policy-agent/opa`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-05-05T20:54:14.90724-03:00
 
 ### CVE-2024-12797
 - **Author:** @lucasmrod
@@ -26,77 +76,37 @@ Following is the vulnerability report of Fleet components.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-10T15:15:53.847365-03:00
 
-### CVE-2025-21613
+### CVE-2023-32698
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
 - **Products:**
   - `fleet`
-  - `pkg:golang/github.com/go-git/go-git/v5`
+  - `pkg:golang/github.com/goreleaser/nfpm/v2`
 - **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2025-04-10T15:42:55.967763-03:00
-
-### CVE-2025-21614
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** The fleetctl executable is unused in the fleetdm/fleet docker image. The executable was removed in v4.64.0.
-- **Products:**
-  - `fleet`
-  - `pkg:golang/github.com/go-git/go-git/v5`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2025-04-10T15:43:15.232143-03:00
-
-### CVE-2025-26519
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** fleet does not perform any EUC-KR to UTF-8 translation by libc
-- **Products:**
-  - `fleet`
-  - `pkg:apk/alpine/musl@1.2.5-r8?os_name=alpine&os_version=3.21`
-- **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2025-04-14T16:30:01.904498-03:00
-
-### CVE-2025-30204
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** The token format being validated before the call to ParseUnverified
-- **Products:**
-  - `fleet`
-  - `pkg:golang/github.com/golang-jwt/jwt/v4`
-- **Justification:** `inline_mitigations_already_exist`
-- **Timestamp:** 2025-04-10T15:23:54.60648-03:00
+- **Timestamp:** 2025-04-10T15:28:30.406734-03:00
 
 ## `fleetdm/fleetctl` docker image
 
-### CVE-2012-0881
+### CVE-2025-46569
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** fleetctl does not use Java
+- **Status notes:** fleetctl does not use OPA.
 - **Products:**
   - `fleetctl`
-  - `pkg:maven/xerces/xercesImpl`
+  - `pkg:golang/github.com/open-policy-agent/opa`
 - **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2025-04-10T14:46:52.709835-03:00
+- **Timestamp:** 2025-05-06T07:47:31.187848-03:00
 
-### CVE-2013-4002
+### CVE-2025-31115
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** fleetctl does not use Java
+- **Status notes:** fleetctl does not use liblzma5
 - **Products:**
   - `fleetctl`
-  - `pkg:maven/xerces/xercesImpl`
+  - `pkg:deb/debian/liblzma5`
 - **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2025-04-10T07:36:31.1157-03:00
-
-### CVE-2023-32698
-- **Author:** @getvictor
-- **Status:** `not_affected`
-- **Status notes:** When packaging linux files, fleetctl does not use global permissions. It was verified that packed fleetd package files do not have group/global write permissions.
-- **Products:**
-  - `fleetctl`
-  - `pkg:golang/github.com/goreleaser/nfpm/v2`
-- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
-- **Timestamp:** 2025-04-09T10:26:02.350338-03:00
+- **Timestamp:** 2025-04-09T13:24:20.950928-03:00
 
 ### CVE-2024-7254
 - **Author:** @lucasmrod
@@ -108,13 +118,63 @@ Following is the vulnerability report of Fleet components.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-10T07:34:26.535559-03:00
 
-### CVE-2025-31115
+### CVE-2023-6879
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
-- **Status notes:** fleetctl does not use liblzma5
+- **Status notes:** fleetctl does not use libaom3
 - **Products:**
   - `fleetctl`
-  - `pkg:deb/debian/liblzma5`
+  - `pkg:deb/debian/libaom3`
 - **Justification:** `vulnerable_code_not_in_execute_path`
-- **Timestamp:** 2025-04-09T13:24:20.950928-03:00
+- **Timestamp:** 2025-04-15T10:28:21.796437-03:00
+
+### CVE-2023-45853
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use zlib C library
+- **Products:**
+  - `fleetctl`
+  - `pkg:deb/debian/zlib1g`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-15T10:17:19.625099-03:00
+
+### CVE-2023-32698
+- **Author:** @getvictor
+- **Status:** `not_affected`
+- **Status notes:** When packaging linux files, fleetctl does not use global permissions. It was verified that packed fleetd package files do not have group/global write permissions.
+- **Products:**
+  - `fleetctl`
+  - `pkg:golang/github.com/goreleaser/nfpm/v2`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-04-09T10:26:02.350338-03:00
+
+### CVE-2019-10202
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Java
+- **Products:**
+  - `fleetctl`
+  - `pkg:maven/org.codehaus.jackson/jackson-mapper-asl`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-15T10:31:31.924953-03:00
+
+### CVE-2013-4002
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Java
+- **Products:**
+  - `fleetctl`
+  - `pkg:maven/xerces/xercesImpl`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-10T07:36:31.1157-03:00
+
+### CVE-2012-0881
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** fleetctl does not use Java
+- **Products:**
+  - `fleetctl`
+  - `pkg:maven/xerces/xercesImpl`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-04-10T14:46:52.709835-03:00
 

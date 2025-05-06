@@ -1,1 +1,0 @@
-* Updated apmhttp package to fix upload of medium/big sized software packages in environments where APM tracing is enabled.
