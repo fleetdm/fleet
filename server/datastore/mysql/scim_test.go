@@ -29,6 +29,7 @@ func TestScim(t *testing.T) {
 		{"ScimUserByUserNameOrEmail", testScimUserByUserNameOrEmail},
 		{"ScimUserByHostID", testScimUserByHostID},
 		{"ReplaceScimUser", testReplaceScimUser},
+		{"ReplaceScimUserEmails", testReplaceScimUserEmails},
 		{"ReplaceScimUserValidation", testScimUserReplaceValidation},
 		{"DeleteScimUser", testDeleteScimUser},
 		{"ListScimUsers", testListScimUsers},
@@ -420,6 +421,171 @@ func testReplaceScimUser(t *testing.T, ds *Datastore) {
 
 	err = ds.ReplaceScimUser(t.Context(), &nonExistentUser)
 	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testReplaceScimUserEmails(t *testing.T, ds *Datastore) {
+	// Create a test user
+	user := fleet.ScimUser{
+		UserName:   "email-test-user",
+		ExternalID: ptr.String("ext-email-123"),
+		GivenName:  ptr.String("Email"),
+		FamilyName: ptr.String("Test"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "original.email@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+	}
+
+	var err error
+	user.ID, err = ds.CreateScimUser(t.Context(), &user)
+	require.Nil(t, err)
+
+	// Smoke test email optimization - replacing with the same emails should not update emails
+	// First, get the current user to have a reference point
+	currentUser, err := ds.ScimUserByID(t.Context(), user.ID)
+	require.NoError(t, err)
+
+	// Create a copy of the user with the same emails
+	sameEmailsUser := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "multi-update@example.com",
+		ExternalID: ptr.String("ext-replace-456"),
+		GivenName:  ptr.String("Multiple"),
+		FamilyName: ptr.String("Updates"),
+		Active:     ptr.Bool(true),
+		Emails:     currentUser.Emails, // Same emails as current user
+	}
+
+	// Replace the user
+	err = ds.ReplaceScimUser(t.Context(), &sameEmailsUser)
+	require.NoError(t, err)
+
+	// Verify the user was updated correctly but emails remain the same
+	sameEmailsResult, err := ds.ScimUserByID(t.Context(), user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, sameEmailsUser.UserName, sameEmailsResult.UserName)
+	assert.Equal(t, sameEmailsUser.ExternalID, sameEmailsResult.ExternalID)
+	assert.Equal(t, sameEmailsUser.GivenName, sameEmailsResult.GivenName)
+	assert.Equal(t, sameEmailsUser.FamilyName, sameEmailsResult.FamilyName)
+	assert.Equal(t, sameEmailsUser.Active, sameEmailsResult.Active)
+
+	// Verify emails are the same as before
+	assert.Equal(t, len(currentUser.Emails), len(sameEmailsResult.Emails))
+	for i := range currentUser.Emails {
+		assert.Equal(t, currentUser.Emails[i].Email, sameEmailsResult.Emails[i].Email)
+		assert.Equal(t, currentUser.Emails[i].Type, sameEmailsResult.Emails[i].Type)
+		assert.Equal(t, currentUser.Emails[i].Primary, sameEmailsResult.Emails[i].Primary)
+	}
+
+	// Test validation for multiple primary emails
+	multiPrimaryUser := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "multi-primary@example.com",
+		ExternalID: ptr.String("ext-multi-primary"),
+		GivenName:  ptr.String("Multi"),
+		FamilyName: ptr.String("Primary"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "primary1@example.com",
+				Primary: ptr.Bool(true), // First primary
+				Type:    ptr.String("work"),
+			},
+			{
+				Email:   "primary2@example.com",
+				Primary: ptr.Bool(true), // Second primary - should cause validation error
+				Type:    ptr.String("home"),
+			},
+		},
+	}
+
+	// This should fail with a validation error
+	err = ds.ReplaceScimUser(t.Context(), &multiPrimaryUser)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "only one email can be marked as primary")
+
+	// Test email comparison behavior with different combinations of nil/non-nil fields
+	// First, create a user with an email that has all fields set
+	userWithAllFields := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "all-fields@example.com",
+		ExternalID: ptr.String("ext-all-fields"),
+		GivenName:  ptr.String("All"),
+		FamilyName: ptr.String("Fields"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "all-fields@example.com",
+				Primary: ptr.Bool(true),
+				Type:    ptr.String("work"),
+			},
+		},
+	}
+
+	err = ds.ReplaceScimUser(t.Context(), &userWithAllFields)
+	require.NoError(t, err)
+
+	// Now create a user with the same email but with nil Primary field
+	userWithNilPrimary := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "all-fields@example.com",
+		ExternalID: ptr.String("ext-all-fields"),
+		GivenName:  ptr.String("All"),
+		FamilyName: ptr.String("Fields"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "all-fields@example.com",
+				Primary: nil, // Changed from true to nil
+				Type:    ptr.String("work"),
+			},
+		},
+	}
+
+	// This should update the emails since the Primary field changed
+	err = ds.ReplaceScimUser(t.Context(), &userWithNilPrimary)
+	require.NoError(t, err)
+
+	// Verify the email was updated
+	var nilPrimaryUser *fleet.ScimUser
+	nilPrimaryUser, err = ds.ScimUserByID(t.Context(), user.ID)
+	require.NoError(t, err)
+	require.Len(t, nilPrimaryUser.Emails, 1)
+	assert.Equal(t, "all-fields@example.com", nilPrimaryUser.Emails[0].Email)
+	assert.Nil(t, nilPrimaryUser.Emails[0].Primary, "Primary field should be nil")
+
+	// Now create a user with the same email but with nil Type field
+	userWithNilType := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "all-fields@example.com",
+		ExternalID: ptr.String("ext-all-fields"),
+		GivenName:  ptr.String("All"),
+		FamilyName: ptr.String("Fields"),
+		Active:     ptr.Bool(true),
+		Emails: []fleet.ScimUserEmail{
+			{
+				Email:   "all-fields@example.com",
+				Primary: nil,
+				Type:    nil, // Changed from "work" to nil
+			},
+		},
+	}
+
+	// This should update the emails since the Type field changed
+	err = ds.ReplaceScimUser(t.Context(), &userWithNilType)
+	require.NoError(t, err)
+
+	// Verify the email was updated
+	var nilTypeUser *fleet.ScimUser
+	nilTypeUser, err = ds.ScimUserByID(t.Context(), user.ID)
+	require.NoError(t, err)
+	require.Len(t, nilTypeUser.Emails, 1)
+	assert.Equal(t, "all-fields@example.com", nilTypeUser.Emails[0].Email)
+	assert.Nil(t, nilTypeUser.Emails[0].Type, "Type field should be nil")
 }
 
 func testDeleteScimUser(t *testing.T, ds *Datastore) {

@@ -222,6 +222,24 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		return err
 	}
 
+	// Validate that at most one email is marked as primary
+	primaryCount := 0
+	for _, email := range user.Emails {
+		if email.Primary != nil && *email.Primary {
+			primaryCount++
+		}
+	}
+	if primaryCount > 1 {
+		return ctxerr.New(ctx, "only one email can be marked as primary")
+	}
+
+	// Get current emails and check if they need to be updated
+	currentEmails, err := ds.getScimUserEmails(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	emailsNeedUpdate := emailsRequireUpdate(currentEmails, user.Emails)
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// load the username before updating the user, to check if it changed
 		var oldUsername string
@@ -265,24 +283,23 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 		usernameChanged := oldUsername != user.UserName
 
-		// We assume that email is not blank/null.
-		// However, we do not assume that email/type are unique for a user. To keep the code simple, we:
-		// 1. Delete all existing emails
-		// 2. Insert all new emails
-		// This is less efficient and can be optimized if we notice a load on these tables in production.
+		// Only update emails if they've changed
+		if emailsNeedUpdate {
+			// We assume that email is not blank/null.
+			// However, we do not assume that email/type are unique for a user. To keep the code simple, we:
+			// 1. Delete all existing emails
+			// 2. Insert all new emails
+			// This is less efficient and can be optimized if we notice a load on these tables in production.
 
-		// TODO: Check if emails need to be updated at all. If so, update the user updated_at timestamp if emails have been updated
-		// TODO: Check that only 1 email is primary
-
-		const deleteEmailsQuery = `DELETE FROM scim_user_emails WHERE scim_user_id = ?`
-		_, err = tx.ExecContext(ctx, deleteEmailsQuery, user.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete scim user emails")
-		}
-
-		err = insertEmails(ctx, tx, user)
-		if err != nil {
-			return err
+			const deleteEmailsQuery = `DELETE FROM scim_user_emails WHERE scim_user_id = ?`
+			_, err = tx.ExecContext(ctx, deleteEmailsQuery, user.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete scim user emails")
+			}
+			err = insertEmails(ctx, tx, user)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Get the user's groups
@@ -1207,4 +1224,29 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		return ctxerr.Wrap(ctx, err, "execute resend profiles")
 	}
 	return nil
+}
+
+// emailsRequireUpdate compares two slices of emails and returns true if they are different
+// and require an update in the database.
+func emailsRequireUpdate(currentEmails, newEmails []fleet.ScimUserEmail) bool {
+	if len(currentEmails) != len(newEmails) {
+		return true
+	}
+
+	// Create maps for efficient comparison
+	currentEmailMap := make(map[string]fleet.ScimUserEmail)
+	for i := range currentEmails {
+		key := currentEmails[i].GenerateComparisonKey()
+		currentEmailMap[key] = currentEmails[i]
+	}
+
+	// Check if all new emails exist in current emails with the same attributes
+	for i := range newEmails {
+		key := newEmails[i].GenerateComparisonKey()
+		if _, exists := currentEmailMap[key]; !exists {
+			return true
+		}
+	}
+
+	return false
 }
