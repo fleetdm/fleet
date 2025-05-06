@@ -148,8 +148,10 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 		for _, userID := range group.ScimUsers {
 			members = append(members, map[string]interface{}{
 				"value": scimUserID(userID),
-				"$ref":  "Users/" + scimUserID(userID),
 				"type":  "User",
+				// 2025/05/06: Microsoft does not properly support $ref attribute on groups
+				// https://learn.microsoft.com/en-us/answers/questions/1457148/scim-validator-patch-group-remove-member-test-comp
+				// "$ref":  "Users/" + scimUserID(userID),
 			})
 		}
 		groupResource.Attributes[membersAttr] = members

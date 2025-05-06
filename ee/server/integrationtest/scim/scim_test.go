@@ -427,7 +427,6 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	member := members[0].(map[string]interface{})
 	assert.Equal(t, userID, member["value"])
 	assert.Equal(t, "User", member["type"])
-	assert.Equal(t, "Users/"+userID, member["$ref"])
 
 	// Test getting a group by ID
 	var getResp map[string]interface{}
@@ -629,7 +628,6 @@ func testCreateGroup(t *testing.T, s *Suite) {
 		assert.True(t, ok, "Member should be an object")
 		memberValues = append(memberValues, memberMap["value"].(string))
 		assert.Equal(t, "User", memberMap["type"])
-		assert.Contains(t, memberMap["$ref"], "Users/")
 	}
 
 	for _, userID := range userIDs {
