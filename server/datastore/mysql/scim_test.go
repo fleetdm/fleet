@@ -2187,7 +2187,8 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 	assert.True(t, exist, "All existing users should return true")
 
 	// Test 3: Mix of existing and non-existing users should return false
-	nonExistentIDs := append(userIDs, 99999)
+	nonExistentIDs := userIDs
+	nonExistentIDs = append(nonExistentIDs, 99999)
 	exist, err = ds.ScimUsersExist(t.Context(), nonExistentIDs)
 	require.NoError(t, err)
 	assert.False(t, exist, "Mix of existing and non-existing users should return false")
@@ -2204,7 +2205,7 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 
 	// Add some non-existent IDs to test batching with mixed results
 	for i := 0; i < 24990; i++ {
-		largeUserIDs = append(largeUserIDs, uint(1000000+i))
+		largeUserIDs = append(largeUserIDs, uint(1000000)+uint(i)) // nolint:gosec // dismiss G115 integer overflow
 	}
 
 	exist, err = ds.ScimUsersExist(t.Context(), largeUserIDs)
@@ -2216,11 +2217,7 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 	// so we'll just verify the function handles a large slice without errors
 	largeExistingIDs := make([]uint, 0, 25000)
 	for i := 0; i < 25000; i++ {
-		if i < len(userIDs) {
-			largeExistingIDs = append(largeExistingIDs, userIDs[i%len(userIDs)])
-		} else {
-			largeExistingIDs = append(largeExistingIDs, userIDs[i%len(userIDs)])
-		}
+		largeExistingIDs = append(largeExistingIDs, userIDs[i%len(userIDs)])
 	}
 
 	exist, err = ds.ScimUsersExist(t.Context(), largeExistingIDs)
