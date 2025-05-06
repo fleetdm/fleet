@@ -298,6 +298,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ? teams?.find((t) => t.id === currentTeamId)?.features
     : config?.features;
   const isSoftwareEnabled = !!featuresConfig?.enable_software_inventory;
+  const isViewingVulnerableSoftware = !!softwareNavTabIndex; // we can take the tab index as a boolean to represent the vulnerable flag
 
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
   const SOFTWARE_DEFAULT_SORT_HEADER = "hosts_count";
@@ -321,7 +322,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         orderDirection: SOFTWARE_DEFAULT_SORT_DIRECTION,
         orderKey: SOFTWARE_DEFAULT_SORT_HEADER,
         teamId: teamIdForApi,
-        vulnerable: !!softwareNavTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
+        vulnerable: isViewingVulnerableSoftware,
       },
     ],
     ({ queryKey }) => softwareAPI.load(queryKey[0]),
@@ -330,7 +331,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
       onSuccess: (data) => {
-        const hasSoftwareResults = data.software?.length > 0;
+        const hasSoftwareResults = !!data.software && data.software.length > 0;
 
         if (hasSoftwareResults) {
           setSoftwareTitleDetail &&
@@ -349,18 +350,22 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               />
             );
           setShowSoftwareCard(true);
+        } else if (!isViewingVulnerableSoftware) {
+          setShowSoftwareCard(false);
         }
+        // For vulnerable software with no results, the count query will handle showing the card.
       },
     }
   );
 
+  // If viewing vulnerable software and no results are returned,
+  // fetch the count of non-vulnerable software to decide if the card should be shown.
   const shouldFetchSoftwareCount =
-    isSoftwareEnabled && // Needed to prevent race condition with fetching software
+    isSoftwareEnabled && // Needed to prevent race condition with isSoftwareFetching
     !isSoftwareFetching &&
+    isViewingVulnerableSoftware &&
     (!software?.software || software?.software.length === 0);
 
-  // If no vulnerable software, !software?.software can return undefined
-  // Must check non-vuln software count > 0 to show software card iff API returning undefined
   useQuery<ISoftwareCountResponse, Error, number, ISoftwareCountQueryKey[]>(
     [
       {
@@ -376,9 +381,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       retry: 1,
       select: (data) => data.count,
       onSuccess: (count) => {
-        console.log("!isSoftwareLoading", !isSoftwareLoading);
-        console.log("!software?.software", !software?.software);
-        debugger;
         setShowSoftwareCard(!!count && count > 0);
       },
     }
