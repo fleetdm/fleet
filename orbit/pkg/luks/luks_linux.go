@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"math/big"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,39 +38,85 @@ const (
 	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
 
-var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
+var errKeySlotNotFound = errors.New("key slot not found")
 
-func isInstalled(toolName string) bool {
-	path, err := exec.LookPath(toolName)
+func withRootDevicePath(fn func(string) error) error {
+	devicePath, err := lvm.FindRootDisk()
 	if err != nil {
-		return false
+		return fmt.Errorf("failed to find LUKS Root Partition: %w", err)
 	}
-	return path != ""
+	return fn(devicePath)
 }
 
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx := context.Background()
 
-	if !oc.Notifications.RunDiskEncryptionEscrow {
+	if oc.Notifications.RunDiskEncryptionEscrow {
+		return checkInstalled([]string{"cryptsetup"}, func() error {
+			return withRootDevicePath(func(devicePath string) error {
+				return lr.newUserKeyWorkflow(ctx, devicePath)
+			})
+		})
+	}
+
+	salt := oc.Notifications.EscrowedKeySalt
+	slot := oc.Notifications.EscrowedKeySlot
+	if len(salt) == 0 || slot == nil {
+		log.Debug().Msg("No salt or key slot provided, skipping escrowed key validation")
 		return nil
 	}
+	return checkInstalled([]string{"cryptsetup"}, func() error {
+		return withRootDevicePath(func(devicePath string) error {
+			return lr.validateEscrowedKeyWorkflow(ctx, devicePath, salt, *slot)
+		})
+	})
+}
 
-	if !isInstalled("cryptsetup") {
-		return errors.New("cryptsetup is not installed")
-	}
+// validateEscrowedKeyWorkflow checks that the escrowed key is valid
+// and if not, requests a new one from the user
+func (lr *LuksRunner) validateEscrowedKeyWorkflow(
+	ctx context.Context,
+	devicePath string,
+	escrowedSalt string,
+	escrowedKeySlot uint,
+) error {
+	log.Debug().Msgf("fetching salt for key slot %d", escrowedKeySlot)
+	storedSalt, err := getSaltForKeySlot(ctx, devicePath, escrowedKeySlot)
 
-	switch {
-	case isInstalled("zenity"):
-		lr.notifier = zenity.New()
-	case isInstalled("kdialog"):
-		lr.notifier = kdialog.New()
-	default:
-		return errors.New("No supported dialog tool found")
-	}
-
-	devicePath, err := lvm.FindRootDisk()
 	if err != nil {
-		return fmt.Errorf("Failed to find LUKS Root Partition: %w", err)
+		if errors.Is(err, errKeySlotNotFound) {
+			log.Debug().Msgf("key slot %d not found", escrowedKeySlot)
+			return lr.deleteEscrowedKey(escrowedKeySlot)
+		}
+		return fmt.Errorf("failed to get salt for key slot: %w", err)
+	}
+
+	if storedSalt != escrowedSalt {
+		log.Debug().Msgf("comparing salts stored: ****%s vs escrowed: ****%s",
+			storedSalt[len(storedSalt)-4:], escrowedSalt[len(storedSalt)-4:])
+		return lr.deleteEscrowedKey(escrowedKeySlot)
+	}
+	return nil
+}
+
+func (lr *LuksRunner) deleteEscrowedKey(escrowedKeySlot uint) error {
+	log.Info().Msg("Escrowed key is no longer valid, notifying Fleet Server")
+	if err := lr.escrower.DeleteEscrowedKey(escrowedKeySlot); err != nil {
+		log.Error().Err(err).Msg("failed to remove key slot")
+		return err
+	}
+	return nil
+}
+
+// newUserKeyWorkflow the goal of this workflow is to POST a
+// new user encryption key to Fleet server. To achieve this we:
+// 1. Challenge the user to produce their user key by prompting them for their passphrase.
+// 2. If they pass the challenge, we generate a new random user key.
+// 3. We send the newly created key (along with other bits) via the wire so that it
+// can be escrowed by Fleet server.
+func (lr *LuksRunner) newUserKeyWorkflow(ctx context.Context, devicePath string) error {
+	if err := lr.initDialog(); err != nil {
+		return err
 	}
 
 	var response LuksResponse
@@ -89,7 +134,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	response.KeySlot = keyslot
 
 	if keyslot != nil {
-		salt, err := getSaltforKeySlot(ctx, devicePath, *keyslot)
+		salt, err := getSaltForKeySlot(ctx, devicePath, *keyslot)
 		if err != nil {
 			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
 				log.Error().Err(err).Msgf("failed to remove key slot %d", *keyslot)
@@ -127,6 +172,22 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		log.Info().Err(err).Msg("failed to show success escrow key dialog")
 	}
 
+	return nil
+}
+
+func (lr *LuksRunner) initDialog() error {
+	if lr.notifier != nil {
+		return nil
+	}
+
+	switch {
+	case isInstalled("zenity"):
+		lr.notifier = zenity.New()
+	case isInstalled("kdialog"):
+		lr.notifier = kdialog.New()
+	default:
+		return errors.New("No supported dialog tool found")
+	}
 	return nil
 }
 
@@ -372,7 +433,7 @@ func getLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	return &dump, nil
 }
 
-func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
+func getSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
 	dump, err := getLuksDump(ctx, devicePath)
 	if err != nil {
 		return "", fmt.Errorf("getting salt for key slot: %w", err)
@@ -380,7 +441,7 @@ func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (st
 
 	slot, ok := dump.Keyslots[fmt.Sprintf("%d", keySlot)]
 	if !ok {
-		return "", errors.New("key slot not found")
+		return "", errKeySlotNotFound
 	}
 
 	return slot.KDF.Salt, nil

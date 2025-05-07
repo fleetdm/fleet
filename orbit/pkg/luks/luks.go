@@ -2,6 +2,8 @@ package luks
 
 import (
 	"errors"
+	"fmt"
+	"os/exec"
 	"regexp"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dialog"
@@ -9,6 +11,7 @@ import (
 
 type KeyEscrower interface {
 	SendLinuxKeyEscrowResponse(LuksResponse) error
+	DeleteEscrowedKey(keySlot uint) error
 }
 
 type LuksRunner struct {
@@ -46,4 +49,23 @@ func extractJSON(input []byte) ([]byte, error) {
 		return nil, errors.New("no JSON found")
 	}
 	return []byte(match), nil
+}
+
+func isInstalled(toolName string) bool {
+	path, err := exec.LookPath(toolName)
+	if err != nil {
+		return false
+	}
+	return path != ""
+}
+
+// withInstalled checks that all listed tools are installed before calling fn
+// otherwise errors out.
+func checkInstalled(tools []string, fn func() error) error {
+	for _, tool := range tools {
+		if !isInstalled(tool) {
+			return fmt.Errorf("%s is not installed", tool)
+		}
+	}
+	return fn()
 }

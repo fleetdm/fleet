@@ -719,3 +719,16 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 
 	return nil
 }
+
+func (oc *OrbitClient) DeleteEscrowedKey(keySlot uint) error {
+	verb, path := "DELETE", "/api/fleet/orbit/luks_data"
+
+	var resp orbitDeleteLUKSResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitDeleteLUKSRequest{
+		KeySlot: keySlot,
+	}, &resp); err != nil {
+		return err
+	}
+
+	return nil
+}

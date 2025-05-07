@@ -18,6 +18,67 @@ import (
 )
 
 func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
+	setupEscrowContext := func() (*mock.Store, fleet.Service, context.Context, *fleet.Host, fleet.Team) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		os := &fleet.OperatingSystem{
+			Platform: "ubuntu",
+			Version:  "20.04",
+		}
+		host := &fleet.Host{
+			OsqueryHostID:         ptr.String("test"),
+			ID:                    1,
+			OSVersion:             "Ubuntu 20.04",
+			Platform:              "ubuntu",
+			DiskEncryptionEnabled: ptr.Bool(true),
+		}
+
+		team := fleet.Team{ID: 1}
+		teamMDM := fleet.TeamMDM{EnableDiskEncryption: true}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			require.Equal(t, team.ID, teamID)
+			return &teamMDM, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return ptr.RawMessage(json.RawMessage(`{}`)), nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return true
+		}
+		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
+			return nil
+		}
+
+		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(true)}}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return os, nil
+		}
+
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+
+		return ds, svc, ctx, host, team
+	}
+
 	t.Run("don't check for pending escrow if unsupported platform or encryption is not enabled", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
@@ -77,65 +138,12 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.False(t, cfg.Notifications.RunDiskEncryptionEscrow)
+		require.Nil(t, cfg.Notifications.EscrowedKeySlot)
+		require.Empty(t, cfg.Notifications.EscrowedKeySalt)
 	})
 
 	t.Run("pending escrow sets config flag and clears in DB", func(t *testing.T) {
-		ds := new(mock.Store)
-		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
-		os := &fleet.OperatingSystem{
-			Platform: "ubuntu",
-			Version:  "20.04",
-		}
-		host := &fleet.Host{
-			OsqueryHostID:         ptr.String("test"),
-			ID:                    1,
-			OSVersion:             "Ubuntu 20.04",
-			Platform:              "ubuntu",
-			DiskEncryptionEnabled: ptr.Bool(true),
-		}
-
-		team := fleet.Team{ID: 1}
-		teamMDM := fleet.TeamMDM{EnableDiskEncryption: true}
-		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
-			require.Equal(t, team.ID, teamID)
-			return &teamMDM, nil
-		}
-		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
-			return ptr.RawMessage(json.RawMessage(`{}`)), nil
-		}
-		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-			return nil, nil
-		}
-		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
-			return nil, nil
-		}
-		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
-			return true, nil
-		}
-		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
-			return nil, nil
-		}
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return true
-		}
-		ds.ClearPendingEscrowFunc = func(ctx context.Context, hostID uint) error {
-			return nil
-		}
-
-		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnableDiskEncryption: optjson.SetBool(true)}}
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return appCfg, nil
-		}
-		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
-			return os, nil
-		}
-
-		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
-			return false, nil
-		}
-
-		ctx = test.HostContext(ctx, host)
+		ds, svc, ctx, host, team := setupEscrowContext()
 
 		// no-team
 		cfg, err := svc.GetOrbitConfig(ctx)
@@ -160,6 +168,83 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
 		require.True(t, ds.ClearPendingEscrowFuncInvoked)
+		require.Nil(t, cfg.Notifications.EscrowedKeySlot)
+		require.Empty(t, cfg.Notifications.EscrowedKeySalt)
+	})
+
+	t.Run("salt and key slot are set", func(t *testing.T) {
+		ds, svc, ctx, _, _ := setupEscrowContext()
+
+		// We don't want to send the salt nor the key slot if there is host needs to update is escrow key anyways
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return true
+		}
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Nil(t, cfg.Notifications.EscrowedKeySlot)
+		require.Empty(t, cfg.Notifications.EscrowedKeySalt)
+
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+
+		salt := "some salt"
+		key := config.TestConfig().Server.PrivateKey
+		encryptedSalt, err := mdm.EncryptAndEncode(salt, key)
+		require.NoError(t, err)
+
+		testCases := []struct {
+			title             string
+			diskEncryptionKey *fleet.HostDiskEncryptionKey
+			err               error
+			expectedSalt      string
+			expectedKeySlot   *uint
+		}{
+			{
+				title: "no disk encryption key",
+			},
+			{
+				title: "error returned",
+				err:   errors.New("error"),
+			},
+			{
+				title:             "key without salt nor key slot",
+				diskEncryptionKey: &fleet.HostDiskEncryptionKey{},
+			},
+			{
+				title: "key with salt but no key slot",
+				diskEncryptionKey: &fleet.HostDiskEncryptionKey{
+					Base64EncryptedSalt: encryptedSalt,
+				},
+			},
+			{
+				title: "key with key slot but no salt",
+				diskEncryptionKey: &fleet.HostDiskEncryptionKey{
+					KeySlot: ptr.Uint(0),
+				},
+			},
+			{
+				title: "key with both salt and key slot",
+				diskEncryptionKey: &fleet.HostDiskEncryptionKey{
+					Base64EncryptedSalt: encryptedSalt,
+					KeySlot:             ptr.Uint(0),
+				},
+				expectedSalt:    salt,
+				expectedKeySlot: ptr.Uint(0),
+			},
+		}
+
+		for _, testCase := range testCases {
+			t.Run(testCase.title, func(t *testing.T) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					return testCase.diskEncryptionKey, testCase.err
+				}
+				cfg, err := svc.GetOrbitConfig(ctx)
+				require.NoError(t, err)
+				require.Equal(t, testCase.expectedSalt, cfg.Notifications.EscrowedKeySalt)
+				require.Equal(t, testCase.expectedKeySlot, cfg.Notifications.EscrowedKeySlot)
+			})
+		}
 	})
 }
 

@@ -42,7 +42,7 @@ type OrbitConfigNotifications struct {
 	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
 	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 
-	// RunSetupExperience indicates whether or not Orbit should run the Fleet setup experience
+	// RunSetupExperience indicates whether Orbit should run the Fleet setup experience
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
 
@@ -51,6 +51,16 @@ type OrbitConfigNotifications struct {
 	// see EnforceBitLockerEncryption for Windows and RotateDiskEncryptionKey
 	// for macOS.
 	RunDiskEncryptionEscrow bool `json:"run_disk_encryption_escrow,omitempty"`
+
+	// EscrowedKeySalt if we are escrowing a disk encryption key for Linux,
+	// this will contain the salt used in the key generation process. We use
+	// this alongside EscrowedKeySlot to validate that the escrowed key is still valid.
+	EscrowedKeySalt string `json:"escrowed_key_salt,omitempty"`
+
+	// LUSKEySlot if we are escrowing a disk encryption key for Linux,
+	// this will have the key slot of the escrowed key. We use
+	//	// this alongside EscrowedKeySalt to validate that the escrowed key is still valid.
+	EscrowedKeySlot *uint `json:"escrowed_key_slot,omitempty"`
 }
 
 type OrbitConfig struct {
