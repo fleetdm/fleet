@@ -9,6 +9,11 @@ module.exports = {
 
   inputs: {
 
+    data: {
+      type: 'json',
+      required: true
+    },
+
     choices: {
       type: [{ predicate: 'string', value: 'json' }],
       required: true,
@@ -26,11 +31,6 @@ module.exports = {
       ]
     },
 
-    data: {
-      type: 'json',
-      required: true
-    },
-
   },
 
 
@@ -46,7 +46,7 @@ module.exports = {
   },
 
 
-  fn: async function ({choices, data}) {
+  fn: async function ({data, choices}) {
     let prompt = 'Given some data and a set of possible choices, decide which choice most accurately classifies the data.';
 
     // FUTURE: Add an option to first validate `choices` (e.g. for non-production envs or where accuracy is critical and the massive trade-off in increased response time is worthwhile) using a prompt that verifies it is an appropriately-formatted predicate.
