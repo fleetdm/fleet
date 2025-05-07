@@ -3869,6 +3869,7 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 
 func (ds *Datastore) maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, hostID uint, idp *fleet.MDMIdPAccount) error {
 	if idp == nil {
+		// TODO: confirm desired behavior here
 		return nil
 	}
 
