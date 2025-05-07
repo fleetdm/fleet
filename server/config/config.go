@@ -1414,7 +1414,7 @@ func (man Manager) addConfigs() {
 
 	// Partnerships
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
-	man.addConfigBool("partnerships.enable_primo", false, "Disable teams for Primo")
+	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
 }
 
 func (man Manager) hideConfig(name string) {

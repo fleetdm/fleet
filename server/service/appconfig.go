@@ -56,7 +56,6 @@ type appConfigResponseFields struct {
 	Err            error               `json:"error,omitempty"`
 	AndroidEnabled bool                `json:"android_enabled,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
-	// Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
