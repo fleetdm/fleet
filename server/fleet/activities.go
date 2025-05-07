@@ -173,6 +173,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedDeclarationProfile{},
 
 	ActivityTypeResentConfigurationProfile{},
+	ActivityTypeResentConfigurationProfileBatch{},
 
 	ActivityTypeInstalledSoftware{},
 	ActivityTypeUninstalledSoftware{},
@@ -1694,7 +1695,7 @@ func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
 }
 
 func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when a user resends an MDM configuration profile to a host.`,
+	return `Generated when a user resends a configuration profile to a host.`,
 		`This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_display_name": The display name of the host.
@@ -1702,6 +1703,25 @@ func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "profile_name": "Passcode requirements"
+}`
+}
+
+type ActivityTypeResentConfigurationProfileBatch struct {
+	ProfileName string `json:"profile_name"`
+	HostCount   int64  `json:"host_count"`
+}
+
+func (a ActivityTypeResentConfigurationProfileBatch) ActivityName() string {
+	return "resent_configuration_profile_batch"
+}
+
+func (a ActivityTypeResentConfigurationProfileBatch) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user resends a configuration profile to a batch of hosts.`,
+		`This activity contains the following fields:
+- "profile_name": The name of the configuration profile.
+- "host_count": Number of hosts in the batch.`, `{
+  "profile_name": "Passcode requirements",
+  "host_count": 3
 }`
 }
 

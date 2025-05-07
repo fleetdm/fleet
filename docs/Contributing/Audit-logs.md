@@ -1204,7 +1204,7 @@ This activity contains the following fields:
 
 ## resent_configuration_profile
 
-Generated when a user resends an MDM configuration profile to a host.
+Generated when a user resends a configuration profile to a host.
 
 This activity contains the following fields:
 - "host_id": The ID of the host.
@@ -1218,6 +1218,23 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "profile_name": "Passcode requirements"
+}
+```
+
+## resent_configuration_profile_batch
+
+Generated when a user resends a configuration profile to a batch of hosts.
+
+This activity contains the following fields:
+- "profile_name": The name of the configuration profile.
+- "host_count": Number of hosts in the batch.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "host_count": 3
 }
 ```
 
