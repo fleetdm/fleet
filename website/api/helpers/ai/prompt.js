@@ -7,6 +7,9 @@ module.exports = {
   description: 'Prompt a large language model (LLM).',
 
 
+  extendedDescription: 'e.g. chatbot, automatically fill out metadata on a user profile',
+
+
   inputs: {
     prompt: { type: 'string', required: true, example: 'Who is running macOS 15?' },
     baseModel: {

@@ -7,6 +7,9 @@ module.exports = {
   description: 'Make an intelligent determination about some data from the provided choices.',
 
 
+  extendedDescription: 'e.g. for sentiment analysis for social network, or implementing "top posts" or featured content.',
+
+
   inputs: {
 
     data: {

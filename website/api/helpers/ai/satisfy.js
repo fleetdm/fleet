@@ -7,6 +7,9 @@ module.exports = {
   description: 'Modify some data such that it satisfies one or more constraints.',
 
 
+  extendedDescription: 'e.g. wedding seating chart, generate work schedule',
+
+
   inputs: {
     data: {
       type: 'json',
@@ -33,6 +36,7 @@ module.exports = {
     success: {
       outputType: 'json',
       outputDescription: 'The modified data.',
+      extendedDescription: 'Note that this is a deep clone returned from the LLM.  (The original data is not modified in-place.)'
     },
 
   },
