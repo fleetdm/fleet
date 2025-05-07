@@ -65,7 +65,7 @@ Fleet UI:
 
 5. Either close the modal or select another script to run.
 
-Fleet API: See out [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
+Fleet API: See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
