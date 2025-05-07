@@ -108,7 +108,6 @@ const SoftwareSelfService = ({
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: isSoftwareEnabled,
     keepPreviousData: true,
-    staleTime: 7000,
     onSuccess: (response) => {
       setSelfServiceData(response);
     },

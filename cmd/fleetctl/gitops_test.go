@@ -1048,6 +1048,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
+	}
 
 	// Team
 	var savedTeam *fleet.Team
@@ -1534,6 +1537,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
 		return vppToken, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
 	}
 
 	createFakeITunesAndVPPServices(t)
@@ -2192,6 +2198,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
+	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(testing_utils.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
@@ -2430,6 +2439,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
+			}
 
 			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -2458,6 +2470,9 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	}
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
 	}
 
 	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_software_installer_valid_env_query.yml"})
@@ -2556,6 +2571,9 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 						Name: "b",
 					},
 				}, nil
+			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
@@ -2669,6 +2687,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
+			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "./testdata/gitops/global_config_no_paths.yml"
@@ -2759,6 +2780,9 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 					},
 				}, nil
 			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
+			}
 
 			found := make(map[string]uint)
 			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
@@ -2830,6 +2854,9 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 			return nil, sql.ErrNoRows
 		}
 		return token, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
 	}
 
 	buf, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_vpp.yml", "-f", "testdata/gitops/team_vpp_valid_app.yml"})

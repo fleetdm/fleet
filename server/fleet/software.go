@@ -473,6 +473,8 @@ type VPPBatchPayload struct {
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
+	// Categories is the list of names of software categories associated with this VPP app.
+	Categories []string `json:"categories"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -482,6 +484,10 @@ type VPPBatchPayloadWithPlatform struct {
 	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string            `json:"labels_include_any"`
+	// Categories is the list of names of software categories associated with this VPP app.
+	Categories []string `json:"categories"`
+	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
+	CategoryIDs []uint `json:"-"`
 }
 
 type SoftwareCategory struct {
