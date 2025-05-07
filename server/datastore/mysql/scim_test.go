@@ -863,7 +863,7 @@ func testScimGroupCreate(t *testing.T, ds *Datastore) {
 		groupCopy.ID, err = ds.CreateScimGroup(t.Context(), &g)
 		require.NoError(t, err)
 
-		verify, err := ds.ScimGroupByID(t.Context(), g.ID)
+		verify, err := ds.ScimGroupByID(t.Context(), g.ID, false)
 		require.NoError(t, err)
 
 		assert.Equal(t, groupCopy.ID, verify.ID)
@@ -932,7 +932,7 @@ func testScimGroupByID(t *testing.T, ds *Datastore) {
 
 	// Test retrieving each group
 	for _, tt := range groups {
-		returned, err := ds.ScimGroupByID(t.Context(), tt.ID)
+		returned, err := ds.ScimGroupByID(t.Context(), tt.ID, false)
 		assert.Nil(t, err)
 		assert.Equal(t, tt.ID, returned.ID)
 		assert.Equal(t, tt.DisplayName, returned.DisplayName)
@@ -953,8 +953,19 @@ func testScimGroupByID(t *testing.T, ds *Datastore) {
 	}
 
 	// Test missing group
-	_, err := ds.ScimGroupByID(t.Context(), 10000000000)
+	_, err := ds.ScimGroupByID(t.Context(), 10000000000, false)
 	assert.True(t, fleet.IsNotFound(err))
+
+	// Test with excludeUsers=true
+	for _, tt := range groups {
+		returnedWithoutUsers, err := ds.ScimGroupByID(t.Context(), tt.ID, true)
+		assert.Nil(t, err)
+		assert.Equal(t, tt.ID, returnedWithoutUsers.ID)
+		assert.Equal(t, tt.DisplayName, returnedWithoutUsers.DisplayName)
+		assert.Equal(t, tt.ExternalID, returnedWithoutUsers.ExternalID)
+		// Verify that users were not fetched
+		assert.Empty(t, returnedWithoutUsers.ScimUsers, "ScimUsers should be empty when excludeUsers=true")
+	}
 }
 
 func testScimGroupByDisplayName(t *testing.T, ds *Datastore) {
@@ -1045,7 +1056,7 @@ func testReplaceScimGroup(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the group was created correctly
-	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID)
+	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID, false)
 	require.NoError(t, err)
 	assert.Equal(t, group.DisplayName, createdGroup.DisplayName)
 	assert.Equal(t, group.ExternalID, createdGroup.ExternalID)
@@ -1065,7 +1076,7 @@ func testReplaceScimGroup(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 
 	// Verify the group was updated correctly
-	replacedGroup, err := ds.ScimGroupByID(t.Context(), group.ID)
+	replacedGroup, err := ds.ScimGroupByID(t.Context(), group.ID, false)
 	require.Nil(t, err)
 	assert.Equal(t, updatedGroup.DisplayName, replacedGroup.DisplayName)
 	assert.Equal(t, updatedGroup.ExternalID, replacedGroup.ExternalID)
@@ -1162,7 +1173,7 @@ func testDeleteScimGroup(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the group was created correctly
-	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID)
+	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID, false)
 	require.Nil(t, err)
 	assert.Equal(t, group.DisplayName, createdGroup.DisplayName)
 
@@ -1171,7 +1182,7 @@ func testDeleteScimGroup(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 
 	// Verify the group was deleted
-	_, err = ds.ScimGroupByID(t.Context(), group.ID)
+	_, err = ds.ScimGroupByID(t.Context(), group.ID, false)
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Test deleting a non-existent group

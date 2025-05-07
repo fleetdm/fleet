@@ -1326,7 +1326,7 @@ type ListScimUsersFunc func(ctx context.Context, opts fleet.ScimUsersListOptions
 
 type CreateScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) (uint, error)
 
-type ScimGroupByIDFunc func(ctx context.Context, id uint) (*fleet.ScimGroup, error)
+type ScimGroupByIDFunc func(ctx context.Context, id uint, excludeUsers bool) (*fleet.ScimGroup, error)
 
 type ScimGroupByDisplayNameFunc func(ctx context.Context, displayName string) (*fleet.ScimGroup, error)
 
@@ -7885,11 +7885,11 @@ func (s *DataStore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup)
 	return s.CreateScimGroupFunc(ctx, group)
 }
 
-func (s *DataStore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGroup, error) {
+func (s *DataStore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bool) (*fleet.ScimGroup, error) {
 	s.mu.Lock()
 	s.ScimGroupByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.ScimGroupByIDFunc(ctx, id)
+	return s.ScimGroupByIDFunc(ctx, id, excludeUsers)
 }
 
 func (s *DataStore) ScimGroupByDisplayName(ctx context.Context, displayName string) (*fleet.ScimGroup, error) {

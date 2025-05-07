@@ -120,7 +120,7 @@ func (g *GroupHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
-	group, err := g.ds.ScimGroupByID(r.Context(), idUint)
+	group, err := g.ds.ScimGroupByID(r.Context(), idUint, false)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(g.logger).Log("msg", "failed to find group", "id", id)
@@ -287,7 +287,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	group, err := g.ds.ScimGroupByID(r.Context(), idUint)
+	group, err := g.ds.ScimGroupByID(r.Context(), idUint, false)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(g.logger).Log("msg", "failed to find group to patch", "id", id)
