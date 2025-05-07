@@ -48,7 +48,7 @@ IT admins can now select multiple hosts and run a script across all of them at o
 
 ### Fleet-maintained apps via GitOps (YAML)
 
-IT admins can now add Fleet-maintained apps to their environment using GitOps (YAML). This enables full GitOps workflows for software management, allowing teams to manage all software alongside other configuration as code.
+IT admins can now add Fleet-maintained apps to their environment using [GitOps (YAML)](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps). This enables full GitOps workflows for software management, allowing teams to manage all software alongside other configuration as code.
 
 ### Custom Fleet agent (fleetd) during new Mac setup (ADE)
 
