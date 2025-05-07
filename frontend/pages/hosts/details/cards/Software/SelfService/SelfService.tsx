@@ -98,7 +98,6 @@ const SoftwareSelfService = ({
     ];
   }, [deviceToken, queryParams.page, queryParams.query]);
 
-  console.log("queryKey", queryKey);
   // Fetch self-service software (regular API call)
   const { isLoading, isError, isFetching } = useQuery<
     IGetDeviceSoftwareResponse,
