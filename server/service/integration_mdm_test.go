@@ -3252,6 +3252,9 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: unsignedPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "file is not signed")
 	// wrong TOC
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: wrongTOCPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "invalid package")
+	// not a Distribution package
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: read("not-distribution-signed.pkg"), Name: "pkg.pkg"}, http.StatusBadRequest,
+		fleet.BootstrapPkgNotDistributionErrMsg)
 	// successfully upload a package
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
 	// check the activity log
