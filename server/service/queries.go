@@ -263,17 +263,6 @@ func createQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return createQueryResponse{query, nil}, nil
 }
 
-func (svc *Service) getTeamName(ctx context.Context, teamID *uint) (*string, error) {
-	if teamID == nil {
-		return nil, nil
-	}
-	team, err := svc.ds.Team(ctx, *teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetching team name")
-	}
-	return &team.Name, nil
-}
-
 func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.Query, error) {
 	// Check the user is allowed to create a new query on the team.
 	if err := svc.authz.Authorize(ctx, fleet.Query{
@@ -350,9 +339,13 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
-	teamName, err := svc.getTeamName(ctx, query.TeamID)
-	if err != nil {
-		return nil, err
+	var teamName *string
+	if query.TeamID != nil {
+		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+		if err != nil {
+			return nil, err
+		}
+		teamName = &team.Name
 	}
 
 	if err := svc.NewActivity(
@@ -482,9 +475,13 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
-	teamName, err := svc.getTeamName(ctx, query.TeamID)
-	if err != nil {
-		return nil, err
+	var teamName *string
+	if query.TeamID != nil {
+		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+		if err != nil {
+			return nil, err
+		}
+		teamName = &team.Name
 	}
 
 	if err := svc.NewActivity(
@@ -558,9 +555,13 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		return err
 	}
 
-	teamName, err := svc.getTeamName(ctx, query.TeamID)
-	if err != nil {
-		return err
+	var teamName *string
+	if query.TeamID != nil {
+		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+		if err != nil {
+			return err
+		}
+		teamName = &team.Name
 	}
 
 	if err := svc.NewActivity(
@@ -602,7 +603,6 @@ func deleteQueryByIDEndpoint(ctx context.Context, request interface{}, svc fleet
 
 func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	// Load query first to determine if the user can delete it.
-	// try modifying this function
 
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
@@ -617,9 +617,13 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
-	teamName, err := svc.getTeamName(ctx, query.TeamID)
-	if err != nil {
-		return err
+	var teamName *string
+	if query.TeamID != nil {
+		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+		if err != nil {
+			return err
+		}
+		teamName = &team.Name
 	}
 
 	if err := svc.NewActivity(
