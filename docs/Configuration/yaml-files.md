@@ -456,12 +456,11 @@ Can only be configured for all teams (`default.yml`).
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
-
-Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+The `software` section allows you to configure packages, Apple App Store apps, and Fleet-maintained apps that you want to install on your hosts.
 
 - `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
 - `app_store_apps` is a list of Apple App Store apps.
+- `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
@@ -484,6 +483,15 @@ software:
         - Marketing
       categories:
         - Communication
+  fleet_maintained_apps:
+    - slug: slack/darwin
+      self_service: true
+      labels_include_any:
+        - Design
+        - Sales
+      categories:
+        - Communication
+        - Productivity
 ```
 
 Use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
@@ -534,6 +542,14 @@ self_service: true
 
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 - `categories` is an array of categories. See [supported categories](#supported-software-categories).
+
+### fleet_maintained_apps
+
+- `fleet_maintained_apps` is a list of Fleet-maintained apps. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app. From there, select **Show details**. You can also see the list [here in GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
+
+> Currently, Fleet-maintained apps do not auto-update. To get the newest version of a Fleet-maintained app for a team, remove the app from that team, run GitOps, then add the app back and run GitOps again.
+
+> Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify categories when adding a self-service Fleet-maintained app, the default categories will be used.
 
 ## org_settings and team_settings
 
