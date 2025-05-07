@@ -6028,7 +6028,7 @@ The summary can optionally be filtered by team ID.
 
 ### Configure setup experience
 
-> **Experimental feature.** `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+> **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium_
 

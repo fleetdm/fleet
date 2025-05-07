@@ -433,7 +433,7 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
 
-> **Experimental feature.** `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+> **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
