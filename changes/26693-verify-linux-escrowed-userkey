@@ -1,0 +1,2 @@
+* Added new endpoint 'DELETE /api/fleet/orbit/luks_data' used by Orbit when the LUKS escrowed key is detected as invalid.
+* Added new properties to the 'POST /api/fleet/orbit/config' used for determine if the LUKS escrowed key is invalid.

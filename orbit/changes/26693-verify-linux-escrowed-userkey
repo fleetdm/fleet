@@ -1,0 +1,1 @@
+* Added functionality for detecting and notifying the Fleet server when the LUKS escrowed key is no longer valid.

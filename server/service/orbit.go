@@ -309,8 +309,24 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
-	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
-		host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && svc.ds.IsHostPendingEscrow(ctx, host.ID)
+	shouldEscrowKey := host.IsLUKSSupported() && host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled
+	if shouldEscrowKey {
+		notifs.RunDiskEncryptionEscrow = svc.ds.IsHostPendingEscrow(ctx, host.ID)
+
+		// If we are requesting a new user key, then we don't need to do any checks on the client side
+		if !notifs.RunDiskEncryptionEscrow {
+			salt, slot, err := svc.saltAndSlot(ctx, host.ID)
+			if err != nil {
+				level.Debug(svc.logger).Log("msg", "failed to get salt and slot for host", "host_uuid", host.UUID, "err", err)
+				return fleet.OrbitConfig{}, err
+			}
+
+			if salt != "" && slot != nil {
+				notifs.EscrowedKeySalt = salt
+				notifs.EscrowedKeySlot = slot
+			}
+		}
+	}
 
 	// load the (active, ready to execute) pending software install executions for that host
 	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
@@ -482,6 +498,23 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		NudgeConfig:      nudgeConfig,
 		UpdateChannels:   updateChannels,
 	}, nil
+}
+
+func (svc *Service) saltAndSlot(ctx context.Context, hostID uint) (string, *uint, error) {
+	encryptionKey, err := svc.ds.GetHostDiskEncryptionKey(ctx, hostID)
+
+	if fleet.IsNotFound(err) ||
+		encryptionKey == nil ||
+		len(encryptionKey.Base64EncryptedSalt) == 0 {
+		return "", nil, nil
+	}
+
+	salt, err := mdm.DecodeAndDecrypt(encryptionKey.Base64EncryptedSalt, svc.config.Server.PrivateKey)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return salt, encryptionKey.KeySlot, nil
 }
 
 func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {
@@ -1055,6 +1088,55 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	}
 
 	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Delete Orbit LUKS (Linux disk encryption) data
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitDeleteLUKSRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	KeySlot      uint   `json:"key_slot"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitDeleteLUKSRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitDeleteLUKSRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitDeleteLUKSResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitDeleteLUKSResponse) Error() error { return r.Err }
+func (r orbitDeleteLUKSResponse) Status() int  { return http.StatusNoContent }
+
+// deleteOrbitLUKSEndpoint actioned by the orbit host if it detects that the escrowed LUKS key
+// is no longer valid.
+func deleteOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*orbitDeleteLUKSRequest)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return orbitDeleteLUKSResponse{Err: newOsqueryError("internal error: missing host from request context")}, nil
+	}
+
+	if err := svc.DeleteLUKSData(ctx, host.ID, req.KeySlot); err != nil {
+		return orbitDeleteLUKSResponse{Err: newOsqueryError("internal error: could not delete escrowed key")}, nil
+	}
+
+	return orbitDeleteLUKSResponse{}, nil
+}
+
+func (svc *Service) DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+	return svc.ds.DeleteLUKSData(ctx, hostID, keySlot)
 }
 
 /////////////////////////////////////////////////////////////////////////////////

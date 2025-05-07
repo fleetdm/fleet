@@ -411,6 +411,7 @@ type Service interface {
 
 	HostEncryptionKey(ctx context.Context, id uint) (*HostDiskEncryptionKey, error)
 	EscrowLUKSData(ctx context.Context, passphrase string, salt string, keySlot *uint, clientError string) error
+	DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error
 
 	// AddLabelsToHost adds the given label names to the host's label membership.
 	//
