@@ -170,6 +170,9 @@ jobs:
               echo "Timeout reached (${timeout_seconds}s) while waiting for ${container_name}"
               echo "Connection attempt logs:"
               echo "$attempt_logs"
+              # Dump MySQL container logs
+              echo "Dumping ${container_name} logs:"
+              docker compose logs ${container_name}
               return 1
             fi
             
@@ -179,8 +182,8 @@ jobs:
             
             # Log the attempt
             timestamp=$(date "+%Y-%m-%d %H:%M:%S")
-            attempt_logs="${attempt_logs}\n${timestamp} - Exit code: ${exit_code} - Output: ${output}"
-            
+            attempt_logs="${attempt_logs}$(printf "\n%s - Exit code: %s - Output: %s" "$timestamp" "$exit_code" "$output")"
+        
             # If connection successful, break the loop
             if [ $exit_code -eq 0 ]; then
               echo "${container_name} is ready"
