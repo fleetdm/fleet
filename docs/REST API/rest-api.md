@@ -5556,7 +5556,6 @@ Resends a configuration profile for the specified host.
 
 ### Batch-resend custom OS setting (configuration profile)
 
-_Available in Fleet Premium_
 
 `POST /api/v1/fleet/configuration_profiles/resend/batch`
 
@@ -5565,7 +5564,13 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
-| filters | object | body | **Required**. Currently, only the `profile_status=failed` filter is supported.|
+| filters | object  | body | **Required**. See [filters](#filters)  |
+
+##### Filters
+
+| Name                              | Type    | Description   |
+| -----------------------| ------- | ----------------------------------------------------------------------------------- |
+| profile_status                | string   | Profile status. Currently, `"failed"` is supported. |
 
 #### Example
 
@@ -5662,7 +5667,7 @@ optionally be filtered by `team_id`. If no `team_id` is specified, team profiles
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
+| team_id                   | string | query | _Available in Fleet Premium_. The team ID to filter profiles.              |
 
 #### Example
 
@@ -5693,7 +5698,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 | Name                      | Type   | In    | Description                                                               |
 | ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| team_id                   | string | query | _Available in Fleet Premium_. The team ID to filter profiles.              |
+| profile_uuid                   | string | query | **Required**. The UUID of configuration profile.             |
 
 #### Example
 
