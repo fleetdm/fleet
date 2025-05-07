@@ -5516,7 +5516,13 @@ Resends a configuration profile for the specified host.
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
-| filters | object | body | **Required**. Currently, only the `profile_status=failed` filter is supported.|
+| filters | object  | body | **Required**. See [filters](#filters)  |
+
+##### Filters
+
+| Name                              | Type    | Description   |
+| -----------------------| ------- | ----------------------------------------------------------------------------------- |
+| profile_status                | string   | Profile status. Currently, `"failed"` is supported. |
 
 #### Example
 
