@@ -1699,6 +1699,7 @@ func testUpdateDeletingUpcomingScriptExecutions(t *testing.T, ds *Datastore) {
 		Name:           "script3",
 		ScriptContents: "contents3",
 	})
+	require.NoError(t, err)
 
 	// Queue script executions
 	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
