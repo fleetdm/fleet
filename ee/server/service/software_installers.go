@@ -1650,6 +1650,9 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 	payload.UninstallScript = app.UninstallScript
 	payload.FleetMaintained = true
 	payload.MaintainedApp = app
+	if len(payload.Categories) == 0 {
+		payload.Categories = app.Categories
+	}
 
 	return nil
 }
