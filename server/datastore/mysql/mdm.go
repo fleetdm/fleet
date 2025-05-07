@@ -1638,5 +1638,233 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 }
 
 func (ds *Datastore) GetMDMConfigProfileStatus(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error) {
-	panic("unimplemented")
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
+		return ds.getAppleMDMConfigProfileStatus(ctx, profileUUID)
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		return ds.getAppleMDMDeclarationStatus(ctx, profileUUID)
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		return ds.getWindowsMDMConfigProfileStatus(ctx, profileUUID)
+	default:
+		return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, notFound("ConfigurationProfile").WithName(profileUUID))
+	}
+}
+
+func (ds *Datastore) getWindowsMDMConfigProfileStatus(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error) {
+	var counts fleet.MDMConfigProfileStatus
+
+	stmt := `
+SELECT
+	CASE
+		WHEN hmwp.status = :status_failed THEN
+			'failed'
+		WHEN COALESCE(hmwp.status, :status_pending) = :status_pending THEN
+			'pending'
+		WHEN hmwp.status = :status_verifying THEN
+			'verifying'
+		WHEN hmwp.status = :status_verified THEN
+			'verified'
+		ELSE
+			''
+	END AS status,
+	SUM(1) AS count
+FROM
+	hosts h
+	JOIN host_mdm hmdm ON h.id = hmdm.host_id
+	JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
+	JOIN host_mdm_windows_profiles hmwp ON hmwp.host_uuid = h.uuid
+WHERE
+	mwe.device_state = :device_state_enrolled AND
+	h.platform = 'windows' AND
+	hmdm.is_server = 0 AND
+	hmdm.enrolled = 1 AND
+	hmwp.profile_uuid = :profile_uuid
+GROUP BY
+	status`
+
+	stmt, args, err := sqlx.Named(stmt, map[string]any{
+		"status_failed":         fleet.MDMDeliveryFailed,
+		"status_pending":        fleet.MDMDeliveryPending,
+		"status_verifying":      fleet.MDMDeliveryVerifying,
+		"status_verified":       fleet.MDMDeliveryVerified,
+		"device_state_enrolled": microsoft_mdm.MDMDeviceStateEnrolled,
+		"profile_uuid":          profileUUID,
+	})
+	if err != nil {
+		return counts, ctxerr.Wrap(ctx, err, "prepare arguments with sqlx.Named")
+	}
+
+	var rows []statusCounts
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...)
+	if err != nil {
+		return counts, err
+	}
+
+	for _, row := range rows {
+		switch row.Status {
+		case "failed":
+			counts.Failed = row.Count
+		case "pending":
+			counts.Pending = row.Count
+		case "verifying":
+			counts.Verifying = row.Count
+		case "verified":
+			counts.Verified = row.Count
+		case "":
+			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d windows hosts for profile %s with mdm turned on but no profiles", row.Count, profileUUID))
+		default:
+			return counts, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm windows status count: status=%s, count=%d", row.Status, row.Count))
+		}
+	}
+	return counts, nil
+}
+
+func (ds *Datastore) getAppleMDMConfigProfileStatus(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error) {
+	var counts fleet.MDMConfigProfileStatus
+
+	// NOTE: the case computation of the status must follow the same logic as in
+	// sqlJoinMDMAppleProfilesStatus (for non-file-vault, since this is for
+	// custom settings).
+	stmt := `
+SELECT
+	COUNT(id) AS count,
+	CASE
+		WHEN hmap.status = :status_failed THEN
+			'failed'
+		WHEN COALESCE(hmap.status, :status_pending) = :status_pending THEN
+			'pending'
+		WHEN hmap.status = :status_verifying AND hmap.operation_type = :operation_install THEN
+			'verifying'
+		WHEN hmap.status = :status_verified AND hmap.operation_type = :operation_install THEN
+			'verified'
+	END AS status,
+FROM
+	hosts h
+	JOIN host_mdm_apple_profiles hmap ON h.uuid = hmap.host_uuid
+WHERE
+	platform IN ('darwin', 'ios', 'ipados') AND
+	hmap.profile_uuid = :profile_uuid
+GROUP BY
+	status HAVING status IS NOT NULL`
+
+	stmt, args, err := sqlx.Named(stmt, map[string]any{
+		"status_failed":     fleet.MDMDeliveryFailed,
+		"status_pending":    fleet.MDMDeliveryPending,
+		"status_verifying":  fleet.MDMDeliveryVerifying,
+		"status_verified":   fleet.MDMDeliveryVerified,
+		"operation_install": fleet.MDMOperationTypeInstall,
+		"profile_uuid":      profileUUID,
+	})
+	if err != nil {
+		return counts, ctxerr.Wrap(ctx, err, "prepare arguments with sqlx.Named")
+	}
+
+	var dest []struct {
+		Count  uint   `db:"count"`
+		Status string `db:"status"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
+		return counts, err
+	}
+
+	byStatus := make(map[string]uint)
+	for _, s := range dest {
+		if _, ok := byStatus[s.Status]; ok {
+			return counts, fmt.Errorf("duplicate status %s", s.Status)
+		}
+		byStatus[s.Status] = s.Count
+	}
+
+	for s, c := range byStatus {
+		switch fleet.MDMDeliveryStatus(s) {
+		case fleet.MDMDeliveryFailed:
+			counts.Failed = c
+		case fleet.MDMDeliveryPending:
+			counts.Pending = c
+		case fleet.MDMDeliveryVerifying:
+			counts.Verifying = c
+		case fleet.MDMDeliveryVerified:
+			counts.Verified = c
+		default:
+			return counts, fmt.Errorf("unknown status %s", s)
+		}
+	}
+
+	return counts, nil
+}
+
+func (ds *Datastore) getAppleMDMDeclarationStatus(ctx context.Context, declUUID string) (fleet.MDMConfigProfileStatus, error) {
+	var counts fleet.MDMConfigProfileStatus
+
+	// NOTE: the case computation of the status must follow the same logic as in
+	// sqlJoinMDMAppleDeclarationsStatus.
+	stmt := `
+SELECT
+	COUNT(id) AS count,
+	CASE
+		WHEN hmad.status = :status_failed THEN
+			'failed'
+		WHEN COALESCE(hmad.status, :status_pending) = :status_pending THEN
+			'pending'
+		WHEN hmad.status = :status_verifying THEN
+			'verifying'
+		WHEN hmad.status = :status_verified THEN
+			'verified'
+	END AS status,
+FROM
+	hosts h
+	JOIN host_mdm_apple_declarations hmad ON h.uuid = hmad.host_uuid
+WHERE
+	h.platform IN ('darwin', 'ios', 'ipados') AND
+	hmad.operation_type = :operation_install AND
+	hmad.declaration_uuid = :declaration_uuid
+GROUP BY
+	status HAVING status IS NOT NULL`
+
+	stmt, args, err := sqlx.Named(stmt, map[string]any{
+		"status_failed":     fleet.MDMDeliveryFailed,
+		"status_pending":    fleet.MDMDeliveryPending,
+		"status_verifying":  fleet.MDMDeliveryVerifying,
+		"status_verified":   fleet.MDMDeliveryVerified,
+		"operation_install": fleet.MDMOperationTypeInstall,
+		"declaration_uuid":  declUUID,
+	})
+	if err != nil {
+		return counts, ctxerr.Wrap(ctx, err, "prepare arguments with sqlx.Named")
+	}
+
+	var dest []struct {
+		Count  uint   `db:"count"`
+		Status string `db:"status"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
+		return counts, err
+	}
+
+	byStatus := make(map[string]uint)
+	for _, s := range dest {
+		if _, ok := byStatus[s.Status]; ok {
+			return counts, fmt.Errorf("duplicate status %s", s.Status)
+		}
+		byStatus[s.Status] = s.Count
+	}
+
+	for s, c := range byStatus {
+		switch fleet.MDMDeliveryStatus(s) {
+		case fleet.MDMDeliveryFailed:
+			counts.Failed = c
+		case fleet.MDMDeliveryPending:
+			counts.Pending = c
+		case fleet.MDMDeliveryVerifying:
+			counts.Verifying = c
+		case fleet.MDMDeliveryVerified:
+			counts.Verified = c
+		default:
+			return counts, fmt.Errorf("unknown status %s", s)
+		}
+	}
+
+	return counts, nil
 }
