@@ -489,6 +489,9 @@ software:
       labels_include_any:
         - Design
         - Sales
+      categories:
+        - Communication
+        - Productivity
 ```
 
 Use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
@@ -545,6 +548,8 @@ self_service: true
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app. From there, select **Show details**. You can also see the list [here in GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
 > Currently, Fleet-maintained apps do not auto-update. To get the newest version of a Fleet-maintained app for a team, remove the app from that team, run GitOps, then add the app back and run GitOps again.
+
+> Note: Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify categories when adding a self-service Fleet-maintained app, the default categories will be used.
 
 ## org_settings and team_settings
 
