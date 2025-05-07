@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // SwiftDialog really wants the command file to be mode 666 for some reason
@@ -80,7 +82,7 @@ func Create(ctx context.Context, swiftDialogBin string) (*SwiftDialog, error) {
 	return sd, nil
 }
 
-func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions) error {
+func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions, caffeinate bool) error {
 	jsonBytes, err := json.Marshal(opts)
 	if err != nil {
 		return err
@@ -105,6 +107,21 @@ func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions) error
 	if err != nil {
 		s.cancel(errors.New("could not start swiftDialog"))
 		return err
+	}
+
+	if caffeinate {
+		// This will stop the display and system from sleeping and mark the user as active, and
+		// will wait for the swiftDialog process to exit before exiting and allowing the system to
+		// resume normal sleep/idle behavior. Note that the actual system sleep can only be
+		// completely blocked while on AC power(per the manpage) so this solution is not perfect.
+		caffeinateCmd := exec.CommandContext(ctx, "caffeinate", "-dimsu", "-w", fmt.Sprintf("%d", cmd.Process.Pid))
+		caffeinateCmd.Stdout = nil
+		caffeinateCmd.Stderr = nil
+		caffeinateCmd.Stdin = nil
+		err = caffeinateCmd.Start()
+		if err != nil {
+			log.Warn().Err(err).Msgf("could not start caffeinate process against Swift Dialog PID %d: %s", cmd.Process.Pid, err)
+		}
 	}
 
 	go func() {

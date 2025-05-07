@@ -206,6 +206,10 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		if err := s.sd.EnableButton1(true); err != nil {
 			log.Info().Err(err).Msg("enabling close button in setup experience UI")
 		}
+
+		if err := s.sd.Quit(); err != nil {
+			log.Info().Err(err).Msg("quitting setup experience UI on completion")
+		}
 	}
 
 	return nil
@@ -264,9 +268,12 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			ProgressText:     "Configuring your device...",
 			Button1Text:      "Close",
 			Button1Disabled:  true,
+			BlurScreen:       true,
+			OnTop:            true,
+			QuitKey:          "x",
 		}
 
-		if err := s.sd.Start(context.Background(), initOpts); err != nil {
+		if err := s.sd.Start(context.Background(), initOpts, true); err != nil {
 			log.Error().Err(err).Msg("starting swiftDialog instance")
 		}
 
