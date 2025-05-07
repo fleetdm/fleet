@@ -52,7 +52,7 @@ const RunScriptBatchPaginatedList = ({
         }
       );
 
-      return fetchPromise.then(({ scripts, meta }: IScriptsResponse) => {
+      return fetchPromise.then(({ scripts }: IScriptsResponse) => {
         return scripts || [];
       });
     },

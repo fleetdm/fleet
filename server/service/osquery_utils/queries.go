@@ -2273,5 +2273,5 @@ func directIngestHostCertificates(
 		return nil
 	}
 
-	return ds.UpdateHostCertificates(ctx, host.ID, certs)
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
 }

@@ -295,6 +295,7 @@ const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
   uninstall_script:
     "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
   url: "http://www.testurl1234abcd.com/testapp",
+  categories: ["Browsers"],
 };
 
 export const createMockFleetMaintainedAppDetails = (

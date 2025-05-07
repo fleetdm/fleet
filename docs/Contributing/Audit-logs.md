@@ -1221,7 +1221,7 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Passcode requirements",
-  "host_count": "3"
+  "host_count": 3
 }
 ```
 

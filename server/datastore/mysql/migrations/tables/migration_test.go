@@ -314,3 +314,44 @@ func assertRowCount(t *testing.T, db *sqlx.DB, table string, count int) {
 	require.NoError(t, err)
 	assert.Equal(t, count, n)
 }
+
+func insertAppleConfigProfile(t *testing.T, db *sqlx.DB, name, identifier string, vars ...string) string {
+	contents := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+							%s
+            </dict>
+        </array>
+        <key>PayloadDisplayName</key>
+        <string>%s</string>
+        <key>PayloadIdentifier</key>
+        <string>%s</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>%s</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+    </dict>
+</plist>`
+	var varDict strings.Builder
+	for i, v := range vars {
+		// add some vars with "${...}" and some with "$..."
+		if i%2 == 0 {
+			v = fmt.Sprintf("{%s}", v)
+		}
+		varDict.WriteString(fmt.Sprintf(`
+						<key>Var%d</key>
+						<string>$%s</string>`, i, v))
+	}
+	profileUUID := uuid.NewString()
+	contents = fmt.Sprintf(contents, varDict.String(), name, identifier, profileUUID)
+
+	execNoErr(t, db, `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, identifier, name, mobileconfig, checksum)
+		VALUES (?, ?, ?, ?, UNHEX(MD5(?)))`, profileUUID, identifier, name, contents, contents)
+	return profileUUID
+}

@@ -7,7 +7,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Head of Marketing                   | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@Drew-P-drawers](https://github.com/Drew-P-drawers))_
+| Interim Head of Marketing         | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 
 
 ## Contact us
@@ -102,7 +102,7 @@ Fleet's Head of Marketing is responsible for booking events that Fleet has chose
 ### Create an article
 Article creation begins with creation of an issue using the "Article request" template.
 
-1. Create a [new GitHub issue for the :help-marketing board](https://github.com/fleetdm/confidential/issues/new?assignees=Drew-P-drawers&labels=%3Ahelp-marketing=&template=1-custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+1. Create a [new GitHub issue for the :help-marketing board](https://github.com/fleetdm/confidential/issues/new?assignees=mikermcneil&labels=%3Ahelp-marketing=&template=1-custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
 2. Move the issue into the "📃 Planned articles" column.
 
 ### Review ongoing articles
@@ -296,5 +296,5 @@ Please see [handbook/company/communications#video](https://fleetdm.com/handbook/
 
 
 
-<meta name="maintainedBy" value="Drew-P-Drawers">
+<meta name="maintainedBy" value="sampfluger88">
 <meta name="title" value="🫧 Marketing">

@@ -1,5 +1,4 @@
-import React, { useRef } from "react";
-import ReactTooltip from "react-tooltip";
+import React from "react";
 import classnames from "classnames";
 import { formatInTimeZone } from "date-fns-tz";
 import {
@@ -37,7 +36,6 @@ import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,
 } from "utilities/constants";
-import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
@@ -127,8 +125,6 @@ const HostSummary = ({
   osSettings,
   className,
 }: IHostSummaryProps): JSX.Element => {
-  const hostDisplayName = useRef<HTMLHeadingElement>(null);
-  const isTruncated = useCheckTruncatedElement(hostDisplayName);
   const classNames = classnames(baseClass, className);
 
   const {

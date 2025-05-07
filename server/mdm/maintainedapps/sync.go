@@ -152,6 +152,7 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedAp
 	app.InstallScript = manifest.Refs[manifest.Versions[0].InstallScriptRef]
 	app.UninstallScript = manifest.Refs[manifest.Versions[0].UninstallScriptRef]
 	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
+	app.Categories = manifest.Versions[0].DefaultCategories
 
 	return app, nil
 }

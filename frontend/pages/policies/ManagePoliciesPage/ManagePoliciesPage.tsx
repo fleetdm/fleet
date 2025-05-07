@@ -763,22 +763,34 @@ const ManagePolicyPage = ({
 
   const onUpdateConditionalAccess = async ({
     enabled: enableConditionalAccess,
+    changedPolicies,
   }: IConditionalAccessFormData) => {
     setIsUpdatingPolicies(true);
 
     try {
+      // TODO - narrow type for update policy responses
+      const responses: (Promise<ITeamConfig> | Promise<any>)[] = [];
+      let refetchConfig: any;
+
+      // If enabling/disabling the feature, update appropriate config
       if (teamIdForApi === API_NO_TEAM_ID) {
-        // patch global config (No team case)
-        const payload = {
-          integrations: {
-            ...globalConfig?.integrations,
-            conditional_access_enabled: enableConditionalAccess,
-          },
-        };
-        // TODO - confirm nothing getting unintentionally overwritten here
-        await configAPI.update(payload);
-        refetchGlobalConfig();
-      } else {
+        if (
+          enableConditionalAccess !==
+          globalConfig?.integrations.conditional_access_enabled
+        ) {
+          const payload = {
+            integrations: {
+              conditional_access_enabled: enableConditionalAccess,
+            },
+          };
+          responses.push(configAPI.update(payload));
+          refetchConfig = refetchGlobalConfig;
+        }
+      } else if (
+        enableConditionalAccess !==
+        teamConfig?.integrations.conditional_access_enabled
+      ) {
+        // patch team config (all teams but No team)
         const payload = {
           integrations: {
             // These fields will never actually be changed here. See comment above
@@ -788,8 +800,24 @@ const ManagePolicyPage = ({
             conditional_access_enabled: enableConditionalAccess,
           },
         };
-        await teamsAPI.update(payload, teamIdForApi);
-        refetchTeamConfig();
+        responses.push(teamsAPI.update(payload, teamIdForApi));
+        refetchConfig = refetchTeamConfig;
+      }
+
+      // handle any changed policies for no team or a team
+      responses.concat(
+        changedPolicies.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            conditional_access_enabled:
+              changedPolicy.conditional_access_enabled,
+            team_id: teamIdForApi,
+          });
+        })
+      );
+      await Promise.all(responses);
+      await wait(100); // helps avoid refetch race conditions
+      if (refetchConfig) {
+        await refetchConfig();
       }
       renderFlash(
         "success",
@@ -940,7 +968,7 @@ const ManagePolicyPage = ({
       // Global policies
 
       if (globalPoliciesError) {
-        return <TableDataError />;
+        return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
       }
       return (
         <PoliciesTable
@@ -970,7 +998,7 @@ const ManagePolicyPage = ({
 
     // Team policies
     if (teamPoliciesError) {
-      return <TableDataError />;
+      return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
     return (
       <div>
@@ -1287,6 +1315,7 @@ const ManagePolicyPage = ({
             enabled={isConditionalAccessEnabled}
             isUpdating={isUpdatingPolicies}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            teamId={currentTeamId ?? 0}
           />
         )}
       </div>

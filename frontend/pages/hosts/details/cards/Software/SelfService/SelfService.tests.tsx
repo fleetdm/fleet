@@ -1,6 +1,7 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 
+import { noop } from "lodash";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
@@ -24,8 +25,10 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     min_cvss_score: undefined,
     max_cvss_score: undefined,
     exploit: false,
+    category_id: undefined,
   },
   router: createMockRouter(),
+  onShowInstallerDetails: noop,
 };
 
 describe("SelfService", () => {
@@ -52,7 +55,6 @@ describe("SelfService", () => {
     expect(screen.getByText("test1")).toBeInTheDocument();
     expect(screen.getByText("test2")).toBeInTheDocument();
     expect(screen.getByText("test3")).toBeInTheDocument();
-    expect(screen.getByText("3 items")).toBeInTheDocument();
     screen.debug();
   });
 
@@ -101,8 +103,10 @@ describe("SelfService", () => {
           min_cvss_score: undefined,
           max_cvss_score: undefined,
           exploit: false,
+          category_id: undefined,
         }}
         router={createMockRouter()}
+        onShowInstallerDetails={noop}
       />
     );
 
@@ -110,11 +114,11 @@ describe("SelfService", () => {
     await screen.findByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-item__status--test")
+      screen.getByTestId("self-service-table__status--test")
     ).toHaveTextContent("Installed");
 
     expect(
-      screen.getByTestId("self-service-item__item-action-button--test")
+      screen.getByTestId("self-service-table__action-button--test")
     ).toHaveTextContent("Reinstall");
   });
 
@@ -137,11 +141,11 @@ describe("SelfService", () => {
     await screen.findByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-item__status--test")
+      screen.getByTestId("self-service-table__status--test")
     ).toHaveTextContent("Failed");
 
     expect(
-      screen.getByTestId("self-service-item__item-action-button--test")
+      screen.getByTestId("self-service-table__action-button--test")
     ).toHaveTextContent("Retry");
   });
 
@@ -161,14 +165,14 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findByText("test-software");
+    await screen.findAllByText("test-software");
 
     expect(
-      screen.queryByTestId("self-service-item__status--test")
+      screen.queryByTestId("self-service-table__status--test")
     ).not.toBeInTheDocument();
 
     expect(
-      screen.getByTestId("self-service-item__item-action-button--test")
+      screen.getByTestId("self-service-table__action-button--test")
     ).toHaveTextContent("Install");
   });
 
@@ -188,14 +192,14 @@ describe("SelfService", () => {
     render(<SelfService {...TEST_PROPS} />);
 
     // waiting for the device software data to render
-    await screen.findByText("test-software");
+    await screen.findAllByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-item__status--test")
-    ).toHaveTextContent("Pending");
+      screen.getByTestId("self-service-table__status--test")
+    ).toHaveTextContent(/Installing.../i);
 
     expect(
-      screen.queryByTestId("self-service-item__item-action-button--test")
+      screen.queryByTestId("self-service-table__action-button--test")
     ).not.toBeInTheDocument();
   });
 });

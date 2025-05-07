@@ -55,14 +55,15 @@ locals {
     FLEET_LICENSE_KEY                          = var.fleet_license
     FLEET_LOGGING_DEBUG                        = "true"
     FLEET_LOGGING_JSON                         = "true"
-    FLEET_LOGGING_TRACING_ENABLED              = "true"
-    FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
-    FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
+    # FLEET_LOGGING_TRACING_ENABLED              = "true"
+    # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
+    FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
+    FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
-    ELASTIC_APM_SERVER_URL                     = var.elastic_url
-    ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
-    ELASTIC_APM_SERVICE_NAME                   = "dogfood"
+    # ELASTIC_APM_SERVER_URL                     = var.elastic_url
+    # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
+    # ELASTIC_APM_SERVICE_NAME                   = "dogfood"
     FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
     FLEET_DEV_ANDROID_ENABLED                  = "1"
     FLEET_DEV_ANDROID_SERVICE_CREDENTIALS      = var.android_service_credentials
@@ -90,6 +91,9 @@ module "main" {
     # VPN
     allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
     backup_retention_period = 30
+    cluster_tags = {
+      backup                = "true"
+    }
   }
   redis_config = {
     name = local.customer
