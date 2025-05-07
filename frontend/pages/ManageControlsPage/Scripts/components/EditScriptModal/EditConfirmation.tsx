@@ -25,7 +25,7 @@ const EditScriptConfirmationModal = ({
         <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
           <Button onClick={onSave}>Save</Button>
-          <Button onClick={onCancel} variant="inverse-alert">
+          <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>
         </div>
