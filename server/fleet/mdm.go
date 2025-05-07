@@ -988,3 +988,9 @@ type MDMProfileIdentifierFleetVariables struct {
 	// findFleetVariables).
 	FleetVariables []string
 }
+
+// BatchResendMDMProfileFilters represents the filters to apply to hosts for
+// batch-redelivery of an MDM profile.
+type BatchResendMDMProfileFilters struct {
+	ProfileStatus MDMDeliveryStatus
+}

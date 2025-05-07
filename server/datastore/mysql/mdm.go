@@ -1615,3 +1615,24 @@ func batchSetProfileVariableAssociationsDB(
 	}
 	return nil
 }
+
+func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
+	table, column, err := getTableAndColumnNameForHostMDMProfileUUID(profileUUID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "getting table and column")
+	}
+
+	// update the status to NULL to trigger resending on the next cron run
+	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL WHERE %s = ? AND status = ?`, table, column)
+
+	var count int64
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, updateStmt, profileUUID, filters.ProfileStatus)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resending MDM profile on hosts")
+		}
+		count, _ = res.RowsAffected()
+		return nil
+	})
+	return count, err
+}

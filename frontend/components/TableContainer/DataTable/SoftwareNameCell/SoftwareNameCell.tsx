@@ -114,6 +114,7 @@ interface ISoftwareNameCellProps {
   hasPackage?: boolean;
   isSelfService?: boolean;
   installType?: "manual" | "automatic";
+  /** e.g. app_store_app's override default icons with URLs */
   iconUrl?: string;
   automaticInstallPoliciesCount?: number;
 }
