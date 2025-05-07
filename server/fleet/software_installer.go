@@ -550,8 +550,9 @@ type SoftwarePackageSpec struct {
 	// It must be JSON-marshaled because it gets set during gitops file processing,
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
-	ReferencedYamlPath string `json:"referenced_yaml_path"`
-	SHA256             string `json:"hash_sha256"`
+	ReferencedYamlPath string   `json:"referenced_yaml_path"`
+	SHA256             string   `json:"hash_sha256"`
+	Categories         []string `json:"categories"`
 }
 
 type SoftwareSpec struct {
