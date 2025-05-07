@@ -4,7 +4,7 @@
 
 Android MDM features are currently behind a feature flag. To enable them, set `ANDROID_FEATURE_ENABLED=1` in your [server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration).
 
-To turn on Android MDM features, follow the instructions on this page to connect Android Enterprise
+This guide provides instructions to turn on Android MDM features by connecting Fleet to Android Enterprise.
 to Fleet.
 
 Fleet supports Android devices that are [Play Protect certified](https://support.google.com/googleplay/answer/7165974?hl=en) (previously known as GMS).
