@@ -179,7 +179,7 @@ const UserForm = ({
     currentUserId,
   });
 
-  const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
+  const isGlobalUser = formData.global_role !== null;
 
   const initiallyPasswordAuth = !isSsoEnabled;
 
@@ -269,7 +269,7 @@ const UserForm = ({
     setIsGlobalUser(isGlobalUserChange);
     setFormData({
       ...formData,
-      global_role: isGlobalUserChange ? "observer" : null,
+      global_role: value === UserTeamType.GlobalUser ? "observer" : null,
     });
   };
 
