@@ -52,9 +52,11 @@ type appConfigResponseFields struct {
 	// Email is returned when the email backend is something other than SMTP, for example SES
 	Email *fleet.EmailConfig `json:"email,omitempty"`
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
-	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
-	Err            error `json:"error,omitempty"`
-	AndroidEnabled bool  `json:"android_enabled,omitempty"`
+	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
+	Err            error               `json:"error,omitempty"`
+	AndroidEnabled bool                `json:"android_enabled,omitempty"`
+	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
+	// Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -130,6 +132,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return nil, err
 	}
+	partnerships, err := svc.PartnershipsConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
@@ -198,6 +204,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
 			AndroidEnabled:  os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
+			Partnerships:    partnerships,
 		},
 	}
 	return response, nil

@@ -473,6 +473,9 @@ type Service interface {
 	// License returns the licensing information.
 	License(ctx context.Context) (*LicenseInfo, error)
 
+	// PartnershipsConfig returns Fleet partnership-specific configuration
+	PartnershipsConfig(ctx context.Context) (*Partnerships, error)
+
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)
 
