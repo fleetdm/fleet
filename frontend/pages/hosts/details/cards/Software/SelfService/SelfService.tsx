@@ -98,6 +98,7 @@ const SoftwareSelfService = ({
     ];
   }, [deviceToken, queryParams.page, queryParams.query]);
 
+  console.log("queryKey", queryKey);
   // Fetch self-service software (regular API call)
   const { isLoading, isError, isFetching } = useQuery<
     IGetDeviceSoftwareResponse,
@@ -108,7 +109,6 @@ const SoftwareSelfService = ({
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: isSoftwareEnabled,
     keepPreviousData: true,
-    staleTime: 7000,
     onSuccess: (response) => {
       setSelfServiceData(response);
     },
