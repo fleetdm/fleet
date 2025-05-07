@@ -270,7 +270,7 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			Button1Disabled:  true,
 			BlurScreen:       true,
 			OnTop:            true,
-			QuitKey:          "x",
+			QuitKey:          "X", // Capital X to require command+shift+x
 		}
 
 		if err := s.sd.Start(context.Background(), initOpts, true); err != nil {
