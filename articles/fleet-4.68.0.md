@@ -1,7 +1,7 @@
 # Fleet 4.68.0 | Scheduled query webhooks, deploy tarballs, SHA-256 verification, and more...
 
 <div purpose="embedded-content">
-   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/Udhh-XYhb4I?si=gh9vasjviB6-3sMm" frameborder="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.68.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.68.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
