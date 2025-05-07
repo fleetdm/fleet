@@ -839,6 +839,15 @@ var windowsUpdateHistory = DetailQuery{
 	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
+// TODO(lucas): The table will be implemented
+// in https://github.com/fleetdm/fleet/issues/28621.
+var entraIDDetails = DetailQuery{
+	Query:            `SELECT device_id FROM entra_id_details;`,
+	Platforms:        []string{"darwin"},
+	Discovery:        discoveryTable("entra_id_details"),
+	DirectIngestFunc: directIngestEntraIDDetails,
+}
+
 var softwareMacOS = DetailQuery{
 	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
 	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to
@@ -1484,6 +1493,28 @@ func directIngestWindowsUpdateHistory(
 	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
 }
 
+func directIngestEntraIDDetails(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// Device maybe hasn't logged in to Entra ID yet.
+		return nil
+	}
+	row := rows[0]
+	deviceID := row["device_id"]
+	if deviceID == "" {
+		return ctxerr.New(ctx, "empty Entra ID device_id")
+	}
+	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID); err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
+	}
+	return nil
+}
+
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
 	packs := map[string][]fleet.ScheduledQueryStats{}
 	for _, row := range rows {
@@ -2060,11 +2091,16 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 
 //go:generate go run gen_queries_doc.go "../../../docs/Contributing/Understanding-host-vitals.md"
 
+type Integrations struct {
+	ConditionalAccessMicrosoft bool
+}
+
 func GetDetailQueries(
 	ctx context.Context,
 	fleetConfig config.FleetConfig,
 	appConfig *fleet.AppConfig,
 	features *fleet.Features,
+	integrations Integrations,
 ) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
@@ -2108,6 +2144,10 @@ func GetDetailQueries(
 			}
 			generatedMap[key] = query
 		}
+	}
+
+	if integrations.ConditionalAccessMicrosoft {
+		generatedMap["conditional_access_microsoft_device_id"] = entraIDDetails
 	}
 
 	if features != nil {

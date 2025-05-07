@@ -125,7 +125,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "failing_host_count": 2,
         "host_count_updated_at": null,
 		"critical": true,
-		"calendar_events_enabled": false
+		"calendar_events_enabled": false,
+		"conditional_access_enabled": false
     },
     "hosts": [
         {
@@ -312,7 +313,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "failing_host_count": 1,
         "host_count_updated_at": null,
 		"critical": false,
-		"calendar_events_enabled": true
+		"calendar_events_enabled": true,
+		"conditional_access_enabled": false
     },
     "hosts": [
         {

@@ -20,19 +20,20 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID                uint     `url:"team_id"`
-	QueryID               *uint    `json:"query_id"`
-	Query                 string   `json:"query"`
-	Name                  string   `json:"name"`
-	Description           string   `json:"description"`
-	Resolution            string   `json:"resolution"`
-	Platform              string   `json:"platform"`
-	Critical              bool     `json:"critical" premium:"true"`
-	CalendarEventsEnabled bool     `json:"calendar_events_enabled"`
-	SoftwareTitleID       *uint    `json:"software_title_id"`
-	ScriptID              *uint    `json:"script_id"`
-	LabelsIncludeAny      []string `json:"labels_include_any"`
-	LabelsExcludeAny      []string `json:"labels_exclude_any"`
+	TeamID                   uint     `url:"team_id"`
+	QueryID                  *uint    `json:"query_id"`
+	Query                    string   `json:"query"`
+	Name                     string   `json:"name"`
+	Description              string   `json:"description"`
+	Resolution               string   `json:"resolution"`
+	Platform                 string   `json:"platform"`
+	Critical                 bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled    bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID          *uint    `json:"software_title_id"`
+	ScriptID                 *uint    `json:"script_id"`
+	LabelsIncludeAny         []string `json:"labels_include_any"`
+	LabelsExcludeAny         []string `json:"labels_exclude_any"`
+	ConditionalAccessEnabled bool     `json:"conditional_access_enabled"`
 }
 
 type teamPolicyResponse struct {

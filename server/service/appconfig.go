@@ -55,6 +55,9 @@ type appConfigResponseFields struct {
 	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
 	Err            error `json:"error,omitempty"`
 	AndroidEnabled bool  `json:"android_enabled,omitempty"`
+
+	// ConditionalAccess holds the Microsoft conditional access configuration.
+	ConditionalAccess *fleet.ConditionalAccessSettings `json:"conditional_access,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -131,6 +134,18 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 
+	var conditionalAccessSettings *fleet.ConditionalAccessSettings
+	conditionalAccessIntegration, err := svc.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if conditionalAccessIntegration != nil {
+		conditionalAccessSettings = &fleet.ConditionalAccessSettings{
+			MicrosoftEntraTenantID:             conditionalAccessIntegration.TenantID,
+			MicrosoftEntraConnectionConfigured: conditionalAccessIntegration.SetupDone,
+		}
+	}
+
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
 	if vc.User.Teams != nil {
@@ -191,13 +206,14 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			UIGitOpsMode:    appConfig.UIGitOpsMode,
 		},
 		appConfigResponseFields: appConfigResponseFields{
-			UpdateInterval:  updateIntervalConfig,
-			Vulnerabilities: vulnConfig,
-			License:         license,
-			Logging:         loggingConfig,
-			Email:           emailConfig,
-			SandboxEnabled:  svc.SandboxEnabled(),
-			AndroidEnabled:  os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
+			UpdateInterval:    updateIntervalConfig,
+			Vulnerabilities:   vulnConfig,
+			License:           license,
+			Logging:           loggingConfig,
+			Email:             emailConfig,
+			SandboxEnabled:    svc.SandboxEnabled(),
+			AndroidEnabled:    os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
+			ConditionalAccess: conditionalAccessSettings,
 		},
 	}
 	return response, nil
@@ -316,6 +332,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
+
+	oldConditionalAccessEnabled := appConfig.Integrations.ConditionalAccessEnabled
 
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
@@ -462,6 +480,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
+
+	if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, oldConditionalAccessEnabled, appConfig.Integrations.ConditionalAccessEnabled); err != nil {
+		return nil, err
+	}
 
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")

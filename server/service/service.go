@@ -19,6 +19,7 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/log"
 )
@@ -63,6 +64,8 @@ type Service struct {
 	wstepCertManager  microsoft_mdm.CertManager
 	scepConfigService fleet.SCEPConfigService
 	digiCertService   fleet.DigiCertService
+
+	conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
 }
 
 func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -115,6 +118,21 @@ func NewService(
 		return nil, fmt.Errorf("new authorizer: %w", err)
 	}
 
+	conditionalAccessMicrosoftProxy, err := conditional_access_microsoft_proxy.New(
+		config.MicrosoftCompliancePartner.ProxyURI,
+		config.MicrosoftCompliancePartner.ProxyAPIKey,
+		func() (string, error) {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return "", fmt.Errorf("failed to load appconfig: %w", err)
+			}
+			return appCfg.ServerSettings.ServerURL, nil
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("new microsoft compliance proxy: %w", err)
+	}
+
 	svc := &Service{
 		ds:                ds,
 		task:              task,
@@ -144,6 +162,8 @@ func NewService(
 		wstepCertManager:     wstepCertManager,
 		scepConfigService:    scepConfigService,
 		digiCertService:      digiCertService,
+
+		conditionalAccessMicrosoftProxy: conditionalAccessMicrosoftProxy,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
