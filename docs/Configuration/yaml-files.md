@@ -549,7 +549,7 @@ self_service: true
 
 > Currently, Fleet-maintained apps do not auto-update. To get the newest version of a Fleet-maintained app for a team, remove the app from that team, run GitOps, then add the app back and run GitOps again.
 
-> Note: Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify categories when adding a self-service Fleet-maintained app, the default categories will be used.
+> Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify categories when adding a self-service Fleet-maintained app, the default categories will be used.
 
 ## org_settings and team_settings
 
