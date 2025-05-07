@@ -887,7 +887,8 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         resent the {activity.details?.profile_name} configuration profile to{" "}
-        {activity.details?.host_count} hosts.
+        {activity.details?.host_count}{" "}
+        {activity.details?.host_count > 1 ? "hosts." : "host."}
       </>
     );
   },
