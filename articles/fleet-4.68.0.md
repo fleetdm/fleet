@@ -24,23 +24,23 @@ Security engineers can now send scheduled query results to a webhook URL. This m
 
 ### Deploy tarballs
 
-Fleet now supports deploying `.tar.gz` and `.tgz packages`. Security engineers no longer need separate hosting or deployment tools, simplifying the process of distributing software across hosts.
+Fleet now supports deploying `.tar.gz` and `.tgz packages`. Security engineers no longer need separate hosting or deployment tools, simplifying the process of distributing software across hosts. Learn more [here](https://fleetdm.com/guides/deploy-software-packages).
 
 ### SHA-256 verification
 
-IT admins can now specify a `hash_sha256` when adding custom packages to Fleet via GitOps (YAML). Fleet will verify the hash to ensure that the uploaded software matches exactly what was intended.
+IT admins can now specify a `hash_sha256` when adding custom packages to Fleet via [GitOps (YAML)](https://fleetdm.com/docs/configuration/yaml-files#packages). Fleet will verify the hash to ensure that the uploaded software matches exactly what was intended.
 
 ### Certificate renewal
 
-Fleet can now automatically renew certificates from DigiCert, NDES, or custom certificate authorities (CA). This ensures end users can maintain seamless Wi-Fi and VPN access without manual certificate management.
+Fleet can now automatically renew certificates from DigiCert, NDES, or custom certificate authorities (CA). This ensures end users can maintain seamless Wi-Fi and VPN access without manual certificate management. Learn more [here](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate).
 
 ### Configuration profile variables
 
-IT admins can now insert end users' identity provider (IdP) usernames and groups into macOS, iOS, and iPadOS configuration profiles. This allows certificates to include user-specific data and enables other tools, like Munki, to take group-based actions.
+IT admins can now insert end users' identity provider (IdP) usernames and groups into macOS, iOS, and iPadOS configuration profiles. This allows certificates to include user-specific data and enables other tools, like Munki, to take group-based actions. See all configuration profile variables Fleet currently supports [here](https://fleetdm.com/docs/configuration/yaml-files#macos-settings-and-windows-settings).
 
 ### Software self-service categories
 
-IT admins can now organize software in **Fleet Desktop > Self service** into categories like "🌎 Browsers," "👬 Communication," "🧰 Developer tools," and "🖥️ Productivity." This makes it easier for end users to quickly find and install the apps they need.
+IT admins can now organize software in **Fleet Desktop > Self service** into categories like "🌎 Browsers," "👬 Communication," "🧰 Developer tools," and "🖥️ Productivity." This makes it easier for end users to quickly find and install the apps they need. Learn more [here](https://fleetdm.com/guides/software-self-service).
 
 ### Run scripts in bulk
 
@@ -52,7 +52,7 @@ IT admins can now add Fleet-maintained apps to their environment using [GitOps (
 
 ### Custom Fleet agent (fleetd) during new Mac setup (ADE)
 
-Fleet now allows IT admins to deploy a custom fleetd during Mac Setup Assistant (ADE). This makes it possible to custom the fleetd configuration to point hosts to a custom Fleet server URL during initial enrollment, meeting security requirements without manual reconfiguration.
+Fleet now allows IT admins to deploy a custom fleetd during Mac Setup Assistant (ADE). This makes it possible to custom the fleetd configuration to point hosts to a custom Fleet server URL during initial enrollment, meeting security requirements without manual reconfiguration. Learn how [here](https://fleetdm.com/guides/macos-setup-experience#advanced).
 
 ## Changes
 
