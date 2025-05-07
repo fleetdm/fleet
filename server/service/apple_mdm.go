@@ -1580,9 +1580,20 @@ func (svc *Service) EnqueueMDMAppleCommand(
 }
 
 type mdmAppleEnrollRequest struct {
-	Token               string `query:"token"`
+	// Token is expected to be a UUID string that identifies a template MDM Apple enrollment profile.
+	Token string `query:"token"`
+	// EnrollmentReference is expected to be a UUID string that identifies the MDM IdP account used
+	// to authenticate the end user as part of the MDM IdP flow.
 	EnrollmentReference string `query:"enrollment_reference,optional"`
-	MachineInfo         *fleet.MDMAppleMachineInfo
+	// DeviceInfo is expected to be a base64 encoded string extracted during MDM IdP enrollment from the
+	// x-apple-aspen-deviceinfo header of the original configuration web view request and
+	// persisted by the client in local storage for inclusion in a subsequent enrollment request as
+	// part of the MDM IdP flow.
+	// See https://developer.apple.com/documentation/devicemanagement/device_assignment/authenticating_through_web_views
+	DeviceInfo string `query:"deviceinfo,optional"`
+	// MachineInfo is the decoded deviceinfo URL query param for MDM IdP enrollments or the decoded
+	// x-apple-aspen-deviceinfo header for non-IdP enrollments.
+	MachineInfo *fleet.MDMAppleMachineInfo
 }
 
 func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -1599,10 +1610,13 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 	er := r.URL.Query().Get("enrollment_reference")
 	decoded.EnrollmentReference = er
 
-	// Parse the machine info from the request body
+	// Parse the machine info from the request header or URL query param.
 	di := r.Header.Get("x-apple-aspen-deviceinfo")
+	if di == "" {
+		di = r.URL.Query().Get("deviceinfo")
+	}
 	if di != "" {
-		// extract x-apple-aspen-deviceinfo custom header from request
+		// parse the base64 encoded deviceinfo
 		parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
@@ -1654,23 +1668,42 @@ func (r mdmAppleEnrollResponse) HijackRender(ctx context.Context, w http.Respons
 func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
 
-	sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, req.MachineInfo)
+	if req.DeviceInfo == "" {
+		// This is a non-IdP enrollment, so we need to check the OS version here. For IdP enrollments
+		// os version checks is performed by the frontend MDM enrollment handler.
+		sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, req.MachineInfo)
+		if err != nil {
+			return mdmAppleEnrollResponse{Err: err}, nil
+		}
+		if sur != nil {
+			return mdmAppleEnrollResponse{
+				SoftwareUpdateRequired: sur,
+			}, nil
+		}
+	}
+
+	legacyRef, err := svc.ReconcileMDMAppleEnrollRef(ctx, req.EnrollmentReference, req.MachineInfo)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
-	if sur != nil {
-		return mdmAppleEnrollResponse{
-			SoftwareUpdateRequired: sur,
-		}, nil
-	}
 
-	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, req.EnrollmentReference)
+	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, legacyRef)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
 	return mdmAppleEnrollResponse{
 		Profile: profile,
 	}, nil
+}
+
+func (svc *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
+	legacyRef, err := svc.ds.ReconcileMDMAppleEnrollRef(ctx, enrollRef, machineInfo)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "check legacy enroll ref")
+	}
+	level.Info(svc.logger).Log("msg", "check legacy enroll ref", "host_uuid", machineInfo.UDID, "legacy_enroll_ref", legacyRef)
+
+	return legacyRef, nil
 }
 
 func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string, ref string) (profile []byte, err error) {
@@ -2990,6 +3023,9 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 			return ctxerr.Wrap(r.Context, err, "getting checkin info")
 		}
 	} else if existingDeviceInfo.SCEPRenewalInProgress {
+		// TODO: we need to revisit this logic, short-circuiting here means we can't add the
+		// mdm_ipd_account reconciliation to the reset step. We should try instead to add it as a
+		// param on the lifecycle methods so we can centralize the logic there.
 		svc.logger.Log("info", "host lifecycle action received for a SCEP renewal in process, skipping host ingestion and cleanups", "host_uuid", r.ID)
 		return nil
 	}
