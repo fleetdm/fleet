@@ -1302,6 +1302,23 @@ func testListScimGroups(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Empty(t, emptyResults, "Should find no groups with a non-existent display name")
 	assert.Equal(t, uint(0), totalEmptyResults)
+
+	// Test 6: List groups with ExcludeUsers=true
+	groupsWithoutUsers, totalWithoutUsers, err := ds.ListScimGroups(t.Context(), fleet.ScimGroupsListOptions{
+		ScimListOptions: fleet.ScimListOptions{
+			StartIndex: 1,
+			PerPage:    10,
+		},
+		ExcludeUsers: true,
+	})
+	require.Nil(t, err)
+	assert.GreaterOrEqual(t, len(groupsWithoutUsers), 3, "Should find at least 3 groups")
+	assert.Equal(t, totalResults, totalWithoutUsers, "Total count should be the same with or without users")
+
+	// Verify that users were not fetched
+	for _, group := range groupsWithoutUsers {
+		assert.Empty(t, group.ScimUsers, "ScimUsers should be empty when ExcludeUsers=true")
+	}
 }
 
 func testScimUserCreateValidation(t *testing.T, ds *Datastore) {
