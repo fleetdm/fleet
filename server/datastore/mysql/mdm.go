@@ -1636,3 +1636,7 @@ func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUU
 	})
 	return count, err
 }
+
+func (ds *Datastore) GetMDMConfigProfileStatus(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error) {
+	panic("unimplemented")
+}
