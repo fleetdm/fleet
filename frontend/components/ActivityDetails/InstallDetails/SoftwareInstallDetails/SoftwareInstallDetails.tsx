@@ -149,7 +149,7 @@ export const SoftwareInstallDetails = ({
     // FIXME: Find a better solution for this.
     const description = "No data returned.";
     return deviceAuthToken ? (
-      <DeviceUserError description={description} />
+      <DeviceUserError />
     ) : (
       <DataError description={description} />
     );
