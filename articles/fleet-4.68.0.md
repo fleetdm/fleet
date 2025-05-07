@@ -1,4 +1,4 @@
-# Fleet 4.68.0 | TODO
+# Fleet 4.68.0 | Scheduled query webhooks, deploy tarballs, SHA-256 verification, and more...
 
 <div purpose="embedded-content">
    <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
@@ -8,21 +8,51 @@ Fleet 4.68.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- TODO
-- TODO
-- TODO
+- Scheduled query webhooks
+- Deploy tarballs
+- SHA-256 verification
+- Certificate renewal
+- Configuration profile variables
+- Software self-service categories
+- Run scripts in bulk
+- Fleet-maintained apps via GitOps (YAML)
+- Custom Fleet agent (fleetd) during new Mac setup (ADE)
 
-### TODO
+### Scheduled query webhooks
 
-TODO
+Security engineers can now send scheduled query results to a webhook URL. This makes it easy to monitor for events like new Chrome extensions or potential tampering with Fleet’s agent, helping teams respond quickly to anomalous activity.
 
-### TODO
+### Deploy tarballs
 
-TODO
+Fleet now supports deploying `.tar.gz` and `.tgz packages`. Security engineers no longer need separate hosting or deployment tools, simplifying the process of distributing software across hosts.
 
-### TODO
+### SHA-256 verification
 
-TODO
+IT admins can now specify a `hash_sha256` when adding custom packages to Fleet via GitOps (YAML). Fleet will verify the hash to ensure that the uploaded software matches exactly what was intended.
+
+### Certificate renewal
+
+Fleet can now automatically renew certificates from DigiCert, NDES, or custom certificate authorities (CA). This ensures end users can maintain seamless Wi-Fi and VPN access without manual certificate management.
+
+### Configuration profile variables
+
+IT admins can now insert end users' identity provider (IdP) usernames and groups into macOS, iOS, and iPadOS configuration profiles. This allows certificates to include user-specific data and enables other tools, like Munki, to take group-based actions.
+
+### Software self-service categories
+
+IT admins can now organize software in **Fleet Desktop > Self service** into categories like "🌎 Browsers," "👬 Communication," "🧰 Developer tools," and "🖥️ Productivity." This makes it easier for end users to quickly find and install the apps they need.
+
+### Run scripts in bulk
+
+IT admins can now select multiple hosts and run a script across all of them at once. This speeds up resolving issues and applying fixes across large groups of hosts.
+
+### Fleet-maintained apps via GitOps (YAML)
+
+IT admins can now add Fleet-maintained apps to their environment using GitOps (YAML). This enables full GitOps workflows for software management, allowing teams to manage all software alongside other configuration as code.
+
+### Custom Fleet agent (fleetd) during new Mac setup (ADE)
+
+Fleet now allows IT admins to deploy a custom fleetd during Mac Setup Assistant (ADE). This makes it possible to custom the fleetd configuration to point hosts to a custom Fleet server URL during initial enrollment, meeting security requirements without manual reconfiguration.
 
 ## Changes
 
