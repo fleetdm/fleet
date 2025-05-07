@@ -872,7 +872,8 @@ None.
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json",
-      "enable_release_device_manually": true
+      "enable_release_device_manually": false,
+      "manual_agent_install": false
     },
     "client_url": "https://instance.fleet.com"
   },
@@ -6034,6 +6035,8 @@ The summary can optionally be filtered by team ID.
 
 ### Configure setup experience
 
+> **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 _Available in Fleet Premium_
 
 `PATCH /api/v1/fleet/setup_experience`
@@ -6045,6 +6048,7 @@ _Available in Fleet Premium_
 | team_id                        | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the DeviceConfigured command.|
+| manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
 
@@ -10929,7 +10933,9 @@ _Available in Fleet Premium_
       "macos_setup": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
-        "macos_setup_assistant": "path/to/config.json"
+        "macos_setup_assistant": "path/to/config.json",
+        "enable_release_device_manually": false,
+        "manual_agent_install": false
       }
     }
   }
