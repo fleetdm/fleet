@@ -8,6 +8,8 @@ import React, {
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
+import { PRIMO_TOOLTIP } from "utilities/constants";
+
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
@@ -34,7 +36,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
-import { PRIMO_TOOLTIP } from "utilities/constants";
 
 const baseClass = "user-form";
 

@@ -255,7 +255,7 @@ const TeamManagementPage = (): JSX.Element => {
     return <TableCount name="teams" count={teams?.length} />;
   }, [teams]);
 
-  const getDisabledPrimaryActionTooltip = () => {
+  const disabledPrimaryActionTooltip = (() => {
     if (config?.partnerships?.enable_primo) {
       return PRIMO_TOOLTIP;
     }
@@ -263,7 +263,7 @@ const TeamManagementPage = (): JSX.Element => {
       return getGitOpsModeTipContent(config.gitops.repository_url);
     }
     return null;
-  };
+  })();
 
   return (
     <div className={`${baseClass}`}>
@@ -292,13 +292,14 @@ const TeamManagementPage = (): JSX.Element => {
               variant: "default",
               onClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
-              disabledTooltipContent: getDisabledPrimaryActionTooltip(),
+              disabledTooltipContent: disabledPrimaryActionTooltip,
             }}
             resultsTitle="teams"
             emptyComponent={() => (
               <EmptyTeamsTable
                 className={noTeamsClass}
                 onActionButtonClick={toggleCreateTeamModal}
+                disabledPrimaryActionTooltip={disabledPrimaryActionTooltip}
               />
             )}
             showMarkAllPages={false}
