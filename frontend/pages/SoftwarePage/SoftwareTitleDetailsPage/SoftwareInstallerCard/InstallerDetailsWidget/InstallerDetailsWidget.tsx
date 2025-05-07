@@ -12,13 +12,13 @@ import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipWrapper from "components/TooltipWrapper";
 
-const baseClass = "software-details-widget";
+const baseClass = "installer-details-widget";
 
-interface ISoftwareNameProps {
+interface IInstallerNameProps {
   name: string;
 }
 
-const SoftwareName = ({ name }: ISoftwareNameProps) => {
+const InstallerName = ({ name }: IInstallerNameProps) => {
   const titleRef = React.useRef<HTMLDivElement>(null);
   const isTruncated = useCheckTruncatedElement(titleRef);
 
@@ -37,7 +37,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
   );
 };
 
-interface ISoftwareDetailsWidget {
+interface IInstallerDetailsWidgetProps {
   className?: string;
   softwareName: string;
   installerType: "package" | "vpp";
@@ -45,13 +45,13 @@ interface ISoftwareDetailsWidget {
   versionInfo?: JSX.Element;
 }
 
-const SoftwareDetailsWidget = ({
+const InstallerDetailsWidget = ({
   className,
   softwareName,
   installerType,
   addedTimestamp,
   versionInfo,
-}: ISoftwareDetailsWidget) => {
+}: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
   const renderIcon = () => {
@@ -82,11 +82,11 @@ const SoftwareDetailsWidget = ({
     <div className={classNames}>
       {renderIcon()}
       <div className={`${baseClass}__info`}>
-        <SoftwareName name={softwareName} />
+        <InstallerName name={softwareName} />
         <span className={`${baseClass}__details`}>{renderDetails()}</span>
       </div>
     </div>
   );
 };
 
-export default SoftwareDetailsWidget;
+export default InstallerDetailsWidget;

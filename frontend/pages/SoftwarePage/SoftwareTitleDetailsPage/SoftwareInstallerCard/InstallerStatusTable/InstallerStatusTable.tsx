@@ -10,7 +10,7 @@ import generateSoftwareTitleDetailsTableConfig from "./InstallerStatusTableConfi
 
 const baseClass = "installer-status-table";
 
-interface ISoftwareDetailsWidget {
+interface IInstallerStatusTableProps {
   className?: string;
   softwareId: number;
   teamId?: number;
@@ -23,7 +23,7 @@ const InstallerStatusTable = ({
   teamId,
   status,
   isLoading = false,
-}: ISoftwareDetailsWidget) => {
+}: IInstallerStatusTableProps) => {
   const classNames = classnames(baseClass, className);
 
   const softwareStatusHeaders = generateSoftwareTitleDetailsTableConfig({
@@ -32,8 +32,6 @@ const InstallerStatusTable = ({
     teamId,
   });
 
-  console.log("softwareStatusHeaders", softwareStatusHeaders);
-  console.log("status", status);
   return (
     <TableContainer
       className={baseClass}

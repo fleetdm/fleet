@@ -27,7 +27,7 @@ import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import CustomLink from "components/CustomLink";
-import SoftwareDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/SoftwareDetailsWidget";
+import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
@@ -282,6 +282,10 @@ const SoftwareInstallerCard = ({
     ? "package"
     : "vpp";
   const {
+    automatic_install_policies: automaticInstallPolicies,
+  } = softwareInstaller;
+
+  const {
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
@@ -364,22 +368,22 @@ const SoftwareInstallerCard = ({
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
       <div className={`${baseClass}__row-1`}>
         <div className={`${baseClass}__row-1--responsive`}>
-          <SoftwareDetailsWidget
+          <InstallerDetailsWidget
             softwareName={softwareInstaller?.name || name}
             installerType={installerType}
             versionInfo={versionInfo}
             addedTimestamp={addedTimestamp}
           />
           <div className={`${baseClass}__tags-wrapper`}>
-            {Array.isArray(softwareInstaller.automatic_install_policies) &&
-              softwareInstaller.automatic_install_policies.length > 0 && (
+            {Array.isArray(automaticInstallPolicies) &&
+              automaticInstallPolicies.length > 0 && (
                 <TooltipWrapper
                   showArrow
                   position="top"
                   tipContent={
-                    softwareInstaller.automatic_install_policies.length === 1
+                    automaticInstallPolicies.length === 1
                       ? "A policy triggers install."
-                      : `${softwareInstaller.automatic_install_policies.length} policies trigger install.`
+                      : `${automaticInstallPolicies.length} policies trigger install.`
                   }
                   underline={false}
                 >
@@ -417,13 +421,15 @@ const SoftwareInstallerCard = ({
           isLoading={isLoading}
         />
       </div>
-      <div className={`${baseClass}__installer-policies-table`}>
-        <InstallerPoliciesTable
-          teamId={teamId}
-          isLoading={isLoading}
-          policies={softwareInstaller.automatic_install_policies}
-        />
-      </div>
+      {automaticInstallPolicies && (
+        <div className={`${baseClass}__installer-policies-table`}>
+          <InstallerPoliciesTable
+            teamId={teamId}
+            isLoading={isLoading}
+            policies={automaticInstallPolicies}
+          />
+        </div>
+      )}
       {showEditSoftwareModal && (
         <EditSoftwareModal
           softwareId={softwareId}

@@ -16,15 +16,15 @@ import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 import Card from "components/Card";
 
-import generateSoftwareTitleDetailsTableConfig from "./SoftwareTitleDetailsTableConfig";
+import generateSoftwareTitleVersionsTableConfig from "./TitleVersionsTableConfig";
 
 const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_PAGE_SIZE = 5;
 
-const baseClass = "software-title-details-table";
+const baseClass = "software-title-versions-table";
 
-const SoftwareLastUpdatedInfo = (lastUpdatedAt: string) => {
+const TitleVersionsLastUpdatedInfo = (lastUpdatedAt: string) => {
   return (
     <LastUpdatedText
       lastUpdatedAt={lastUpdatedAt}
@@ -67,7 +67,7 @@ const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
   );
 };
 
-interface ISoftwareTitleDetailsTableProps {
+interface ITitleVersionsTableProps {
   router: InjectedRouter;
   data: ISoftwareTitleVersion[];
   isLoading: boolean;
@@ -83,7 +83,7 @@ interface IRowProps extends Row {
   };
 }
 
-const SoftwareTitleDetailsTable = ({
+const TitleVersionsTable = ({
   router,
   data,
   isLoading,
@@ -91,7 +91,7 @@ const SoftwareTitleDetailsTable = ({
   isIPadOSOrIOSApp,
   isAvailableForInstall,
   countsUpdatedAt,
-}: ISoftwareTitleDetailsTableProps) => {
+}: ITitleVersionsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       const softwareVersionId = row.original.id;
@@ -107,18 +107,17 @@ const SoftwareTitleDetailsTable = ({
 
   const softwareTableHeaders = useMemo(
     () =>
-      generateSoftwareTitleDetailsTableConfig({
-        router,
+      generateSoftwareTitleVersionsTableConfig({
         teamId: teamIdForApi,
         isIPadOSOrIOSApp,
       }),
-    [router, teamIdForApi, isIPadOSOrIOSApp]
+    [teamIdForApi, isIPadOSOrIOSApp]
   );
 
   const renderVersionsCount = () => (
     <>
       {data?.length > 0 && <TableCount name="versions" count={data?.length} />}
-      {countsUpdatedAt && SoftwareLastUpdatedInfo(countsUpdatedAt)}
+      {countsUpdatedAt && TitleVersionsLastUpdatedInfo(countsUpdatedAt)}
     </>
   );
 
@@ -143,4 +142,4 @@ const SoftwareTitleDetailsTable = ({
   );
 };
 
-export default SoftwareTitleDetailsTable;
+export default TitleVersionsTable;

@@ -10,11 +10,7 @@ import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
-import {
-  ISoftwareTitleDetails,
-  formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
-} from "interfaces/software";
+import { ISoftwareTitleDetails } from "interfaces/software";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
@@ -30,11 +26,8 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
-import Card from "components/Card";
-
-import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
-import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
+import SoftwareSummaryCard from "./SoftwareSummaryCard";
 import SoftwareInstallerCard from "./SoftwareInstallerCard";
 import { getInstallerCardInfo } from "./helpers";
 
@@ -168,42 +161,16 @@ const SoftwareTitleDetailsPage = ({
     );
   };
 
-  const renderSoftwareSummaryAndVersions = (title: ISoftwareTitleDetails) => {
-    // Hide versions card for tgz_packages only
-    if (title.source === "tgz_packages") return null;
-
+  const renderSoftwareSummaryCard = (title: ISoftwareTitleDetails) => {
     return (
-      <Card
-        borderRadiusSize="xxlarge"
-        includeShadow
-        className="software-summary-and-versions"
-      >
-        <SoftwareDetailsSummary
-          title={title.name}
-          type={formatSoftwareType(title)}
-          versions={title.versions?.length ?? 0}
-          hosts={title.hosts_count}
-          countsUpdatedAt={title.counts_updated_at}
-          queryParams={{
-            software_title_id: softwareId,
-            team_id: teamIdForApi,
-          }}
-          name={title.name}
-          source={title.source}
-          iconUrl={
-            title.app_store_app ? title.app_store_app.icon_url : undefined
-          }
-        />
-        <SoftwareTitleDetailsTable
-          router={router}
-          data={title.versions ?? []}
-          isLoading={isSoftwareTitleLoading}
-          teamIdForApi={teamIdForApi}
-          isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
-          isAvailableForInstall={isAvailableForInstall}
-          countsUpdatedAt={title.counts_updated_at}
-        />
-      </Card>
+      <SoftwareSummaryCard
+        title={title}
+        softwareId={softwareId}
+        teamId={teamIdForApi}
+        isAvailableForInstall={isAvailableForInstall}
+        isLoading={isSoftwareTitleLoading}
+        router={router}
+      />
     );
   };
 
@@ -224,7 +191,7 @@ const SoftwareTitleDetailsPage = ({
     if (softwareTitle) {
       return (
         <>
-          {renderSoftwareSummaryAndVersions(softwareTitle)}
+          {renderSoftwareSummaryCard(softwareTitle)}
           {renderSoftwareInstallerCard(softwareTitle)}
         </>
       );

@@ -20,7 +20,7 @@ const InstallerPoliciesTable = ({
   className,
   teamId,
   isLoading = false,
-  policies = [],
+  policies,
 }: IInstallerPoliciesTable) => {
   const classNames = classnames(baseClass, className);
 
@@ -49,7 +49,7 @@ const InstallerPoliciesTable = ({
       className={baseClass}
       isLoading={isLoading}
       columnConfigs={softwareStatusHeaders}
-      data={policies}
+      data={policies || []}
       renderCount={renderInstallerPoliciesCount}
       disablePagination
       disableMultiRowSelect
