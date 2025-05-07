@@ -34,6 +34,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
+import { PRIMO_TOOLTIP } from "utilities/constants";
 
 const baseClass = "user-form";
 
@@ -682,7 +683,7 @@ const UserForm = ({
     if (priMode) {
       return (
         <TooltipWrapper
-          tipContent="Teams are disabled while using Primo"
+          tipContent={PRIMO_TOOLTIP}
           tipOffset={20}
           position="right"
           showArrow
