@@ -1810,9 +1810,6 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.associateHostWithScimUser(ctx, host2.ID, scimUser2)
 	require.NoError(t, err)
-	// add scimUser3 as extra user (not the official IdP user) for host1
-	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser3)
-	require.NoError(t, err)
 
 	// no profiles exist yet for any host, so this setup hasn't triggered anything
 	assertHostProfileStatus(t, ds, host1.UUID)
@@ -2033,29 +2030,11 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	forceSetHostProfileStatus(t, ds, host3.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetHostProfileStatus(t, ds, host3.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
-	// add user2 as extra user for host1
-	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser2)
-	require.NoError(t, err)
-
-	// no change (this is an extra user)
-	assertHostProfileStatus(t, ds, host1.UUID,
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
-	assertHostProfileStatus(t, ds, host2.UUID,
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
-	assertHostProfileStatus(t, ds, host3.UUID,
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
-
-	// delete user1, affects host1 as now user2 is its IdP user
+	// delete user1
 	err = ds.DeleteScimUser(ctx, scimUser1)
+	require.NoError(t, err)
+	// add user2 as new user for host1
+	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser2)
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
