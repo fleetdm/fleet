@@ -654,6 +654,7 @@ SELECT
   si.team_id,
   si.title_id,
   si.storage_id,
+  si.fleet_maintained_app_id,
   si.package_ids,
   si.filename,
   si.extension,
@@ -2220,7 +2221,9 @@ func (ds *Datastore) GetSoftwareInstallers(ctx context.Context, teamID uint) ([]
 SELECT
   team_id,
   title_id,
-  url
+  url,
+  storage_id as hash_sha256,
+  fleet_maintained_app_id
 FROM
   software_installers
 WHERE global_or_team_id = ?
