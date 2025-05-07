@@ -3085,7 +3085,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "label_updated_at": "2022-10-14T17:07:12Z",
     "policy_updated_at": "2022-10-14T17:07:12Z",
     "last_enrolled_at": "2022-02-10T02:29:13Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
     "software_updated_at": "2020-11-05T05:09:44Z",
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
