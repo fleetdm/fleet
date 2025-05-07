@@ -704,6 +704,10 @@ func TestHostAuth(t *testing.T) {
 		return nil, nil
 	}
 
+	ds.GetCategoriesForSoftwareTitlesFunc = func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
+		return map[uint][]string{}, nil
+	}
+
 	testCases := []struct {
 		name                  string
 		user                  *fleet.User
@@ -1512,7 +1516,11 @@ func TestHostEncryptionKey(t *testing.T) {
 				_, err := svc.HostEncryptionKey(ctx, 1)
 				if c.shouldFail {
 					require.Error(t, err)
-					require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
+					if c.macMDMEnabled && !c.winMDMEnabled && c.hostPlatform == "windows" {
+						require.ErrorContains(t, err, fleet.ErrWindowsMDMNotConfigured.Error())
+					} else {
+						require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
+					}
 				} else {
 					require.NoError(t, err)
 				}

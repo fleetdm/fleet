@@ -2,6 +2,7 @@ import React from "react";
 import { AxiosResponse } from "axios";
 import { IApiError } from "interfaces/errors";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+import CustomLink from "components/CustomLink";
 
 export const parseFile = async (file: File): Promise<[string, string]> => {
   // get the file name and extension
@@ -34,6 +35,34 @@ const generateUnsupportedVariableErrMsg = (errMsg: string) => {
   return varName
     ? `Couldn't add. Variable "${varName[0]}" doesn't exist.`
     : DEFAULT_ERROR_MESSAGE;
+};
+
+const generateCAVarsErrMsg = (errMsg: string) => {
+  return (
+    <>
+      Couldn&apos;t add. {errMsg}{" "}
+      <CustomLink
+        url="https://fleetdm.com/learn-more-about/certificate-authorities"
+        text="Learn more"
+        variant="flash-message-link"
+        newTab
+      />
+    </>
+  );
+};
+
+const generateCustomSCEPProfileErrMsg = (errMsg: string) => {
+  return (
+    <span>
+      Couldn&apos;t add. {errMsg}{" "}
+      <CustomLink
+        url="https://fleetdm.com/learn-more-about/custom-scep-configuration-profile"
+        text="Learn more"
+        variant="flash-message-link"
+        newTab
+      />
+    </span>
+  );
 };
 
 /** We want to add some additional messageing to some of the error messages so
@@ -93,6 +122,22 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     apiReason.includes("not supported in configuration profiles")
   ) {
     return generateUnsupportedVariableErrMsg(apiReason);
+  }
+
+  if (
+    apiReason.includes(
+      "can't be used if variables for SCEP URL and Challenge are not specified"
+    )
+  ) {
+    return generateCAVarsErrMsg(apiReason);
+  }
+
+  if (
+    apiReason.includes(
+      "SCEP profile for custom SCEP certificate authority requires"
+    )
+  ) {
+    return generateCustomSCEPProfileErrMsg(apiReason);
   }
 
   return `Couldn't add. ${apiReason}` || DEFAULT_ERROR_MESSAGE;

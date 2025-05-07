@@ -430,11 +430,12 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
 		"app_config_json":                  true,
-		"migration_status_tables":          true,
-		"osquery_options":                  true,
+		"fleet_variables":                  true,
+		"mdm_apple_declaration_categories": true,
 		"mdm_delivery_status":              true,
 		"mdm_operation_types":              true,
-		"mdm_apple_declaration_categories": true,
+		"migration_status_tables":          true,
+		"osquery_options":                  true,
 	}
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }

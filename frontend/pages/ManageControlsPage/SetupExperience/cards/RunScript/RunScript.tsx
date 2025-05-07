@@ -76,7 +76,6 @@ const RunScript = ({ currentTeamId }: IRunScriptProps) => {
     refetchScript();
   };
 
-  const scriptUploaded = true;
   const hasManualAgentInstall = getManualAgentInstallSetting(
     currentTeamId,
     globalConfig,
@@ -104,7 +103,7 @@ const RunScript = ({ currentTeamId }: IRunScriptProps) => {
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-assistant`}
             text="Learn how"
           />
-          {!scriptUploaded || !script ? (
+          {!script ? (
             <SetupExperienceScriptUploader
               currentTeamId={currentTeamId}
               hasManualAgentInstall={hasManualAgentInstall}

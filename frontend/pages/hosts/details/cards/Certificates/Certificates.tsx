@@ -47,7 +47,7 @@ const CertificatesCard = ({
   onSortChange,
 }: ICertificatesProps) => {
   const renderContent = () => {
-    if (isError) return <DataError />;
+    if (isError) return <DataError verticalPaddingSize="pad-large" />;
 
     return (
       <CertificatesTable

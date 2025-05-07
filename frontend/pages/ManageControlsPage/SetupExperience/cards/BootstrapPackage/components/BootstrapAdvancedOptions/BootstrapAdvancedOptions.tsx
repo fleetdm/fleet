@@ -13,14 +13,14 @@ const baseClass = "bootstrap-advanced-options";
 
 interface IBootstrapAdvancedOptionsProps {
   currentTeamId: number;
-  enableInstallManually: boolean;
+  disableInstallManually: boolean;
   selectManualAgentInstall: boolean;
   onChange: (value: boolean) => void;
 }
 
 const BootstrapAdvancedOptions = ({
   currentTeamId,
-  enableInstallManually,
+  disableInstallManually,
   selectManualAgentInstall,
   onChange,
 }: IBootstrapAdvancedOptionsProps) => {
@@ -44,7 +44,8 @@ const BootstrapAdvancedOptions = ({
     <>
       Use this option if you&apos;re deploying a custom fleetd via bootstrap
       package. If enabled, Fleet won&apos;t install fleetd automatically. To use
-      this option upload a bootstrap package first.
+      this option upload a bootstrap package first, and make sure to not use{" "}
+      <b>Install software</b> and <b>Run script</b>.
     </>
   );
 
@@ -66,7 +67,7 @@ const BootstrapAdvancedOptions = ({
                 <Checkbox
                   value={selectManualAgentInstall}
                   onChange={onChange}
-                  disabled={gitopsDisable || !enableInstallManually}
+                  disabled={gitopsDisable || disableInstallManually}
                 >
                   <TooltipWrapper
                     tipContent={tooltip}
@@ -76,7 +77,7 @@ const BootstrapAdvancedOptions = ({
                   </TooltipWrapper>
                 </Checkbox>
                 <Button
-                  disabled={gitopsDisable || !enableInstallManually}
+                  disabled={gitopsDisable || disableInstallManually}
                   type="submit"
                 >
                   Save
