@@ -470,7 +470,7 @@ WHERE
 `
 	md5Checksum := md5ChecksumScriptContent(scriptContents)
 
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, stmt, scriptContents, md5Checksum, scriptID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "updating script_contents")
@@ -515,7 +515,7 @@ WHERE
 	}
 
 	for _, upcomingExecution := range upcomingExecutions {
-		if _, err := ds.CancelHostUpcomingActivity(ctx, upcomingExecution.HostID, upcomingExecution.ExecutionID); err != nil {
+		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID); err != nil {
 			return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
 		}
 	}
