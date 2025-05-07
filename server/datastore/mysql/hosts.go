@@ -3841,6 +3841,14 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	hostID uint,
 	fleetEnrollmentRef string,
 ) error {
+	// TODO: After the refactor, I don't think we need this except for edge cases where hosts with legacy
+	// enroll ref never reported detail query results (i.e. host has no host_emails.source =
+	// 'mdm_idp_accounts') so maybe we can get rid of this function entirely?
+	//
+	// If don't make a change here, hosts that reenroll from a team with SSO on to off will have the old IdP
+	// account re-associated on the first detail query report after. At a minimum, we should
+	// limit this to only set the email if SSO is enabled on the host's current team.
+
 	if fleetEnrollmentRef == "" {
 		return ctxerr.Wrap(ctx, errors.New("fleetEnrollmentRef is required"), "update host_emails")
 	}
@@ -3875,9 +3883,17 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		}
 	}
 
+	return ds.maybeAssociateHostMDMIdPWithScimUser(ctx, hostID, idp)
+}
+
+func (ds *Datastore) maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, hostID uint, idp *fleet.MDMIdPAccount) error {
+	if idp == nil {
+		return nil
+	}
+
 	// Check if a SCIM user association already exists for this host.
 	var exists uint
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "check host_scim_user existence")
 	}
