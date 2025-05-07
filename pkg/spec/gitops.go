@@ -76,6 +76,7 @@ type PolicyRunScript struct {
 type PolicyInstallSoftware struct {
 	PackagePath string `json:"package_path"`
 	AppStoreID  string `json:"app_store_id"`
+	HashSHA256  string `json:"hash_sha256"`
 }
 
 type Query struct {
@@ -94,8 +95,9 @@ type SoftwarePackage struct {
 }
 
 type Software struct {
-	Packages     []SoftwarePackage           `json:"packages"`
-	AppStoreApps []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	Packages            []SoftwarePackage           `json:"packages"`
+	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	FleetMaintainedApps []fleet.MaintainedApp       `json:"fleet_maintained_apps"`
 }
 
 type GitOps struct {
@@ -816,8 +818,8 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
 		return errors.New("install_software can only be set on team policies")
 	}
-	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" {
-		return errors.New("install_software must include either a package path or app store app ID")
+	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" {
+		return errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256")
 	}
 	if policy.InstallSoftware.PackagePath != "" && policy.InstallSoftware.AppStoreID != "" {
 		return errors.New("install_software must have only one of package_path or app_store_id")
@@ -966,6 +968,9 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}
+	}
+	if software.FleetMaintainedApps != nil {
+		return multierror.Append(multiError, errors.New("Fleet maintained apps are not currently supported in GitOps"))
 	}
 	for _, item := range software.AppStoreApps {
 		item := item

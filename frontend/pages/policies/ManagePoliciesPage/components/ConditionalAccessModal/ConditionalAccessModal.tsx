@@ -5,8 +5,6 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 
-import { IPolicyStats } from "interfaces/policy";
-
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
