@@ -110,11 +110,12 @@ func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions, caffe
 	}
 
 	if caffeinate {
-		// This will stop the display and system from sleeping and mark the user as active, and
+		// This will stop the display, disk system from sleeping and mark the user as active, and
 		// will wait for the swiftDialog process to exit before exiting and allowing the system to
 		// resume normal sleep/idle behavior. Note that the actual system sleep can only be
 		// completely blocked while on AC power(per the manpage) so this solution is not perfect.
-		caffeinateCmd := exec.CommandContext(ctx, "caffeinate", "-dimsu", "-w", fmt.Sprintf("%d", cmd.Process.Pid))
+		// nb: Disabling gosec warning about tainted arguments below because we know the PID is OK
+		caffeinateCmd := exec.CommandContext(ctx, "caffeinate", "-dimsu", "-w", fmt.Sprintf("%d", cmd.Process.Pid)) //nolint:gosec
 		caffeinateCmd.Stdout = nil
 		caffeinateCmd.Stderr = nil
 		caffeinateCmd.Stdin = nil
