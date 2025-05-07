@@ -18,6 +18,7 @@ import paths from "router/paths";
 import { ScriptContent } from "interfaces/script";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getErrorMessage } from "../ScriptUploader/helpers";
+import EditScriptConfirmationModal from "./EditConfirmation";
 
 const baseClass = "edit-script-modal";
 
@@ -46,6 +47,9 @@ const EditScriptModal = ({
   const [scriptFormData, setScriptFormData] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Confirmation modal
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const {
     error: isSelectedScriptContentError,
@@ -91,9 +95,17 @@ const EditScriptModal = ({
     }
   };
 
+  const onConfirm = () => {
+    setShowConfirmation(true);
+  };
+
+  const onCancelConfirm = () => {
+    setShowConfirmation(false);
+  };
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    onSave();
+    onConfirm();
   };
 
   const renderContent = () => {
@@ -148,7 +160,7 @@ const EditScriptModal = ({
                 Cancel
               </Button>
               <Button
-                onClick={onSave}
+                onClick={onConfirm}
                 isLoading={isSubmitting}
                 disabled={!!formError}
               >
@@ -162,14 +174,23 @@ const EditScriptModal = ({
   };
 
   return (
-    <Modal
-      className={baseClass}
-      title={scriptName}
-      width="large"
-      onExit={onExit}
-    >
-      {renderContent()}
-    </Modal>
+    <>
+      <Modal
+        className={baseClass}
+        title={scriptName}
+        width="large"
+        onExit={onExit}
+      >
+        {renderContent()}
+      </Modal>
+      {showConfirmation && (
+        <EditScriptConfirmationModal
+          onSave={onSave}
+          onCancel={onCancelConfirm}
+          scriptName={scriptName}
+        />
+      )}
+    </>
   );
 };
 
