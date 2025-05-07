@@ -810,20 +810,28 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	ins0File := bytes.NewReader([]byte("installer0"))
 	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
 	require.NoError(t, err)
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
-		InstallScript:    "install",
-		InstallerFile:    tfr0,
-		StorageID:        ins0,
-		Filename:         "installer0",
-		Title:            "ins0",
-		Source:           "apps",
-		Version:          "1",
-		PreInstallQuery:  "foo",
-		UserID:           user1.ID,
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
 		Platform:         "darwin",
-		URL:              "https://example.com",
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		BundleIdentifier: "com.example.ins0",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+		InstallScript:        "install",
+		InstallerFile:        tfr0,
+		StorageID:            ins0,
+		Filename:             "installer0",
+		Title:                "ins0",
+		Source:               "apps",
+		Version:              "1",
+		PreInstallQuery:      "foo",
+		UserID:               user1.ID,
+		Platform:             "darwin",
+		URL:                  "https://example.com",
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		BundleIdentifier:     "com.example.ins0",
+		FleetMaintainedAppID: ptr.Uint(maintainedApp.ID),
 	}})
 	require.NoError(t, err)
 	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
@@ -833,6 +841,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.Equal(t, team.ID, *softwareInstallers[0].TeamID)
 	require.NotNil(t, softwareInstallers[0].TitleID)
 	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
+	require.Equal(t, maintainedApp.ID, *softwareInstallers[0].FleetMaintainedAppID)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins0, Source: "apps", Browser: ""},
 	})

@@ -970,7 +970,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}
 	}
-
 	for _, item := range software.AppStoreApps {
 		item := item
 		if item.AppStoreID == "" {

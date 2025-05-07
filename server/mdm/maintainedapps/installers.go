@@ -85,7 +85,7 @@ func FilenameFromResponse(resp *http.Response) string {
 	// Fall back on extracting the filename from the URL
 	// This is OK for the first 20 apps we support, but we should do something more robust once we
 	// support more apps.
-	if filename == "" {
+	if filename == "" && resp.Request.URL.Path != "" {
 		filename = path.Base(resp.Request.URL.Path)
 	}
 
