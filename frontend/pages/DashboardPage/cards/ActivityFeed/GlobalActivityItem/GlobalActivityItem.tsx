@@ -886,8 +886,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        resent the {activity.details?.profile_name} configuration profile to{" "}
-        {activity.details?.host_count}{" "}
+        resent the <b>{activity.details?.profile_name}</b> configuration profile{" "}
+        to {activity.details?.host_count}{" "}
         {(activity.details?.host_count ?? 0) > 1 ? "hosts." : "host."}
       </>
     );
