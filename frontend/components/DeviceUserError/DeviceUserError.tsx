@@ -6,7 +6,7 @@ const baseClass = "device-user-error";
 
 const DeviceUserError = (): JSX.Element => {
   return (
-    <div className={`${baseClass}`}>
+    <div className={baseClass}>
       <div className={`${baseClass}__inner`}>
         <div className="info">
           <span className="info__header">

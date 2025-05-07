@@ -137,7 +137,7 @@ type SoftwareInstaller struct {
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetMaintainedAppID *uint `json:"-" db:"fleet_maintained_app_id"`
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -161,6 +161,10 @@ type SoftwarePackageResponse struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+	// HashSHA256 is the SHA256 hash of the software installer.
+	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
+	// ID of the Fleet Maintained App this package uses, if any
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
@@ -554,8 +558,9 @@ type SoftwarePackageSpec struct {
 	// It must be JSON-marshaled because it gets set during gitops file processing,
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
-	ReferencedYamlPath string `json:"referenced_yaml_path"`
-	SHA256             string `json:"hash_sha256"`
+	ReferencedYamlPath string   `json:"referenced_yaml_path"`
+	SHA256             string   `json:"hash_sha256"`
+	Categories         []string `json:"categories"`
 }
 
 type FleetMaintainedAppsSpec struct {

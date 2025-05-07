@@ -1773,7 +1773,22 @@ func (svc *Service) softwareBatchUpload(
 				LabelsIncludeAny:   p.LabelsIncludeAny,
 				LabelsExcludeAny:   p.LabelsExcludeAny,
 				ValidatedLabels:    p.ValidatedLabels,
+				Categories:         p.Categories,
 			}
+
+			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, p.Categories)
+			if err != nil {
+				return err
+			}
+
+			if len(catIDs) != len(p.Categories) {
+				return &fleet.BadRequestError{
+					Message:     "some or all of the categories provided don't exist",
+					InternalErr: fmt.Errorf("categories provided: %v", p.Categories),
+				}
+			}
+
+			installer.CategoryIDs = catIDs
 
 			// check if we already have the installer based on the SHA256 and URL
 			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256, p.URL)
