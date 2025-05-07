@@ -10,6 +10,9 @@ module.exports = {
   extendedDescription: 'e.g. chatbot, automatically fill out metadata on a user profile',
 
 
+  cacheable: true,
+
+
   inputs: {
     prompt: { type: 'string', required: true, example: 'Who is running macOS 15?' },
     baseModel: {

@@ -10,6 +10,9 @@ module.exports = {
   extendedDescription: 'e.g. wedding seating chart, generate work schedule',
 
 
+  cacheable: true,
+
+
   inputs: {
     data: {
       type: 'json',

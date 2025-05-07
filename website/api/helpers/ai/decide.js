@@ -10,6 +10,9 @@ module.exports = {
   extendedDescription: 'e.g. for sentiment analysis for social network, or implementing "top posts" or featured content.',
 
 
+  cacheable: true,
+
+
   inputs: {
 
     data: {
@@ -19,6 +22,9 @@ module.exports = {
 
     choices: {
       type: [{ predicate: 'string', value: 'json' }],
+      // TODO: Consider changing this to look like:
+      //   {'Top post': 'A social media post…', 'n/a': 'Anything else'}
+      // ^would be more compact and "feel right" with .weigh() usage
       required: true,
       description: 'The choices to pick from.',
       extendedDescription: 'Each choice includes a `.predicate`, i.e. a phrase describing the data that could either be true or false, and a JSON `.value` that will be returned if this choice is selected.  You can think of this similar to how many popular `<select>`/UI dropdown components work in web frontend libraries.  One of the choices *MUST MATCH*, so be sure to include an "Anything else" option, lest you run into errors for any data that doesn\'t match your other provided choices.',
