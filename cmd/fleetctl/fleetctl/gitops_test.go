@@ -2947,7 +2947,7 @@ func TestGitOpsCustomSettings(t *testing.T) {
 
 func startSoftwareInstallerServer(t *testing.T) {
 	// start the web server that will serve the installer
-	b, err := os.ReadFile(filepath.Join("..", "..", "server", "service", "testdata", "software-installers", "ruby.deb"))
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "server", "service", "testdata", "software-installers", "ruby.deb"))
 	require.NoError(t, err)
 
 	srv := httptest.NewServer(
