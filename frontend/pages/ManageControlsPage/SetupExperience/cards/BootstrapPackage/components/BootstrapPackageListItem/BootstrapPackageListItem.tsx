@@ -8,6 +8,7 @@ import endpoints from "utilities/endpoints";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "bootstrap-package-list-item";
 
@@ -82,13 +83,18 @@ const BootstrapPackageListItem = ({
           url={url}
           token={bootstrapPackage.token}
         />
-        <Button
-          className={`${baseClass}__list-item-button`}
-          variant="text-icon"
-          onClick={() => onDelete(bootstrapPackage)}
-        >
-          <Icon name="trash" color="ui-fleet-black-75" />
-        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disabled) => (
+            <Button
+              className={`${baseClass}__list-item-button`}
+              variant="text-icon"
+              disabled={disabled}
+              onClick={() => onDelete(bootstrapPackage)}
+            >
+              <Icon name="trash" color="ui-fleet-black-75" />
+            </Button>
+          )}
+        />
       </div>
     </div>
   );

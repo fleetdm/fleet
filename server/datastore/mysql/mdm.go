@@ -123,16 +123,16 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 }
 
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates,
-	err error,
-) {
+	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
+) (updates fleet.MDMProfilesUpdates, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
 		}
 
-		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
+		// for now, only apple profiles support Fleet variables
+		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 
@@ -1501,4 +1501,117 @@ func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.
 		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
 	}
 	return mp[host.UUID], nil
+}
+
+func batchSetProfileVariableAssociationsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
+	platform string,
+) error {
+	if len(profileVariablesByUUID) == 0 {
+		return nil
+	}
+
+	var platformPrefix string
+	switch platform {
+	case "darwin":
+		platformPrefix = "apple"
+	case "windows":
+		platformPrefix = "windows"
+	default:
+		return fmt.Errorf("unsupported platform %s", platform)
+	}
+
+	// collect the profile uuids to clear
+	profileUUIDsToDelete := make([]string, 0, len(profileVariablesByUUID))
+	// small optimization - if there are no variables to insert, we can stop here
+	var varsToSet bool
+	for _, profVars := range profileVariablesByUUID {
+		profileUUIDsToDelete = append(profileUUIDsToDelete, profVars.ProfileUUID)
+		if len(profVars.FleetVariables) > 0 {
+			varsToSet = true
+		}
+	}
+
+	// delete variables associated with those profiles
+	clearVarsForProfilesStmt := fmt.Sprintf(`DELETE FROM mdm_configuration_profile_variables WHERE %s_profile_uuid IN (?)`, platformPrefix)
+	clearVarsForProfilesStmt, args, err := sqlx.In(clearVarsForProfilesStmt, profileUUIDsToDelete)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In delete variables for profiles")
+	}
+	if _, err := tx.ExecContext(ctx, clearVarsForProfilesStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting variables for profiles")
+	}
+
+	if !varsToSet {
+		return nil
+	}
+
+	// load fleet variables to map them to their IDs
+	type varDef struct {
+		ID       uint   `db:"id"`
+		Name     string `db:"name"`
+		IsPrefix bool   `db:"is_prefix"`
+	}
+
+	var varDefs []varDef
+	const varsStmt = `SELECT id, name, is_prefix FROM fleet_variables`
+	if err := sqlx.SelectContext(ctx, tx, &varDefs, varsStmt); err != nil {
+		return fmt.Errorf("failed to load fleet variables: %w", err)
+	}
+
+	// map the variables to their IDs (this looks terrible with the nested fors
+	// but those are all very small "n" - single-digit vars by profile and same
+	// in varDefs, so this is more efficient than building lookup maps).
+	type profVarTuple struct {
+		ProfileUUID string
+		VarID       uint
+	}
+	profVars := make([]profVarTuple, 0, len(profileVariablesByUUID))
+	for _, pv := range profileVariablesByUUID {
+		for _, v := range pv.FleetVariables {
+			// variables received here do not have the FLEET_VAR_ prefix, but variables
+			// in the fleet_variables table do.
+			v = "FLEET_VAR_" + v
+			for _, def := range varDefs {
+				if !def.IsPrefix && def.Name == v {
+					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
+					break
+				}
+				if def.IsPrefix && strings.HasPrefix(v, def.Name) {
+					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
+					break
+				}
+			}
+		}
+	}
+
+	const batchSize = 1000 // number of parameters is this times number of placeholders
+	generateValueArgs := func(p profVarTuple) (string, []any) {
+		valuePart := "(?, ?),"
+		args := []any{p.ProfileUUID, p.VarID}
+		return valuePart, args
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`
+			INSERT INTO mdm_configuration_profile_variables (
+				%s_profile_uuid,
+				fleet_variable_id
+			)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				fleet_variable_id = VALUES(fleet_variable_id)
+		`, platformPrefix, strings.TrimSuffix(valuePart, ","))
+
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		return err
+	}
+
+	err = batchProcessDB(profVars, batchSize, generateValueArgs, executeUpsertBatch)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upserting profile variables")
+	}
+	return nil
 }

@@ -66,6 +66,10 @@ type Runner struct {
 	// and non-Windows platforms.
 	execCmdFn func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error)
 
+	// extractTarGzFn is the function to call to extract a tarball. If nil, the
+	// implementation in the updates package, wrapped with an OS file open, will be used.
+	extractTarGzFn func(path string, destDir string) error
+
 	// can be set for tests to replace os.RemoveAll, which is called to remove
 	// the script's temporary directory after execution.
 	removeAllFn func(string) error
@@ -82,6 +86,8 @@ type Runner struct {
 
 	logger zerolog.Logger
 }
+
+const extractionDirectoryName = "extracted"
 
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, rootDirPath string) *Runner {
 	r := &Runner{
@@ -313,10 +319,42 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 		logger.Info().Str("installerPath", installerPath).Msg("software installer downloaded")
 	}
 
+	if strings.HasSuffix(installerPath, ".tgz") || strings.HasSuffix(installerPath, ".tar.gz") {
+		logger.Info().Msg("detected tar.gz archive, extracting to subdirectory")
+		extractDestination := filepath.Join(tmpDir, extractionDirectoryName)
+		err := os.Mkdir(extractDestination, 0700)
+		if err != nil {
+			logger.Err(err).Msg("failed to create directory for .tar.gz extraction")
+			// Using download failed exit code here to indicate that installer extraction failed
+			payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeInstallerDownloadFailed)
+			payload.InstallScriptOutput = ptr.String("Installer extraction failed")
+			return payload, err
+		}
+
+		extractFn := r.extractTarGzFn
+		if extractFn == nil {
+			extractFn = func(path string, destDir string) error {
+				return file.ExtractTarGz(path, destDir, 2*1024*1024*1024*1024) // 2 TiB limit per extracted file
+			}
+		}
+
+		if err = extractFn(installerPath, extractDestination); err != nil {
+			logger.Err(err).Msg("failed extract .tar.gz archive")
+			payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeInstallerDownloadFailed)
+			payload.InstallScriptOutput = ptr.String("Installer extraction failed")
+			return payload, err
+		}
+
+		// install script will be run inside extracted dir rather than in parent; both dirs
+		// will be cleaned up when we're done
+		installerPath = extractDestination
+	}
+
 	scriptExtension := ".sh"
 	if runtime.GOOS == "windows" {
 		scriptExtension = ".ps1"
 	}
+
 	logger.Info().Msg("about to run install script")
 	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptExtension)
 	payload.InstallScriptOutput = &installOutput

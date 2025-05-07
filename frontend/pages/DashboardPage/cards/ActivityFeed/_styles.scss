@@ -55,36 +55,6 @@
     }
   }
 
-  &__error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: $pad-xlarge 0;
-
-    &__inner {
-      display: flex;
-      flex-direction: row;
-    }
-
-    .info {
-      &__header {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: $bold;
-        font-size: $x-small;
-        text-align: left;
-      }
-      &__data {
-        display: block;
-        color: $core-fleet-black;
-        font-weight: normal;
-        font-size: $x-small;
-        text-align: left;
-        margin-top: 10px;
-      }
-    }
-  }
-
   .spinner {
     z-index: 11;
     opacity: 1;

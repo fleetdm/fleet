@@ -3,3 +3,6 @@ hash_sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 self_service: false
 uninstall_script:
   path: ./lib/uninstall.sh
+categories:
+  - Communication
+  - Productivity

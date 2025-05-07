@@ -16,7 +16,7 @@ Currently, the macOS versions of these apps are Apple Silicon-only rather than u
 * Brave
 * Docker Desktop
 * Figma
-* Microsoft Visual Studio (VS) Code,
+* Microsoft Visual Studio (VS) Code
 * Notion
 * Postman
 * Slack

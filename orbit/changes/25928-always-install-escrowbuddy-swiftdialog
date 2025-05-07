@@ -1,0 +1,1 @@
+* Changed orbit to unconditionally install Escrow Buddy and Swift Dialog on macOS hosts

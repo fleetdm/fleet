@@ -64,6 +64,8 @@ interface IDataTableProps {
   selectedDropdownFilter?: string;
   /** Set to true to persist the row selections across table data filters */
   persistSelectedRows?: boolean;
+  /** Set to `true` to not display the footer section of the table */
+  hideFooter?: boolean;
   onSelectSingleRow?: (value: Row) => void;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
@@ -110,6 +112,7 @@ const DataTable = ({
   searchQueryColumn,
   selectedDropdownFilter,
   persistSelectedRows = false,
+  hideFooter = false,
   onSelectSingleRow,
   onClickRow,
   onResultsCountChange,
@@ -224,6 +227,11 @@ const DataTable = ({
           ) => {
             return sort.hasLength(a.values[id], b.values[id]);
           },
+          hostPolicyStatus: (
+            a: { values: Record<string, unknown[]> },
+            b: { values: Record<string, unknown[]> },
+            id: string
+          ) => sort.hostPolicyStatus(a.values[id], b.values[id]),
         }),
         []
       ),
@@ -390,29 +398,10 @@ const DataTable = ({
   const renderActionButton = (
     actionButtonProps: IActionButtonProps
   ): JSX.Element => {
-    const {
-      name,
-      onActionButtonClick,
-      buttonText,
-      targetIds,
-      variant,
-      hideButton,
-      iconSvg,
-      iconPosition,
-    } = actionButtonProps;
+    const key = kebabCase(actionButtonProps.name);
     return (
-      <div className={`${baseClass}__${kebabCase(name)}`}>
-        <ActionButton
-          key={kebabCase(name)}
-          name={name}
-          buttonText={buttonText}
-          onActionButtonClick={onActionButtonClick || noop}
-          targetIds={targetIds}
-          variant={variant}
-          hideButton={hideButton}
-          iconSvg={iconSvg}
-          iconPosition={iconPosition}
-        />
+      <div className={`${baseClass}__${key}`}>
+        <ActionButton {...{ key, ...actionButtonProps }} />
       </div>
     );
   };
@@ -428,7 +417,7 @@ const DataTable = ({
     const actionProps = {
       name,
       buttonText: buttonText || "",
-      onActionButtonClick: primarySelectAction?.onActionButtonClick || noop,
+      onClick: primarySelectAction?.onClick || noop,
       targetIds,
       variant: primarySelectAction?.variant,
       iconSvg: primarySelectAction?.iconSvg,
@@ -594,34 +583,36 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      <div className={`${baseClass}__footer`}>
-        {renderTableHelpText && !!rows?.length && (
-          <div className={`${baseClass}__table-help-text`}>
-            {renderTableHelpText()}
-          </div>
-        )}
-        {isClientSidePagination ? (
-          <Pagination
-            disablePrev={!canPreviousPage}
-            disableNext={!canNextPage}
-            onPrevPage={() => {
-              toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
-              onClientSidePaginationChange &&
-                onClientSidePaginationChange(pageIndex - 1);
-              previousPage();
-            }}
-            onNextPage={() => {
-              toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
-              onClientSidePaginationChange &&
-                onClientSidePaginationChange(pageIndex + 1);
-              nextPage();
-            }}
-            hidePagination={!canPreviousPage && !canNextPage}
-          />
-        ) : (
-          renderPagination && renderPagination()
-        )}
-      </div>
+      {!hideFooter && (
+        <div className={`${baseClass}__footer`}>
+          {renderTableHelpText && !!rows?.length && (
+            <div className={`${baseClass}__table-help-text`}>
+              {renderTableHelpText()}
+            </div>
+          )}
+          {isClientSidePagination ? (
+            <Pagination
+              disablePrev={!canPreviousPage}
+              disableNext={!canNextPage}
+              onPrevPage={() => {
+                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex - 1);
+                previousPage();
+              }}
+              onNextPage={() => {
+                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                onClientSidePaginationChange &&
+                  onClientSidePaginationChange(pageIndex + 1);
+                nextPage();
+              }}
+              hidePagination={!canPreviousPage && !canNextPage}
+            />
+          ) : (
+            renderPagination && renderPagination()
+          )}
+        </div>
+      )}
     </div>
   );
 };

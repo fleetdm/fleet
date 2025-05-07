@@ -125,10 +125,6 @@ const ManageQueriesPage = ({
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
-  const [
-    tableQueryDataForApi,
-    setTableQueryDataForApi,
-  ] = useState<ITableQueryData>();
 
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)
@@ -285,7 +281,7 @@ const ManageQueriesPage = ({
 
   const renderQueriesTable = () => {
     if (queriesError) {
-      return <TableDataError />;
+      return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
     return (
       <QueriesTable
@@ -376,6 +372,7 @@ const ManageQueriesPage = ({
             availableQueries={queriesAvailableToAutomate}
             automatedQueryIds={automatedQueryIds}
             logDestination={config?.logging.result.plugin || ""}
+            webhookDestination={config?.logging.result.config.result_url}
           />
         )}
         {showPreviewDataModal && (
