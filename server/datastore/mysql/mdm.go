@@ -1733,17 +1733,18 @@ SELECT
 			'failed'
 		WHEN COALESCE(hmap.status, :status_pending) = :status_pending THEN
 			'pending'
-		WHEN hmap.status = :status_verifying AND hmap.operation_type = :operation_install THEN
+		WHEN hmap.status = :status_verifying THEN
 			'verifying'
-		WHEN hmap.status = :status_verified AND hmap.operation_type = :operation_install THEN
+		WHEN hmap.status = :status_verified THEN
 			'verified'
-	END AS status,
+	END AS status
 FROM
 	hosts h
 	JOIN host_mdm_apple_profiles hmap ON h.uuid = hmap.host_uuid
 WHERE
 	platform IN ('darwin', 'ios', 'ipados') AND
-	hmap.profile_uuid = :profile_uuid
+	hmap.profile_uuid = :profile_uuid AND
+	( hmap.status NOT IN (:status_verified, :status_verifying) OR hmap.operation_type = :operation_install )
 GROUP BY
 	status HAVING status IS NOT NULL`
 
@@ -1811,7 +1812,7 @@ SELECT
 			'verifying'
 		WHEN hmad.status = :status_verified THEN
 			'verified'
-	END AS status,
+	END AS status
 FROM
 	hosts h
 	JOIN host_mdm_apple_declarations hmad ON h.uuid = hmad.host_uuid
