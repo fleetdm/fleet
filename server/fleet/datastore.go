@@ -2000,6 +2000,9 @@ type Datastore interface {
 	// if a team is specified.
 	GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 
+	// GetMaintainedAppBySlug gets a Fleet-maintained app by its slug
+	GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*MaintainedApp, error)
+
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)

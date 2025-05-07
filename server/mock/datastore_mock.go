@@ -1258,6 +1258,8 @@ type ClearRemovedFleetMaintainedAppsFunc func(ctx context.Context, slugsToKeep [
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error)
 
+type GetMaintainedAppBySlugFunc func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error)
+
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
 
 type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error
@@ -3194,6 +3196,9 @@ type DataStore struct {
 
 	GetMaintainedAppByIDFunc        GetMaintainedAppByIDFunc
 	GetMaintainedAppByIDFuncInvoked bool
+
+	GetMaintainedAppBySlugFunc        GetMaintainedAppBySlugFunc
+	GetMaintainedAppBySlugFuncInvoked bool
 
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
@@ -7645,6 +7650,13 @@ func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID
 	s.GetMaintainedAppByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMaintainedAppByIDFunc(ctx, appID, teamID)
+}
+
+func (s *DataStore) GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+	s.mu.Lock()
+	s.GetMaintainedAppBySlugFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMaintainedAppBySlugFunc(ctx, slug, teamID)
 }
 
 func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {

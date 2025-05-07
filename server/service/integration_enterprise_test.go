@@ -11836,6 +11836,54 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
 	require.Equal(t, 0, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 0)
+
+	//////////////////////////
+	// Do a request with a fleet maintained app
+	//////////////////////////
+	maintained1, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "1Password",
+		Slug:             "1password/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.1password.1password",
+	})
+	require.NoError(t, err)
+
+	// basic fleet maintained app
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{Slug: &maintained1.Slug},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.NotNil(t, packages[0].URL)
+	require.Nil(t, packages[0].TeamID)
+
+	// with a team
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.NotNil(t, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, tm.ID, *packages[0].TeamID)
+
+	// with a label
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{Slug: &maintained1.Slug, LabelsIncludeAny: []string{lblA.Name}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.NotNil(t, packages[0].URL)
+	require.Nil(t, packages[0].TeamID)
+	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, meta.LabelsExcludeAny)
+	require.Len(t, meta.LabelsIncludeAny, 1)
+	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
+	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
 }
 
 func waitBatchSetSoftwareInstallersCompleted(t *testing.T, s *integrationEnterpriseTestSuite, teamName string, requestUUID string) []fleet.SoftwarePackageResponse {
