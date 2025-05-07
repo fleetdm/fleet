@@ -2331,6 +2331,8 @@ the `software` table.
 | populate_policies     | boolean | query | If `true`, the response will include policy data for each host, including Fleet-maintained policies. |
 | populate_users     | boolean | query | If `true`, the response will include user data for each host. |
 | populate_labels     | boolean | query | If `true`, the response will include labels for each host. |
+| profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
+| profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
@@ -4008,28 +4010,6 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 }
 ```
 
-### Resend host's configuration profile
-
-Resends a configuration profile for the specified host.
-
-`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| id   | integer | path | **Required.** The host's ID. |
-| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
-
-#### Example
-
-`POST /api/v1/fleet/hosts/233/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
-
-##### Default response
-
-`Status: 202`
-
-
 ### Get host's software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -5269,7 +5249,10 @@ Deletes the label specified by ID.
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
-- [Get OS settings status](#get-os-settings-status)
+- [Get OS settings summary](#get-os-settings-summary)
+- [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
+- [Resend custom OS setting (configuration profile)](resend-custom-os-setting-configuration-profile)
+- [Batch-resend custom OS setting (configuration profile)](batch-resend-custom-os-setting-configuration-profile)
 
 
 ### Add custom OS setting (configuration profile)
@@ -5549,6 +5532,65 @@ solely on the response status code returned by this endpoint.
 
 `Status: 200`
 
+### Resend custom OS setting (configuration profile)
+
+Resends a configuration profile for the specified host.
+
+`POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The host's ID. |
+| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/233/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
+
+##### Default response
+
+`Status: 202`
+
+
+### Batch-resend custom OS setting (configuration profile)
+
+
+`POST /api/v1/fleet/configuration_profiles/resend/batch`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| profile_uuid | integer | body | **Required**. The UUID of the existing configuration profile you'd like to resend.|
+| filters | object  | body | **Required**. See [filters](#filters)  |
+
+##### Filters
+
+| Name                              | Type    | Description   |
+| -----------------------| ------- | ----------------------------------------------------------------------------------- |
+| profile_status                | string   | Profile status. Currently, `"failed"` is supported. |
+
+#### Example
+
+`POST /api/v1/fleet/configuration_profiles/batch/resend`
+
+##### Request body
+
+```json
+{
+  "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9",
+  "filters": {
+    "profile_status": "failed"
+  }
+}
+```
+
+##### Default response
+
+`Status: 202`
+
 
 ### Update disk encryption enforcement
 
@@ -5610,7 +5652,7 @@ The summary can optionally be filtered by team ID.
 ```
 
 
-### Get OS settings status
+### Get OS settings summary
 
 > [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
@@ -5643,6 +5685,36 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
   "verifying": 123,
   "failed": 123,
   "pending": 123
+}
+```
+
+### Get OS setting (configuration profile) status
+
+Get status counts of a single OS settings (configuration profile) enforced on hosts.
+
+`GET /api/v1/fleet/configuration_profile/:profile_uuid/status`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| profile_uuid                   | string | query | **Required**. The UUID of configuration profile.             |
+
+#### Example
+
+`GET /api/v1/fleet/configuration_profile/f663713f-04ee-40f0-a95a-7af428c351a9/status`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "verified": 123,
+  "verifying": 123,
+  "failed": 123,
+  "pending": 123,
+  "counts_updated_at": "2024-10-04T10:00:00Z"
 }
 ```
 
