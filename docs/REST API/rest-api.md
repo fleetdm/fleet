@@ -3294,7 +3294,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
     "detail_updated_at": "2021-08-19T21:07:53Z",
     "label_updated_at": "2021-08-19T21:07:53Z",
     "last_enrolled_at": "2021-08-19T02:02:22Z",
-    "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
