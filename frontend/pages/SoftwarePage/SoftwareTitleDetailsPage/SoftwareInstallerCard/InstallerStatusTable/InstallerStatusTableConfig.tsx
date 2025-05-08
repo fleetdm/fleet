@@ -13,7 +13,6 @@ import { access } from "fs";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ISoftwareTitleDetailsTableConfigProps {
-  router?: InjectedRouter; // TODO
   softwareId?: number;
   teamId?: number;
   baseClass?: string;
@@ -78,7 +77,6 @@ const STATUS_DISPLAY_OPTIONS: Record<
 };
 
 const generateSoftwareTitleDetailsTableConfig = ({
-  router,
   softwareId,
   teamId,
   baseClass,
@@ -107,12 +105,11 @@ const generateSoftwareTitleDetailsTableConfig = ({
         return <HeaderCell value={titleWithTooltip} disableSortBy />;
       },
       Cell: (cellProps: ICellProps) => {
-        if (cellProps.cell.value === 0) {
-          return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
-        }
         return (
           <LinkCell
-            value={`${cellProps.cell.value} hosts`}
+            value={`${cellProps.cell.value} host${
+              cellProps.cell.value === 1 ? "" : "s"
+            }`}
             path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
               software_title_id: softwareId,
               software_status: "installed",
@@ -144,9 +141,6 @@ const generateSoftwareTitleDetailsTableConfig = ({
         );
       },
       Cell: (cellProps: ICellProps) => {
-        if (cellProps.cell.value === 0) {
-          return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
-        }
         return (
           <LinkCell
             value={`${cellProps.cell.value} hosts`}
@@ -181,9 +175,6 @@ const generateSoftwareTitleDetailsTableConfig = ({
         );
       },
       Cell: (cellProps: ICellProps) => {
-        if (cellProps.cell.value === 0) {
-          return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
-        }
         return (
           <LinkCell
             value={`${cellProps.cell.value} hosts`}

@@ -2,7 +2,6 @@
 
 import React, { useCallback, useContext, useState } from "react";
 
-import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import {
@@ -12,13 +11,11 @@ import {
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
-import { getPathWithQueryParams } from "utilities/url";
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
 import TooltipWrapper from "components/TooltipWrapper";
-import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import Tag from "components/Tag";
 import Button from "components/buttons/Button";
@@ -91,52 +88,6 @@ const STATUS_DISPLAY_OPTIONS: Record<
       </>
     ),
   },
-};
-
-interface IInstallerStatusCountProps {
-  softwareId: number;
-  status: SoftwareInstallDisplayStatus;
-  count: number;
-  teamId?: number;
-}
-
-const InstallerStatusCount = ({
-  softwareId,
-  status,
-  count,
-  teamId,
-}: IInstallerStatusCountProps) => {
-  const displayData = STATUS_DISPLAY_OPTIONS[status];
-  const linkUrl = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
-    software_title_id: softwareId,
-    software_status: status,
-    team_id: teamId,
-  });
-
-  return (
-    <DataSet
-      className={`${baseClass}__status`}
-      title={
-        <TooltipWrapper
-          position="top"
-          tipContent={displayData.tooltip}
-          underline={false}
-          showArrow
-          tipOffset={10}
-        >
-          <div className={`${baseClass}__status-title`}>
-            <Icon name={displayData.iconName} />
-            <div>{displayData.displayName}</div>
-          </div>
-        </TooltipWrapper>
-      }
-      value={
-        <a className={`${baseClass}__status-count`} href={linkUrl}>
-          {count} hosts
-        </a>
-      }
-    />
-  );
 };
 
 interface IActionsDropdownProps {
