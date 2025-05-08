@@ -341,9 +341,9 @@ However, it is still possible to run into AWS scaling limitations such as:
 #### Firehose write throughput provision exceeded errors
 This particular issue would only be encountered for the largest of Fleet deployments and can occur because of high volume of data and/or number of hosts, if you notice these errors in the application logs or from the AWS Firehose console try the following:
 1. Check the service limits https://docs.aws.amazon.com/firehose/latest/dev/limits.html
-2. evaluate the amount of data returned using Fleet's live query feature
-3. reduce the frequency of scheduled queries
-4. reduce the amount of data returned for scheduled queries (Snapshot vs Differential queries https://osquery.readthedocs.io/en/stable/deployment/logging/)
+2. Evaluate the amount of data returned using Fleet's live query feature
+3. Reduce the interval of scheduled queries
+4. Reduce the amount of data returned for scheduled queries (Snapshot vs Differential queries https://osquery.readthedocs.io/en/stable/deployment/logging/)
 
 
 More troubleshooting tips can be found here https://fleetdm.com/docs/get-started/faq#deployment
