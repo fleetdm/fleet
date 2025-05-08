@@ -23,6 +23,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"Sync", testSync},
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
+		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
 	}
 
 	for _, c := range cases {
@@ -450,4 +451,90 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 
 func testSyncAndRemoveApps(t *testing.T, ds *Datastore) {
 	maintained_apps.SyncAndRemoveApps(t, ds)
+}
+
+func testGetMaintainedAppBySlug(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 2"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "green banana", "yellow@banana.com", true)
+	require.NoError(t, err)
+
+	// maintained app 1
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+	_, titleId1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            maintainedApp.Name,
+		TeamID:           &team1.ID,
+		InstallScript:    "echo Installing MaintainedAppForTeam1",
+		Filename:         "maintained-app-team1.pkg",
+		UserID:           user.ID,
+		Platform:         string(fleet.MacOSPlatform),
+		BundleIdentifier: maintainedApp.UniqueIdentifier,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// maintained app 2
+	maintainedApp2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained2",
+		Slug:             "maintained2",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained2",
+	})
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            maintainedApp2.Name,
+		TeamID:           &team2.ID,
+		InstallScript:    "echo Installing MaintainedAppForTeam1",
+		Filename:         "maintained-app-team2.pkg",
+		UserID:           user.ID,
+		Platform:         string(fleet.MacOSPlatform),
+		BundleIdentifier: maintainedApp2.UniqueIdentifier,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// get app 1 with no team specified
+	gotApp, err := ds.GetMaintainedAppBySlug(ctx, "maintained1", nil)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.MaintainedApp{
+		ID:               maintainedApp.ID,
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+		TitleID:          nil,
+	}, gotApp)
+
+	// get app 1 with correct team specified
+	gotApp, err = ds.GetMaintainedAppBySlug(ctx, "maintained1", &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.MaintainedApp{
+		ID:               maintainedApp.ID,
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+		TitleID:          &titleId1,
+	}, gotApp)
+
+	// get app 1 with team 2, so no title id exists
+	gotApp, err = ds.GetMaintainedAppBySlug(ctx, "maintained1", &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.MaintainedApp{
+		ID:               maintainedApp.ID,
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
+		TitleID:          nil,
+	}, gotApp)
 }

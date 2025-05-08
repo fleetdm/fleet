@@ -479,6 +479,20 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		updateLabelUsage(labels, setting.AppStoreID, "App Store App", result)
 	}
 
+	for _, setting := range config.Software.FleetMaintainedApps {
+		var labels []string
+		if len(setting.LabelsIncludeAny) > 0 {
+			labels = setting.LabelsIncludeAny
+		}
+		if len(setting.LabelsExcludeAny) > 0 {
+			if len(labels) > 0 {
+				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.Slug)
+			}
+			labels = setting.LabelsExcludeAny
+		}
+		updateLabelUsage(labels, setting.Slug, "Fleet Maintained App", result)
+	}
+
 	// Get query label usage
 	for _, query := range config.Queries {
 		updateLabelUsage(query.LabelsIncludeAny, query.Name, "Query", result)
