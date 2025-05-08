@@ -51,10 +51,6 @@ func GenerateCVEFeeds(vulnPath string, debug bool, logger log.Logger) error {
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 
-	if err := cveSyncer.DoVulnCheck(context.Background()); err != nil {
-		return fmt.Errorf("download nvd cve feed: %w", err)
-	}
-
 	return nil
 }
 
