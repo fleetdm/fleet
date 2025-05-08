@@ -17645,9 +17645,9 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 	require.NoError(t, err)
 
 	// do a request with an invalid category
-	rubyURL := srv.URL + "/dummy_installer.pkg"
+	pkgURL := srv.URL + "/dummy_installer.pkg"
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
-		{URL: rubyURL, Categories: []string{"Not Found"}, SelfService: true},
+		{URL: pkgURL, Categories: []string{"Not Found"}, SelfService: true},
 		{Slug: &maintained1.Slug, SelfService: true},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
@@ -17689,13 +17689,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 				stResp := getSoftwareTitleResponse{}
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *p.TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
 				require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
-				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil {
-					if len(tc.categories) == 0 {
-						// if no categories are set on an FMA in GitOps, we set categories to
-						// default values
-						require.ElementsMatch(t, tc.fmaDefaultCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
-						continue
-					}
+				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && len(tc.categories) == 0 {
+					// if no categories are set on an FMA in GitOps, we set categories to
+					// default values
+					require.ElementsMatch(t, tc.fmaDefaultCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+					continue
 				}
 				require.ElementsMatch(t, tc.categories, stResp.SoftwareTitle.SoftwarePackage.Categories)
 
@@ -17708,13 +17706,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 			require.NoError(t, err)
 			require.Len(t, getDeviceSw.Software, 2)
 			for _, s := range getDeviceSw.Software {
-				if s.Name == maintained1.Name {
-					if len(tc.categories) == 0 {
-						// if no categories are set on an FMA in GitOps, we set categories to
-						// default values
-						require.ElementsMatch(t, tc.fmaDefaultCategories, s.SoftwarePackage.Categories)
-						continue
-					}
+				if s.Name == maintained1.Name && len(tc.categories) == 0 {
+					// if no categories are set on an FMA in GitOps, we set categories to
+					// default values
+					require.ElementsMatch(t, tc.fmaDefaultCategories, s.SoftwarePackage.Categories)
+					continue
 				}
 
 				require.ElementsMatch(t, tc.categories, s.SoftwarePackage.Categories)
