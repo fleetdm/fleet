@@ -35,6 +35,7 @@ type SetupExperiencer struct {
 	sd *swiftdialog.SwiftDialog
 	// Name of each step -> is that step done
 	steps   map[string]bool
+	uiSteps map[string]swiftdialog.ListItem
 	started bool
 }
 
@@ -43,6 +44,7 @@ func NewSetupExperiencer(client Client, rootDirPath string) *SetupExperiencer {
 		OrbitClient: client,
 		closeChan:   make(chan struct{}),
 		steps:       make(map[string]bool),
+		uiSteps:     make(map[string]swiftdialog.ListItem),
 		rootDirPath: rootDirPath,
 	}
 }
@@ -143,17 +145,24 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		}
 
 		for _, step := range steps {
-			item := resultToListItem(step)
-			if _, ok := s.steps[step.Name]; ok {
-				err = s.sd.UpdateListItemByTitle(item.Title, item.StatusText, item.Status)
-				if err != nil {
-					log.Info().Err(err).Msg("updating list item in setup experience UI")
+			currentStepState := resultToListItem(step)
+			if priorStepState, ok := s.uiSteps[step.Name]; ok {
+				if currentStepState != priorStepState {
+					// We only want to resend on change so we're not unnecessarily scrolling the UI
+					err = s.sd.UpdateListItemByTitle(currentStepState.Title, currentStepState.StatusText, currentStepState.Status)
+					if err != nil {
+						log.Info().Err(err).Msg("updating list item in setup experience UI")
+					}
+				} else {
+					log.Debug().Msgf("setup experience: no change in status for %s, skipping update", step.Name)
+					continue
 				}
 			} else {
-				err = s.sd.AddListItem(item)
+				err = s.sd.AddListItem(currentStepState)
 				if err != nil {
 					log.Info().Err(err).Msg("adding list item in setup experience UI")
 				}
+				s.uiSteps[step.Name] = currentStepState
 				s.steps[step.Name] = false
 			}
 
