@@ -1,14 +1,18 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
+	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -35,6 +39,34 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 	metaMap := make(map[string]fleet.CVEMeta)
 	if err := nvd.CVEMetaFromNVDFeedFiles(metaMap, vulnPath, logger); err != nil {
 		panic(err)
+	}
+
+	// make sure VulnCheck enrichment is working
+	vulns, err := cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2025.json"))
+	if err != nil {
+		panic(err)
+	}
+
+	vulnEntry, ok := vulns["CVE-2025-0938"].(*feednvd.Vuln)
+	if !ok {
+		panic("failed to cast CVE-2025-0938 to a Vuln")
+	}
+	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 6 {
+		panic(errors.New("enriched vulnerability spot-check failed for Python on CVE-2025-0938"))
+	}
+
+	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2024.json"))
+	if err != nil {
+		panic(err)
+	}
+
+	vulnEntry, ok = vulns["CVE-2024-6286"].(*feednvd.Vuln)
+	if !ok {
+		panic("failed to cast CVE-2024-6286 to a Vuln")
+	}
+	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 2 ||
+		vulnEntry.Schema().Configurations.Nodes[0].CPEMatch[1].VersionEndExcluding != "2403.1" {
+		panic(errors.New("enriched vulnerability spot-check failed for Citrix Workstation on CVE-2024-6286"))
 	}
 }
 
