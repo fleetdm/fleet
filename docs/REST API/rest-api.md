@@ -8878,6 +8878,73 @@ Gets the result of a script that was executed.
 
 > Note: `created_at` is the creation timestamp of the script execution request.
 
+
+### Batch-run script
+
+Run a script on multiple hosts.
+
+The script will be added to each host's list of upcoming activities.
+
+`POST /api/v1/fleet/scripts/run/batch`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
+| host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
+| filters | object  | body | See [filters](#filters3). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
+
+
+##### Filters
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ----------------------------------------------------------------------------------- |
+| query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
+| status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
+| label_id                          | number  | ID of a label to filter by.  |
+| team_id                           | number  | ID of the team to filter by. | 
+
+
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/batch`
+
+##### Request body
+
+Request (using `host_ids`):
+
+```json
+{
+  "script_id": 123,
+  "host_ids": [1, 2, 3]
+}
+```
+
+Request (using `filters`):
+```json
+{
+  "script_id": 123,
+  "filters": {
+    "status": "online",
+    "query": "abc"
+  }
+}
+```
+
+##### Default response
+
+`Status: 202`
+
+
+```json
+{
+  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+
 ### Add script
 
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
