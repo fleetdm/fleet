@@ -546,6 +546,10 @@ type SoftwarePackageSpec struct {
 	LabelsIncludeAny  []string              `json:"labels_include_any"`
 	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
 
+	// FMA
+	Slug             *string `json:"slug"`
+	AutomaticInstall *bool   `json:"automatic_install"`
+
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
 	// side of processing. This is required to match a macos_setup.software to
@@ -554,13 +558,24 @@ type SoftwarePackageSpec struct {
 	// It must be JSON-marshaled because it gets set during gitops file processing,
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
-	ReferencedYamlPath string `json:"referenced_yaml_path"`
-	SHA256             string `json:"hash_sha256"`
+	ReferencedYamlPath string   `json:"referenced_yaml_path"`
+	SHA256             string   `json:"hash_sha256"`
+	Categories         []string `json:"categories"`
+}
+
+type FleetMaintainedAppsSpec struct {
+	Slug             string   `json:"slug"`
+	AutomaticInstall *bool    `json:"automatic_install"`
+	SelfService      bool     `json:"self_service"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	Categories       []string `json:"categories"`
 }
 
 type SoftwareSpec struct {
-	Packages     optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
-	AppStoreApps optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
+	Packages            optjson.Slice[SoftwarePackageSpec]     `json:"packages,omitempty"`
+	FleetMaintainedApps optjson.Slice[FleetMaintainedAppsSpec] `json:"fleet_maintained_apps,omitempty"`
+	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a
