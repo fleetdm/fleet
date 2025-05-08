@@ -5722,7 +5722,6 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
   "verifying": 123,
   "failed": 123,
   "pending": 123,
-  "counts_updated_at": "2024-10-04T10:00:00Z"
 }
 ```
 
