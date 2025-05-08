@@ -181,6 +181,17 @@ func TestValidGitOpsYaml(t *testing.T) {
 							assert.Empty(t, pkg.UninstallScript.Path)
 						}
 					}
+					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
+					for _, fma := range gitops.Software.FleetMaintainedApps {
+						switch fma.Slug {
+						case "slack/darwin":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+						case "box-drive/windows":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+						default:
+							assert.FailNow(t, "unexpected slug found in gitops file", "slug: %s", fma.Slug)
+						}
+					}
 				} else {
 					// Check org settings
 					serverSettings, ok := gitops.OrgSettings["server_settings"]
