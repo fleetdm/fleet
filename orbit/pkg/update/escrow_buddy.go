@@ -59,6 +59,11 @@ func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
+	if cfg.Notifications.RunSetupExperience {
+		log.Debug().Msg("EscrowBuddyRunner: skipping any actions related to disk encryption, setup experience is running")
+		return nil
+	}
+
 	// For #25928 we are going to always install escrowBuddy as a target
 	updaterHasTarget := e.updateRunner.HasRunnerOptTarget("escrowBuddy")
 	runnerHasLocalHash := e.updateRunner.HasLocalHash("escrowBuddy")

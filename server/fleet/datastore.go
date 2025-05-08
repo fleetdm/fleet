@@ -2000,6 +2000,9 @@ type Datastore interface {
 	// if a team is specified.
 	GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 
+	// GetMaintainedAppBySlug gets a Fleet-maintained app by its slug
+	GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*MaintainedApp, error)
+
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
@@ -2064,6 +2067,9 @@ type Datastore interface {
 	ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*ScimUser, error)
 	// ScimUserByHostID retrieves a SCIM user associated with a host ID
 	ScimUserByHostID(ctx context.Context, hostID uint) (*ScimUser, error)
+	// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
+	// If the slice is empty, it returns true
+	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) error
 	// DeleteScimUser deletes a SCIM user from the database
@@ -2073,7 +2079,8 @@ type Datastore interface {
 	// CreateScimGroup creates a new SCIM group in the database
 	CreateScimGroup(ctx context.Context, group *ScimGroup) (uint, error)
 	// ScimGroupByID retrieves a SCIM group by ID
-	ScimGroupByID(ctx context.Context, id uint) (*ScimGroup, error)
+	// If excludeUsers is true, the group's users will not be fetched
+	ScimGroupByID(ctx context.Context, id uint, excludeUsers bool) (*ScimGroup, error)
 	// ScimGroupByDisplayName retrieves a SCIM group by display name
 	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
 	// ReplaceScimGroup replaces an existing SCIM group in the database
@@ -2081,7 +2088,7 @@ type Datastore interface {
 	// DeleteScimGroup deletes a SCIM group from the database
 	DeleteScimGroup(ctx context.Context, id uint) error
 	// ListScimGroups retrieves a list of SCIM groups with pagination
-	ListScimGroups(ctx context.Context, opts ScimListOptions) (groups []ScimGroup, totalResults uint, err error)
+	ListScimGroups(ctx context.Context, opts ScimGroupsListOptions) (groups []ScimGroup, totalResults uint, err error)
 	// ScimLastRequest retrieves the last SCIM request info
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
