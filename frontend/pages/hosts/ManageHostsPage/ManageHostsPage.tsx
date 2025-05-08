@@ -1309,9 +1309,6 @@ const ManageHostsPage = ({
   );
 
   const renderPremiumHeader = () => {
-    if (config?.partnerships?.enable_primo) {
-      return <h1>Hosts</h1>;
-    }
     if (userTeams) {
       if (userTeams.length > 1 || isOnGlobalTeam) {
         return (
@@ -1334,7 +1331,11 @@ const ManageHostsPage = ({
     <div className={`${baseClass}__header`}>
       <div className={`${baseClass}__text`}>
         <div className={`${baseClass}__title`}>
-          {isPremiumTier ? renderPremiumHeader() : <h1>Hosts</h1>}
+          {isPremiumTier && !config?.partnerships?.enable_primo ? (
+            renderPremiumHeader()
+          ) : (
+            <h1>Hosts</h1>
+          )}
         </div>
       </div>
     </div>
