@@ -16,7 +16,7 @@ interface IConfigProfileStatusModalProps {
   name: string;
   uuid: string;
   teamId: number;
-  onClickResend: (hostCount: number) => void;
+  onClickResend: (hostCount: number, status: string) => void;
   onExit: () => void;
 }
 

@@ -53,7 +53,7 @@ export const generateTableConfig = (
   teamId: number,
   uuid: string,
   profileStatus: IGetConfigProfileStatusResponse,
-  onClickResend: (hostCount: number) => void
+  onClickResend: (hostCount: number, status: string) => void
 ): IConfigProfileStatusColumnConfig[] => {
   return [
     {
@@ -82,7 +82,9 @@ export const generateTableConfig = (
             count={cell.value}
             uuid={uuid}
             status={cell.row.original.status}
-            onClickResend={() => onClickResend(cell.value)}
+            onClickResend={() =>
+              onClickResend(cell.value, cell.row.original.status)
+            }
           />
         );
       },

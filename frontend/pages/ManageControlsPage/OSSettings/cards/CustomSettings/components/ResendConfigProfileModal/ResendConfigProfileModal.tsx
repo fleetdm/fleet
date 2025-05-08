@@ -1,5 +1,7 @@
 import React, { useContext } from "react";
 
+import configProfilesAPI from "services/entities/config_profiles";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { NotificationContext } from "context/notification";
@@ -9,6 +11,7 @@ const baseClass = "resend-config-profile-modal";
 interface IResendConfigProfileModalProps {
   name: string;
   uuid: string;
+  status: string;
   count: number;
   onExit: () => void;
 }
@@ -16,6 +19,7 @@ interface IResendConfigProfileModalProps {
 const ResendConfigProfileModal = ({
   name,
   uuid,
+  status,
   count,
   onExit,
 }: IResendConfigProfileModalProps) => {
@@ -27,8 +31,7 @@ const ResendConfigProfileModal = ({
   const onClickResend = async () => {
     setIsResending(true);
     try {
-      // Call the API to resend the configuration profile
-      // await resendConfigProfile(uuid);
+      await configProfilesAPI.batchResendConfigProfile(uuid, status);
       renderFlash(
         "success",
         <>

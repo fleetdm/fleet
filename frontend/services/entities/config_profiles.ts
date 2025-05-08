@@ -1,4 +1,5 @@
 import { getConfig } from "@testing-library/react";
+import { profile } from "console";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
@@ -24,5 +25,16 @@ export default {
         pending: 3,
       });
     });
+  },
+
+  batchResendConfigProfile: (uuid: string, status: string): Promise<void> => {
+    const { CONFIG_PROFILE_BATCH_RESEND } = endpoints;
+    const body = {
+      profile_uuid: uuid,
+      filters: {
+        profile_status: status,
+      },
+    };
+    return sendRequest("POST", CONFIG_PROFILE_BATCH_RESEND, body);
   },
 };
