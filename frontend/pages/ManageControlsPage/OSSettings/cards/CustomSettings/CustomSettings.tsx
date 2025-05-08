@@ -26,7 +26,7 @@ import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileMod
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
 import ProfileListHeading from "./components/ProfileListHeading";
-import RestrictionsModal from "./components/RestrictionsModal";
+import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 
 const PROFILES_PER_PAGE = 10;
 
@@ -60,7 +60,10 @@ const CustomSettings = ({
     setProfileLabelsModalData,
   ] = useState<IMdmProfile | null>(null);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
-  const [showRestrictionsModal, setShowRestrictionsModal] = useState(false);
+  const [
+    showConfigProfileStatusModal,
+    setShowConfigProfileStatusModal,
+  ] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
@@ -100,7 +103,7 @@ const CustomSettings = ({
 
   const onCancelInfo = () => {
     selectedProfile.current = null;
-    setShowRestrictionsModal(false);
+    setShowConfigProfileStatusModal(false);
   };
 
   const onCancelDelete = () => {
@@ -138,7 +141,7 @@ const CustomSettings = ({
 
   const onClickInfo = (profile: IMdmProfile) => {
     selectedProfile.current = profile;
-    setShowRestrictionsModal(true);
+    setShowConfigProfileStatusModal(true);
   };
 
   const onClickDelete = (profile: IMdmProfile) => {
@@ -239,9 +242,11 @@ const CustomSettings = ({
           setModalData={setProfileLabelsModalData}
         />
       )}
-      {showRestrictionsModal && selectedProfile.current && (
-        <RestrictionsModal
-          profileUUID={selectedProfile.current.profile_uuid}
+      {showConfigProfileStatusModal && selectedProfile.current && (
+        <ConfigProfileStatusModal
+          teamId={currentTeamId}
+          name={selectedProfile.current.name}
+          uuid={selectedProfile.current.profile_uuid}
           onExit={onCancelInfo}
         />
       )}

@@ -7,6 +7,7 @@ import {
   IStringCellProps,
 } from "interfaces/datatable_config";
 import { IGetConfigProfileStatusResponse } from "services/entities/config_profiles";
+import ConfigProfileHostCountCell from "../ConfigProfileHostCountCell";
 
 type IConfigProfileStatus = "verified" | "verifying" | "pending" | "failed";
 
@@ -15,6 +16,8 @@ interface IConfigProfileRowData {
   hosts: number;
 }
 
+// This is the order in which the statuses will be displayed in the table. It
+// will always be in this order.
 const STAUTS_ORDER = ["verified", "verifying", "pending", "failed"];
 
 export interface IStatusCellValue {
@@ -47,8 +50,10 @@ type IStatusCellProps = IStringCellProps<IConfigProfileRowData>;
 type IHostCellProps = INumberCellProps<IConfigProfileRowData>;
 
 export const generateTableConfig = (
+  teamId: number,
+  uuid: string,
   profileStatus: IGetConfigProfileStatusResponse,
-  onClickResend: (status: IConfigProfileStatus) => void
+  onClickResend: () => void
 ): IConfigProfileStatusColumnConfig[] => {
   return [
     {
@@ -71,7 +76,15 @@ export const generateTableConfig = (
       accessor: "hosts",
       disableSortBy: true,
       Cell: ({ cell }: IHostCellProps) => {
-        return <span>{cell.value}</span>;
+        return (
+          <ConfigProfileHostCountCell
+            teamId={teamId}
+            count={cell.value}
+            uuid={uuid}
+            status={cell.row.original.status}
+            onClickResend={onClickResend}
+          />
+        );
       },
     },
   ];

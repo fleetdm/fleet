@@ -13,13 +13,17 @@ import {
 const baseClass = "config-profile-status-table";
 
 interface IConfigProfileStatusTableProps {
+  teamId: number;
+  uuid: string;
   profileStatus: IGetConfigProfileStatusResponse;
 }
 
 const ConfigProfileStatusTable = ({
+  teamId,
+  uuid,
   profileStatus,
 }: IConfigProfileStatusTableProps) => {
-  const columnConfigs = generateTableConfig(profileStatus, () => {
+  const columnConfigs = generateTableConfig(teamId, uuid, profileStatus, () => {
     console.log("Resend clicked");
   });
   const tableData = generateTableData(profileStatus);

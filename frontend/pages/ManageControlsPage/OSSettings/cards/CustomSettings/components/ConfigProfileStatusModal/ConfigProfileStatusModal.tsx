@@ -10,20 +10,24 @@ import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import ConfigProfileStatusTable from "../ConfigProfileStatusTable";
 
-const baseClass = "restrictions-modal";
+const baseClass = "config-profile-status-modal";
 
-interface IRestrictionsModalProps {
-  profileUUID: string;
+interface IConfigProfileStatusModalProps {
+  name: string;
+  uuid: string;
+  teamId: number;
   onExit: () => void;
 }
 
-const RestrictionsModal = ({
-  profileUUID,
+const ConfigProfileStatusModal = ({
+  name,
+  uuid,
+  teamId,
   onExit,
-}: IRestrictionsModalProps) => {
+}: IConfigProfileStatusModalProps) => {
   const { data, isLoading, isError } = useQuery(
-    ["config-profile-status", profileUUID],
-    () => configProfileAPI.getConfigProfileStatus(profileUUID),
+    ["config-profile-status", uuid],
+    () => configProfileAPI.getConfigProfileStatus(uuid),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
     }
@@ -41,11 +45,17 @@ const RestrictionsModal = ({
       return null;
     }
 
-    return <ConfigProfileStatusTable profileStatus={data} />;
+    return (
+      <ConfigProfileStatusTable
+        teamId={teamId}
+        uuid={uuid}
+        profileStatus={data}
+      />
+    );
   };
 
   return (
-    <Modal className={baseClass} title="Restrictions" onExit={onExit}>
+    <Modal className={baseClass} title={name} onExit={onExit}>
       <>
         {renderContent()}
         <div className="modal-cta-wrap">
@@ -56,4 +66,4 @@ const RestrictionsModal = ({
   );
 };
 
-export default RestrictionsModal;
+export default ConfigProfileStatusModal;
