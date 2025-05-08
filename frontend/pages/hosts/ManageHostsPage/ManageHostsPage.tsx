@@ -1308,14 +1308,13 @@ const ManageHostsPage = ({
     />
   );
 
-  const renderPremiumHeader = () => {
-    if (userTeams) {
+  const renderHeaderContent = () => {
+    if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
       if (userTeams.length > 1 || isOnGlobalTeam) {
         return (
           <TeamsDropdown
             currentUserTeams={userTeams || []}
             selectedTeamId={currentTeamId}
-            isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
             onChange={onTeamChange}
             includeNoTeams
           />
@@ -1325,18 +1324,13 @@ const ManageHostsPage = ({
         return <h1>{userTeams[0].name}</h1>;
       }
     }
+    return <h1>Hosts</h1>;
   };
 
   const renderHeader = () => (
     <div className={`${baseClass}__header`}>
       <div className={`${baseClass}__text`}>
-        <div className={`${baseClass}__title`}>
-          {isPremiumTier && !config?.partnerships?.enable_primo ? (
-            renderPremiumHeader()
-          ) : (
-            <h1>Hosts</h1>
-          )}
-        </div>
+        <div className={`${baseClass}__title`}>{renderHeaderContent()}</div>
       </div>
     </div>
   );
