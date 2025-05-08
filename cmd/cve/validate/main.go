@@ -42,7 +42,7 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 	}
 
 	// make sure VulnCheck enrichment is working
-	vulns, err := cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2025.json"))
+	vulns, err := cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2025.json.gz"))
 	if err != nil {
 		panic(err)
 	}
@@ -55,7 +55,7 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 		panic(errors.New("enriched vulnerability spot-check failed for Python on CVE-2025-0938"))
 	}
 
-	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2024.json"))
+	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2024.json.gz"))
 	if err != nil {
 		panic(err)
 	}
