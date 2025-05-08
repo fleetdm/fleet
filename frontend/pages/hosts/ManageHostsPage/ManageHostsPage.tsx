@@ -1208,16 +1208,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const renderTeamsFilterDropdown = () => (
-    <TeamsDropdown
-      currentUserTeams={userTeams || []}
-      selectedTeamId={currentTeamId}
-      isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
-      onChange={onTeamChange}
-      includeNoTeams
-    />
-  );
-
   const renderEditColumnsModal = () => {
     if (!config || !currentUser) {
       return null;
@@ -1318,19 +1308,33 @@ const ManageHostsPage = ({
     />
   );
 
+  const renderPremiumHeader = () => {
+    if (config?.partnerships?.enable_primo) {
+      return <h1>Hosts</h1>;
+    }
+    if (userTeams) {
+      if (userTeams.length > 1 || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams || []}
+            selectedTeamId={currentTeamId}
+            isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
+            onChange={onTeamChange}
+            includeNoTeams
+          />
+        );
+      }
+      if (!isOnGlobalTeam && userTeams.length === 1) {
+        return <h1>{userTeams[0].name}</h1>;
+      }
+    }
+  };
+
   const renderHeader = () => (
     <div className={`${baseClass}__header`}>
       <div className={`${baseClass}__text`}>
         <div className={`${baseClass}__title`}>
-          {isFreeTier && <h1>Hosts</h1>}
-          {isPremiumTier &&
-            userTeams &&
-            (userTeams.length > 1 || isOnGlobalTeam) &&
-            renderTeamsFilterDropdown()}
-          {isPremiumTier &&
-            !isOnGlobalTeam &&
-            userTeams &&
-            userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
+          {isPremiumTier ? renderPremiumHeader() : <h1>Hosts</h1>}
         </div>
       </div>
     </div>
