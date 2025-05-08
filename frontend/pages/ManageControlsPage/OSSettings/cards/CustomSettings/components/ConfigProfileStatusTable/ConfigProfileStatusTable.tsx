@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 import { IGetConfigProfileStatusResponse } from "services/entities/config_profiles";
 
@@ -16,16 +16,18 @@ interface IConfigProfileStatusTableProps {
   teamId: number;
   uuid: string;
   profileStatus: IGetConfigProfileStatusResponse;
+  onClickResend: () => void;
 }
 
 const ConfigProfileStatusTable = ({
   teamId,
   uuid,
   profileStatus,
+  onClickResend,
 }: IConfigProfileStatusTableProps) => {
-  const columnConfigs = generateTableConfig(teamId, uuid, profileStatus, () => {
-    console.log("Resend clicked");
-  });
+  const columnConfigs = useMemo(() => {
+    return generateTableConfig(teamId, uuid, profileStatus, onClickResend);
+  }, [profileStatus, teamId, uuid, onClickResend]);
   const tableData = generateTableData(profileStatus);
 
   return (

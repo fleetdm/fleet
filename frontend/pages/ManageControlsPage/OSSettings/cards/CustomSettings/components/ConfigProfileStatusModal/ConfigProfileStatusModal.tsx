@@ -16,6 +16,7 @@ interface IConfigProfileStatusModalProps {
   name: string;
   uuid: string;
   teamId: number;
+  onClickResend: () => void;
   onExit: () => void;
 }
 
@@ -23,6 +24,7 @@ const ConfigProfileStatusModal = ({
   name,
   uuid,
   teamId,
+  onClickResend,
   onExit,
 }: IConfigProfileStatusModalProps) => {
   const { data, isLoading, isError } = useQuery(
@@ -50,6 +52,7 @@ const ConfigProfileStatusModal = ({
         teamId={teamId}
         uuid={uuid}
         profileStatus={data}
+        onClickResend={onClickResend}
       />
     );
   };

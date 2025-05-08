@@ -1,0 +1,75 @@
+import React, { useContext } from "react";
+
+import Modal from "components/Modal";
+import Button from "components/buttons/Button";
+import { NotificationContext } from "context/notification";
+
+const baseClass = "resend-config-profile-modal";
+
+interface IResendConfigProfileModalProps {
+  name: string;
+  uuid: string;
+  count: number;
+  onExit: () => void;
+}
+
+const ResendConfigProfileModal = ({
+  name,
+  uuid,
+  count,
+  onExit,
+}: IResendConfigProfileModalProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+  const [isResending, setIsResending] = React.useState(false);
+
+  const countText = `${count} ${count === 1 ? "host" : "hosts"}`;
+
+  const onClickResend = async () => {
+    setIsResending(true);
+    try {
+      // Call the API to resend the configuration profile
+      // await resendConfigProfile(uuid);
+      renderFlash(
+        "success",
+        <>
+          Resent the <b>{name}</b> configuration profile.
+        </>
+      );
+    } catch (error) {
+      // Handle error (e.g., show a flash message)
+      console.error("Error resending configuration profile:", error);
+    }
+    setIsResending(false);
+    onExit();
+  };
+
+  return (
+    <Modal
+      className={baseClass}
+      title="Resend configuration profile"
+      onExit={onExit}
+    >
+      <>
+        <p>
+          This action will resend the <b>{name}</b> configuration profile to{" "}
+          <b>{countText}</b>. To cancel after resending, delete and re-add the
+          profile.
+        </p>
+        <div className="modal-cta-wrap">
+          <Button
+            onClick={onClickResend}
+            isLoading={isResending}
+            disabled={isResending}
+          >
+            Resend
+          </Button>
+          <Button variant="inverse" onClick={onExit} disabled={isResending}>
+            Cancel
+          </Button>
+        </div>
+      </>
+    </Modal>
+  );
+};
+
+export default ResendConfigProfileModal;

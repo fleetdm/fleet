@@ -27,6 +27,7 @@ import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsMod
 import ProfileListItem from "./components/ProfileListItem";
 import ProfileListHeading from "./components/ProfileListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
+import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
 
 const PROFILES_PER_PAGE = 10;
 
@@ -63,6 +64,10 @@ const CustomSettings = ({
   const [
     showConfigProfileStatusModal,
     setShowConfigProfileStatusModal,
+  ] = useState(false);
+  const [
+    showResendConfigProfileModal,
+    setShowResendConfigProfileModal,
   ] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -244,11 +249,25 @@ const CustomSettings = ({
       )}
       {showConfigProfileStatusModal && selectedProfile.current && (
         <ConfigProfileStatusModal
-          profile={selectedProfile.current}
           teamId={currentTeamId}
           name={selectedProfile.current.name}
           uuid={selectedProfile.current.profile_uuid}
+          onClickResend={() => {
+            setShowConfigProfileStatusModal(false);
+            setShowResendConfigProfileModal(true);
+          }}
           onExit={onCancelInfo}
+        />
+      )}
+      {showResendConfigProfileModal && selectedProfile.current && (
+        <ResendConfigProfileModal
+          name={selectedProfile.current.name}
+          uuid={selectedProfile.current.profile_uuid}
+          count={1}
+          onExit={() => {
+            setShowResendConfigProfileModal(false);
+            setShowConfigProfileStatusModal(true);
+          }}
         />
       )}
     </div>
