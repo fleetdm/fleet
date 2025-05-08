@@ -16,7 +16,7 @@ interface IConfigProfileStatusTableProps {
   teamId: number;
   uuid: string;
   profileStatus: IGetConfigProfileStatusResponse;
-  onClickResend: () => void;
+  onClickResend: (hostCount: number) => void;
 }
 
 const ConfigProfileStatusTable = ({

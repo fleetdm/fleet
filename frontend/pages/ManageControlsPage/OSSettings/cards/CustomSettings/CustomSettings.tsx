@@ -72,6 +72,7 @@ const CustomSettings = ({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
+  const selectedStatusHostCount = useRef<number | null>(null);
 
   const {
     data: profilesData,
@@ -252,24 +253,28 @@ const CustomSettings = ({
           teamId={currentTeamId}
           name={selectedProfile.current.name}
           uuid={selectedProfile.current.profile_uuid}
-          onClickResend={() => {
+          onClickResend={(hostCount) => {
+            selectedStatusHostCount.current = hostCount;
             setShowConfigProfileStatusModal(false);
             setShowResendConfigProfileModal(true);
           }}
           onExit={onCancelInfo}
         />
       )}
-      {showResendConfigProfileModal && selectedProfile.current && (
-        <ResendConfigProfileModal
-          name={selectedProfile.current.name}
-          uuid={selectedProfile.current.profile_uuid}
-          count={1}
-          onExit={() => {
-            setShowResendConfigProfileModal(false);
-            setShowConfigProfileStatusModal(true);
-          }}
-        />
-      )}
+      {showResendConfigProfileModal &&
+        selectedProfile.current &&
+        selectedStatusHostCount.current && (
+          <ResendConfigProfileModal
+            name={selectedProfile.current.name}
+            uuid={selectedProfile.current.profile_uuid}
+            count={selectedStatusHostCount.current}
+            onExit={() => {
+              selectedStatusHostCount.current = null;
+              setShowResendConfigProfileModal(false);
+              setShowConfigProfileStatusModal(true);
+            }}
+          />
+        )}
     </div>
   );
 };
