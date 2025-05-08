@@ -222,6 +222,24 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		return err
 	}
 
+	// Validate that at most one email is marked as primary
+	primaryCount := 0
+	for _, email := range user.Emails {
+		if email.Primary != nil && *email.Primary {
+			primaryCount++
+		}
+	}
+	if primaryCount > 1 {
+		return ctxerr.New(ctx, "only one email can be marked as primary")
+	}
+
+	// Get current emails and check if they need to be updated
+	currentEmails, err := ds.getScimUserEmails(ctx, user.ID)
+	if err != nil {
+		return err
+	}
+	emailsNeedUpdate := emailsRequireUpdate(currentEmails, user.Emails)
+
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// load the username before updating the user, to check if it changed
 		var oldUsername string
@@ -265,24 +283,23 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 		usernameChanged := oldUsername != user.UserName
 
-		// We assume that email is not blank/null.
-		// However, we do not assume that email/type are unique for a user. To keep the code simple, we:
-		// 1. Delete all existing emails
-		// 2. Insert all new emails
-		// This is less efficient and can be optimized if we notice a load on these tables in production.
+		// Only update emails if they've changed
+		if emailsNeedUpdate {
+			// We assume that email is not blank/null.
+			// However, we do not assume that email/type are unique for a user. To keep the code simple, we:
+			// 1. Delete all existing emails
+			// 2. Insert all new emails
+			// This is less efficient and can be optimized if we notice a load on these tables in production.
 
-		// TODO: Check if emails need to be updated at all. If so, update the user updated_at timestamp if emails have been updated
-		// TODO: Check that only 1 email is primary
-
-		const deleteEmailsQuery = `DELETE FROM scim_user_emails WHERE scim_user_id = ?`
-		_, err = tx.ExecContext(ctx, deleteEmailsQuery, user.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete scim user emails")
-		}
-
-		err = insertEmails(ctx, tx, user)
-		if err != nil {
-			return err
+			const deleteEmailsQuery = `DELETE FROM scim_user_emails WHERE scim_user_id = ?`
+			_, err = tx.ExecContext(ctx, deleteEmailsQuery, user.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete scim user emails")
+			}
+			err = insertEmails(ctx, tx, user)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Get the user's groups
@@ -867,7 +884,7 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 }
 
 // ListScimGroups retrieves a list of SCIM groups with pagination
-func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
+func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimGroupsListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
 	// Default pagination values if not provided
 	if opts.StartIndex == 0 {
 		opts.StartIndex = 1
@@ -883,16 +900,25 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimListOpti
 		FROM scim_groups
 	`
 
+	// Add where clause based on filters
+	var whereClause string
+	var params []interface{}
+
+	if opts.DisplayNameFilter != nil {
+		whereClause = " WHERE scim_groups.display_name = ?"
+		params = append(params, *opts.DisplayNameFilter)
+	}
+
 	// First, get the total count without pagination
-	countQuery := "SELECT COUNT(DISTINCT id) FROM (" + baseQuery + ") AS filtered_groups"
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &totalResults, countQuery)
+	countQuery := "SELECT COUNT(DISTINCT id) FROM (" + baseQuery + whereClause + ") AS filtered_groups"
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &totalResults, countQuery, params...)
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "count total scim groups")
 	}
 
 	// Add pagination to the main query
-	query := baseQuery + " ORDER BY scim_groups.id LIMIT ? OFFSET ?"
-	params := []interface{}{opts.PerPage, opts.StartIndex - 1}
+	query := baseQuery + whereClause + " ORDER BY scim_groups.id LIMIT ? OFFSET ?"
+	params = append(params, opts.PerPage, opts.StartIndex-1)
 
 	// Execute the query
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &groups, query, params...)
@@ -1207,4 +1233,77 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		return ctxerr.Wrap(ctx, err, "execute resend profiles")
 	}
 	return nil
+}
+
+// emailsRequireUpdate compares two slices of emails and returns true if they are different
+// and require an update in the database.
+func emailsRequireUpdate(currentEmails, newEmails []fleet.ScimUserEmail) bool {
+	if len(currentEmails) != len(newEmails) {
+		return true
+	}
+
+	// Create maps for efficient comparison
+	currentEmailMap := make(map[string]fleet.ScimUserEmail)
+	for i := range currentEmails {
+		key := currentEmails[i].GenerateComparisonKey()
+		currentEmailMap[key] = currentEmails[i]
+	}
+
+	// Check if all new emails exist in current emails with the same attributes
+	for i := range newEmails {
+		key := newEmails[i].GenerateComparisonKey()
+		if _, exists := currentEmailMap[key]; !exists {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
+// If the slice is empty, it returns true
+// This method processes IDs in batches to handle large numbers of IDs efficiently
+func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error) {
+	if len(ids) == 0 {
+		return true, nil
+	}
+
+	// Create a map to track which IDs we've found
+	foundIDs := make(map[uint]bool, len(ids))
+
+	batchSize := 10000
+	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
+		query, args, err := sqlx.In(`
+			SELECT id
+			FROM scim_users
+			WHERE id IN (?)
+		`, batchIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare scim users exist batch query")
+		}
+
+		var foundBatchIDs []uint
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if scim users exist in batch")
+		}
+
+		// Mark found IDs
+		for _, id := range foundBatchIDs {
+			foundIDs[id] = true
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// Check if all IDs were found
+	for _, id := range ids {
+		if !foundIDs[id] {
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

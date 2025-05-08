@@ -51,11 +51,19 @@ Run test using [Runscope](https://www.runscope.com/). See [instructions](https:/
 
 ### Testing Entra ID integration
 
-Use [scimvalidator.microsoft.com](https://scimvalidator.microsoft.com/). Only test the attributes that we have implemented. To see our supported attributes, check the schema:
+Use [scimvalidator.microsoft.com](https://scimvalidator.microsoft.com/). Only test the attributes that we have implemented.
 
+![SCIM-Entra-ID-Validator-User-attributes.png](assets/SCIM-Entra-ID-Validator-User-attributes.png)
+![SCIM-Entra-ID-Validator-Group-attributes.png](assets/SCIM-Entra-ID-Validator-Group-attributes.png)
+
+To see our supported attributes, check the schema:
 ```
 GET https://localhost:8080/api/latest/fleet/scim/Schemas
 ```
+
+Results (2025/05/06)
+
+![SCIM-Entra-ID-Validator-results.png](assets/SCIM-Entra-ID-Validator-results.png)
 
 ## Authentication
 
