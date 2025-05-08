@@ -101,6 +101,8 @@ policies:
     query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
     platform: darwin
     critical: false
+    calendar_events_enabled: false
+    conditional_access_enabled: true
     labels_include_any:
       - Engineering
       - Customer Support
@@ -118,6 +120,7 @@ policies:
   platform: darwin
   critical: false
   calendar_events_enabled: false
+  conditional_access_enabled: true
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
