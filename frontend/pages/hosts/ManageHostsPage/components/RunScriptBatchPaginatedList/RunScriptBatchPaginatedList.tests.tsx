@@ -1,10 +1,11 @@
 import React from "react";
 
-import { http, HttpResponse } from "msw";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { baseUrl, createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer } from "test/test-utils";
 import mockServer from "test/mock-server";
+
+import getTeamScriptsHandler from "test/handlers/script-handlers";
 
 import { createMockScript } from "__mocks__/scriptMock";
 
@@ -16,17 +17,12 @@ const waitForLoadingToFinish = async (container: HTMLElement) => {
   });
 };
 
-const team1Scripts = [
-  createMockScript({ team_id: 1, name: "Team script 1" }),
+const team1ScriptOverrides = [
+  createMockScript({ id: 1, team_id: 1, name: "Team script 1" }),
   createMockScript({ id: 2, team_id: 1, name: "Team script 2" }),
 ];
 
-const teamScriptsHandler = http.get(baseUrl(`/scripts?team_id=1`), () => {
-  // The case where a team has no scripts is handled by the parent
-  return HttpResponse.json({
-    scripts: team1Scripts,
-  });
-});
+const team1ScriptsHandler = getTeamScriptsHandler(1, team1ScriptOverrides);
 
 describe("RunScriptBatchPaginatedList - component", () => {
   const render = createCustomRenderer({
@@ -34,7 +30,7 @@ describe("RunScriptBatchPaginatedList - component", () => {
   });
 
   it("Lists a team's scripts", async () => {
-    mockServer.use(teamScriptsHandler);
+    mockServer.use(team1ScriptsHandler);
     const { container } = render(
       <RunScriptBatchPaginatedList
         onRunScript={jest.fn()}
@@ -47,15 +43,15 @@ describe("RunScriptBatchPaginatedList - component", () => {
     await waitForLoadingToFinish(container);
 
     const listedScripts = screen.getAllByRole("listitem");
-    expect(listedScripts).toHaveLength(team1Scripts.length);
-    team1Scripts.forEach((item, index) => {
+    expect(listedScripts).toHaveLength(team1ScriptOverrides.length);
+    team1ScriptOverrides.forEach((item, index) => {
       expect(listedScripts[index]).toHaveTextContent(item.name);
     });
   });
   // });
 
   it("Calls `onRunScript` with the appropriate script when `Run script`/`Run again` is clicked", async () => {
-    mockServer.use(teamScriptsHandler);
+    mockServer.use(team1ScriptsHandler);
     const onRunScript = jest.fn();
     const { container } = render(
       <RunScriptBatchPaginatedList
@@ -76,11 +72,11 @@ describe("RunScriptBatchPaginatedList - component", () => {
     // modifying the incoming scripst without breaking this test
     //       const changedItems = onSubmit.mock.calls[0][0];
     const ranScript = onRunScript.mock.calls[0][0]; // the second arg is a callback
-    expect(ranScript.id).toEqual(team1Scripts[0].id);
+    expect(ranScript.id).toEqual(team1ScriptOverrides[0].id);
   });
 
   it("Sets the right script for details when clicking on the script's name", async () => {
-    mockServer.use(teamScriptsHandler);
+    mockServer.use(team1ScriptsHandler);
     const onSetScriptForDetails = jest.fn();
     const { container } = render(
       <RunScriptBatchPaginatedList
@@ -96,7 +92,7 @@ describe("RunScriptBatchPaginatedList - component", () => {
     const listedScripts = screen.getAllByRole("listitem");
     // click on the script's name
     await userEvent.click(
-      within(listedScripts[0]).getByText(team1Scripts[0].name)
+      within(listedScripts[0]).getByText(team1ScriptOverrides[0].name)
     );
     await waitFor(() => {
       expect(onSetScriptForDetails.mock.calls.length).toEqual(1); //
@@ -104,6 +100,6 @@ describe("RunScriptBatchPaginatedList - component", () => {
     // checking ids rather than full equality allows extending the components `fetchPage` to
     // modifying the incoming scripst without breaking this test
     const detailsScript = onSetScriptForDetails.mock.calls[0][0]; // the second arg is a callback
-    expect(detailsScript.id).toEqual(team1Scripts[0].id);
+    expect(detailsScript.id).toEqual(team1ScriptOverrides[0].id);
   });
 });
