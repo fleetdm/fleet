@@ -1599,6 +1599,13 @@ func testScimUserByUserNameOrEmail(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, err)
 	assert.True(t, fleet.IsNotFound(err))
 	assert.Nil(t, user)
+
+	// Test 7: Find user when email is used as userName
+	// This tests the case where the userName field contains an email address
+	user, err = ds.ScimUserByUserNameOrEmail(t.Context(), "nonexistent-username", "email-test-user1")
+	require.NoError(t, err)
+	assert.Equal(t, "email-test-user1", user.UserName)
+	assert.Equal(t, users[0].ID, user.ID)
 }
 
 func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
