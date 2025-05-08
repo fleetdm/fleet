@@ -107,22 +107,6 @@ const SoftwareActionButtons = ({
   const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
     config?.gitops || {};
 
-  const onSelect = (action: string) => {
-    switch (action) {
-      case "download":
-        onDownloadClick();
-        break;
-      case "delete":
-        onDeleteClick();
-        break;
-      case "edit":
-        onEditSoftwareClick();
-        break;
-      default:
-      // noop
-    }
-  };
-
   let options =
     installerType === "package"
       ? [...SOFTWARE_PACKAGE_ACTION_OPTIONS]
