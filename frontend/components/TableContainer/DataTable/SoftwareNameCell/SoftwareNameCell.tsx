@@ -1,11 +1,12 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
+import ReactTooltip from "react-tooltip";
+import { uniqueId } from "lodash";
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
-import TooltipWrapper from "components/TooltipWrapper";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import LinkCell from "../LinkCell";
 
@@ -73,22 +74,34 @@ const InstallIconWithTooltip = ({
     iconType = "selfService";
   }
 
+  const tooltipId = uniqueId();
+
   return (
-    <TooltipWrapper
-      tipContent={installIconMap[iconType].tooltip(
-        automaticInstallPoliciesCount
-      )}
-      showArrow
-      position="top"
-      underline={false}
-      tipOffset={8}
-    >
-      <Icon
-        name={installIconMap[iconType].iconName}
-        className={`${baseClass}__install-icon`}
-        color="ui-fleet-black-50"
-      />
-    </TooltipWrapper>
+    <div className={`${baseClass}__install-icon-with-tooltip`}>
+      <div
+        className={`${baseClass}__install-icon-tooltip`}
+        data-tip
+        data-for={tooltipId}
+      >
+        <Icon
+          name={installIconMap[iconType].iconName}
+          className={`${baseClass}__install-icon`}
+          color="ui-fleet-black-50"
+        />
+      </div>
+      <ReactTooltip
+        className={`${baseClass}__install-tooltip`}
+        place="top"
+        effect="solid"
+        backgroundColor="#3e4771"
+        id={tooltipId}
+        data-html
+      >
+        <span className={`${baseClass}__install-tooltip-text`}>
+          {installIconMap[iconType].tooltip(automaticInstallPoliciesCount)}
+        </span>
+      </ReactTooltip>
+    </div>
   );
 };
 
