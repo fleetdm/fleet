@@ -270,4 +270,8 @@ export default {
 
   // idp endpoints
   SCIM_DETAILS: `/${API_VERSION}/fleet/scim/details`,
+
+  // configuration profile endpoints
+  CONFIG_PROFILE_STATUS: (uuid: string) =>
+    `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
 };

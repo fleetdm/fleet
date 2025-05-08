@@ -26,6 +26,7 @@ import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileMod
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
 import ProfileListHeading from "./components/ProfileListHeading";
+import RestrictionsModal from "./components/RestrictionsModal";
 
 const PROFILES_PER_PAGE = 10;
 
@@ -59,6 +60,7 @@ const CustomSettings = ({
     setProfileLabelsModalData,
   ] = useState<IMdmProfile | null>(null);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
+  const [showRestrictionsModal, setShowRestrictionsModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
@@ -96,6 +98,11 @@ const CustomSettings = ({
     onMutation();
   };
 
+  const onCancelInfo = () => {
+    selectedProfile.current = null;
+    setShowRestrictionsModal(false);
+  };
+
   const onCancelDelete = () => {
     selectedProfile.current = null;
     setShowDeleteProfileModal(false);
@@ -128,6 +135,11 @@ const CustomSettings = ({
   const onNextPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage + 1}`));
   }, [router, path, currentPage, queryString]);
+
+  const onClickInfo = (profile: IMdmProfile) => {
+    selectedProfile.current = profile;
+    setShowRestrictionsModal(true);
+  };
 
   const onClickDelete = (profile: IMdmProfile) => {
     selectedProfile.current = profile;
@@ -162,7 +174,8 @@ const CustomSettings = ({
               isPremium={!!isPremiumTier}
               profile={listItem}
               setProfileLabelsModalData={setProfileLabelsModalData}
-              onDelete={onClickDelete}
+              onClickInfo={onClickInfo}
+              onClickDelete={onClickDelete}
             />
           )}
         />
@@ -213,8 +226,8 @@ const CustomSettings = ({
       )}
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
-          profileName={selectedProfile.current?.name}
-          profileId={selectedProfile.current?.profile_uuid}
+          profileName={selectedProfile.current.name}
+          profileId={selectedProfile.current.profile_uuid}
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
           isDeleting={isDeleting}
@@ -224,6 +237,12 @@ const CustomSettings = ({
         <ProfileLabelsModal
           profile={profileLabelsModalData}
           setModalData={setProfileLabelsModalData}
+        />
+      )}
+      {showRestrictionsModal && selectedProfile.current && (
+        <RestrictionsModal
+          profileUUID={selectedProfile.current.profile_uuid}
+          onExit={onCancelInfo}
         />
       )}
     </div>
