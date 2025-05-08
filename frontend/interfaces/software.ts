@@ -365,7 +365,7 @@ export interface ISoftwareInstallVersion {
 export interface IHostSoftwarePackage {
   name: string;
   self_service: boolean;
-  icon_url: string;
+  icon_url: string | null;
   version: string;
   last_install: ISoftwareLastInstall | null;
   categories?: SoftwareCategory[];
