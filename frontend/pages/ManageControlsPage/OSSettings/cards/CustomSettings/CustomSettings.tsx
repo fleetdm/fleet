@@ -244,6 +244,7 @@ const CustomSettings = ({
       )}
       {showConfigProfileStatusModal && selectedProfile.current && (
         <ConfigProfileStatusModal
+          profile={selectedProfile.current}
           teamId={currentTeamId}
           name={selectedProfile.current.name}
           uuid={selectedProfile.current.profile_uuid}

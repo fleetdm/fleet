@@ -30,26 +30,39 @@ const ConfigProfileHostCountCell = ({
     profile_status: status,
   })}`;
 
-  const renderContent = () => {
+  const renderCount = () => {
     if (count === 0) {
       return <div>{DEFAULT_EMPTY_CELL_VALUE}</div>;
     }
+
+    return <Link to={hostPath}>{count}</Link>;
+  };
+
+  const renderResendButton = () => {
+    // we check if the count is 0 or if the uuid starts with "d" which means it
+    // is a DDM profile.
+    if (count === 0 || uuid[0] === "d") {
+      return null;
+    }
+
     return (
-      <>
-        <Link to={hostPath}>{count}</Link>
-        <Button
-          className={`${baseClass}__resend-button`}
-          onClick={onClickResend}
-          variant="text-icon"
-        >
-          <Icon name="refresh" color="core-fleet-blue" size="small" />
-          <span>Resend</span>
-        </Button>
-      </>
+      <Button
+        className={`${baseClass}__resend-button`}
+        onClick={onClickResend}
+        variant="text-icon"
+      >
+        <Icon name="refresh" color="core-fleet-blue" size="small" />
+        <span>Resend</span>
+      </Button>
     );
   };
 
-  return <div className={baseClass}>{renderContent()}</div>;
+  return (
+    <div className={baseClass}>
+      <>{renderCount()}</>
+      <>{renderResendButton()}</>
+    </div>
+  );
 };
 
 export default ConfigProfileHostCountCell;
