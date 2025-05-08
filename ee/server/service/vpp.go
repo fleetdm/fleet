@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -121,6 +122,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
 			}
 
+			payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
 			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
@@ -406,6 +408,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 	appID.ValidatedLabels = validatedLabels
 
+	appID.Categories = server.RemoveDuplicatesFromSlice(appID.Categories)
 	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, appID.Categories)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting software category ids")
@@ -572,6 +575,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		appToWrite.IconURL = *meta.IconURL
 	}
 
+	categories = server.RemoveDuplicatesFromSlice(categories)
 	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, categories)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")

@@ -1462,6 +1462,7 @@ func extractTmSpecsFleetMaintainedApps(tmSpecs []json.RawMessage) map[string][]f
 						SelfService:      app.SelfService,
 						LabelsIncludeAny: app.LabelsIncludeAny,
 						LabelsExcludeAny: app.LabelsExcludeAny,
+						Categories:       app.Categories,
 					})
 				}
 			}

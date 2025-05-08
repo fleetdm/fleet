@@ -569,6 +569,7 @@ type FleetMaintainedAppsSpec struct {
 	SelfService      bool     `json:"self_service"`
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	Categories       []string `json:"categories"`
 }
 
 type SoftwareSpec struct {

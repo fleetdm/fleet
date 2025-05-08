@@ -16275,7 +16275,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusBadRequest, "some or all of the categories provided don't exist")
 
 	// Set some real categories
-	updatePayload.Categories = []string{cat1.Name, cat2.Name}
+	updatePayload.Categories = []string{cat1.Name, cat2.Name, cat2.Name} // duplicate category shouldn't fail
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
@@ -16370,7 +16370,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		TeamID:     nil,
 		Platform:   addedApp.Platform,
 		AppStoreID: addedApp.AdamID,
-		Categories: []string{cat2.Name, cat3.Name},
+		Categories: []string{cat2.Name, cat3.Name, cat3.Name}, // duplicate category shouldn't fail
 	}, http.StatusOK, &addedMacOSApp)
 
 	// get the title ID
@@ -16407,7 +16407,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
-				{AppStoreID: addedApp.AdamID, SelfService: true, Categories: []string{"Developer tools", "Communication"}},
+				{AppStoreID: addedApp.AdamID, SelfService: true, Categories: []string{"Developer tools", "Communication", "Communication"}}, // duplicate category shouldn't fail
 			},
 		}, http.StatusOK, &batchAssociateResponse,
 	)
