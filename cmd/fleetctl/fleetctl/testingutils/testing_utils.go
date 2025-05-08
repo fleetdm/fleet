@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -127,8 +128,18 @@ func ServeMDMBootstrapPackage(t *testing.T, pkgPath, pkgName string) (*httptest.
 }
 
 func StartSoftwareInstallerServer(t *testing.T) {
+	// Get the path to the current source file
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("failed to get runtime caller info")
+	}
+	// Get the directory of the current source file
+	sourceDir := filepath.Dir(currentFile)
+	// Resolve ruby.deb relative to the source file directory
+	relativeTarget := filepath.Join(sourceDir, "../../../../server/service/testdata/software-installers/ruby.deb")
+
 	// start the web server that will serve the installer
-	b, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "server", "service", "testdata", "software-installers", "ruby.deb"))
+	b, err := os.ReadFile(relativeTarget)
 	require.NoError(t, err)
 
 	srv := httptest.NewServer(
