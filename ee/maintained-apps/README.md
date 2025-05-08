@@ -76,7 +76,7 @@ Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updat
 3. Then, the EM builds the app's `outputs/` on the same PR by running the following command:
 
 ```
-go run TODO
+go run cmd/maintained-apps/main.go
 ```
 
 4. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
