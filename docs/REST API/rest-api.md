@@ -8942,16 +8942,14 @@ Deletes an existing script.
       "team_id": null,
       "name": "script_1.sh",
       "created_at": "2023-07-30T13:41:07Z",
-      "updated_at": "2023-07-30T13:41:07Z",
-      "hashed_contents": "<HASH>"
+      "updated_at": "2023-07-30T13:41:07Z"
     },
     {
       "id": 2,
       "team_id": null,
       "name": "script_2.sh",
       "created_at": "2023-08-30T13:41:07Z",
-      "updated_at": "2023-08-30T13:41:07Z",
-      "hashed_contents": "<HASH>"
+      "updated_at": "2023-08-30T13:41:07Z"
     }
   ],
   "meta": {
@@ -8987,7 +8985,6 @@ Deletes an existing script.
   {
     "script_id": 3,
     "name": "remove-zoom-artifacts.sh",
-    "hashed_contents": "<HASH>",
     "last_execution": {
       "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
       "executed_at": "2021-12-15T15:23:57Z",
@@ -8997,7 +8994,6 @@ Deletes an existing script.
   {
     "script_id": 5,
     "name": "set-timezone.sh",
-    "hashed_contents": "<HASH>",
     "last_execution": {
       "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
       "executed_at": "2021-12-15T15:23:57Z",
@@ -9007,7 +9003,6 @@ Deletes an existing script.
   {
     "script_id": 8,
     "name": "uninstall-zoom.sh",
-    "hashed_contents": "<HASH>",
     "last_execution": {
       "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
       "executed_at": "2021-12-15T15:23:57Z",
@@ -9047,8 +9042,7 @@ Deletes an existing script.
   "team_id": null,
   "name": "script_1.sh",
   "created_at": "2023-07-30T13:41:07Z",
-  "updated_at": "2023-07-30T13:41:07Z",
-  "hashed_contents": "<HASH>"
+  "updated_at": "2023-07-30T13:41:07Z"
 }
 
 ```
