@@ -69,7 +69,7 @@ These are command lines that will be run _after_ the generated uninstall script 
 
 ### Testing
 
-Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updates to existing apps, skip to step 4.
+Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updates to existing apps, skip to step 5.
 
 1. When a pull request (PR) is opened in `inputs/`, the [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
 2. The EM is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the EM will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
@@ -90,7 +90,7 @@ FLEET_DEV_MAINTAINED_APPS_BASE_URL: https://raw.githubusercontent.com/fleetdm/fl
 7. Run the following `fleetctl preview` command, using the PR's [Docker tag](https://hub.docker.com/r/fleetdm/fleet/tags), and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
 
 ```
-fleetctl preview --tag=<Docker-tag> --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
+fleetctl preview --tag=<Docker-tag> --preview-config-path ./tools/osquery/in-a-box --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
 ```
 
 8. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
