@@ -112,7 +112,7 @@ After a software package is added to a team, it can be installed on hosts via th
 
 * **Select software package**: Click on a software package to view details.
 
-* **Edit software package**: From the Actions menu, select "Edit."
+* **Edit software package**: From the Actions menu, select "Edit." You can edit the package's [self-service](https://fleetdm.com/guides/software-self-service) status, change its target to different sets of hosts, or edit advanced options like pre-install query, install script, post-install script, and uninstall script.
 
 > Editing the advanced options cancels all pending installations and uninstallations for that package. Installs and uninstalls currently running on a host will complete, but results won't appear in Fleet. The software's host counts will be reset.
 
