@@ -161,7 +161,7 @@ When the Fleet `deployment` has been reduced to 0 running pods, you can proceed 
 ```sh
 helm upgrade --install fleet fleet \
   --repo https://fleetdm.github.io/fleet/charts \ 
-  --namespace fleet2 \
+  --namespace <namespace> \
   --values ../../../values.yaml
 ```
 
