@@ -874,7 +874,9 @@ func getHostsCommand() *cli.Command {
 				}
 
 				if len(hosts) == 0 {
-					fmt.Println("No hosts found")
+					if !c.Bool(jsonFlagName) && !c.Bool(yamlFlagName) {
+						fmt.Println("No hosts found")
+					}
 					return nil
 				}
 

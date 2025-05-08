@@ -12,7 +12,9 @@ export type IndicatorStatus =
   | "successPartial"
   | "pending"
   | "pendingPartial"
-  | "error";
+  | "error"
+  | "failure"
+  | "actionRequired";
 
 interface IStatusIndicatorWithIconProps {
   status: IndicatorStatus;
@@ -33,6 +35,8 @@ const statusIconNameMapping: Record<IndicatorStatus, IconNames> = {
   pending: "pending",
   pendingPartial: "pending-outline",
   error: "error",
+  failure: "error-outline",
+  actionRequired: "error",
 };
 
 const StatusIndicatorWithIcon = ({
@@ -50,7 +54,10 @@ const StatusIndicatorWithIcon = ({
   });
   const valueContent = (
     <span className={valueClasses}>
-      <Icon name={statusIconNameMapping[status]} />
+      <Icon
+        name={statusIconNameMapping[status]}
+        color={status === "failure" ? "ui-fleet-black-50" : undefined}
+      />
       <span>{value}</span>
     </span>
   );

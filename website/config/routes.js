@@ -688,7 +688,7 @@ module.exports.routes = {
   'GET /guides/how-to-uninstall-osquery': (req,res)=> { return res.redirect(301, '/guides/how-to-uninstall-fleetd');},
   'GET /guides/sysadmin-diaries-lost-device': (req,res)=> { return res.redirect(301, '/guides/lock-wipe-hosts');},
   'GET /guides/secret-variables': '/guides/secrets-in-scripts-and-configuration-profiles',
-  'GET /guides/ndes-scep-proxy': '/guides/certificate-authorities',
+  'GET /guides/ndes-scep-proxy': '/guides/connect-end-user-to-wifi-with-certificate',
 
 
   // Release note article redirects.
@@ -820,6 +820,11 @@ module.exports.routes = {
   // =============================================================================================================
   // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
   // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
+
+  'GET /learn-more-about/yaml-software': 'https://fleetdm.com/docs/configuration/yaml-files#software',
+  'GET /learn-more-about/yaml-packages': 'https://fleetdm.com/docs/configuration/yaml-files#packages',
+  'GET /learn-more-about/yaml-fleet-maintained-apps': 'https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps',
+  'GET /learn-more-about/uninstalling-windows-software': 'https://support.microsoft.com/en-us/windows/uninstall-or-remove-apps-and-programs-in-windows-4b55f974-2cc6-2d2b-d092-5905080eaf98',
   'GET /learn-more-about/tarball-archives': 'https://fleetdm.com/guides/deploy-software-packages',
   'GET /learn-more-about/reinstall-software': '/guides/automatic-software-install-in-fleet#templates-for-policy-queries',
   'GET /learn-more-about/abm-apps': 'https://business.apple.com/#/main/appsandbooks',
@@ -830,7 +835,7 @@ module.exports.routes = {
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/ndes': 'https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview', // TODO: Confirm URL
   'GET /learn-more-about/setup-ndes': '/guides/ndes-scep-proxy',
-  'GET /learn-more-about/certificate-authorities': '/guides/certificate-authorities',
+  'GET /learn-more-about/certificate-authorities': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/idp-email': 'https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/guides/macos-setup-experience#macos-setup-assistant',
@@ -883,9 +888,13 @@ module.exports.routes = {
   'GET /learn-more-about/ui-gitops-mode': 'https://github.com/fleetdm/fleet-gitops/?tab=readme-ov-file#fleet-ui',
   'GET /learn-more-about/certificates-query': '/tables/certificates',
   'GET /learn-more-about/gitops': 'https://github.com/fleetdm/fleet-gitops/',
+  'GET /learn-more-about/connect-idp': '/guides/add-user-info-from-idp-to-host',
+  'GET /learn-more-about/troubleshoot-idp-connection': '/guides/foreign-vitals-map-idp-users-to-hosts#verify-connection',
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#enforce-os-settings',
   // FUTURE: update the temporary redirect below to go to the documentation for connecting Android enterprise
   'GET /learn-more-about/how-to-connect-android-enterprise': (req,res)=> { return res.redirect(302, '/contact');},
+  'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
+  'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
 
   // Sitemap
   // =============================================================================================================
@@ -968,4 +977,9 @@ module.exports.routes = {
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
+
+  // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
+  // =============================================================================================================
+  // Temporary enroll endpoint for https://github.com/fleetdm/fleet/issues/27391
+  'GET /.well-known/com.apple.remotemanagement': (req, res)=>{ return res.json({'Servers':[{'Version':'mdm-byod', 'BaseURL':'https://getvictor.ngrok.io/api/mdm/apple/enroll?token=bozo'}]});},
 };

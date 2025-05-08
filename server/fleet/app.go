@@ -447,6 +447,7 @@ type MacOSSetup struct {
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
 }
 
 func (mos *MacOSSetup) SetDefaultsIfNeeded() {
@@ -467,6 +468,9 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.Software.Valid {
 		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
+	}
+	if !mos.ManualAgentInstall.Valid {
+		mos.ManualAgentInstall = optjson.SetBool(false)
 	}
 }
 
@@ -1394,6 +1398,10 @@ type LoggingPlugin struct {
 
 type FilesystemConfig struct {
 	config.FilesystemConfig
+}
+
+type WebhookConfig struct {
+	config.WebhookConfig
 }
 
 type PubSubConfig struct {

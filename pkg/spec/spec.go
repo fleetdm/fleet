@@ -178,8 +178,11 @@ func expandEnv(s string, failOnSecret bool) (string, error) {
 	}
 
 	s = escapeString(s, preventEscapingPrefix)
+	exclusionZones := getExclusionZones(s)
+
 	var err *multierror.Error
-	s = fleet.MaybeExpand(s, func(env string) (string, bool) {
+	s = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
+
 		switch {
 		case strings.HasPrefix(env, preventEscapingPrefix):
 			return "$" + strings.TrimPrefix(env, preventEscapingPrefix), true
@@ -193,6 +196,15 @@ func expandEnv(s string, failOnSecret bool) (string, error) {
 			}
 			return "", false
 		}
+
+		// Don't expand fleet vars if they are inside an 'exclusion' zone,
+		// i.e. 'description' or 'resolution'....
+		for _, z := range exclusionZones {
+			if startPos >= z[0] && endPos <= z[1] {
+				return "", false
+			}
+		}
+
 		v, ok := os.LookupEnv(env)
 		if !ok {
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
@@ -230,7 +242,7 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 		return errors.New("secretsMap cannot be nil")
 	}
 	var err *multierror.Error
-	_ = fleet.MaybeExpand(s, func(env string) (string, bool) {
+	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
 		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
 			// lookup the secret and save it, but don't replace
 			v, ok := os.LookupEnv(env)
@@ -257,4 +269,32 @@ func escapeString(s string, preventEscapingPrefix string) string {
 		}
 		return strings.Repeat("\\", (len(match)/2)-1) + "$" + preventEscapingPrefix
 	})
+}
+
+// getExclusionZones returns which positions inside 's' should be
+// excluded from variable interpolation.
+func getExclusionZones(s string) [][2]int {
+	// We need a different pattern per section because
+	// the delimiting end pattern ((?:^\s+\w+:|\z)) includes the next
+	// section token, meaning the matching logic won't work in case
+	// we have a 'resolution:' followed by a 'description:' or
+	// vice versa, and we try using something like (?:resolution:|description:)
+	toExclude := []string{
+		"resolution",
+		"description",
+	}
+	patterns := make([]*regexp.Regexp, 0, len(toExclude))
+	for _, e := range toExclude {
+		pattern := fmt.Sprintf(`(?m)^\s*(?:%s:)(.|[\r\n])*?(?:^\s+\w+:|\z)`, e)
+		patterns = append(patterns, regexp.MustCompile(pattern))
+	}
+
+	var zones [][2]int
+	for _, pattern := range patterns {
+		result := pattern.FindAllStringIndex(s, -1)
+		for _, r := range result {
+			zones = append(zones, [2]int{r[0], r[1]})
+		}
+	}
+	return zones
 }

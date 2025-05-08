@@ -13,7 +13,10 @@ const (
 	CalendarBodyStaticHeader   = "reserved this time to make some changes to your work computer"
 	CalendarEventConflictText  = "because there was no remaining availability "
 	CalendarDefaultDescription = "needs to make sure your device meets the organization's requirements."
-	CalendarDefaultResolution  = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+	CalendarDefaultResolution  = (`• Click the <a href="https://fleetdm.com/better" rel="noreferrer" target="_blank" >Fleet</a> icon in your computer&apos;s menu and<br />&nbsp;&nbsp;&nbsp;select <b>My device</b>
+• Navigate to the <b>Policies</b> tab
+• Follow instructions to resolve any policies marked "No"
+• Click <b>Refetch</b>`)
 )
 
 type DayEndedError struct {

@@ -81,6 +81,7 @@ export enum ActivityType {
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
+  RanScriptBatch = "ran_script_batch",
   AddedScript = "added_script",
   UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
@@ -113,12 +114,18 @@ export enum ActivityType {
   CanceledUninstallSoftware = "canceled_uninstall_software",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
+  ConfiguredMSEntraConditionalAccess = "added_conditional_access_microsoft",
+  DeletedMSEntraConditionalAccess = "deleted_conditional_access_microsoft",
+  // enable/disable above feature for a team
+  EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
+  DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
+  | ActivityType.WipedHost
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
@@ -152,7 +159,10 @@ export type IHostPastActivity = Omit<IActivity, "type" | "details"> & {
   details: IActivityDetails;
 };
 
-export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
+export type IHostUpcomingActivity = Omit<
+  IActivity,
+  "id" | "type" | "details"
+> & {
   uuid: string;
   type: IHostUpcomingActivityType;
   details: IActivityDetails;
@@ -161,6 +171,7 @@ export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
 export interface IActivityDetails {
   app_store_id?: number;
   bootstrap_package_name?: string;
+  batch_exection_id?: string;
   command_uuid?: string;
   deadline_days?: number;
   deadline?: string;
@@ -171,6 +182,7 @@ export interface IActivityDetails {
   host_display_names?: string[];
   host_id?: number;
   host_ids?: number[];
+  host_count?: number;
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;

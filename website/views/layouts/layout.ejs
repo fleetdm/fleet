@@ -13,8 +13,8 @@
   var hideStartCTA;
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
-  var defaultMetaDescription = 'Open-source '+(['mdm'].includes(primaryBuyingSituation) ? 'IT' : ['eo-security','vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(primaryBuyingSituation === 'mdm' ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
-  var corporationDisplayName = 'Fleet' + (primaryBuyingSituation === 'mdm' ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
+  var defaultMetaDescription = 'Open-source '+(['it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(primaryBuyingSituation) ? 'IT' : ['security-misc','security-vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
+  var corporationDisplayName = 'Fleet' + (['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
 %><!DOCTYPE html>
 <html>
   <head>
@@ -233,7 +233,7 @@
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
                 <span purpose="gh-button" class="d-flex align-items-center">
                   <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
-                  allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
+                  allowtransparency="true" frameborder="0" scrolling="0" width="140" height="20"></iframe>
                 </span>
                 <%if(!hideGetStartedButton){%>
                   <a purpose="glass-header-btn" class="align-items-center d-flex" href="/register">Try it yourself</a>

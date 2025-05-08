@@ -108,12 +108,15 @@ const Modal = ({
 
   return (
     <div className={backgroundClasses}>
-      <div className={modalContainerClasses}>
+      <div
+        className={modalContainerClasses}
+        tabIndex={-1} // Make focusable
+      >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
-              <Button variant="unstyled" onClick={onExit}>
+              <Button variant="icon" onClick={onExit} iconStroke>
                 <Icon name="close" color="core-fleet-black" size="medium" />
               </Button>
             </div>

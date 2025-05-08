@@ -20,7 +20,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
-import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import {
   INumberCellProps,
@@ -65,7 +65,7 @@ const generateDefaultTableHeaders = (
         );
       }
 
-      const { name, os_version_id } = cellProps.row.original;
+      const { name, os_version_id, platform } = cellProps.row.original;
 
       const softwareOsDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_OS_DETAILS(os_version_id),
@@ -83,12 +83,9 @@ const generateDefaultTableHeaders = (
         <LinkCell
           path={softwareOsDetailsPath}
           customOnClick={onClickSoftware}
-          value={
-            <>
-              <SoftwareIcon name={cellProps.row.original.platform} />
-              <span className="software-name">{name}</span>
-            </>
-          }
+          tooltipTruncate
+          prefix={<SoftwareIcon name={platform} />}
+          value={name}
         />
       );
     },

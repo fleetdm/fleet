@@ -27,7 +27,9 @@ The `--type` flag is used to specify the fleetd installer type.
 
 A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
 
-To build an installer for ARM-based Linux, use the `--arch=arm64` flag with fleetctl.
+To generate fleetd for an Arm Linux or Windows host, use the `--arch=arm64` flag.
+
+> **Fleetd for Arm Windows is an experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 #### Example
 
@@ -135,8 +137,11 @@ How to unenroll a host from Fleet:
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
+> If an end user wants to switch their workstation's operating system (e.g. Windows to Linux), before they switch, delete the host from Fleet. Then, re-enroll the host.
+
 ## Advanced
 
+- [Best practice for dual-boot workstations](#best-partice-for-dual-boot-workstations)
 - [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
@@ -148,6 +153,10 @@ How to unenroll a host from Fleet:
 - [Generating fleetd for Windows using local WiX toolset](#generating-fleetd-for-windows-using-local-wix-toolset)
 - [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
+
+### Best practice for dual-boot workstations
+
+When end users want to have a dual-boot environment (e.g. Windows and Linux on one computer), the best practice is to install fleetd, that uses `--host-identifier=instance`, on both operating systems. This enrolls two hosts, one per operating system, in Fleet.
 
 ### fleetd components
 

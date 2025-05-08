@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -85,6 +86,11 @@ type Software struct {
 	// TitleID is the ID of the associated software title, representing a unique combination of name
 	// and source.
 	TitleID *uint `json:"-" db:"title_id"`
+	// NameSource indicates whether the name for this Software was changed during the migration to
+	// Fleet 4.67.0
+	NameSource string `json:"-" db:"name_source"`
+	// Checksum is the unique checksum generated for this Software.
+	Checksum string `json:"-" db:"checksum"`
 }
 
 func (Software) AuthzType() string {
@@ -105,6 +111,23 @@ func (s Software) ToUniqueStr() string {
 		ss = append(ss, s.ExtensionID, s.Browser)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
+// computeRawChecksum computes the checksum for a software entry
+// The calculation must match the one in softwareChecksumComputedColumn
+func (s Software) ComputeRawChecksum() ([]byte, error) {
+	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.Browser, s.ExtensionID}
+	// Only incorporate name if the Software is not a macOS app, because names on macOS are easily
+	// mutable and can lead to unintentional duplicates of Software in Fleet.
+	if s.Source != "apps" {
+		cols = append([]string{s.Name}, cols...)
+	}
+	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
+	if err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
 }
 
 type VulnerableSoftware struct {
@@ -216,7 +239,9 @@ type SoftwareTitleListResult struct {
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
-	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	BundleIdentifier     *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	HashSHA256           *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
+	FleetMaintainedAppID *uint   `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
 }
 
 type SoftwareTitleListOptions struct {
@@ -448,6 +473,8 @@ type VPPBatchPayload struct {
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
+	// Categories is the list of names of software categories associated with this VPP app.
+	Categories []string `json:"categories"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -457,4 +484,13 @@ type VPPBatchPayloadWithPlatform struct {
 	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string            `json:"labels_include_any"`
+	// Categories is the list of names of software categories associated with this VPP app.
+	Categories []string `json:"categories"`
+	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
+	CategoryIDs []uint `json:"-"`
+}
+
+type SoftwareCategory struct {
+	ID   uint   `db:"id"`
+	Name string `db:"name"`
 }

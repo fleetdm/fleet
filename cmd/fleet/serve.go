@@ -343,6 +343,7 @@ the way that the Fleet server works.
 					MaxAge:               config.Filesystem.MaxAge,
 					MaxBackups:           config.Filesystem.MaxBackups,
 				},
+				Webhook: logging.WebhookConfig{},
 				Firehose: logging.FirehoseConfig{
 					Region:           config.Firehose.Region,
 					EndpointURL:      config.Firehose.EndpointURL,
@@ -379,6 +380,7 @@ the way that the Fleet server works.
 			// Set specific configuration to osqueryd status logs.
 			loggingConfig.Plugin = config.Osquery.StatusLogPlugin
 			loggingConfig.Filesystem.LogFile = config.Filesystem.StatusLogFile
+			loggingConfig.Webhook.URL = config.Webhook.StatusURL
 			loggingConfig.Firehose.StreamName = config.Firehose.StatusStream
 			loggingConfig.Kinesis.StreamName = config.Kinesis.StatusStream
 			loggingConfig.Lambda.Function = config.Lambda.StatusFunction
@@ -394,6 +396,7 @@ the way that the Fleet server works.
 			// Set specific configuration to osqueryd result logs.
 			loggingConfig.Plugin = config.Osquery.ResultLogPlugin
 			loggingConfig.Filesystem.LogFile = config.Filesystem.ResultLogFile
+			loggingConfig.Webhook.URL = config.Webhook.ResultURL
 			loggingConfig.Firehose.StreamName = config.Firehose.ResultStream
 			loggingConfig.Kinesis.StreamName = config.Kinesis.ResultStream
 			loggingConfig.Lambda.Function = config.Lambda.ResultFunction
@@ -1278,6 +1281,11 @@ the way that the Fleet server works.
 
 				apiHandler.ServeHTTP(rw, req)
 			})
+			// The `/api/{version}/fleet/scim` base path is used by SCIM handler. In order to route the `details` route to the apiHandler,
+			// we have to explicitly handle that path at the root. The Go router takes precedence for a more specific path. The v1/latest are used in the path for it to be more specific.
+			// The Fleet API was designed this way for end-user simplicity.
+			rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
+			rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
 			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
 			rootMux.Handle("/", frontendHandler)

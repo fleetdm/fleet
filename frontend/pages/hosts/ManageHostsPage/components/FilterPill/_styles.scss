@@ -13,10 +13,7 @@
     gap: $small;
 
     button {
-      height: auto;
-      padding: 0px;
-      border: none;
-      margin-left: 0;
+      margin: -$pad-small; // Keep button padding from affecting parent padding
     }
 
     .premium-icon-tip {

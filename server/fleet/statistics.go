@@ -11,6 +11,7 @@ type StatisticsPayload struct {
 	LicenseTier                   string `json:"licenseTier"`
 	Organization                  string `json:"organization"`
 	NumHostsEnrolled              int    `json:"numHostsEnrolled"`
+	NumHostsABMPending            int    `json:"numHostsABMPending"`
 	NumUsers                      int    `json:"numUsers"`
 	NumSoftwareVersions           int    `json:"numSoftwareVersions"`
 	NumHostSoftwares              int    `json:"numHostSoftwares"`

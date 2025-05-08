@@ -35,8 +35,8 @@ import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 
-import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
-import AddSoftwareModal from "./components/AddSoftwareModal";
+import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
+import AddSoftwareModal from "./components/modals/AddSoftwareModal";
 import {
   buildSoftwareFilterQueryParams,
   buildSoftwareVulnFiltersQueryParams,
@@ -44,7 +44,7 @@ import {
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
 } from "./SoftwareTitles/SoftwareTable/helpers";
-import SoftwareFiltersModal from "./components/SoftwareFiltersModal";
+import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -414,11 +414,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             position="top"
             showArrow
           >
-            <Button
-              onClick={onAddSoftware}
-              variant="brand"
-              disabled={isAllTeamsSelected}
-            >
+            <Button onClick={onAddSoftware} disabled={isAllTeamsSelected}>
               <span>Add software</span>
             </Button>
           </TooltipWrapper>

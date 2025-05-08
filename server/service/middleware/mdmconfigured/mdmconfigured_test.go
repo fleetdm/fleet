@@ -28,7 +28,7 @@ func (m *mockService) VerifyMDMAppleConfigured(ctx context.Context) error {
 
 func (m *mockService) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	if !m.msMdmConfigured.Load() {
-		return fleet.ErrMDMNotConfigured
+		return fleet.ErrWindowsMDMNotConfigured
 	}
 	return nil
 }
@@ -104,7 +104,7 @@ func TestWindowsMDMNotConfigured(t *testing.T) {
 
 	f := mw.VerifyWindowsMDM()(next)
 	_, err := f(context.Background(), struct{}{})
-	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.ErrorIs(t, err, fleet.ErrWindowsMDMNotConfigured)
 	require.False(t, nextCalled)
 }
 

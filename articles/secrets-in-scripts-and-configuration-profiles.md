@@ -4,7 +4,7 @@
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
 </div>
 
-In Fleet you can hide secrets, like API tokens or software license keys, in Fleet [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). Secrets are encrypted and stored securely in Fleet, until they're delivered to the host. Secrets are hidden in when the script or configuration profile is viewed in the Fleet UI or API.
+In Fleet you can hide secrets, like API tokens or software license keys, in Fleet [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). Secrets are encrypted and stored securely in Fleet, until they're delivered to the host. Secrets are hidden when the script or configuration profile is viewed in the Fleet UI or API.
 
 Currently, hiding secrets is only available using [Fleet's YAML (GitOps)](https://fleetdm.com/docs/configuration/yaml-files).
 

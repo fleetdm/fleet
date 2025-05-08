@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"time"
 )
 
 //go:generate go run gen_activity_doc.go "../../docs/Contributing/Audit-logs.md"
@@ -45,7 +46,38 @@ func (*Activity) AuthzType() string {
 type UpcomingActivity struct {
 	Activity
 
-	Cancellable bool `json:"cancellable" db:"cancellable"`
+	// this struct used to have an additional field for upcoming activities, but
+	// it has since been removed. Keeping the distinct struct as a useful type
+	// indication that the value is an upcoming, not past, activity.
+}
+
+// WellKnownActionType defines the special actions that an upcoming activity
+// may correspond to, such as Lock, Wipe, etc.
+type WellKnownActionType int
+
+// List of well-known action types.
+const (
+	WellKnownActionNone WellKnownActionType = iota
+	WellKnownActionLock
+	WellKnownActionUnlock
+	WellKnownActionWipe
+)
+
+// UpcomingActivityMeta is the metadata related to a host's upcoming
+// activity.
+type UpcomingActivityMeta struct {
+	// ExecutionID is the unique identifier of the activity.
+	ExecutionID string `db:"execution_id"`
+	// ActivatedAt is the timestamp when the activity was "activated" (made ready
+	// to process by the host). Nil if not activated yet (still waiting for
+	// previous activities to complete).
+	ActivatedAt *time.Time `db:"activated_at"`
+	// UpcomingActivityType is the string value of the "activity_type" enum
+	// column of the upcoming_activities table.
+	UpcomingActivityType string `db:"activity_type"`
+	// WellKnownAction is the special action that this activity corresponds to,
+	// if any (default is WellKnownActionNone).
+	WellKnownAction WellKnownActionType `db:"well_known_action"`
 }
 
 // ActivityDetailsList is used to generate documentation.
@@ -141,6 +173,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEditedDeclarationProfile{},
 
 	ActivityTypeResentConfigurationProfile{},
+	ActivityTypeResentConfigurationProfileBatch{},
 
 	ActivityTypeInstalledSoftware{},
 	ActivityTypeUninstalledSoftware{},
@@ -167,6 +200,11 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
 	ActivityTypeDisabledActivityAutomations{},
+
+	ActivityTypeCanceledRunScript{},
+	ActivityTypeCanceledInstallSoftware{},
+	ActivityTypeCanceledUninstallSoftware{},
+	ActivityTypeCanceledInstallAppStoreApp{},
 }
 
 type ActivityDetails interface {
@@ -828,6 +866,7 @@ func (a ActivityTypeDeletedUserTeamRole) Documentation() (activity string, detai
 }
 
 type ActivityTypeFleetEnrolled struct {
+	HostID          uint   `json:"host_id"`
 	HostSerial      string `json:"host_serial"`
 	HostDisplayName string `json:"host_display_name"`
 }
@@ -839,10 +878,12 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 func (a ActivityTypeFleetEnrolled) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).`,
 		`This activity contains the following fields:
+- "host_id": ID of the host.
 - "host_serial": Serial number of the host.
 - "host_display_name": Display name of the host.`, `{
-  "host_serial": "B04FL3ALPT21",
-  "host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+	"host_id": "123",
+	"host_serial": "B04FL3ALPT21",
+	"host_display_name": "WIN-DESKTOP-JGS78KJ7C"
 }`
 }
 
@@ -1560,6 +1601,10 @@ func (a ActivityTypeWipedHost) ActivityName() string {
 	return "wiped_host"
 }
 
+func (a ActivityTypeWipedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user sends a request to wipe a host.`,
 		`This activity contains the following fields:
@@ -1650,7 +1695,7 @@ func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
 }
 
 func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string, details string, detailsExample string) {
-	return `Generated when a user resends an MDM configuration profile to a host.`,
+	return `Generated when a user resends a configuration profile to a host.`,
 		`This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_display_name": The display name of the host.
@@ -1658,6 +1703,25 @@ func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "profile_name": "Passcode requirements"
+}`
+}
+
+type ActivityTypeResentConfigurationProfileBatch struct {
+	ProfileName string `json:"profile_name"`
+	HostCount   int64  `json:"host_count"`
+}
+
+func (a ActivityTypeResentConfigurationProfileBatch) ActivityName() string {
+	return "resent_configuration_profile_batch"
+}
+
+func (a ActivityTypeResentConfigurationProfileBatch) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user resends a configuration profile to a batch of hosts.`,
+		`This activity contains the following fields:
+- "profile_name": The name of the configuration profile.
+- "host_count": Number of hosts in the batch.`, `{
+  "profile_name": "Passcode requirements",
+  "host_count": 3
 }`
 }
 
@@ -2300,4 +2364,138 @@ type ActivityTypeDisabledAndroidMDM struct{}
 func (a ActivityTypeDisabledAndroidMDM) ActivityName() string { return "disabled_android_mdm" }
 func (a ActivityTypeDisabledAndroidMDM) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when a user turns off MDM features for all Android hosts.", `This activity does not contain any detail fields.`, ``
+}
+
+type ActivityTypeCanceledRunScript struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	ScriptName      string `json:"script_name"`
+}
+
+func (a ActivityTypeCanceledRunScript) ActivityName() string {
+	return "canceled_run_script"
+}
+
+func (a ActivityTypeCanceledRunScript) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledRunScript) Documentation() (activity, details, detailsExample string) {
+	return "Generated when upcoming activity `ran_script` is canceled.",
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_name": Name of the script (empty if it was an anonymous script).`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh"
+}`
+}
+
+type ActivityTypeCanceledInstallSoftware struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledInstallSoftware) ActivityName() string {
+	return "canceled_install_software"
+}
+
+func (a ActivityTypeCanceledInstallSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledInstallSoftware) Documentation() (activity, details, detailsExample string) {
+	return "Generated when upcoming activity `installed_software` is canceled.",
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}`
+}
+
+type ActivityTypeCanceledUninstallSoftware struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledUninstallSoftware) ActivityName() string {
+	return "canceled_uninstall_software"
+}
+
+func (a ActivityTypeCanceledUninstallSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledUninstallSoftware) Documentation() (activity, details, detailsExample string) {
+	return "Generated when upcoming activity `uninstalled_software` is canceled.",
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}`
+}
+
+type ActivityTypeCanceledInstallAppStoreApp struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwareTitleID uint   `json:"software_title_id"`
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) ActivityName() string {
+	return "canceled_install_app_store_app"
+}
+
+func (a ActivityTypeCanceledInstallAppStoreApp) Documentation() (string, string, string) {
+	return "Generated when upcoming activity `installed_app_store_app` is canceled.", `This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.`, `{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}`
+}
+
+type ActivityTypeRanScriptBatch struct {
+	ScriptName       string `json:"script_name"`
+	BatchExeuctionID string `json:"batch_execution_id"`
+	HostCount        uint   `json:"host_count"`
+}
+
+func (a ActivityTypeRanScriptBatch) ActivityName() string {
+	return "ran_script_batch"
+}
+
+func (a ActivityTypeRanScriptBatch) Documentation() (string, string, string) {
+	return "Generated when a script is run on a batch of hosts.",
+		`This activity contains the following fields:
+- "script_name": Name of the script.
+- "batch_execution_id": Execution ID of the batch script run.
+- "host_count": Number of hosts in the batch.`, `{
+  "script_name": "set-timezones.sh",
+  "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "host_count": 12
+}`
 }

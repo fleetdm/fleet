@@ -666,6 +666,17 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  ranScriptBatch: (activity: IActivity) => {
+    // next iteration, can grab `batch_execution_id` from details to use for summary api call
+    const { script_name, host_count } = activity.details || {};
+    return (
+      <>
+        {" "}
+        ran {formatScriptNameForActivityItem(script_name)} on {host_count}{" "}
+        hosts.
+      </>
+    );
+  },
   addedScript: (activity: IActivity) => {
     const scriptName = activity.details?.script_name;
     return (
@@ -1070,6 +1081,48 @@ const TAGGED_TEMPLATES = {
   disabledAndroidMdm: () => {
     return <> turned off Android MDM.</>;
   },
+  configuredMSEntraConditionalAccess: () => (
+    <> configured Microsoft Entra conditional access.</>
+  ),
+  deletedMSEntraConditionalAccess: () => (
+    <> deleted Microsoft Entra conditional access configuration.</>
+  ),
+  enabledConditionalAccessAutomations: (activity: IActivity) => {
+    const teamName = activity.details?.team_name;
+    return (
+      <>
+        {" "}
+        enabled conditional access for{" "}
+        {teamName ? (
+          <>
+            {" "}
+            the <b>{teamName}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  disabledConditionalAccessAutomations: (activity: IActivity) => {
+    const teamName = activity.details?.team_name;
+    return (
+      <>
+        {" "}
+        disabled conditional access for{" "}
+        {teamName ? (
+          <>
+            {" "}
+            the <b>{teamName}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
   canceledRunScript: (activity: IActivity) => {
     const { script_name: scriptName, host_display_name: hostName } =
       activity.details || {};
@@ -1268,6 +1321,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);
     }
+    case ActivityType.RanScriptBatch: {
+      return TAGGED_TEMPLATES.ranScriptBatch(activity);
+    }
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);
     }
@@ -1360,6 +1416,18 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledAndroidMdm: {
       return TAGGED_TEMPLATES.disabledAndroidMdm();
+    }
+    case ActivityType.ConfiguredMSEntraConditionalAccess: {
+      return TAGGED_TEMPLATES.configuredMSEntraConditionalAccess();
+    }
+    case ActivityType.DeletedMSEntraConditionalAccess: {
+      return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.EnabledConditionalAccessAutomations: {
+      return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.DisabledConditionalAccessAutomations: {
+      return TAGGED_TEMPLATES.disabledConditionalAccessAutomations(activity);
     }
     case ActivityType.CanceledRunScript: {
       return TAGGED_TEMPLATES.canceledRunScript(activity);

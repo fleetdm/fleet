@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,7 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/fleetdm/fleet/v4/server/service/internal/endpoints"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -3624,6 +3625,12 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 	// existing host but none yet
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[0].ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.DeviceMapping, 0)
+	var hostResp getHostResponse
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
+	assert.Len(t, hostResp.Host.EndUsers, 0)
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &hostResp)
+	assert.Len(t, hostResp.Host.EndUsers, 0)
 
 	// create a custom mapping of a non-existing host
 	var putResp putHostDeviceMappingResponse
@@ -3651,6 +3658,36 @@ func (s *integrationTestSuite) TestHostDeviceMapping() {
 		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
 		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
 	})
+	// Check that mappings show up in host details
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+hosts[0].UUID, nil, http.StatusOK, &hostResp)
+	checkEndUser := func() {
+		require.Len(t, hostResp.Host.EndUsers, 1)
+		endUser := hostResp.Host.EndUsers[0]
+		assert.Empty(t, endUser.IdpUserName)
+		assert.Nil(t, endUser.IdpInfoUpdatedAt)
+		assert.Empty(t, endUser.IdpID)
+		assert.Empty(t, endUser.IdpFullName)
+		assert.Empty(t, endUser.IdpGroups)
+		require.Len(t, endUser.OtherEmails, 3)
+		othersByEmail := make(map[string]string, 3)
+		for _, otherEmail := range endUser.OtherEmails {
+			othersByEmail[otherEmail.Email] = otherEmail.Source
+		}
+		source, ok := othersByEmail["a@b.c"]
+		require.True(t, ok)
+		assert.Equal(t, fleet.DeviceMappingGoogleChromeProfiles, source)
+		source, ok = othersByEmail["b@b.c"]
+		require.True(t, ok)
+		assert.Equal(t, fleet.DeviceMappingGoogleChromeProfiles, source)
+		source, ok = othersByEmail["c@b.c"]
+		require.True(t, ok)
+		assert.Equal(t, fleet.DeviceMappingCustomReplacement, source)
+	}
+	checkEndUser()
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &hostResp)
+	checkEndUser()
 
 	// other host still has none
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", hosts[1].ID), nil, http.StatusOK, &listResp)
@@ -4850,7 +4887,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login", params, http.StatusBadRequest, &loginResp)
 	// MFA supported; send email
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
-		endpoints.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
 	var mfaToken string
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), tx, &mfaToken, `SELECT token FROM verification_tokens WHERE user_id = ? LIMIT 1`, createResp.User.ID)
@@ -4862,7 +4899,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// send another email, which we'll expire the token for
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
-		endpoints.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
+		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
 			context.Background(),
@@ -4989,7 +5026,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// login as that user to verify that the new password is active (userRawPwd was updated to the new pwd)
 	loginResp = loginResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/login", endpoints.LoginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
+	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{Email: u.Email, Password: userRawPwd}, http.StatusOK, &loginResp)
 	require.Equal(t, loginResp.User.ID, u.ID)
 
 	// logout for that user
@@ -5004,7 +5041,7 @@ func (s *integrationTestSuite) TestUsers() {
 
 	// login as that user with previous pwd fails
 	loginResp = loginResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/login", endpoints.LoginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
+	s.DoJSON("POST", "/api/latest/fleet/login", contract.LoginRequest{Email: u.Email, Password: oldUserRawPwd}, http.StatusUnauthorized, &loginResp)
 
 	// require a password reset
 	var reqResetResp requirePasswordResetResponse
@@ -8174,7 +8211,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 
 	// Login with invalid passwordm, should fail.
 	res := s.DoRawNoAuth("POST", "/api/latest/fleet/login",
-		jsonMustMarshal(t, endpoints.LoginRequest{Email: u.Email, Password: test.GoodPassword2}),
+		jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: test.GoodPassword2}),
 		http.StatusUnauthorized,
 	)
 	res.Body.Close()
@@ -8197,7 +8234,7 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 
 	// login with good password, should succeed
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login",
-		jsonMustMarshal(t, endpoints.LoginRequest{
+		jsonMustMarshal(t, contract.LoginRequest{
 			Email:    u.Email,
 			Password: test.GoodPassword,
 		}), http.StatusOK,
@@ -8342,12 +8379,12 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	res.Body.Close()
 
 	// login with the old password, should not succeed
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, endpoints.LoginRequest{Email: u.Email, Password: userRawPwd}),
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: userRawPwd}),
 		http.StatusUnauthorized)
 	res.Body.Close()
 
 	// login with the new password, should succeed
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, endpoints.LoginRequest{Email: u.Email, Password: userNewPwd}),
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{Email: u.Email, Password: userNewPwd}),
 		http.StatusOK)
 	res.Body.Close()
 }
@@ -8447,7 +8484,7 @@ func (s *integrationTestSuite) TestModifyUser() {
 
 	// login as the user, with the last password successfully set (to confirm it is the current one)
 	var loginResp loginResponse
-	resp := s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, endpoints.LoginRequest{
+	resp := s.DoRawNoAuth("POST", "/api/latest/fleet/login", jsonMustMarshal(t, contract.LoginRequest{
 		Email:    u.Email, // all email changes made are still pending, never confirmed
 		Password: newRawPwd,
 	}), http.StatusOK)
@@ -9115,7 +9152,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 		EncryptionKey: []byte("testkey"),
 	}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	require.Contains(t, errMsg, fleet.ErrWindowsMDMNotConfigured.Error())
 }
 
 func (s *integrationTestSuite) TestListVulnerabilities() {
@@ -9666,21 +9703,25 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	tkn := "D3V1C370K3N"
 	createHostAndDeviceToken(t, s.ds, tkn)
 
+	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
+
 	for _, route := range mdmConfigurationRequiredEndpoints() {
-		which := fmt.Sprintf("%s %s", route.method, route.path)
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
+		path := route.path
 		if route.premiumOnly && route.deviceAuthenticated {
 			// user-authenticated premium-only routes will never see the ErrMissingLicense error
 			// if mdm is not configured, as the MDM middleware will intercept and fail the call.
 			expectedErr = fleet.ErrMissingLicense
 		}
-		path := route.path
+		if slices.Contains(windowsOnly, path) {
+			expectedErr = fleet.ErrWindowsMDMNotConfigured
+		}
 		if route.deviceAuthenticated {
-			path = fmt.Sprintf(route.path, tkn)
+			path = fmt.Sprintf(path, tkn)
 		}
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, expectedErr.Error(), which)
+		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -11301,7 +11342,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host2Team1.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres := submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11340,7 +11382,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host1Global.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11379,7 +11422,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host1Team2.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11852,7 +11896,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.False(t, gqrr.ReportClipped)
 
-	slreq.Data = []json.RawMessage{json.RawMessage(`{
+	slreq.Data = []json.RawMessage{
+		json.RawMessage(`{
   "snapshot": [` + results(1002, host1Global.UUID) + `
   ],
   "action": "snapshot",
@@ -13129,7 +13174,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			NotValidAfter:  notValidAfterTimes[i],
 		})
 	}
-	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, certs))
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs))
 
 	// list all certs
 	certResp = listHostCertificatesResponse{}

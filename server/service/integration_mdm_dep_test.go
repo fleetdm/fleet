@@ -132,13 +132,23 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	// test manual and automatic release with the new setup experience flow
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;new_flow", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1", false)
+			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, DEPEnrollTestOpts{
+				EnableReleaseManually: enableReleaseManually,
+				TeamID:                nil,
+				CustomProfileIdent:    "I1",
+				UseOldFleetdFlow:      false,
+			})
 		})
 	}
 	// test manual and automatic release with the old worker flow
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;old_flow", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1", true)
+			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, DEPEnrollTestOpts{
+				EnableReleaseManually: enableReleaseManually,
+				TeamID:                nil,
+				CustomProfileIdent:    "I1",
+				UseOldFleetdFlow:      true,
+			})
 		})
 	}
 
@@ -147,9 +157,24 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;bypass_flow", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, enableReleaseManually, nil, "I1", false)
+			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, DEPEnrollTestOpts{
+				EnableReleaseManually: enableReleaseManually,
+				TeamID:                nil,
+				CustomProfileIdent:    "I1",
+				UseOldFleetdFlow:      false,
+			})
 		})
 	}
+
+	t.Run("manual agent install (no fleetd)", func(t *testing.T) {
+		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK)
+		s.runDEPEnrollReleaseDeviceTest(t, globalDevice, DEPEnrollTestOpts{
+			EnableReleaseManually: false,
+			TeamID:                nil,
+			CustomProfileIdent:    "I1",
+			ManualAgentInstall:    true,
+		})
+	})
 }
 
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
@@ -246,13 +271,23 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	// test manual and automatic release with the new setup experience flow
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;new_flow", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", false)
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
+				EnableReleaseManually: enableReleaseManually,
+				TeamID:                &tm.ID,
+				CustomProfileIdent:    "I2",
+				UseOldFleetdFlow:      false,
+			})
 		})
 	}
 	// test manual and automatic release with the old worker flow
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;old_flow", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", true)
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
+				EnableReleaseManually: enableReleaseManually,
+				TeamID:                &tm.ID,
+				CustomProfileIdent:    "I2",
+				UseOldFleetdFlow:      true,
+			})
 		})
 	}
 
@@ -261,9 +296,24 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;bypass_flow", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", false)
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
+				EnableReleaseManually: enableReleaseManually,
+				TeamID:                &tm.ID,
+				CustomProfileIdent:    "I2",
+				UseOldFleetdFlow:      false,
+			})
 		})
 	}
+
+	t.Run("manual agent install (no fleetd)", func(t *testing.T) {
+		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+		s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
+			EnableReleaseManually: true,
+			TeamID:                &tm.ID,
+			CustomProfileIdent:    "I2",
+			ManualAgentInstall:    true,
+		})
+	})
 }
 
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
@@ -326,12 +376,26 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
-			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, enableReleaseManually, &tm.ID, "I2", false)
+			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
+				EnableReleaseManually: enableReleaseManually,
+				TeamID:                &tm.ID,
+				CustomProfileIdent:    "I2",
+				UseOldFleetdFlow:      false,
+			})
 		})
 	}
 }
 
-func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, enableReleaseManually bool, teamID *uint, customProfileIdent string, useOldFleetdFlow bool) {
+// DEPEnrollTestOpts contains options for DEP enrollment and release device tests
+type DEPEnrollTestOpts struct {
+	EnableReleaseManually bool
+	TeamID                *uint
+	CustomProfileIdent    string
+	UseOldFleetdFlow      bool
+	ManualAgentInstall    bool
+}
+
+func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, opts DEPEnrollTestOpts) {
 	ctx := context.Background()
 
 	var isIphone bool
@@ -341,12 +405,19 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 	// set the enable release device manually option
 	payload := map[string]any{
-		"enable_release_device_manually": enableReleaseManually,
+		"enable_release_device_manually": opts.EnableReleaseManually,
+		"manual_agent_install":           opts.ManualAgentInstall,
 	}
-	if teamID != nil {
-		payload["team_id"] = *teamID
+	if opts.TeamID != nil {
+		payload["team_id"] = *opts.TeamID
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+	t.Cleanup(func() {
+		// Get back to the default state.
+		payload["enable_release_device_manually"] = false
+		payload["manual_agent_install"] = false
+		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+	})
 
 	// query all hosts - none yet
 	listHostsRes := listHostsResponse{}
@@ -468,17 +539,22 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		// expected commands: install fleetd, install bootstrap, install CA, install profiles
 		// (custom one, fleetd configuration, FileVault) (not expected: account
 		// configuration, since enrollment_reference not set)
-		require.Len(t, cmds, 6)
+		expectedCommands := 6
+		if opts.ManualAgentInstall {
+			expectedCommands--
+		}
+		assert.Len(t, cmds, expectedCommands)
 	}
 
 	var installProfileCount, installEnterpriseCount, otherCount int
 	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen, profileFileVaultSeen bool
+	var lastInstallEnterpriseApplication *micromdm.InstallEnterpriseApplication
 	for _, cmd := range cmds {
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			installProfileCount++
 			if strings.Contains(string(cmd.Command.InstallProfile.Payload), //nolint:gocritic // ignore ifElseChain
-				fmt.Sprintf("<string>%s</string>", customProfileIdent)) {
+				fmt.Sprintf("<string>%s</string>", opts.CustomProfileIdent)) {
 				profileCustomSeen = true
 			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
 				profileFleetdSeen = true
@@ -491,6 +567,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 		case "InstallEnterpriseApplication":
 			installEnterpriseCount++
+			lastInstallEnterpriseApplication = cmd.Command.InstallEnterpriseApplication
 		default:
 			otherCount++
 		}
@@ -506,7 +583,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.False(t, profileFileVaultSeen)
 
 		// for iDevices, fleetd is not installed so the rest of this test does not apply.
-		if enableReleaseManually {
+		if opts.EnableReleaseManually {
 			// get the worker's pending job from the future, there should not be any
 			// because it needs to be released manually
 			pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
@@ -558,7 +635,16 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	}
 
 	require.Equal(t, 4, installProfileCount)
-	require.Equal(t, 2, installEnterpriseCount)
+	expectedInstallEnterpriseCount := 2
+	if opts.ManualAgentInstall {
+		expectedInstallEnterpriseCount--
+		require.NotNil(t, lastInstallEnterpriseApplication)
+		require.NotNil(t, lastInstallEnterpriseApplication.Manifest)
+		require.GreaterOrEqual(t, len(lastInstallEnterpriseApplication.Manifest.ManifestItems), 1)
+		require.Len(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets, 1)
+		assert.Contains(t, lastInstallEnterpriseApplication.Manifest.ManifestItems[0].Assets[0].URL, "fleet/mdm/bootstrap")
+	}
+	require.Equal(t, expectedInstallEnterpriseCount, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
 	require.True(t, profileCustomSeen)
 	require.True(t, profileFleetdSeen)
@@ -573,7 +659,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	// call the /config endpoint as fleetd would
 	var orbitConfigResp orbitGetConfigResponse
 	var caps fleet.CapabilityMap
-	if useOldFleetdFlow {
+	if opts.UseOldFleetdFlow {
 		// important thing is that it doesn't have the CapabilitySetupExperience
 		caps.PopulateFromString(string(fleet.CapabilityEscrowBuddy))
 	} else {
@@ -593,7 +679,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		require.False(t, orbitConfigResp.Notifications.RunSetupExperience)
 	}
 
-	if enableReleaseManually {
+	if opts.EnableReleaseManually {
 		// get the worker's pending job from the future, there should not be any
 		// because it needs to be released manually
 		pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
@@ -602,7 +688,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		return
 	}
 
-	if useOldFleetdFlow || !hasSetupExpItems {
+	if opts.UseOldFleetdFlow || !hasSetupExpItems {
 		// there should be a Release Device pending job
 		pending, err := s.ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute))
 		require.NoError(t, err)
@@ -3453,4 +3539,168 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	}
 	require.Equal(t, 1, deviceConfiguredCount)
 	require.Equal(t, 0, otherCount)
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
+	t := s.T()
+	ctx := context.Background()
+
+	device, host, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
+
+	// enroll the host
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = device.SerialNumber
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// run the worker to process the DEP enroll request
+	s.runWorker()
+	// run the worker to assign configuration profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	var cmds []*micromdm.CommandPayload
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// expected commands: install fleetd (install enterprise), install profiles
+	// (custom one, fleetd configuration, fleet CA root)
+	require.Len(t, cmds, 4)
+
+	// simulate fleetd being installed and the host being orbit-enrolled now
+	host.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	host.UUID = mdmDevice.UUID
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// call the /status endpoint, the software and script should be pending
+	var statusResp getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+
+	// the software and script are pending
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 1)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+
+	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
+	// it out manually (for now only the software install has its execution id)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	require.Len(t, results, 2)
+	require.NoError(t, err)
+
+	var swExecID string
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil {
+			swExecID = *r.HostSoftwareInstallsExecutionID
+		}
+	}
+	require.NotEmpty(t, swExecID)
+
+	// Check upcoming activities: we should only have the software upcoming because we don't run the
+	// script until after the software is done
+	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
+	require.Len(t, hostActivitiesResp.Activities, 1)
+	require.Equal(t, swExecID, hostActivitiesResp.Activities[0].UUID)
+
+	// no MDM command got enqueued due to the /status call (device not released yet)
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// cancel the software install
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, swExecID),
+		nil, http.StatusNoContent)
+
+	// call the /status endpoint, the software is now failed and script should be pending
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+
+	// the software is failed and script is pending
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 1)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+
+	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
+	// it out manually (this time get the script exec ID)
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	require.Len(t, results, 2)
+	require.NoError(t, err)
+
+	var scrExecID string
+	for _, r := range results {
+		if r.ScriptExecutionID != nil {
+			scrExecID = *r.ScriptExecutionID
+		}
+	}
+	require.NotEmpty(t, scrExecID)
+
+	// script is now in the upcoming activities
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
+	require.Len(t, hostActivitiesResp.Activities, 1)
+	require.Equal(t, scrExecID, hostActivitiesResp.Activities[0].UUID)
+
+	// no MDM command got enqueued due to the /status call (device not released yet)
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// cancel the script
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, scrExecID),
+		nil, http.StatusNoContent)
+
+	// call the /status endpoint, both the software and script are now failed
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 1)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+
+	// check that the host received the device configured command automatically
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	cmds = cmds[:0]
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, cmds, 1)
+	require.Equal(t, "DeviceConfigured", cmds[0].Command.RequestType)
 }

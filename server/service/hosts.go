@@ -1320,13 +1320,68 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	host.Policies = policies
 
+	endUsers, err := getEndUsers(ctx, svc.ds, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get end users for host")
+	}
+
 	return &fleet.HostDetail{
 		Host:              *host,
 		Labels:            labels,
 		Packs:             packs,
 		Batteries:         &bats,
 		MaintenanceWindow: nextMw,
+		EndUsers:          endUsers,
 	}, nil
+}
+
+func getEndUsers(ctx context.Context, ds fleet.Datastore, hostID uint) ([]fleet.HostEndUser, error) {
+	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get scim user by host id")
+	}
+
+	var endUsers []fleet.HostEndUser
+	if scimUser != nil {
+		endUser := fleet.HostEndUser{
+			IdpUserName:      scimUser.UserName,
+			IdpFullName:      scimUser.DisplayName(),
+			IdpInfoUpdatedAt: ptr.Time(scimUser.UpdatedAt),
+		}
+		if scimUser.ExternalID != nil {
+			endUser.IdpID = *scimUser.ExternalID
+		}
+		for _, group := range scimUser.Groups {
+			endUser.IdpGroups = append(endUser.IdpGroups, group.DisplayName)
+		}
+		endUsers = append(endUsers, endUser)
+	}
+
+	deviceMapping, err := ds.ListHostDeviceMapping(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host device mapping")
+	}
+
+	if len(deviceMapping) > 0 {
+		endUser := fleet.HostEndUser{}
+		for _, email := range deviceMapping {
+			switch {
+			case email.Source == fleet.DeviceMappingMDMIdpAccounts && len(endUsers) == 0:
+				// If SCIM data is missing, we still populate IdpUserName if present.
+				// Note: Username and email is the same thing here until we split them with https://github.com/fleetdm/fleet/issues/27952
+				endUser.IdpUserName = email.Email
+			case email.Source != fleet.DeviceMappingMDMIdpAccounts:
+				endUser.OtherEmails = append(endUser.OtherEmails, *email)
+			}
+		}
+		if len(endUsers) > 0 {
+			endUsers[0].OtherEmails = endUser.OtherEmails
+		} else {
+			endUsers = append(endUsers, endUser)
+		}
+	}
+
+	return endUsers, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1470,6 +1525,8 @@ type listHostDeviceMappingResponse struct {
 
 func (r listHostDeviceMappingResponse) Error() error { return r.Err }
 
+// listHostDeviceMappingEndpoint
+// Deprecated: Emails are now included in host details endpoint /api/_version_/fleet/hosts/{id}
 func listHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostDeviceMappingRequest)
 	dms, err := svc.ListHostDeviceMapping(ctx, req.ID)
@@ -1516,6 +1573,8 @@ type putHostDeviceMappingResponse struct {
 
 func (r putHostDeviceMappingResponse) Error() error { return r.Err }
 
+// putHostDeviceMappingEndpoint
+// Deprecated: Because the corresponding GET endpoint is deprecated.
 func putHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putHostDeviceMappingRequest)
 	dms, err := svc.SetCustomHostDeviceMapping(ctx, req.ID, req.Email)
@@ -2714,7 +2773,34 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	opts.IsMDMEnrolled = mdmEnrolled
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
-	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+	}
+
+	if len(software) > 0 {
+		var titleIDs []uint
+		softwareByTitleID := make(map[uint]*fleet.HostSoftwareWithInstaller)
+		for _, s := range software {
+			titleIDs = append(titleIDs, s.ID)
+			softwareByTitleID[s.ID] = s
+		}
+		categories, err := svc.ds.GetCategoriesForSoftwareTitles(ctx, titleIDs, host.TeamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "getting categories for software titles")
+		}
+
+		for id, c := range categories {
+			if s, ok := softwareByTitleID[id]; ok && s.IsAppStoreApp() {
+				softwareByTitleID[id].AppStoreApp.Categories = c
+			}
+			if s, ok := softwareByTitleID[id]; ok && s.IsPackage() {
+				softwareByTitleID[id].SoftwarePackage.Categories = c
+			}
+
+		}
+	}
+
+	return software, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -139,11 +139,13 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 2. Open the automatic enrollment profile and replace the `profile_name` key with your organization's name.
 
-3. View the the list of macOS Setup Assistant properties (panes) [here in Apple's Device Management documentation](https://developer.apple.com/documentation/devicemanagement/skipkeys) and choose which panes to hide from your end users.
+3. View the list of macOS Setup Assistant properties (panes) [here in Apple's Device Management documentation](https://developer.apple.com/documentation/devicemanagement/skipkeys) and choose which panes to hide from your end users.
 
 4. In your automatic enrollment profile, edit the `skip_setup_items` array so that it includes the panes you want to hide.
 
   > You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
+    The `await_device_configured` option is always set to `true` to allow Fleet to take actions like running scripts and installing software packages during the enrollment process.
+    If you'd like to release devices manually, you can check the "Release device manually" option in Setup experience > Setup assistant > Show advanced options.
 
 ### Step 2: Upload the profile to Fleet
 
@@ -176,6 +178,8 @@ If you configure software and/or a script for setup experience, users will see a
 ![screen shot of Fleet setup experience window](../website/assets/images/install-software-preview.png)
 
 This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
+
+To replace the Fleet logo with your organization's logo, head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**. See recommended sizes for logos [here](https://fleetdm.com/docs/configuration/yaml-files#org-info).
 
 > The setup experience script always runs after setup experience software is installed. Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after setup the experience software/script. They aren't installed/run in any particular order.
 

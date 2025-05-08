@@ -67,10 +67,18 @@ const (
 // Updater supports updating plain executables and
 // .tar.gz compressed executables.
 type Updater struct {
-	opt     Options
-	client  *client.Client
+	opt Options
+	// targetsMu protects access to opt.Targets.
+	targetsMu sync.Mutex
+
+	client *client.Client
+	// clientMu protects access to client.
+	//
+	// There have been some race conditions when concurrently operating on
+	// go-tuf `client` (see #28576) thus we protect its access with a mutex.
+	clientMu sync.Mutex
+
 	retryer *retry.LimitedWithCooldown
-	mu      sync.Mutex
 }
 
 // Options are the options that can be provided when creating an Updater.
@@ -111,15 +119,15 @@ func (ts Targets) SetTargetChannel(target, channel string) {
 
 // SetTargetInfo sets/updates the TargetInfo for the given target.
 func (u *Updater) SetTargetInfo(name string, info TargetInfo) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.targetsMu.Lock()
+	defer u.targetsMu.Unlock()
 	u.opt.Targets[name] = info
 }
 
 // RemoveTargetInfo removes the TargetInfo for the given target.
 func (u *Updater) RemoveTargetInfo(name string) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.targetsMu.Lock()
+	defer u.targetsMu.Unlock()
 	delete(u.opt.Targets, name)
 }
 
@@ -206,6 +214,9 @@ func NewDisabled(opt Options) *Updater {
 
 // UpdateMetadata downloads and verifies remote repository metadata.
 func (u *Updater) UpdateMetadata() error {
+	u.clientMu.Lock()
+	defer u.clientMu.Unlock()
+
 	if _, err := u.client.Update(); err != nil {
 		return fmt.Errorf("client update: %w", err)
 	}
@@ -241,8 +252,8 @@ func (u *Updater) LookupsFail() bool {
 
 // repoPath returns the path of the target in the remote repository.
 func (u *Updater) repoPath(target string) (string, error) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.targetsMu.Lock()
+	defer u.targetsMu.Unlock()
 
 	t, ok := u.opt.Targets[target]
 	if !ok {
@@ -343,8 +354,8 @@ type LocalTarget struct {
 
 // localTarget returns the info and local path of a target.
 func (u *Updater) localTarget(target string) (*LocalTarget, error) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+	u.targetsMu.Lock()
+	defer u.targetsMu.Unlock()
 
 	t, ok := u.opt.Targets[target]
 	if !ok {
@@ -367,6 +378,10 @@ func (u *Updater) Lookup(target string) (*data.TargetFileMeta, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	u.clientMu.Lock()
+	defer u.clientMu.Unlock()
+
 	t, err := u.client.Target(repoPath)
 	if err != nil {
 		return nil, fmt.Errorf("lookup %s: %w", target, err)
@@ -376,6 +391,9 @@ func (u *Updater) Lookup(target string) (*data.TargetFileMeta, error) {
 
 // Targets gets all of the known targets
 func (u *Updater) Targets() (data.TargetFiles, error) {
+	u.clientMu.Lock()
+	defer u.clientMu.Unlock()
+
 	targets, err := u.client.Targets()
 	if err != nil {
 		return nil, fmt.Errorf("get targets: %w", err)
@@ -537,9 +555,12 @@ func (u *Updater) download(target, repoPath, localPath string, customCheckExec f
 	}
 
 	// The go-tuf client handles checking of max size and hash.
+	u.clientMu.Lock()
 	if err := u.client.Download(repoPath, &fileDestination{tmp}); err != nil {
+		u.clientMu.Unlock()
 		return fmt.Errorf("download target %s: %w", repoPath, err)
 	}
+	u.clientMu.Unlock()
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close tmp file: %w", err)
 	}
@@ -570,6 +591,8 @@ func goosFromPlatform(platform string) (string, error) {
 		return platform, nil
 	case "linux-arm64":
 		return "linux", nil
+	case "windows-arm64":
+		return "windows", nil
 	default:
 		return "", fmt.Errorf("unknown platform: %s", platform)
 	}
@@ -581,6 +604,8 @@ func goarchFromPlatform(platform string) ([]string, error) {
 		return []string{"amd64", "arm64"}, nil
 	case "windows":
 		return []string{"amd64"}, nil
+	case "windows-arm64":
+		return []string{"arm64"}, nil
 	case "linux":
 		return []string{"amd64"}, nil
 	case "linux-arm64":

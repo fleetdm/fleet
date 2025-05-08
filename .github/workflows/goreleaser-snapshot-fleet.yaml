@@ -16,6 +16,8 @@ on:
       - "website/**"
       - "mdm-profiles/**"
   workflow_dispatch: # Manual
+  schedule:
+    - cron: '0 4 * * *' # Every day at 4 AM
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -80,11 +82,58 @@ jobs:
       - name: Tag image with branch name
         run: docker tag fleetdm/fleet:$(git rev-parse --short HEAD) fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
 
+      - name: Generate tag
+        id: generate_tag
+        run: |
+          echo "FLEET_IMAGE_TAG=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+
+      - name: List VEX files
+        id: generate_vex_files
+        run: |
+          echo "VEX_FILES=$(ls -1 ./security/vex/fleet/ | while IFS= read -r line; do echo "./security/vex/fleet/$line"; done | tr '\n' ',' | sed 's/.$//')" >> $GITHUB_OUTPUT
+
+      # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
+      - name: Check high/critical vulnerabilities before publishing (trivy)
+        # Only run this on the schedule run or when tagging RCs.
+        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-') || github.event.schedule == '0 4 * * *'
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+        run: |
+          mkdir trivy-download
+          cd trivy-download
+          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.61.0/trivy_0.61.0_Linux-64bit.tar.gz --output trivy_0.61.0_Linux-64bit.tar.gz
+          tar -xf trivy_0.61.0_Linux-64bit.tar.gz
+          mv trivy ..
+          cd ..
+          chmod +x ./trivy
+          ./trivy image \
+            --ignore-unfixed \
+            --exit-code=1 \
+            --pkg-types=os,library \
+            --severity=HIGH,CRITICAL \
+            --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
+            fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}
+
+      - name: Check high/critical vulnerabilities before publishing (docker scout)
+        # Only run this on the schedule run or when tagging RCs.
+        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-') || github.event.schedule == '0 4 * * *'
+        uses: docker/scout-action@381b657c498a4d287752e7f2cfb2b41823f566d9 # v1.17.1
+        with:
+          command: cves
+          image: fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}
+          only-severities: critical,high
+          only-fixed: true
+          only-vex-affected: true
+          write-comment: false
+          vex-location: ./security/vex/fleet
+          exit-code: true
+            
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
 
-      - name: Get tag
+      - name: Get tags
         run: |
           echo "TAG=$(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
         id: docker
@@ -106,3 +155,24 @@ jobs:
           docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
           docker push quay.io/fleetdm/fleet:${TAG}
           done
+
+      - name: Slack notification
+        if: github.event.schedule == '0 4 * * *' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "⚠️ Docker publish failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

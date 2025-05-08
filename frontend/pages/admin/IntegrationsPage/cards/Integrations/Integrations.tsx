@@ -17,6 +17,7 @@ import configAPI from "services/entities/config";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
@@ -267,6 +268,41 @@ const Integrations = (): JSX.Element => {
     [jiraIntegrations, zendeskIntegrations]
   );
 
+  const renderTable = () => {
+    if (loadingIntegrationsError) {
+      return <TableDataError />;
+    }
+    if (isLoadingIntegrations) {
+      return <Spinner />;
+    }
+    return (
+      <TableContainer
+        columnConfigs={tableHeaders}
+        data={tableData}
+        defaultSortHeader="name"
+        defaultSortDirection="asc"
+        isLoading={false}
+        actionButton={{
+          name: "add integration",
+          buttonText: "Add integration",
+          variant: "default",
+          onClick: toggleAddIntegrationModal,
+          hideButton: !tableData?.length,
+        }}
+        resultsTitle="integrations"
+        emptyComponent={() => (
+          <EmptyIntegrationsTable
+            className={noIntegrationsClass}
+            onActionButtonClick={toggleAddIntegrationModal}
+          />
+        )}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        disablePagination
+      />
+    );
+  };
+
   return (
     <div className={`${baseClass}`}>
       <SectionHeader title="Ticket destinations" />
@@ -274,34 +310,7 @@ const Integrations = (): JSX.Element => {
         Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities.
       </p>
-      {loadingIntegrationsError ? (
-        <TableDataError />
-      ) : (
-        <TableContainer
-          columnConfigs={tableHeaders}
-          data={tableData}
-          isLoading={isLoadingIntegrations}
-          defaultSortHeader="name"
-          defaultSortDirection="asc"
-          actionButton={{
-            name: "add integration",
-            buttonText: "Add integration",
-            variant: "brand",
-            onActionButtonClick: toggleAddIntegrationModal,
-            hideButton: !tableData?.length,
-          }}
-          resultsTitle="integrations"
-          emptyComponent={() => (
-            <EmptyIntegrationsTable
-              className={noIntegrationsClass}
-              onActionButtonClick={toggleAddIntegrationModal}
-            />
-          )}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disablePagination
-        />
-      )}
+      {renderTable()}
       {showAddIntegrationModal && (
         <AddIntegrationModal
           onCancel={toggleAddIntegrationModal}

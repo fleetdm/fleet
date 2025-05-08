@@ -6,7 +6,6 @@ import { createMockHostsResponse } from "__mocks__/hostMock";
 import { ILabel } from "interfaces/label";
 import { IHost } from "interfaces/host";
 
-// eslint-disable-next-line import/prefer-default-export
 export const getLabelHandler = (overrides: Partial<ILabel>) =>
   http.get(baseUrl("/labels/:id"), () => {
     return HttpResponse.json({

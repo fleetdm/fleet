@@ -123,6 +123,12 @@ $max-width: 2560px;
   filter: grayscale(0.5);
   pointer-events: none;
   cursor: default;
+
+  // Must override
+  &:hover,
+  &:focus {
+    cursor: default;
+  }
 }
 
 @mixin disabled-checkbox {
@@ -241,6 +247,13 @@ $max-width: 2560px;
   z-index: 100;
   line-height: 1.375;
   white-space: initial;
+
+  // Hyphenated words will still break at hyphens first
+  //  while non-hyphenated strings will break only when necessary
+  overflow-wrap: break-word; // Preferred property for modern browsers
+  word-wrap: break-word; // Fallback for older browsers e.g. IE
+  word-break: break-word; // Ensures words break when necessary
+
   p {
     margin: 0;
   }

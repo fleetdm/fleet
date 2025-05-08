@@ -1,8 +1,12 @@
+// Used on: Dashboard > activity, Host details > past activity
+// Also used on Self-service failed install details
+
 import React from "react";
 import { useQuery } from "react-query";
 
 import { SoftwareInstallStatus } from "interfaces/software";
 import mdmApi from "services/entities/mdm";
+import deviceUserAPI from "services/entities/device_user";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -28,13 +32,16 @@ export type IAppInstallDetails = Pick<
   | "software_title"
   | "app_store_id"
   | "status"
->;
+> & {
+  deviceAuthToken?: string;
+};
 
 export const AppInstallDetails = ({
   status,
   command_uuid = "",
   host_display_name = "",
   software_title = "",
+  deviceAuthToken,
 }: IAppInstallDetails) => {
   const { data: result, isLoading, isError } = useQuery<
     IMdmCommandResult,
@@ -42,20 +49,22 @@ export const AppInstallDetails = ({
   >(
     ["mdm_command_results", command_uuid],
     async () => {
-      return mdmApi.getCommandResults(command_uuid).then((response) => {
-        const results = response.results?.[0];
-        if (!results) {
-          // FIXME: It's currently possible that the command results API response is empty for pending
-          // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
-          // display some minimal pending UI. This should be removed once the API response is fixed.
-          return {} as IMdmCommandResult;
-        }
-        return {
-          ...results,
-          payload: atob(results.payload),
-          result: atob(results.result),
-        };
-      });
+      return deviceAuthToken
+        ? deviceUserAPI.getVppCommandResult(deviceAuthToken, command_uuid)
+        : mdmApi.getCommandResults(command_uuid).then((response) => {
+            const results = response.results?.[0];
+            if (!results) {
+              // FIXME: It's currently possible that the command results API response is empty for pending
+              // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
+              // display some minimal pending UI. This should be removed once the API response is fixed.
+              return {} as IMdmCommandResult;
+            }
+            return {
+              ...results,
+              payload: atob(results.payload),
+              result: atob(results.result),
+            };
+          });
     },
     {
       refetchOnWindowFocus: false,
@@ -114,20 +123,17 @@ export const AppInstallDetails = ({
           </span>
         </div>
         {showCommandPayload && (
-          <div className={`${baseClass}__script-output`}>
-            Request payload:
-            <Textarea className={`${baseClass}__output-textarea`}>
-              {result.payload}
-            </Textarea>
-          </div>
+          <Textarea label="Request payload:" variant="code">
+            {result.payload}
+          </Textarea>
         )}
         {showCommandResponse && (
-          <div className={`${baseClass}__script-output`}>
-            The response from {formattedHost}:
-            <Textarea className={`${baseClass}__output-textarea`}>
-              {result.result}
-            </Textarea>
-          </div>
+          <Textarea
+            label={<>The response from {formattedHost}:</>}
+            variant="code"
+          >
+            {result.result}
+          </Textarea>
         )}
       </div>
     </>
@@ -137,9 +143,11 @@ export const AppInstallDetails = ({
 export const AppInstallDetailsModal = ({
   details,
   onCancel,
+  deviceAuthToken,
 }: {
   details: IAppInstallDetails;
   onCancel: () => void;
+  deviceAuthToken?: string;
 }) => {
   return (
     <Modal
@@ -150,12 +158,10 @@ export const AppInstallDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <AppInstallDetails {...details} />
+          <AppInstallDetails deviceAuthToken={deviceAuthToken} {...details} />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     </Modal>

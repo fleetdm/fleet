@@ -1,3 +1,6 @@
+// Used on: Dashboard > activity, Host details > past activity
+// Also used on Self-service failed install details
+
 import React from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -9,6 +12,7 @@ import {
   ISoftwareInstallResults,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
+import deviceUserAPI from "services/entities/device_user";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -28,7 +32,9 @@ const baseClass = "software-install-details";
 export type IPackageInstallDetails = Pick<
   IActivityDetails,
   "install_uuid" | "host_display_name"
->;
+> & {
+  deviceAuthToken?: string;
+};
 
 const StatusMessage = ({
   result: {
@@ -48,6 +54,8 @@ const StatusMessage = ({
     "the host"
   );
 
+  // TODO: Potential implementation HumanTimeDiffWithDateTip for consistency
+  // Design currently looks weird since displayTimeStamp might split to multiple lines
   const timeStamp = updated_at || created_at;
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
@@ -78,18 +86,19 @@ const Output = ({
   result: ISoftwareInstallResult;
 }) => {
   return (
-    <div className={`${baseClass}__script-output`}>
-      {SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS[displayKey]}:
-      <Textarea className={`${baseClass}__output-textarea`}>
-        {result[displayKey]}
-      </Textarea>
-    </div>
+    <Textarea
+      label={`${SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS[displayKey]}:`}
+      variant="code"
+    >
+      {result[displayKey]}
+    </Textarea>
   );
 };
 
 export const SoftwareInstallDetails = ({
   host_display_name = "",
   install_uuid = "",
+  deviceAuthToken,
 }: IPackageInstallDetails) => {
   const { data: result, isLoading, isError, error } = useQuery<
     ISoftwareInstallResults,
@@ -98,7 +107,9 @@ export const SoftwareInstallDetails = ({
   >(
     ["softwareInstallResults", install_uuid],
     () => {
-      return softwareAPI.getSoftwareInstallResult(install_uuid);
+      return deviceAuthToken
+        ? deviceUserAPI.getSoftwareInstallResult(deviceAuthToken, install_uuid)
+        : softwareAPI.getSoftwareInstallResult(install_uuid);
     },
     {
       refetchOnWindowFocus: false,
@@ -126,24 +137,22 @@ export const SoftwareInstallDetails = ({
 
   return (
     <>
-      <div className={`${baseClass}__software-install-details`}>
-        <StatusMessage
-          result={
-            result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
-          }
-        />
-        {result.status !== "pending_install" && (
-          <>
-            {result.pre_install_query_output && (
-              <Output displayKey="pre_install_query_output" result={result} />
-            )}
-            {result.output && <Output displayKey="output" result={result} />}
-            {result.post_install_script_output && (
-              <Output displayKey="post_install_script_output" result={result} />
-            )}
-          </>
-        )}
-      </div>
+      <StatusMessage
+        result={
+          result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
+        }
+      />
+      {result.status !== "pending_install" && (
+        <>
+          {result.pre_install_query_output && (
+            <Output displayKey="pre_install_query_output" result={result} />
+          )}
+          {result.output && <Output displayKey="output" result={result} />}
+          {result.post_install_script_output && (
+            <Output displayKey="post_install_script_output" result={result} />
+          )}
+        </>
+      )}
     </>
   );
 };
@@ -151,9 +160,11 @@ export const SoftwareInstallDetails = ({
 export const SoftwareInstallDetailsModal = ({
   details,
   onCancel,
+  deviceAuthToken,
 }: {
   details: IPackageInstallDetails;
   onCancel: () => void;
+  deviceAuthToken?: string;
 }) => {
   return (
     <Modal
@@ -164,12 +175,13 @@ export const SoftwareInstallDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <SoftwareInstallDetails {...details} />
+          <SoftwareInstallDetails
+            {...details}
+            deviceAuthToken={deviceAuthToken}
+          />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     </Modal>

@@ -1,0 +1,31 @@
+.categories-menu {
+  display: flex;
+  flex-direction: column;
+  width: 232px;
+
+  // Matches styling in DropdownWrapper > options
+  &__category-link {
+    padding: 10px 8px;
+    font-size: $x-small;
+    font-weight: $regular;
+    border-radius: $border-radius;
+    color: $core-fleet-black;
+
+    // current selection
+    &--active {
+      font-weight: $bold;
+    }
+  }
+
+  // Mouse over/mouse click states
+  &:hover {
+    .categories-menu__category-link:hover {
+      background-color: $ui-vibrant-blue-10;
+      cursor: "pointer";
+    }
+
+    .categories-menu__category-link:active {
+      background-color: $ui-vibrant-blue-25;
+    }
+  }
+}

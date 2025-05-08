@@ -1,5 +1,13 @@
 name: "💻🐣 Workstations (canary)"
 team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
+      enable_failing_policies_webhook: true
+      host_batch_size: 0
+      policy_ids:
+        - 14937
+        - 14100
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -89,29 +97,17 @@ controls:
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
-          - "Macs with 1Password8 installed"
-      - path: ../lib/macos/configuration-profiles/santa-configuration-no-rules-or-sync-server.mobileconfig
+          - "Macs with 1Password installed"
+      - path: ../lib/macos/configuration-profiles/santa-configuration-moroz.mobileconfig
         labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-tcc-configuration-profile-policy.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-system-extension-policy.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-service-management.mobileconfig
-        labels_include_any:
-          - "Santa test device"
-      - path: ../lib/macos/configuration-profiles/santa-notification-settings.mobileconfig
-        labels_include_any:
-          - "Santa test device"
+          - "Santa test devices"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2025-04-26"
-    minimum_version: "15.4"
+    deadline: "2025-05-11"
+    minimum_version: "15.4.1"
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/enable-firewall-all-domains.xml
@@ -163,8 +159,10 @@ queries:
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
-    - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
+    - path: ../lib/macos/software/santa.yml # Santa for macOS
+      labels_include_any:
+        - "Santa test devices"
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
@@ -176,4 +174,4 @@ software:
     - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
-    - app_store_id: "803453959" # Slack Desktop
+    - app_store_id: '803453959' # Slack Desktop

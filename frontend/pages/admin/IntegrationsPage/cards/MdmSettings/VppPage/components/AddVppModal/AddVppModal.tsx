@@ -71,22 +71,15 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
           fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
           onFileUpload={onSelectFile}
-          gitopsCompatible
         />
         <div className="modal-cta-wrap">
-          <GitOpsModeTooltipWrapper
-            tipOffset={8}
-            renderChildren={(disableChildren) => (
-              <Button
-                variant="brand"
-                onClick={uploadVppToken}
-                isLoading={isUploading}
-                disabled={!tokenFile || isUploading || disableChildren}
-              >
-                Add VPP
-              </Button>
-            )}
-          />
+          <Button
+            onClick={uploadVppToken}
+            isLoading={isUploading}
+            disabled={!tokenFile || isUploading}
+          >
+            Add VPP
+          </Button>
         </div>
       </>
     </Modal>

@@ -40,7 +40,7 @@ For possible options, see the parameters for the [Add label API endpoint](https:
 labels:
   - name: Arm64
     description: Hosts on the Arm64 architecture
-    query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
+    query: "SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%' OR cpu_type LIKE 'aarch64%'"
     label_membership_type: dynamic
   - name: C-Suite
     description: Hosts belonging to the C-Suite
@@ -98,11 +98,14 @@ policies:
   - name: macOS - Enable FileVault
     description: This policy checks if FileVault (disk encryption) is enabled.
     resolution: As an IT admin, turn on disk encryption in Fleet.
-    query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+    query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
     platform: darwin
     critical: false
     calendar_events_enabled: false
     conditional_access_enabled: true
+    labels_include_any:
+      - Engineering
+      - Customer Support
 ```
 
 #### Separate file
@@ -113,7 +116,7 @@ policies:
 - name: macOS - Enable FileVault
   description: This policy checks if FileVault (disk encryption) is enabled.
   resolution: As an IT admin, turn on disk encryption in Fleet.
-  query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+  query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
   platform: darwin
   critical: false
   calendar_events_enabled: false
@@ -121,7 +124,7 @@ policies:
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
+  query: "SELECT 1 FROM managed_policies WHERE domain='com.apple.mcx' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;"
   platform: darwin
   critical: false
   calendar_events_enabled: false
@@ -141,7 +144,7 @@ policies:
   query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
   install_software:
     package_path: ./linux-firefox.deb.package.yml
-    # app_store_id: '1487937127' (for App Store apps)
+    # app_store_id: "1487937127" (for App Store apps)
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -235,7 +238,7 @@ labels:
   # Dynamic label:
   - name: Windows Arm
     description: Windows hosts that are running on Arm64.
-    query: SELECT * FROM os_version WHERE arch LIKE 'ARM%';
+    query: "SELECT * FROM os_version WHERE arch LIKE 'ARM%';"
     platform: windows
   # Manual label
   - name: Executive (C-suite) computers
@@ -253,7 +256,7 @@ labels:
 # Dynamic label:
 - name: Windows Arm
   description: Windows hosts that are running on Arm64.
-  query: SELECT * FROM os_version WHERE arch LIKE 'ARM%';
+  query: "SELECT * FROM os_version WHERE arch LIKE 'ARM%';"
   platform: windows
 # Manual label
 - name: Executive (C-suite) computers
@@ -349,14 +352,14 @@ controls:
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: 2024-12-31
-    minimum_version: 15.1
+    deadline: "2024-12-31"
+    minimum_version: "15.1"
   ios_updates: # Available in Fleet Premium
-    deadline: 2024-12-31
-    minimum_version: 18.1
+    deadline: "2024-12-31"
+    minimum_version: "18.1"
   ipados_updates: # Available in Fleet Premium
-    deadline: 2024-12-31
-    minimum_version: 18.1
+    deadline: "2024-12-31"
+    minimum_version: "18.1"
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
     grace_period_days: 2
@@ -381,7 +384,7 @@ controls:
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
     software:
-      - app_store_id: '1091189122'
+      - app_store_id: "1091189122"
       - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
     enable: true
@@ -414,14 +417,21 @@ controls:
 - `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
-Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format. Variables beginning with `$FLEET_VAR_` are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
+Fleet supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format. 
+
+Variables beginning with `$FLEET_VAR_` (currently available only for Apple profiles) are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
+
 - `$FLEET_VAR_NDES_SCEP_CHALLENGE`
 - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
-- `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`
+- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username.
+- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com).
+- `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to.
 - `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy).)
 - `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
 - `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`
+
+You can also use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -429,7 +439,10 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 The `macos_setup` section lets you control the out-of-the-box macOS [setup experience](https://fleetdm.com/guides/macos-setup-experience) for hosts that use Automated Device Enrollment (ADE).
 
+> **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package (default: `""`).
+- `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
@@ -449,44 +462,66 @@ Can only be configured for all teams (`default.yml`).
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
+The `software` section allows you to configure packages, Apple App Store apps, and Fleet-maintained apps that you want to install on your hosts.
 
-Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
-
-- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, or .deb).
+- `packages` is a list of paths to custom packages (.pkg, .msi, .exe, .rpm, .deb, or .tar.gz).
 - `app_store_apps` is a list of Apple App Store apps.
+- `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
 Currently, one app for each of an App Store app's supported platforms are added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet. Specifying specific platforms is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
 #### Example
 
-`default.yml`, `teams/team-name.yml`, or `teams/no-team.yml`
+`teams/team-name.yml`, or `teams/no-team.yml`
 
 ```yaml
 software:
   packages:
     - path: ../lib/software-name.package.yml
     - path: ../lib/software-name2.package.yml
-      labels_include_any: # Available in Fleet Premium
+      labels_include_any:
         - Engineering
         - Customer Support
   app_store_apps:
-    - app_store_id: '1091189122'
+    - app_store_id: "1091189122"
       labels_include_any: # Available in Fleet Premium
         - Product
         - Marketing
+      categories:
+        - Communication
+  fleet_maintained_apps:
+    - slug: slack/darwin
+      self_service: true
+      labels_include_any:
+        - Design
+        - Sales
+      categories:
+        - Communication
+        - Productivity
 ```
 
 Use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
+##### Supported software categories
+
+Use `categories` to group self-service software on your end users' **Fleet Desktop > My device** page. Here are the supported categories:
+- `Browsers`: group under **🌎 Browsers**
+- `Communication`: group under **👬 Communication**
+- `Developer tools`: group under **🧰 Developer tools**
+- `Productivity`: group under **🖥️ Productivity**
+
 ### packages
 
-- `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`).
-- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables) (default: `""`).
+- `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
+- `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist, Fleet will download the package, then verify that the hash matches, bailing out if it does not match.
+- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
+- `categories` is an array of categories. See [supported categories](#supported-software-categories).
+
+> Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
 #### Example
 
@@ -500,6 +535,8 @@ uninstall_script:
   path: ../lib/software/tailscale-uninstall-script.ps1
 post_install_script:
   path: ../lib/software/tailscale-config-script.ps1
+categories:
+  - Browsers
 self_service: true
 ```
 
@@ -510,6 +547,15 @@ self_service: true
 > Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
+- `categories` is an array of categories. See [supported categories](#supported-software-categories).
+
+### fleet_maintained_apps
+
+- `fleet_maintained_apps` is a list of Fleet-maintained apps. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app. From there, select **Show details**. You can also see the list [here in GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
+
+> Currently, Fleet-maintained apps do not auto-update. To get the newest version of a Fleet-maintained app for a team, remove the app from that team, run GitOps, then add the app back and run GitOps again.
+
+> Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify categories when adding a self-service Fleet-maintained app, the default categories will be used.
 
 ## org_settings and team_settings
 
@@ -569,6 +615,10 @@ org_settings:
 - `contact_url` is a URL that appears in error messages presented to end users (default: `"https://fleetdm.com/company/contact"`)
 
 Can only be configured for all teams (`org_settings`).
+
+To get the best results for your logos (`org_logo_url` and `org_logo_url_light_background`), use the following sizes:
+- For square logos, use a PNG that's 256x256 pixels (px).
+- For rectangular logos (wordmark), use a PNG that's 516x256 pixels (px).
 
 #### Example
 
@@ -657,6 +707,8 @@ In addition, you can configure your certificate authorities (CA) to help your en
 
 #### Example
 
+`default.yml`
+
 ```yaml
 org_settings:
   integrations:
@@ -686,11 +738,20 @@ org_settings:
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
       username: Administrator@example.com
-      password: 'myPassword'
+      password: myPassword
     custom_scep_proxy:
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
+```
+
+`/teams/team-name.yml`
+
+At the team level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium. Must have Microsoft Entra connected.)
+
+```yaml
+integrations:
+  conditional_access_enabled: true
 ```
 
 For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
@@ -715,6 +776,9 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
 #### digicert
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
 - `api_token` is the token used to authenticate requests to DigiCert.
@@ -730,6 +794,9 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 - `password` is the password of the NDES admin endpoint (default: `""`).
 
 #### scep_proxy
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
 - `challenge` is the static challenge password used to authenticate requests to SCEP server.

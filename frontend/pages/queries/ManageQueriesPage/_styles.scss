@@ -67,8 +67,11 @@
             .name__header {
               width: auto;
             }
-            .platforms__header {
+            .platform__header {
               width: $col-sm;
+            }
+            .interval__header {
+              max-width: $col-xs;
             }
             .updated_at__header {
               display: none;
@@ -79,8 +82,10 @@
               width: 0;
               @media (min-width: $break-md) {
                 display: table-cell;
-                width: auto;
               }
+            }
+            .automations_enabled__header {
+              max-width: $col-xs;
             }
             @media (min-width: $break-lg) {
               .author_name__header {
@@ -89,49 +94,19 @@
               .updated_at__header {
                 display: table-cell;
                 width: auto;
+                max-width: $col-md;
               }
             }
           }
           tbody {
             .name__cell {
-              max-width: $col-lg;
+              width: auto;
 
-              .query-name-cell {
-                display: flex; // required for inline icon
-                gap: $pad-xsmall;
-                text-decoration: none;
-                align-items: center;
-                &:hover {
-                  .query-name-text {
-                    text-decoration: underline;
-                  }
-                }
-
-                .query-name-text {
-                  text-overflow: ellipsis;
-                  overflow: hidden;
-                }
-
-                .inherited-badge {
-                  overflow: initial;
-                }
-                .observer-can-run-badge {
-                  @include tooltip5-arrow-styles;
-
-                  .react-tooltip {
-                    @include tooltip-text;
-                    font-style: normal;
-                    text-align: center;
-                  }
-                }
+              .inherited-badge {
+                overflow: initial;
               }
-              .observer-can-run-query-icon {
-                display: block;
-              }
-
-              .children-wrapper {
-                display: flex;
-                gap: $pad-xsmall;
+              .observer-can-run-badge {
+                @include tooltip5-arrow-styles;
               }
             }
 
@@ -142,8 +117,11 @@
                 }
               }
             }
-            .platforms__cell {
-              max-width: $col-md;
+            .platform__cell {
+              max-width: $col-sm;
+            }
+            .interval__cell {
+              max-width: $col-xs;
             }
             .updated_at__cell {
               display: none;
@@ -151,13 +129,18 @@
             }
             .performance__cell {
               display: none;
-              max-width: $col-md;
             }
             @media (min-width: $break-md) {
               .performance__cell {
                 display: table-cell;
+                max-width: $col-sm;
               }
             }
+
+            .automations_enabled__cell {
+              max-width: $col-xs;
+            }
+
             @media (min-width: $break-lg) {
               .updated_at__cell {
                 display: table-cell;

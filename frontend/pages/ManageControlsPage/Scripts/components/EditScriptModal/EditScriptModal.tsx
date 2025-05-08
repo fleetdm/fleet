@@ -105,10 +105,14 @@ const EditScriptModal = ({
       return <DataError description="Close this modal and try again." />;
     }
 
+    // Set editing mode based on the file extension.
+    const mode = scriptName.match(/\.sh$/) ? "sh" : "powershell";
+
     return (
       <>
         <form onSubmit={onSubmit}>
           <Editor
+            mode={mode}
             error={formError}
             isFormField
             label="Script"
@@ -145,7 +149,6 @@ const EditScriptModal = ({
               </Button>
               <Button
                 onClick={onSave}
-                variant="brand"
                 isLoading={isSubmitting}
                 disabled={!!formError}
               >

@@ -1728,21 +1728,27 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 		{nil, ""},
 		{
 			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{})},
+				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{})},
 			},
 			"",
 		},
 		{
 			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
+				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
 			},
 			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get></SyncBody>';",
 		},
 		{
 			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
-				{Name: "N2", RawProfile: syncml.ForTestWithData(map[string]string{"L2": "D2"})},
-				{Name: "N3", RawProfile: syncml.ForTestWithData(map[string]string{"L3": "D3", "L3.1": "D3.1"})},
+				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L1", Data: "D1"}})},
+			},
+			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get></SyncBody>';",
+		},
+		{
+			[]*fleet.ExpectedMDMProfile{
+				{Name: "N1", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
+				{Name: "N2", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Add", LocURI: "L2", Data: "D2"}})},
+				{Name: "N3", RawProfile: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}, {Verb: "Add", LocURI: "L3.1", Data: "D3.1"}})},
 			},
 			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get><Get><CmdID>2736786183</CmdID><Item><Target><LocURI>L2</LocURI></Target></Item></Get><Get><CmdID>894211447</CmdID><Item><Target><LocURI>L3</LocURI></Target></Item></Get><Get><CmdID>3410477854</CmdID><Item><Target><LocURI>L3.1</LocURI></Target></Item></Get></SyncBody>';",
 		},
@@ -1886,7 +1892,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := log.NewNopLogger()
-	host := &fleet.Host{ID: 1}
+	host := &fleet.Host{ID: 1, UUID: "host-uuid"}
 
 	row1 := map[string]string{
 		"ca":                "0",
@@ -1919,8 +1925,9 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32",
 	}
 
-	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error {
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
 		require.Equal(t, host.ID, hostID)
+		require.Equal(t, host.UUID, hostUUID)
 		require.Len(t, certs, 1)
 		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
 		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)

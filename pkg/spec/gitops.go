@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode"
@@ -75,6 +76,7 @@ type PolicyRunScript struct {
 type PolicyInstallSoftware struct {
 	PackagePath string `json:"package_path"`
 	AppStoreID  string `json:"app_store_id"`
+	HashSHA256  string `json:"hash_sha256"`
 }
 
 type Query struct {
@@ -93,8 +95,9 @@ type SoftwarePackage struct {
 }
 
 type Software struct {
-	Packages     []SoftwarePackage           `json:"packages"`
-	AppStoreApps []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	Packages            []SoftwarePackage           `json:"packages"`
+	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	FleetMaintainedApps []fleet.MaintainedApp       `json:"fleet_maintained_apps"`
 }
 
 type GitOps struct {
@@ -815,8 +818,8 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
 		return errors.New("install_software can only be set on team policies")
 	}
-	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" {
-		return errors.New("install_software must include either a package path or app store app ID")
+	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" {
+		return errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256")
 	}
 	if policy.InstallSoftware.PackagePath != "" && policy.InstallSoftware.AppStoreID != "" {
 		return errors.New("install_software must have only one of package_path or app_store_id")
@@ -940,6 +943,8 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	return multiError
 }
 
+var validSHA256Value = regexp.MustCompile(`\b[a-f0-9]{64}\b`)
+
 func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	softwareRaw, ok := top["software"]
 	if result.global() {
@@ -963,6 +968,9 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}
+	}
+	if software.FleetMaintainedApps != nil {
+		return multierror.Append(multiError, errors.New("Fleet maintained apps are not currently supported in GitOps"))
 	}
 	for _, item := range software.AppStoreApps {
 		item := item
@@ -1014,6 +1022,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 		}
+		if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
+			multiError = multierror.Append(multiError, fmt.Errorf("hash_256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
+			continue
+		}
+		if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
+			multiError = multierror.Append(multiError, errors.New("at least one of hash_sha256 or url is required for each software package"))
+			continue
+		}
 		if softwarePackageSpec.UninstallScript.Path != "" {
 			if err := gatherFileSecrets(result, softwarePackageSpec.UninstallScript.Path); err != nil {
 				multiError = multierror.Append(multiError, err)
@@ -1022,10 +1038,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 		if len(softwarePackageSpec.LabelsExcludeAny) > 0 && len(softwarePackageSpec.LabelsIncludeAny) > 0 {
 			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
-			continue
-		}
-		if softwarePackageSpec.URL == "" {
-			multiError = multierror.Append(multiError, errors.New("software URL is required"))
 			continue
 		}
 		if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
@@ -1043,6 +1055,10 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			// certain that the package will fail later.
 			if strings.HasSuffix(parsedUrl.Path, ".exe") {
 				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+				continue
+			}
+			if strings.HasSuffix(parsedUrl.Path, ".tar.gz") || strings.HasSuffix(parsedUrl.Path, ".tgz") {
+				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
 				continue
 			}
 		}

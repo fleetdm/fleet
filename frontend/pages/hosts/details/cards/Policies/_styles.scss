@@ -18,37 +18,6 @@
           width: 140px;
         }
       }
-      tbody {
-        tr {
-          .name__cell {
-            max-width: 0; // sets ellipsis
-
-            .truncated-tooltip {
-              font-weight: $regular;
-            }
-          }
-
-          .policy-link {
-            opacity: 0;
-            transition: 250ms;
-            text-overflow: none;
-          }
-          &:hover {
-            .policy-link {
-              opacity: 1;
-            }
-          }
-          .policy-info {
-            width: 100%; // sets ellipsis
-            justify-content: left;
-
-            &::after {
-              content: url("../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png");
-              transform: scale(0.5);
-            }
-          }
-        }
-      }
     }
   }
 }

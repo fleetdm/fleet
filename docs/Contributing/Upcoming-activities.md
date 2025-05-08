@@ -51,8 +51,19 @@ Note that:
 * Queries that need to return _pending_ state must look into the `upcoming_activities` table, and depending on the query and activity type, may need to also UNION with the table that holds the in-progress state, e.g. `host_script_results` for scripts.
     - For example, `Datastore.GetHostScriptDetails` returns details of the latest execution request for a script, regardless of if it is pending, in progress or done. To do so, the query does a UNION in `upcoming_activities` and `host_script_results`, using the latest in `host_script_results` only if none exist in `upcoming_activities` (if there is a request in `upcoming_activities`, it is necessarily more recent than the ones that already have a result).
 	- Many examples already exist that look into both tables, make sure to search for existing examples to help keep a consistent pattern (and fix any bugs in all places if one is found).
-* For VPP app installs, the call to `activateNextUpcomingActivity` is done when the `ActivityInstalledAppStoreApp` past activity gets created, not in a transaction when the MDM command result gets saved. 
+* For VPP app installs, the call to `activateNextUpcomingActivity` is done when the `ActivityInstalledAppStoreApp` past activity gets created, not in a transaction when the MDM command result gets saved.
     - This is due to our use of the third-party `nanomdm` package where saving MDM results is done by this package while our handling of the result is done separately in the `server/service/apple_mdm.go` file. Pretty much all of the state that Fleet saves in relation with MDM command results is not transactional with saving the MDM result itself in the `nano_*` tables.
+
+### Cancellation
+
+Starting with Fleet v4.67.0, cancellation of upcoming activities is supported. It is implemented as follows:
+
+* If the upcoming activity was not _activated_ yet, then it simply deletes the row from `upcoming_activities`. A few more cleanup steps are done to ensure that if it was a Wipe/Lock script, the host's state is properly reset to "not pending wipe/lock".
+* Otherwise if it was _activated_, then a new `canceled` boolean field was added to the `host_script_results`, `host_software_installs` and `host_vpp_software_installs` tables and it is set to `true` for the corresponding row. In addition to this:
+    - If the software/VPP app install or script was part of the setup experience flow, the corresponding entry in setup experience is marked as "failed";
+	- For VPP apps, the corresponding MDM command is marked as inactive (`active = 0`) so that it won't be sent to the host if it hasn't already been sent.
+
+An _activated_ activity is not guaranteed to not run/execute, because the host may have already received request to process it. This is ok, Fleet will properly record any result of a canceled activity, it just won't show up in Fleet because it will just show as _canceled_ (there are new past activities for the cancelation of upcoming activities). Queries that return e.g. the last status of a software install or the last result of a saved script will ignore canceled executions.
 
 ## Testing
 
