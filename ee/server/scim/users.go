@@ -642,7 +642,7 @@ func (u *UserHandler) patchEmailsWithPathFiltering(op scim.PatchOperation, user 
 			user.Emails[emailIndex].Primary = nil
 			return nil
 		}
-		primary, err := getConcreteBoolType(u, op.Value, primaryAttr)
+		primary, err := getConcreteType[bool](u, op.Value, primaryAttr)
 		if err != nil {
 			return err
 		}
@@ -702,30 +702,12 @@ func (u *UserHandler) getEmailType(op scim.PatchOperation) (string, error) {
 	return emailType, nil
 }
 
-func getConcreteType[T string](u *UserHandler, v interface{}, name string) (T, error) {
+func getConcreteType[T string | bool](u *UserHandler, v interface{}, name string) (T, error) {
 	concreteType, ok := v.(T)
 	if !ok {
 		var zeroValue T
 		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' value", name), "value", v)
 		return zeroValue, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
-	}
-	return concreteType, nil
-}
-
-func getConcreteBoolType(u *UserHandler, v interface{}, name string) (bool, error) {
-	if strVal, isStr := v.(string); isStr {
-		switch strings.ToLower(strVal) {
-		case "true":
-			return true, nil
-		case "false":
-			return false, nil
-		}
-	}
-
-	concreteType, ok := v.(bool)
-	if !ok {
-		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' value", name), "value", v)
-		return false, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
 	}
 	return concreteType, nil
 }
@@ -761,7 +743,7 @@ func (u *UserHandler) patchActive(op string, v interface{}, user *fleet.ScimUser
 		user.Active = nil
 		return nil
 	}
-	active, err := getConcreteBoolType(u, v, activeAttr)
+	active, err := getConcreteType[bool](u, v, activeAttr)
 	if err != nil {
 		return err
 	}
