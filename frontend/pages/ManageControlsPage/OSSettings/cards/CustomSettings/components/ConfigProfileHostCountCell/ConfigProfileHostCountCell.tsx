@@ -41,7 +41,7 @@ const ConfigProfileHostCountCell = ({
   const renderResendButton = () => {
     // we check if the count is 0 or if the uuid starts with "d" which means it
     // is a DDM profile.
-    if (count === 0 || uuid[0] === "d") {
+    if (count === 0 || uuid[0] === "d" || status !== "failed") {
       return null;
     }
 
