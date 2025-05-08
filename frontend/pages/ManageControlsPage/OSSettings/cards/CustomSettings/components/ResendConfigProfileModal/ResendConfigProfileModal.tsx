@@ -11,7 +11,6 @@ const baseClass = "resend-config-profile-modal";
 interface IResendConfigProfileModalProps {
   name: string;
   uuid: string;
-  status: string;
   count: number;
   onExit: () => void;
 }
@@ -19,7 +18,6 @@ interface IResendConfigProfileModalProps {
 const ResendConfigProfileModal = ({
   name,
   uuid,
-  status,
   count,
   onExit,
 }: IResendConfigProfileModalProps) => {
@@ -31,7 +29,7 @@ const ResendConfigProfileModal = ({
   const onClickResend = async () => {
     setIsResending(true);
     try {
-      await configProfilesAPI.batchResendConfigProfile(uuid, status);
+      await configProfilesAPI.batchResendConfigProfile(uuid);
       renderFlash(
         "success",
         <>

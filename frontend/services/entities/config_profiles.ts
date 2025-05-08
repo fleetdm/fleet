@@ -27,12 +27,12 @@ export default {
     });
   },
 
-  batchResendConfigProfile: (uuid: string, status: string): Promise<void> => {
+  batchResendConfigProfile: (uuid: string): Promise<void> => {
     const { CONFIG_PROFILE_BATCH_RESEND } = endpoints;
     const body = {
       profile_uuid: uuid,
       filters: {
-        profile_status: status,
+        profile_status: "failed",
       },
     };
     return sendRequest("POST", CONFIG_PROFILE_BATCH_RESEND, body);
