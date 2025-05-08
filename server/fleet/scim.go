@@ -96,6 +96,9 @@ type ScimGroupsListOptions struct {
 
 	// DisplayNameFilter filters by displayName
 	DisplayNameFilter *string
+
+	// ExcludeUsers if true, the group's users will not be fetched
+	ExcludeUsers bool
 }
 
 type ScimGroup struct {

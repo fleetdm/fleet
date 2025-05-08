@@ -111,6 +111,25 @@ func createGroupFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimG
 	return &group, nil
 }
 
+// areMembersExcluded checks if the members attribute is excluded in the request
+func areMembersExcluded(r *http.Request) bool {
+	excludedAttrs := r.URL.Query().Get("excludedAttributes")
+	if excludedAttrs == "" {
+		return false
+	}
+
+	// Split the excluded attributes by comma
+	attrs := strings.Split(excludedAttrs, ",")
+	for _, attr := range attrs {
+		// Trim spaces and check if it's "members"
+		if strings.TrimSpace(attr) == membersAttr {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Get the Scim group by ID. The group id is of the format: group-123
 // SCIM resource IDs must be unique across all resources.
 func (g *GroupHandler) Get(r *http.Request, id string) (scim.Resource, error) {
@@ -120,7 +139,7 @@ func (g *GroupHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
-	group, err := g.ds.ScimGroupByID(r.Context(), idUint)
+	group, err := g.ds.ScimGroupByID(r.Context(), idUint, areMembersExcluded(r))
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(g.logger).Log("msg", "failed to find group", "id", id)
@@ -177,6 +196,7 @@ func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (s
 			StartIndex: uint(startIndex), // nolint:gosec // ignore G115
 			PerPage:    uint(count),      // nolint:gosec // ignore G115
 		},
+		ExcludeUsers: areMembersExcluded(r),
 	}
 
 	resourceFilter := r.URL.Query().Get("filter")
@@ -287,7 +307,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	group, err := g.ds.ScimGroupByID(r.Context(), idUint)
+	group, err := g.ds.ScimGroupByID(r.Context(), idUint, false)
 	switch {
 	case fleet.IsNotFound(err):
 		level.Info(g.logger).Log("msg", "failed to find group to patch", "id", id)
@@ -530,8 +550,9 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 	// For remove operations, remove the member if found
 	if op.Op == scim.PatchOperationRemove {
 		if !memberFound {
-			level.Info(g.logger).Log("msg", "member not found", "member_id", memberID, "op", fmt.Sprintf("%v", op))
-			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			level.Info(g.logger).Log("msg", "member not found in group", "member_id", memberID, "op", fmt.Sprintf("%v", op))
+			// The member may have been removed already from this group. For example, if the member was deleted.
+			return nil
 		}
 		group.ScimUsers = append(group.ScimUsers[:memberIndex], group.ScimUsers[memberIndex+1:]...)
 		return nil

@@ -662,7 +662,8 @@ func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint,
 }
 
 // ScimGroupByID retrieves a SCIM group by ID
-func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGroup, error) {
+// If excludeUsers is true, the group's users will not be fetched
+func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bool) (*fleet.ScimGroup, error) {
 	const query = `
 		SELECT
 			id, external_id, display_name
@@ -678,17 +679,20 @@ func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGro
 		return nil, ctxerr.Wrap(ctx, err, "select scim group")
 	}
 
-	// Get the group's users
-	users, err := getScimGroupUsers(ctx, ds.reader(ctx), id)
-	if err != nil {
-		return nil, err
+	// Get the group's users if not excluded
+	if !excludeUsers {
+		users, err := getScimGroupUsers(ctx, ds.reader(ctx), id)
+		if err != nil {
+			return nil, err
+		}
+		group.ScimUsers = users
 	}
-	group.ScimUsers = users
 
 	return group, nil
 }
 
 // ScimGroupByDisplayName retrieves a SCIM group by display name
+// This method always fetches the group's users
 func (ds *Datastore) ScimGroupByDisplayName(ctx context.Context, displayName string) (*fleet.ScimGroup, error) {
 	const query = `
 		SELECT
@@ -884,6 +888,7 @@ func (ds *Datastore) DeleteScimGroup(ctx context.Context, id uint) error {
 }
 
 // ListScimGroups retrieves a list of SCIM groups with pagination
+// If opts.ExcludeUsers is true, the groups' users will not be fetched
 func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimGroupsListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
 	// Default pagination values if not provided
 	if opts.StartIndex == 0 {
@@ -941,34 +946,37 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimGroupsLi
 		return groups, totalResults, nil
 	}
 
-	// Fetch users for all groups in a single query
-	userQuery, args, err := sqlx.In(`
-		SELECT
-			group_id, scim_user_id
-		FROM scim_user_group
-		WHERE group_id IN (?)
-		ORDER BY scim_user_id ASC
-	`, groupIDs)
-	if err != nil {
-		return nil, 0, ctxerr.Wrap(ctx, err, "prepare users query")
-	}
-
-	// Execute the user query
-	type groupUser struct {
-		GroupID uint `db:"group_id"`
-		UserID  uint `db:"scim_user_id"`
-	}
-	var allGroupUsers []groupUser
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allGroupUsers, userQuery, args...); err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return nil, 0, ctxerr.Wrap(ctx, err, "select scim group users")
+	// Skip fetching users if ExcludeUsers is true
+	if !opts.ExcludeUsers {
+		// Fetch users for all groups in a single query
+		userQuery, args, err := sqlx.In(`
+			SELECT
+				group_id, scim_user_id
+			FROM scim_user_group
+			WHERE group_id IN (?)
+			ORDER BY scim_user_id ASC
+		`, groupIDs)
+		if err != nil {
+			return nil, 0, ctxerr.Wrap(ctx, err, "prepare users query")
 		}
-	}
 
-	// Associate users with their groups
-	for _, gu := range allGroupUsers {
-		if group, ok := groupMap[gu.GroupID]; ok {
-			group.ScimUsers = append(group.ScimUsers, gu.UserID)
+		// Execute the user query
+		type groupUser struct {
+			GroupID uint `db:"group_id"`
+			UserID  uint `db:"scim_user_id"`
+		}
+		var allGroupUsers []groupUser
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allGroupUsers, userQuery, args...); err != nil {
+			if !errors.Is(err, sql.ErrNoRows) {
+				return nil, 0, ctxerr.Wrap(ctx, err, "select scim group users")
+			}
+		}
+
+		// Associate users with their groups
+		for _, gu := range allGroupUsers {
+			if group, ok := groupMap[gu.GroupID]; ok {
+				group.ScimUsers = append(group.ScimUsers, gu.UserID)
+			}
 		}
 	}
 

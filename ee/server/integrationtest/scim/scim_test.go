@@ -315,7 +315,7 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
 		"Operations": []map[string]interface{}{
 			{
-				"op":    "replace",
+				"op":    "Replace",
 				"path":  "active",
 				"value": false,
 			},
@@ -442,6 +442,16 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	getMember := getMembers[0].(map[string]interface{})
 	assert.Equal(t, userID, getMember["value"])
 
+	// Test getting a group by ID with excludedAttributes=members
+	var getExcludedResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups/"+groupID), nil, http.StatusOK, &getExcludedResp, "excludedAttributes", "members")
+	assert.Equal(t, groupID, getExcludedResp["id"])
+	assert.Equal(t, "Test Group", getExcludedResp["displayName"])
+
+	// Verify members are not included in the response
+	membersExist := getExcludedResp["members"] != nil
+	assert.False(t, membersExist, "Members should not be included when excludedAttributes=members")
+
 	// Test getting a group with a bad ID
 	var errResp map[string]interface{}
 	s.DoJSON(t, "GET", scimPath("/Groups/99999"), nil, http.StatusNotFound, &errResp)
@@ -455,6 +465,22 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	resources, ok := listResp["Resources"].([]interface{})
 	assert.True(t, ok, "Resources should be an array")
 	assert.GreaterOrEqual(t, len(resources), 1, "Should have at least 1 group")
+
+	// Test listing groups with excludedAttributes=members
+	var listExcludedResp map[string]interface{}
+	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &listExcludedResp, "excludedAttributes", "members")
+	assert.EqualValues(t, listExcludedResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	resourcesExcluded, ok := listExcludedResp["Resources"].([]interface{})
+	assert.True(t, ok, "Resources should be an array")
+	assert.GreaterOrEqual(t, len(resourcesExcluded), 1, "Should have at least 1 group")
+
+	// Verify members are not included in any of the groups
+	for _, resource := range resourcesExcluded {
+		group, ok := resource.(map[string]interface{})
+		assert.True(t, ok, "Group should be an object")
+		_, hasMembersField := group["members"]
+		assert.False(t, hasMembersField, "Group should not have members field when excludedAttributes=members")
+	}
 
 	// Create a second group with a different display name for filtering tests
 	secondGroupID, _ := createTestGroup(t, s, "Second Test Group", []string{userID})
@@ -511,7 +537,8 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	assert.Equal(t, "Updated Test Group", updateResp["displayName"])
 
 	// Verify members were removed
-	_, membersExist := updateResp["members"]
+	updateMembersExist := updateResp["members"] != nil
+	assert.False(t, updateMembersExist, "Members should not be present or should be empty")
 	assert.False(t, membersExist, "Members should not be present or should be empty")
 
 	// Test deleting a group
@@ -4176,12 +4203,11 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 			},
 		}
 
-		var errorResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchRemoveNonExistentPayload, http.StatusBadRequest, &errorResp)
-
-		// Verify the error response
-		assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, errorResp["detail"], "Bad Request")
+		var removeMemberResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchRemoveNonExistentPayload, http.StatusOK, &removeMemberResp)
+		members, ok = removeMemberResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 1, len(members), "Group should have 1 member")
 	})
 }
 

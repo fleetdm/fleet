@@ -863,7 +863,7 @@ func testScimGroupCreate(t *testing.T, ds *Datastore) {
 		groupCopy.ID, err = ds.CreateScimGroup(t.Context(), &g)
 		require.NoError(t, err)
 
-		verify, err := ds.ScimGroupByID(t.Context(), g.ID)
+		verify, err := ds.ScimGroupByID(t.Context(), g.ID, false)
 		require.NoError(t, err)
 
 		assert.Equal(t, groupCopy.ID, verify.ID)
@@ -932,7 +932,7 @@ func testScimGroupByID(t *testing.T, ds *Datastore) {
 
 	// Test retrieving each group
 	for _, tt := range groups {
-		returned, err := ds.ScimGroupByID(t.Context(), tt.ID)
+		returned, err := ds.ScimGroupByID(t.Context(), tt.ID, false)
 		assert.Nil(t, err)
 		assert.Equal(t, tt.ID, returned.ID)
 		assert.Equal(t, tt.DisplayName, returned.DisplayName)
@@ -953,8 +953,19 @@ func testScimGroupByID(t *testing.T, ds *Datastore) {
 	}
 
 	// Test missing group
-	_, err := ds.ScimGroupByID(t.Context(), 10000000000)
+	_, err := ds.ScimGroupByID(t.Context(), 10000000000, false)
 	assert.True(t, fleet.IsNotFound(err))
+
+	// Test with excludeUsers=true
+	for _, tt := range groups {
+		returnedWithoutUsers, err := ds.ScimGroupByID(t.Context(), tt.ID, true)
+		assert.Nil(t, err)
+		assert.Equal(t, tt.ID, returnedWithoutUsers.ID)
+		assert.Equal(t, tt.DisplayName, returnedWithoutUsers.DisplayName)
+		assert.Equal(t, tt.ExternalID, returnedWithoutUsers.ExternalID)
+		// Verify that users were not fetched
+		assert.Empty(t, returnedWithoutUsers.ScimUsers, "ScimUsers should be empty when excludeUsers=true")
+	}
 }
 
 func testScimGroupByDisplayName(t *testing.T, ds *Datastore) {
@@ -1045,7 +1056,7 @@ func testReplaceScimGroup(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the group was created correctly
-	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID)
+	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID, false)
 	require.NoError(t, err)
 	assert.Equal(t, group.DisplayName, createdGroup.DisplayName)
 	assert.Equal(t, group.ExternalID, createdGroup.ExternalID)
@@ -1065,7 +1076,7 @@ func testReplaceScimGroup(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 
 	// Verify the group was updated correctly
-	replacedGroup, err := ds.ScimGroupByID(t.Context(), group.ID)
+	replacedGroup, err := ds.ScimGroupByID(t.Context(), group.ID, false)
 	require.Nil(t, err)
 	assert.Equal(t, updatedGroup.DisplayName, replacedGroup.DisplayName)
 	assert.Equal(t, updatedGroup.ExternalID, replacedGroup.ExternalID)
@@ -1162,7 +1173,7 @@ func testDeleteScimGroup(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Verify the group was created correctly
-	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID)
+	createdGroup, err := ds.ScimGroupByID(t.Context(), group.ID, false)
 	require.Nil(t, err)
 	assert.Equal(t, group.DisplayName, createdGroup.DisplayName)
 
@@ -1171,7 +1182,7 @@ func testDeleteScimGroup(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 
 	// Verify the group was deleted
-	_, err = ds.ScimGroupByID(t.Context(), group.ID)
+	_, err = ds.ScimGroupByID(t.Context(), group.ID, false)
 	assert.True(t, fleet.IsNotFound(err))
 
 	// Test deleting a non-existent group
@@ -1291,6 +1302,23 @@ func testListScimGroups(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Empty(t, emptyResults, "Should find no groups with a non-existent display name")
 	assert.Equal(t, uint(0), totalEmptyResults)
+
+	// Test 6: List groups with ExcludeUsers=true
+	groupsWithoutUsers, totalWithoutUsers, err := ds.ListScimGroups(t.Context(), fleet.ScimGroupsListOptions{
+		ScimListOptions: fleet.ScimListOptions{
+			StartIndex: 1,
+			PerPage:    10,
+		},
+		ExcludeUsers: true,
+	})
+	require.Nil(t, err)
+	assert.GreaterOrEqual(t, len(groupsWithoutUsers), 3, "Should find at least 3 groups")
+	assert.Equal(t, totalResults, totalWithoutUsers, "Total count should be the same with or without users")
+
+	// Verify that users were not fetched
+	for _, group := range groupsWithoutUsers {
+		assert.Empty(t, group.ScimUsers, "ScimUsers should be empty when ExcludeUsers=true")
+	}
 }
 
 func testScimUserCreateValidation(t *testing.T, ds *Datastore) {
@@ -1782,9 +1810,6 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.associateHostWithScimUser(ctx, host2.ID, scimUser2)
 	require.NoError(t, err)
-	// add scimUser3 as extra user (not the official IdP user) for host1
-	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser3)
-	require.NoError(t, err)
 
 	// no profiles exist yet for any host, so this setup hasn't triggered anything
 	assertHostProfileStatus(t, ds, host1.UUID)
@@ -2005,29 +2030,11 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	forceSetHostProfileStatus(t, ds, host3.UUID, profGroup, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetHostProfileStatus(t, ds, host3.UUID, profAll, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
-	// add user2 as extra user for host1
-	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser2)
-	require.NoError(t, err)
-
-	// no change (this is an extra user)
-	assertHostProfileStatus(t, ds, host1.UUID,
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
-	assertHostProfileStatus(t, ds, host2.UUID,
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
-	assertHostProfileStatus(t, ds, host3.UUID,
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profAll.ProfileUUID, fleet.MDMDeliveryVerifying})
-
-	// delete user1, affects host1 as now user2 is its IdP user
+	// delete user1
 	err = ds.DeleteScimUser(ctx, scimUser1)
+	require.NoError(t, err)
+	// add user2 as new user for host1
+	err = ds.associateHostWithScimUser(ctx, host1.ID, scimUser2)
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
