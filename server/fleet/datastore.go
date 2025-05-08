@@ -1515,6 +1515,8 @@ type Datastore interface {
 	// ReconcileMDMAppleEnrollRef returns the legacy enrollment reference for a
 	// device with the given host UUID.
 	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (string, error)
+	// GetMDMIdPAccountByHostUUID returns the MDM IdP account that associated with the given host UUID.
+	GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*MDMIdPAccount, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM

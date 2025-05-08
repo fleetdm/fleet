@@ -3864,10 +3864,10 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		}
 	}
 
-	return ds.maybeAssociateHostMDMIdPWithScimUser(ctx, hostID, idp)
+	return maybeAssociateHostMDMIdPWithScimUser(ctx, ds.writer(ctx), ds.logger, hostID, idp)
 }
 
-func (ds *Datastore) maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, hostID uint, idp *fleet.MDMIdPAccount) error {
+func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
 	if idp == nil {
 		// TODO: confirm desired behavior here
 		return nil
@@ -3875,7 +3875,7 @@ func (ds *Datastore) maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, h
 
 	// Check if a SCIM user association already exists for this host.
 	var exists uint
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
+	err := sqlx.GetContext(ctx, tx, &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "check host_scim_user existence")
 	}
@@ -3885,7 +3885,7 @@ func (ds *Datastore) maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, h
 		return nil
 	}
 
-	scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, idp.Username, idp.Email)
+	scimUser, err := scimUserByUserNameOrEmail(ctx, tx, logger, idp.Username, idp.Email)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
 		return ctxerr.Wrap(ctx, err, "get scim user")
@@ -3894,7 +3894,7 @@ func (ds *Datastore) maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, h
 		return nil
 	}
 
-	err = ds.associateHostWithScimUser(ctx, hostID, scimUser.ID)
+	err = associateHostWithScimUser(ctx, tx, hostID, scimUser.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
 	}
@@ -3902,7 +3902,13 @@ func (ds *Datastore) maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, h
 }
 
 func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
-	_, err := ds.writer(ctx).ExecContext(
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+	})
+}
+
+func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {
+	_, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
 		hostID, scimUserID,
@@ -3910,6 +3916,7 @@ func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint,
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
 	}
+
 	return nil
 }
 

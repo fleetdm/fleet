@@ -4186,19 +4186,17 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 			}
 		}
 
-		// Delete any stored host emails sourced from mdm_idp_accounts. Note that we aren't deleting
-		// the mdm_idp_accounts themselves, just the host_emails associated with the host. This
-		// ensures that hosts that reenroll without IdP will have their emails removed. Hosts
-		// that reenroll with IdP will have their emails re-added in the
-		// AppleMDMPostDEPEnrollmentTask.
+		// Reconcile host_emails and host_scim_users sourced from mdm_idp_accounts.
+		//
+		// Note that we aren't deleting the mdm_idp_accounts themselves, just prior associations
+		// for the host. This ensures that hosts that reenroll their emails up-to-date.
 		switch host.Platform {
 		case "darwin", "ios", "ipados":
 			idp, err := reconcileHostEmailsFromMdmIdpAccountsDB(ctx, tx, ds.logger, host.ID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 			}
-			// TODO: coordinate with Victor to make scim user association transactional
-			if err := ds.maybeAssociateHostMDMIdPWithScimUser(ctx, host.ID, idp); err != nil {
+			if err := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, idp); err != nil {
 				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 			}
 		}
@@ -6051,6 +6049,8 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 		return nil
 	})
 
+	// TODO: when should we delete from host_mdm_idp_accounts?
+
 	return result, err
 }
 
@@ -6090,7 +6090,7 @@ func getMDMAppleLegacyEnrollRefDB(ctx context.Context, tx sqlx.ExtContext, logge
 }
 
 func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
-	idp, err := getHostMDMIdPAccountsDB(ctx, tx, logger, hostID)
+	idp, err := getMDMIdPAccountByHostID(ctx, tx, logger, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account email")
 	}
@@ -6189,7 +6189,7 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	return idp, nil
 }
 
-func getHostMDMIdPAccountsDB(ctx context.Context, q sqlx.QueryerContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
+func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
 	stmt := `SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = (SELECT uuid FROM hosts WHERE id = ?)`
 	var dest []string
 	if err := sqlx.SelectContext(ctx, q, &dest, stmt, hostID); err != nil {
@@ -6214,7 +6214,7 @@ func getHostMDMIdPAccountsDB(ctx context.Context, q sqlx.QueryerContext, logger 
 		stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
 		if err := sqlx.GetContext(ctx, q, &idp, stmt, acctUUID); err != nil {
 			if err == sql.ErrNoRows {
-				return nil, nil
+				return nil, nil // TODO: maybe return a not found error?
 			}
 			return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account")
 		}
@@ -6222,3 +6222,28 @@ func getHostMDMIdPAccountsDB(ctx context.Context, q sqlx.QueryerContext, logger 
 
 	return &idp, nil
 }
+
+func (ds *Datastore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+	return getMDMIdPAccountByHostUUID(ctx, ds.reader(ctx), hostUUID)
+}
+
+func getMDMIdPAccountByHostUUID(ctx context.Context, q sqlx.QueryerContext, hostUUID string) (*fleet.MDMIdPAccount, error) {
+	stmt := `
+SELECT 
+	uuid, username, fullname, email 
+FROM 
+	mdm_idp_accounts 
+WHERE 
+	uuid = (SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = ?)`
+
+	var idp fleet.MDMIdPAccount
+	if err := sqlx.GetContext(ctx, q, &idp, stmt, hostUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // TODO: maybe return a not found error?
+		}		
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account")
+	}
+
+	return &idp, nil
+}
+
