@@ -7,7 +7,6 @@ export interface IGetConfigProfileStatusResponse {
   verifying: number;
   failed: number;
   pending: number;
-  counts_updated_at: string;
 }
 
 export default {
@@ -23,7 +22,6 @@ export default {
         verifying: 1,
         failed: 2,
         pending: 3,
-        counts_updated_at: "2023-10-01T00:00:00Z",
       });
     });
   },

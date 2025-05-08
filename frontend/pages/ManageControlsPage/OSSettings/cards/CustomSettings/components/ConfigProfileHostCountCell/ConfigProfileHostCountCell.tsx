@@ -37,7 +37,11 @@ const ConfigProfileHostCountCell = ({
     return (
       <>
         <Link to={hostPath}>{count}</Link>
-        <Button onClick={onClickResend} variant="text-icon">
+        <Button
+          className={`${baseClass}__resend-button`}
+          onClick={onClickResend}
+          variant="text-icon"
+        >
           <Icon name="refresh" color="core-fleet-blue" size="small" />
           <span>Resend</span>
         </Button>
