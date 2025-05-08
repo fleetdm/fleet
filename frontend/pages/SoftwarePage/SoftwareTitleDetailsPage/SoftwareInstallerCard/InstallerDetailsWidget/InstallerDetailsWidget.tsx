@@ -63,17 +63,30 @@ const InstallerDetailsWidget = ({
   };
 
   const renderDetails = () => {
-    return !addedTimestamp ? (
-      versionInfo
-    ) : (
+    // TODO: Fleet-maintained display text will be an option when BE returns it in the API
+    const installerDisplayText =
+      installerType === "package" ? "Custom package" : "App Store (VPP)";
+
+    const renderTimeStamp = () =>
+      addedTimestamp ? (
+        <>
+          {" "}
+          &bull;{" "}
+          <TooltipWrapper
+            tipContent={internationalTimeFormat(new Date(addedTimestamp))}
+            underline={false}
+          >
+            {addedFromNow(addedTimestamp)}
+          </TooltipWrapper>
+        </>
+      ) : (
+        ""
+      );
+
+    return (
       <>
-        {versionInfo} &bull;{" "}
-        <TooltipWrapper
-          tipContent={internationalTimeFormat(new Date(addedTimestamp))}
-          underline={false}
-        >
-          {addedFromNow(addedTimestamp)}
-        </TooltipWrapper>
+        {installerDisplayText} &bull; {versionInfo}
+        {renderTimeStamp()}
       </>
     );
   };
