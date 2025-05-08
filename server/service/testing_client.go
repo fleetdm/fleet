@@ -27,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
@@ -380,23 +379,23 @@ func (ts *withServer) applyTeamSpec(yamlSpec []byte) {
 	ts.Do("POST", "/api/latest/fleet/spec/teams", specsReq, http.StatusOK)
 }
 
-func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {
+func (ts *withServer) LoginSSOUser(username, password string) string {
 	t := ts.s.T()
-	auth, res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
+	res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	return auth, string(body)
+	return string(body)
 }
 
 func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
-	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther)
+	res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther)
 	return res
 }
 
-func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID string) (fleet.Auth, string) {
+func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID string) string {
 	t := ts.s.T()
-	auth, res := ts.loginSSOUserIDPInitiated(
+	res := ts.loginSSOUserIDPInitiated(
 		username, password,
 		"/api/v1/fleet/sso",
 		fmt.Sprintf("http://127.0.0.1:9080/simplesaml/saml2/idp/SSOService.php?spentityid=%s", entityID),
@@ -405,10 +404,10 @@ func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID stri
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	return auth, string(body)
+	return string(body)
 }
 
-func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) (fleet.Auth, *http.Response) {
+func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) *http.Response {
 	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
@@ -446,17 +445,24 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	re := regexp.MustCompile(`value="(.*)"`)
+
+	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
 	matches := re.FindSubmatch(body)
 	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
-	rawSSOResp := string(matches[1])
+	samlResponse := string(matches[1])
+	re = regexp.MustCompile(`name="RelayState" value="([^\s]*)" />`)
+	matches = re.FindSubmatch(body)
+	require.NotEmptyf(t, matches, "callback HTML doesn't contain a RelayState value, got body: %s", body)
+	relayState := string(matches[1])
 
-	auth, err := sso.DecodeAuthResponse(rawSSOResp)
-	require.NoError(t, err)
-	q := url.QueryEscape(rawSSOResp)
-	res := ts.DoRawNoAuth("POST", basePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
+	ssoURL := basePath + fmt.Sprintf(
+		"/callback?SAMLResponse=%s&RelayState=%s",
+		url.QueryEscape(samlResponse),
+		url.QueryEscape(relayState),
+	)
+	res := ts.DoRawNoAuth("POST", ssoURL, nil, callbackStatus)
 
-	return auth, res
+	return res
 }
 
 func (ts *withServer) loginSSOUserIDPInitiated(
@@ -464,7 +470,7 @@ func (ts *withServer) loginSSOUserIDPInitiated(
 	callbackBasePath string,
 	idpURL string,
 	callbackStatus int,
-) (fleet.Auth, *http.Response) {
+) *http.Response {
 	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
@@ -499,17 +505,15 @@ func (ts *withServer) loginSSOUserIDPInitiated(
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	re := regexp.MustCompile(`value="(.*)"`)
+	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
 	matches := re.FindSubmatch(body)
 	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
 	rawSSOResp := string(matches[1])
 
-	auth, err := sso.DecodeAuthResponse(rawSSOResp)
-	require.NoError(t, err)
 	q := url.QueryEscape(rawSSOResp)
 	res := ts.DoRawNoAuth("POST", callbackBasePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
 
-	return auth, res
+	return res
 }
 
 func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {

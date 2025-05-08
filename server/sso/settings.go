@@ -1,17 +1,14 @@
 package sso
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -65,30 +62,4 @@ func ParseMetadata(xmlMetadata []byte) (*saml.EntityDescriptor, error) {
 		return nil, err
 	}
 	return &entityDescriptor, nil
-}
-
-// SAMLProviderFromConfiguredMetadata is used in SSO initiation to create a
-// crewjam/saml.ServiceProvider from the configured SSO metadata.
-func SAMLProviderFromConfiguredMetadata(
-	ctx context.Context,
-	entityID string,
-	acsURL string,
-	settings *fleet.SSOProviderSettings,
-) (*saml.ServiceProvider, error) {
-	entityDescriptor, err := GetMetadata(settings)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to get and parse IdP metadata",
-			InternalErr: err,
-		})
-	}
-	parsedACSURL, err := url.Parse(acsURL)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to parse ACS URL")
-	}
-	return &saml.ServiceProvider{
-		EntityID:    entityID,
-		AcsURL:      *parsedACSURL,
-		IDPMetadata: entityDescriptor,
-	}, nil
 }

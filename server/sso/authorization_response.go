@@ -1,17 +1,15 @@
 package sso
 
 import (
-	"bytes"
 	"encoding/base64"
-	"encoding/xml"
 	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	xrv "github.com/mattermost/xml-roundtrip-validator"
 )
 
 // Since there's not a standard for display names, I have collected the most
@@ -30,30 +28,30 @@ var validDisplayNameAttrs = map[string]struct{}{
 }
 
 type resp struct {
-	response *saml.Response
-	rawResp  []byte
+	assertion *saml.Assertion
 }
 
 var _ fleet.Auth = resp{}
 
 // UserID partially implements the fleet.Auth interface.
 func (r resp) UserID() string {
-	if r.response != nil && r.response.Assertion != nil && r.response.Assertion.Subject != nil && r.response.Assertion.Subject.NameID != nil {
-		return r.response.Assertion.Subject.NameID.Value
+	if r.assertion != nil && r.assertion.Subject != nil && r.assertion.Subject.NameID != nil {
+		return r.assertion.Subject.NameID.Value
 	}
 	return ""
 }
 
 // UserDisplayName partially implements the fleet.Auth interface.
 func (r resp) UserDisplayName() string {
-	if r.response != nil {
-		for _, attrStatement := range r.response.Assertion.AttributeStatements {
-			for _, attr := range attrStatement.Attributes {
-				if _, ok := validDisplayNameAttrs[strings.ToLower(attr.Name)]; ok {
-					for _, vv := range attr.Values {
-						if vv.Value != "" {
-							return vv.Value
-						}
+	if r.assertion == nil {
+		return ""
+	}
+	for _, attrStatement := range r.assertion.AttributeStatements {
+		for _, attr := range attrStatement.Attributes {
+			if _, ok := validDisplayNameAttrs[strings.ToLower(attr.Name)]; ok {
+				for _, vv := range attr.Values {
+					if vv.Value != "" {
+						return vv.Value
 					}
 				}
 			}
@@ -62,29 +60,13 @@ func (r resp) UserDisplayName() string {
 	return ""
 }
 
-// status returns the status of the SAMLResponse (currently only used in tests).
-func (r resp) status() (string, error) {
-	if r.response != nil {
-		return r.response.Status.StatusCode.Value, nil
-	}
-	return saml.StatusAuthnFailed, errors.New("malformed or missing auth response")
-}
-
-// RequestID partially implements the fleet.Auth interface.
-func (r resp) RequestID() string {
-	if r.response != nil {
-		return r.response.InResponseTo
-	}
-	return ""
-}
-
 // AssertionAttributes partially implements the fleet.Auth interface.
 func (r resp) AssertionAttributes() []fleet.SAMLAttribute {
-	if r.response == nil {
+	if r.assertion == nil {
 		return nil
 	}
 	var attrs []fleet.SAMLAttribute
-	for _, attrStatement := range r.response.Assertion.AttributeStatements {
+	for _, attrStatement := range r.assertion.AttributeStatements {
 		for _, attr := range attrStatement.Attributes {
 			var values []fleet.SAMLAttributeValue
 			for _, value := range attr.Values {
@@ -102,39 +84,17 @@ func (r resp) AssertionAttributes() []fleet.SAMLAttribute {
 	return attrs
 }
 
-// RawResponse partially implements the fleet.Auth interface.
-func (r resp) RawResponse() []byte {
-	return r.rawResp
-}
-
-// DecodeAuthResponse extracts SAML assertions from the IDP response (base64 encoded).
-func DecodeAuthResponse(samlResponse string) (fleet.Auth, error) {
-	decoded, err := base64.StdEncoding.DecodeString(samlResponse)
+// DecodeSAMLResponse base64-decodes the SAMLResponse.
+func DecodeSAMLResponse(samlResponse string) ([]byte, error) {
+	decodedSAMLResponse, err := base64.StdEncoding.DecodeString(samlResponse)
 	if err != nil {
-		return nil, fmt.Errorf("decoding saml response: %w", err)
+		return nil, fmt.Errorf("decoding SAMLResponse: %w", err)
 	}
-
-	return decodeSAMLResponse(decoded)
+	return decodedSAMLResponse, nil
 }
 
-func decodeSAMLResponse(rawXML []byte) (fleet.Auth, error) {
-	// Ensure that the response XML is well-formed before we parse it.
-	if err := xrv.Validate(bytes.NewReader(rawXML)); err != nil {
-		return nil, fmt.Errorf("invalid xml: %w", err)
-	}
-
-	var samlResponse saml.Response
-	if err := xml.NewDecoder(bytes.NewBuffer(rawXML)).Decode(&samlResponse); err != nil {
-		return nil, fmt.Errorf("decoding response xml: %w", err)
-	}
-	return &resp{
-		response: &samlResponse,
-		rawResp:  rawXML,
-	}, nil
-}
-
-// ValidateAudiences validates that the audience restrictions of the assertion is one of the expected audiences.
-func ValidateAudiences(assertion *saml.Assertion, expectedAudiences []string) error {
+// validateAudiences validates that the audience restrictions of the assertion is one of the expected audiences.
+func validateAudiences(assertion *saml.Assertion, expectedAudiences []string) error {
 	if assertion.Conditions == nil {
 		return errors.New("missing conditions in assertion")
 	}
@@ -147,4 +107,18 @@ func ValidateAudiences(assertion *saml.Assertion, expectedAudiences []string) er
 		}
 	}
 	return fmt.Errorf("wrong audience: %+v", assertion.Conditions.AudienceRestrictions)
+}
+
+// ParseAndVerifySAMLResponse runs the parsing and validation of SAMLResponses.
+func ParseAndVerifySAMLResponse(samlProvider *saml.ServiceProvider, samlResponse []byte, requestID string, acsURL *url.URL) (fleet.Auth, error) {
+	verifiedAssertion, err := samlProvider.ParseXMLResponse(samlResponse, []string{requestID}, *acsURL)
+	if err != nil {
+		if samlErr, ok := err.(*saml.InvalidResponseError); ok {
+			err = samlErr.PrivateErr
+		}
+		return nil, err
+	}
+	return &resp{
+		assertion: verifiedAssertion,
+	}, nil
 }

@@ -183,7 +183,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	oldActivitiesCount := len(activitiesResp.Activities)
 
 	// users can't login if they don't have an account on free plans
-	_, body := s.LoginSSOUser("sso_user", "user123#")
+	body := s.LoginSSOUser("sso_user", "user123#")
 	require.Contains(t, body, "/login?status=account_invalid")
 
 	newActivitiesCount := 1
@@ -216,7 +216,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	ac.SSOSettings.EnableJITProvisioning = true
 	err = s.ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
-	_, body = s.LoginSSOUser("sso_user", "user123#")
+	body = s.LoginSSOUser("sso_user", "user123#")
 	require.Contains(t, body, "/login?status=account_invalid")
 
 	// A new activity item for the failed SSO login is created.
@@ -230,7 +230,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 		SSOEnabled: ptr.Bool(false),
 	}
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	_, body = s.LoginSSOUser("sso_user", "user123#")
+	body = s.LoginSSOUser("sso_user", "user123#")
 	require.Contains(t, body, "/login?status=account_invalid")
 
 	// A new activity item for the failed SSO login is created.
@@ -244,9 +244,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 		SSOEnabled: ptr.Bool(true),
 	}
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
-	auth, body := s.LoginSSOUser("sso_user2", "user123#")
-	assert.Equal(t, "sso_user2@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 2", auth.UserDisplayName())
+	body = s.LoginSSOUser("sso_user2", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 
 	// a new activity item is created
@@ -256,7 +254,7 @@ func (s *integrationSSOTestSuite) TestSSOLogin() {
 	require.NotEmpty(t, activitiesResp.Activities)
 	require.Condition(t, func() bool {
 		for _, a := range activitiesResp.Activities {
-			if (a.Type == fleet.ActivityTypeUserLoggedIn{}.ActivityName()) && *a.ActorEmail == auth.UserID() {
+			if (a.Type == fleet.ActivityTypeUserLoggedIn{}.ActivityName()) && *a.ActorEmail == "sso_user2@example.com" {
 				return true
 			}
 		}
@@ -393,9 +391,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
 	require.NoError(t, u.SetPassword(password, 10, 10))
 	_, _ = s.ds.NewUser(context.Background(), u)
 
-	auth, body := s.LoginSSOUser("sso_user2", "user123#")
-	assert.Equal(t, "sso_user2@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 2", auth.UserDisplayName())
+	body := s.LoginSSOUser("sso_user2", "user123#")
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 }
 
@@ -436,9 +432,7 @@ func (s *integrationSSOTestSuite) TestSSOLoginNoEntityID() {
 	require.NoError(t, u.SetPassword(password, 10, 10))
 	_, _ = s.ds.NewUser(context.Background(), u)
 
-	auth, body := s.LoginSSOUser("sso_user2", "user123#")
-	assert.Equal(t, "sso_user2@example.com", auth.UserID())
-	assert.Equal(t, "SSO User 2", auth.UserDisplayName())
+	body := s.LoginSSOUser("sso_user2", "user123#")
 	// Fails due to `audience restriction validation failed: wrong audience: [{Audience:{Value:localhost}}]`
 	require.Contains(t, body, "/login?status=error")
 }
@@ -507,16 +501,26 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	re := regexp.MustCompile(`value="(.*)"`)
+	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
 	matches := re.FindSubmatch(body)
 	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
-	rawSSOResp := string(matches[1])
-	rawSSORespDecoded, err := base64.RawStdEncoding.DecodeString(rawSSOResp)
+	samlResponse := string(matches[1])
+	samlResponseDecoded, err := base64.RawStdEncoding.DecodeString(samlResponse)
 	require.NoError(t, err)
-	rawSSORespDecodedStr := strings.ReplaceAll(string(rawSSORespDecoded), idpUsername, "sso_us3r2")
-	rawSSORespEncoded := base64.RawStdEncoding.EncodeToString([]byte(rawSSORespDecodedStr))
-	q := url.QueryEscape(rawSSORespEncoded)
-	resp = s.DoRawNoAuth("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+q, nil, http.StatusOK)
+	re = regexp.MustCompile(`name="RelayState" value="([^\s]*)" />`)
+	matches = re.FindSubmatch(body)
+	require.NotEmptyf(t, matches, "callback HTML doesn't contain a RelayState value, got body: %s", body)
+	relayState := string(matches[1])
+
+	tamperedSAMLResponseDecoded := strings.ReplaceAll(string(samlResponseDecoded), idpUsername, "sso_us3r2")
+	tampteredSAMLResponseEncoded := base64.RawStdEncoding.EncodeToString([]byte(tamperedSAMLResponseDecoded))
+
+	ssoURL := fmt.Sprintf(
+		"/api/v1/fleet/sso/callback?SAMLResponse=%s&RelayState=%s",
+		url.QueryEscape(tampteredSAMLResponseEncoded),
+		url.QueryEscape(relayState),
+	)
+	resp = s.DoRawNoAuth("POST", ssoURL, nil, http.StatusOK)
 
 	t.Cleanup(func() {
 		resp.Body.Close()

@@ -15,7 +15,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -703,7 +702,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 	// originalURL is unused in the MDM flow.
 	originalURL := "/"
 
-	idpURL, err := sso.CreateAuthorizationRequest(ctx, svc.ssoSessionStore, originalURL, samlProvider)
+	idpURL, err := sso.CreateAuthorizationRequest(ctx, samlProvider, svc.ssoSessionStore, originalURL)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "InitiateMDMAppleSSO creating authorization")
 	}
@@ -711,14 +710,14 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 	return idpURL, nil
 }
 
-func (svc *Service) MDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, relayStateToken string, samlResponse []byte) string {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
-	profileToken, enrollmentRef, eulaToken, err := svc.mdmSSOHandleCallbackAuth(ctx, auth)
+	profileToken, enrollmentRef, eulaToken, err := svc.mdmSSOHandleCallbackAuth(ctx, relayStateToken, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
@@ -736,7 +735,11 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, auth fleet.Auth) st
 	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
 }
 
-func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (profileToken string, enrollmentReference string,
+func (svc *Service) mdmSSOHandleCallbackAuth(
+	ctx context.Context,
+	relayStateToken string,
+	samlResponse []byte,
+) (profileToken string, enrollmentReference string,
 	eulaToken string, err error,
 ) {
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -761,24 +764,21 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 
-	samlRequestID := auth.RequestID()
-
-	samlProvider, err := svc.samlProviderFromMetadata(ctx, samlRequestID, acsURL, mdmSSOSettings)
+	expectedAudiences := []string{
+		mdmSSOSettings.EntityID,
+		appConfig.MDMUrl(),
+		appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
+	}
+	samlProvider, requestID, err := sso.SAMLProviderFromSession(
+		ctx, relayStateToken, svc.ssoSessionStore, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
+	)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
-	// The samlRequestID was already verified in svc.samlProviderFromMetadata by checking the
-	// session exists in Redis, here we need to pass it again to samlProvider.ParseXMLResponse because of
-	// how crewjam/saml implements verification, but for us it serves no purpose because the request ID was
-	// extracted from the SAMLResponse itself.
-	possibleRequestIDs := []string{samlRequestID}
-
-	if _, err := samlProvider.ParseXMLResponse(auth.RawResponse(), possibleRequestIDs, *acsURL); err != nil {
-		// Set SAML error as the internal error for troubleshooting purposes.
-		if samlErr, ok := err.(*saml.InvalidResponseError); ok {
-			err = samlErr.PrivateErr
-		}
+	// Parse and verify SAMLResponse (verifies fields, expected IDs and signature).
+	auth, err := sso.ParseAndVerifySAMLResponse(samlProvider, samlResponse, requestID, acsURL)
+	if err != nil {
 		// We actually don't return 401 to clients and instead return an HTML page with /login?status=error,
 		// but to be consistent we will return fleet.AuthFailedError which is used for unauthorized access.
 		return "", "", "", ctxerr.Wrap(ctx, fleet.NewAuthFailedError(err.Error()))
@@ -837,44 +837,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 	// using the idp token as a reference just because that's the
 	// only thing we're referencing later on during enrollment.
 	return depProf.Token, idpAcc.UUID, eulaToken, nil
-}
-
-func (svc *Service) samlProviderFromMetadata(
-	ctx context.Context,
-	samlRequestID string,
-	acsURL *url.URL,
-	mdmSSOSettings fleet.SSOProviderSettings,
-) (*saml.ServiceProvider, error) {
-	session, err := svc.ssoSessionStore.Fullfill(samlRequestID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validate request in session")
-	}
-	entityDescriptor, err := sso.ParseMetadata([]byte(session.Metadata))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to parse metadata")
-	}
-
-	return &saml.ServiceProvider{
-		EntityID:                    mdmSSOSettings.EntityID,
-		AcsURL:                      *acsURL,
-		IDPMetadata:                 entityDescriptor,
-		ValidateAudienceRestriction: svc.audienceValidation(ctx, mdmSSOSettings),
-	}, nil
-}
-
-func (svc *Service) audienceValidation(ctx context.Context, mdmSSOSettings fleet.SSOProviderSettings) func(assertion *saml.Assertion) error {
-	return func(assertion *saml.Assertion) error {
-		appConfig, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "failed to load appconfig")
-		}
-		expectedAudiences := []string{
-			mdmSSOSettings.EntityID,
-			appConfig.MDMUrl(),
-			appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
-		}
-		return sso.ValidateAudiences(assertion, expectedAudiences)
-	}
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {

@@ -2,20 +2,16 @@ package sso
 
 import (
 	"bytes"
-	"compress/flate"
 	"context"
-	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"io"
+	"net/url"
+	"strings"
 
 	"github.com/crewjam/saml"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-)
-
-const (
-	cacheLifetime = 300 // five minutes
 )
 
 func getDestinationURL(idpMetadata *saml.EntityDescriptor) (string, error) {
@@ -29,42 +25,14 @@ func getDestinationURL(idpMetadata *saml.EntityDescriptor) (string, error) {
 	return "", errors.New("IDP does not support redirect binding")
 }
 
-// See SAML Bindings http://docs.oasis-open.org/security/saml/v2.0/saml-bindings-2.0-os.pdf
-// Section 3.4.4.1
-func deflate(xmlBuffer *bytes.Buffer) (string, error) {
-	// Gzip
-	var deflated bytes.Buffer
-	writer, err := flate.NewWriter(&deflated, flate.DefaultCompression)
-	if err != nil {
-		return "", fmt.Errorf("create flate writer: %w", err)
-	}
-
-	count := xmlBuffer.Len()
-	n, err := io.Copy(writer, xmlBuffer)
-	if err != nil {
-		_ = writer.Close()
-		return "", fmt.Errorf("compressing auth request: %w", err)
-	}
-
-	if int(n) != count {
-		_ = writer.Close()
-		return "", errors.New("incomplete write during compression")
-	}
-
-	if err := writer.Close(); err != nil {
-		return "", fmt.Errorf("close flate writer: %w", err)
-	}
-
-	// Base64
-	encbuff := deflated.Bytes()
-	encoded := base64.StdEncoding.EncodeToString(encbuff)
-	return encoded, nil
-}
-
-func CreateAuthorizationRequest(ctx context.Context,
+// CreateAuthorizationRequest creates a new SAML AuthnRequest and creates a new session in sessionStore.
+// It will generate a RelayState token that will be used as session identifier
+// (the IdP will send it again to Fleet in the callback, and that's how Fleet will authenticate the session).
+func CreateAuthorizationRequest(
+	ctx context.Context,
+	samlProvider *saml.ServiceProvider,
 	sessionStore SessionStore,
 	originalURL string,
-	samlProvider *saml.ServiceProvider,
 ) (string, error) {
 	idpURL, err := getDestinationURL(samlProvider.IDPMetadata)
 	if err != nil {
@@ -87,19 +55,50 @@ func CreateAuthorizationRequest(ctx context.Context,
 	if err != nil {
 		return "", fmt.Errorf("encoding metadata creating auth request: %w", err)
 	}
-	// cache metadata so we can check the signatures on the response we get from the IDP
-	err = sessionStore.create(samlAuthRequest.ID,
-		originalURL,
-		metadataWriter.String(),
-		cacheLifetime,
-	)
+
+	relayStateToken, err := generateFleetRelayStateToken()
 	if err != nil {
-		return "", fmt.Errorf("caching metadata while creating auth request: %w", err)
+		return "", ctxerr.Wrap(ctx, err, "generate RelayState token")
 	}
 
-	idpRedirectURL, err := samlAuthRequest.Redirect("", samlProvider)
+	// Store the session with RelayState as session identifier.
+	// We cache the metadata so we can check the signatures on the response we get from the IdP.
+	const cacheLifetimeSeconds = 300
+	err = sessionStore.create(
+		relayStateToken,
+		samlAuthRequest.ID,
+		originalURL,
+		metadataWriter.String(),
+		cacheLifetimeSeconds,
+	)
+	if err != nil {
+		return "", fmt.Errorf("caching SSO session while creating auth request: %w", err)
+	}
+
+	// Escape RelayState (crewjam/saml is not escaping it)
+	relayStateToken = url.QueryEscape(relayStateToken)
+
+	idpRedirectURL, err := samlAuthRequest.Redirect(relayStateToken, samlProvider)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "generating redirect")
 	}
 	return idpRedirectURL.String(), nil
+}
+
+const relayStateTokenPrefix = "fleet_"
+
+func generateFleetRelayStateToken() (string, error) {
+	// Create RelayState token to identify the session.
+	const (
+		relayStateTokenLength = 24
+	)
+	token, err := server.GenerateRandomText(relayStateTokenLength)
+	if err != nil {
+		return "", fmt.Errorf("create random RelayState token: %w", err)
+	}
+	return relayStateTokenPrefix + token, nil
+}
+
+func checkFleetRelayStateToken(relayState string) bool {
+	return strings.HasPrefix(relayState, relayStateTokenPrefix)
 }

@@ -2,10 +2,14 @@ package sso
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
+	"time"
 
+	"github.com/beevik/etree"
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	dsig "github.com/russellhaering/goxmldsig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -149,16 +153,18 @@ Ze7A</ds:X509Certificate>
     </saml:AttributeStatement>
   </saml:Assertion>
 </samlp:Response>`
-	auth, err := decodeSAMLResponse([]byte(samlResponse))
-	require.Nil(t, err)
+
+	setFakeClock(t, "2017-04-27T15:03:16.749Z")
+	acsURL, err := url.Parse("https://localhost:8080/api/v1/kolide/sso/callback")
+	require.NoError(t, err)
+	p := dummySAMLProvider(acsURL)
+	p.IDPMetadata = testSalesforceMetadata()
+	p.IDPMetadata.EntityID = "https://kolide-dev-ed.my.salesforce.com"
+
+	auth, err := ParseAndVerifySAMLResponse(p, []byte(samlResponse), "4982b430-73e1-4ad2-885a-4a775a91f820", acsURL)
+	require.NoError(t, err)
 	require.NotNil(t, auth)
-	info, ok := auth.(*resp)
-	require.True(t, ok)
-	status, err := info.status()
-	assert.Nil(t, err)
-	assert.Equal(t, saml.StatusSuccess, status)
 	assert.Equal(t, "john@kolide.co", auth.UserID())
-	assert.NotEmpty(t, auth.RequestID())
 }
 
 func TestDecodeWithCommentInName(t *testing.T) {
@@ -307,16 +313,47 @@ Ze7A</ds:X509Certificate>
     </saml:AttributeStatement>
   </saml:Assertion>
 </samlp:Response>`
-	auth, err := decodeSAMLResponse([]byte(samlResponse))
-	require.Nil(t, err)
+
+	setFakeClock(t, "2017-04-27T15:03:16.747Z")
+	acsURL, err := url.Parse("https://localhost:8080/api/v1/kolide/sso/callback")
+	require.NoError(t, err)
+	p := dummySAMLProvider(acsURL)
+	p.IDPMetadata = testSalesforceMetadata()
+	p.IDPMetadata.EntityID = "https://kolide-dev-ed.my.salesforce.com"
+
+	auth, err := ParseAndVerifySAMLResponse(p, []byte(samlResponse), "4982b430-73e1-4ad2-885a-4a775a91f820", acsURL)
+	require.NoError(t, err)
 	require.NotNil(t, auth)
-	info, ok := auth.(*resp)
-	require.True(t, ok)
-	status, err := info.status()
-	assert.Nil(t, err)
-	assert.Equal(t, saml.StatusSuccess, status)
 	assert.Equal(t, "john@kol<!---->ide.co", auth.UserID())
-	assert.NotEmpty(t, auth.RequestID())
+}
+
+type nopSignatureVerified struct{}
+
+func (n *nopSignatureVerified) VerifySignature(validationContext *dsig.ValidationContext, el *etree.Element) error {
+	return nil
+}
+
+func dummySAMLProvider(acsURL *url.URL) *saml.ServiceProvider {
+	return &saml.ServiceProvider{
+		ValidateAudienceRestriction: func(assertion *saml.Assertion) error {
+			return nil
+		},
+		SignatureVerifier: &nopSignatureVerified{},
+		AcsURL:            *acsURL,
+		// We set the Salesforce test metadata because the library requires setting certificates,
+		// but the dummySAMLProvider performs no signature verification.
+		IDPMetadata: testSalesforceMetadata(),
+	}
+}
+
+func setFakeClock(t *testing.T, date string) {
+	tm, err := time.Parse("2006-01-02T15:04:05.000Z", date)
+	require.NoError(t, err)
+	saml.TimeNow = func() time.Time {
+		return tm
+	}
+	clock := dsig.NewFakeClockAt(tm)
+	saml.Clock = clock
 }
 
 func TestDecodeSuccessfulGoogleResponse(t *testing.T) {
@@ -391,16 +428,17 @@ QyrBRp8n4UR9PjoeIy0tTCmG0tqu/NackFH4PkamY84Etxe9uH0StmkhID46QTT4Cv2+jqCaklg+
     </saml2:AuthnStatement>
   </saml2:Assertion>
 </saml2p:Response>`
-	auth, err := decodeSAMLResponse([]byte(samlResponse))
-	require.Nil(t, err)
+
+	setFakeClock(t, "2017-07-18T14:47:08.035Z")
+	acsURL, err := url.Parse("https://localhost:8080/api/v1/kolide/sso/callback")
+	require.NoError(t, err)
+	p := dummySAMLProvider(acsURL)
+	p.IDPMetadata.EntityID = "https://accounts.google.com/o/saml2?idpid=C0171bstf"
+
+	auth, err := ParseAndVerifySAMLResponse(p, []byte(samlResponse), "SGJhi1g5D4/npOwXaw8t6A==", acsURL)
+	require.NoError(t, err)
 	require.NotNil(t, auth)
-	info, ok := auth.(*resp)
-	require.True(t, ok)
-	status, err := info.status()
-	assert.Nil(t, err)
-	assert.Equal(t, saml.StatusSuccess, status)
 	assert.Equal(t, "john@edilok.net", auth.UserID())
-	assert.NotEmpty(t, auth.RequestID())
 }
 
 func TestDecodeAttributes(t *testing.T) {
@@ -483,24 +521,25 @@ func TestDecodeAttributes(t *testing.T) {
     </saml:AttributeStatement>
   </saml:Assertion>
 </samlp:Response>`
-	auth, err := decodeSAMLResponse([]byte(samlResponse))
-	require.Nil(t, err)
+
+	setFakeClock(t, "2022-08-10T19:42:34.000Z")
+	acsURL, err := url.Parse("https://localhost:8080/api/v1/fleet/sso/callback")
+	require.NoError(t, err)
+	p := dummySAMLProvider(acsURL)
+	p.IDPMetadata.EntityID = "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+
+	auth, err := ParseAndVerifySAMLResponse(p, []byte(samlResponse), "idJpL4A6IM6MMBQ9eH", acsURL)
+	require.NoError(t, err)
 	require.NotNil(t, auth)
-	info, ok := auth.(*resp)
-	require.True(t, ok)
-	status, err := info.status()
-	assert.Nil(t, err)
-	assert.Equal(t, saml.StatusSuccess, status)
 	assert.Equal(t, "sso_user@example.com", auth.UserID())
 	assert.Equal(t, "SSO User 1", auth.UserDisplayName())
-	assert.NotEmpty(t, auth.RequestID())
 }
 
 func TestEmptyResponse(t *testing.T) {
 	var auth resp
 	assert.Equal(t, "", auth.UserID())
 	assert.Equal(t, "", auth.UserDisplayName())
-	assert.Equal(t, "", auth.RequestID())
+	assert.Empty(t, auth.AssertionAttributes())
 }
 
 func TestUserDisplayName(t *testing.T) {
@@ -522,21 +561,17 @@ func TestUserDisplayName(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("%s attribute with %v values", c.attrName, c.values), func(t *testing.T) {
-			var (
-				response saml.Response
-				auth     resp
-			)
-			response.Assertion = &saml.Assertion{
+			var auth resp
+			auth.assertion = &saml.Assertion{
 				AttributeStatements: []saml.AttributeStatement{{Attributes: []saml.Attribute{{Name: c.attrName, Values: c.values}}}},
 			}
-			auth.response = &response
 			assert.Equal(t, c.out, auth.UserDisplayName())
 		})
 	}
 }
 
 func TestDecodeOktaResponseWithCustomAttrs(t *testing.T) {
-	const samlResponseSample = `<?xml version="1.0" encoding="UTF-8"?>
+	const samlResponse = `<?xml version="1.0" encoding="UTF-8"?>
 <saml2p:Response Destination="https://example.com/api/v1/fleet/sso/callback" ID="id163119768052374872101569422" InResponseTo="id1Juy6Mx2IHYxLwsi" IssueInstant="2023-02-27T17:41:53.505Z" Version="2.0" xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:xs="http://www.w3.org/2001/XMLSchema">
   <saml2:Issuer Format="urn:oasis:names:tc:SAML:2.0:nameid-format:entity" xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion">http://www.okta.com/exk8glknbnr9Lpdkl5d7</saml2:Issuer>
   <ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
@@ -617,16 +652,17 @@ func TestDecodeOktaResponseWithCustomAttrs(t *testing.T) {
     </saml2:AttributeStatement>
   </saml2:Assertion>
 </saml2p:Response>`
-	auth, err := decodeSAMLResponse([]byte(samlResponseSample))
+
+	setFakeClock(t, "2023-02-27T17:41:53.505Z")
+	acsURL, err := url.Parse("https://example.com/api/v1/fleet/sso/callback")
+	require.NoError(t, err)
+	p := dummySAMLProvider(acsURL)
+	p.IDPMetadata.EntityID = "http://www.okta.com/exk8glknbnr9Lpdkl5d7"
+
+	auth, err := ParseAndVerifySAMLResponse(p, []byte(samlResponse), "id1Juy6Mx2IHYxLwsi", acsURL)
 	require.NoError(t, err)
 	require.NotNil(t, auth)
-	info, ok := auth.(*resp)
-	require.True(t, ok)
-	status, err := info.status()
-	assert.NoError(t, err)
-	assert.Equal(t, saml.StatusSuccess, status)
 	assert.Equal(t, "foo@example.com", auth.UserID())
-	assert.NotEmpty(t, auth.RequestID())
 	attrs := auth.AssertionAttributes()
 	assert.Equal(t, []fleet.SAMLAttribute{
 		{
