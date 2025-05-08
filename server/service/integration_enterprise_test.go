@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
@@ -17661,6 +17662,10 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		fmaDefaultCategories []string
 	}{
 		{
+			desc:       "duplicate categories provided",
+			categories: []string{"Developer tools", "Browsers", "Browsers"},
+		},
+		{
 			desc:       "valid categories 1",
 			categories: []string{"Developer tools", "Browsers"},
 		},
@@ -17677,6 +17682,8 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		t.Run(tc.desc, func(t *testing.T) {
 			softwareToInstall[0].Categories = tc.categories
 			softwareToInstall[1].Categories = tc.categories
+			// remove duplicates if any
+			tc.categories = server.RemoveDuplicatesFromSlice(tc.categories)
 			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
 			packages := waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
 			require.Len(t, packages, 2)

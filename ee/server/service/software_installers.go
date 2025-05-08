@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -306,6 +307,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	payload.ValidatedLabels = validatedLabels
 
+	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
 	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
@@ -1779,6 +1781,7 @@ func (svc *Service) softwareBatchUpload(
 				Categories:         p.Categories,
 			}
 
+			p.Categories = server.RemoveDuplicatesFromSlice(p.Categories)
 			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, p.Categories)
 			if err != nil {
 				return err
