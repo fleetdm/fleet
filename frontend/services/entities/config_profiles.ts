@@ -2,7 +2,7 @@ import { getConfig } from "@testing-library/react";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
-interface IGetConfigProfileStatusResponse {
+export interface IGetConfigProfileStatusResponse {
   verified: number;
   verifying: number;
   failed: number;

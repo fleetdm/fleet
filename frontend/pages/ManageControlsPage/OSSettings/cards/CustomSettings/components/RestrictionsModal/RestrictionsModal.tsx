@@ -8,6 +8,7 @@ import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import Button from "components/buttons/Button";
+import ConfigProfileStatusTable from "../ConfigProfileStatusTable";
 
 const baseClass = "restrictions-modal";
 
@@ -36,7 +37,11 @@ const RestrictionsModal = ({
       return <DataError verticalPaddingSize="pad-medium" />;
     }
 
-    return <>{profileUUID}</>;
+    if (!data) {
+      return null;
+    }
+
+    return <ConfigProfileStatusTable profileStatus={data} />;
   };
 
   return (
