@@ -853,7 +853,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const renderDashboardHeader = () => {
-    if (isPremiumTier) {
+    if (isPremiumTier && !config?.partnerships?.enable_primo) {
       if (userTeams) {
         if (userTeams.length > 1 || isOnGlobalTeam) {
           return (
