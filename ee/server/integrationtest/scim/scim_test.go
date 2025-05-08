@@ -4203,12 +4203,11 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 			},
 		}
 
-		var errorResp map[string]interface{}
-		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchRemoveNonExistentPayload, http.StatusBadRequest, &errorResp)
-
-		// Verify the error response
-		assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
-		assert.Contains(t, errorResp["detail"], "Bad Request")
+		var removeMemberResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchRemoveNonExistentPayload, http.StatusOK, &removeMemberResp)
+		members, ok = removeMemberResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 1, len(members), "Group should have 1 member")
 	})
 }
 

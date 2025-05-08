@@ -550,8 +550,9 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 	// For remove operations, remove the member if found
 	if op.Op == scim.PatchOperationRemove {
 		if !memberFound {
-			level.Info(g.logger).Log("msg", "member not found", "member_id", memberID, "op", fmt.Sprintf("%v", op))
-			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			level.Info(g.logger).Log("msg", "member not found in group", "member_id", memberID, "op", fmt.Sprintf("%v", op))
+			// The member may have been removed already from this group. For example, if the member was deleted.
+			return nil
 		}
 		group.ScimUsers = append(group.ScimUsers[:memberIndex], group.ScimUsers[memberIndex+1:]...)
 		return nil
