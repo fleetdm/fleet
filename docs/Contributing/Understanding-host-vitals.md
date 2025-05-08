@@ -686,7 +686,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 
 - Query:
 ```sql
-SELECT a.path, c.team_identifier
+SELECT c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
 ```

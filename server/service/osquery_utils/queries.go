@@ -1214,7 +1214,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	//     (having big queries can cause performance issues or be denylisted).
 	"macos_codesign": {
 		Query: `
-		SELECT a.path, c.team_identifier
+		SELECT c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
 	`,
@@ -1222,21 +1222,35 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Platforms:   []string{"darwin"},
 		Discovery:   discoveryTable("codesign"),
 		SoftwareProcessResults: func(mainSoftwareResults, codesignResults []map[string]string) []map[string]string {
-			codesignInformation := make(map[string]string) // path -> team_identifier
+			type codesignResultRow struct {
+				teamIdentifier string
+				cdhashSHA256   string
+			}
+
+			codesignInformation := make(map[string]codesignResultRow) // path -> team_identifier
 			for _, codesignResult := range codesignResults {
-				codesignInformation[codesignResult["path"]] = codesignResult["team_identifier"]
+				var cdhashSha256 string
+				if hash, ok := codesignResult["cdhash_sha256"]; ok {
+					cdhashSha256 = hash
+				}
+
+				codesignInformation[codesignResult["path"]] = codesignResultRow{
+					teamIdentifier: codesignResult["team_identifier"],
+					cdhashSHA256:   cdhashSha256,
+				}
 			}
 			if len(codesignInformation) == 0 {
 				return mainSoftwareResults
 			}
 
 			for _, result := range mainSoftwareResults {
-				codesignInfo := codesignInformation[result["installed_path"]]
-				if codesignInfo == "" {
+				codesignInfo, ok := codesignInformation[result["installed_path"]]
+				if !ok {
 					// No codesign information for this application.
 					continue
 				}
-				result["team_identifier"] = codesignInfo
+				result["team_identifier"] = codesignInfo.teamIdentifier
+				result["cdhash_sha256"] = codesignInfo.cdhashSHA256
 			}
 
 			return mainSoftwareResults
@@ -1629,9 +1643,13 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 				return str
 			}
 			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
+			var cdhashSHA256 string
+			if hash, ok := row["cdhash_sha256"]; ok {
+				cdhashSHA256 = hash
+			}
 			key := fmt.Sprintf(
-				"%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			sPaths[key] = struct{}{}
 		}
