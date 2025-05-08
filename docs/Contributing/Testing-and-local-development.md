@@ -607,7 +607,7 @@ To use the workflow, follow these steps:
   - `fleet-base.pkg`
 4. Download them to your workstation.
 
-#### Building a signed fleetd-base installer from `local TUF`and signing with Apple Developer Account
+#### Building a signed fleetd-base installer from `local TUF` and signing with Apple Developer Account
 
 1. Build fleetd from your [local TUF](https://github.com/fleetdm/fleet/blob/HEAD/docs/Contributing/Run-Locally-Built-Fleetd.md) service
 2. Obtain a `Developer ID Installer Certificate`:
