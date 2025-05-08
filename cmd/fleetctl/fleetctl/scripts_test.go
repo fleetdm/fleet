@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -17,7 +18,7 @@ import (
 )
 
 func TestRunScriptCommand(t *testing.T) {
-	_, ds := runServerWithMockedDS(t,
+	_, ds := testingutils.RunServerWithMockedDS(t,
 		&service.TestServerOpts{
 			License: &fleet.LicenseInfo{
 				Tier: fleet.TierPremium,
@@ -416,7 +417,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 				args = append(args, "--team", fmt.Sprintf("%d", *c.teamID))
 			}
 
-			b, err := runAppNoChecks(args)
+			b, err := RunAppNoChecks(args)
 			if c.expectErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), c.expectErrMsg)

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -52,7 +53,7 @@ func TestTrigger(t *testing.T) {
 	oldStdout := os.Stdout
 	os.Stdout = w
 
-	_, _ = runServerWithMockedDS(t, &service.TestServerOpts{
+	_, _ = testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		Logger: kitlog.NewNopLogger(),
 		StartCronSchedules: []service.TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
@@ -75,7 +76,7 @@ func TestTrigger(t *testing.T) {
 		if c.delay != 0 {
 			time.Sleep(c.delay)
 		}
-		assert.Equal(t, "", runAppForTest(t, c.args))
+		assert.Equal(t, "", RunAppForTest(t, c.args))
 	}
 
 	os.Stdout = oldStdout

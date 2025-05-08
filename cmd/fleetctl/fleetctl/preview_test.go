@@ -13,7 +13,7 @@ import (
 )
 
 func TestPreviewFailsOnInvalidLicenseKey(t *testing.T) {
-	_, err := runAppNoChecks([]string{"preview", "--license-key", "0xDEADBEEF"})
+	_, err := RunAppNoChecks([]string{"preview", "--license-key", "0xDEADBEEF"})
 	require.ErrorContains(t, err, "--license-key")
 }
 
@@ -26,13 +26,13 @@ func TestIntegrationsPreview(t *testing.T) {
 	t.Log("config path: ", configPath)
 
 	t.Cleanup(func() {
-		require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
+		require.Equal(t, "", RunAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
 	var output *bytes.Buffer
 	require.NoError(t, nettest.RunWithNetRetry(t, func() error {
 		var err error
-		output, err = runAppNoChecks([]string{
+		output, err = RunAppNoChecks([]string{
 			"preview",
 			"--config", configPath,
 			"--preview-config-path", filepath.Join(gitRootPath(t), "tools", "osquery", "in-a-box"),
@@ -50,12 +50,12 @@ func TestIntegrationsPreview(t *testing.T) {
 	// run some sanity checks on the preview environment
 
 	// standard queries must have been loaded
-	queries := runAppForTest(t, []string{"get", "queries", "--config", configPath, "--json"})
+	queries := RunAppForTest(t, []string{"get", "queries", "--config", configPath, "--json"})
 	n := strings.Count(queries, `"kind":"query"`)
 	require.Greater(t, n, 10)
 
 	// app configuration must disable analytics
-	appConf := runAppForTest(t, []string{"get", "config", "--include-server-config", "--config", configPath, "--yaml"})
+	appConf := RunAppForTest(t, []string{"get", "config", "--include-server-config", "--config", configPath, "--yaml"})
 	ok := strings.Contains(appConf, `enable_analytics: false`)
 	require.True(t, ok, appConf)
 

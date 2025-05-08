@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -192,7 +193,7 @@ func TestMDMRunCommand(t *testing.T) {
 			enqueuer := new(mdmmock.MDMAppleStore)
 			license := &fleet.LicenseInfo{Tier: lic, Expiration: time.Now().Add(24 * time.Hour)}
 
-			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+			_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
 				MDMStorage:       enqueuer,
 				MDMPusher:        mockPusher{},
 				License:          license,
@@ -334,7 +335,7 @@ func TestMDMRunCommand(t *testing.T) {
 						return c.appCfg, nil
 					}
 
-					buf, err := runAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
+					buf, err := RunAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
 					if c.wantErr != "" {
 						require.Error(t, err)
 						require.ErrorContains(t, err, c.wantErr)
@@ -1322,7 +1323,7 @@ func setupTestServer(t *testing.T) *mock.Store {
 		return nil
 	}
 
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		MDMStorage:       enqueuer,
 		MDMPusher:        mockPusher{},
 		License:          license,
@@ -1416,7 +1417,7 @@ func runTestCases(t *testing.T, ds *mock.Store, actionType string, successfulOut
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return c.appCfg, nil
 		}
-		buf, err := runAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
+		buf, err := RunAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
 		if c.wantErr != "" {
 			require.Error(t, err, c.desc)
 			require.ErrorContains(t, err, c.wantErr, c.desc)

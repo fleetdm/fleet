@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,29 +47,29 @@ oug6edBNpdhp8r2/4t6n3AouK0/zG2naAlmXV0JoFuEvy2bX0BbbbPg+v4WNZIsC
 func TestDebugConnectionCommand(t *testing.T) {
 	t.Run("without certificate, plain http server", func(t *testing.T) {
 		// Plain HTTP server
-		_, ds := runServerWithMockedDS(t)
+		_, ds := testingutils.RunServerWithMockedDS(t)
 
 		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 			return nil, errors.New("invalid")
 		}
 
-		output := runAppForTest(t, []string{"debug", "connection"})
+		output := RunAppForTest(t, []string{"debug", "connection"})
 		// 3 successes: resolve host, dial address, check api endpoint
 		require.Equal(t, 3, strings.Count(output, "Success:"))
 	})
 
 	t.Run("invalid certificate flag without address", func(t *testing.T) {
-		_, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", "cert.pem"})
+		_, err := RunAppNoChecks([]string{"debug", "connection", "--fleet-certificate", "cert.pem"})
 		require.Contains(t, err.Error(), "--fleet-certificate")
 	})
 
 	t.Run("invalid context flag with address", func(t *testing.T) {
-		_, err := runAppNoChecks([]string{"debug", "connection", "--context", "test", "localhost:8080"})
+		_, err := RunAppNoChecks([]string{"debug", "connection", "--context", "test", "localhost:8080"})
 		require.Contains(t, err.Error(), "--context")
 	})
 
 	t.Run("invalid config flag with address", func(t *testing.T) {
-		_, err := runAppNoChecks([]string{"debug", "connection", "--config", "/tmp/nosuchfile", "localhost:8080"})
+		_, err := RunAppNoChecks([]string{"debug", "connection", "--config", "/tmp/nosuchfile", "localhost:8080"})
 		require.Contains(t, err.Error(), "--config")
 	})
 
@@ -83,7 +84,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 		// get the certificate of the TLS server
 		certPath := rawCertToPemFile(t, srv.Certificate().Raw)
 
-		output := runAppForTest(t, []string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
+		output := RunAppForTest(t, []string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
 		// 4 successes: resolve host, dial address, certificate, check api endpoint
 		t.Log(output)
 		require.Equal(t, 4, strings.Count(output, "Success:"))
@@ -102,7 +103,7 @@ func TestDebugConnectionCommand(t *testing.T) {
 		certPath := filepath.Join(dir, "cert.pem")
 		require.NoError(t, os.WriteFile(certPath, []byte(exampleDotComCertDotPem), 0o600))
 
-		buf, err := runAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
+		buf, err := RunAppNoChecks([]string{"debug", "connection", "--fleet-certificate", certPath, srv.URL})
 		// 2 successes: resolve host, dial address
 		t.Log(buf.String())
 		require.Equal(t, 2, strings.Count(buf.String(), "Success:"))

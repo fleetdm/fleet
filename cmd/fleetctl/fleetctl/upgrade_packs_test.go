@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
@@ -215,7 +216,7 @@ func TestUpgradeSinglePack(t *testing.T) {
 }
 
 func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testingutils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://example.com"}}, nil
@@ -258,7 +259,7 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
-	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	got := RunAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, `Converted 0 queries from 2 2017 "Packs" into portable queries:`)
 	require.Contains(t, got, `visit https://example.com/packs/manage and disable all`)
 
@@ -268,7 +269,7 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 }
 
 func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testingutils.RunServerWithMockedDS(t)
 
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
@@ -378,7 +379,7 @@ spec:
 	require.NoError(t, err)
 
 	testUpgradePacksTimestamp = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	got := RunAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, `Converted 2 queries from 2 2017 "Packs" into portable queries:`)
 
 	content, err := os.ReadFile(outputFile)
@@ -387,7 +388,7 @@ spec:
 }
 
 func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testingutils.RunServerWithMockedDS(t)
 
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleObserver)}, nil
@@ -401,9 +402,9 @@ func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
 	require.NoError(t, err)
 
 	// first try without the required output file flag
-	runAppCheckErr(t, []string{"upgrade-packs"}, `Required flag "o" not set`)
+	RunAppCheckErr(t, []string{"upgrade-packs"}, `Required flag "o" not set`)
 	// then try with the required flag but user is not admin
-	runAppCheckErr(t, []string{"upgrade-packs", "-o", outputFile}, `could not upgrade packs: forbidden: user does not have the admin role`)
+	RunAppCheckErr(t, []string{"upgrade-packs", "-o", outputFile}, `could not upgrade packs: forbidden: user does not have the admin role`)
 
 	content, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
@@ -411,7 +412,7 @@ func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
 }
 
 func TestFleetctlUpgradePacks_NoPack(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testingutils.RunServerWithMockedDS(t)
 
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
@@ -428,7 +429,7 @@ func TestFleetctlUpgradePacks_NoPack(t *testing.T) {
 	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
-	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	got := RunAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, "No 2017 \"Packs\" found.\n")
 
 	content, err := os.ReadFile(outputFile)
