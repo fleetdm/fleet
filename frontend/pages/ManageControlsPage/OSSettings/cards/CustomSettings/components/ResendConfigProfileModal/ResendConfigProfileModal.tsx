@@ -37,8 +37,10 @@ const ResendConfigProfileModal = ({
         </>
       );
     } catch (error) {
-      // Handle error (e.g., show a flash message)
-      console.error("Error resending configuration profile:", error);
+      renderFlash(
+        "error",
+        "Couldn't resend the configuration profile. Please try again."
+      );
     }
     setIsResending(false);
     onExit();
