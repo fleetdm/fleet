@@ -500,11 +500,11 @@ func copyDirectory(destDir, sourceDir string) error {
 	})
 }
 
-var testOverridePreviewDirectory string
+var TestOverridePreviewDirectory string
 
 func previewDirectory() string {
-	if testOverridePreviewDirectory != "" {
-		return testOverridePreviewDirectory
+	if TestOverridePreviewDirectory != "" {
+		return TestOverridePreviewDirectory
 	}
 
 	homeDir, err := os.UserHomeDir()
