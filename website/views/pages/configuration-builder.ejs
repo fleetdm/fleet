@@ -71,10 +71,16 @@
         //  ╚═╝╩ ╩ ╩ ╚═╝╚═╝╚═╝╩╚═ ╩   ╚═╝╚═╝╩═╝╚═╝╚═╝ ╩ ╚═╝╩╚═
       %>
       <div purpose="category-selector" >
-        <div purpose="category-options" v-for="category in configurationCategories">
+<!--         <div purpose="category-options" v-for="category in configurationCategories">
           <a @click="clickExpandCategory(category.name)" :class="[expandedCategory === category.name ? 'selected' : '' ]" >{{category.name}}</a>
           <div purpose="subcategories" v-if="expandedCategory === category.name">
             <a @click="clickSelectSubcategory(subcategory)" v-for="subcategory in category.subcategories">{{subcategory.name}}</a>
+          </div>
+        </div> -->
+        <div purpose="category-options">
+          <a @click="clickExpandCategory('windows-privacy-and-security')" :class="[expandedCategory === 'windows-privacy-and-security' ? 'selected' : '' ]">Privacy & security</a>
+          <div purpose="subcategories" v-if="expandedCategory === 'windows-privacy-and-security'">
+            <a @click="clickSelectPayloadCategory('windows-device-lock')">Device lock</a>
           </div>
         </div>
       </div>
@@ -86,24 +92,61 @@
         //  ╚═╝╩   ╩ ╩╚═╝╝╚╝  ╚═╝╚═╝╩═╝╚═╝╚═╝ ╩ ╚═╝╩╚═
       %>
       <div purpose="selected-subcategory-and-options">
-        <div purpose="selected-subcategory" :class="[selectedSubcategory ? 'slide-in' : '' ]">
+
+<!--         <div purpose="selected-subcategory" :class="[selectedSubcategory ? 'slide-in' : '' ]">
           <div v-if="selectedSubcategory">
-          <div purpose="subcategory-header">
-            <h2>{{selectedSubcategory.name}}</h2>
-            <p>
-              {{selectedSubcategory.description}} <a target="_blank" :href="selectedSubcategory.learnMoreLink" v-if="selectedSubcategory.learnMoreLink">Learn more</a>
-            </p>
-          </div>
-          <div purpose="subcategory-options">
-            <div purpose="option" v-for="option in selectedSubcategory.payloadOptions">
-              <label :for="option.uniqueSlug+'-checkbox'" >
-                <span purpose="custom-checkbox"><span purpose="custom-checkbox-check"></span></span>
-                <input type="checkbox" v-model="selectedPayloadOptions[option.uniqueSlug]" :id="option.uniqueSlug+'-checkbox'" @input="clickSelectPayloadOption(option)">
-                {{option.name}}
-              </label>
-              <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" :title="option.tooltip" v-if="option.tooltip">
+            <div purpose="subcategory-header">
+              <h2>{{selectedSubcategory.name}}</h2>
+              <p>
+                {{selectedSubcategory.description}} <a target="_blank" :href="selectedSubcategory.learnMoreLink" v-if="selectedSubcategory.learnMoreLink">Learn more</a>
+              </p>
+            </div>
+            <div purpose="subcategory-options">
+              <div purpose="option" v-for="option in selectedSubcategory.payloadOptions">
+                <label :for="option.uniqueSlug+'-checkbox'" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadOptions[option.uniqueSlug] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadOptions[option.uniqueSlug]" :id="option.uniqueSlug+'-checkbox'" @input="clickSelectPayloadOption(option)">
+                  {{option.name}}
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" :title="option.tooltip" v-if="option.tooltip">
+              </div>
             </div>
           </div>
+        </div>  -->
+        <div purpose="selected-subcategory" :class="[selectedPayloadCategory ? 'slide-in' : '' ]">
+          <div v-if="selectedPayloadCategory === 'windows-device-lock'">
+            <div purpose="subcategory-header">
+              <h2>Device lock</h2>
+              <p>
+                Settings related to screen lock and passwords. <a target="_blank" href="/tables/screenlock#apple">Learn more</a>
+              </p>
+            </div>
+            <div purpose="subcategory-options">
+              <div purpose="option">
+                <label for="windows-device-lock-enable-device-lock" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-enable-device-lock'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-enable-device-lock']" id="windows-device-lock-enable-device-lock" @input="clickSelectPayload('windows-device-lock-enable-device-lock')">
+                  Enable device lock
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Require a password to unlock the device">
+              </div>
+              <div purpose="option">
+                <label for="windows-device-lock-require-alphanumeric-device-password" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-require-alphanumeric-device-password'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-require-alphanumeric-device-password']" id="windows-device-lock-require-alphanumeric-device-password" @input="clickSelectPayload('windows-device-lock-require-alphanumeric-device-password')">
+                  Require alphanumeric device password
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Require a password to unlock the device">
+              </div>
+              <div purpose="option">
+                <label for="windows-device-lock-max-inactivity-before-device-locks" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-max-inactivity-before-device-locks'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-max-inactivity-before-device-locks']" id="windows-device-lock-max-inactivity-before-device-locks" @input="clickSelectPayload('windows-device-lock-max-inactivity-before-device-locks')">
+                  Max inactivity time before device locks
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Require a password to unlock the device">
+              </div>
+            </div>
           </div>
         </div>
         <%
@@ -113,63 +156,134 @@
           //  ╩  ╩ ╩ ╩ ╩═╝╚═╝╩ ╩═╩╝  ╚═╝╩   ╩ ╩╚═╝╝╚╝╚═╝
         %>
         <div purpose="payload-options">
-          <ajax-form :handle-submitting="handleSubmittingConfigurationBuilderForm" :form-errors.sync="formErrors" :form-data="configurationProfileFormData" :form-rules="configurationProfileFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
-            <div purpose="options-container" :class="[payloadOptionsToDisplay.length > 0 ? 'slide-in' : '' ]">
-              <div purpose="payload-category" v-for="category in _.keysIn(payloadOptionsToDisplayGroupedByCategory)">
+          <ajax-form :handle-submitting="handleSubmittingConfigurationBuilderForm" :form-errors.sync="formErrors" :form-data="configurationBuilderFormData" :form-rules="configurationBuilderFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+            <div purpose="options-container" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
+              <div purpose="payload-category" v-for="category in _.keysIn(selectedPayloadsGroupedByCategory)">
                 <div purpose="category-header">
                   <h2>{{category}}</h2>
                   <div purpose="download-and-remove-buttons">
-                    <a @click="clickRemoveAllPayloadOptions()">Remove all</a>
+                    <a purpose="form-button" @click="clickRemoveOneCategoryPayloadOptions(category)">Remove all</a>
                     <ajax-button purpose="download-button" :syncing="syncing"><img src="/images/icon-download.png" style="height: 12px;"></a>
                   </div>
                 </div>
 
-                <div purpose="payload-option" v-for="option in payloadOptionsToDisplayGroupedByCategory[category]">
+                <div purpose="payload-option" v-for="option in selectedPayloadsGroupedByCategory[category]">
                   <div purpose="name-and-access-type" class="d-flex flex-row align-items-center justify-content-between w-100">
                     <p class="mb-0"><strong>{{option.name}}</strong></p>
-
-                    <select purpose="access-type-select" v-model.trim="configurationProfileFormData[option.uniqueSlug+'-access-type']" class="form-control" style="width: 120px">
-                      <option selected>Access type</option>
-                      <option :value="accessType" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
-                    </select>
+                    <div class="d-flex flex-column">
+                      <select :class="[formErrors[option.uniqueSlug+'-access-type'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-access-type']" class="form-control" style="width: 120px">
+                        <option selected value="undefined">Access type</option>
+                        <option :value="accessType" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
+                      </select>
+                      <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-access-type']">Please select an access type</div>
+                    </div>
                   </div>
-                  <div purpose="option-value" v-if="['text', 'number'].includes(option.acceptedValue.type)">
-                    <input class="form-control" v-model.trim="configurationProfileFormData[option.uniqueSlug+'-value']" :type="option.acceptedValue.type" placeholder="0" >
-
+                  <% // Number input %>
+                  <div purpose="option-value" v-if="['number'].includes(option.formInput.type)">
+                    <input :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :type="option.formInput.type" placeholder="0" >
+                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please enter a value</div>
                   </div>
-                  <div purpose="option-value" v-else-if="['radio'].includes(option.acceptedValue.type)">
-                    <label purpose="form-option" class="form-control" :class="[configurationProfileFormData[option.uniqueSlug+'-value'] === acceptedValue.value ? 'selected' : '']" v-for="acceptedValue of option.acceptedValue.options">
-                      <input type="radio" v-model.trim="configurationProfileFormData[option.uniqueSlug+'-value']" :value="acceptedValue.value" @input="clickClearOneFormError(option.uniqueSlug+'-value')">
+                  <% // Text input %>
+                  <div purpose="option-value" v-if="['text'].includes(option.formInput.type)">
+                    <input :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :type="option.formInput.type" placeholder="Please enter a value" >
+                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please enter a value</div>
+                  </div>
+                  <% // Radio input %>
+                  <div purpose="option-value" v-else-if="['radio'].includes(option.formInput.type)" :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']">
+                    <label purpose="form-option" class="form-control" :class="[configurationBuilderFormData[option.uniqueSlug+'-value'] === formInput.value ? 'selected' : '']" v-for="formInput of option.formInput.options">
+                      <input type="radio" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :value="formInput.value" @input="clickClearOneFormError(option.uniqueSlug+'-value')">
                       <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-                      {{acceptedValue.name}}
+                      {{formInput.name}}
                     </label>
+                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please select an option</div>
                   </div>
-                  <div purpose="option-value" v-else-if="['boolean'].includes(option.acceptedValue.type)">
+                  <%// Checkbox input %>
+                  <div purpose="option-value" v-else-if="['boolean'].includes(option.formInput.type)">
                     <label purpose="form-option" class="form-control" >
-                      <input type="checkbox" v-model.trim="configurationProfileFormData[option.uniqueSlug+'-value']" @input="clickClearOneFormError(option.uniqueSlug+'-value')">
-                      <span purpose="custom-switch" :class="[configurationProfileFormData[option.uniqueSlug+'-value'] ? 'checked' : '']"><span purpose="custom-switch-status"></span></span>
-                      {{ configurationProfileFormData[option.uniqueSlug] ? 'Enabled' : 'Disallowed' }}
+                      <input type="checkbox" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" @input="clickClearOneFormError(option.uniqueSlug+'-value')">
+                      <span purpose="custom-switch" :class="[configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'checked' : '']"><span purpose="custom-switch-status"></span></span>
+                      {{ configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'Enabled' : 'Disallowed' }}
                     </label>
                   </div>
-                  <a @click="clickRemovePayloadOption(option)">Remove</a>
+                  <a @click="clickRemovePayloadOption(option)" purpose="form-button">Remove</a>
                 </div>
               </div>
             </div>
+            <div purpose="bottom-download-bar" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
+              <a purpose="new-button" @click="clickOpenResetFormModal()">Create new</a>
+              <ajax-button purpose="download-button" :syncing="syncing">Download <img class="d-inline-flex" src="/images/icon-download.png" style="height: 12px;"></a>
+            </div>
           </ajax-form>
-          <div purpose="empty-state-content" v-if="payloadOptionsToDisplay.length === 0">
+
+          <%// Empty state %>
+          <div purpose="empty-state-content" v-if="selectedPayloads.length === 0">
             <div purpose="empty-box">
             </div>
             <p purpose="empty-state-note">
               Choose from the categories on the left to add settings.
             </p>
           </div>
+
         </div>
-
       </div>
-
-
-
     </div>
   </div>
+  <modal v-if="modal === 'reset-form'" hide-close-button="true">
+    <div purpose="reset-form-modal">
+      <div purpose="modal-form">
+        <h3> Are you sure?</h3>
+        <p> Your current profile will be cleared</p>
+
+        <div purpose="modal-form-buttons">
+          <div purpose="modal-button-primary" @click="clickResetForm()">
+            I'm sure, create a new profile
+          </div>
+          <div purpose="modal-button-secondary" @click="modal = undefined">
+            No, take me back
+          </div>
+        </div>
+      </div>
+    </div>
+  </modal>
+  <modal v-if="modal === 'multiple-payloads-selected'" hide-close-button="true">
+    <div purpose="multiple-payloads-modal">
+      <div purpose="modal-form">
+        <h3>Multiple payloads detected</h3>
+        <p>To avoid potential conflicts, we recommend downloading each payload individually.</p>
+        <p>Are you sure you want to continue?</p>
+
+        <div purpose="modal-form-buttons">
+          <div purpose="modal-button-primary" @click="modal = 'download-profile'">
+            Continue
+          </div>
+          <div purpose="modal-button-secondary" @click="modal = undefined">
+            No, take me back
+          </div>
+        </div>
+      </div>
+    </div>
+  </modal>
+  <modal v-if="modal === 'download-profile'" hide-close-button="true">
+    <div purpose="download-profile-modal">
+      <div purpose="modal-form">
+        <h3>Download your configuration file</h3>
+        <ajax-form :handle-submitting="handleSubmittingDownloadProfileForm" :form-errors.sync="formErrors" :form-data="downloadProfileFormData" :form-rules="downloadProfileFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+          <div purpose="modal-form-option">
+            <label for="profile-name">Profile name</label>
+            <input type="text" class="form-control" id="profile-name" v-model="downloadProfileFormData.name">
+          </div>
+          <div purpose="modal-form-option">
+            <label for="profile-description">Description</label>
+            <textarea class="form-control mb-3" id="profile-description" v-model="downloadProfileFormData.description"></textarea>
+          </div>
+          <div purpose="modal-form-buttons">
+            <ajax-button purpose="download-button" style="max-width: 130px; color: #FFF;" type="submit">
+              Download <img class="d-inline-flex" src="/images/icon-download.png" style="height: 12px;">
+            </ajax-button>
+          </div>
+        </ajax-form>
+      </div>
+    </div>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

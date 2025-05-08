@@ -1,0 +1,160 @@
+
+//Windows settings
+// [
+//     {
+//         "category": "Privacy & security",
+//         "payloadGroup": [
+//             {
+//                 "name": "Device lock",
+//                 "description": "...",
+//                 "learnMoreUrl": "...",
+//                 "payloads": [
+//                   {
+//                       "name": "Enable device lock",
+//                       "toolTip": "...",
+//                       "supportedAccessTypes": ["ADD", "REPLACE"],
+//                       "type": "boolean",// Note: this is mostly for the input in the config builder. The backend action will need to convert this to 0 or 1.
+//                       "payloadSettings": [// If provided
+//                           {
+
+//                           }
+//                       ]// payloadSettings
+//                   }
+//                 ]// payloads
+//             }
+//         ]// Payload groups
+//     }// Category
+// ]
+// [
+//   {
+//     categoryName: "...",
+//     payloadGroups: [
+//       {
+//         name: '',
+//         description: '',
+//         learnMoreUrl: '',
+//         payloads: [
+//           {
+//             name: '...',
+//             toolTip: '...',
+//             supportedAccessTypes: ["ADD", "REPLACE"],
+//             settingFormat: "...",
+//             ''
+//           }
+//         ]
+//       }
+//     ]
+//   },
+//   {....}
+// ]
+// ƒ: Frontend (option + f)
+// ∫: Backend (Option + b)
+// ø: Used by fronend and backend.
+[
+    {
+        "categoryName": "Privacy & security",
+        "payloadGroups": [
+            {
+                "name": "Device lock",
+                "description": "...", 
+                "learnMoreUrl": "...", 
+                "payloads": [
+                  {
+                      "name": "Enable device lock",
+                      "toolTip": "...",// For hover tooltips
+                      "supportedAccessTypes": ["ADD", "REPLACE"],// Populates the options in the Access type dropdown.
+                      "settingFormat": "int",// will be injected into the config profile by the backend action
+                      "settingTarget": "./Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled",// will be injected into the config profile by the backend action
+                      "acceptedValue": {// For building the <input> element for this payload
+                        "type": "boolean",// Note: this is only for the input in the config builder. The backend action will need to convert this to 0 or 1.
+                        "trueValue": 0,// Since the default value of boolean switches is "disabled", we will need to know what the boolean is. This can change based on the default value of payloads.
+                        "falseValue": 1,
+                      }
+                  },
+                  {
+                      "name": "Require alphanumeric device password",
+                      "toolTip": "...",
+                      "supportedAccessTypes": ["ADD", "REPLACE"],
+                      "settingFormat": "int",
+                      "settingTarget": "./Device/Vendor/MSFT/Policy/Config/DeviceLock/AlphanumericDevicePasswordRequired",
+                      "dependencies": [
+                        {
+                          "name": "Enable device lock",
+                          "dependentValue": 0
+                        }
+                      ],
+                      "acceptedValue": {
+                        "type": "radio",
+                        "options": [
+                          {
+                            "label": "Password or Alphanumeric PIN required.",
+                            "value": 0,
+                          },
+                          {
+                            "label": "Password or Numeric PIN required..",
+                            "value": 1,
+                          },
+                          {
+                            "label": "Password, Numeric PIN, or Alphanumeric PIN required.",
+                            "value": 2,
+                          },
+                        ]
+                      }
+                  },
+                  {
+                      "name": "Min password length",
+                      "toolTip": "...",
+                      "supportedAccessTypes": ["ADD", "REPLACE"],
+                      "settingFormat": "int",
+                      "settingTarget": "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength",
+                      "dependencies": [
+                        {
+                          "name": "Enable device lock",
+                          "dependentValue": 0
+                        }
+                      ],
+                      "acceptedValue": {
+                        "type": "number",
+                        "defaultValue": 4,
+                        "minValue": 4,
+                        "maxValue": 16
+                      }
+                  },
+                  {
+                      "name": "Min password length",
+                      "toolTip": "...",
+                      "supportedAccessTypes": ["ADD", "REPLACE"],
+                      "settingFormat": "int",
+                      "settingTarget": "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength",
+                      "dependencies": [
+                        {
+                          "name": "Enable device lock",
+                        }
+                      ],
+                      "acceptedValue": {
+                        "type": "number",
+                        "defaultValue": 4,
+                        "minValue": 4,
+                        "maxValue": 16
+                      }
+                  }
+                ]
+            },
+            {
+              "name": "BitLocker",
+              "description": "...",
+              "learnMoreUrl": "...",
+              "payloads": [
+                {// Example of a payload with multiple settings
+                  "name": "Enforce startup authentication",
+                  "toolTip": "...",
+                  "supportedAccessTypes": ["ADD", "REPLACE"],
+                  "settingFormat": "chr",
+                  "settingTarget": "./Device/Vendor/MSFT/BitLocker/SystemDrivesRequireStartupAuthentication",
+                  
+                }
+              ]
+            }
+        ]// Payload groups
+    }// Category
+]
