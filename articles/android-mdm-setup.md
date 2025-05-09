@@ -58,14 +58,14 @@ To require your end users to enroll to Fleet using their Microsoft accounts, fol
 1. If your organization doesn't use Google Workspace or Microsoft 365, in the Google signup page, use a work email to signup for Android Enterprise (don't use personal emails like "@gmail.com").
 2. After you enter your email, you'll get a verification email. Open the link from the email.
 3. Enter information about you and your company and select **Continue**.
-4. Android Enterprise subscription will be selected (free), select **Next**.
+4. You'll see your free Android Enterprise subscription will be selected. Select **Next**.
 5. Enter a password for your account and select **Agree and continue**.
 6. Select **Allow and create account** on the next screen.
-8. You'll be asked to log in with your account that you just created, and to confirm your phone number.
-9. After successful login and phone verification, you'll be redirected to Fleet, and you should see that Android MDM is turned on.
-10. Follow [these steps](https://support.google.com/a/answer/60216?hl=en) to verify your domain name and prevent others from signing up with your domain.
+8. You'll be asked to log in with your account that you just created and confirm your phone number.
+9. After successful login and phone verification, you'll be redirected to Fleet. In Fleet, you can confirm Android MDM is turned on in **Settings > Integrations > MDM**.
+10. Follow [these steps](https://support.google.com/a/answer/60216?hl=en) to verify your domain name. This way, only you can use your domain to sign up for Google Workspace.
 
-Now you have managed Google domain with an Android Enterprise subscription. Optionally, if you want to add additional subscriptions later (i.e. Google Workspace) you can use this domain. Only the Android Enterprise subscription is required for Android MDM features.
+Now you have managed Google domain with an Android Enterprise subscription. Optionally, if you want to add additional subscriptions later (i.e. Google Workspace) you can use this domain. Only the free Android Enterprise subscription is required for Android MDM features.
 
 ## Turn off
 
