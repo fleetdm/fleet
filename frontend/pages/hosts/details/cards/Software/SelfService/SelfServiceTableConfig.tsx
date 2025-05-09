@@ -392,7 +392,11 @@ export const generateSoftwareTableHeaders = ({
     {
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
-          value="Status"
+          value={
+            <TooltipWrapper tipContent="Indicates the results of installations performed by this management system.">
+              Install status
+            </TooltipWrapper>
+          }
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),

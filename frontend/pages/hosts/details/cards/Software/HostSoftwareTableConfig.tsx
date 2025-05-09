@@ -32,6 +32,7 @@ import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTa
 
 import InstallStatusCell from "./InstallStatusCell";
 import { getDropdownOptionTooltipContent } from "../../HostDetailsPage/HostActionsDropdown/helpers";
+import TooltipWrapper from "components/TooltipWrapper";
 
 export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
@@ -201,7 +202,15 @@ export const generateSoftwareTableHeaders = ({
       },
     },
     {
-      Header: "Install status",
+      Header: () => (
+        <HeaderCell
+          value={
+            <TooltipWrapper tipContent="Indicates the results of Fleet-managed installions only.">
+              Install status
+            </TooltipWrapper>
+          }
+        />
+      ),
       disableSortBy: true,
       accessor: "status",
       Cell: ({ row: { original } }: IInstalledStatusCellProps) => {
@@ -209,7 +218,24 @@ export const generateSoftwareTableHeaders = ({
       },
     },
     {
-      Header: "Version",
+      Header: () => (
+        <HeaderCell
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  The current version installed on
+                  <br />
+                  this host verified with osquery.
+                </>
+              }
+            >
+              Installed version
+            </TooltipWrapper>
+          }
+        />
+      ),
+      id: "version",
       disableSortBy: true,
       // we use function as accessor because we have two columns that
       // need to access the same data. This is not supported with a string
