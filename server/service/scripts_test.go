@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -904,5 +905,39 @@ func TestBatchScriptExecute(t *testing.T) {
 		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"label_id": float64(123)})
 		require.Error(t, err)
 		require.ErrorContains(t, err, "filters must include a team filter")
+	})
+
+	t.Run("happy path", func(t *testing.T) {
+		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+			return "", errors.New("ok")
+		}
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 1, TeamID: ptr.Uint(1)},
+				{ID: 2, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			if id == 1 {
+				return &fleet.Script{ID: id, TeamID: ptr.Uint(1)}, nil
+			}
+			return &fleet.Script{ID: id}, nil
+		}
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 1, TeamID: ptr.Uint(1)},
+				{ID: 2, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2}, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "ok")
+
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err = svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"team_id": float64(1)})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "ok")
 	})
 }
