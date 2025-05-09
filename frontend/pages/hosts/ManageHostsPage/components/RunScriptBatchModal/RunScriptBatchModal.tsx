@@ -13,6 +13,7 @@ import Modal from "components/Modal";
 
 import scriptsAPI, {
   IListScriptsQueryKey,
+  IScriptBatchSupportedFilters,
   IScriptsResponse,
 } from "services/entities/scripts";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
@@ -26,15 +27,23 @@ import { IPaginatedListScript } from "../RunScriptBatchPaginatedList/RunScriptBa
 const baseClass = "run-script-batch-modal";
 
 interface IRunScriptBatchModal {
+  runByFilters: boolean; // otherwise, by selectedHostIds
+  // since teamId has multiple uses in this component, it's passed in as its own prop and added to
+  // `filters` as needed
+  filters: Omit<IScriptBatchSupportedFilters, "team_id">;
+  teamId: number;
+  totalFilteredHostsCount: number;
   selectedHostIds: number[];
   onCancel: () => void;
-  teamId: number;
 }
 
 const RunScriptBatchModal = ({
+  runByFilters = false,
+  filters,
+  totalFilteredHostsCount,
   selectedHostIds,
-  onCancel,
   teamId,
+  onCancel,
 }: IRunScriptBatchModal) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -68,11 +77,12 @@ const RunScriptBatchModal = ({
   const onRunScriptBatch = useCallback(
     async (script: IScript) => {
       setIsUpdating(true);
+      const body = runByFilters
+        ? // fully satisfy IScriptBatchSupportedFilters
+          { script_id: script.id, filters: { ...filters, team_id: teamId } }
+        : { script_id: script.id, host_ids: selectedHostIds };
       try {
-        await scriptsAPI.runScriptBatch({
-          host_ids: selectedHostIds,
-          script_id: script.id,
-        });
+        await scriptsAPI.runScriptBatch(body);
         renderFlash(
           "success",
           `Script is running on ${selectedHostIds.length} hosts, or will run as each host comes online. See host details for individual results.`
@@ -107,8 +117,12 @@ const RunScriptBatchModal = ({
     return (
       <>
         <p>
-          Will run on <b>{selectedHostIds.length} hosts</b>. You can see
-          individual script results on the host details page.
+          Will run on{" "}
+          <b>
+            {runByFilters ? totalFilteredHostsCount : selectedHostIds.length}{" "}
+            hosts
+          </b>
+          . You can see individual script results on the host details page.
         </p>
         <RunScriptBatchPaginatedList
           onRunScript={onRunScriptBatch}

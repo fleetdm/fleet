@@ -87,11 +87,28 @@ export interface IScriptRunResponse {
   execution_id: string;
 }
 
-/** Request body for POST /scripts/run/batch */
-export interface IRunScriptBatchRequest {
-  host_ids: number[];
+export interface IScriptBatchSupportedFilters {
+  // a search string, not a Fleet.Query
+  query?: string;
+  label_id?: number;
+  team_id?: number;
+  status: any; // yikes
+}
+interface IRunScriptBatchRequestBase {
   script_id: number;
 }
+
+interface IByFilters extends IRunScriptBatchRequestBase {
+  host_ids?: never;
+  filters: IScriptBatchSupportedFilters;
+}
+
+interface IByHostIds extends IRunScriptBatchRequestBase {
+  host_ids: number[];
+  filters?: never;
+}
+/** Request body for POST /scripts/run/batch */
+export type IRunScriptBatchRequest = IByFilters | IByHostIds;
 
 /** 202 successful response body for POST /scripts/run/batch */
 export interface IRunScriptBatchResponse {

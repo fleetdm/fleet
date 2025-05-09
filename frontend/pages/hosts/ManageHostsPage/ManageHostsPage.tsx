@@ -297,7 +297,7 @@ const ManageHostsPage = ({
   // differ from param names there:
   //   searchQuery ||
   //   teamId ||
-  //   selectedLabels ||
+  // labelID / active_label
   //   policyId ||
   //   macSettingsStatus ||
   //   policyResponse ||
@@ -320,7 +320,7 @@ const ManageHostsPage = ({
   //   diskEncryptionStatus ||
   //   vulnerability
 
-  const runScriptFilterNotSupported = !!(
+  const runScriptBatchFilterNotSupported = !!(
     // all above, except acceptable filters
     (
       diskEncryptionStatus ||
@@ -337,7 +337,7 @@ const ManageHostsPage = ({
       // // query (query string)
       // searchQuery ||
       // // label
-      // selectedLabels ||
+      // labelID / active_label
       // // status
       // status ||
       osName ||
@@ -498,7 +498,7 @@ const ManageHostsPage = ({
   );
 
   const {
-    data: hostsCount,
+    data: totalFilteredHostsCount,
     error: errorHostsCount,
     isFetching: isLoadingHostsCount,
     refetch: refetchHostsCountAPI,
@@ -651,10 +651,10 @@ const ManageHostsPage = ({
 
   const isLastPage =
     tableQueryData &&
-    !!hostsCount &&
+    !!totalFilteredHostsCount &&
     DEFAULT_PAGE_SIZE * tableQueryData.pageIndex +
       (hostsData?.hosts?.length || 0) >=
-      hostsCount;
+      totalFilteredHostsCount;
 
   const handleLabelChange = ({ slug, id: newLabelId }: ILabel): boolean => {
     const { MANAGE_HOSTS } = PATHS;
@@ -1378,7 +1378,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
-      hostsCount={hostsCount}
+      hostsCount={totalFilteredHostsCount}
       isUpdating={isUpdating}
     />
   );
@@ -1485,8 +1485,8 @@ const ManageHostsPage = ({
   const renderHostCount = useCallback(() => {
     return (
       <>
-        <TableCount name="hosts" count={hostsCount} />
-        {!!hostsCount && (
+        <TableCount name="hosts" count={totalFilteredHostsCount} />
+        {!!totalFilteredHostsCount && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
@@ -1500,7 +1500,7 @@ const ManageHostsPage = ({
         )}
       </>
     );
-  }, [isLoadingHostsCount, hostsCount]);
+  }, [isLoadingHostsCount, totalFilteredHostsCount]);
 
   const renderCustomControls = () => {
     // we filter out the status labels as we dont want to display them in the label
@@ -1535,7 +1535,7 @@ const ManageHostsPage = ({
 
   // TODO: try to reduce overlap between maybeEmptyHosts and includesFilterQueryParam
   const maybeEmptyHosts =
-    hostsCount === 0 && searchQuery === "" && !labelID && !status;
+    totalFilteredHostsCount === 0 && searchQuery === "" && !labelID && !status;
 
   const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
     (filter) =>
@@ -1601,7 +1601,7 @@ const ManageHostsPage = ({
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
       disableRunScriptBatchTooltipContent = "Select a team to run a script";
-    } else if (runScriptFilterNotSupported) {
+    } else if (runScriptBatchFilterNotSupported) {
       disableRunScriptBatchTooltipContent =
         "Choose different filters to run a script";
     }
@@ -1844,13 +1844,26 @@ const ManageHostsPage = ({
       {showAddHostsModal && renderAddHostsModal()}
       {showTransferHostModal && renderTransferHostModal()}
       {showDeleteHostModal && renderDeleteHostModal()}
-      {showRunScriptBatchModal && currentTeamId !== undefined && (
-        <RunScriptBatchModal
-          selectedHostIds={selectedHostIds}
-          onCancel={toggleRunScriptBatchModal}
-          teamId={currentTeamId}
-        />
-      )}
+      {showRunScriptBatchModal &&
+        currentTeamId !== undefined &&
+        totalFilteredHostsCount !== undefined && (
+          <RunScriptBatchModal
+            runByFilters={isAllMatchingHostsSelected}
+            // run script batch supports only these filters, plust team id
+            filters={{
+              query: searchQuery || undefined,
+              label_id: isNaN(Number(labelID)) ? undefined : Number(labelID),
+              status: status || undefined,
+            }}
+            // when running by filter, modal needs this count to report number of targeted hosts
+            totalFilteredHostsCount={totalFilteredHostsCount}
+            // when running by selected hosts, modal can use length of this array to report number of targeted
+            // hosts
+            selectedHostIds={selectedHostIds}
+            teamId={currentTeamId}
+            onCancel={toggleRunScriptBatchModal}
+          />
+        )}
     </>
   );
 };
