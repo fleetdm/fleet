@@ -272,6 +272,8 @@ export default {
   SCIM_DETAILS: `/${API_VERSION}/fleet/scim/details`,
 
   // configuration profile endpoints
+  CONFIG_PROFILE: (uuid: string) =>
+    `/${API_VERSION}/fleet/configuration_profiles/${uuid}`,
   CONFIG_PROFILE_STATUS: (uuid: string) =>
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/batch/resend`,
