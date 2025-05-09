@@ -31,7 +31,7 @@ When you select **Connect Android Enterprise**, Fleet will open the Google signu
 2. Follow the steps in Google's signup flow.
 3. After successful signup, a free Android Enterprise subscription is added to your Google Workspace. In Fleet, you can confirm Android MDM is turned on in **Settings > Integrations > MDM**.
 4. Go to your [Google Admin console](https://admin.google.com).
-5. Follow [these steps](https://support.google.com/a/answer/60216?hl=en) to verify your domain name and prevent others from signing up with your domain.
+5. Follow [these steps](https://support.google.com/a/answer/60216?hl=en) to verify your domain name. This way, only you can use your domain to sign up for Google Workspace.
 
 Now you have managed Google domain with an Android Enterprise subscription. Optionally, if you want to add additional subscriptions later (i.e. Google Workspace) you can use this domain. Only the free Android Enterprise subscription is required for Android MDM features.
 
