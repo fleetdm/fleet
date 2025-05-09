@@ -115,11 +115,7 @@ func (s *SwiftDialog) Start(ctx context.Context, opts *SwiftDialogOptions, caffe
 		// resume normal sleep/idle behavior. Note that the actual system sleep can only be
 		// completely blocked while on AC power(per the manpage) so this solution is not perfect.
 		// nb: Disabling gosec warning about tainted arguments below because we know the PID is OK
-<<<<<<< HEAD
-		caffeinateCmd := exec.CommandContext(ctx, "caffeinate", "-dimsu", "-w", fmt.Sprintf("%d", cmd.Process.Pid)) //nolint:gosec
-=======
 		caffeinateCmd := exec.CommandContext(ctx, "/usr/bin/caffeinate", "-dimsu", "-w", fmt.Sprintf("%d", cmd.Process.Pid)) //nolint:gosec
->>>>>>> main
 		caffeinateCmd.Stdout = nil
 		caffeinateCmd.Stderr = nil
 		caffeinateCmd.Stdin = nil
