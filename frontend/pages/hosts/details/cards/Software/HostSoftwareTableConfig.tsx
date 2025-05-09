@@ -25,6 +25,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import ActionsDropdown from "components/ActionsDropdown";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
@@ -201,7 +202,15 @@ export const generateSoftwareTableHeaders = ({
       },
     },
     {
-      Header: "Install status",
+      Header: () => (
+        <HeaderCell
+          value={
+            <TooltipWrapper tipContent="The status of Fleet-managed installations.">
+              Install status
+            </TooltipWrapper>
+          }
+        />
+      ),
       disableSortBy: true,
       accessor: "status",
       Cell: ({ row: { original } }: IInstalledStatusCellProps) => {
@@ -209,7 +218,24 @@ export const generateSoftwareTableHeaders = ({
       },
     },
     {
-      Header: "Version",
+      Header: () => (
+        <HeaderCell
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  The current version installed on
+                  <br />
+                  this host verified by host vitals.
+                </>
+              }
+            >
+              Installed version
+            </TooltipWrapper>
+          }
+        />
+      ),
+      id: "version",
       disableSortBy: true,
       // we use function as accessor because we have two columns that
       // need to access the same data. This is not supported with a string
