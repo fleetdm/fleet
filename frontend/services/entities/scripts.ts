@@ -98,7 +98,7 @@ export interface IRunScriptBatchResponse {
   batch_execution_id: string;
 }
 
-// Summary types + endpoint coming in following iteration
+// Summary types + endpoint coming in future iteration
 
 // interface IScriptBatchHostResponse {
 //   host_id: number;

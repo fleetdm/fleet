@@ -203,8 +203,6 @@ const ManageHostsPage = ({
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // ========= states
-  const [selectedLabel, setSelectedLabel] = useState<ILabel>();
-  const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
   const [showNoEnrollSecretBanner, setShowNoEnrollSecretBanner] = useState(
     true
   );
@@ -221,6 +219,10 @@ const ManageHostsPage = ({
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns
   );
+
+  const [selectedLabel, setSelectedLabel] = useState<ILabel>();
+  const [selectedSecret, setSelectedSecret] = useState<IEnrollSecret>();
+
   const [selectedHostIds, setSelectedHostIds] = useState<number[]>([]);
   const [isAllMatchingHostsSelected, setIsAllMatchingHostsSelected] = useState(
     false
@@ -284,12 +286,75 @@ const ManageHostsPage = ({
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
-  const selectedFilters = useMemo(() => {
+  const selectedLabels = useMemo(() => {
     const filters: string[] = [];
     labelID && filters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
     activeLabel && filters.push(activeLabel);
     return filters;
   }, [activeLabel, labelID]);
+
+  // All possible filter states - these align with ILoadHostsOptions, but state names here can
+  // differ from param names there:
+  //   searchQuery ||
+  //   teamId ||
+  //   selectedLabels ||
+  //   policyId ||
+  //   macSettingsStatus ||
+  //   policyResponse ||
+  //   softwareId ||
+  //   softwareTitleId ||
+  //   softwareVersionId ||
+  //   softwareStatus ||
+  //   status ||
+  //   osName ||
+  //   osVersionId ||
+  //   osVersion ||
+  //   macSettingsStatus ||
+  //   bootstrapPackageStatus ||
+  //   mdmId ||
+  //   mdmEnrollmentStatus ||
+  //   munkiIssueId ||
+  //   lowDiskSpaceHosts ||
+  //   missingHosts ||
+  //   osSettingsStatus ||
+  //   diskEncryptionStatus ||
+  //   vulnerability
+
+  const runScriptFilterNotSupported = !!(
+    // all above, except acceptable filters
+    (
+      diskEncryptionStatus ||
+      policyId ||
+      macSettingsStatus ||
+      policyResponse ||
+      softwareId ||
+      softwareTitleId ||
+      softwareVersionId ||
+      softwareStatus ||
+      // the 4 allowed filters:
+      // // team
+      // teamId ||
+      // // query (query string)
+      // searchQuery ||
+      // // label
+      // selectedLabels ||
+      // // status
+      // status ||
+      osName ||
+      osVersionId ||
+      osVersion ||
+      macSettingsStatus ||
+      bootstrapPackageStatus ||
+      mdmId ||
+      mdmEnrollmentStatus ||
+      munkiIssueId ||
+      lowDiskSpaceHosts ||
+      missingHosts ||
+      osSettingsStatus ||
+      diskEncryptionStatus ||
+      vulnerability
+    )
+  );
 
   // ========= derived permissions
   const canEnrollHosts =
@@ -396,7 +461,7 @@ const ManageHostsPage = ({
     [
       {
         scope: "hosts",
-        selectedLabels: selectedFilters,
+        selectedLabels,
         globalFilter: searchQuery,
         sortBy,
         teamId: teamIdForApi,
@@ -441,7 +506,7 @@ const ManageHostsPage = ({
     [
       {
         scope: "hosts_count",
-        selectedLabels: selectedFilters,
+        selectedLabels,
         globalFilter: searchQuery,
         teamId: teamIdForApi,
         policyId,
@@ -558,14 +623,14 @@ const ManageHostsPage = ({
   // TODO: cleanup this effect
   useEffect(() => {
     const slugToFind =
-      (selectedFilters.length > 0 &&
-        selectedFilters.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
-      selectedFilters[0];
+      (selectedLabels.length > 0 &&
+        selectedLabels.find((f) => f.includes(LABEL_SLUG_PREFIX))) ||
+      selectedLabels[0];
     const validLabel = find(labels, ["slug", slugToFind]) as ILabel;
     if (selectedLabel !== validLabel) {
       setSelectedLabel(validLabel);
     }
-  }, [labels, selectedFilters, selectedLabel]);
+  }, [labels, selectedLabels, selectedLabel]);
 
   // TODO: cleanup this effect
   useEffect(() => {
@@ -1364,7 +1429,7 @@ const ManageHostsPage = ({
     }
 
     let options = {
-      selectedLabels: selectedFilters,
+      selectedLabels,
       globalFilter: searchQuery,
       sortBy,
       teamId: teamIdForApi,
@@ -1536,9 +1601,9 @@ const ManageHostsPage = ({
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
       disableRunScriptBatchTooltipContent = "Select a team to run a script";
-    } else if (isAllMatchingHostsSelected) {
+    } else if (runScriptFilterNotSupported) {
       disableRunScriptBatchTooltipContent =
-        "Select specific hosts to run a script";
+        "Choose different filters to run a script";
     }
 
     const secondarySelectActions: IActionButtonProps[] = [
@@ -1620,7 +1685,7 @@ const ManageHostsPage = ({
         pageIndex={curPageFromURL}
         defaultSearchQuery={searchQuery}
         pageSize={DEFAULT_PAGE_SIZE}
-        additionalQueries={JSON.stringify(selectedFilters)}
+        additionalQueries={JSON.stringify(selectedLabels)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         actionButton={{
           name: "edit columns",
