@@ -565,15 +565,6 @@ func (c *Client) ApplyGroup(
 			logfn("[+] applied fleet config\n")
 		}
 
-		if viaGitOps && (windowsCustomSettings == nil || macosCustomSettings == nil) {
-			if windowsCustomSettings == nil {
-				windowsCustomSettings = []fleet.MDMProfileSpec{}
-			}
-			if macosCustomSettings == nil {
-				macosCustomSettings = []fleet.MDMProfileSpec{}
-			}
-		}
-
 		// We apply profiles after the main AppConfig org_settings because profiles may
 		// contain Fleet variables that are set in org_settings, such as $FLEET_VAR_DIGICERT_PASSWORD_My_CA
 		//
@@ -1861,7 +1852,9 @@ func (c *Client) DoGitOps(
 		if config.Controls.MacOSSettings != nil {
 			mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
 		} else {
-			mdmAppConfig["macos_settings"] = fleet.MacOSSettings{}
+			mdmAppConfig["macos_settings"] = fleet.MacOSSettings{
+				CustomSettings: []fleet.MDMProfileSpec{},
+			}
 		}
 		// Put in default values for macos_updates
 		if config.Controls.MacOSUpdates != nil {
@@ -1913,7 +1906,9 @@ func (c *Client) DoGitOps(
 		if config.Controls.WindowsSettings != nil {
 			mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
 		} else {
-			mdmAppConfig["windows_settings"] = fleet.WindowsSettings{}
+			mdmAppConfig["windows_settings"] = fleet.WindowsSettings{
+				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
+			}
 		}
 		// Put in default values for windows_updates
 		if config.Controls.WindowsUpdates != nil {

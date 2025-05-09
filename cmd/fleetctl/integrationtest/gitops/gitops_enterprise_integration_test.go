@@ -929,13 +929,6 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestRemoveCustomSettingsFromDefau
 	err = profileFile.Close()
 	require.NoError(t, err)
 
-	contents, err := os.ReadFile(profileFile.Name())
-	if err != nil {
-		fmt.Println("Error reading profile file:", err)
-	} else {
-		fmt.Println("Profile contents:\n", string(contents))
-	}
-
 	// global file setup with custom settings
 	const (
 		globalTemplateWithCustomSettings = `
