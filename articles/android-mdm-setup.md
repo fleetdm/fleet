@@ -40,17 +40,17 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 To require your end users to enroll to Fleet using their Microsoft accounts, follow steps below:
 
 1. In Google Workspace, from the side menu, select [Devices > Mobile & endpoints > Settings > Third-party integrations](https://admin.google.com/ac/devices/settings/thirdparty).
-2. Select **Android EMM**, check **Enable third-party Android mobile management**, then select **Manage EMM providers**.
-3. Toggle **Authenticate Using Google** switch for your Android Enterprise, select the cross icon in the top left corner, and select **Save**.
-4. From the side menu, select **Directory > Directory Sync**, and select **Add Azure Active Directory** to sync users from your Microsoft 365 to Google Workspace, so your end user can login with Microsoft 365 to add work profile.
-5. Select **Continue**, add name and description, then select **Authorize and save**.
-6. In popup window, login with Microsoft 365 admin account, select **Consent on behalf of your organisation**, and select **Accept**.
-7. When you see **Connection successful** page, select **Continue**, and on the directory sync details page, select **Set up user sync**.
-8. Enter names of the groups that you want to sync from Microsoft 365, then select **Verify**, and after that, select **Continue**.
-9. Now choose organizational unit to add users to by selecting **Select organizational unit** button, then select **Continue**
-10. You can keep default user attribute mapping and select **Continue**, select **Don't send activation email** and select **Continue**.
+2. Select **Android EMM**, check **Enable third-party Android mobile management**, and then select **Manage EMM providers**.
+3. Toggle the **Authenticate Using Google** switch for your Android Enterprise, select the cross icon in the top left corner, and select **Save**.
+4. From the side menu, select **Directory > Directory Sync** and select **Add Azure Active Directory** to sync users from your Microsoft 365 to Google Workspace. Now, your end users can enroll with their Microsoft account.
+5. Select **Continue**, add name and description, and then select **Authorize and save**.
+6. In popup window, login with your Microsoft account, select **Consent on behalf of your organization**, and select **Accept**.
+7. When you see the **Connection successful** page, select **Continue**. On the directory sync details page, select **Set up user sync**.
+8. Enter the names of the groups that you want to sync from Microsoft 365, select **Verify**, and select **Continue**.
+9. Now choose organizational unit to add users to by selecting **Select organizational unit** button and then **Continue**.
+10. You can keep default user attribute mapping. Select **Continue**, **Don't send activation email**, and **Continue**.
 11. Keep **Suspend user in Google Directory** checked and select **Continue**
-12. You can keep default safeguards and select **Simulate sync**, then after successfull simulation, select **Close**. This can [take up to the hour](https://support.google.com/a/answer/10344342) to complete, depending on the size of your data.
+12. Keep default safeguards. Select **Simulate sync** and, after successful simulation, select **Close**. The sync can [take up to the hour](https://support.google.com/a/answer/10344342) to complete.
 13. In the dialog, select **Activate and start sync**.
 
 ### Other
