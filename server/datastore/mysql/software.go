@@ -2988,6 +2988,31 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 	return vppInstalls, nil
 }
 
+func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostInstalledSoftware hostSoftware) {
+	seperator := ","
+	if softwareTitleRecord.SoftwareIDList == nil {
+		softwareTitleRecord.SoftwareIDList = ptr.String("")
+		softwareTitleRecord.SoftwareSourceList = ptr.String("")
+		softwareTitleRecord.VersionList = ptr.String("")
+		softwareTitleRecord.BundleIdentifierList = ptr.String("")
+		seperator = ""
+	}
+	softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
+	found := false
+	for _, id := range softwareIDList {
+		if id == softwareIDStr {
+			found = true
+			break
+		}
+	}
+	if !found {
+		*softwareTitleRecord.SoftwareIDList += seperator + softwareIDStr
+		*softwareTitleRecord.SoftwareSourceList += seperator + hostInstalledSoftware.Source
+		*softwareTitleRecord.VersionList += seperator + *hostInstalledSoftware.Version
+		*softwareTitleRecord.BundleIdentifierList += seperator + *hostInstalledSoftware.BundleIdentifier
+	}
+}
+
 func hostInstalledVpps(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
 	vppInstalledStmt := `
 		SELECT
@@ -3511,8 +3536,23 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			return nil, nil, err
 		}
 		for _, s := range installedVPPAppIDs {
-			tempBySoftwareTitleID[s.ID] = s
+			if s.VPPAppAdamID != nil {
+				tmpByVPPAdamID[*s.VPPAppAdamID] = s
+			}
 			hostVPPInstalledTitles[s.ID] = s
+			// If a VPP app is installed on the host, but not by fleet
+			// it will be present in bySoftwareTitleID, because osquery returned it as inventory.
+			// We need to remove it from bySoftwareTitleID and add it to byVPPAdamID
+			if invetoriedSoftware, ok := bySoftwareTitleID[s.ID]; ok {
+				delete(bySoftwareTitleID, s.ID)
+				invetoriedSoftware.VPPAppAdamID = s.VPPAppAdamID
+				invetoriedSoftware.VPPAppVersion = s.VPPAppVersion
+				invetoriedSoftware.VPPAppPlatform = s.VPPAppPlatform
+				invetoriedSoftware.VPPAppIconURL = s.VPPAppIconURL
+				invetoriedSoftware.VPPAppSelfService = s.VPPAppSelfService
+				byVPPAdamID[*s.VPPAppAdamID] = invetoriedSoftware
+				hostVPPInstalledTitles[s.ID] = invetoriedSoftware
+			}
 		}
 		for _, s := range availableSoftwareTitles {
 			// If it's a VPP app
@@ -3649,7 +3689,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		if opts.SelfServiceOnly {
 			softwareOnlySelfServiceClause = ` AND software_installers.self_service = 1 `
 			if opts.IsMDMEnrolled {
-				vppOnlySelfServiceClause = ` OR vpp_apps_teams.self_service = 1 `
+				vppOnlySelfServiceClause = ` AND vpp_apps_teams.self_service = 1 `
 			}
 		}
 
@@ -3967,6 +4007,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
 			softwareTitle := bySoftwareTitleID[softwareTitleRecord.ID]
+			inventoriedVPPApp := hostVPPInstalledTitles[softwareTitleRecord.ID]
 
 			if softwareTitle != nil && softwareTitle.SoftwareID != nil {
 				// if we have a software id, that means that this record has been installed on the host,
@@ -3974,29 +4015,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				// but we want to make sure that software id is present on the InstalledVersions list to be processed
 				if s, ok := hostInstalledSoftwareSet[*softwareTitle.SoftwareID]; ok {
 					softwareIDStr := strconv.FormatUint(uint64(*softwareTitle.SoftwareID), 10)
-
-					seperator := ","
-					if softwareTitleRecord.SoftwareIDList == nil {
-						softwareTitleRecord.SoftwareIDList = ptr.String("")
-						softwareTitleRecord.SoftwareSourceList = ptr.String("")
-						softwareTitleRecord.VersionList = ptr.String("")
-						softwareTitleRecord.BundleIdentifierList = ptr.String("")
-						seperator = ""
-					}
-					softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
-					found := false
-					for _, id := range softwareIDList {
-						if id == softwareIDStr {
-							found = true
-							break
-						}
-					}
-					if !found {
-						*softwareTitleRecord.SoftwareIDList += seperator + softwareIDStr
-						*softwareTitleRecord.SoftwareSourceList += seperator + s.Source
-						*softwareTitleRecord.VersionList += seperator + *s.Version
-						*softwareTitleRecord.BundleIdentifierList += seperator + *s.BundleIdentifier
-					}
+					pushVersion(softwareIDStr, softwareTitleRecord, *s)
+				}
+			}
+			if inventoriedVPPApp != nil && inventoriedVPPApp.SoftwareID != nil {
+				// Vpp app installed on the host, we need to push this into the installed versions list as well
+				if s, ok := hostInstalledSoftwareSet[*inventoriedVPPApp.SoftwareID]; ok {
+					softwareIDStr := strconv.FormatUint(uint64(*inventoriedVPPApp.SoftwareID), 10)
+					pushVersion(softwareIDStr, softwareTitleRecord, *s)
 				}
 			}
 
