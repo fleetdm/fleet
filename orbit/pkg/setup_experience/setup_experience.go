@@ -155,7 +155,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 						log.Info().Err(err).Msg("updating list item in setup experience UI")
 					}
 				} else {
-					log.Debug().Msgf("setup experience: no change in status for %s, skipping update", step.Name)
+					log.Info().Msgf("setup experience: no change in status for %s", step.Name)
 					continue
 				}
 			} else {
