@@ -853,7 +853,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const renderDashboardHeader = () => {
-    if (isPremiumTier) {
+    if (isPremiumTier && !config?.partnerships?.enable_primo) {
       if (userTeams) {
         if (userTeams.length > 1 || isOnGlobalTeam) {
           return (
@@ -871,7 +871,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       // userTeams.length should have at least 1 element
       return null;
     }
-    // Free tier
     return <h1>{config?.org_info.org_name}</h1>;
   };
   return !isRouteOk ? (

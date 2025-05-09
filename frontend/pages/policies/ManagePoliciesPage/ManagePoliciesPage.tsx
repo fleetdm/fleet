@@ -1202,6 +1202,26 @@ const ManagePolicyPage = ({
     return <Spinner />;
   }
 
+  const renderHeader = () => {
+    if (isPremiumTier && !globalConfigFromContext?.partnerships?.enable_primo) {
+      if ((userTeams && userTeams.length > 1) || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams || []}
+            selectedTeamId={currentTeamId}
+            onChange={onTeamChange}
+            includeNoTeams
+          />
+        );
+      }
+      if (!isOnGlobalTeam && userTeams && userTeams.length === 1) {
+        return <h1>{userTeams[0].name}</h1>;
+      }
+    }
+
+    return <h1>Policies</h1>;
+  };
+
   let teamsDropdownHelpText: string;
   if (teamIdForApi === API_NO_TEAM_ID) {
     teamsDropdownHelpText =
@@ -1219,22 +1239,7 @@ const ManagePolicyPage = ({
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
-              <div className={`${baseClass}__title`}>
-                {isFreeTier && <h1>Policies</h1>}
-                {isPremiumTier &&
-                  ((userTeams && userTeams.length > 1) || isOnGlobalTeam) && (
-                    <TeamsDropdown
-                      currentUserTeams={userTeams || []}
-                      selectedTeamId={currentTeamId}
-                      onChange={onTeamChange}
-                      includeNoTeams
-                    />
-                  )}
-                {isPremiumTier &&
-                  !isOnGlobalTeam &&
-                  userTeams &&
-                  userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
-              </div>
+              <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
           </div>
           {showCtaButtons && (

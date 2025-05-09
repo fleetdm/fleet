@@ -190,6 +190,11 @@ export interface IConfig {
   };
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
+  partnerships?: IFleetPartnerships;
+}
+
+interface IFleetPartnerships {
+  enable_primo: boolean;
 }
 
 export interface IWebhookSettings {

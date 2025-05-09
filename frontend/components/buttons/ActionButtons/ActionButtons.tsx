@@ -8,6 +8,8 @@ import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+// TODO - there are two `IActionButtonProps` in the codebase, one specifically used in
+// TableContainer. Disambiguate these names or combine into a single abstraction.
 export interface IActionButtonProps {
   type: "primary" | "secondary";
   label: string;

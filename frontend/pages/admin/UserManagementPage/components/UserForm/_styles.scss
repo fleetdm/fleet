@@ -92,4 +92,10 @@
   &__tooltip-text {
     width: 300px;
   }
+
+  .team-field .component__tooltip-wrapper__element {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
 }
