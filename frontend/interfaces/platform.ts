@@ -106,6 +106,7 @@ export const HOST_LINUX_PLATFORMS = [
   "opensuse-leap",
   "opensuse-tumbleweed",
   "tuxedo",
+  "neon",
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
