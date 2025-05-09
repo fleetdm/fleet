@@ -1,4 +1,4 @@
-package fleetctl
+package preview
 
 import (
 	"bytes"
@@ -8,12 +8,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPreviewFailsOnInvalidLicenseKey(t *testing.T) {
-	_, err := runAppNoChecks([]string{"preview", "--license-key", "0xDEADBEEF"})
+	_, err := fleetctl.RunAppNoChecks([]string{"preview", "--license-key", "0xDEADBEEF"})
 	require.ErrorContains(t, err, "--license-key")
 }
 
@@ -21,18 +22,18 @@ func TestIntegrationsPreview(t *testing.T) {
 	nettest.Run(t)
 
 	t.Setenv("FLEET_SERVER_ADDRESS", "https://localhost:8412")
-	testOverridePreviewDirectory = t.TempDir()
+	fleetctl.TestOverridePreviewDirectory = t.TempDir()
 	configPath := filepath.Join(t.TempDir(), "config")
 	t.Log("config path: ", configPath)
 
 	t.Cleanup(func() {
-		require.Equal(t, "", runAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
+		require.Equal(t, "", fleetctl.RunAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
 	var output *bytes.Buffer
 	require.NoError(t, nettest.RunWithNetRetry(t, func() error {
 		var err error
-		output, err = runAppNoChecks([]string{
+		output, err = fleetctl.RunAppNoChecks([]string{
 			"preview",
 			"--config", configPath,
 			"--preview-config-path", filepath.Join(gitRootPath(t), "tools", "osquery", "in-a-box"),
@@ -50,12 +51,12 @@ func TestIntegrationsPreview(t *testing.T) {
 	// run some sanity checks on the preview environment
 
 	// standard queries must have been loaded
-	queries := runAppForTest(t, []string{"get", "queries", "--config", configPath, "--json"})
+	queries := fleetctl.RunAppForTest(t, []string{"get", "queries", "--config", configPath, "--json"})
 	n := strings.Count(queries, `"kind":"query"`)
 	require.Greater(t, n, 10)
 
 	// app configuration must disable analytics
-	appConf := runAppForTest(t, []string{"get", "config", "--include-server-config", "--config", configPath, "--yaml"})
+	appConf := fleetctl.RunAppForTest(t, []string{"get", "config", "--include-server-config", "--config", configPath, "--yaml"})
 	ok := strings.Contains(appConf, `enable_analytics: false`)
 	require.True(t, ok, appConf)
 
@@ -76,25 +77,4 @@ func gitRootPath(t *testing.T) string {
 	path, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
 	require.NoError(t, err)
 	return strings.TrimSpace(string(path))
-}
-
-func TestDockerCompose(t *testing.T) {
-	t.Parallel()
-	t.Run("returns the right command according to the version", func(t *testing.T) {
-		v1 := dockerCompose{dockerComposeV1}
-		cmd1 := v1.Command("up")
-		require.Equal(t, []string{"docker-compose", "up"}, cmd1.Args)
-
-		v2 := dockerCompose{dockerComposeV2}
-		cmd2 := v2.Command("up")
-		require.Equal(t, []string{"docker", "compose", "up"}, cmd2.Args)
-	})
-
-	t.Run("strings according to the version", func(t *testing.T) {
-		v1 := dockerCompose{dockerComposeV1}
-		require.Equal(t, v1.String(), "`docker-compose`")
-
-		v2 := dockerCompose{dockerComposeV2}
-		require.Equal(t, v2.String(), "`docker compose`")
-	})
 }

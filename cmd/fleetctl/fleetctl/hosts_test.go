@@ -5,26 +5,27 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestHostTransferFlagChecks(t *testing.T) {
-	runServerWithMockedDS(t)
+	testing_utils.RunServerWithMockedDS(t)
 
-	runAppCheckErr(t,
+	RunAppCheckErr(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--hosts", "host1", "--label", "AAA"},
 		"--hosts cannot be used along side any other flag",
 	)
-	runAppCheckErr(t,
+	RunAppCheckErr(t,
 		[]string{"hosts", "transfer", "--team", "team1"},
 		"You need to define either --hosts, or one or more of --label, --status, --search_query",
 	)
 }
 
 func TestHostsTransferByHosts(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -67,7 +68,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil, nil
 	}
 
-	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, ds.NewActivityFuncInvoked)
 
@@ -79,13 +80,13 @@ func TestHostsTransferByHosts(t *testing.T) {
 	}
 	ds.NewActivityFuncInvoked = false
 	ds.AddHostsToTeamFuncInvoked = false
-	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "", "--hosts", "host1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "", "--hosts", "host1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByLabel(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -139,7 +140,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return nil, nil
 	}
 
-	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--label", "label1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--label", "label1"}))
 	require.True(t, ds.NewActivityFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 
@@ -151,13 +152,13 @@ func TestHostsTransferByLabel(t *testing.T) {
 	}
 	ds.NewActivityFuncInvoked = false
 	ds.AddHostsToTeamFuncInvoked = false
-	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "", "--label", "label1"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"hosts", "transfer", "--team", "", "--label", "label1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -210,13 +211,13 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil, nil
 	}
 
-	assert.Equal(t, "", runAppForTest(t,
+	assert.Equal(t, "", RunAppForTest(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--status", "online"}))
 	require.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		require.Equal(t, "host1", identifier)
@@ -270,7 +271,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return nil, nil
 	}
 
-	assert.Equal(t, "", runAppForTest(t,
+	assert.Equal(t, "", RunAppForTest(t,
 		[]string{"hosts", "transfer", "--team", "team1", "--status", "online", "--search_query", "somequery"}))
 	require.True(t, ds.NewActivityFuncInvoked)
 }

@@ -34,7 +34,7 @@ func TestConfigCommand(t *testing.T) {
 				configFile := filepath.Join(dir, "config")
 
 				baseFlags := []string{"config", "set", "--config", configFile}
-				runAppCheckErr(t, append(baseFlags, c.setFlags...), c.wantErr)
+				RunAppCheckErr(t, append(baseFlags, c.setFlags...), c.wantErr)
 			})
 		}
 	})
@@ -129,7 +129,7 @@ func TestConfigCommand(t *testing.T) {
 				} else {
 					c.context = "default"
 				}
-				runAppForTest(t, append(baseFlags, c.setFlags...))
+				RunAppForTest(t, append(baseFlags, c.setFlags...))
 
 				cfg, err := readConfig(configFile)
 				require.NoError(t, err)
@@ -156,7 +156,7 @@ func TestCustomHeadersConfig(t *testing.T) {
 	defer srv.Close()
 	t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 
-	runAppForTest(t, []string{
+	RunAppForTest(t, []string{
 		"config", "set",
 		"--config", configFile,
 		"--token", "abcd",
@@ -164,6 +164,6 @@ func TestCustomHeadersConfig(t *testing.T) {
 		"--custom-header", "X-Fleet-MoreTest:another",
 		"--address", srv.URL,
 	})
-	runAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
+	RunAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
 	require.True(t, called)
 }

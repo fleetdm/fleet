@@ -17,7 +17,7 @@ import (
 
 const (
 	filenameMaxLength           = 255
-	reapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s -- this only happens once for new teams that have VPP apps\n"
+	ReapplyingTeamForVPPAppsMsg = "[!] re-applying configs for team %s -- this only happens once for new teams that have VPP apps\n"
 )
 
 type LabelUsage struct {
@@ -340,7 +340,7 @@ func gitopsCommand() *cli.Command {
 			// Now that VPP tokens have been assigned, we can apply VPP apps to the new team.
 			// For simplicity, we simply re-apply the entire config. This only happens once when the team is created.
 			for _, teamWithApps := range missingVPPTeamsWithApps {
-				_, _ = fmt.Fprintf(c.App.Writer, reapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
+				_, _ = fmt.Fprintf(c.App.Writer, ReapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
 				teamWithApps.config.Software.AppStoreApps = teamWithApps.vppApps
 				_, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig,
 					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)

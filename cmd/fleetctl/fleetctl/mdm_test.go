@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -20,19 +20,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockPusher struct{}
-
 type testhost struct {
 	host    *fleet.Host
 	mdmInfo *fleet.HostMDM
-}
-
-func (mockPusher) Push(ctx context.Context, ids []string) (map[string]*push.Response, error) {
-	m := make(map[string]*push.Response, len(ids))
-	for _, id := range ids {
-		m[id] = &push.Response{Id: id}
-	}
-	return m, nil
 }
 
 func TestMDMRunCommand(t *testing.T) {
@@ -192,9 +182,9 @@ func TestMDMRunCommand(t *testing.T) {
 			enqueuer := new(mdmmock.MDMAppleStore)
 			license := &fleet.LicenseInfo{Tier: lic, Expiration: time.Now().Add(24 * time.Hour)}
 
-			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+			_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 				MDMStorage:       enqueuer,
-				MDMPusher:        mockPusher{},
+				MDMPusher:        testing_utils.MockPusher{},
 				License:          license,
 				NoCacheDatastore: true,
 			})
@@ -334,7 +324,7 @@ func TestMDMRunCommand(t *testing.T) {
 						return c.appCfg, nil
 					}
 
-					buf, err := runAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
+					buf, err := RunAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
 					if c.wantErr != "" {
 						require.Error(t, err)
 						require.ErrorContains(t, err, c.wantErr)
@@ -1322,9 +1312,9 @@ func setupTestServer(t *testing.T) *mock.Store {
 		return nil
 	}
 
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		MDMStorage:       enqueuer,
-		MDMPusher:        mockPusher{},
+		MDMPusher:        testing_utils.MockPusher{},
 		License:          license,
 		NoCacheDatastore: true,
 	})
@@ -1416,7 +1406,7 @@ func runTestCases(t *testing.T, ds *mock.Store, actionType string, successfulOut
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return c.appCfg, nil
 		}
-		buf, err := runAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
+		buf, err := RunAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
 		if c.wantErr != "" {
 			require.Error(t, err, c.desc)
 			require.ErrorContains(t, err, c.wantErr, c.desc)
