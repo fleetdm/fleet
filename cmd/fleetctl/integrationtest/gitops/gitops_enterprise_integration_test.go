@@ -919,7 +919,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestRemoveCustomSettingsFromDefau
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 
 	// Set the required environment variables
-	t.Setenv("FLEET_URL", s.server.URL)
+	t.Setenv("FLEET_URL", s.Server.URL)
 
 	// setup custom settings profile
 	profileFile, err := os.CreateTemp(t.TempDir(), "*.mobileconfig")
@@ -955,10 +955,10 @@ queries:
 	err = globalFile.Close()
 	require.NoError(t, err)
 
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
 
-	profiles, err := s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	profiles, err := s.DS.ListMDMAppleConfigProfiles(ctx, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(profiles))
 
@@ -985,11 +985,11 @@ queries:
 	err = globalFile.Close()
 	require.NoError(t, err)
 
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
-	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
 
 	// Check profile does not exist
-	profiles, err = s.ds.ListMDMAppleConfigProfiles(ctx, nil)
+	profiles, err = s.DS.ListMDMAppleConfigProfiles(ctx, nil)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(profiles))
 }
