@@ -49,6 +49,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
 		{"TestBulkSetPendingMDMHostProfilesExcludeAny", testBulkSetPendingMDMHostProfilesExcludeAny},
 		{"TestBulkSetPendingMDMHostProfilesLotsOfHosts", testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts},
+		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
 	}
 
 	for _, c := range cases {
@@ -7706,4 +7707,171 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 
 	_, err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, ds.writer(ctx), hostUUIDs, nil)
 	require.NoError(t, err)
+}
+
+func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// create some hosts and some profiles
+	host1 := test.NewHost(t, ds, "host1", "1", "h1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "h2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "3", "h3key", "host3uuid", time.Now())
+	host4 := test.NewHost(t, ds, "host4", "4", "h4key", "host4uuid", time.Now())
+
+	// create a team and make host4 part of that team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host4.ID})
+	require.NoError(t, err)
+
+	// create some profiles , a and b for no team, c for team
+	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", 0), nil)
+	require.NoError(t, err)
+	profB, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", 0), nil)
+	require.NoError(t, err)
+	profC, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("c", "c", team.ID), nil)
+	require.NoError(t, err)
+
+	t.Logf("profA=%s, profB=%s, profC=%s", profA.ProfileUUID, profB.ProfileUUID, profC.ProfileUUID)
+
+	assertHostProfileStatus(t, ds, host1.UUID)
+	assertHostProfileStatus(t, ds, host2.UUID)
+	assertHostProfileStatus(t, ds, host3.UUID)
+	assertHostProfileStatus(t, ds, host4.UUID)
+
+	// make profile A installed for all no team
+	forceSetHostProfileStatus(t, ds, host1.UUID, profA, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetHostProfileStatus(t, ds, host2.UUID, profA, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetHostProfileStatus(t, ds, host3.UUID, profA, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	// batch-resend profile A, does not impact any host
+	n, err := ds.BatchResendMDMProfileToHosts(ctx, profA.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+	require.NoError(t, err)
+	require.EqualValues(t, 0, n)
+
+	assertHostProfileStatus(t, ds, host1.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, host2.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, host3.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, host4.UUID)
+
+	// batch-resend profile B, does not impact any host as it's not delievered to any yet
+	n, err = ds.BatchResendMDMProfileToHosts(ctx, profB.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+	require.NoError(t, err)
+	require.EqualValues(t, 0, n)
+
+	assertHostProfileStatus(t, ds, host1.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, host2.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, host3.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, host4.UUID)
+
+	// make profile A failed on a couple hosts, verified on the other
+	forceSetHostProfileStatus(t, ds, host1.UUID, profA, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+	forceSetHostProfileStatus(t, ds, host2.UUID, profA, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+	forceSetHostProfileStatus(t, ds, host3.UUID, profA, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+
+	// batch-resend profile A, impacts host 1 and 2
+	n, err = ds.BatchResendMDMProfileToHosts(ctx, profA.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+	require.NoError(t, err)
+	require.EqualValues(t, 2, n)
+
+	assertHostProfileStatus(t, ds, host1.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, host2.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, host3.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified})
+	assertHostProfileStatus(t, ds, host4.UUID)
+
+	// batch-resend profile A again, no change as it is already pending on the impacted hosts
+	n, err = ds.BatchResendMDMProfileToHosts(ctx, profA.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+	require.NoError(t, err)
+	require.EqualValues(t, 0, n)
+
+	assertHostProfileStatus(t, ds, host1.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, host2.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, host3.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified})
+	assertHostProfileStatus(t, ds, host4.UUID)
+
+	// make profile B failed on all hosts
+	forceSetHostProfileStatus(t, ds, host1.UUID, profB, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+	forceSetHostProfileStatus(t, ds, host2.UUID, profB, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+	forceSetHostProfileStatus(t, ds, host3.UUID, profB, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+
+	assertHostProfileStatus(t, ds, host1.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryFailed})
+	assertHostProfileStatus(t, ds, host2.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryFailed})
+	assertHostProfileStatus(t, ds, host3.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryFailed})
+	assertHostProfileStatus(t, ds, host4.UUID)
+
+	// batch-resend profile B, all hosts affected
+	n, err = ds.BatchResendMDMProfileToHosts(ctx, profB.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+	require.NoError(t, err)
+	require.EqualValues(t, 3, n)
+
+	assertHostProfileStatus(t, ds, host1.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, host2.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, host3.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, host4.UUID)
+
+	// make profile C failed on host 4, other profiles Verified
+	forceSetHostProfileStatus(t, ds, host4.UUID, profC, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+	forceSetHostProfileStatus(t, ds, host1.UUID, profA, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	forceSetHostProfileStatus(t, ds, host2.UUID, profA, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	forceSetHostProfileStatus(t, ds, host1.UUID, profB, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	forceSetHostProfileStatus(t, ds, host2.UUID, profB, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	forceSetHostProfileStatus(t, ds, host3.UUID, profB, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+
+	// batch-resend profile C, host 4 affected
+	n, err = ds.BatchResendMDMProfileToHosts(ctx, profC.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+	require.NoError(t, err)
+	require.EqualValues(t, 1, n)
+
+	assertHostProfileStatus(t, ds, host1.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryVerified})
+	assertHostProfileStatus(t, ds, host2.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryVerified})
+	assertHostProfileStatus(t, ds, host3.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryVerified})
+	assertHostProfileStatus(t, ds, host4.UUID,
+		hostProfileStatus{profC.ProfileUUID, fleet.MDMDeliveryPending})
+
+	// batch-resend profile C again, no change
+	n, err = ds.BatchResendMDMProfileToHosts(ctx, profC.ProfileUUID, fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+	require.NoError(t, err)
+	require.EqualValues(t, 0, n)
+
+	assertHostProfileStatus(t, ds, host1.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryVerified})
+	assertHostProfileStatus(t, ds, host2.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryVerified})
+	assertHostProfileStatus(t, ds, host3.UUID,
+		hostProfileStatus{profA.ProfileUUID, fleet.MDMDeliveryVerified},
+		hostProfileStatus{profB.ProfileUUID, fleet.MDMDeliveryVerified})
+	assertHostProfileStatus(t, ds, host4.UUID,
+		hostProfileStatus{profC.ProfileUUID, fleet.MDMDeliveryPending})
 }

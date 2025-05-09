@@ -260,6 +260,8 @@ const PackageForm = ({
   const ext = getExtensionFromFileName(formData?.software?.name || "");
   const isExePackage = ext === "exe";
   const isTarballPackage = ext === "tar.gz";
+  // We currently don't support replacing a tarball package
+  const canEditFile = isEditingSoftware && !isTarballPackage;
 
   // If a user preselects automatic install and then uploads a .exe
   // which automatic install is not supported, the form will default
@@ -279,7 +281,7 @@ const PackageForm = ({
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
-          canEdit={isEditingSoftware}
+          canEdit={canEditFile}
           graphicName="file-pkg"
           accept={ACCEPTED_EXTENSIONS}
           message=".pkg, .msi, .exe, .deb, .rpm, or .tar.gz"
