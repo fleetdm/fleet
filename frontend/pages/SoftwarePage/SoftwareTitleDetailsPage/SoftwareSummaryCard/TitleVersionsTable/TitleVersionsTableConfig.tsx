@@ -1,5 +1,4 @@
 import React from "react";
-import { InjectedRouter } from "react-router";
 
 import {
   ISoftwareTitleVersion,
@@ -12,10 +11,9 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
-import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
+import VulnerabilitiesCell from "../../../components/tables/VulnerabilitiesCell";
 
-interface ISoftwareTitleDetailsTableConfigProps {
-  router: InjectedRouter;
+interface ISoftwareTitleVersionsTableConfigProps {
   teamId?: number;
   isIPadOSOrIOSApp: boolean;
 }
@@ -46,11 +44,10 @@ interface IVulnCellProps extends ICellProps {
   };
 }
 
-const generateSoftwareTitleDetailsTableConfig = ({
-  router,
+const generateSoftwareTitleVersionsTableConfig = ({
   teamId,
   isIPadOSOrIOSApp,
-}: ISoftwareTitleDetailsTableConfigProps) => {
+}: ISoftwareTitleVersionsTableConfigProps) => {
   const tableHeaders = [
     {
       title: "Version",
@@ -132,4 +129,4 @@ const generateSoftwareTitleDetailsTableConfig = ({
   return tableHeaders;
 };
 
-export default generateSoftwareTitleDetailsTableConfig;
+export default generateSoftwareTitleVersionsTableConfig;

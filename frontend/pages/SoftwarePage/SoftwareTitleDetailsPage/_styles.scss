@@ -12,3 +12,9 @@
     font-size: $small;
   }
 }
+
+.software-summary-and-versions {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+}

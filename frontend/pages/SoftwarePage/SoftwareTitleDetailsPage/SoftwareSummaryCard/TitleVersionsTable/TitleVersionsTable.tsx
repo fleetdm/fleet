@@ -14,15 +14,17 @@ import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
+import Card from "components/Card";
 
-import generateSoftwareTitleDetailsTableConfig from "./SoftwareTitleDetailsTableConfig";
+import generateSoftwareTitleVersionsTableConfig from "./TitleVersionsTableConfig";
 
 const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_PAGE_SIZE = 5;
 
-const baseClass = "software-title-details-table";
+const baseClass = "software-title-versions-table";
 
-const SoftwareLastUpdatedInfo = (lastUpdatedAt: string) => {
+const TitleVersionsLastUpdatedInfo = (lastUpdatedAt: string) => {
   return (
     <LastUpdatedText
       lastUpdatedAt={lastUpdatedAt}
@@ -39,31 +41,33 @@ const SoftwareLastUpdatedInfo = (lastUpdatedAt: string) => {
 
 const NoVersionsDetected = (isAvailableForInstall = false): JSX.Element => {
   return (
-    <EmptyTable
-      header={
-        isAvailableForInstall
-          ? "No versions detected."
-          : "No versions detected for this software item."
-      }
-      info={
-        isAvailableForInstall ? (
-          "Install this software on a host to see versions."
-        ) : (
-          <>
-            Expecting to see versions?{" "}
-            <CustomLink
-              url={GITHUB_NEW_ISSUE_LINK}
-              text="File an issue on GitHub"
-              newTab
-            />
-          </>
-        )
-      }
-    />
+    <Card borderRadiusSize="medium">
+      <EmptyTable
+        header={
+          isAvailableForInstall
+            ? "No versions detected."
+            : "No versions detected for this software item."
+        }
+        info={
+          isAvailableForInstall ? (
+            "Install this software on a host to see versions."
+          ) : (
+            <>
+              Expecting to see versions?{" "}
+              <CustomLink
+                url={GITHUB_NEW_ISSUE_LINK}
+                text="File an issue on GitHub"
+                newTab
+              />
+            </>
+          )
+        }
+      />
+    </Card>
   );
 };
 
-interface ISoftwareTitleDetailsTableProps {
+interface ITitleVersionsTableProps {
   router: InjectedRouter;
   data: ISoftwareTitleVersion[];
   isLoading: boolean;
@@ -79,7 +83,7 @@ interface IRowProps extends Row {
   };
 }
 
-const SoftwareTitleDetailsTable = ({
+const TitleVersionsTable = ({
   router,
   data,
   isLoading,
@@ -87,7 +91,7 @@ const SoftwareTitleDetailsTable = ({
   isIPadOSOrIOSApp,
   isAvailableForInstall,
   countsUpdatedAt,
-}: ISoftwareTitleDetailsTableProps) => {
+}: ITitleVersionsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       const softwareVersionId = row.original.id;
@@ -103,18 +107,17 @@ const SoftwareTitleDetailsTable = ({
 
   const softwareTableHeaders = useMemo(
     () =>
-      generateSoftwareTitleDetailsTableConfig({
-        router,
+      generateSoftwareTitleVersionsTableConfig({
         teamId: teamIdForApi,
         isIPadOSOrIOSApp,
       }),
-    [router, teamIdForApi, isIPadOSOrIOSApp]
+    [teamIdForApi, isIPadOSOrIOSApp]
   );
 
   const renderVersionsCount = () => (
     <>
-      <TableCount name="versions" count={data?.length} />
-      {countsUpdatedAt && SoftwareLastUpdatedInfo(countsUpdatedAt)}
+      {data?.length > 0 && <TableCount name="versions" count={data?.length} />}
+      {countsUpdatedAt && TitleVersionsLastUpdatedInfo(countsUpdatedAt)}
     </>
   );
 
@@ -129,12 +132,14 @@ const SoftwareTitleDetailsTable = ({
       isAllPagesSelected={false}
       defaultSortHeader={DEFAULT_SORT_HEADER}
       defaultSortDirection={DEFAULT_SORT_DIRECTION}
-      disablePagination
+      pageSize={DEFAULT_PAGE_SIZE}
+      isClientSidePagination
       disableMultiRowSelect
       onSelectSingleRow={handleRowSelect}
       renderCount={renderVersionsCount}
+      hideFooter={data?.length <= DEFAULT_PAGE_SIZE} // Removes footer space
     />
   );
 };
 
-export default SoftwareTitleDetailsTable;
+export default TitleVersionsTable;
