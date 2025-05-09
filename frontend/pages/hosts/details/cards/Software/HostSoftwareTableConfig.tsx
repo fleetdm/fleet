@@ -205,7 +205,7 @@ export const generateSoftwareTableHeaders = ({
       Header: () => (
         <HeaderCell
           value={
-            <TooltipWrapper tipContent="Indicates the results of Fleet-managed installions only.">
+            <TooltipWrapper tipContent="Indicates the results of Fleet-managed installations only.">
               Install status
             </TooltipWrapper>
           }
