@@ -10836,9 +10836,13 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 	require.NotNil(t, hostResp.Host)
 	lastEnrolledAt := hostResp.Host.LastEnrolledAt
 
+	assert.Nil(t, hostResp.Host.MDMLastEnrolledAt)
+	assert.Nil(t, hostResp.Host.MDMLastSeenAt)
+
 	// Add the following here for debug: time.Sleep(2 * time.Second)
 
 	// Enroll with MDM manually after.
+	enrollTime := time.Now().UTC().Truncate(time.Second)
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
@@ -10846,6 +10850,10 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetHost.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
 	assert.Equal(t, lastEnrolledAt, hostResp.Host.LastEnrolledAt)
+	assert.NotNil(t, hostResp.Host.MDMLastEnrolledAt)
+	assert.GreaterOrEqual(t, *hostResp.Host.MDMLastEnrolledAt, enrollTime)
+	assert.NotNil(t, hostResp.Host.MDMLastSeenAt)
+	assert.GreaterOrEqual(t, *hostResp.Host.MDMLastSeenAt, enrollTime)
 }
 
 func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
@@ -13387,6 +13395,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		globalSecret,
 		hwModel,
 	)
+	enrollTime := time.Now().UTC().Truncate(time.Second)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, true)
@@ -13396,6 +13405,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "darwin", hostByIdentifierResp.Host.Platform)
 	require.Nil(t, hostByIdentifierResp.Host.TeamID)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastSeenAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
 
 	// create a team with a different enroll secret
 	var specResp applyTeamSpecsResponse
@@ -13409,6 +13422,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		teamSecret,
 		hwModel,
 	)
+	enrollTime = time.Now().UTC().Truncate(time.Second)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, false)
@@ -13419,6 +13433,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
 	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastSeenAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {
