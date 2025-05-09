@@ -216,7 +216,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(
 		t, &service.TestServerOpts{
 			License:           license,
-			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+			KeyValueStore:     testing_utils.NewMemKeyValueStore(),
 			EnableSCEPProxy:   true,
 			SCEPConfigService: scepConfig,
 			DigiCertService:   digiCertService,
@@ -648,7 +648,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(
 		t, &service.TestServerOpts{
 			MDMStorage:  new(mdmmock.MDMAppleStore),
-			MDMPusher: testing_utils.MockPusher{},
+			MDMPusher:   testing_utils.MockPusher{},
 			FleetConfig: &fleetCfg,
 		},
 	)
@@ -922,10 +922,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 		t, &service.TestServerOpts{
 			License:          license,
 			MDMStorage:       new(mdmmock.MDMAppleStore),
-			MDMPusher:     testing_utils.MockPusher{},
+			MDMPusher:        testing_utils.MockPusher{},
 			FleetConfig:      &fleetCfg,
 			NoCacheDatastore: true,
-			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+			KeyValueStore:    testing_utils.NewMemKeyValueStore(),
 		},
 	)
 
@@ -2809,4 +2809,3 @@ func TestGitOpsTeamWebhooks(t *testing.T) {
 	require.True(t, team.Config.WebhookSettings.HostStatusWebhook.Enable)
 	require.Equal(t, "http://coolwebhook.biz", team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
-

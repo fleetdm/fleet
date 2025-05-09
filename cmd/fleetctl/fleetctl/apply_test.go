@@ -1221,7 +1221,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License:     license,
 		MDMStorage:  enqueuer,
-		MDMPusher: testing_utils.MockPusher{},
+		MDMPusher:   testing_utils.MockPusher{},
 		FleetConfig: &fleetCfg,
 		DEPStorage:  depStorage,
 	})
@@ -2811,7 +2811,6 @@ spec:
 }
 
 func TestApplySpecs(t *testing.T) {
-	t.Parallel()
 	// create a macos setup json file (content not important)
 	macSetupFile := writeTmpJSON(t, map[string]any{})
 

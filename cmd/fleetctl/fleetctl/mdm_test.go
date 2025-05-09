@@ -184,7 +184,7 @@ func TestMDMRunCommand(t *testing.T) {
 
 			_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 				MDMStorage:       enqueuer,
-				MDMPusher: testing_utils.MockPusher{},
+				MDMPusher:        testing_utils.MockPusher{},
 				License:          license,
 				NoCacheDatastore: true,
 			})
@@ -1314,7 +1314,7 @@ func setupTestServer(t *testing.T) *mock.Store {
 
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		MDMStorage:       enqueuer,
-		MDMPusher: testing_utils.MockPusher{},
+		MDMPusher:        testing_utils.MockPusher{},
 		License:          license,
 		NoCacheDatastore: true,
 	})
