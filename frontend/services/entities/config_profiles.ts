@@ -1,7 +1,8 @@
-import { getConfig } from "@testing-library/react";
-import { profile } from "console";
+import { IMdmProfile } from "interfaces/mdm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+
+export type IGetConfigProfileResponse = IMdmProfile;
 
 export interface IGetConfigProfileStatusResponse {
   verified: number;
@@ -11,6 +12,11 @@ export interface IGetConfigProfileStatusResponse {
 }
 
 export default {
+  getConfigProfile: (uuid: string): Promise<IGetConfigProfileResponse> => {
+    const { CONFIG_PROFILE } = endpoints;
+    return sendRequest("GET", CONFIG_PROFILE(uuid));
+  },
+
   getConfigProfileStatus: (
     uuid: string
   ): Promise<IGetConfigProfileStatusResponse> => {
