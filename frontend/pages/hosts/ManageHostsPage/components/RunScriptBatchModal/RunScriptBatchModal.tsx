@@ -78,7 +78,7 @@ const RunScriptBatchModal = ({
     async (script: IScript) => {
       setIsUpdating(true);
       const body = runByFilters
-        ? // fully satisfy IScriptBatchSupportedFilters
+        ? // satisfy IScriptBatchSupportedFilters
           { script_id: script.id, filters: { ...filters, team_id: teamId } }
         : { script_id: script.id, host_ids: selectedHostIds };
       try {
