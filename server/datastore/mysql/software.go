@@ -3007,7 +3007,9 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 	}
 	if !found {
 		*softwareTitleRecord.SoftwareIDList += seperator + softwareIDStr
-		*softwareTitleRecord.SoftwareSourceList += seperator + hostInstalledSoftware.Source
+		if hostInstalledSoftware.SoftwareSource != nil {
+			*softwareTitleRecord.SoftwareSourceList += seperator + *hostInstalledSoftware.SoftwareSource
+		}
 		*softwareTitleRecord.VersionList += seperator + *hostInstalledSoftware.Version
 		*softwareTitleRecord.BundleIdentifierList += seperator + *hostInstalledSoftware.BundleIdentifier
 	}
@@ -3201,13 +3203,18 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	for _, s := range hostVPPInstalls {
 		if s.VPPAppAdamID != nil {
 			// If a VPP app is already installed on the host, we don't need to double count it
-			// until we merge the two fetch queries later on in this method
-			// until then if the host_software record is not a software installer, we delete it and keep the vpp app
+			// until we merge the two fetch queries later on in this method.
+			// Until then if the host_software record is not a software installer, we delete it and keep the vpp app
 			if _, exists := hostInstalledSoftwareTitleSet[s.ID]; exists {
 				installedTitle := bySoftwareTitleID[s.ID]
 				if installedTitle.InstallerID == nil {
-					// not a software installer, so
+					// not a software installer, so copy over
+					// the installed title information
 					s.LastOpenedAt = installedTitle.LastOpenedAt
+					s.SoftwareID = installedTitle.SoftwareID
+					s.SoftwareSource = installedTitle.SoftwareSource
+					s.Version = installedTitle.Version
+					s.BundleIdentifier = installedTitle.BundleIdentifier
 					delete(bySoftwareTitleID, s.ID)
 				} else {
 					continue
@@ -3230,6 +3237,18 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	hostVPPInstalledTitles := make(map[uint]*hostSoftware)
 	for _, s := range installedVppsByAdamID {
+		if _, ok := hostInstalledSoftwareTitleSet[s.ID]; ok {
+			// we copied over all the installed title information
+			// from bySoftwareTitleID, but deleted the record from the map
+			// when going through hostVPPInstalls. Copy over the
+			// data from the byVPPAdamID to hostVPPInstalledTitles
+			// so we can later push to InstalledVersions
+			installedTitle := byVPPAdamID[*s.VPPAppAdamID]
+			s.SoftwareID = installedTitle.SoftwareID
+			s.SoftwareSource = installedTitle.SoftwareSource
+			s.Version = installedTitle.Version
+			s.BundleIdentifier = installedTitle.BundleIdentifier
+		}
 		hostVPPInstalledTitles[s.ID] = s
 	}
 
