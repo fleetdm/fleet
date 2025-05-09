@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -16,7 +16,7 @@ import (
 // TestRunApiCommand checks that the usage of `api` command works as expected
 func TestRunApiCommand(t *testing.T) {
 	cfg := config.TestConfig()
-	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 		FleetConfig: &cfg,
 	})

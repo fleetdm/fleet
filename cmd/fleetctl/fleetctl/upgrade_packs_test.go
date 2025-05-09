@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
@@ -216,7 +216,7 @@ func TestUpgradeSinglePack(t *testing.T) {
 }
 
 func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://example.com"}}, nil
@@ -269,7 +269,7 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 }
 
 func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil
@@ -388,7 +388,7 @@ spec:
 }
 
 func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleObserver)}, nil
@@ -412,7 +412,7 @@ func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
 }
 
 func TestFleetctlUpgradePacks_NoPack(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return &fleet.User{ID: id, GlobalRole: ptr.String(fleet.RoleAdmin)}, nil

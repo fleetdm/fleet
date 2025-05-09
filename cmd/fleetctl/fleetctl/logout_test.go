@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestLogout(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.SessionByIDFunc = func(ctx context.Context, id uint) (*fleet.Session, error) {
 		return &fleet.Session{

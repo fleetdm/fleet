@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +19,7 @@ func TestGenerateMDMAppleBM(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(outdir)
 	publicKeyPath := filepath.Join(outdir, "public-key.crt")
-	_, _ = testingutils.RunServerWithMockedDS(t)
+	_, _ = testing_utils.RunServerWithMockedDS(t)
 
 	out := RunAppForTest(t, []string{
 		"generate", "mdm-apple-bm",
@@ -43,7 +43,7 @@ func TestGenerateMDMAppleBM(t *testing.T) {
 
 func TestGenerateMDMApple(t *testing.T) {
 	t.Run("CSR API call fails", func(t *testing.T) {
-		_, _ = testingutils.RunServerWithMockedDS(t)
+		_, _ = testing_utils.RunServerWithMockedDS(t)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// fail this call
 			w.WriteHeader(http.StatusBadRequest)
@@ -61,7 +61,7 @@ func TestGenerateMDMApple(t *testing.T) {
 	})
 
 	t.Run("successful run", func(t *testing.T) {
-		_, _ = testingutils.RunServerWithMockedDS(t)
+		_, _ = testing_utils.RunServerWithMockedDS(t)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"csr": "dGVzdAo="}`))

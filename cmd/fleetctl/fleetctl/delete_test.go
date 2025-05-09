@@ -5,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDeleteLabel(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var deletedLabel string
 	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
@@ -35,7 +35,7 @@ spec:
 }
 
 func TestDeletePack(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var deletedPack string
 	ds.DeletePackFunc = func(ctx context.Context, name string) error {
@@ -79,7 +79,7 @@ spec:
 }
 
 func TestDeleteQuery(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var deletedQuery string
 	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {

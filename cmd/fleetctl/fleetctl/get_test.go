@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/ghodss/yaml"
 	"github.com/google/uuid"
 
@@ -85,7 +85,7 @@ var setCurrentUserSession = func(t *testing.T, ds *mock.Store, user *fleet.User)
 }
 
 func TestGetUserRoles(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleList, nil
@@ -146,7 +146,7 @@ func TestGetTeams(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			license := tt.license
-			_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+			_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
 			additionalQueries := json.RawMessage(`{"foo":"bar"}`)
@@ -258,7 +258,7 @@ func TestGetTeams(t *testing.T) {
 }
 
 func TestGetTeamsByName(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t,
+	_, ds := testing_utils.RunServerWithMockedDS(t,
 		&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
 
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
@@ -288,7 +288,7 @@ func TestGetTeamsByName(t *testing.T) {
 }
 
 func TestGetHosts(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -493,7 +493,7 @@ func TestGetHosts(t *testing.T) {
 }
 
 func TestGetHostsMDM(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
@@ -603,7 +603,7 @@ func TestGetHostsMDM(t *testing.T) {
 }
 
 func TestGetConfig(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -714,7 +714,7 @@ func TestGetConfig(t *testing.T) {
 }
 
 func TestGetSoftwareTitles(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier:       fleet.TierPremium,
 			Expiration: time.Now().Add(24 * time.Hour),
@@ -876,7 +876,7 @@ spec:
 }
 
 func TestGetSoftwareVersions(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
@@ -1023,7 +1023,7 @@ spec:
 }
 
 func TestGetLabels(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
@@ -1085,7 +1085,7 @@ spec:
 }
 
 func TestGetLabel(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
 		if name != "label1" {
@@ -1121,7 +1121,7 @@ spec:
 }
 
 func TestGetEnrollmentSecrets(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return []*fleet.EnrollSecret{
@@ -1155,7 +1155,7 @@ spec:
 }
 
 func TestGetPacks(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
 		return []*fleet.PackSpec{
@@ -1229,7 +1229,7 @@ spec:
 }
 
 func TestGetPack(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.PackByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
 		if name != "pack1" {
@@ -1310,7 +1310,7 @@ spec: null
 }
 
 func TestGetQueries(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier:       fleet.TierPremium,
 			Expiration: time.Now().Add(24 * time.Hour),
@@ -1547,7 +1547,7 @@ spec:
 }
 
 func TestGetQuery(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier:       fleet.TierPremium,
 			Expiration: time.Now().Add(24 * time.Hour),
@@ -1650,7 +1650,7 @@ spec:
 // TestGetQueriesAsObservers tests that when observers run `fleectl get queries` they
 // only get queries that they can execute.
 func TestGetQueriesAsObserver(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
@@ -2115,7 +2115,7 @@ func TestEnrichedAppConfig(t *testing.T) {
 }
 
 func TestGetAppleMDM(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
@@ -2151,7 +2151,7 @@ func TestGetAppleBM(t *testing.T) {
 	}
 
 	t.Run("free license", func(t *testing.T) {
-		testingutils.RunServerWithMockedDS(t)
+		testing_utils.RunServerWithMockedDS(t)
 
 		expected := `could not get Apple BM information: missing or invalid license`
 		_, err := RunAppNoChecks([]string{"get", "mdm_apple_bm"})
@@ -2160,7 +2160,7 @@ func TestGetAppleBM(t *testing.T) {
 	})
 
 	t.Run("premium license, single token", func(t *testing.T) {
-		_, ds := testingutils.RunServerWithMockedDS(t,
+		_, ds := testing_utils.RunServerWithMockedDS(t,
 			&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{
@@ -2177,7 +2177,7 @@ func TestGetAppleBM(t *testing.T) {
 	})
 
 	t.Run("premium license, no token", func(t *testing.T) {
-		_, ds := testingutils.RunServerWithMockedDS(t,
+		_, ds := testing_utils.RunServerWithMockedDS(t,
 			&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return nil, nil
@@ -2188,7 +2188,7 @@ func TestGetAppleBM(t *testing.T) {
 	})
 
 	t.Run("premium license, multiple tokens", func(t *testing.T) {
-		_, ds := testingutils.RunServerWithMockedDS(t,
+		_, ds := testing_utils.RunServerWithMockedDS(t,
 			&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{
@@ -2203,7 +2203,7 @@ func TestGetAppleBM(t *testing.T) {
 }
 
 func TestGetCarves(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 	require.NoError(t, err)
@@ -2249,7 +2249,7 @@ func TestGetCarves(t *testing.T) {
 }
 
 func TestGetCarve(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 	require.NoError(t, err)
@@ -2287,7 +2287,7 @@ session_id: session_id_1
 }
 
 func TestGetCarveWithError(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 	require.NoError(t, err)
@@ -2313,7 +2313,7 @@ func TestGetCarveWithError(t *testing.T) {
 // via the `apply` command.
 func TestGetTeamsYAMLAndApply(t *testing.T) {
 	cfg := config.TestConfig()
-	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 		FleetConfig: &cfg,
 	})
@@ -2433,7 +2433,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 }
 
 func TestGetMDMCommandResults(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	applePayloadXML := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -2825,7 +2825,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 }
 
 func TestGetMDMCommands(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
@@ -3025,7 +3025,7 @@ func TestUserIsObserver(t *testing.T) {
 }
 
 func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	agentOpts := json.RawMessage(`
 {

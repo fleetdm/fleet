@@ -1,4 +1,4 @@
-package fleetctl
+package _package
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
@@ -22,15 +23,15 @@ func TestPackage(t *testing.T) {
 	require.NoError(t, err)
 
 	// --type is required
-	RunAppCheckErr(t, []string{"package", "deb"}, "Required flag \"type\" not set")
+	fleetctl.RunAppCheckErr(t, []string{"package", "deb"}, "Required flag \"type\" not set")
 
 	// if you provide -fleet-url & --enroll-secret are required together
-	RunAppCheckErr(t, []string{"package", "--type=deb", "--fleet-url=https://localhost:8080"},
+	fleetctl.RunAppCheckErr(t, []string{"package", "--type=deb", "--fleet-url=https://localhost:8080"},
 		"--enroll-secret and --fleet-url must be provided together")
-	RunAppCheckErr(t, []string{"package", "--type=deb", "--enroll-secret=foobar"}, "--enroll-secret and --fleet-url must be provided together")
+	fleetctl.RunAppCheckErr(t, []string{"package", "--type=deb", "--enroll-secret=foobar"}, "--enroll-secret and --fleet-url must be provided together")
 
 	// --insecure and --fleet-certificate are mutually exclusive
-	RunAppCheckErr(t, []string{"package", "--type=deb", "--insecure", "--fleet-certificate=test123"},
+	fleetctl.RunAppCheckErr(t, []string{"package", "--type=deb", "--insecure", "--fleet-certificate=test123"},
 		"--insecure and --fleet-certificate may not be provided together")
 
 	// Test invalid PEM file provided in --fleet-certificate.
@@ -38,15 +39,15 @@ func TestPackage(t *testing.T) {
 	fleetCertificate := filepath.Join(certDir, "fleet.pem")
 	err = os.WriteFile(fleetCertificate, []byte("undefined"), os.FileMode(0o644))
 	require.NoError(t, err)
-	RunAppCheckErr(t, []string{"package", "--type=deb", fmt.Sprintf("--fleet-certificate=%s", fleetCertificate)},
+	fleetctl.RunAppCheckErr(t, []string{"package", "--type=deb", fmt.Sprintf("--fleet-certificate=%s", fleetCertificate)},
 		fmt.Sprintf("failed to read fleet server certificate %q: invalid PEM file", fleetCertificate))
 
 	if runtime.GOOS != "linux" {
-		RunAppCheckErr(t, []string{"package", "--type=msi", "--native-tooling"}, "native tooling is only available in Linux")
+		fleetctl.RunAppCheckErr(t, []string{"package", "--type=msi", "--native-tooling"}, "native tooling is only available in Linux")
 	}
 
 	t.Run("deb", func(t *testing.T) {
-		RunAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder"})
+		fleetctl.RunAppForTest(t, []string{"package", "--type=deb", "--insecure", "--disable-open-folder"})
 		info, err := os.Stat(fmt.Sprintf("fleet-osquery_%s_amd64.deb", updatesData.OrbitVersion))
 		require.NoError(t, err)
 		require.Greater(t, info.Size(), int64(0)) // TODO verify contents
@@ -54,7 +55,7 @@ func TestPackage(t *testing.T) {
 
 	t.Run("--use-sytem-configuration can't be used on installers that aren't pkg", func(t *testing.T) {
 		for _, p := range []string{"deb", "msi", "rpm", ""} {
-			RunAppCheckErr(
+			fleetctl.RunAppCheckErr(
 				t,
 				[]string{"package", fmt.Sprintf("--type=%s", p), "--use-system-configuration"},
 				"--use-system-configuration is only available for pkg installers",

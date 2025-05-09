@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 
@@ -21,7 +21,7 @@ import (
 )
 
 func TestUserDelete(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return &fleet.User{
@@ -64,7 +64,7 @@ func (e *notFoundError) Error() string {
 // creates a user with the proper "AdminForcePasswordReset" value depending on
 // the passed flags (e.g. SSO users shouldn't be required to do password reset on first login).
 func TestUserCreateForcePasswordReset(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	pwd := test.GoodPassword
 
@@ -164,7 +164,7 @@ func writeTmpCsv(t *testing.T, contents string) string {
 }
 
 func TestCreateBulkUsers(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, nil
 	}
@@ -200,7 +200,7 @@ func TestCreateBulkUsers(t *testing.T) {
 }
 
 func TestDeleteBulkUsers(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {

@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -62,7 +62,7 @@ var userRoleSpecList = []*fleet.User{
 }
 
 func TestApplyUserRoles(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
@@ -122,7 +122,7 @@ spec:
 
 func TestApplyTeamSpecs(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 	teamsByName := map[string]*fleet.Team{
 		"team1": {
@@ -589,7 +589,7 @@ func writeTmpJSON(t *testing.T, v any) string {
 
 func TestApplyAppConfig(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
@@ -767,7 +767,7 @@ spec:
 
 func TestApplyAppConfigDryRunIssue(t *testing.T) {
 	// reproduces the bug fixed by https://github.com/fleetdm/fleet/pull/8194
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
@@ -881,7 +881,7 @@ spec:
 }
 
 func TestApplyAppConfigUnknownFields(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
@@ -919,7 +919,7 @@ spec:
 }
 
 func TestApplyAppConfigDeprecatedFields(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleSpecList, nil
@@ -1139,7 +1139,7 @@ spec:
 )
 
 func TestApplyPolicies(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var appliedPolicySpecs []*fleet.PolicySpec
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
@@ -1218,10 +1218,10 @@ func TestApplyAsGitOps(t *testing.T) {
 
 	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../../server/service/testdata")
 
-	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License:     license,
 		MDMStorage:  enqueuer,
-		MDMPusher:   mockPusher{},
+		MDMPusher: testing_utils.MockPusher{},
 		FleetConfig: &fleetCfg,
 		DEPStorage:  depStorage,
 	})
@@ -1456,7 +1456,7 @@ spec:
 	}, currentAppConfig.MDM)
 
 	// start a server to return the bootstrap package
-	srv, _ := testingutils.ServeMDMBootstrapPackage(t, "../../../server/service/testdata/bootstrap-packages/signed.pkg", "signed.pkg")
+	srv, _ := testing_utils.ServeMDMBootstrapPackage(t, "../../../server/service/testdata/bootstrap-packages/signed.pkg", "signed.pkg")
 
 	// Apply global config with bootstrap package
 	bootstrapURL := srv.URL + "/signed.pkg"
@@ -1733,7 +1733,7 @@ func SetupMockDEPStorageAndMockDEPServer(t *testing.T) *nanodep_mock.Storage {
 }
 
 func TestApplyEnrollSecrets(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var appliedSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -1752,7 +1752,7 @@ func TestApplyEnrollSecrets(t *testing.T) {
 }
 
 func TestApplyLabels(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var appliedLabels []*fleet.LabelSpec
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
@@ -1830,7 +1830,7 @@ func TestApplyLabels(t *testing.T) {
 }
 
 func TestApplyPacks(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
@@ -1877,7 +1877,7 @@ spec:
 }
 
 func TestApplyQueries(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var appliedQueries []*fleet.Query
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
@@ -1903,7 +1903,7 @@ func TestApplyQueries(t *testing.T) {
 }
 
 func TestCanApplyIntervalsInNanoseconds(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	// Stubs
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -1950,7 +1950,7 @@ spec:
 }
 
 func TestCanApplyIntervalsUsingDurations(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	// Stubs
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -2010,7 +2010,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		}
 		license := &fleet.LicenseInfo{Tier: tier, Expiration: time.Now().Add(24 * time.Hour)}
 		depStorage := SetupMockDEPStorageAndMockDEPServer(t)
-		_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
+		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
 
 		tm1 := &fleet.Team{ID: 1, Name: "tm1"}
 		teamsByName := map[string]*fleet.Team{
@@ -2555,7 +2555,7 @@ spec:
 
 		for _, c := range cases {
 			t.Run(c.pkgName, func(t *testing.T) {
-				srv, pkgLen := testingutils.ServeMDMBootstrapPackage(t,
+				srv, pkgLen := testing_utils.ServeMDMBootstrapPackage(t,
 					filepath.Join("../../../server/service/testdata/bootstrap-packages", c.pkgName), c.pkgName)
 				ds := setupServer(t, true)
 				ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
@@ -2598,7 +2598,7 @@ spec:
 
 	t.Run("bootstrap package with manual agent install", func(t *testing.T) {
 		pkgName := "signed.pkg"
-		srv, pkgLen := testingutils.ServeMDMBootstrapPackage(t, filepath.Join("../../../server/service/testdata/bootstrap-packages", pkgName),
+		srv, pkgLen := testing_utils.ServeMDMBootstrapPackage(t, filepath.Join("../../../server/service/testdata/bootstrap-packages", pkgName),
 			pkgName)
 		ds := setupServer(t, true)
 		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
@@ -4003,7 +4003,7 @@ spec:
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+			_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 			setupDS(ds)
 			filename := writeTmpYml(t, c.spec)
 

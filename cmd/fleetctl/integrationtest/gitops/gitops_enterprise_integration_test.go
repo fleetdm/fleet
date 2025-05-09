@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
@@ -767,7 +767,7 @@ team_settings:
 
 	// Set the required environment variables
 	t.Setenv("FLEET_URL", s.Server.URL)
-	testingutils.StartSoftwareInstallerServer(t)
+	testing_utils.StartSoftwareInstallerServer(t)
 
 	// Apply configs
 	_ = fleetctl.RunAppForTest(t,

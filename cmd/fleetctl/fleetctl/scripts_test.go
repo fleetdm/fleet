@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -18,7 +18,7 @@ import (
 )
 
 func TestRunScriptCommand(t *testing.T) {
-	_, ds := testingutils.RunServerWithMockedDS(t,
+	_, ds := testing_utils.RunServerWithMockedDS(t,
 		&service.TestServerOpts{
 			License: &fleet.LicenseInfo{
 				Tier: fleet.TierPremium,

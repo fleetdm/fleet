@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testingutils"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -25,7 +25,7 @@ func TestSavedLiveQuery(t *testing.T) {
 	logger := kitlog.NewJSONLogger(os.Stdout)
 	logger = level.NewFilter(logger, level.AllowDebug())
 
-	_, ds := testingutils.RunServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		Rs:     rs,
 		Lq:     lq,
 		Logger: logger,
@@ -199,7 +199,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 	logger := kitlog.NewJSONLogger(os.Stdout)
 	logger = level.NewFilter(logger, level.AllowDebug())
 
-	_, ds := testingutils.RunServerWithMockedDS(
+	_, ds := testing_utils.RunServerWithMockedDS(
 		t, &service.TestServerOpts{
 			Rs:     rs,
 			Lq:     lq,
