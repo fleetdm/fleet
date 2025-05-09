@@ -37,7 +37,7 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 
 #### Add users from Microsoft to Google Workspace
 
-To enable end user authentication with Google account and sync your Microsoft accounts to Google Workspace, follow steps below:
+To require your end users to enroll to Fleet using their Microsoft accounts, follow steps below::
 
 1. From the side menu, select **Devices > Mobile & endpoints > Settings > Third-party integrations**.
 2. Select **Android EMM**, check **Enable third-party Android mobile management**, then select **Manage EMM providers**.
