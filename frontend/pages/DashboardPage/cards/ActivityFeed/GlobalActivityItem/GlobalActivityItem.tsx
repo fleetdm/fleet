@@ -885,6 +885,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resentConfigProfileBatch: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent the <b>{activity.details?.profile_name}</b> configuration profile{" "}
+        to {activity.details?.host_count}{" "}
+        {(activity.details?.host_count ?? 0) > 1 ? "hosts." : "host."}
+      </>
+    );
+  },
   addedSoftware: (activity: IActivity) => {
     return (
       <>
@@ -1374,6 +1384,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ResentConfigurationProfile: {
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.ResentConfigurationProfileBatch: {
+      return TAGGED_TEMPLATES.resentConfigProfileBatch(activity);
     }
     case ActivityType.AddedSoftware: {
       return TAGGED_TEMPLATES.addedSoftware(activity);
