@@ -53,6 +53,8 @@
       "server_url": null,
       "connected_to_fleet": null
     },
+    "mdm_last_seen_at": null,
+    "mdm_last_enrolled_at": null,
     "team_id": null,
     "pack_stats": null,
     "team_name": null,

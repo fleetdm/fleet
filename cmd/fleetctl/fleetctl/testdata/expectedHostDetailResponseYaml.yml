@@ -41,6 +41,8 @@ spec:
     pending_action: ""
     server_url: null
     connected_to_fleet: null
+  mdm_last_enrolled_at: null
+  mdm_last_seen_at: null
   memory: 0
   orbit_version: null
   os_version: ""

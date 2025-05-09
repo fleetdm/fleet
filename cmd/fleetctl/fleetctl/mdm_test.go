@@ -273,6 +273,9 @@ func TestMDMRunCommand(t *testing.T) {
 				}
 				return res, nil
 			}
+			ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+				return nil, nil, nil
+			}
 
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
 				return map[string]error{}, nil
