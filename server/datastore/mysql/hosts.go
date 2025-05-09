@@ -3842,6 +3842,14 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	hostID uint,
 	fleetEnrollmentRef string,
 ) error {
+	// TODO: After the refactor, I don't think we need this except for edge cases where hosts with legacy
+	// enroll ref never reported detail query results (i.e. host has no host_emails.source =
+	// 'mdm_idp_accounts') so maybe we can get rid of this function entirely?
+	//
+	// If don't make a change here, hosts that reenroll from a team with SSO on to off will have the old IdP
+	// account re-associated on the first detail query report after. At a minimum, we should
+	// limit this to only set the email if SSO is enabled on the host's current team.
+
 	if fleetEnrollmentRef == "" {
 		return ctxerr.Wrap(ctx, errors.New("fleetEnrollmentRef is required"), "update host_emails")
 	}
@@ -3876,9 +3884,18 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		}
 	}
 
+	return maybeAssociateHostMDMIdPWithScimUser(ctx, ds.writer(ctx), ds.logger, hostID, idp)
+}
+
+func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
+	if idp == nil {
+		// TODO: confirm desired behavior here
+		return nil
+	}
+	
 	// Check if a SCIM user association already exists for this host.
 	var exists uint
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
+	err := sqlx.GetContext(ctx, tx, &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "check host_scim_user existence")
 	}
@@ -3888,7 +3905,7 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		return nil
 	}
 
-	scimUser, err := ds.ScimUserByUserNameOrEmail(ctx, idp.Username, idp.Email)
+	scimUser, err := scimUserByUserNameOrEmail(ctx, tx, logger, idp.Username, idp.Email)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
 		return ctxerr.Wrap(ctx, err, "get scim user")
@@ -3896,27 +3913,31 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		// There is no SCIM association possible at this time
 		return nil
 	}
-
-	err = ds.associateHostWithScimUser(ctx, hostID, scimUser.ID)
+	
+	err = associateHostWithScimUser(ctx, tx, hostID, scimUser.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
 	}
 	return nil
 }
 
-func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
+func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {	
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(
-			ctx,
-			`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
-			hostID, scimUserID,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
-		}
-		// resend profiles that depend on the user now associated with that host
-		return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
+		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
 	})
+}
+	
+func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {	
+	_, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+		hostID, scimUserID,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
+	}
+	// resend profiles that depend on the user now associated with that host
+	return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {

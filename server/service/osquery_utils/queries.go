@@ -1751,6 +1751,13 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 			// We should clean this up at some point, but for now we'll just check both.
 			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
 		}
+		// TODO: After the refactor, I don't think we need this except for edge cases where hosts with legacy
+		// enroll ref never reported detail query results (i.e. host has no host_emails.source =
+		// 'mdm_idp_accounts') so maybe we can get rid of this conditional entirely?
+		//
+		// If don't make a change here, hosts that reenroll from a team with SSO on to off will have the old IdP
+		// account re-associated on the first detail query report after. At a minimum, we should
+		// limit this to only set the email if SSO is enabled on the host's current team.
 		if fleetEnrollRef != "" {
 			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
 				if !fleet.IsNotFound(err) {
