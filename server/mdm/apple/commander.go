@@ -73,6 +73,10 @@ func (svc *MDMAppleCommander) SignAndEncodeInstallProfile(ctx context.Context, p
 		<string>InstallProfile</string>
 		<key>Payload</key>
 		<data>%s</data>
+		<key>PayloadScope</key>
+		<string>User</string>
+		<key>UserID</key>
+		<string>23B1AB9F-5A19-4919-8610-0A74091497E1</string>
 	</dict>
 </dict>
 </plist>`, commandUUID, base64Profile)

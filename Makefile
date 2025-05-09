@@ -188,7 +188,7 @@ serve:
 endif
 
 fleet: .prefix .pre-build .pre-fleet
-	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -gcflags "all=-N -l" -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
 
 fleet-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleet-dev: fleet

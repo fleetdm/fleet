@@ -258,9 +258,14 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		// If the host is not idle, we use primary DB since we just wrote results of previous command.
 		r.Context = ctxdb.RequirePrimary(r.Context, true)
 	}
+	// NOTE: I did not get this fully working. To do a demo, I used Delve to change the r.Id from a user ID to a device ID to get the profile.
 	cmd, err := s.store.RetrieveNextCommand(r, results.Status == "NotNow")
 	if err != nil {
 		return nil, fmt.Errorf("retrieving next command: %w", err)
+	}
+
+	if results.UserID == "" {
+		cmd = nil
 	}
 	if cmd == nil {
 		logger.Debug(
