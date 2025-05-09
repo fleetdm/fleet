@@ -2,7 +2,7 @@ import React from "react";
 
 import type { SVGProps } from "react";
 
-const Figma = (props: SVGProps<SVGSVGElement>) => (
+const AmazonDCV = (props: SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
     <g transform="scale(0.03125)">
       <path
@@ -28,4 +28,4 @@ const Figma = (props: SVGProps<SVGSVGElement>) => (
     </g>
   </svg>
 );
-export default Figma;
+export default AmazonDCV;
