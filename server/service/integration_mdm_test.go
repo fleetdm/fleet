@@ -5312,9 +5312,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		// the url retrieves a valid profile
 		s.downloadAndVerifyEnrollmentProfile(
 			fmt.Sprintf(
-				"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
+				"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s&deviceinfo=%s",
 				q.Get("profile_token"),
 				user1EnrollRef,
+				mdmtesting.EncodeDeviceInfo(t, fleet.MDMAppleMachineInfo{
+					Serial: mdmDevice.SerialNumber,
+					UDID:   mdmDevice.UUID,
+				}),
 			),
 		)
 
@@ -5352,9 +5356,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// the url retrieves a valid profile
 	prof := s.downloadAndVerifyEnrollmentProfile(
 		fmt.Sprintf(
-			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
+			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s&deviceinfo=%s",
 			q.Get("profile_token"),
 			user1EnrollRef,
+			mdmtesting.EncodeDeviceInfo(t, fleet.MDMAppleMachineInfo{
+				Serial: mdmDevice.SerialNumber,
+				UDID:   mdmDevice.UUID,
+			}),
 		),
 	)
 	// the url retrieves a valid EULA
@@ -5417,11 +5425,15 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// report host details for the device
 	var hostResp getHostResponse
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
-	assert.Len(t, hostResp.Host.EndUsers, 0)
+	assert.Len(t, hostResp.Host.EndUsers, 1)
+	assert.Equal(t, "", hostResp.Host.EndUsers[0].IdpFullName)                     // full name is not recorded for mdm flow until scim sync
+	assert.Equal(t, "sso_user@example.com", hostResp.Host.EndUsers[0].IdpUserName) // email is the same as the one used to enroll
 	hostID := hostResp.Host.ID
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
-	assert.Len(t, hostResp.Host.EndUsers, 0)
+	assert.Len(t, hostResp.Host.EndUsers, 1)
+	assert.Equal(t, "", hostResp.Host.EndUsers[0].IdpFullName)                     // full name is not recorded for mdm flow until scim sync
+	assert.Equal(t, "sso_user@example.com", hostResp.Host.EndUsers[0].IdpUserName) // email is the same as the one used to enroll
 
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
@@ -5576,9 +5588,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// the url retrieves a valid profile
 	s.downloadAndVerifyEnrollmentProfile(
 		fmt.Sprintf(
-			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
+			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s&deviceinfo=%s",
 			q.Get("profile_token"),
 			user2EnrollRef,
+			mdmtesting.EncodeDeviceInfo(t, fleet.MDMAppleMachineInfo{
+				Serial: mdmDevice.SerialNumber,
+				UDID:   mdmDevice.UUID,
+			}),
 		),
 	)
 	// the url retrieves a valid EULA
@@ -5640,9 +5656,13 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	// the url retrieves a valid profile
 	prof := s.downloadAndVerifyEnrollmentProfile(
 		fmt.Sprintf(
-			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
+			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s&deviceinfo=%s",
 			q.Get("profile_token"),
 			user1EnrollRef,
+			mdmtesting.EncodeDeviceInfo(t, fleet.MDMAppleMachineInfo{
+				Serial: mdmDevice.SerialNumber,
+				UDID:   mdmDevice.UUID,
+			}),
 		),
 	)
 
@@ -5723,11 +5743,16 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	// Report host details for the device. At this point, we did not fully link the SCIM data with the user yet.
 	var hostResp getHostResponse
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
-	assert.Len(t, hostResp.Host.EndUsers, 0)
+	assert.Len(t, hostResp.Host.EndUsers, 1)
+	assert.Equal(t, "", hostResp.Host.EndUsers[0].IdpFullName)                                    // full name is not recorded for mdm flow until scim sync
+	assert.Equal(t, "sso_user_no_displayname@example.com", hostResp.Host.EndUsers[0].IdpUserName) // email is the same as the one used to enroll
+
 	hostID := hostResp.Host.ID
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
-	assert.Len(t, hostResp.Host.EndUsers, 0)
+	assert.Len(t, hostResp.Host.EndUsers, 1)
+	assert.Equal(t, "", hostResp.Host.EndUsers[0].IdpFullName)                                    // full name is not recorded for mdm flow until scim sync
+	assert.Equal(t, "sso_user_no_displayname@example.com", hostResp.Host.EndUsers[0].IdpUserName) // email is the same as the one used to enroll
 
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
