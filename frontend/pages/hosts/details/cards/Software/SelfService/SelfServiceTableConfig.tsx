@@ -293,7 +293,14 @@ export const generateSoftwareTableHeaders = ({
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
           value={
-            <TooltipWrapper tipContent="Indicates the results of installations performed by this management system.">
+            <TooltipWrapper
+              tipContent={
+                <>
+                  Indicates the results of installations <br />
+                  performed by this management system.
+                </>
+              }
+            >
               Install status
             </TooltipWrapper>
           }
