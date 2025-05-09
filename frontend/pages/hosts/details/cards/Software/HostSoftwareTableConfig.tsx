@@ -25,6 +25,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import ActionsDropdown from "components/ActionsDropdown";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
@@ -32,7 +33,6 @@ import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTa
 
 import InstallStatusCell from "./InstallStatusCell";
 import { getDropdownOptionTooltipContent } from "../../HostDetailsPage/HostActionsDropdown/helpers";
-import TooltipWrapper from "components/TooltipWrapper";
 
 export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
