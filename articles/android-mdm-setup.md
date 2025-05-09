@@ -67,7 +67,7 @@ To enable end user authentication with Google account and sync your Microsoft ac
 
 Now you have managed Google domain with an Android Enterprise subscription. Optionally, if you want to add additional subscriptions later (i.e. Google Workspace) you can use this domain. Only the Android Enterprise subscription is required for Android MDM features.
 
-## Turn off Android MDM
+## Turn off
 
 1. In Fleet, head to **Settings > Integrations > MDM**.
 2. In the **Mobile Device Management (MDM)** section, select **Edit** next to "Android MDM turned on."
