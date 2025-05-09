@@ -207,7 +207,7 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 func TestMaybeSendStatisticsSendsIfNotConfiguredForPremium(t *testing.T) {
 	ds := new(mock.Store)
 
-	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}, License: config.LicenseConfig{EnableAnalytics: true}}
 
 	called := false
 
@@ -228,10 +228,20 @@ func TestMaybeSendStatisticsSendsIfNotConfiguredForPremium(t *testing.T) {
 
 	ds.RecordStatisticsSentFunc = func(ctx context.Context) error { return nil }
 
+	// Premium, with AnalyticsEnabled = true (default cli flag)
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
 	require.NoError(t, err)
 	assert.True(t, called)
+
+	called = false
+
+	// Premium, but with AnalyticsEnabled = false
+	fleetConfig.License.EnableAnalytics = false
+	err = trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	require.NoError(t, err)
+	assert.False(t, called)
+
 }
 
 func TestAutomationsSchedule(t *testing.T) {

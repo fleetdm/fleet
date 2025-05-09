@@ -1119,8 +1119,11 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return err
 	}
 
+	// Some premium users are allowed to disable statistics
+	sendPremiumStatistics := license.IsPremium(ctx) && config.License.EnableAnalytics
+
 	// If the license is Premium, we should always send usage statisics.
-	if !ac.ServerSettings.EnableAnalytics && !license.IsPremium(ctx) {
+	if !ac.ServerSettings.EnableAnalytics && !sendPremiumStatistics {
 		return nil
 	}
 
