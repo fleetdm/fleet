@@ -20,7 +20,7 @@
           <a href="/app-library/<%- app.identifier %>" purpose="app-card" class="card d-flex">
             <div class="d-flex flex-row align-items-center justify-content-start">
               <div purpose="app-icon">
-                <img alt="<%- app.name %> icon" src="/images/app-icon-<%- app.identifier %>-60x60@2x.png">
+                <img alt="<%- app.name %> icon" src="/images/<%= app.iconFilename %>">
               </div>
               <div class="flex-column">
                 <h4><%- app.name %></h4>
