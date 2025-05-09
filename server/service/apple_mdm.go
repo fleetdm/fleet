@@ -675,7 +675,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 				payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 			}
 			return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-				fleet.FleetVarCustomSCEPChallengePrefix + ca + "\" must be in the SCEP certificate's \"Challenge\" field",
+				fleet.FleetVarCustomSCEPChallengePrefix + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
 				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
 		}
 		urlPrefix := "FLEET_VAR_" + fleet.FleetVarCustomSCEPProxyURLPrefix
@@ -688,7 +688,7 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 				fleet.FleetVarCustomSCEPProxyURLPrefix + ca + "\" must be in the SCEP certificate's \"URL\" field.",
 				InternalErr: fmt.Errorf("URL: %s", payloadURL)}
 		}
-
+		foundCAs = append(foundCAs, ca)
 	}
 	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) {
 		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must be in the SCEP certificate's common name (CN)."}
@@ -810,7 +810,7 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 			payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 		}
 		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPChallenge + "\" must be in the SCEP certificate's \"Challenge\" field",
+			fleet.FleetVarNDESSCEPChallenge + "\" must be in the SCEP certificate's \"Challenge\" field.",
 			InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
 	}
 	ndesURL := "FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL
