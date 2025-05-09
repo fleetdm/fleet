@@ -296,7 +296,7 @@ export const generateSoftwareTableHeaders = ({
             <TooltipWrapper
               tipContent={
                 <>
-                  Indicates the results of installations <br />
+                  Status of installations <br />
                   performed by this management system.
                 </>
               }
