@@ -4981,10 +4981,11 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Len(t, sw, numberOfApps-1)
 	assert.Equal(t, numberOfApps+1, int(meta.TotalResults))
 	assert.True(t, meta.HasNextResults)
-	// vpp app should have an installed version as per the sql above
-	// note that this is a special case because we are not
-	// passing IncludeAvailableForInstall or OnlyAvailableForInstall
-	// which would typically add the installed version to the list
+	// The vpp app returned should have an installed version as per the sql above.
+	// However this is a special case because we are not
+	// passing one of the IncludeAvailableForInstall or OnlyAvailableForInstall flags.
+	// Passing one of those flags would typically add the installed version (from host_software/software) to the list
+	// of InstalledVersions. But we need to make a special case for this when neither of those flags are set.
 	assert.Len(t, sw[0].InstalledVersions, 1)
 	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
 	assert.Equal(t, "apps", sw[0].InstalledVersions[0].Source)
