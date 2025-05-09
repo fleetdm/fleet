@@ -13408,8 +13408,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "darwin", hostByIdentifierResp.Host.Platform)
 	require.Nil(t, hostByIdentifierResp.Host.TeamID)
-	require.GreaterOrEqual(t, hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
-	require.GreaterOrEqual(t, hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastSeenAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
 
 	// create a team with a different enroll secret
 	var specResp applyTeamSpecsResponse
@@ -13434,8 +13436,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
 	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
-	require.GreaterOrEqual(t, hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
-	require.GreaterOrEqual(t, hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastSeenAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {
