@@ -1061,8 +1061,9 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchScriptRunRequest struct {
-	ScriptID uint   `json:"script_id"`
-	HostIDs  []uint `json:"host_ids"`
+	ScriptID uint                    `json:"script_id"`
+	HostIDs  []uint                  `json:"host_ids"`
+	Filters  *map[string]interface{} `json:"filters"`
 }
 
 type batchScriptRunResponse struct {
@@ -1074,14 +1075,19 @@ func (r batchScriptRunResponse) Error() error { return r.Err }
 
 func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptRunRequest)
-	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs)
+	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs, nil)
 	if err != nil {
 		return batchScriptRunResponse{Err: err}, nil
 	}
 	return batchScriptRunResponse{BatchExecutionID: batchID}, nil
 }
 
-func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint) (string, error) {
+func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error) {
+	// If we are given both host IDs and filters, return an error
+	if len(hostIDs) > 0 && filters != nil {
+		return "", fleet.NewInvalidArgumentError("filters", "cannot specify both host_ids and filters")
+	}
+
 	// First check if scripts are disabled globally. If so, no need for further processing.
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -1100,10 +1106,54 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", err
 	}
 
+	// The script must have a team ID
+	if script.TeamID == nil {
+		return "", fleet.NewInvalidArgumentError("script_id", "script must have a team")
+	}
+
 	var userId *uint
 	ctxUser := authz.UserFromContext(ctx)
 	if ctxUser != nil {
 		userId = &ctxUser.ID
+	}
+
+	// If we are given filters, we need to get the host IDs from the filters
+	if filters != nil {
+		opt, lid, err := hostListOptionsFromFilters(filters)
+		if err != nil {
+			return "", err
+		}
+
+		if opt == nil {
+			return "", fleet.NewInvalidArgumentError("filters", "filters must be a valid set of host list options")
+		}
+
+		if opt.TeamFilter == nil {
+			return "", fleet.NewInvalidArgumentError("filters", "filters must include a team filter")
+		}
+
+		hostIDs, _, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
+		if err != nil {
+			return "", err
+		}
+
+		if len(hostIDs) == 0 {
+			return "", fleet.NewInvalidArgumentError("filters", "no hosts match the specified filters")
+		}
+	} else {
+		// If we are given host IDs, we need to check that they match the script's team.
+		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+		if err != nil {
+			return "", err
+		}
+		if len(hosts) == 0 {
+			return "", &fleet.BadRequestError{Message: "no hosts match the specified host IDs"}
+		}
+		for _, host := range hosts {
+			if host.TeamID == nil || *host.TeamID != *script.TeamID {
+				return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
+			}
+		}
 	}
 
 	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDs)
