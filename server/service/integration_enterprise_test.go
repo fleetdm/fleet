@@ -3964,11 +3964,11 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	require.Contains(t, body, "Redirecting to Fleet at  ...")
 	user4, err := s.ds.UserByEmail(context.Background(), "sso_user_4_team_maintainer@example.com")
 	require.NoError(t, err)
-	require.Equal(t, "sso_user_4_team_maintainer@example.com", user3.Email)
-	require.Equal(t, "SSO User 4", user3.Name)
+	require.Equal(t, "sso_user_4_team_maintainer@example.com", user4.Email)
+	require.Equal(t, "SSO User 4", user4.Name)
 	require.Nil(t, user4.GlobalRole)
 	require.Len(t, user4.Teams, 1)
-	require.Equal(t, 1, user4.Teams[0].ID)
+	require.Equal(t, uint(1), user4.Teams[0].ID)
 	require.Equal(t, fleet.RoleMaintainer, user4.Teams[0].Role)
 
 	// A user with pre-configured roles can be created,
@@ -3985,7 +3985,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	assert.Equal(t, "SSO User 5", user5.Name)
 	require.Nil(t, user5.GlobalRole)
 	require.Len(t, user5.Teams, 1)
-	require.Equal(t, 1, user5.Teams[0].ID)
+	require.Equal(t, uint(1), user5.Teams[0].ID)
 	require.Equal(t, fleet.RoleAdmin, user5.Teams[0].Role)
 
 	// A user with pre-configured roles can be created,
