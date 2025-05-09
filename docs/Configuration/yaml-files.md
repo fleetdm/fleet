@@ -509,7 +509,7 @@ Use `categories` to group self-service software on your end users' **Fleet Deskt
 - `Developer tools`: group under **🧰 Developer tools**
 - `Productivity`: group under **🖥️ Productivity**
 
-Currently, `labels_` and `categories` keys are specified in the team YAML (`teams/team-name.yml`, or `teams/no-team.yml`) for Fleet-maintained apps and App Store (VPP) apps. For custom packages, they keys are specified in the packages YAML (`lib/software-name.package.yml`).
+Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and `categories` keys are specified in the team YAML (`teams/team-name.yml`, or `teams/no-team.yml`). For custom packages, they keys are specified in the package YAML (`lib/software-name.package.yml`).
 
 ### packages
 
