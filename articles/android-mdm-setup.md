@@ -9,7 +9,7 @@ to Fleet.
 
 Fleet supports Android devices that are [Play Protect certified](https://support.google.com/googleplay/answer/7165974?hl=en) (previously known as GMS).
 
-## Turn Android MDM
+## Turn on
 
 To turn on Android MDM, connect Android Enterprise on **Settings > Integrations > Mobile device management (MDM)** page.
 
