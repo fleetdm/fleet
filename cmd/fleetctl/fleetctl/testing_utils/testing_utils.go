@@ -125,6 +125,15 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	return server, ds
 }
 
+func getPathRelative(relativePath string) string {
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("failed to get runtime caller info")
+	}
+	sourceDir := filepath.Dir(currentFile)
+	return filepath.Join(sourceDir, relativePath)
+}
+
 func ServeMDMBootstrapPackage(t *testing.T, pkgPath, pkgName string) (*httptest.Server, int) {
 	pkgBytes, err := os.ReadFile(pkgPath)
 	require.NoError(t, err)
@@ -143,18 +152,8 @@ func ServeMDMBootstrapPackage(t *testing.T, pkgPath, pkgName string) (*httptest.
 }
 
 func StartSoftwareInstallerServer(t *testing.T) {
-	// Get the path to the current source file
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("failed to get runtime caller info")
-	}
-	// Get the directory of the current source file
-	sourceDir := filepath.Dir(currentFile)
-	// Resolve ruby.deb relative to the source file directory
-	relativeTarget := filepath.Join(sourceDir, "../../../../server/service/testdata/software-installers/ruby.deb")
-
 	// start the web server that will serve the installer
-	b, err := os.ReadFile(relativeTarget)
+	b, err := os.ReadFile(getPathRelative("../../../../server/service/testdata/software-installers/ruby.deb"))
 	require.NoError(t, err)
 
 	srv := httptest.NewServer(
@@ -192,7 +191,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, getPathRelative("../../../../server/service/testdata"))
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := RunServerWithMockedDS(
