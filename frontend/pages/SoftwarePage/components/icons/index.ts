@@ -35,6 +35,7 @@ import WindowsDefender from "./WindowsDefender";
 import WhatsApp from "./WhatsApp";
 import Postman from "./Postman";
 import OnePassword from "./OnePassword";
+import AmazonDCV from "./AmazonDCV";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -77,6 +78,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows defender": WindowsDefender,
   postman: Postman,
   "1password": OnePassword,
+  "amazon dcv": AmazonDCV,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
