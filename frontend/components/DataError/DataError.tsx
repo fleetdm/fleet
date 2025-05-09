@@ -88,7 +88,9 @@ const DataError = ({
           <>
             {children || (
               <>
-                <span className="info__data">{description}</span>
+                {description && (
+                  <span className="info__data">{description}</span>
+                )}
                 {!excludeIssueLink && (
                   <span className="info__data">
                     If this keeps happening, please&nbsp;
