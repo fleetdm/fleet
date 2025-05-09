@@ -1,0 +1,1 @@
+- Fixed issue where GitOps may fail to apply new queries due to deadlocks.
