@@ -1209,6 +1209,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	var profiles []fleet.HostMDMProfile
+	var mdmLastEnrollment *time.Time
+	var mdmLastSeen *time.Time
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
@@ -1269,6 +1271,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
+				}
+
+				// fetch host last seen at and last enrolled at times, currently only supported for
+				// Apple platforms
+				mdmLastEnrollment, mdmLastSeen, err = svc.ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
 			}
 		}
@@ -1332,6 +1341,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		Batteries:         &bats,
 		MaintenanceWindow: nextMw,
 		EndUsers:          endUsers,
+		MDMLastEnrolledAt: mdmLastEnrollment,
+		MDMLastSeenAt:     mdmLastSeen,
 	}, nil
 }
 
