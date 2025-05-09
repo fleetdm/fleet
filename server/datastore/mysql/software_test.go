@@ -4949,6 +4949,7 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}},
 		Name:             "vpp1",
 		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
 	}
 	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
 	require.NoError(t, err)
@@ -4962,7 +4963,7 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
-		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+		vPPApp.Name, "1.2.3", "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
 	)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
@@ -4980,6 +4981,15 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Len(t, sw, numberOfApps-1)
 	assert.Equal(t, numberOfApps+1, int(meta.TotalResults))
 	assert.True(t, meta.HasNextResults)
+	// The vpp app returned should have an installed version as per the sql above.
+	// However this is a special case because we are not
+	// passing one of the IncludeAvailableForInstall or OnlyAvailableForInstall flags.
+	// Passing one of those flags would typically add the installed version (from host_software/software) to the list
+	// of InstalledVersions. But we need to make a special case for this when neither of those flags are set.
+	assert.Len(t, sw[0].InstalledVersions, 1)
+	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
+	assert.Equal(t, "apps", sw[0].InstalledVersions[0].Source)
+	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].InstalledVersions[0].BundleIdentifier)
 
 	// create a second host and add it to the team
 	anotherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
@@ -5087,12 +5097,18 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, sw, 2)
 
+	// pending install
 	assert.NotNil(t, sw[0].AppStoreApp)
 	assert.Equal(t, "1.0.0", sw[0].AppStoreApp.Version)
+	assert.Equal(t, fleet.SoftwareInstallerStatus("pending_install"), *sw[0].Status)
+	assert.NotNil(t, sw[0].AppStoreApp.LastInstall)
 	assert.Nil(t, sw[0].InstalledVersions)
 
+	// installed but not by fleet, so status is nil
 	assert.NotNil(t, sw[1].AppStoreApp)
 	assert.Equal(t, "1.0.1", sw[1].AppStoreApp.Version)
+	assert.Nil(t, sw[1].Status)
+	assert.Nil(t, sw[1].AppStoreApp.LastInstall)
 	assert.NotNil(t, sw[1].InstalledVersions)
 	assert.Equal(t, "0.5.0", sw[1].InstalledVersions[0].Version)
 }
@@ -6939,6 +6955,46 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	require.Equal(t, software[2].Name, sw[0].Name)
 	require.Equal(t, software[0].Name, sw[1].Name)
 	require.Equal(t, vPPApp.Name, sw[2].Name)
+
+	// search with solf-service
+	vPPAppSlack := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}},
+		Name:             "slack",
+		BundleIdentifier: "com.app.slack",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vPPAppSlack, &tm.ID)
+	require.NoError(t, err)
+
+	vPPApp1Password := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}},
+		Name:             "1password",
+		BundleIdentifier: "com.app.1password",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp1Password, &tm.ID)
+	require.NoError(t, err)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:            true,
+		IsMDMEnrolled:              true,
+		IncludeAvailableForInstall: true,
+		ListOptions: fleet.ListOptions{
+			PerPage:               10,
+			IncludeMetadata:       true,
+			OrderKey:              "name",
+			TestSecondaryOrderKey: "source",
+		},
+	}
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 2)
+	require.Equal(t, vPPApp1Password.Name, sw[0].Name)
+	require.Equal(t, vPPAppSlack.Name, sw[1].Name)
+
+	opts.ListOptions.MatchQuery = "1password"
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	require.Equal(t, vPPApp1Password.Name, sw[0].Name)
 }
 
 func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {

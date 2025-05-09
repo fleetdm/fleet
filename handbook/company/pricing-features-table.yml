@@ -229,7 +229,7 @@
 #  ║║║ ║║║║║  ║║║║║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
 #  ╩ ╩═╩╝╩ ╩  ╩ ╩╩╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: MDM migration #   « end-user initiated MDM migration, with interactive UI
-  description: Easily move your devices from your current MDM solution to Fleet.
+  description: Easily move your macOS, iOS/iPadOS, Windows, Linux, and Android (coming soon) devices from your current MDM solution to Fleet.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
@@ -420,6 +420,7 @@
   productCategories: [Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   waysToUse:
+    - description: Enforce OS updates on macOS, iOS/iPadOS, Windows, and Android (coming soon).
     - description: Enforce macOS updates via Nudge.
     - description: Progressively enhance from Nudge to DDM-based OS updates.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17295
@@ -655,9 +656,9 @@
   description: Secure your devices with remote lock and wipe commands if lost or stolen.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   waysToUse:
-    - description: High-level remote lock for macOS, Windows, and Linux.
+    - description: High-level remote lock for macOS, Windows, Linux, and Android (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
-    - description: High-level remote wipe for macOS, Windows, and Linux.
+    - description: High-level remote wipe for macOS, Windows, Linux, iOS/iPadOS, and Android (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
   tier: Premium
   jamfProHasFeature: appleOnly

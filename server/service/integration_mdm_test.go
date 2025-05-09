@@ -10832,9 +10832,13 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 	require.NotNil(t, hostResp.Host)
 	lastEnrolledAt := hostResp.Host.LastEnrolledAt
 
+	assert.Nil(t, hostResp.Host.MDMLastEnrolledAt)
+	assert.Nil(t, hostResp.Host.MDMLastSeenAt)
+
 	// Add the following here for debug: time.Sleep(2 * time.Second)
 
 	// Enroll with MDM manually after.
+	enrollTime := time.Now().UTC().Truncate(time.Second)
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
@@ -10842,6 +10846,10 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetHost.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
 	assert.Equal(t, lastEnrolledAt, hostResp.Host.LastEnrolledAt)
+	assert.NotNil(t, hostResp.Host.MDMLastEnrolledAt)
+	assert.GreaterOrEqual(t, *hostResp.Host.MDMLastEnrolledAt, enrollTime)
+	assert.NotNil(t, hostResp.Host.MDMLastSeenAt)
+	assert.GreaterOrEqual(t, *hostResp.Host.MDMLastSeenAt, enrollTime)
 }
 
 func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
@@ -13383,6 +13391,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		globalSecret,
 		hwModel,
 	)
+	enrollTime := time.Now().UTC().Truncate(time.Second)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, true)
@@ -13392,6 +13401,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "darwin", hostByIdentifierResp.Host.Platform)
 	require.Nil(t, hostByIdentifierResp.Host.TeamID)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastSeenAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
 
 	// create a team with a different enroll secret
 	var specResp applyTeamSpecsResponse
@@ -13405,6 +13418,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		teamSecret,
 		hwModel,
 	)
+	enrollTime = time.Now().UTC().Truncate(time.Second)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, false)
@@ -13415,6 +13429,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
 	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.MDMLastSeenAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {
@@ -16271,7 +16289,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusBadRequest, "some or all of the categories provided don't exist")
 
 	// Set some real categories
-	updatePayload.Categories = []string{cat1.Name, cat2.Name}
+	updatePayload.Categories = []string{cat1.Name, cat2.Name, cat2.Name} // duplicate category shouldn't fail
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
@@ -16366,7 +16384,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		TeamID:     nil,
 		Platform:   addedApp.Platform,
 		AppStoreID: addedApp.AdamID,
-		Categories: []string{cat2.Name, cat3.Name},
+		Categories: []string{cat2.Name, cat3.Name, cat3.Name}, // duplicate category shouldn't fail
 	}, http.StatusOK, &addedMacOSApp)
 
 	// get the title ID
@@ -16395,4 +16413,34 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	require.Equal(t, fleet.MacOSPlatform, updateAppResp.AppStoreApp.Platform)
 	require.Contains(t, updateAppResp.AppStoreApp.Categories, cat1.Name)
 	require.Contains(t, updateAppResp.AppStoreApp.Categories, cat3.Name)
+
+	// do some gitops checks
+	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
+	var batchAssociateResponse batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST",
+		batchURL,
+		batchAssociateAppStoreAppsRequest{
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: addedApp.AdamID, SelfService: true, Categories: []string{"Developer tools", "Communication", "Communication"}}, // duplicate category shouldn't fail
+			},
+		}, http.StatusOK, &batchAssociateResponse,
+	)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
+	require.ElementsMatch(t, []string{"Developer tools", "Communication"}, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+
+	// empty out categories via gitops
+	s.DoJSON("POST",
+		batchURL,
+		batchAssociateAppStoreAppsRequest{
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: addedApp.AdamID, SelfService: true},
+			},
+		}, http.StatusOK, &batchAssociateResponse,
+	)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
+	require.Empty(t, titleResponse.SoftwareTitle.AppStoreApp.Categories)
 }

@@ -410,7 +410,12 @@ type SoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
-	SHA256          string `json:"sha256"`
+	SHA256          string   `json:"sha256"`
+	Categories      []string `json:"categories"`
+	// This is to support FMAs
+	Slug             *string        `json:"slug"`
+	AutomaticInstall *bool          `json:"automatic_install"`
+	MaintainedApp    *MaintainedApp `json:"-"`
 }
 
 type HostLockWipeStatus struct {
@@ -560,8 +565,10 @@ func (s HostLockWipeStatus) IsWiped() bool {
 	}
 }
 
-var BatchExecuteIncompatiblePlatform = "incompatible-platform"
-var BatchExecuteIncompatibleFleetd = "incompatible-fleetd"
+var (
+	BatchExecuteIncompatiblePlatform = "incompatible-platform"
+	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
+)
 
 type BatchExecutionSummary struct {
 	ScriptID   uint                 `json:"script_id" db:"script_id"`
