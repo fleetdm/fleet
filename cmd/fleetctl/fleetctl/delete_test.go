@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDeleteLabel(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var deletedLabel string
 	ds.DeleteLabelFunc = func(ctx context.Context, name string) error {
@@ -28,13 +29,13 @@ spec:
     - darwin
 `)
 
-	assert.Equal(t, "", runAppForTest(t, []string{"delete", "-f", name}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"delete", "-f", name}))
 	assert.True(t, ds.DeleteLabelFuncInvoked)
 	assert.Equal(t, "pending_updates", deletedLabel)
 }
 
 func TestDeletePack(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var deletedPack string
 	ds.DeletePackFunc = func(ctx context.Context, name string) error {
@@ -72,13 +73,13 @@ spec:
     labels: null
 `)
 
-	assert.Equal(t, "", runAppForTest(t, []string{"delete", "-f", name}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"delete", "-f", name}))
 	assert.True(t, ds.DeletePackFuncInvoked)
 	assert.Equal(t, "pack1", deletedPack)
 }
 
 func TestDeleteQuery(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var deletedQuery string
 	ds.DeleteQueryFunc = func(ctx context.Context, teamID *uint, name string) error {
@@ -113,7 +114,7 @@ spec:
   query: select 1;
 `)
 
-	assert.Equal(t, "", runAppForTest(t, []string{"delete", "-f", name}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"delete", "-f", name}))
 	assert.True(t, ds.DeleteQueryFuncInvoked)
 	assert.Equal(t, "query1", deletedQuery)
 }

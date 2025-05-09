@@ -98,6 +98,7 @@ func TestMDMApple(t *testing.T) {
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
+		{"GetNanoMDMEnrollmentTimes", testGetNanoMDMEnrollmentTimes},
 	}
 
 	for _, c := range cases {
@@ -7890,6 +7891,59 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 	ts1b, ts2b := getHostLastSeenAt(enrolledHosts[0]), getHostLastSeenAt(enrolledHosts[1])
 	require.True(t, ts1b.After(ts1))
 	require.True(t, ts2b.After(ts2))
+}
+
+func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-uuid-1",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	lastMDMEnrolledAt, lastMDMSeenAt, err := ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, lastMDMEnrolledAt)
+	require.Nil(t, lastMDMSeenAt)
+
+	// add user and device enrollment for this device. Timestamps should not be updated so nothing
+	// returned yet
+	nanoEnroll(t, ds, host, true)
+
+	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, lastMDMEnrolledAt) // defaults to current time on creation
+	require.NotNil(t, lastMDMSeenAt)     // defaults to time 0 value
+
+	authenticateTime := time.Now().Add(-1 * time.Hour).UTC().Round(time.Second)
+	deviceEnrollTime := time.Now().Add(-2 * time.Hour).UTC().Round(time.Second)
+	userEnrollTime := time.Now().Add(-3 * time.Hour).UTC().Round(time.Second)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_devices SET authenticate_at=? WHERE id = ?`, authenticateTime, host.UUID)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at=? WHERE type='Device' AND device_id = ?`, deviceEnrollTime, host.UUID)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `UPDATE nano_enrollments SET last_seen_at=? WHERE type='User' AND device_id = ?`, userEnrollTime, host.UUID)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	lastMDMEnrolledAt, lastMDMSeenAt, err = ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, lastMDMEnrolledAt)
+	assert.Equal(t, authenticateTime, *lastMDMEnrolledAt)
+	require.NotNil(t, lastMDMSeenAt)
+	assert.Equal(t, deviceEnrollTime, *lastMDMSeenAt)
 }
 
 func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {

@@ -199,6 +199,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
 		return &fleet.NanoEnrollment{Enabled: false}, nil
 	}
+	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+		return nil, nil, nil
+	}
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		return "", nil
 	}
@@ -4814,13 +4817,13 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "Custom SCEP challenge is not a fleet variable",
 			profile: customSCEPForValidation("x$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"Name", "com.apple.security.scep"),
-			errMsg: fleet.SCEPVariablesNotInSCEPPayloadErrMsg,
+			errMsg: "must be in the SCEP certificate's \"Challenge\" field",
 		},
 		{
 			name: "Custom SCEP url is not a fleet variable",
 			profile: customSCEPForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "x${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "CA name mismatch between $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName and x${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName} in SCEP payload",
+			errMsg: "must be in the SCEP certificate's \"URL\" field",
 		},
 		{
 			name: "Custom SCEP happy path",
@@ -4906,13 +4909,13 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name: "NDES challenge is not a fleet variable",
 			profile: customSCEPForValidation("x$FLEET_VAR_NDES_SCEP_CHALLENGE", "${FLEET_VAR_NDES_SCEP_PROXY_URL}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_CHALLENGE\" must exactly match SCEP payload's 'Challenge' field. Got: x$FLEET_VAR_NDES_SCEP_CHALLENGE",
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_CHALLENGE\" must be in the SCEP certificate's \"Challenge\" field.",
 		},
 		{
 			name: "NDES url is not a fleet variable",
 			profile: customSCEPForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
 				"Name", "com.apple.security.scep"),
-			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_PROXY_URL\" must exactly match SCEP payload's 'URL' field. Got: x${FLEET_VAR_NDES_SCEP_PROXY_URL}",
+			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_PROXY_URL\" must be in the SCEP certificate's \"URL\" field.",
 		},
 		{
 			name: "SCEP renewal ID without other variables",
@@ -4937,8 +4940,10 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name:    "NDES and DigiCert profiles happy path",
 			profile: customSCEPDigiCertForValidation("${FLEET_VAR_NDES_SCEP_CHALLENGE}", "${FLEET_VAR_NDES_SCEP_PROXY_URL}"),
 			errMsg:  "",
-			vars: []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL",
-				"SCEP_RENEWAL_ID"},
+			vars: []string{
+				"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL",
+				"SCEP_RENEWAL_ID",
+			},
 		},
 	}
 	for _, tc := range cases {
