@@ -56,3 +56,4 @@ The user channel has its own push magic, which is delivered via `TokenUpdate` co
 - We plan to link IdP groups to labels. This means those labels/groups will apply to user-scoped profiles as well.
 - Will we support [Shared iPad](https://support.apple.com/guide/deployment/shared-ipad-overview-dep9a34c2ba2/1/web/1.0)
 - Will we support user-scoped DDM?
+- Will we allow IT admin to select in the UI whether a profile is device or user-scoped? Or rely on the PayloadScope of the top-level configuration profile?
