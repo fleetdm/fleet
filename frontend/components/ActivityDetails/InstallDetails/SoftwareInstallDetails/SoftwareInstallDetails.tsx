@@ -126,21 +126,21 @@ export const SoftwareInstallDetails = ({
 
   if (isError) {
     if (error?.status === 404) {
-      const description =
-        "Install details are no longer available for this activity.";
       return deviceAuthToken ? (
         <DeviceUserError />
       ) : (
-        <DataError description={description} excludeIssueLink />
+        <DataError
+          description="Install details are no longer available for this activity."
+          excludeIssueLink
+        />
       );
     }
 
     if (error?.status === 401) {
-      const description = "Close this modal and try again.";
       return deviceAuthToken ? (
         <DeviceUserError />
       ) : (
-        <DataError description={description} />
+        <DataError description="Close this modal and try again." />
       );
     }
   }

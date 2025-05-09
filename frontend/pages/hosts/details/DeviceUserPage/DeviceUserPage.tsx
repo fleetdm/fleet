@@ -446,7 +446,6 @@ const DeviceUserPage = ({
       generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
       generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 
-    console.log("isErrorDeviceCertificates", isErrorDeviceCertificates);
     return (
       <div className="core-wrapper">
         {!host || isLoadingHost || isLoadingDeviceCertificates ? (

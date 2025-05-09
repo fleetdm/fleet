@@ -47,7 +47,6 @@ const CertificatesCard = ({
   onPreviousPage,
   onSortChange,
 }: ICertificatesProps) => {
-  console.log("isError", isError);
   const renderContent = () => {
     if (isError) {
       return isMyDevicePage ? (
