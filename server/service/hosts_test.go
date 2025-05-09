@@ -383,6 +383,95 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	}
 }
 
+func TestHostDetailsMDMTimestamps(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMAppleProfile, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
+		return nil, nil
+	}
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+		return false, nil
+	}
+
+	ts1 := time.Now().Add(-1 * time.Hour).UTC()
+	ts2 := time.Now().Add(-2 * time.Hour).UTC()
+	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+		return &ts1, &ts2, nil
+	}
+
+	cases := []struct {
+		platform        string
+		platformIsApple bool
+	}{
+		{"darwin", true},
+		{"ios", true},
+		{"ipados", true},
+		{"windows", false},
+		{"ubuntu", false},
+		{"centos", false},
+		{"rhel", false},
+		{"debian", false},
+	}
+	for _, testcase := range cases {
+		t.Run("test MDM timestamps on platform "+testcase.platform, func(t *testing.T) {
+			ds.GetNanoMDMEnrollmentTimesFuncInvoked = false
+			host := &fleet.Host{ID: 3, MDM: fleet.MDMHostData{}, Platform: testcase.platform, UUID: "abc123"}
+			opts := fleet.HostDetailOptions{
+				IncludeCVEScores:                    false,
+				IncludePolicies:                     false,
+				ExcludeSoftware:                     true,
+				IncludeCriticalVulnerabilitiesCount: false,
+			}
+			hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
+			require.NoError(t, err)
+			if testcase.platformIsApple {
+				assert.True(t, ds.GetNanoMDMEnrollmentTimesFuncInvoked)
+				require.NotNil(t, hostDetail.MDMLastEnrolledAt)
+				assert.Equal(t, *hostDetail.MDMLastEnrolledAt, ts1)
+				require.NotNil(t, hostDetail.MDMLastSeenAt)
+				assert.Equal(t, *hostDetail.MDMLastSeenAt, ts2)
+			} else {
+				assert.False(t, ds.GetNanoMDMEnrollmentTimesFuncInvoked)
+				assert.Nil(t, hostDetail.MDMLastEnrolledAt)
+				assert.Nil(t, hostDetail.MDMLastSeenAt)
+			}
+		})
+	}
+}
+
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetailsOSSettings(t *testing.T) {
 	ds := new(mock.Store)
