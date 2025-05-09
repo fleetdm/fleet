@@ -73,7 +73,8 @@ const createFileContent = async (profile: IMdmProfile) => {
 interface IProfileListItemProps {
   isPremium: boolean;
   profile: IMdmProfile;
-  onDelete: (profile: IMdmProfile) => void;
+  onClickInfo: (profile: IMdmProfile) => void;
+  onClickDelete: (profile: IMdmProfile) => void;
   setProfileLabelsModalData: React.Dispatch<
     React.SetStateAction<IMdmProfile | null>
   >;
@@ -82,7 +83,8 @@ interface IProfileListItemProps {
 const ProfileListItem = ({
   isPremium,
   profile,
-  onDelete,
+  onClickInfo,
+  onClickDelete,
   setProfileLabelsModalData,
 }: IProfileListItemProps) => {
   const {
@@ -138,6 +140,13 @@ const ProfileListItem = ({
       <div className={`${subClass}__actions-wrap`}>
         {renderLabelInfo()}
         <div className={`${subClass}__actions`}>
+          <Button
+            className={`${subClass}__action-button`}
+            variant="text-icon"
+            onClick={() => onClickInfo(profile)}
+          >
+            <Icon name="info" color="ui-fleet-black-75" size="medium" />
+          </Button>
           {isPremium && labels !== undefined && labels.length && (
             <Button
               className={`${subClass}__action-button`}
@@ -160,7 +169,7 @@ const ProfileListItem = ({
                 disabled={disableChildren}
                 className={`${subClass}__action-button`}
                 variant="text-icon"
-                onClick={() => onDelete(profile)}
+                onClick={() => onClickDelete(profile)}
               >
                 <Icon name="trash" color="ui-fleet-black-75" />
               </Button>
