@@ -2,6 +2,7 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
 import AcrobatReader from "./AcrobatReader";
+import AmazonDCV from "./AmazonDCV";
 import ChromeApp from "./ChromeApp";
 import Excel from "./Excel";
 import Extension from "./Extension";
@@ -48,6 +49,7 @@ const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   appStore: AppStore,
   "adobe acrobat reader": AcrobatReader,
+  "amazon dcv": AmazonDCV,
   "microsoft excel": Excel,
   falcon: Falcon,
   firefox: Firefox,
