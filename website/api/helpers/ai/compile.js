@@ -30,9 +30,9 @@ module.exports = {
   exits: {
 
     success: {
-      outputFriendlyName: 'Action',
-      outputDescription: 'The code for a Sails action that implements the given human specification.',
-      extendedDescription: 'The generated code is formatted for Sails v1 and above (aka "actions2").'
+      outputFriendlyName: 'Code file',
+      outputDescription: 'The code for a Sails action or helper that implements the given human specification.',
+      extendedDescription: 'The generated code is formatted for Sails v1 and above (aka using "actions2", aka the node-machine spec).'
     },
 
   },
