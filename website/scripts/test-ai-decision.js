@@ -36,15 +36,10 @@ module.exports = {
 
     let topPosts = [];
     await ƒ.simultaneouslyForEach(posts, async (post)=>{
-      let postClassification = await ƒ.decide(post, [
-        {
-          predicate: 'A social media post that is both (a) interesting and (b) in reasonably good taste',
-          value: 'Top post'
-        }, {
-          predicate: 'Anything else',
-          value: 'n/a'
-        },
-      ]);
+      let postClassification = await ƒ.decide(post, {
+        'Top post': 'A social media post that is both (a) VERY interesting and (b) in reasonably good taste',
+        'n/a': 'Anything else',
+      });
       if (postClassification === 'Top post') {
         topPosts.push(post);
       }

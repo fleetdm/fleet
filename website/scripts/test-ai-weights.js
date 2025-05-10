@@ -38,7 +38,8 @@ module.exports = {
     await ƒ.simultaneouslyForEach(posts, async (post)=>{
       let postWeights = await ƒ.weigh(post, [
         'related to cats',
-        'related to javascript'
+        'related to javascript',
+        'A social media post that is both (a) VERY interesting and (b) in reasonably good taste'
       ]);
       weighedPosts.push(Object.assign({
         scoresByTopic: postWeights
