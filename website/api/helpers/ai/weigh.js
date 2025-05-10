@@ -10,7 +10,7 @@ module.exports = {
   extendedDescription: 'e.g. build an index for a "recommended product" feature in an ecommerce site by scoring a product for future searching/querying on product detail pages in the "Recommended for you" section.',
 
 
-  cacheable: true,
+  sideEffects: 'cacheable',
 
 
   inputs: {
@@ -83,8 +83,8 @@ module.exports = {
       })
       .retry('jsonExpectationFailed');
 
-      if (!_.isObject(parsedPromptResponse) || _.isArray(parsedPromptResponse) || _.intersection(dimensions,Object.keys(parsedPromptResponse)).length === dimensions.length) {
-        throw new Error('Response from LLM does not match the expected format for weights derived from the provided dimensions.  The LLM said: \n```\n'+parsedPromptResponse+'\n```\n\nBut the provided dimensions were: \n```\n'+require('util').inspect(dimensions, {depth: null})+'\n```');
+      if (!_.isObject(parsedPromptResponse) || _.isArray(parsedPromptResponse) || _.intersection(dimensions,Object.keys(parsedPromptResponse)).length !== dimensions.length) {
+        throw new Error('Response from LLM does not match the expected format for weights derived from the provided dimensions.  The LLM said: \n```\n'+require('util').inspect(parsedPromptResponse,{depth:null})+'\n```\n\nBut the provided dimensions were: \n```\n'+require('util').inspect(dimensions, {depth: null})+'\n```');
       }
 
       return parsedPromptResponse;
