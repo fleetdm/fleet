@@ -31,11 +31,6 @@ module.exports = {
       ]
     },
 
-    // FUTURE: Decide whether to introduce an option (or maybe just a dimension naming convention) that lets you indicate that a particular dimension should be weighed as a binary "yes vs no" decision (i.e. 0 or 1)
-
-    // TODO: Decide whether to include percentage option where weights all add up to 100% (e.g. 0.35, 0.4, 0.15)
-    // ....should it be "how true" / "how relevant" is each dimension, on a consistent scale?
-    // probably.  And then an optional flag you pass in if you want it to add up to 100%.
   },
 
 
