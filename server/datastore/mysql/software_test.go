@@ -5041,6 +5041,16 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	host.TeamID = &tm.ID
 
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:            true,
+		IsMDMEnrolled:              true,
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    false,
+		VulnerableOnly:             false,
+		KnownExploit:               false,
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+	}
+
 	// setup vpp
 	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
 	require.NoError(t, err)
@@ -5059,6 +5069,12 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
+
+	// vpp1 is self service, not installed yet, so it should show as available for install
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+
 	createVPPAppInstallRequest(t, ds, host, vpp1, user)
 	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
 	require.NoError(t, err)
@@ -5087,13 +5103,7 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	`, host.ID, softwareID)
 	require.NoError(t, err)
 
-	opts := fleet.HostSoftwareTitleListOptions{
-		SelfServiceOnly:            true,
-		IsMDMEnrolled:              true,
-		IncludeAvailableForInstall: true,
-		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
-	}
-	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	assert.Len(t, sw, 2)
 
