@@ -10,7 +10,7 @@ module.exports = {
   extendedDescription: 'e.g. wedding seating chart, generate work schedule',
 
 
-  cacheable: true,
+  sideEffects: 'cacheable',
 
 
   inputs: {

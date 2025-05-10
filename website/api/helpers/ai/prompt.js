@@ -10,7 +10,7 @@ module.exports = {
   extendedDescription: 'e.g. chatbot, automatically fill out metadata on a user profile',
 
 
-  cacheable: true,
+  sideEffects: 'cacheable',
 
 
   inputs: {

@@ -10,7 +10,7 @@ module.exports = {
   extendedDescription: 'e.g. for sentiment analysis for social network, or implementing "top posts" or featured content.',
 
 
-  cacheable: true,
+  sideEffects: 'cacheable',
 
 
   inputs: {
@@ -81,7 +81,7 @@ module.exports = {
 
       let choice = _.find(choices, { predicate: parsedPromptResponse });
       if (!choice) {
-        throw new Error('Response from LLM does not match provided choices.  The LLM said: \n```\n'+parsedPromptResponse+'\n```\n\nBut the provided choices to pick from were: \n```\n'+require('util').inspect(choices, {depth: null})+'\n```');
+        throw new Error('Response from LLM does not match provided choices.  The LLM said: \n```\n'+require('util').inspect(parsedPromptResponse,{depth:null})+'\n```\n\nBut the provided choices to pick from were: \n```\n'+require('util').inspect(choices, {depth: null})+'\n```');
       }
 
       return choice.value;
