@@ -2166,6 +2166,112 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	return err
 }
 
+func (svc *Service) SelfServiceUninstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
+		// fleetd is required to uninstall software so if the host is enrolled via plain osquery we return an error
+		return fleet.NewUserMessageError(errors.New("host does not have fleetd installed"), http.StatusUnprocessableEntity)
+	}
+
+	// If scripts are disabled (according to the last detail query), we return an error.
+	// host.ScriptsEnabled may be nil for older orbit versions.
+	if host.ScriptsEnabled != nil && !*host.ScriptsEnabled {
+		return fleet.NewUserMessageError(errors.New(fleet.RunScriptsOrbitDisabledErrMsg), http.StatusUnprocessableEntity)
+	}
+
+	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{
+				Message: "Couldn't uninstall software. Software title is not available for uninstall. Please add software package to install/uninstall.",
+				InternalErr: ctxerr.WrapWithData(
+					ctx, err, "couldn't find an installer for software title",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
+			}
+		}
+		return ctxerr.Wrap(ctx, err, "finding software installer for title")
+	}
+
+	if !installer.SelfService {
+		return &fleet.BadRequestError{
+			Message: "Software title is not available through self-service",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "software title not available through self-service",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
+		}
+	}
+
+	scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking label scoping during software uninstall attempt")
+	}
+
+	if !scoped {
+		return &fleet.BadRequestError{
+			Message: "Couldn't uninstall. Host isn't member of the labels defined for this software title.",
+		}
+	}
+
+	lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
+	}
+	if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
+		(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
+		return &fleet.BadRequestError{
+			Message: "Couldn't uninstall software. Host has a pending install/uninstall request.",
+			InternalErr: ctxerr.WrapWithData(
+				ctx, err, "host already has a pending install/uninstall for this installer",
+				map[string]any{
+					"host_id":               host.ID,
+					"software_installer_id": installer.InstallerID,
+					"team_id":               host.TeamID,
+					"title_id":              softwareTitleID,
+					"status":                *lastInstallRequest.Status,
+				},
+			),
+		}
+	}
+
+	// Validate platform
+	ext := filepath.Ext(installer.Name)
+	requiredPlatform := packageExtensionToPlatform(ext)
+	if requiredPlatform == "" {
+		// this should never happen
+		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
+	}
+
+	if host.FleetPlatform() != requiredPlatform {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Package (%s) can be uninstalled only on %s hosts.", ext, requiredPlatform),
+			InternalErr: ctxerr.NewWithData(
+				ctx, "invalid host platform for requested uninstall",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
+			),
+		}
+	}
+
+	// Get the uninstall script to validate there is one, will use the standard
+	// script infrastructure to run it.
+	_, err = svc.ds.GetAnyScriptContents(ctx, installer.UninstallScriptContentID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError("software_title_id", `No uninstall script exists for the provided "software_title_id".`).
+					WithStatus(http.StatusNotFound), "getting uninstall script contents")
+		}
+		return err
+	}
+
+	// Pending uninstalls will automatically show up in the UI Host Details -> Activity -> Upcoming tab.
+	execID := uuid.NewString()
+	if err = svc.insertSoftwareUninstallRequest(ctx, execID, host, installer); err != nil {
+		return err
+	}
+	return nil
+}
+
 // packageExtensionToPlatform returns the platform name based on the
 // package extension. Returns an empty string if there is no match.
 func packageExtensionToPlatform(ext string) string {
