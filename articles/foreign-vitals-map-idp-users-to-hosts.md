@@ -109,11 +109,11 @@ Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standa
 
 To map users from Google Workspace to hosts in Fleet, we'll do the following steps:
 
-- [Add LDAP client in Google Admin console](#step-1-add-ldap-client-in-google-admin-console)
-- [Add LDAP authentication certificate to authentik](#step-2-add-ldap-authentication-certificate-to-authentik)
-- [Add custom LDAP property mappings to authentik](#step-3-add-custom-ldap-property-mappings-to-authentik)
-- [Configure LDAP connection in authentik](#step-4-configure-ldap-connection-in-authentik)
-- [Map users and groups to hosts in Fleet](#step-5-map-users-to-hosts-in-fleet)
+1. [Add LDAP client in Google Admin console](#step-1-add-ldap-client-in-google-admin-console)
+2. [Add LDAP authentication certificate to authentik](#step-2-add-ldap-authentication-certificate-to-authentik)
+3. [Add custom LDAP property mappings to authentik](#step-3-add-custom-ldap-property-mappings-to-authentik)
+4. [Configure LDAP connection in authentik](#step-4-configure-ldap-connection-in-authentik)
+5. [Map users and groups to hosts in Fleet](#step-5-map-users-to-hosts-in-fleet)
 
 #### Step 1: Add LDAP client in Google Admin console
 
