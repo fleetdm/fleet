@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	httptransport "github.com/go-kit/kit/transport/http"
@@ -226,8 +227,15 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
+	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
+		Serial: c.SerialNumber,
+		UDID:         c.UUID,
+	})
+	if err != nil {
+		return fmt.Errorf("test client: encoding device info: %w", err)
+	}
 	return c.fetchEnrollmentProfile(
-		apple_mdm.EnrollPath + "?token=" + c.depURLToken,
+		apple_mdm.EnrollPath + "?token=" + c.depURLToken + "&deviceinfo=" + di,
 	)
 }
 
@@ -1001,3 +1009,43 @@ func makeClientSCEPEndpoints(instance string) (*scepserver.Endpoints, error) {
 			options...).Endpoint(),
 	}, nil
 }
+
+
+// EncodeDeviceInfo is a helper function to mock the x-aspen-deviceinfo header that is sent
+// by the device during the Apple MDM enrollment process.
+func EncodeDeviceInfo(machineInfo fleet.MDMAppleMachineInfo) (string, error) {
+	body, err := plist.Marshal(machineInfo)
+	if err != nil {
+		return "", fmt.Errorf("marshal device info: %w", err)
+	}
+
+	// body is expected to be a PKCS7 signed message, although we don't currently verify the signature
+	signedData, err := pkcs7.NewSignedData(body)
+if err != nil {
+		return "", fmt.Errorf("create signed data: %w", err)
+	}
+
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return "", fmt.Errorf("generate RSA private key: %w", err)
+	}
+	crtBytes, err := depot.NewCACert().SelfSign(rand.Reader, key.Public(), key)
+	if err != nil {
+		return "", fmt.Errorf("create self-signed certificate: %w", err)
+	}
+	crt, err := x509.ParseCertificate(crtBytes)
+	if err != nil {
+		return "", fmt.Errorf("parse self-signed certificate: %w", err)
+	}
+	if err := signedData.AddSigner(crt, key, pkcs7.SignerInfoConfig{}); err != nil {
+		return "", fmt.Errorf("add signer: %w", err)
+	}
+	sig, err := signedData.Finish()
+	if err != nil {
+		return "", fmt.Errorf("finish signing: %w", err)
+	}
+
+	return base64.URLEncoding.EncodeToString(sig), nil
+}
+

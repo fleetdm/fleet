@@ -3,10 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -31,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
@@ -2787,8 +2783,14 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 2)
+	bySerial := make(map[string]*fleet.Host, len(devices))
+	for _, h := range listHostsRes.Hosts {
+		bySerial[h.HardwareSerial] = h.Host
+	}
 
 	// create a team and add the second device to it
+	teamHost := bySerial[devices[1].SerialNumber]
+	require.NotNil(t, teamHost)
 	team := &fleet.Team{
 		Name:        t.Name() + "team1",
 		Description: "desc team1",
@@ -2797,45 +2799,32 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
-	for _, h := range listHostsRes.Hosts {
-		if h.HardwareSerial == devices[1].SerialNumber {
-			err := s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
-			require.NoError(t, err)
-			break
-		}
-	}
-
-	// this helper function mocks the x-aspen-deviceinfo header that is sent by the device during
-	// the enrollment
-	encodeDeviceInfo := func(machineInfo fleet.MDMAppleMachineInfo) string {
-		body, err := plist.Marshal(machineInfo)
-		require.NoError(t, err)
-
-		// body is expected to be a PKCS7 signed message, although we don't currently verify the signature
-		signedData, err := pkcs7.NewSignedData(body)
-		require.NoError(t, err)
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
-		require.NoError(t, err)
-		crtBytes, err := depot.NewCACert().SelfSign(rand.Reader, key.Public(), key)
-		require.NoError(t, err)
-		crt, err := x509.ParseCertificate(crtBytes)
-		require.NoError(t, err)
-		require.NoError(t, signedData.AddSigner(crt, key, pkcs7.SignerInfoConfig{}))
-		sig, err := signedData.Finish()
-		require.NoError(t, err)
-
-		return base64.StdEncoding.EncodeToString(sig)
-	}
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{teamHost.ID}))
 
 	// this helper function calls the /enroll endpoint with the supplied machineInfo (from the test
 	// case) and checks for the expected response
-	checkMDMEnrollEndpoint := func(machineInfo *fleet.MDMAppleMachineInfo, expectEnrollInfo *mdmtest.AppleEnrollInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails) error {
-		request, err := http.NewRequest("GET", s.server.URL+apple_mdm.EnrollPath+"?token="+loadEnrollmentProfileDEPToken(t, s.ds), nil)
+	checkMDMEnrollEndpoint := func(t *testing.T, machineInfo *fleet.MDMAppleMachineInfo, expectEnrollInfo *mdmtest.AppleEnrollInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails, expectErr string, ssoDisabled bool) error {
+		var di string
+		if machineInfo != nil {
+			encoded, err := mdmtest.EncodeDeviceInfo(*machineInfo)
+			require.NoError(t, err)
+			di = encoded
+		}
+
+		path := s.server.URL + apple_mdm.EnrollPath + "?token=" + loadEnrollmentProfileDEPToken(t, s.ds)
+		if !ssoDisabled && di != "" {
+			// if SSO is enabled, we expect the deviceinfo in the URL
+			path += "&deviceinfo=" + di
+		}
+
+		request, err := http.NewRequest("GET", path, nil)
 		if err != nil {
 			return fmt.Errorf("create request: %w", err)
 		}
-		if machineInfo != nil {
-			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
+
+		if ssoDisabled && di != "" {
+			// if SSO is disabled, we expect the deviceinfo in the header
+			request.Header.Set("x-apple-aspen-deviceinfo", di)
 		}
 
 		// nolint:gosec // this client is used for testing only
@@ -2847,6 +2836,17 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			return fmt.Errorf("send request: %w", err)
 		}
 		defer response.Body.Close()
+
+		if expectErr != "" {
+			assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			require.Contains(t, string(body), expectErr)
+
+			return nil
+		}
 
 		switch {
 		case expectEnrollInfo != nil:
@@ -2890,6 +2890,18 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 			return nil
 
+		case machineInfo == nil:
+			// we always expect a 400 error from this endpoint if deviceinfo is missing, at this
+			// stage it should either be in the URL (if SSO is enabled) or in the header
+			// (if SSO is disabled)
+			require.Equal(t, http.StatusBadRequest, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			require.Contains(t, string(body), "missing deviceinfo")
+			return nil
+
 		default:
 			return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
 		}
@@ -2897,13 +2909,15 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 	// this helper function calls the /mdm/sso endpoint with the supplied machineInfo (from the test
 	// case) and checks for the expected response
-	checkMDMSSOEndpoint := func(machineInfo *fleet.MDMAppleMachineInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails) error {
+	checkMDMSSOEndpoint := func(t *testing.T, machineInfo *fleet.MDMAppleMachineInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails, expectErr string) error {
 		request, err := http.NewRequest("GET", s.server.URL+"/mdm/sso", nil)
 		if err != nil {
 			return fmt.Errorf("create request: %w", err)
 		}
 		if machineInfo != nil {
-			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
+			di, err := mdmtest.EncodeDeviceInfo(*machineInfo)
+			require.NoError(t, err)
+			request.Header.Set("x-apple-aspen-deviceinfo", di)
 		}
 
 		// nolint:gosec // this client is used for testing only
@@ -2915,6 +2929,17 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			return fmt.Errorf("send request: %w", err)
 		}
 		defer response.Body.Close()
+
+		if expectErr != "" {
+			assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			assert.Contains(t, string(body), expectErr)
+
+			return nil
+		}
 
 		switch {
 		case expectSoftwareUpdate != nil:
@@ -2929,6 +2954,13 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			require.Equal(t, fleet.MDMAppleSoftwareUpdateRequiredCode, sur.Code)
 			require.Equal(t, *expectSoftwareUpdate, sur.Details)
 
+			return nil
+
+		case machineInfo == nil:
+			// if deviceinfo is missing, the request still procceds to the frontend sso app, but
+			// it will will eventually fail when the frontend attempts the sso callback without the
+			// required deviceinfo
+			require.Equal(t, http.StatusOK, response.StatusCode)
 			return nil
 
 		case response.StatusCode == http.StatusOK:
@@ -3060,7 +3092,6 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			name:           "no machine info",
 			machineInfo:    nil,
 			updateRequired: nil,
-			err:            "", // no error, allow enrollment to proceed without software update
 		},
 		{
 			name: "cannot parse OS version",
@@ -3082,27 +3113,22 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		t.Run("sso disabled", func(t *testing.T) {
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
-					var mi fleet.MDMAppleMachineInfo
+					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						mi = *tc.machineInfo
+						copy := *tc.machineInfo
+						mi = &copy
 						mi.Serial = devices[0].SerialNumber
+						mi.UDID = uuid.New().String()
 					}
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
-					if tc.updateRequired == nil && tc.err == "" {
+					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
 							SCEPChallenge: scepChallenge,
 							SCEPURL:       scepURL,
 							MDMURL:        mdmURL,
 						}
 					}
-
-					err := checkMDMEnrollEndpoint(&mi, expectEnrollInfo, tc.updateRequired)
-					if tc.err != "" {
-						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.err)
-					} else {
-						require.NoError(t, err)
-					}
+					require.NoError(t, checkMDMEnrollEndpoint(t, mi, expectEnrollInfo, tc.updateRequired, tc.err, true))
 				})
 			}
 		})
@@ -3112,19 +3138,14 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
-					var mi fleet.MDMAppleMachineInfo
+					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						mi = *tc.machineInfo
+						copy := *tc.machineInfo
+						mi = &copy
 						mi.Serial = devices[0].SerialNumber
+						mi.UDID = uuid.New().String()
 					}
-
-					err := checkMDMSSOEndpoint(&mi, tc.updateRequired)
-					if tc.err != "" {
-						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.err)
-					} else {
-						require.NoError(t, err)
-					}
+					require.NoError(t, checkMDMSSOEndpoint(t, mi, tc.updateRequired, tc.err))
 				})
 			}
 		})
@@ -3136,11 +3157,17 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		t.Run("sso disabled", func(t *testing.T) {
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
+					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						tc.machineInfo.Serial = devices[1].SerialNumber
+						copy := *tc.machineInfo
+						mi = &copy
+						mi.Serial = devices[0].SerialNumber
+						mi.UDID = uuid.New().String()
 					}
+					require.NoError(t, checkMDMSSOEndpoint(t, mi, tc.updateRequired, tc.err))
+
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
-					if tc.updateRequired == nil && tc.err == "" {
+					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
 							SCEPChallenge: "scepcha/><llenge",
 							SCEPURL:       s.server.URL + "/mdm/apple/scep",
@@ -3148,13 +3175,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 						}
 					}
 
-					err := checkMDMEnrollEndpoint(tc.machineInfo, expectEnrollInfo, tc.updateRequired)
-					if tc.err != "" {
-						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.err)
-					} else {
-						require.NoError(t, err)
-					}
+					require.NoError(t, checkMDMEnrollEndpoint(t, mi, expectEnrollInfo, tc.updateRequired, tc.err, true))
 				})
 			}
 		})
@@ -3164,17 +3185,14 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
+					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						tc.machineInfo.Serial = devices[0].SerialNumber
+						copy := *tc.machineInfo
+						mi = &copy
+						mi.Serial = devices[0].SerialNumber
+						mi.UDID = uuid.New().String()
 					}
-
-					err := checkMDMSSOEndpoint(tc.machineInfo, tc.updateRequired)
-					if tc.err != "" {
-						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.err)
-					} else {
-						require.NoError(t, err)
-					}
+					require.NoError(t, checkMDMSSOEndpoint(t, mi, tc.updateRequired, tc.err))
 				})
 			}
 		})
