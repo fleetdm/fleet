@@ -3529,7 +3529,12 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				vpp_apps.latest_version AS vpp_app_version,
 				vpp_apps.platform as vpp_app_platform,
 				NULLIF(vpp_apps.icon_url, '') as vpp_app_icon_url,
-				vpp_apps_teams.self_service AS vpp_app_self_service
+				vpp_apps_teams.self_service AS vpp_app_self_service,
+				host_software.software_id AS software_id,
+				host_software.last_opened_at,
+				software.source AS software_source,
+				software.version AS version,
+				software.bundle_identifier AS bundle_identifier
 			FROM
 				host_software
 			INNER JOIN
@@ -3558,7 +3563,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if s.VPPAppAdamID != nil {
 				tmpByVPPAdamID[*s.VPPAppAdamID] = s
 			}
-			hostVPPInstalledTitles[s.ID] = s
+			if VPPAppByFleet, ok := hostVPPInstalledTitles[s.ID]; ok {
+				// Vpp app installed by fleet, so we need to copy over the status,
+				// because all fleet installed apps show an installed status if available
+				tmpByVPPAdamID[*s.VPPAppAdamID].Status = VPPAppByFleet.Status
+			}
 			// If a VPP app is installed on the host, but not by fleet
 			// it will be present in bySoftwareTitleID, because osquery returned it as inventory.
 			// We need to remove it from bySoftwareTitleID and add it to byVPPAdamID

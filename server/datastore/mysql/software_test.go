@@ -4991,6 +4991,13 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "apps", sw[0].InstalledVersions[0].Source)
 	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].InstalledVersions[0].BundleIdentifier)
 
+	// The vpp app is installed by fleet, and also has been inventoried by osquery
+	// Ensure we don't lose the version for the vpp app
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	assert.Len(t, sw[0].InstalledVersions, 1)
+	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
+
 	// create a second host and add it to the team
 	anotherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
 	nanoEnroll(t, ds, anotherHost, false)
