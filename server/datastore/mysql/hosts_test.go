@@ -81,6 +81,7 @@ func TestHosts(t *testing.T) {
 		{"WithTeamPackStats", testHostsWithTeamPackStats},
 		{"Delete", testHostsDelete},
 		{"HostListOptionsTeamFilter", testHostListOptionsTeamFilter},
+		{"HostListOptionsIDFilter", testHostListOptionsIDFilter},
 		{"ListFilterAdditional", testHostsListFilterAdditional},
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
@@ -132,6 +133,7 @@ func TestHosts(t *testing.T) {
 		{"HostDeviceMapping", testHostDeviceMapping},
 		{"ReplaceHostDeviceMapping", testHostsReplaceHostDeviceMapping},
 		{"CustomHostDeviceMapping", testHostsCustomHostDeviceMapping},
+		{"HostOrbitInfo", testHostOrbitInfo},
 		{"HostMDMAndMunki", testHostMDMAndMunki},
 		{"AggregatedHostMDMAndMunki", testAggregatedHostMDMAndMunki},
 		{"MunkiIssuesBatchSize", testMunkiIssuesBatchSize},
@@ -971,6 +973,34 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	_, err = ds.ListHosts(context.Background(), userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterBad})
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "team is invalid"), err)
+}
+
+func testHostListOptionsIDFilter(t *testing.T, ds *Datastore) {
+	// Create 10 hosts
+	hosts := []*fleet.Host{}
+	for i := 0; i < 10; i++ {
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("uuid_00%d", i),
+			Hostname:        fmt.Sprintf("hostname_00%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, host)
+	}
+	// Retrieve five hosts by ID
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hostsList, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{IDFilter: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID}})
+	require.NoError(t, err)
+	require.Len(t, hostsList, 5)
+	// Check that the retrieved hosts match the expected hosts
+	for i, host := range hostsList {
+		assert.Equal(t, hosts[i].ID, host.ID)
+	}
 }
 
 func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
@@ -5697,6 +5727,44 @@ func assertHostDeviceMapping(t *testing.T, got, want []*fleet.HostDeviceMapping)
 		g.ID, g.HostID = 0, 0
 		assert.Equal(t, w, g, "index %d", i)
 	}
+}
+
+func testHostOrbitInfo(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              1,
+		OsqueryHostID:   ptr.String("1"),
+		NodeKey:         ptr.String("1"),
+		Platform:        "linux",
+		Hostname:        "host1",
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+	})
+	require.NoError(t, err)
+
+	// Add orbit info for host
+	err = ds.SetOrUpdateHostOrbitInfo(ctx, h.ID, "1.2.3", sql.NullString{String: "4.5.6", Valid: true}, sql.NullBool{Bool: true, Valid: true})
+	require.NoError(t, err)
+
+	// Get host via list hosts
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OrbitInfo: true})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h.ID, hosts[0].ID)
+	require.Equal(t, "1.2.3", *hosts[0].OrbitVersion)
+	require.Equal(t, "4.5.6", *hosts[0].DesktopVersion)
+	require.Equal(t, true, *hosts[0].ScriptsEnabled)
+
+	// Get host again, without orbit info
+	hosts, err = ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h.ID, hosts[0].ID)
+	require.Nil(t, hosts[0].OrbitVersion)
+	require.Nil(t, hosts[0].DesktopVersion)
+	require.Nil(t, hosts[0].ScriptsEnabled)
 }
 
 func testHostMDMAndMunki(t *testing.T, ds *Datastore) {

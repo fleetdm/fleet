@@ -132,6 +132,9 @@ type HostListOptions struct {
 	// DeviceMapping joins device user email mapping for each host if available
 	DeviceMapping bool
 
+	// OrbitInfo joins host_orbit_info table
+	OrbitInfo bool
+
 	// AdditionalFilters selects which host additional fields should be
 	// populated.
 	AdditionalFilters []string
@@ -139,6 +142,8 @@ type HostListOptions struct {
 	StatusFilter HostStatus
 	// TeamFilter selects the hosts for specified team
 	TeamFilter *uint
+	// IDFilter selects the hosts by their IDs.
+	IDFilter []uint
 
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool

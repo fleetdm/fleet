@@ -1009,6 +1009,10 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`
 	}
 
+	if opt.OrbitInfo {
+		sql += `, hoi.version AS orbit_version, hoi.desktop_version AS fleet_desktop_version, hoi.scripts_enabled AS scripts_enabled`
+	}
+
 	if !opt.DisableIssues {
 		sql += `,
 		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
@@ -1071,6 +1075,11 @@ func (ds *Datastore) applyHostFilters(
 			host_id) dm ON dm.host_id = h.id`, deviceMappingTranslateSourceColumn(""))
 	if !opt.DeviceMapping {
 		deviceMappingJoin = ""
+	}
+
+	orbitInfoJoin := "LEFT JOIN host_orbit_info hoi ON h.id = hoi.host_id"
+	if !opt.OrbitInfo {
+		orbitInfoJoin = ""
 	}
 
 	policyMembershipJoin := "JOIN policy_membership pm ON (h.id = pm.host_id)"
@@ -1188,6 +1197,7 @@ func (ds *Datastore) applyHostFilters(
     LEFT JOIN host_disks hd ON hd.host_id = h.id
     %s
     %s
+	%s
     %s
     %s
     %s
@@ -1203,6 +1213,7 @@ func (ds *Datastore) applyHostFilters(
 		// JOINs
 		hostMDMJoin,
 		deviceMappingJoin,
+		orbitInfoJoin,
 		policyMembershipJoin,
 		softwareStatusJoin,
 		failingPoliciesJoin,
@@ -1223,6 +1234,7 @@ func (ds *Datastore) applyHostFilters(
 	now := ds.clock.Now()
 	sqlStmt, whereParams = filterHostsByStatus(now, sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByTeam(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByID(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByPolicy(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByMDM(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByConnectedToFleet(sqlStmt, opt, whereParams)
@@ -1279,6 +1291,17 @@ func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface
 	sql += ` AND h.team_id = ?`
 	params = append(params, *opt.TeamFilter)
 
+	return sql, params
+}
+
+func filterHostsByID(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.IDFilter != nil && len(opt.IDFilter) > 0 {
+		args := strings.Join(strings.Split(strings.Repeat("?", len(opt.IDFilter)), ""), ",")
+		sql += fmt.Sprintf(" AND h.id IN (%s)", args)
+		for _, id := range opt.IDFilter {
+			params = append(params, id)
+		}
+	}
 	return sql, params
 }
 
