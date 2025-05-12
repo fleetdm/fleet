@@ -385,7 +385,6 @@ const ManageHostsPage = ({
       // select: (data) => data.policy,
     }
   );
-  console.log(configProfile);
 
   const { data: osVersions } = useQuery<
     IOSVersionsResponse,
@@ -525,7 +524,8 @@ const ManageHostsPage = ({
     refetchHostsCountAPI();
   };
 
-  const hasErrors = !!errorHosts || !!errorHostsCount || !!errorPolicy;
+  const hasErrors =
+    !!errorHosts || !!errorHostsCount || !!errorPolicy || !!errorConfigProfile;
 
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
@@ -1655,7 +1655,12 @@ const ManageHostsPage = ({
         resultsTitle="hosts"
         columnConfigs={tableColumns}
         data={hostsData?.hosts || []}
-        isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
+        isLoading={
+          isLoadingHosts ||
+          isLoadingHostsCount ||
+          isLoadingPolicy ||
+          isLoadingConfigProfile
+        }
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
