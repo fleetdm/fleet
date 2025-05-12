@@ -7913,10 +7913,12 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	// collect the profile UUIDs in a lookup table by name
 	profNameToProf := make(map[string]*fleet.MDMConfigProfilePayload)
 	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
 	for _, prof := range profs {
 		profNameToProf[prof.Name] = prof
 	}
 	profs, _, err = ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
 	for _, prof := range profs {
 		profNameToProf[prof.Name] = prof
 	}
