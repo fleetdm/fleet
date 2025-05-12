@@ -21,16 +21,7 @@ export default {
     uuid: string
   ): Promise<IGetConfigProfileStatusResponse> => {
     const { CONFIG_PROFILE_STATUS } = endpoints;
-    // return sendRequest("GET", CONFIG_PROFILE_STATUS(uuid));
-
-    return new Promise((resolve) => {
-      resolve({
-        verified: 0,
-        verifying: 1,
-        failed: 2,
-        pending: 3,
-      });
-    });
+    return sendRequest("GET", CONFIG_PROFILE_STATUS(uuid));
   },
 
   batchResendConfigProfile: (uuid: string): Promise<void> => {
