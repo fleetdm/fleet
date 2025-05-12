@@ -107,7 +107,7 @@ Google Workspace doesn't natively support the [SCIM](https://scim.cloud/) standa
 
 ### Connect
 
-To map users from Google Workspace to hosts in Fleet, do the following steps:
+To map users from Google Workspace to hosts in Fleet, we'll do the following steps:
 
 - [Add LDAP client in Google Admin console](#step-1-add-ldap-client-in-google-admin-console)
 - [Add LDAP authentication certificate to authentik](#step-2-add-ldap-authentication-certificate-to-authentik)
