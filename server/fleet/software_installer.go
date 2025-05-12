@@ -532,8 +532,9 @@ type SoftwarePackageOrApp struct {
 	PackageURL    *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
-	InstallDuringSetup *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
-	Categories         []string `json:"categories,omitempty"`
+	InstallDuringSetup   *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	FleetMaintainedAppID *uint    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
+	Categories           []string `json:"categories,omitempty"`
 }
 
 type SoftwarePackageSpec struct {
