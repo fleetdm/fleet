@@ -37,31 +37,17 @@ const generateUnsupportedVariableErrMsg = (errMsg: string) => {
     : DEFAULT_ERROR_MESSAGE;
 };
 
-const generateCAVarsErrMsg = (errMsg: string) => {
+const generateLearnMoreErrMsg = (errMsg: string, learnMoreUrl: string) => {
   return (
     <>
       Couldn&apos;t add. {errMsg}{" "}
       <CustomLink
-        url="https://fleetdm.com/learn-more-about/certificate-authorities"
+        url={learnMoreUrl}
         text="Learn more"
         variant="flash-message-link"
         newTab
       />
     </>
-  );
-};
-
-const generateCustomSCEPProfileErrMsg = (errMsg: string) => {
-  return (
-    <span>
-      Couldn&apos;t add. {errMsg}{" "}
-      <CustomLink
-        url="https://fleetdm.com/learn-more-about/custom-scep-configuration-profile"
-        text="Learn more"
-        variant="flash-message-link"
-        newTab
-      />
-    </span>
   );
 };
 
@@ -129,7 +115,10 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
       "can't be used if variables for SCEP URL and Challenge are not specified"
     )
   ) {
-    return generateCAVarsErrMsg(apiReason);
+    return generateLearnMoreErrMsg(
+      apiReason,
+      "https://fleetdm.com/learn-more-about/certificate-authorities"
+    );
   }
 
   if (
@@ -137,7 +126,21 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
       "SCEP profile for custom SCEP certificate authority requires"
     )
   ) {
-    return generateCustomSCEPProfileErrMsg(apiReason);
+    return generateLearnMoreErrMsg(
+      apiReason,
+      "https://fleetdm.com/learn-more-about/custom-scep-configuration-profile"
+    );
+  }
+
+  if (
+    apiReason.includes(
+      "SCEP profile for NDES certificate authority requires: $FLEET_VAR_NDES_SCEP_CHALLENGE"
+    )
+  ) {
+    return generateLearnMoreErrMsg(
+      apiReason,
+      "https://fleetdm.com/learn-more-about/ndes-scep-configuration-profile"
+    );
   }
 
   return `Couldn't add. ${apiReason}` || DEFAULT_ERROR_MESSAGE;

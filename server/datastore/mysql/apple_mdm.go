@@ -6206,3 +6206,29 @@ LIMIT ?
 	}
 	return res, nil
 }
+
+func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+	res := []struct {
+		LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
+		LastMDMSeenTime       *time.Time `db:"last_seen_at"`
+	}{}
+	// We are specifically only looking at the singular device enrollment row and not the
+	// potentially many user enrollment rows that will exist for a given device. The device
+	// enrollment row is the only one that gets regularly updated with the last seen time. Along
+	// those same lines authenticate_at gets updated only at the authenticate step during the
+	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
+	query := `
+	SELECT nd.authenticate_at, ne.last_seen_at
+	FROM nano_devices nd
+	  INNER JOIN nano_enrollments ne ON ne.id = nd.id 
+	WHERE ne.type = 'Device' AND nd.id = ?`
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
+
+	if err == sql.ErrNoRows || len(res) == 0 {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
+	}
+	return res[0].LastMDMEnrollmentTime, res[0].LastMDMSeenTime, nil
+}

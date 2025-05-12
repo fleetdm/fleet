@@ -844,6 +844,8 @@ type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.Hos
 
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
+type GetNanoMDMEnrollmentTimesFunc func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
+
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
 type OutdatedAutomationBatchFunc func(ctx context.Context) ([]fleet.PolicyFailure, error)
@@ -1258,6 +1260,8 @@ type ClearRemovedFleetMaintainedAppsFunc func(ctx context.Context, slugsToKeep [
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error)
 
+type GetMaintainedAppBySlugFunc func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error)
+
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
 
 type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error
@@ -1318,6 +1322,8 @@ type ScimUserByUserNameOrEmailFunc func(ctx context.Context, userName string, em
 
 type ScimUserByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.ScimUser, error)
 
+type ScimUsersExistFunc func(ctx context.Context, ids []uint) (bool, error)
+
 type ReplaceScimUserFunc func(ctx context.Context, user *fleet.ScimUser) error
 
 type DeleteScimUserFunc func(ctx context.Context, id uint) error
@@ -1326,7 +1332,7 @@ type ListScimUsersFunc func(ctx context.Context, opts fleet.ScimUsersListOptions
 
 type CreateScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) (uint, error)
 
-type ScimGroupByIDFunc func(ctx context.Context, id uint) (*fleet.ScimGroup, error)
+type ScimGroupByIDFunc func(ctx context.Context, id uint, excludeUsers bool) (*fleet.ScimGroup, error)
 
 type ScimGroupByDisplayNameFunc func(ctx context.Context, displayName string) (*fleet.ScimGroup, error)
 
@@ -1334,7 +1340,7 @@ type ReplaceScimGroupFunc func(ctx context.Context, group *fleet.ScimGroup) erro
 
 type DeleteScimGroupFunc func(ctx context.Context, id uint) error
 
-type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error)
+type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimGroupsListOptions) (groups []fleet.ScimGroup, totalResults uint, err error)
 
 type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, error)
 
@@ -2574,6 +2580,9 @@ type DataStore struct {
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
 
+	GetNanoMDMEnrollmentTimesFunc 	  GetNanoMDMEnrollmentTimesFunc
+	GetNanoMDMEnrollmentTimesFuncInvoked bool
+
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
 
@@ -3195,6 +3204,9 @@ type DataStore struct {
 	GetMaintainedAppByIDFunc        GetMaintainedAppByIDFunc
 	GetMaintainedAppByIDFuncInvoked bool
 
+	GetMaintainedAppBySlugFunc        GetMaintainedAppBySlugFunc
+	GetMaintainedAppBySlugFuncInvoked bool
+
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
 
@@ -3284,6 +3296,9 @@ type DataStore struct {
 
 	ScimUserByHostIDFunc        ScimUserByHostIDFunc
 	ScimUserByHostIDFuncInvoked bool
+
+	ScimUsersExistFunc        ScimUsersExistFunc
+	ScimUsersExistFuncInvoked bool
 
 	ReplaceScimUserFunc        ReplaceScimUserFunc
 	ReplaceScimUserFuncInvoked bool
@@ -6198,6 +6213,13 @@ func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet
 	return s.GetNanoMDMEnrollmentFunc(ctx, id)
 }
 
+func (s *DataStore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+	s.mu.Lock()
+	s.GetNanoMDMEnrollmentTimesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetNanoMDMEnrollmentTimesFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
 	s.mu.Lock()
 	s.IncreasePolicyAutomationIterationFuncInvoked = true
@@ -7647,6 +7669,13 @@ func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID
 	return s.GetMaintainedAppByIDFunc(ctx, appID, teamID)
 }
 
+func (s *DataStore) GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+	s.mu.Lock()
+	s.GetMaintainedAppBySlugFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMaintainedAppBySlugFunc(ctx, slug, teamID)
+}
+
 func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	s.mu.Lock()
 	s.UpsertMaintainedAppFuncInvoked = true
@@ -7857,6 +7886,13 @@ func (s *DataStore) ScimUserByHostID(ctx context.Context, hostID uint) (*fleet.S
 	return s.ScimUserByHostIDFunc(ctx, hostID)
 }
 
+func (s *DataStore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error) {
+	s.mu.Lock()
+	s.ScimUsersExistFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScimUsersExistFunc(ctx, ids)
+}
+
 func (s *DataStore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) error {
 	s.mu.Lock()
 	s.ReplaceScimUserFuncInvoked = true
@@ -7885,11 +7921,11 @@ func (s *DataStore) CreateScimGroup(ctx context.Context, group *fleet.ScimGroup)
 	return s.CreateScimGroupFunc(ctx, group)
 }
 
-func (s *DataStore) ScimGroupByID(ctx context.Context, id uint) (*fleet.ScimGroup, error) {
+func (s *DataStore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bool) (*fleet.ScimGroup, error) {
 	s.mu.Lock()
 	s.ScimGroupByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.ScimGroupByIDFunc(ctx, id)
+	return s.ScimGroupByIDFunc(ctx, id, excludeUsers)
 }
 
 func (s *DataStore) ScimGroupByDisplayName(ctx context.Context, displayName string) (*fleet.ScimGroup, error) {
@@ -7913,7 +7949,7 @@ func (s *DataStore) DeleteScimGroup(ctx context.Context, id uint) error {
 	return s.DeleteScimGroupFunc(ctx, id)
 }
 
-func (s *DataStore) ListScimGroups(ctx context.Context, opts fleet.ScimListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
+func (s *DataStore) ListScimGroups(ctx context.Context, opts fleet.ScimGroupsListOptions) (groups []fleet.ScimGroup, totalResults uint, err error) {
 	s.mu.Lock()
 	s.ListScimGroupsFuncInvoked = true
 	s.mu.Unlock()

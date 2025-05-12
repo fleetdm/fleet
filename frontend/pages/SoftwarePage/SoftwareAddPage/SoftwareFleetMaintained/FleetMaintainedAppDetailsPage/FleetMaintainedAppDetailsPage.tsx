@@ -320,6 +320,7 @@ const FleetMaintainedAppDetailsPage = ({
           name={fleetApp.name}
           platform={fleetApp.platform}
           version={fleetApp.version}
+          slug={fleetApp.slug}
           url={fleetApp.url}
           onCancel={() => setShowAppDetailsModal(false)}
         />

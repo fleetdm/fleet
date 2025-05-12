@@ -157,7 +157,7 @@ jobs:
         # Function to wait for MySQL with timeout
         wait_for_mysql() {
           local container_name=$1
-          local timeout_seconds=300  # 5 minutes
+          local timeout_seconds=60  # 1 minute
           local start_time=$(date +%s)
           local attempt_logs=""
           
