@@ -1132,3 +1132,59 @@ team_settings:
 	require.NoError(t, err)
 	assert.True(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
 }
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitOpsDeletesNonManagedLabels() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Set the required environment variables
+	t.Setenv("FLEET_SERVER_URL", s.Server.URL)
+	t.Setenv("ORG_NAME", "Around the block")
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	var someUser fleet.User
+	for _, u := range s.Users {
+		someUser = u
+		break
+	}
+
+	// 'nonManagedLabel' is associated with a software installer and is
+	// not managed in the ops file so it should be deleted.
+	nonManagedLabel, err := s.DS.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name(),
+		Query: "bye bye label",
+	})
+	require.NoError(t, err)
+
+	installer, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+
+	_, _, err = s.DS.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install zoo",
+		InstallerFile: installer,
+		StorageID:     uuid.NewString(),
+		Filename:      "zoo.pkg",
+		Title:         "zoo",
+		Source:        "apps",
+		Version:       "0.0.1",
+		UserID:        someUser.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{
+			LabelScope: fleet.LabelScopeIncludeAny,
+			ByName: map[string]fleet.LabelIdent{nonManagedLabel.Name: {
+				LabelID:   nonManagedLabel.ID,
+				LabelName: nonManagedLabel.Name,
+			}},
+		},
+	})
+	require.NoError(t, err)
+
+	opsFile := path.Join("..", "..", "fleetctl", "testdata", "gitops", "global_config_no_paths.yml")
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", opsFile})
+
+	// Check label was removed successfully
+	result, err := s.DS.LabelIDsByName(ctx, []string{nonManagedLabel.Name})
+	require.NoError(t, err)
+	require.Empty(t, result)
+}
