@@ -25,7 +25,7 @@ The Product Design department is responsible for reviewing and collecting feedba
 
 ### Unpacking the why
 
-The Head of Product Design and a former IT admin review the new customer/prospect/community requests in the "Inbox" column the [drafting board](https://github.com/fleetdm/fleet/issues#workspaces/drafting-6192dd66ea2562000faea25c/board) to synthesize why users are making the request (i.e. what problem are they trying to solve).
+The Head of Product Design and a former IT admin review the new customer/prospect/community requests in the "Inbox" column the [drafting board](https://github.com/orgs/fleetdm/projects/67) to synthesize why users are making the request (i.e. what problem are they trying to solve).
 
 If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🏹 #g-customer-success](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board) board.
 
@@ -48,7 +48,7 @@ Learn more [here](https://fleetdm.com/handbook/company/product-groups#in-product
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-1. Take the top user story that is assigned to you in the "Ready" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board) and move it to "In progress."
+1. Take the top user story that is assigned to you in the "Ready" column of the [drafting board](https://github.com/orgs/fleetdm/projects/67) and move it to "In progress."
   
 2. Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
    -  **Cover**: This page has a component with issue number, issue name, and status fields. There are three statuses: "Work In Progress (WIP)," "Approved," and "Released" (the drafting board is still the source of truth).
@@ -133,7 +133,7 @@ What happens during expedited drafting?
 
 ### Write a user story
 
-Product Managers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
+Product Managers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://github.com/orgs/fleetdm/projects/67). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
 
 ### Consider a feature eligible to be flagged

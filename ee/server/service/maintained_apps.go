@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -149,6 +150,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		Categories:            app.Categories,
 	}
 
+	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
 	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting software category ids")

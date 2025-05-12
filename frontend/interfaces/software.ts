@@ -365,7 +365,7 @@ export interface ISoftwareInstallVersion {
 export interface IHostSoftwarePackage {
   name: string;
   self_service: boolean;
-  icon_url: string;
+  icon_url: string | null;
   version: string;
   last_install: ISoftwareLastInstall | null;
   categories?: SoftwareCategory[];
@@ -493,6 +493,7 @@ export interface IFleetMaintainedAppDetails {
   post_install_script: string;
   uninstall_script: string;
   url: string;
+  slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
   categories: SoftwareCategory[];
 }
