@@ -42,10 +42,7 @@ type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
 const baseClass = "self-service-table";
 
-const STATUS_CONFIG: Record<
-  Exclude<SoftwareInstallStatus, null>,
-  IStatusDisplayConfig
-> = {
+const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
@@ -243,7 +240,7 @@ const InstallerStatusAction = ({
 }: IInstallerStatusActionProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  // actionDisplayItems is used to track the status of the any user-initiated install action
+  // displayActionItems is used to track the status of the any user-initiated install action
   const [
     displayActionItems,
     setDisplayActionItems,

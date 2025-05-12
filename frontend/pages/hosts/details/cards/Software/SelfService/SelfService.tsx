@@ -124,7 +124,7 @@ const SoftwareSelfService = ({
     },
   });
 
-  // Poll for pending installs
+  // Poll for pending installs/uninstalls
   const { refetch: refetchForPendingInstallsOrUninstalls } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError
@@ -163,7 +163,7 @@ const SoftwareSelfService = ({
             refetchForPendingInstallsOrUninstalls();
           }, 5000);
         } else {
-          // No pending installs, stop polling and refresh data
+          // No pending installs nor pending uninstalls, stop polling and refresh data
           pendingSoftwareSetRef.current = new Set();
           if (pollingTimeoutIdRef.current) {
             clearTimeout(pollingTimeoutIdRef.current);
