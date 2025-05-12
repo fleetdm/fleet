@@ -5978,12 +5978,6 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", "dno-such-profile"), nil, http.StatusNotFound)
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", "zno-such-profile"), nil, http.StatusNotFound)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "hosts", "uuid", "platform")
-		mysql.DumpTable(t, q, "host_mdm_apple_declarations")
-		mysql.DumpTable(t, q, "host_mdm_apple_profiles")
-		return nil
-	})
 	// get status for existing profiles, all 0 counts
 	for _, uuid := range []string{profNameToPayload["N1"].ProfileUUID, profNameToPayload["N2"].ProfileUUID, profNameToPayload["N3"].ProfileUUID} {
 		var statusResp getMDMConfigProfileStatusResponse
