@@ -1601,7 +1601,7 @@ const ManageHostsPage = ({
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
       disableRunScriptBatchTooltipContent = "Select a team to run a script";
-    } else if (runScriptBatchFilterNotSupported) {
+    } else if (runScriptBatchFilterNotSupported && isAllMatchingHostsSelected) {
       disableRunScriptBatchTooltipContent =
         "Choose different filters to run a script";
     }
