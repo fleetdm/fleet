@@ -58,7 +58,7 @@ To send users and groups information to Fleet, you have to assign them to your n
 
 ## Microsoft Entra ID
 
-To map users from Entra ID to hosts in Fleet, do the following steps:
+To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 
 - [Create enterprise application in Entra ID](#step-1-create-enterprise-application-in-entra-id)
 - [Connect Entra ID to Fleet](#step-2-connect-entra-id-to-fleet)
