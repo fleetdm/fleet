@@ -51,7 +51,7 @@ func extractJSON(input []byte) ([]byte, error) {
 	return []byte(match), nil
 }
 
-func isInstalled(toolName string) bool {
+func isInstalled(toolName string) bool { //nolint:unused
 	path, err := exec.LookPath(toolName)
 	if err != nil {
 		return false
@@ -61,7 +61,7 @@ func isInstalled(toolName string) bool {
 
 // withInstalled checks that all listed tools are installed before calling fn
 // otherwise errors out.
-func checkInstalled(tools []string, fn func() error) error {
+func checkInstalled(tools []string, fn func() error) error { //nolint:unused
 	for _, tool := range tools {
 		if !isInstalled(tool) {
 			return fmt.Errorf("%s is not installed", tool)
