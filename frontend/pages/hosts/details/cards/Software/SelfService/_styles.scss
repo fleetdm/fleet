@@ -36,6 +36,12 @@
     .self-service-table__item-status-button {
       height: auto;
     }
+
+    .self-service-table__item-actions {
+      display: flex;
+      flex-direction: row;
+      gap: $pad-medium;
+    }
   }
 
   .categories-menu {
