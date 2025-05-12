@@ -27,7 +27,7 @@ import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwa
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
-import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
 import SearchField from "components/forms/fields/SearchField";
@@ -311,7 +311,7 @@ const SoftwareSelfService = ({
     }
 
     if (isError) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      return <DeviceUserError />; // Only shown on DeviceUserPage not HostDetailsPage
     }
 
     if (isEmpty || !selfServiceData) {
