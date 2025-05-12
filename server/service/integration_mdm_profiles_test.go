@@ -5912,6 +5912,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 
 func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	t := s.T()
+	ctx := t.Context()
 	s.setSkipWorkerJobs(t)
 
 	// create a few hosts
@@ -6131,4 +6132,21 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 1}, statusResp.MDMConfigProfileStatus)
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N4"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
 	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 2}, statusResp.MDMConfigProfileStatus)
+
+	// trigger profile schedule to get the fleet-controlled profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	// list the profiles to get a fleet-controlled profile UUID
+	gotProfs, err := s.ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+	require.NoError(t, err)
+	var fleetReservedProfile string
+	for _, prof := range gotProfs {
+		// find the fleetd config one
+		if prof.Identifier == mobileconfig.FleetdConfigPayloadIdentifier {
+			fleetReservedProfile = prof.ProfileUUID
+		}
+	}
+	require.NotEmpty(t, fleetReservedProfile)
+	// fleet-reserved profiles are not returned by the API, only custom profiles
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", fleetReservedProfile), getMDMConfigProfileStatusRequest{}, http.StatusNotFound)
 }
