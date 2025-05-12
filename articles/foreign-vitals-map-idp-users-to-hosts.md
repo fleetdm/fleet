@@ -60,9 +60,9 @@ To send users and groups information to Fleet, you have to assign them to your n
 
 To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 
-- [Create enterprise application in Entra ID](#step-1-create-enterprise-application-in-entra-id)
-- [Connect Entra ID to Fleet](#step-2-connect-entra-id-to-fleet)
-- [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
+1. [Create enterprise application in Entra ID](#step-1-create-enterprise-application-in-entra-id)
+2. [Connect Entra ID to Fleet](#step-2-connect-entra-id-to-fleet)
+3. [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
 
 #### Step 1: Create enterprise application in Entra ID
 
