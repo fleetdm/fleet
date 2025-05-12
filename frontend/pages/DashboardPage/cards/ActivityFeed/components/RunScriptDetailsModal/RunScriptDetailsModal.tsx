@@ -119,10 +119,15 @@ const StatusMessage = ({
 interface IScriptOutputProps {
   output: string;
   hostname: string;
+  wasAdHoc: boolean;
 }
 
-const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
-  return (
+const ScriptOutput = ({
+  output,
+  hostname,
+  wasAdHoc = false,
+}: IScriptOutputProps) => (
+  <div className={`${baseClass}__script-result`}>
     <Textarea
       label={
         <>
@@ -134,29 +139,15 @@ const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
           >
             output recorded
           </TooltipWrapper>{" "}
-          when <b>{hostname}</b> ran the script above:
+          when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
         </>
       }
       variant="code"
     >
       {output}
     </Textarea>
-  );
-};
-
-interface IScriptResultProps {
-  hostname: string;
-  output: string;
-}
-
-const ScriptResult = ({ hostname, output }: IScriptResultProps) => {
-  return (
-    <div className={`${baseClass}__script-result`}>
-      <ScriptOutput output={output} hostname={hostname} />
-    </div>
-  );
-};
-
+  </div>
+);
 interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;
@@ -209,6 +200,7 @@ const RunScriptDetailsModal = ({
         data.exit_code === null && data.host_timeout === false;
       const showOutputText =
         !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
+      const ranAdHocScript = data.script_id === null;
 
       content = (
         <>
@@ -217,9 +209,13 @@ const RunScriptDetailsModal = ({
             exitCode={data.exit_code}
             message={data.output}
           />
-          <ScriptContent content={data.script_contents} />
+          {ranAdHocScript && <ScriptContent content={data.script_contents} />}
           {showOutputText && (
-            <ScriptResult hostname={data.hostname} output={data.output} />
+            <ScriptOutput
+              hostname={data.hostname}
+              output={data.output}
+              wasAdHoc={ranAdHocScript}
+            />
           )}
         </>
       );
