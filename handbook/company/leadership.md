@@ -372,7 +372,7 @@ After receiving the interview packet, the Head of Digital Experience uses the fo
 
 5. **Draft email**: 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
-   - Cc: Head of Digital Experience
+   - Cc: Head of Digital Experience, CTO (if product design or engineering role), VP of Customers (if sales role)
    - Subject: "Full time?"
    - Body: _Copy the offer email verbatim from the Google doc into Gmail as the body of the message, formatting and all, then:_
      - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_
