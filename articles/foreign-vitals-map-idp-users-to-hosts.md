@@ -11,11 +11,11 @@ Fleet currently supports [Okta](#okta). [Microsoft Active Directory (AD) / Entra
 
 ## Okta
 
-To map users from Okta to hosts in Fleet, do the following steps:
+To map users from Okta to hosts in Fleet, we'll do the following steps:
 
-- [Create application in Okta](#step-1-create-application-in-okta)
-- [Connect Okta to Fleet](#step-2-connect-okta-to-fleet)
-- [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
+1. [Create application in Okta](#step-1-create-application-in-okta)
+2. [Connect Okta to Fleet](#step-2-connect-okta-to-fleet)
+3. [Map users and groups to hosts in Fleet](#step-3-map-users-and-groups-to-hosts-in-fleet)
 
 #### Step 1: Create application in Okta
 
