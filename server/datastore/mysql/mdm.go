@@ -1737,7 +1737,7 @@ SELECT
 			'verifying'
 		WHEN hmap.status = :status_verified THEN
 			'verified'
-	END AS status
+	END AS final_status
 FROM
 	hosts h
 	JOIN host_mdm_apple_profiles hmap ON h.uuid = hmap.host_uuid
@@ -1746,7 +1746,7 @@ WHERE
 	hmap.profile_uuid = :profile_uuid AND
 	( hmap.status NOT IN (:status_verified, :status_verifying) OR hmap.operation_type = :operation_install )
 GROUP BY
-	status HAVING status IS NOT NULL`
+	final_status HAVING final_status IS NOT NULL`
 
 	stmt, args, err := sqlx.Named(stmt, map[string]any{
 		"status_failed":     fleet.MDMDeliveryFailed,
@@ -1762,7 +1762,7 @@ GROUP BY
 
 	var dest []struct {
 		Count  uint   `db:"count"`
-		Status string `db:"status"`
+		Status string `db:"final_status"`
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
@@ -1812,7 +1812,7 @@ SELECT
 			'verifying'
 		WHEN hmad.status = :status_verified THEN
 			'verified'
-	END AS status
+	END AS final_status
 FROM
 	hosts h
 	JOIN host_mdm_apple_declarations hmad ON h.uuid = hmad.host_uuid
@@ -1821,7 +1821,7 @@ WHERE
 	hmad.operation_type = :operation_install AND
 	hmad.declaration_uuid = :declaration_uuid
 GROUP BY
-	status HAVING status IS NOT NULL`
+	final_status HAVING final_status IS NOT NULL`
 
 	stmt, args, err := sqlx.Named(stmt, map[string]any{
 		"status_failed":     fleet.MDMDeliveryFailed,
@@ -1837,7 +1837,7 @@ GROUP BY
 
 	var dest []struct {
 		Count  uint   `db:"count"`
-		Status string `db:"status"`
+		Status string `db:"final_status"`
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
