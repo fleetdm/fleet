@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -950,58 +951,108 @@ func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byO
 	return byOS, totalCount, nil
 }
 
-func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	sql := `SELECT
-    h.id,
-    h.osquery_host_id,
-    h.created_at,
-    h.updated_at,
-    h.detail_updated_at,
-    h.node_key,
-    h.hostname,
-    h.uuid,
-    h.platform,
-    h.osquery_version,
-    h.os_version,
-    h.build,
-    h.platform_like,
-    h.code_name,
-    h.uptime,
-    h.memory,
-    h.cpu_type,
-    h.cpu_subtype,
-    h.cpu_brand,
-    h.cpu_physical_cores,
-    h.cpu_logical_cores,
-    h.hardware_vendor,
-    h.hardware_model,
-    h.hardware_version,
-    h.hardware_serial,
-    h.computer_name,
-    h.primary_ip_id,
-    h.distributed_interval,
-    h.logger_tls_period,
-    h.config_tls_refresh,
-    h.primary_ip,
-    h.primary_mac,
-    h.label_updated_at,
-    h.last_enrolled_at,
-    h.refetch_requested,
-    h.refetch_critical_queries_until,
-    h.team_id,
-    h.policy_updated_at,
-    h.public_ip,
-    h.orbit_node_key,
-    COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-    COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-    COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-    COALESCE(hst.seen_time, h.created_at) AS seen_time,
-    t.name AS team_name,
-    COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-	(CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at
-	`
+func dbFieldName(t reflect.Type, fieldName string) (string, error) {
+	field, ok := t.FieldByName(fieldName)
+	if !ok {
+		panic(fieldName + " not found in " + t.Name())
+	}
+	tag := field.Tag.Get("db")
+	parts := strings.Split(tag, ",")
+	name := parts[0]
 
-	sql += hostMDMSelect
+	if name == "-" || name == "" {
+		return "", errors.New(field.Name + " has no db tag")
+	}
+	return name, nil
+}
+
+func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	var sql string
+	if opt.HostFieldNames != nil {
+		dbFieldNames := make([]string, 0, len(opt.HostFieldNames))
+		t := reflect.TypeOf(fleet.Host{})
+		for _, fieldName := range opt.HostFieldNames {
+			if fieldName == "ID" {
+				dbFieldNames = append(dbFieldNames, "h.id")
+				continue
+			}
+			dbFieldName, err := dbFieldName(t, fieldName)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "db field name")
+			}
+			switch fieldName {
+			case "ScriptsEnabled":
+			case "OrbitVersion":
+			case "DesktopVersion":
+				dbFieldNames = append(dbFieldNames, "hoi."+dbFieldName)
+			case "DiskEncryptionEnabled":
+				dbFieldNames = append(dbFieldNames, "hd.encrypted")
+			case "PackStats":
+				dbFieldNames = append(dbFieldNames, "p.id")
+			case "DeviceMapping":
+				dbFieldNames = append(dbFieldNames, "dm.device_mapping")
+			case "SoftwareUpdatedAt":
+				dbFieldNames = append(dbFieldNames, "hu.software_updated_at")
+			case "LastSeenTime":
+				dbFieldNames = append(dbFieldNames, "hst.seen_time")
+			default:
+				dbFieldNames = append(dbFieldNames, "h."+dbFieldName)
+			}
+
+		}
+	} else {
+		sql := `SELECT
+		h.id,
+		h.osquery_host_id,
+		h.created_at,
+		h.updated_at,
+		h.detail_updated_at,
+		h.node_key,
+		h.hostname,
+		h.uuid,
+		h.platform,
+		h.osquery_version,
+		h.os_version,
+		h.build,
+		h.platform_like,
+		h.code_name,
+		h.uptime,
+		h.memory,
+		h.cpu_type,
+		h.cpu_subtype,
+		h.cpu_brand,
+		h.cpu_physical_cores,
+		h.cpu_logical_cores,
+		h.hardware_vendor,
+		h.hardware_model,
+		h.hardware_version,
+		h.hardware_serial,
+		h.computer_name,
+		h.primary_ip_id,
+		h.distributed_interval,
+		h.logger_tls_period,
+		h.config_tls_refresh,
+		h.primary_ip,
+		h.primary_mac,
+		h.label_updated_at,
+		h.last_enrolled_at,
+		h.refetch_requested,
+		h.refetch_critical_queries_until,
+		h.team_id,
+		h.policy_updated_at,
+		h.public_ip,
+		h.orbit_node_key,
+		COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+		COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+		COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+		COALESCE(hst.seen_time, h.created_at) AS seen_time,
+		t.name AS team_name,
+		COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
+		(CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at
+		`
+
+		sql += hostMDMSelect
+	}
 
 	if opt.DeviceMapping {
 		sql += `,
@@ -1295,10 +1346,10 @@ func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface
 }
 
 func filterHostsByID(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
-	if opt.IDFilter != nil && len(opt.IDFilter) > 0 {
-		args := strings.Join(strings.Split(strings.Repeat("?", len(opt.IDFilter)), ""), ",")
+	if opt.HostIDFilter != nil && len(opt.HostIDFilter) > 0 {
+		args := strings.Join(strings.Split(strings.Repeat("?", len(opt.HostIDFilter)), ""), ",")
 		sql += fmt.Sprintf(" AND h.id IN (%s)", args)
-		for _, id := range opt.IDFilter {
+		for _, id := range opt.HostIDFilter {
 			params = append(params, id)
 		}
 	}

@@ -1607,77 +1607,21 @@ func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents
 	return scriptContentsID, nil
 }
 
-func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+var hostScriptBatchSize = 5000
+
+func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hosts []*fleet.Host) (string, error) {
 	script, err := ds.Script(ctx, scriptID)
 	if err != nil {
 		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
 	}
 
-	// We need full host info to check if hosts are able to run scripts, see svc.RunHostScript
-	fullHosts := make([]*fleet.Host, 0, len(hostIDs))
+	// Initialize an empty slice of hosts with various errors
+	erroredHosts := make([]map[string]any, 0)
 
-	// Check that all hosts exist before attempting to process them
-	for _, hostID := range hostIDs {
-		host, err := ds.Host(ctx, hostID)
-		if err != nil {
-			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
-		}
+	batchExecID := uuid.New().String()
 
-		// All hosts must be on the same team as the script
-		sameTeamNoTeam := host.TeamID == nil && script.TeamID == nil
-		sameTeamNumber := host.TeamID != nil && script.TeamID != nil && *host.TeamID == *script.TeamID
-		sameTeam := sameTeamNoTeam || sameTeamNumber
-		if !sameTeam {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
-		}
-
-		fullHosts = append(fullHosts, host)
-	}
-
-	executions := make([]fleet.BatchExecutionHost, 0, len(fullHosts))
-
-	batchExecID := ""
-
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		for _, host := range fullHosts {
-			// Non-orbit-enrolled host (iOS, android)
-			noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
-			// Scripts disabled on host
-			scriptsDisabled := host.ScriptsEnabled != nil && !*host.ScriptsEnabled
-
-			if noNodeKey || scriptsDisabled {
-				executions = append(executions, fleet.BatchExecutionHost{
-					HostID: host.ID,
-					Error:  &fleet.BatchExecuteIncompatibleFleetd,
-				})
-				continue
-			}
-
-			if !fleet.ValidateScriptPlatform(script.Name, host.Platform) {
-				executions = append(executions, fleet.BatchExecutionHost{
-					HostID: host.ID,
-					Error:  &fleet.BatchExecuteIncompatiblePlatform,
-				})
-				continue
-			}
-
-			executionID, _, err := ds.insertNewHostScriptExecution(ctx, tx, &fleet.HostScriptRequestPayload{
-				HostID:          host.ID,
-				UserID:          userID,
-				ScriptID:        &script.ID,
-				ScriptContentID: script.ScriptContentID,
-			}, false)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "queueing script for bulk execution")
-			}
-
-			executions = append(executions, fleet.BatchExecutionHost{
-				HostID:      host.ID,
-				ExecutionID: &executionID,
-			})
-		}
-
-		batchExecID = uuid.New().String()
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Insert the batch execution record
 		_, err := tx.ExecContext(
 			ctx,
 			"INSERT INTO batch_script_executions (execution_id, script_id) VALUES (?, ?)",
@@ -1688,38 +1632,112 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")
 		}
 
-		args := make([]map[string]any, 0, len(executions))
-		for _, execHost := range executions {
-			args = append(args, map[string]any{
-				"batch_id":          batchExecID,
-				"host_id":           execHost.HostID,
-				"host_execution_id": execHost.ExecutionID,
-				"error":             execHost.Error,
-			})
+		// Get the user record
+		user, err := ds.UserByID(ctx, *userID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to get user")
 		}
 
-		insertStmt := `
-INSERT INTO batch_script_execution_host_results (
-	batch_execution_id,
-	host_id,
-	host_execution_id,
-	error
-) VALUES (
-	:batch_id,
-	:host_id,
-	:host_execution_id,
-	:error
-)`
+		for i := 0; i < len(hosts); i += hostScriptBatchSize {
+			start := i
+			end := i + hostScriptBatchSize
+			if end > len(hosts) {
+				end = len(hosts)
+			}
+			hostsBatch := hosts[start:end]
 
-		if _, err := sqlx.NamedExecContext(ctx, tx, insertStmt, args); err != nil {
-			return ctxerr.Wrap(ctx, err, "associating script executions with batch job")
+			// Iterate over the hosts in the batch
+			upcomingActivitiesArgs := make([]map[string]any, len(hostsBatch))
+			numValidHosts := 0
+			for _, host := range hostsBatch {
+				// Non-orbit-enrolled host (iOS, android)
+				noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
+				// Scripts disabled on host
+				scriptsDisabled := host.ScriptsEnabled != nil && !*host.ScriptsEnabled
+				if noNodeKey || scriptsDisabled {
+					erroredHosts = append(erroredHosts, map[string]any{
+						"host_id": host.ID,
+						"error":   &fleet.BatchExecuteIncompatibleFleetd,
+					})
+					continue
+				}
+				if !fleet.ValidateScriptPlatform(script.Name, host.Platform) {
+					erroredHosts = append(erroredHosts, map[string]any{
+						"host_id": host.ID,
+						"error":   &fleet.BatchExecuteIncompatiblePlatform,
+					})
+					continue
+				}
+				upcomingActivitiesArgs[numValidHosts] = map[string]any{
+					"host_id":           host.ID,
+					"user_id":           userID,
+					"exec_id":           fmt.Sprintf("%s:%d", batchExecID, host.ID),
+					"user_name":         user.Name,
+					"user_email":        user.Email,
+					"user_gravatar_url": user.GravatarURL,
+				}
+				numValidHosts++
+			}
+			if numValidHosts == 0 {
+				continue
+			}
+			upcomingActivitiesArgs = upcomingActivitiesArgs[:numValidHosts]
+			// Insert the upcoming activities for the valid hosts
+			uaInsertStmt := `
+INSERT INTO upcoming_activities
+	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
+VALUES
+	(:host_id, 0, :user_id, false, 'script', :exec_id,
+		JSON_OBJECT(
+			'sync_request', false,
+			'is_internal', false,
+			'user', JSON_OBJECT('name', :user_name, 'email', :user_email, 'gravatar_url', :user_gravatar_url)
+		)
+	)`
+			if _, err := sqlx.NamedExecContext(ctx, tx, uaInsertStmt, upcomingActivitiesArgs); err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to insert upcoming activities")
+			}
 		}
-
+		// Insert the script upcoming activities
+		suaInsertStmt := `
+INSERT INTO script_upcoming_activities
+	(upcoming_activity_id, script_id, script_content_id, policy_id, setup_experience_script_id)			
+SELECT 
+	id, "?" as script_id, "?" as script_content_id
+FROM upcoming_activities
+WHERE
+	upcoming_activities.batch_execution_id = ?
+ORDER BY id`
+		if _, err := tx.ExecContext(ctx, suaInsertStmt, script.ID, script.ScriptContentID, batchExecID); err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to insert script upcoming activities")
+		}
+		// Insert the host script results
+		hsrInsertStmt := `
+INSERT INTO host_script_results
+	(batch_execution_id, host_id, host_execution_id)
+SELECT
+	batch_execution_id, host_id, CONCAT(batch_execution_id, ':', host_id)
+FROM upcoming_activities
+WHERE
+	upcoming_activities.batch_execution_id = ?
+ORDER BY host_id`
+		if _, err := tx.ExecContext(ctx, hsrInsertStmt, batchExecID); err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to insert host script results")
+		}
+		// Insert the host script results for the errored hosts
+		hsrErrorsInsertStmt := `
+INSERT INTO host_script_results
+	(host_id, error)
+VALUES
+	(:host_id, :error)`
+		if _, err := sqlx.NamedExecContext(ctx, tx, hsrErrorsInsertStmt, erroredHosts); err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to insert errored activities")
+		}
 		return nil
-	}); err != nil {
-		return "", fmt.Errorf("creating bulk execution order: %w", err)
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "failed to create batch execution")
 	}
-
 	return batchExecID, nil
 }
 

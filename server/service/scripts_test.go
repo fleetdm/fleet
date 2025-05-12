@@ -874,7 +874,7 @@ func TestBatchScriptExecute(t *testing.T) {
 	}
 
 	t.Run("error if hosts do not all belong to the same team as script", func(t *testing.T) {
-		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 			return []*fleet.Host{
 				{ID: 1, TeamID: ptr.Uint(1)},
 				{ID: 2, TeamID: ptr.Uint(1)},
@@ -908,10 +908,10 @@ func TestBatchScriptExecute(t *testing.T) {
 	})
 
 	t.Run("happy path", func(t *testing.T) {
-		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hosts []*fleet.Host) (string, error) {
 			return "", errors.New("ok")
 		}
-		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 			return []*fleet.Host{
 				{ID: 1, TeamID: ptr.Uint(1)},
 				{ID: 2, TeamID: ptr.Uint(1)},
@@ -922,12 +922,6 @@ func TestBatchScriptExecute(t *testing.T) {
 				return &fleet.Script{ID: id, TeamID: ptr.Uint(1)}, nil
 			}
 			return &fleet.Script{ID: id}, nil
-		}
-		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-			return []*fleet.Host{
-				{ID: 1, TeamID: ptr.Uint(1)},
-				{ID: 2, TeamID: ptr.Uint(1)},
-			}, nil
 		}
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})

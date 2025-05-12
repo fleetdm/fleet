@@ -1732,7 +1732,7 @@ type Datastore interface {
 
 	// BatchExecuteScript queues a script to run on a set of hosts and returns the batch script
 	// execution ID.
-	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
+	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hosts []*Host) (string, error)
 
 	// BatchExecuteSummary returns the summary of a batch script execution
 	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)

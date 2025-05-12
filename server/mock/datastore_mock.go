@@ -1112,7 +1112,7 @@ type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uin
 
 type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error)
 
-type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
+type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hosts[]*fleet.Host) (string, error)
 
 type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error)
 
@@ -7146,11 +7146,11 @@ func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*
 	return s.BatchSetScriptsFunc(ctx, tmID, scripts)
 }
 
-func (s *DataStore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+func (s *DataStore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hosts []*fleet.Host) (string, error) {
 	s.mu.Lock()
 	s.BatchExecuteScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchExecuteScriptFunc(ctx, userID, scriptID, hostIDs)
+	return s.BatchExecuteScriptFunc(ctx, userID, scriptID, hosts)
 }
 
 func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {

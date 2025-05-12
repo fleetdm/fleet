@@ -1117,6 +1117,8 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		userId = &ctxUser.ID
 	}
 
+	var hosts []*fleet.Host
+
 	// If we are given filters, we need to get the host IDs from the filters
 	if filters != nil {
 		opt, lid, err := hostListOptionsFromFilters(filters)
@@ -1132,7 +1134,15 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 			return "", fleet.NewInvalidArgumentError("filters", "filters must include a team filter")
 		}
 
-		hostIDs, _, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
+		opt.OrbitInfo = true
+		filter := fleet.TeamFilter{User: ctxUser, IncludeObserver: true}
+
+		if lid != nil {
+			hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, *opt)
+		} else {
+			opt.DisableIssues = true // intentionally ignore failing policies
+			hosts, err = svc.ds.ListHosts(ctx, filter, *opt)
+		}
 		if err != nil {
 			return "", err
 		}
@@ -1142,7 +1152,10 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		}
 	} else {
 		// If we are given host IDs, we need to check that they match the script's team.
-		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+		hosts, err = svc.ds.ListHosts(ctx, fleet.TeamFilter{TeamID: script.TeamID}, fleet.HostListOptions{
+			HostIDFilter: hostIDs,
+			OrbitInfo:    true,
+		})
 		if err != nil {
 			return "", err
 		}
@@ -1156,7 +1169,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		}
 	}
 
-	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDs)
+	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hosts)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}

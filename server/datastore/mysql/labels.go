@@ -610,6 +610,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
       %s
       %s
+	    %s
 			%s
     FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
@@ -619,6 +620,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     %s
     %s
 		%s
+    %s
 `
 	failingIssuesSelect := `,
 		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
@@ -650,8 +652,18 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	COALESCE(dm.device_mapping, 'null') as device_mapping`
 	}
 
+	orbitInfoJoin := "LEFT JOIN host_orbit_info hoi ON h.id = hoi.host_id"
+	if !opt.OrbitInfo {
+		orbitInfoJoin = ""
+	}
+
+	var orbitInfoSelect string
+	if opt.OrbitInfo {
+		orbitInfoSelect = `, hoi.version AS orbit_version, hoi.desktop_version AS fleet_desktop_version, hoi.scripts_enabled AS scripts_enabled`
+	}
+
 	query := fmt.Sprintf(
-		queryFmt, hostMDMSelect, failingIssuesSelect, deviceMappingSelect, hostMDMJoin, failingIssuesJoin, deviceMappingJoin,
+		queryFmt, hostMDMSelect, failingIssuesSelect, deviceMappingSelect, orbitInfoSelect, hostMDMJoin, failingIssuesJoin, deviceMappingJoin, orbitInfoJoin,
 	)
 
 	query, params, err := ds.applyHostLabelFilters(ctx, filter, lid, query, opt)
@@ -742,6 +754,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	var err error
 	query, whereParams = filterHostsByStatus(ds.clock.Now(), query, opt, whereParams)
 	query, whereParams = filterHostsByTeam(query, opt, whereParams)
+	query, whereParams = filterHostsByID(query, opt, whereParams)
 	query, whereParams = filterHostsByMDM(query, opt, whereParams)
 	query, whereParams, err = filterHostsByMacOSSettingsStatus(query, opt, whereParams)
 	if err != nil {

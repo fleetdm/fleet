@@ -129,6 +129,11 @@ func (s MDMBootstrapPackageStatus) IsValid() bool {
 type HostListOptions struct {
 	ListOptions
 
+	// Fields to return from the host table. If empty, all fields are returned.
+	// If populated, this should be an array of Host field names, which will
+	// be translated to their db equivalents.
+	HostFieldNames []string
+
 	// DeviceMapping joins device user email mapping for each host if available
 	DeviceMapping bool
 
@@ -142,8 +147,8 @@ type HostListOptions struct {
 	StatusFilter HostStatus
 	// TeamFilter selects the hosts for specified team
 	TeamFilter *uint
-	// IDFilter selects the hosts by their IDs.
-	IDFilter []uint
+	// HostIDFilter selects the hosts by their IDs.
+	HostIDFilter []uint
 
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
