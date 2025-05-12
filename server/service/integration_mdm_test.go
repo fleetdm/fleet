@@ -5201,6 +5201,11 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, wantSettings := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
+	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
+		Serial: mdmDevice.SerialNumber,
+		UDID:   mdmDevice.UUID,
+	})
+	require.NoError(t, err)
 
 	// patch without specifying the mdm sso settings fields and an unrelated
 	// field, should not remove them
@@ -5310,17 +5315,12 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		require.True(t, q.Has("enrollment_reference"))
 		require.False(t, q.Has("error"))
 		// the url retrieves a valid profile
-		s.downloadAndVerifyEnrollmentProfile(
-			fmt.Sprintf(
-				"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s&deviceinfo=%s",
-				q.Get("profile_token"),
-				user1EnrollRef,
-				mdmtesting.EncodeDeviceInfo(t, fleet.MDMAppleMachineInfo{
-					Serial: mdmDevice.SerialNumber,
-					UDID:   mdmDevice.UUID,
-				}),
-			),
-		)
+		s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
+			basePath:  "/api/mdm/apple/enroll",
+			enrollRef: q.Get("enrollment_reference"),
+			token:     q.Get("profile_token"),
+			diParam:   di,
+		})
 
 		// IdP info stored is accurate for the account
 		s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
@@ -5354,17 +5354,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// the enrollment reference is the same for the same user
 	require.Equal(t, user1EnrollRef, q.Get("enrollment_reference"))
 	// the url retrieves a valid profile
-	prof := s.downloadAndVerifyEnrollmentProfile(
-		fmt.Sprintf(
-			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s&deviceinfo=%s",
-			q.Get("profile_token"),
-			user1EnrollRef,
-			mdmtesting.EncodeDeviceInfo(t, fleet.MDMAppleMachineInfo{
-				Serial: mdmDevice.SerialNumber,
-				UDID:   mdmDevice.UUID,
-			}),
-		),
-	)
+	prof := s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
+		basePath:  "/api/mdm/apple/enroll",
+		enrollRef: user1EnrollRef,
+		token:     q.Get("profile_token"),
+		diParam:   di,
+	})
+
 	// the url retrieves a valid EULA
 	resp := s.DoRaw("GET", "/api/latest/fleet/setup_experience/eula/"+q.Get("eula_token"), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
@@ -5586,17 +5582,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// the enrollment reference is different to the one used for the previous user
 	require.NotEqual(t, user1EnrollRef, user2EnrollRef)
 	// the url retrieves a valid profile
-	s.downloadAndVerifyEnrollmentProfile(
-		fmt.Sprintf(
-			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s&deviceinfo=%s",
-			q.Get("profile_token"),
-			user2EnrollRef,
-			mdmtesting.EncodeDeviceInfo(t, fleet.MDMAppleMachineInfo{
-				Serial: mdmDevice.SerialNumber,
-				UDID:   mdmDevice.UUID,
-			}),
-		),
-	)
+	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
+		basePath:  "/api/mdm/apple/enroll",
+		enrollRef: user2EnrollRef,
+		token:     q.Get("profile_token"),
+		diParam:   di,
+	})
+
 	// the url retrieves a valid EULA
 	resp = s.DoRaw("GET", "/api/latest/fleet/setup_experience/eula/"+q.Get("eula_token"), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
@@ -5644,6 +5636,11 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	lastSubmittedProfile := &godep.Profile{}
 	mdmDevice, _ := s.setUpEndUserAuthentication(t, lastSubmittedProfile)
+	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
+		Serial: mdmDevice.SerialNumber,
+		UDID:   mdmDevice.UUID,
+	})
+	require.NoError(t, err)
 
 	res := s.LoginMDMSSOUser("sso_user_no_displayname", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
@@ -5654,17 +5651,12 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	q := u.Query()
 	user1EnrollRef := q.Get("enrollment_reference")
 	// the url retrieves a valid profile
-	prof := s.downloadAndVerifyEnrollmentProfile(
-		fmt.Sprintf(
-			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s&deviceinfo=%s",
-			q.Get("profile_token"),
-			user1EnrollRef,
-			mdmtesting.EncodeDeviceInfo(t, fleet.MDMAppleMachineInfo{
-				Serial: mdmDevice.SerialNumber,
-				UDID:   mdmDevice.UUID,
-			}),
-		),
-	)
+	prof := s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
+		basePath:  "/api/mdm/apple/enroll",
+		enrollRef: user1EnrollRef,
+		token:     q.Get("profile_token"),
+		diParam:   di,
+	})
 
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user_no_displayname", "", "sso_user_no_displayname@example.com")
@@ -5972,12 +5964,39 @@ type enrollmentProfile struct {
 	PayloadContent    []enrollmentPayload
 }
 
-func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string) *enrollmentProfile {
-	t := s.T()
+type optsDownloadEnrollProf struct {
+	basePath  string
+	token     string
+	enrollRef string
+	diParam   string
+	diHeader  string
+}
 
-	resp := s.DoRaw("GET", path, nil, http.StatusOK)
+func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(t *testing.T, opts optsDownloadEnrollProf) *enrollmentProfile {
+	var headers map[string]string
+	if opts.diHeader != "" {
+		headers = map[string]string{"X-apple-aspen-deviceinfo": opts.diHeader}
+	}
+
+	path := opts.basePath
+	if path == "" {
+		path = "/api/mdm/apple/enroll"
+	}
+
+	var queryParams []string
+	if opts.token != "" {
+		queryParams = append(queryParams, "token", opts.token)
+	}
+	if opts.enrollRef != "" {
+		queryParams = append(queryParams, "enrollment_reference", opts.enrollRef)
+	}
+	if opts.diParam != "" {
+		queryParams = append(queryParams, "deviceinfo", opts.diParam)
+	}
+
+	resp := s.DoRawWithHeaders("GET", path, nil, http.StatusOK, headers, queryParams...)
+	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
 	require.NoError(t, err)
 	require.Contains(t, resp.Header, "Content-Disposition")
 	require.Contains(t, resp.Header, "Content-Type")
@@ -13161,10 +13180,22 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 		Token:      "abcd",
 	})
 	require.NoError(t, err)
-	s.downloadAndVerifyEnrollmentProfile(apple_mdm.EnrollPath + "?token=abcd")
+
+	di, err := mdmtest.EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
+		Serial: uuid.New().String(),
+		UDID:   uuid.New().String(),
+	})
+	require.NoError(t, err)
+	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
+		basePath: apple_mdm.EnrollPath,
+		token:    "abcd",
+		diParam:  di,
+	})
 
 	// unsigned manual enrollment profile for IT admins
-	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/enrollment_profiles/manual")
+	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
+		basePath: "/api/latest/fleet/enrollment_profiles/manual",
+	})
 
 	// ensure the fleetd profile sends a good enroll secret too
 	s.awaitTriggerProfileSchedule(t)
