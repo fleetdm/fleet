@@ -32,7 +32,6 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
 
-import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -261,19 +260,18 @@ const ManageQueriesPage = ({
   }, [refetchQueries, selectedQueryIds, toggleDeleteQueryModal]);
 
   const renderHeader = () => {
-    if (isPremiumTier) {
-      if (userTeams) {
-        if (userTeams.length > 1 || isOnGlobalTeam) {
-          return (
-            <TeamsDropdown
-              currentUserTeams={userTeams}
-              selectedTeamId={currentTeamId}
-              onChange={onTeamChange}
-            />
-          );
-        } else if (!isOnGlobalTeam && userTeams.length === 1) {
-          return <h1>{userTeams[0].name}</h1>;
-        }
+    if (isPremiumTier && userTeams && !config?.partnerships?.enable_primo) {
+      if (userTeams.length > 1 || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams}
+            selectedTeamId={currentTeamId}
+            onChange={onTeamChange}
+          />
+        );
+      }
+      if (userTeams.length === 1 && !isOnGlobalTeam) {
+        return <h1>{userTeams[0].name}</h1>;
       }
     }
     return <h1>Queries</h1>;
