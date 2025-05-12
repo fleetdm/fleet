@@ -46,7 +46,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
         </>
       ) : (
         <>
-          Software is installed (install
+          Software was installed (install
           <br />
           script finished with exit code 0).
         </>

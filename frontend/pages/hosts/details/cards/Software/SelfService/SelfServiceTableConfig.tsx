@@ -47,7 +47,7 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     iconName: "success",
     displayText: "Installed",
     tooltip: ({ lastInstalledAt = null }) => {
-      return `Software is installed${
+      return `Software was installed${
         lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""
       }.`;
     },
