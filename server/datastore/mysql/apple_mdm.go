@@ -4935,15 +4935,15 @@ func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID s
 	const stmt = `
 SELECT
 	HEX(mad.token) as token,
-	mad.identifier
+	mad.identifier, mad.declaration_uuid, status, operation_type, mad.uploaded_at
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
 WHERE
-	hmad.host_uuid = ? AND operation_type = ?`
+	hmad.host_uuid = ?`
 
 	var res []fleet.MDMAppleDDMDeclarationItem
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, fleet.MDMOperationTypeInstall); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM declaration items")
 	}
 
@@ -5215,7 +5215,9 @@ ON DUPLICATE KEY UPDATE
 	var args []any
 	var insertVals strings.Builder
 	for _, c := range current {
-		if u, ok := updatesByToken[c.Token]; ok {
+		// Skip updates for 'remove' operations because it is possible that IT admin removed a profile and then re-added it.
+		// Pending removes are cleaned up after we update status of installs.
+		if u, ok := updatesByToken[c.Token]; ok && u.OperationType != fleet.MDMOperationTypeRemove {
 			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?), ?),")
 			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Token,
 				c.SecretsUpdatedAt)
@@ -5259,6 +5261,27 @@ func (ds *Datastore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostU
 		// WHERE ...
 		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending, hostUUID,
 	)
+	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
+}
+
+func (ds *Datastore) MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context, hostUUID string, declarationUUIDs []string) error {
+	stmt := `
+  UPDATE host_mdm_apple_declarations
+  SET
+    status = ?,
+  WHERE
+    host_uuid = ?
+    AND declaration_uuid IN (?)
+    AND operation_type = ?
+    AND status IS NULL
+  `
+
+	stmt, args, err := sqlx.In(stmt, fleet.MDMDeliveryPending, hostUUID, declarationUUIDs, fleet.MDMOperationTypeRemove)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN clause")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
 }
 
