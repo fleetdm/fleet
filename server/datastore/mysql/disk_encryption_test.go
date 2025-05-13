@@ -87,4 +87,7 @@ func testDeleteLUKSData(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteLUKSData(ctx, hostOne.ID, keySlot)
 	require.NoError(t, err)
+
+	_, err = ds.GetHostDiskEncryptionKey(ctx, hostOne.ID)
+	require.True(t, fleet.IsNotFound(err))
 }
