@@ -666,6 +666,8 @@ func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
 	// Verify that the user is allowed to delete all the requested queries.
+	var teamID *uint
+	var teamName *string
 	for _, id := range ids {
 		query, err := svc.ds.Query(ctx, id)
 		if err != nil {
@@ -674,6 +676,16 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		}
 		if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 			return 0, err
+		}
+
+		// Capture team information for activity logging.
+		if query.TeamID != nil {
+			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
+			if err != nil {
+				return 0, err
+			}
+			teamID = query.TeamID
+			teamName = &team.Name
 		}
 	}
 
@@ -686,11 +698,14 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedMultipleSavedQuery{
-			IDs: ids,
+			IDs:      ids,
+			Teamid:   teamID,
+			TeamName: teamName,
 		},
 	); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create activity for query deletions")
 	}
+
 	return n, nil
 }
 

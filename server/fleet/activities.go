@@ -531,7 +531,9 @@ func (a ActivityTypeDeletedSavedQuery) Documentation() (activity string, details
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs []uint `json:"query_ids"`
+	IDs      []uint  `json:"query_ids"`
+	Teamid   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
 }
 
 func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
@@ -543,6 +545,8 @@ func (a ActivityTypeDeletedMultipleSavedQuery) Documentation() (activity string,
 		`This activity contains the following fields:
 - "query_ids": list of IDs of the deleted saved queries.`, `{
 	"query_ids": [1, 42, 100]
+	- "team_id": contains the id of the team related.
+	- "team_name": contains the name of the related team.
 }`
 }
 
