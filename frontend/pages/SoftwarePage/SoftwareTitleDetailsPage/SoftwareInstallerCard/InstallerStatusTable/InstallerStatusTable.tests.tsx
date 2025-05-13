@@ -18,12 +18,12 @@ describe("InstallerStatusTable", () => {
     // Check cell values (always "hosts", even for 1)
     const cells = screen.getAllByRole("cell");
     expect(cells[0]).toHaveTextContent("0 hosts");
-    expect(cells[1]).toHaveTextContent("1 hosts");
+    expect(cells[1]).toHaveTextContent("1 host");
     expect(cells[2]).toHaveTextContent("3 hosts");
 
     // Check the anchor and its text in each cell
     expect(cells[0].querySelector("a.link-cell")).toHaveTextContent("0 hosts");
-    expect(cells[1].querySelector("a.link-cell")).toHaveTextContent("1 hosts");
+    expect(cells[1].querySelector("a.link-cell")).toHaveTextContent("1 host");
     expect(cells[2].querySelector("a.link-cell")).toHaveTextContent("3 hosts");
   });
 });
