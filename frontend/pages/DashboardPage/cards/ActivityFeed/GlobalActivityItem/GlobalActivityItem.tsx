@@ -1225,47 +1225,77 @@ const TAGGED_TEMPLATES = {
     );
   },
   createdPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          to the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "globally";
+    }
+
     return (
       <>
         {" "}
-        created a policy <b>{activity.details?.policy_name}</b>{" "}
-        {activity.details?.team_name ? (
-          <>
-            to the <b>{activity.details.team_name}</b> team
-          </>
-        ) : (
-          "globally"
-        )}
+        created a policy <b>{activity.details?.policy_name}</b> {teamText}
       </>
     );
   },
   editedPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "globally";
+    }
+
     return (
       <>
         {" "}
-        edited the policy <b>{activity.details?.policy_name}</b>{" "}
-        {activity.details?.team_name ? (
-          <>
-            on the <b>{activity.details.team_name}</b> team
-          </>
-        ) : (
-          "globally"
-        )}
+        edited the policy <b>{activity.details?.policy_name}</b> {teamText}
       </>
     );
   },
   deletedPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          from the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "globally";
+    }
+
     return (
       <>
         {" "}
-        deleted the policy <b>{activity.details?.policy_name}</b>{" "}
-        {activity.details?.team_name ? (
-          <>
-            from the <b>{activity.details.team_name}</b> team
-          </>
-        ) : (
-          "globally"
-        )}
+        deleted the policy <b>{activity.details?.policy_name}</b> {teamText}
       </>
     );
   },

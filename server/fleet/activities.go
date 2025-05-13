@@ -543,10 +543,13 @@ func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
 func (a ActivityTypeDeletedMultipleSavedQuery) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting multiple saved queries.`,
 		`This activity contains the following fields:
-- "query_ids": list of IDs of the deleted saved queries.`, `{
-	"query_ids": [1, 42, 100]
-	- "team_id": contains the id of the team related.
-	- "team_name": contains the name of the related team.
+- "query_ids": list of IDs of the deleted saved queries.
+- "team_id": the ID of the team the queries belonged to.
+- "team_name": the name of the team the queries belonged to, "Global" if global.`,
+		`{
+	"query_ids": [1, 42, 100],
+	"team_id": nil,
+	"team_name": "Global"
 }`
 }
 
