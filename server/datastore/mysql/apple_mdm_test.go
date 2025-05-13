@@ -1338,7 +1338,6 @@ func configProfileBytesForTest(name, identifier, uuid string) []byte {
 func configProfileForTest(t *testing.T, name, identifier, uuid string, labels ...*fleet.Label) *fleet.MDMAppleConfigProfile {
 	prof := configProfileBytesForTest(name, identifier, uuid)
 	cp, err := fleet.NewMDMAppleConfigProfile(prof, nil)
-	cp.ProfileUUID = uuid
 	cp.Identifier = identifier
 	cp.Name = name
 	require.NoError(t, err)
