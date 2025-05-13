@@ -338,23 +338,22 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Conte
 	})
 }
 
+func (ds *Datastore) DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := deleteMDMAppleDeclaration(ctx, tx, declUUID); err != nil {
+			return err
+		}
+
+		// TODO(mna): on deletion, cancel any pending host installs immediately for this profile.
+		if err := deleteUnsentAppleHostMDMDeclaration(ctx, tx, declUUID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
-	// TODO(roberto): this seems confusing to me, we should have a separate datastore method.
-	if strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
-		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			if err := deleteMDMAppleDeclaration(ctx, tx, profileUUID); err != nil {
-				return err
-			}
-
-			// TODO(mna): on deletion, cancel any pending host installs immediately for this profile.
-			if err := deleteUnsentAppleHostMDMDeclaration(ctx, tx, profileUUID); err != nil {
-				return err
-			}
-
-			return nil
-		})
-		// return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
-	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, 0, profileUUID); err != nil {
 			return err

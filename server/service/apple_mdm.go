@@ -1300,7 +1300,7 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, declUUID); err != nil {
+	if err := svc.ds.DeleteMDMAppleDeclaration(ctx, declUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 

@@ -1115,6 +1115,9 @@ type Datastore interface {
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
 	// to the specified profile uuid.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
+	// DeleteMDMAppleDeclaration deletes the mdm declaration corresponding
+	// to the specified declaration uuid.
+	DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error
 
 	// DeleteMDMAppleDeclartionByName deletes a DDM profile by its name for the
 	// specified team (or no team).
