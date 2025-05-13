@@ -1114,6 +1114,10 @@ type Service interface {
 	// satisfy the specified filters.
 	BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters BatchResendMDMProfileFilters) error
 
+	// GetMDMConfigProfileStatus returns the number of hosts for each status of a
+	// single configuration profile.
+	GetMDMConfigProfileStatus(ctx context.Context, profileUUID string) (MDMConfigProfileStatus, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution
 
