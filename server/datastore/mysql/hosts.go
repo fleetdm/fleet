@@ -966,110 +966,121 @@ func dbFieldName(t reflect.Type, fieldName string) (string, error) {
 	return name, nil
 }
 
-func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	var sql string
-	if opt.HostFieldNames != nil {
-		dbFieldNames := make([]string, 0, len(opt.HostFieldNames))
-		t := reflect.TypeOf(fleet.Host{})
-		for _, fieldName := range opt.HostFieldNames {
-			if fieldName == "ID" {
-				dbFieldNames = append(dbFieldNames, "h.id")
-				continue
-			}
-			dbFieldName, err := dbFieldName(t, fieldName)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "db field name")
-			}
-			switch fieldName {
-			case "ScriptsEnabled":
-			case "OrbitVersion":
-			case "DesktopVersion":
-				dbFieldNames = append(dbFieldNames, "hoi."+dbFieldName)
-			case "DiskEncryptionEnabled":
-				dbFieldNames = append(dbFieldNames, "hd.encrypted")
-			case "PackStats":
-				dbFieldNames = append(dbFieldNames, "p.id")
-			case "DeviceMapping":
-				dbFieldNames = append(dbFieldNames, "dm.device_mapping")
-			case "SoftwareUpdatedAt":
-				dbFieldNames = append(dbFieldNames, "hu.software_updated_at")
-			case "LastSeenTime":
-				dbFieldNames = append(dbFieldNames, "hst.seen_time")
-			default:
-				dbFieldNames = append(dbFieldNames, "h."+dbFieldName)
-			}
-
+func getListHostsSelect(opt *fleet.HostListOptions) string {
+	t := reflect.TypeOf(fleet.Host{})
+	fieldNames := opt.HostFieldNames
+	if opt.DeviceMapping {
+		fieldNames = append(fieldNames, "DeviceMapping")
+	}
+	if opt.OrbitInfo {
+		fieldNames = append(fieldNames, []string{"ScriptsEnabled", "OrbitVersion", "DesktopVersion"}...)
+	}
+	if !opt.DisableIssues {
+		fieldNames = append(fieldNames, []string{"FailingPoliciesCount", "CriticalVulnerabilitiesCount", "TotalIssuesCount"}...)
+	}
+	dbFieldNames := make([]string, 0, len(fieldNames))
+	dbFieldNames = append(dbFieldNames, "h.id")
+	for _, fieldName := range fieldNames {
+		if fieldName == "ID" {
+			continue
 		}
-	} else {
-		sql := `SELECT
-		h.id,
-		h.osquery_host_id,
-		h.created_at,
-		h.updated_at,
-		h.detail_updated_at,
-		h.node_key,
-		h.hostname,
-		h.uuid,
-		h.platform,
-		h.osquery_version,
-		h.os_version,
-		h.build,
-		h.platform_like,
-		h.code_name,
-		h.uptime,
-		h.memory,
-		h.cpu_type,
-		h.cpu_subtype,
-		h.cpu_brand,
-		h.cpu_physical_cores,
-		h.cpu_logical_cores,
-		h.hardware_vendor,
-		h.hardware_model,
-		h.hardware_version,
-		h.hardware_serial,
-		h.computer_name,
-		h.primary_ip_id,
-		h.distributed_interval,
-		h.logger_tls_period,
-		h.config_tls_refresh,
-		h.primary_ip,
-		h.primary_mac,
-		h.label_updated_at,
-		h.last_enrolled_at,
-		h.refetch_requested,
-		h.refetch_critical_queries_until,
-		h.team_id,
-		h.policy_updated_at,
-		h.public_ip,
-		h.orbit_node_key,
-		COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-		COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-		COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-		COALESCE(hst.seen_time, h.created_at) AS seen_time,
-		t.name AS team_name,
-		COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-		(CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at
-		`
-
+		dbFieldName, err := dbFieldName(t, fieldName)
+		if err != nil {
+			// output warning
+			continue
+		}
+		switch fieldName {
+		case "ScriptsEnabled", "OrbitVersion", "DesktopVersion":
+			dbFieldNames = append(dbFieldNames, "hoi."+dbFieldName)
+		case "GigsDiskSpaceAvailable", "PercentDiskSpaceAvailable", "GigsTotalDiskSpace":
+			dbFieldNames = append(dbFieldNames, fmt.Sprintf("COALESCE(hd.%s, 0) as %s", dbFieldName, dbFieldName))
+		case "FailingPoliciesCount", "CriticalVulnerabilitiesCount", "TotalIssuesCount":
+			opt.DisableIssues = false
+			dbFieldNames = append(dbFieldNames, fmt.Sprintf("COALESCE(host_issues.%s, 0) AS %s", dbFieldName, dbFieldName))
+		case "SeenTime":
+			dbFieldNames = append(dbFieldNames, "COALESCE(hst.seen_time, h.created_at) AS seen_time")
+		case "TeamName":
+			dbFieldNames = append(dbFieldNames, "t.name AS team_name")
+		case "SoftwareUpdatedAt":
+			dbFieldNames = append(dbFieldNames, "COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at")
+		case "LastRestartedAt":
+			dbFieldNames = append(dbFieldNames, "(CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at")
+		case "DeviceMapping":
+			dbFieldNames = append(dbFieldNames, "COALESCE(dm.device_mapping, 'null') as device_mapping")
+		case "MDMHostData":
+			opt.MDMInfo = ptr.Bool(true)
+		default:
+			dbFieldNames = append(dbFieldNames, "h."+dbFieldName)
+		}
+	}
+	sql := "SELECT " + strings.Join(dbFieldNames, ", ")
+	if opt.MDMInfo == nil || *opt.MDMInfo {
 		sql += hostMDMSelect
 	}
+	fmt.Println(sql)
+	return sql
+}
 
-	if opt.DeviceMapping {
-		sql += `,
-    COALESCE(dm.device_mapping, 'null') as device_mapping
-		`
-	}
+var defaultHostListOptions = fleet.HostListOptions{
+	HostFieldNames: []string{
+		"ID",
+		"OsqueryHostID",
+		"CreatedAt",
+		"UpdatedAt",
+		"DetailUpdatedAt",
+		"NodeKey",
+		"Hostname",
+		"UUID",
+		"Platform",
+		"OsqueryVersion",
+		"OSVersion",
+		"Build",
+		"PlatformLike",
+		"CodeName",
+		"Uptime",
+		"Memory",
+		"CPUType",
+		"CPUBrand",
+		"CPUSubtype",
+		"CPUPhysicalCores",
+		"CPULogicalCores",
+		"HardwareVendor",
+		"HardwareModel",
+		"HardwareVersion",
+		"HardwareSerial",
+		"ComputerName",
+		"PrimaryNetworkInterfaceID",
+		"DistributedInterval",
+		"LoggerTLSPeriod",
+		"ConfigTLSRefresh",
+		"PrimaryIP",
+		"PrimaryMac",
+		"LabelUpdatedAt",
+		"LastEnrolledAt",
+		"RefetchRequested",
+		"RefetchCriticalQueriesUntil",
+		"TeamID",
+		"PolicyUpdatedAt",
+		"PublicIP",
+		"OrbitNodeKey",
+		"GigsDiskSpaceAvailable",
+		"PercentDiskSpaceAvailable",
+		"GigsTotalDiskSpace",
+		"SeenTime",
+		"TeamName",
+		"SoftwareUpdatedAt",
+		"LastRestartedAt",
+	},
+}
+var defaultListHostsSelect = getListHostsSelect(&defaultHostListOptions)
 
-	if opt.OrbitInfo {
-		sql += `, hoi.version AS orbit_version, hoi.desktop_version AS fleet_desktop_version, hoi.scripts_enabled AS scripts_enabled`
-	}
-
-	if !opt.DisableIssues {
-		sql += `,
-		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
-		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
-		COALESCE(host_issues.total_issues_count, 0) AS total_issues_count
-		`
+func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+	var sql string
+	if len(opt.HostFieldNames) == 0 {
+		sql = defaultListHostsSelect
+	} else {
+		opt.DisableIssues = true
+		sql = getListHostsSelect(&opt)
 	}
 
 	var params []interface{}

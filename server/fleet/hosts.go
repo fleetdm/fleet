@@ -134,6 +134,10 @@ type HostListOptions struct {
 	// be translated to their db equivalents.
 	HostFieldNames []string
 
+	// MDMInfo adds MDM information to the host.
+	// This is a pointer to allow us to to default to true.
+	MDMInfo *bool
+
 	// DeviceMapping joins device user email mapping for each host if available
 	DeviceMapping bool
 
