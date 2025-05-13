@@ -120,9 +120,23 @@ WHERE
 		AccountUUID    string    `db:"account_uuid"`
 	}
 	var hostEmails []legacyAccount
-	if err := txx.Select(&hostEmails, `SELECT * FROM legacy_host_mdm_idp_accounts`); err != nil {
+	err = txx.Select(&hostEmails, `
+SELECT 
+	id,
+	host_uuid,
+	host_id,
+	email,
+	email_id,
+	email_created_at,
+	email_updated_at,
+	coalesce(account_uuid, '') AS account_uuid
+FROM 
+	legacy_host_mdm_idp_accounts
+ORDER BY email_created_at DESC, email DESC`) // order by is arbitrary but deterministic; this order means we'll prefer the most recent and alphanumerically largest emails in case of duplicates
+	if err != nil {
 		return fmt.Errorf("selecting existing host emails: %w", err)
 	}
+
 	emailByHostUUID := make(map[string]legacyAccount, len(hostEmails))
 	ignored := []legacyAccount{}
 	for _, he := range hostEmails {
