@@ -40,7 +40,7 @@ func Up_20250507170845(tx *sql.Tx) error {
 		return fmt.Errorf("failed to delete rows from host_scim_user: %s", err)
 	}
 
-	// Step 4: Insert the  rows we want to keep back into the original table
+	// Step 4: Insert the rows we want to keep back into the original table
 	_, err = tx.Exec(`
 	INSERT INTO host_scim_user (host_id, scim_user_id, created_at)
 	SELECT host_id, scim_user_id, created_at FROM host_scim_user_temp;
