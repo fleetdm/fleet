@@ -10839,8 +10839,8 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 	require.NotNil(t, hostResp.Host)
 	lastEnrolledAt := hostResp.Host.LastEnrolledAt
 
-	assert.Nil(t, hostResp.Host.MDMLastEnrolledAt)
-	assert.Nil(t, hostResp.Host.MDMLastSeenAt)
+	assert.Nil(t, hostResp.Host.LastMDMEnrolledAt)
+	assert.Nil(t, hostResp.Host.LastMDMCheckedInAt)
 
 	// Add the following here for debug: time.Sleep(2 * time.Second)
 

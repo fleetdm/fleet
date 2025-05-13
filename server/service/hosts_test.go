@@ -462,13 +462,13 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 			require.NoError(t, err)
 			if testcase.platformIsApple {
 				assert.True(t, ds.GetNanoMDMEnrollmentTimesFuncInvoked)
-				require.NotNil(t, hostDetail.MDMLastEnrolledAt)
-				assert.Equal(t, *hostDetail.MDMLastEnrolledAt, ts1)
-				require.NotNil(t, hostDetail.MDMLastSeenAt)
+				require.NotNil(t, hostDetail.LastMDMEnrolledAt)
+				assert.Equal(t, *hostDetail.LastMDMEnrolledAt, ts1)
+				require.NotNil(t, hostDetail.LastMDMCheckedInAt)
 				assert.Equal(t, *hostDetail.MDMLastSeenAt, ts2)
 			} else {
 				assert.False(t, ds.GetNanoMDMEnrollmentTimesFuncInvoked)
-				assert.Nil(t, hostDetail.MDMLastEnrolledAt)
+				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Nil(t, hostDetail.MDMLastSeenAt)
 			}
 		})
