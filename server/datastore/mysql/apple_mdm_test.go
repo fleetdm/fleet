@@ -1579,15 +1579,14 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 	err = ds.BulkUpsertMDMAppleHostProfiles(
 		ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 			{
-				ProfileUUID:        globalPfs[0].ProfileUUID,
-				ProfileIdentifier:  globalPfs[0].Identifier,
-				ProfileName:        globalPfs[0].Name,
-				Checksum:           globalProfiles[0].Checksum,
-				HostUUID:           "test-uuid-1",
-				Status:             &fleet.MDMDeliveryVerifying,
-				OperationType:      fleet.MDMOperationTypeInstall,
-				CommandUUID:        "command-uuid",
-				VariablesUpdatedAt: ptr.Time(time.Now().UTC()),
+				ProfileUUID:       globalPfs[0].ProfileUUID,
+				ProfileIdentifier: globalPfs[0].Identifier,
+				ProfileName:       globalPfs[0].Name,
+				Checksum:          globalProfiles[0].Checksum,
+				HostUUID:          "test-uuid-1",
+				Status:            &fleet.MDMDeliveryVerifying,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				CommandUUID:       "command-uuid",
 			},
 			{
 				ProfileUUID:       globalPfs[0].ProfileUUID,
