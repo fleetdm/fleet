@@ -529,7 +529,7 @@ module.exports.routes = {
   'GET /use-cases/stay-on-course-with-your-security-compliance-goals': '/guides/stay-on-course-with-your-security-compliance-goals',
   'GET /use-cases/using-elasticsearch-and-kibana-to-visualize-osquery-performance': '/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance',
   'GET /use-cases/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think': '/securing/work-may-be-watching-but-it-might-not-be-as-bad-as-you-think',
-  'GET /docs/contributing/testing':  '/docs/contributing/testing-and-local-development',
+  'GET /docs/contributing/testing':  '/docs/contributing/getting-started/testing-and-local-development',
   'GET /handbook/people/ceo-handbook': '/handbook/ceo',
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing#growth',
@@ -608,8 +608,8 @@ module.exports.routes = {
       return res.redirect('https://github.com/fleetdm/fleet/tree/main/docs/Contributing');
     }
   },
-  'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/fleetd-development-and-release-strategy',
-  'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/run-locally-built-fleetd',
+  'GET /docs/contributing/orbit-development-and-release-strategy': '/docs/contributing/workflows/fleetd-development-and-release-strategy',
+  'GET /docs/contributing/run-locally-built-orbit': '/docs/contributing/getting-started/run-locally-built-fleetd',
   'GET /deploy/deploying-fleet-on-render': '/docs/deploy/deploy-on-render',
   'GET /deploy/deploy-fleet-on-hetzner-cloud': '/docs/deploy/deploy-on-hetzner-cloud',
   'GET /deploy': '/docs/deploy',
