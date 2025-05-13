@@ -35,10 +35,10 @@ func TestUp_20250430124007(t *testing.T) {
 		Fullname string `db:"fullname"`
 	}
 
-	type legacyEnrollRef struct {
-		HostUUID  string `db:"host_uuid"`
-		EnrollRef string `db:"enroll_ref"`
-	}
+	// type legacyEnrollRef struct {
+	// 	HostUUID  string `db:"host_uuid"`
+	// 	EnrollRef string `db:"enroll_ref"`
+	// }
 
 	type legacyAccount struct {
 		ID             uint      `db:"id"`
@@ -51,10 +51,10 @@ func TestUp_20250430124007(t *testing.T) {
 		AccountUUID    string    `db:"account_uuid"`
 	}
 
-	type hostMDMAccount struct {
-		HostUUID    string `db:"host_uuid"`
-		AccountUUID string `db:"account_uuid"`
-	}
+	// type hostMDMAccount struct {
+	// 	HostUUID    string `db:"host_uuid"`
+	// 	AccountUUID string `db:"account_uuid"`
+	// }
 
 	newHost := func(id uint, platform string) uint {
 		return uint(execNoErrLastID(t, db, //nolint:gosec // dismiss G115
@@ -141,9 +141,11 @@ func TestUp_20250430124007(t *testing.T) {
 				{HostID: 2, Email: bob.Email, Source: fleet.DeviceMappingMDMIdpAccounts},
 				{HostID: 2, Email: "nobody@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
 			},
-			expectLegacyRefs:     []string{"nobody-uuid"},
-			expectLegacyEmails:   []string{bob.Email, dave.Email, "nobody@example.com"},
-			expectMDMAccountUUID: dave.UUID, // arbitrarily pick the alphanumerically largest email when multiple matches created at the same time
+			expectLegacyRefs:   []string{"nobody-uuid"},
+			expectLegacyEmails: []string{bob.Email, dave.Email, "nobody@example.com"},
+			// we arbitrarily pick the alphanumerically largest email when multiple matches created
+			// at the same time
+			expectMDMAccountUUID: dave.UUID,
 		},
 		{
 			name:     "host with legacy match and multiple mdm account email matches",
@@ -163,6 +165,77 @@ func TestUp_20250430124007(t *testing.T) {
 			// we'll set the host_emails entry for bob to occur before the entry for carol
 			// to test that we prefer the most recent email over legacy refs
 			expectMDMAccountUUID: carol.UUID,
+		},
+		{
+			name:     "host with legacy match and no mdm account email matches",
+			hostID:   4,
+			hostUUID: "host-uuid-4",
+			hostMDM: hostMDM{
+				HostID:         4,
+				FleetEnrollRef: "bob-uuid",
+			},
+			hostEmails: []hostEmail{
+				{HostID: 4, Email: "nobody@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			expectLegacyRefs:     []string{"bob-uuid"},
+			expectLegacyEmails:   []string{"nobody@example.com"},
+			expectMDMAccountUUID: bob.UUID,
+		},
+		{
+			name:     "host with no legacy match and no mdm account email matches",
+			hostID:   5,
+			hostUUID: "host-uuid-5",
+			hostMDM: hostMDM{
+				HostID:         5,
+				FleetEnrollRef: "nobody-uuid",
+			},
+			hostEmails: []hostEmail{
+				{HostID: 5, Email: "nobody@example.com", Source: fleet.DeviceMappingMDMIdpAccounts},
+			},
+			expectLegacyRefs:     []string{"nobody-uuid"},
+			expectLegacyEmails:   []string{"nobody@example.com"},
+			expectMDMAccountUUID: "", // no mdm account
+		},
+		{
+			name:     "host with no legacy match and no mdm account emails",
+			hostID:   6,
+			hostUUID: "host-uuid-6",
+			hostMDM: hostMDM{
+				HostID:         6,
+				FleetEnrollRef: "nobody-uuid",
+			},
+			hostEmails:           []hostEmail{},
+			expectLegacyRefs:     []string{"nobody-uuid"},
+			expectLegacyEmails:   []string{},
+			expectMDMAccountUUID: "", // no mdm account
+		},
+		{
+			name:     "host with legacy match and no emails",
+			hostID:   7,
+			hostUUID: "host-uuid-7",
+			hostMDM: hostMDM{
+				HostID:         7,
+				FleetEnrollRef: "bob-uuid",
+			},
+			hostEmails:           []hostEmail{},
+			expectLegacyRefs:     []string{"bob-uuid"},
+			expectLegacyEmails:   []string{},
+			expectMDMAccountUUID: bob.UUID,
+		},
+		{
+			name:     "host with no legacy match and only google emails",
+			hostID:   8,
+			hostUUID: "host-uuid-8",
+			hostMDM: hostMDM{
+				HostID:         8,
+				FleetEnrollRef: "nobody-uuid",
+			},
+			hostEmails: []hostEmail{
+				{HostID: 8, Email: "bob@example.com", Source: fleet.DeviceMappingGoogleChromeProfiles},
+			},
+			expectLegacyRefs:     []string{"nobody-uuid"},
+			expectLegacyEmails:   []string{}, // only included if source is fleet.DeviceMappingMDMIdpAccounts
+			expectMDMAccountUUID: "",         // no mdm account
 		},
 	}
 
@@ -214,6 +287,7 @@ WHERE
 	host_uuid = ?
 ORDER BY email ASC`, tc.hostUUID))
 			require.Len(t, legacyAccounts, len(tc.expectLegacyEmails))
+
 			expectedByEmail := make(map[string]legacyAccount, len(tc.expectLegacyEmails))
 			for _, email := range tc.expectLegacyEmails {
 				ea := legacyAccount{
@@ -242,8 +316,12 @@ ORDER BY email ASC`, tc.hostUUID))
 			var accountUUIDs []string
 			require.NoError(t, db.Select(&accountUUIDs,
 				`SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = ?`, tc.hostUUID))
-			require.Len(t, accountUUIDs, 1)
-			require.Equal(t, tc.expectMDMAccountUUID, accountUUIDs[0])
+			if tc.expectMDMAccountUUID == "" {
+				require.Empty(t, accountUUIDs)
+			} else {
+				require.Len(t, accountUUIDs, 1)
+				require.Equal(t, tc.expectMDMAccountUUID, accountUUIDs[0])
+			}
 		})
 	}
 }
