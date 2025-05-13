@@ -2776,8 +2776,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
 		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
-		args := []any{p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
-			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError}
+		args := []any{
+			p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
+			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError,
+		}
 		return valuePart, args
 	}
 
@@ -4245,8 +4247,8 @@ WHERE h.uuid = ?
 }
 
 func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint,
-	incomingDeclarations []*fleet.MDMAppleDeclaration) (updatedDB bool, err error) {
-
+	incomingDeclarations []*fleet.MDMAppleDeclaration,
+) (updatedDB bool, err error) {
 	// First, build a list of names (which are usually filenames) for the incoming declarations.
 	// We will keep the existing ones if there's a match and no change.
 	// At the same time, index the incoming declarations keyed by name for ease of processing.
@@ -4291,7 +4293,8 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 }
 
 func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx sqlx.ExtContext,
-	incomingDeclarationsMap map[string]*fleet.MDMAppleDeclaration, teamID uint) (updatedDB bool, err error) {
+	incomingDeclarationsMap map[string]*fleet.MDMAppleDeclaration, teamID uint,
+) (updatedDB bool, err error) {
 	var incomingLabels []fleet.ConfigurationProfileLabel
 	var declWithoutLabels []string
 	if len(incomingDeclarationsMap) > 0 {
@@ -4358,7 +4361,8 @@ func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx
 }
 
 func (ds *Datastore) insertOrUpdateDeclarations(ctx context.Context, tx sqlx.ExtContext, incomingDeclarations []*fleet.MDMAppleDeclaration,
-	teamID uint) (updatedDB bool, err error) {
+	teamID uint,
+) (updatedDB bool, err error) {
 	const insertStmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
@@ -4402,7 +4406,8 @@ ON DUPLICATE KEY UPDATE
 
 // deleteObsoleteDeclarations deletes all declarations that are not in the keepNames list.
 func (ds *Datastore) deleteObsoleteDeclarations(ctx context.Context, tx sqlx.ExtContext, keepNames []string, teamID uint) (updatedDB bool,
-	err error) {
+	err error,
+) {
 	const fmtDeleteStmt = `
 DELETE FROM
   mdm_apple_declarations
@@ -4431,7 +4436,8 @@ WHERE
 }
 
 func (ds *Datastore) getExistingDeclarations(ctx context.Context, tx sqlx.ExtContext, incomingNames []string,
-	teamID uint) ([]*fleet.MDMAppleDeclaration, error) {
+	teamID uint,
+) ([]*fleet.MDMAppleDeclaration, error) {
 	const loadExistingDecls = `
 SELECT
   name,
@@ -6045,7 +6051,7 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get mdm apple legacy enroll ref")
 		}
-		result = legacyRef		
+		result = legacyRef
 		return nil
 	})
 
@@ -6240,10 +6246,9 @@ WHERE
 	if err := sqlx.GetContext(ctx, q, &idp, stmt, hostUUID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // TODO: maybe return a not found error?
-		}		
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account")
 	}
 
 	return &idp, nil
 }
-

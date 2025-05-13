@@ -1020,10 +1020,9 @@ func EncodeDeviceInfo(machineInfo fleet.MDMAppleMachineInfo) (string, error) {
 
 	// body is expected to be a PKCS7 signed message, although we don't currently verify the signature
 	signedData, err := pkcs7.NewSignedData(body)
-if err != nil {
+	if err != nil {
 		return "", fmt.Errorf("create signed data: %w", err)
 	}
-
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -1047,4 +1046,3 @@ if err != nil {
 
 	return base64.URLEncoding.EncodeToString(sig), nil
 }
-
