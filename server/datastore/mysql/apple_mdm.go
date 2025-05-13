@@ -5093,7 +5093,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 		} else {
 			updateNeeded = true
 		}
-		clear(profilesToInsert)
+		defer clear(profilesToInsert)
 		if !updateNeeded {
 			// All profiles are already in the database, no need to update.
 			return nil
@@ -5149,8 +5149,15 @@ func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, prof
 		return nil
 	}
 	var findRemoveProfilesArgs []any
+	var foundInstall bool
 	for _, p := range profilesToInsert {
-		findRemoveProfilesArgs = append(findRemoveProfilesArgs, p.HostUUID, p.Token)
+		if p.OperationType == fleet.MDMOperationTypeInstall {
+			findRemoveProfilesArgs = append(findRemoveProfilesArgs, p.HostUUID, p.Token)
+			foundInstall = true
+		}
+	}
+	if !foundInstall {
+		return nil
 	}
 	findRemoveProfiles := fmt.Sprintf(`
 		SELECT host_uuid, token
@@ -5158,12 +5165,11 @@ func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, prof
 		WHERE (host_uuid, token) IN (%s)
 		AND operation_type = ?
 		AND status = ?
-		`, strings.TrimSuffix(strings.Repeat("(?,?),", len(findRemoveProfilesArgs)), ","))
-	fmt.Printf("%s\n", findRemoveProfiles)
+		`, strings.TrimSuffix(strings.Repeat("(?,?),", len(findRemoveProfilesArgs)/2), ","))
 	findRemoveProfilesArgs = append(findRemoveProfilesArgs, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
 	type tokensToMark struct {
-		HostUUID string
-		Token    string
+		HostUUID string `db:"host_uuid"`
+		Token    string `db:"token"`
 	}
 	var tokensToMarkVerified []tokensToMark
 	err := sqlx.SelectContext(ctx, tx, &tokensToMarkVerified, findRemoveProfiles, findRemoveProfilesArgs...)
