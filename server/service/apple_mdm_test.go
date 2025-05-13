@@ -1335,7 +1335,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
 		require.Equal(t, uuid, hostUUID)
 		return &fleet.MDMIdPAccount{
-			UUID: "some-uuid",
+			UUID:     "some-uuid",
 			Username: "some-user",
 			Email:    "some-user@example.com",
 			Fullname: "Some User",
