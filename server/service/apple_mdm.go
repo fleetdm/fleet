@@ -4202,7 +4202,8 @@ func preprocessProfileContents(
 			if fleetVar == fleet.FleetVarNDESSCEPChallenge || fleetVar == fleet.FleetVarNDESSCEPProxyURL || fleetVar == fleet.FleetVarSCEPRenewalID ||
 				strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertPasswordPrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertDataPrefix) ||
 				strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPProxyURLPrefix) {
-				variablesUpdatedAt = ptr.Time(time.Now().UTC())
+				// Give a few minutes leeway to account for clock skew
+				variablesUpdatedAt = ptr.Time(time.Now().UTC().Add(-3 * time.Minute))
 			}
 		}
 
