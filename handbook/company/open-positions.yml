@@ -38,28 +38,6 @@
       - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Cybersecurity or IT background.
-      
-- jobTitle: 🌦️ Customer Support Engineer
-  department: Sales
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  responsibilities: |
-      - 🏋🏻 Leverage technical expertise to assist Customer Success and Engineering to refine Fleet's troubleshooting processes and ensure seamless access to documentation and the Fleet repo.
-      - 🚀 Deploy Fleet on your own in complex environments to gain firsthand insights into the customer experience and proactively identify areas for improvement. 
-      - ⏫ Work hand-in-hand with Customer Success by participating in calls with customers to discuss support issues, diagnose challenges, propose solutions, and drive long-term adoption.
-      - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
-      - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
-      - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
-      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
-  experience: |
-      - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, and MacOS devices. Experience with AWS, SQL, Redis, Terraform, and osquery. 
-      - 💭 IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
-      - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
-      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-      - 💖 An excellent understanding of macOS, Windows, Linux and core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
-      - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus. 
-      - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
 
 - jobTitle: 🌦️ Customer Solutions Architect
