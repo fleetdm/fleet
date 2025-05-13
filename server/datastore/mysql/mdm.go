@@ -740,6 +740,7 @@ func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx contex
 	stmt := `
 -- profiles without labels
 SELECT
+    mwcp.profile_uuid AS profile_uuid,
 	name,
 	syncml AS raw_profile,
 	min(mwcp.uploaded_at) AS earliest_install_date,
@@ -758,7 +759,7 @@ WHERE
 		WHERE
 			mcpl.windows_profile_uuid = mwcp.profile_uuid
 	)
-GROUP BY name, syncml
+GROUP BY profile_uuid, name, syncml
 
 UNION
 
@@ -766,6 +767,7 @@ UNION
 -- by design, "include" labels cannot match if they are broken (the host cannot be
 -- a member of a deleted label).
 SELECT
+	mwcp.profile_uuid AS profile_uuid,
 	name,
 	syncml AS raw_profile,
 	min(mwcp.uploaded_at) AS earliest_install_date,
@@ -781,7 +783,7 @@ FROM
 WHERE
 	mwcp.team_id = ?
 GROUP BY
-	name, syncml
+	profile_uuid, name, syncml
 HAVING
 	count_profile_labels > 0 AND
 	count_host_labels = count_profile_labels
@@ -791,6 +793,7 @@ UNION
 -- label-based entities where the host is NOT a member of any of the labels (exclude-any).
 -- explicitly ignore profiles with broken excluded labels so that they are never applied.
 SELECT
+	mwcp.profile_uuid AS profile_uuid,
 	name,
 	syncml AS raw_profile,
 	min(mwcp.uploaded_at) AS earliest_install_date,
@@ -806,7 +809,7 @@ FROM
 WHERE
 	mwcp.team_id = ?
 GROUP BY
-	name, syncml
+	profile_uuid, name, syncml
 HAVING
 	-- considers only the profiles with labels, without any broken label, and with the host not in any label
 	count_profile_labels > 0 AND
@@ -831,6 +834,7 @@ func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.
 	stmt := `
 -- profiles without labels
 SELECT
+    macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	0 AS count_profile_labels,
 	0 AS count_non_broken_labels,
@@ -863,6 +867,7 @@ UNION
 -- by design, "include" labels cannot match if they are broken (the host cannot be
 -- a member of a deleted label).
 SELECT
+	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	COUNT(*) AS count_profile_labels,
 	COUNT(mcpl.label_id) AS count_non_broken_labels,
@@ -885,7 +890,7 @@ FROM
 WHERE
 	macp.team_id = ?
 GROUP BY
-	identifier
+	profile_uuid, identifier
 HAVING
 	count_profile_labels > 0 AND
 	count_host_labels = count_profile_labels
@@ -895,6 +900,7 @@ UNION
 -- label-based entities where the host is NOT a member of any of the labels (exclude-any).
 -- explicitly ignore profiles with broken excluded labels so that they are never applied.
 SELECT
+	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	COUNT(*) AS count_profile_labels,
 	COUNT(mcpl.label_id) AS count_non_broken_labels,
@@ -917,7 +923,7 @@ FROM
 WHERE
 	macp.team_id = ?
 GROUP BY
-	identifier
+	profile_uuid, identifier
 HAVING
 	-- considers only the profiles with labels, without any broken label, and with the host not in any label
 	count_profile_labels > 0 AND
@@ -930,35 +936,35 @@ HAVING
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
-	byIdentifier := make(map[string]*fleet.ExpectedMDMProfile, len(rows))
-	for _, r := range rows {
-		byIdentifier[r.Identifier] = r
-	}
-
-	// Override calculated EarliestInstallDate based on variable update times for profiles with
-	// variables
+	// Fetch variables_updated_at for host profiles that have it set and override
+	// earliest_install_date if it's older than variables_updated_at.
 	variableUpdateTimes := []struct {
-		ProfileIdentifier  string    `db:"profile_identifier"`
+		ProfileUUID        string    `db:"profile_uuid"`
 		VariablesUpdatedAt time.Time `db:"variables_updated_at"`
 	}{}
 	variableUpdateTimesStmt := `
-	SELECT profile_identifier, max(variables_updated_at) AS variables_updated_at
+	SELECT profile_uuid, variables_updated_at AS variables_updated_at
 	FROM host_mdm_apple_profiles
 	WHERE host_uuid = ? AND variables_updated_at IS NOT NULL
-	GROUP BY profile_identifier
 	`
+
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &variableUpdateTimes, variableUpdateTimesStmt, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
+	variableUpdateTimesByProfileUUID := make(map[string]time.Time, len(variableUpdateTimes))
 	for _, r := range variableUpdateTimes {
-		if profile, ok := byIdentifier[r.ProfileIdentifier]; ok {
-			if r.VariablesUpdatedAt.After(profile.EarliestInstallDate) {
-				profile.EarliestInstallDate = r.VariablesUpdatedAt
-			}
-		}
+		variableUpdateTimesByProfileUUID[r.ProfileUUID] = r.VariablesUpdatedAt
 	}
 
-	return byIdentifier, nil
+	expectedProfilesByIdentifier := make(map[string]*fleet.ExpectedMDMProfile, len(rows))
+	for _, r := range rows {
+		if variableUpdateTime, ok := variableUpdateTimesByProfileUUID[r.ProfileUUID]; ok && variableUpdateTime.After(r.EarliestInstallDate) {
+			r.EarliestInstallDate = variableUpdateTime
+		}
+		expectedProfilesByIdentifier[r.Identifier] = r
+	}
+
+	return expectedProfilesByIdentifier, nil
 }
 
 func (ds *Datastore) GetHostMDMProfilesRetryCounts(ctx context.Context, host *fleet.Host) ([]fleet.HostMDMProfileRetryCount, error) {
