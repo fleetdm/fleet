@@ -559,6 +559,11 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 		}
 	}
 
+	// recalculate host failing_policies_count & total_issues_count
+	if err := svc.ds.UpdateHostIssuesFailingPolicies(ctx, []uint{id}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "recalculate host failing policies count:")
+	}
+
 	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
