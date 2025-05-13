@@ -15,5 +15,4 @@ Fleet's Orchestration functionality allows organizations to manage and query dev
 ## Related Resources
 
 - [Orchestration Architecture](../../architecture/orchestration/)
-- [Orchestration Development Guides](../../guides/orchestration/)
 - [Troubleshooting Live Queries](../../guides/troubleshooting-live-queries.md)

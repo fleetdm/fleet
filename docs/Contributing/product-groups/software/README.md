@@ -8,14 +8,8 @@ Fleet's Software functionality allows organizations to manage software across th
 
 ## Contents
 
-- [Software Overview](software-overview.md)
-- [Software Inventory](software-inventory.md)
-- [Vulnerability Management](vulnerability-management.md)
-- [Software Installation](software-installation.md)
-- [Software Updates](software-updates.md)
-- [Software Policies](software-policies.md)
+- [Software Vulnerability Processing](vulnerability-management-development.md)
 
 ## Related Resources
 
 - [Software Architecture](../../architecture/software/)
-- [Software Development Guides](../../guides/software/)

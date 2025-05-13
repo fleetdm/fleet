@@ -15,8 +15,8 @@ Fleet's MDM functionality allows organizations to manage and secure devices acro
 - [Windows MDM Glossary and Protocol](windows-mdm-glossary-and-protocol.md)
 - [Custom Configuration Web URL](custom-configuration-web-url.md)
 - [Custom SCEP Integration](custom-scep-integration.md)
+- [Provide end user email address w/o relying on end user](set-up-custom-end-user-email.md)
 
 ## Related Resources
 
 - [MDM Architecture](../../architecture/mdm/)
-- [MDM Development Guides](../../guides/mdm/)
