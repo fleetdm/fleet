@@ -854,10 +854,12 @@ None.
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
-      "entity_id": "",
-      "metadata": "",
-      "metadata_url": "",
-      "idp_name": ""
+      "saml": {
+        "entity_id": "",
+        "metadata": "",
+        "metadata_url": "",
+        "idp_name": ""
+      }
     },
     "macos_migration": {
       "enable": false,
