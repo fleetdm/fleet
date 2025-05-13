@@ -674,9 +674,11 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 			if len(payloadChallenge) > maxValueCharsInError {
 				payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 			}
-			return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-				fleet.FleetVarCustomSCEPChallengePrefix + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
-				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					fleet.FleetVarCustomSCEPChallengePrefix + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
+				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge),
+			}
 		}
 		urlPrefix := "FLEET_VAR_" + fleet.FleetVarCustomSCEPProxyURLPrefix
 		if scepPayloadContent.URL != "$"+urlPrefix+ca && scepPayloadContent.URL != "${"+urlPrefix+ca+"}" {
@@ -684,9 +686,11 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 			if len(payloadURL) > maxValueCharsInError {
 				payloadURL = payloadURL[:maxValueCharsInError] + "..."
 			}
-			return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-				fleet.FleetVarCustomSCEPProxyURLPrefix + ca + "\" must be in the SCEP certificate's \"URL\" field.",
-				InternalErr: fmt.Errorf("URL: %s", payloadURL)}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					fleet.FleetVarCustomSCEPProxyURLPrefix + ca + "\" must be in the SCEP certificate's \"URL\" field.",
+				InternalErr: fmt.Errorf("URL: %s", payloadURL),
+			}
 		}
 		foundCAs = append(foundCAs, ca)
 	}
@@ -809,9 +813,11 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		if len(payloadChallenge) > maxValueCharsInError {
 			payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 		}
-		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPChallenge + "\" must be in the SCEP certificate's \"Challenge\" field.",
-			InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
+		return &fleet.BadRequestError{
+			Message: "Variable \"$FLEET_VAR_" +
+				fleet.FleetVarNDESSCEPChallenge + "\" must be in the SCEP certificate's \"Challenge\" field.",
+			InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge),
+		}
 	}
 	ndesURL := "FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL
 	if scepPayloadContent.URL != "$"+ndesURL && scepPayloadContent.URL != "${"+ndesURL+"}" {
@@ -819,9 +825,11 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		if len(payloadURL) > maxValueCharsInError {
 			payloadURL = payloadURL[:maxValueCharsInError] + "..."
 		}
-		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPProxyURL + "\" must be in the SCEP certificate's \"URL\" field.",
-			InternalErr: fmt.Errorf("URL: %s", payloadURL)}
+		return &fleet.BadRequestError{
+			Message: "Variable \"$FLEET_VAR_" +
+				fleet.FleetVarNDESSCEPProxyURL + "\" must be in the SCEP certificate's \"URL\" field.",
+			InternalErr: fmt.Errorf("URL: %s", payloadURL),
+		}
 	}
 	return nil
 }
@@ -1987,12 +1995,6 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	}
 
 	switch h.Platform {
-	case "ios":
-		fallthrough
-	case "ipados":
-		return &fleet.BadRequestError{
-			Message: fleet.CantTurnOffMDMForIOSOrIPadOSMessage,
-		}
 	case "windows":
 		return &fleet.BadRequestError{
 			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
@@ -4869,7 +4871,6 @@ func (n *ndesVarsFound) Found() bool {
 
 func (n *ndesVarsFound) RenewalOnly() bool {
 	return n != nil && !n.urlFound && !n.challengeFound && n.renewalIdFound
-
 }
 
 func (n *ndesVarsFound) ErrorMessage() string {

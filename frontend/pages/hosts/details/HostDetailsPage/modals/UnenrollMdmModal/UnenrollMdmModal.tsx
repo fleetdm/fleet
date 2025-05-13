@@ -38,12 +38,10 @@ const UnenrollMdmModal = ({
         "success",
         "Turning off MDM or will turn off when the host comes online."
       );
-      onClose();
     } catch (unenrollMdmError: unknown) {
       renderFlash("error", "Couldn't turn off MDM. Please try again.");
-      console.log(unenrollMdmError);
-      onClose();
     }
+    onClose();
   };
 
   const renderModalContent = () => {
