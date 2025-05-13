@@ -5417,8 +5417,8 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 	// ===================================================
 	// MacOS base tests
 	// ===================================================
-	baseEarliestInstallDate := time.Now().UTC().Add(-24 * time.Hour)
-	overrideEarliestInstallDate := time.Now().UTC().Add(-6 * time.Hour)
+	baseEarliestInstallDate := time.Now().UTC().Add(-24 * time.Hour).Truncate(time.Second)
+	overrideEarliestInstallDate := time.Now().UTC().Add(-6 * time.Hour).Truncate(time.Second)
 
 	setup1 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
