@@ -5417,7 +5417,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 	// ===================================================
 	// MacOS
 	// ===================================================
-	setup1 := func() (uint, uint) {
+	setup1 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test",
 			OsqueryHostID: ptr.String("osquery-macos"),
@@ -5451,10 +5451,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 2)
 
-		return team.ID, host.ID
+		return team.ID, host.ID, host.UUID
 	}
 
-	setup2 := func() (uint, uint) {
+	setup2 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test-2",
 			OsqueryHostID: ptr.String("osquery-macos-2"),
@@ -5530,10 +5530,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team.ID, host.ID
+		return team.ID, host.ID, host.UUID
 	}
 
-	setup3 := func() (uint, uint) {
+	setup3 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test-3",
 			OsqueryHostID: ptr.String("osquery-macos-3"),
@@ -5626,10 +5626,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team.ID, host.ID
+		return team.ID, host.ID, host.UUID
 	}
 
-	setup4 := func() (uint, uint) {
+	setup4 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test-4",
 			OsqueryHostID: ptr.String("osquery-macos-4"),
@@ -5709,14 +5709,14 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		err = ds.DeleteLabel(ctx, testLabel4.Name)
 		require.NoError(t, err)
 
-		return team.ID, host.ID
+		return team.ID, host.ID, host.UUID
 	}
 
 	// ===================================================
 	// Windows
 	// ===================================================
 
-	setup5 := func() (uint, uint) {
+	setup5 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "windows-test",
 			OsqueryHostID: ptr.String("osquery-windows"),
@@ -5750,10 +5750,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 2)
 
-		return team.ID, host.ID
+		return team.ID, host.ID, host.UUID
 	}
 
-	setup6 := func() (uint, uint) {
+	setup6 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "windows-test-2",
 			OsqueryHostID: ptr.String("osquery-windows-2"),
@@ -5829,10 +5829,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team.ID, host.ID
+		return team.ID, host.ID, host.UUID
 	}
 
-	setup7 := func() (uint, uint) {
+	setup7 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "windows-test-3",
 			OsqueryHostID: ptr.String("osquery-windows-3"),
@@ -5925,10 +5925,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team.ID, host.ID
+		return team.ID, host.ID, host.UUID
 	}
 
-	setup8 := func() (uint, uint) {
+	setup8 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "windows-test-4",
 			OsqueryHostID: ptr.String("osquery-windows-4"),
@@ -6008,12 +6008,12 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		err = ds.DeleteLabel(ctx, label.Name)
 		require.NoError(t, err)
 
-		return team.ID, host.ID
+		return team.ID, host.ID, host.UUID
 	}
 
 	tests := []struct {
 		name        string
-		setupFunc   func() (uint, uint)
+		setupFunc   func() (uint, uint, string)
 		wantMac     map[string]*fleet.ExpectedMDMProfile
 		wantWindows map[string]*fleet.ExpectedMDMProfile
 		os          string
@@ -6095,9 +6095,9 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			teamID, hostID := tt.setupFunc()
+			teamID, hostID, hostUUID := tt.setupFunc()
 			if len(tt.wantMac) > 0 {
-				got, err := ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, hostID)
+				got, err := ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, hostID, hostUUID)
 				require.NoError(t, err)
 				for k, v := range tt.wantMac {
 					require.Contains(t, got, k)
