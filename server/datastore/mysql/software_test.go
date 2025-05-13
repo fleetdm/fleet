@@ -5026,6 +5026,14 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "apps", sw[0].InstalledVersions[0].Source)
 	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].InstalledVersions[0].BundleIdentifier)
 
+	// The vpp app is installed by fleet, and also has been inventoried by osquery
+	// Ensure we don't lose the version for the vpp app
+	opts.IncludeAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw[0].InstalledVersions, 1)
+	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
+
 	// have the second host install a vpp app, but not by fleet
 	res, err = ds.writer(ctx).ExecContext(ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
