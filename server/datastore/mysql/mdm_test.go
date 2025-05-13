@@ -6053,7 +6053,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.Len(t, profs, 3)
 
 		// We cannot control the generated profile UUIDs here so we need to map them back to the
-		// creatd profiles for test correctness
+		// created profiles for test correctness
 		for i := 0; i < len(profs); i++ {
 			for j := 0; j < len(profiles); j++ {
 				if profs[i].Identifier == profiles[j].Identifier {
@@ -6080,7 +6080,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		// Note what we're doing here is overriding install date for the first profile, creating an
 		// HMAP entry that doesn't override it for the second, then the third has no corresponding
 		// HMAP entry at all(which also means no override).
-		ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 			{
 				ProfileUUID:        profiles[0].ProfileUUID,
 				ProfileIdentifier:  profiles[0].Identifier,
@@ -6101,6 +6101,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				OperationType:     fleet.MDMOperationTypeInstall,
 			},
 		})
+		require.NoError(t, err)
 		return team.ID, host.ID, host.UUID
 	}
 
