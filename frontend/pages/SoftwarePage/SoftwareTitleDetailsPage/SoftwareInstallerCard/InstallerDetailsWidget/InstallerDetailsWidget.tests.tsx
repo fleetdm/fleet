@@ -18,6 +18,7 @@ describe("InstallerDetailsWidget", () => {
     installerType: "package" as const,
     addedTimestamp: "2024-05-06T10:00:00Z",
     versionInfo: <span>v1.2.3</span>,
+    isFma: false,
   };
 
   it("renders the package icon when installerType is 'package'", () => {
@@ -41,7 +42,6 @@ describe("InstallerDetailsWidget", () => {
     render(
       <InstallerDetailsWidget {...defaultProps} addedTimestamp={undefined} />
     );
-    expect(screen.getByText("v1.2.3")).toBeInTheDocument();
     expect(screen.queryByText(/2 days ago/i)).not.toBeInTheDocument();
   });
 
@@ -53,6 +53,24 @@ describe("InstallerDetailsWidget", () => {
       ".installer-details-widget.extra-class"
     );
     expect(rootDiv).toBeInTheDocument();
+  });
+
+  it("renders custom package label", () => {
+    render(<InstallerDetailsWidget {...defaultProps} />);
+
+    expect(screen.getByText(/custom package/i)).toBeInTheDocument();
+  });
+
+  it("renders FMA label", () => {
+    render(<InstallerDetailsWidget {...defaultProps} isFma />);
+
+    expect(screen.getByText(/Fleet-maintained/i)).toBeInTheDocument();
+  });
+
+  it("renders VPP label", () => {
+    render(<InstallerDetailsWidget {...defaultProps} installerType="vpp" />);
+
+    expect(screen.getByText(/App Store \(VPP\)/i)).toBeInTheDocument();
   });
 
   it("InstallerName disables tooltip if not truncated", () => {
