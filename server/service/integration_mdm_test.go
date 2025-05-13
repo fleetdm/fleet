@@ -6050,6 +6050,25 @@ func (s *integrationMDMTestSuite) downloadAndVerifyOTAEnrollmentProfile(path str
 	require.Contains(t, otaEnrollmentProfile.PayloadContent.URL, s.getConfig().ServerSettings.ServerURL+"/api/v1/fleet/ota_enrollment")
 }
 
+func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfileManual(t *testing.T) {
+	resp := s.DoRaw("GET", "/api/latest/fleet/enrollment_profiles/manual", nil, http.StatusOK)
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Contains(t, resp.Header, "Content-Disposition")
+	require.Contains(t, resp.Header, "Content-Type")
+	require.Contains(t, resp.Header, "X-Content-Type-Options")
+	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
+	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+	headerLen, err := strconv.Atoi(resp.Header.Get("Content-Length"))
+	require.NoError(t, err)
+	require.Equal(t, len(body), headerLen)
+
+	s.verifyEnrollmentProfile(body, "")
+}
+
 func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enrollmentRef string) *enrollmentProfile {
 	t := s.T()
 	var profile enrollmentProfile
@@ -13171,9 +13190,7 @@ func (s *integrationMDMTestSuite) TestEnrollmentProfilesWithSpecialChars() {
 	})
 
 	// unsigned manual enrollment profile for IT admins
-	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
-		basePath: "/api/latest/fleet/enrollment_profiles/manual",
-	})
+	s.downloadAndVerifyEnrollmentProfileManual(t)
 
 	// ensure the fleetd profile sends a good enroll secret too
 	s.awaitTriggerProfileSchedule(t)
