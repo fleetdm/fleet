@@ -40,6 +40,25 @@ const (
 
 var errKeySlotNotFound = errors.New("key slot not found")
 
+func isInstalled(toolName string) bool {
+	path, err := exec.LookPath(toolName)
+	if err != nil {
+		return false
+	}
+	return path != ""
+}
+
+// checkInstalled checks that all listed tools are installed before calling fn
+// otherwise errors out.
+func checkInstalled(tools []string, fn func() error) error {
+	for _, tool := range tools {
+		if !isInstalled(tool) {
+			return fmt.Errorf("%s is not installed", tool)
+		}
+	}
+	return fn()
+}
+
 func withRootDevicePath(fn func(string) error) error {
 	devicePath, err := lvm.FindRootDisk()
 	if err != nil {
