@@ -334,6 +334,7 @@ const Smtp = ({
                 disableChildren ? "" : "Saving changes will send a test email"
               }
               position="right"
+              className="button-wrap"
               tipOffset={8}
               showArrow
               underline={false}
@@ -341,7 +342,6 @@ const Smtp = ({
               <Button
                 type="submit"
                 disabled={Object.keys(formErrors).length > 0 || disableChildren}
-                className="button-wrap"
                 isLoading={isUpdatingSettings}
               >
                 Save
