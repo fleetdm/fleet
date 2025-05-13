@@ -4197,7 +4197,8 @@ func preprocessProfileContents(
 		// Check if there are any CA variables first so that if a non-CA variable causes
 		// preprocessing to fail, we still set the variablesUpdatedAt timestamp so that
 		// validation works as expected
-		// TODO: Expand variablesUpdatedAt logic to include non-CA variables as well
+		// In the future we should expand variablesUpdatedAt logic to include non-CA variables as
+		// well
 		for fleetVar := range fleetVars {
 			if fleetVar == fleet.FleetVarNDESSCEPChallenge || fleetVar == fleet.FleetVarNDESSCEPProxyURL || fleetVar == fleet.FleetVarSCEPRenewalID ||
 				strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertPasswordPrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertDataPrefix) ||
