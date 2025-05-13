@@ -465,11 +465,11 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 				require.NotNil(t, hostDetail.LastMDMEnrolledAt)
 				assert.Equal(t, *hostDetail.LastMDMEnrolledAt, ts1)
 				require.NotNil(t, hostDetail.LastMDMCheckedInAt)
-				assert.Equal(t, *hostDetail.MDMLastSeenAt, ts2)
+				assert.Equal(t, *hostDetail.LastMDMCheckedInAt, ts2)
 			} else {
 				assert.False(t, ds.GetNanoMDMEnrollmentTimesFuncInvoked)
 				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
-				assert.Nil(t, hostDetail.MDMLastSeenAt)
+				assert.Nil(t, hostDetail.LastMDMCheckedInAt)
 			}
 		})
 	}
