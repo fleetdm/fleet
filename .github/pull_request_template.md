@@ -17,7 +17,7 @@ If some of the following don't apply, delete the relevant line.
 - [ ] Added/updated automated tests
 - [ ] Manual QA for all new/changed functionality
 - For Orbit and Fleet Desktop changes:
-   - [ ] Make sure fleetd is compatible with the latest released version of Fleet (see [Must rule](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/fleetd-development-and-release-strategy.md)).
+   - [ ] Make sure fleetd is compatible with the latest released version of Fleet (see [Must rule](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/fleetd-development-and-release-strategy.md)).
    - [ ] Orbit runs on macOS, Linux and Windows. Check if the orbit feature/bugfix should only apply to one platform (`runtime.GOOS`).
    - [ ] Manual QA must be performed in the three main OSs, macOS, Windows and Linux.
    - [ ] Auto-update manual QA, from released version of component to new version (see [tools/tuf/test](../tools/tuf/test/README.md)).

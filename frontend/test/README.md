@@ -42,4 +42,4 @@ Check out how we [mock data](../__mocks__/README.md) used for unit and integrati
 
 Follow [this guide](../../docs/Contributing/getting-started/testing-and-local-development.md) to run tests locally.
 
-Visit the frontend [overview of Fleet UI testing](../docs/Contributing/Fleet-UI-Testing.md) for more information on our testing strategy, philosophies, and tools.
+Visit the frontend [overview of Fleet UI testing](../docs/Contributing/guides/ui/fleet-ui-testing.md) for more information on our testing strategy, philosophies, and tools.

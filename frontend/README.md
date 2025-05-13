@@ -16,7 +16,7 @@ consult the [Contributing documentation](../docs/Contributing/README.md).
 
 ## Testing
 
-Visit the [overview of Fleet UI testing](../docs/Contributing/Fleet-UI-Testing.md) for more information on our testing strategy, philosophies, and tools.
+Visit the [overview of Fleet UI testing](../docs/Contributing/guides/ui/fleet-ui-testing.md) for more information on our testing strategy, philosophies, and tools.
 
 To run unit or integration tests in `ComponentName.tests.tsx`, run `yarn test -- ComponentName.tests.tsx`. To [test all Javascript components](https://fleetdm.com/docs/contributing/testing-and-local-development#javascript-unit-tests) run `yarn test`.
 
