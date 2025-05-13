@@ -10853,10 +10853,10 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetHost.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
 	assert.Equal(t, lastEnrolledAt, hostResp.Host.LastEnrolledAt)
-	assert.NotNil(t, hostResp.Host.MDMLastEnrolledAt)
-	assert.GreaterOrEqual(t, *hostResp.Host.MDMLastEnrolledAt, enrollTime)
-	assert.NotNil(t, hostResp.Host.MDMLastSeenAt)
-	assert.GreaterOrEqual(t, *hostResp.Host.MDMLastSeenAt, enrollTime)
+	assert.NotNil(t, hostResp.Host.LastMDMEnrolledAt)
+	assert.GreaterOrEqual(t, *hostResp.Host.LastMDMEnrolledAt, enrollTime)
+	assert.NotNil(t, hostResp.Host.LastMDMCheckedInAt)
+	assert.GreaterOrEqual(t, *hostResp.Host.LastMDMCheckedInAt, enrollTime)
 }
 
 func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
@@ -13408,10 +13408,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "darwin", hostByIdentifierResp.Host.Platform)
 	require.Nil(t, hostByIdentifierResp.Host.TeamID)
-	require.NotNil(t, hostByIdentifierResp.Host.MDMLastEnrolledAt)
-	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
-	require.NotNil(t, hostByIdentifierResp.Host.MDMLastSeenAt)
-	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.LastMDMEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.LastMDMCheckedInAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMCheckedInAt, enrollTime)
 
 	// create a team with a different enroll secret
 	var specResp applyTeamSpecsResponse
@@ -13436,10 +13436,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
 	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
-	require.NotNil(t, hostByIdentifierResp.Host.MDMLastEnrolledAt)
-	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastEnrolledAt, enrollTime)
-	require.NotNil(t, hostByIdentifierResp.Host.MDMLastSeenAt)
-	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.MDMLastSeenAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.LastMDMEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.LastMDMCheckedInAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMCheckedInAt, enrollTime)
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {
