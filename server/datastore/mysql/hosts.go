@@ -3891,7 +3891,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		// TODO: confirm desired behavior here
 		return nil
 	}
-	
+
 	// Check if a SCIM user association already exists for this host.
 	var exists uint
 	err := sqlx.GetContext(ctx, tx, &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
@@ -3912,7 +3912,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		// There is no SCIM association possible at this time
 		return nil
 	}
-	
+
 	err = associateHostWithScimUser(ctx, tx, hostID, scimUser.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
@@ -3920,13 +3920,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 	return nil
 }
 
-func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {	
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
-	})
-}
-	
-func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {	
+func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {
 	_, err := tx.ExecContext(
 		ctx,
 		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,

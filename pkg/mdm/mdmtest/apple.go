@@ -229,7 +229,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
 	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
 		Serial: c.SerialNumber,
-		UDID:         c.UUID,
+		UDID:   c.UUID,
 	})
 	if err != nil {
 		return fmt.Errorf("test client: encoding device info: %w", err)
@@ -1009,7 +1009,6 @@ func makeClientSCEPEndpoints(instance string) (*scepserver.Endpoints, error) {
 			options...).Endpoint(),
 	}, nil
 }
-
 
 // EncodeDeviceInfo is a helper function to mock the x-aspen-deviceinfo header that is sent
 // by the device during the Apple MDM enrollment process.

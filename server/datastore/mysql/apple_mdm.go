@@ -6171,11 +6171,11 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 		if err := associateHostMDMIdPAccountDB(ctx, tx, machineInfo.UDID, enrollRef); err != nil {
 			return ctxerr.Wrap(ctx, err, "associate host mdm idp account")
 		}
-		if legacyRef, err := getMDMAppleLegacyEnrollRefDB(ctx, tx, ds.logger, machineInfo.UDID); err != nil {
+		legacyRef, err := getMDMAppleLegacyEnrollRefDB(ctx, tx, ds.logger, machineInfo.UDID)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get mdm apple legacy enroll ref")
-		} else {
-			result = legacyRef
 		}
+		result = legacyRef		
 		return nil
 	})
 
