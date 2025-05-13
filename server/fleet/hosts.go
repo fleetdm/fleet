@@ -775,8 +775,8 @@ type HostDetail struct {
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
 	EndUsers          []HostEndUser          `json:"end_users,omitempty"`
 
-	MDMLastEnrolledAt *time.Time `json:"mdm_last_enrolled_at"`
-	MDMLastSeenAt     *time.Time `json:"mdm_last_seen_at"`
+	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
+	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
 }
 
 type HostEndUser struct {
@@ -867,7 +867,7 @@ func (h *Host) SupportsOsquery() bool {
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo", "neon",
 }
 
 func IsLinux(hostPlatform string) bool {

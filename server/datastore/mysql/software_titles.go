@@ -130,6 +130,7 @@ func (ds *Datastore) ListSoftwareTitles(
 		VPPAppPlatform            *string `db:"vpp_app_platform"`
 		VPPAppIconURL             *string `db:"vpp_app_icon_url"`
 		VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
+		FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
 	}
 	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
@@ -157,7 +158,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	// build an index to quickly access a title by its ID
 	titleIndex := make(map[uint]int, len(softwareList))
 	for i, title := range softwareList {
-		// promote the package name and version to the proper destination fields
+		// promote software installer properties to their proper destination fields
 		if title.PackageName != nil {
 			var version string
 			if title.PackageVersion != nil {
@@ -169,12 +170,13 @@ func (ds *Datastore) ListSoftwareTitles(
 			}
 
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-				Name:               *title.PackageName,
-				Version:            version,
-				Platform:           platform,
-				SelfService:        title.PackageSelfService,
-				PackageURL:         title.PackageURL,
-				InstallDuringSetup: title.PackageInstallDuringSetup,
+				Name:                 *title.PackageName,
+				Version:              version,
+				Platform:             platform,
+				SelfService:          title.PackageSelfService,
+				PackageURL:           title.PackageURL,
+				InstallDuringSetup:   title.PackageInstallDuringSetup,
+				FleetMaintainedAppID: title.FleetMaintainedAppID,
 			}
 		}
 
