@@ -19,6 +19,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -4990,6 +4991,36 @@ WHERE
 	return &res, nil
 }
 
+func (ds *Datastore) MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error) {
+	stmt := `
+	SELECT DISTINCT host_uuid
+	FROM host_mdm_apple_declarations
+	WHERE resync = '1'
+	`
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get resync host uuids")
+	}
+
+	err = common_mysql.BatchProcessSimple(hostUUIDs, 1000, func(uuids []string) error {
+		clearStmt := `
+		UPDATE host_mdm_apple_declarations
+		SET resync = '0'
+		WHERE host_uuid IN (?) AND resync = '1'
+		`
+		clearStmt, args, err := sqlx.In(clearStmt, uuids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "sqlx.In clear resync host uuids")
+		}
+		_, err = ds.writer(ctx).ExecContext(ctx, clearStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clear resync host uuids")
+		}
+		return nil
+	})
+	return hostUUIDs, err
+}
+
 func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error) {
 	var uuids []string
 
@@ -5160,6 +5191,8 @@ func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, prof
 	// we will mark the insert as verified. Why? Because there is nothing for the host to do if the same
 	// declaration was removed and then immediately added back. This is a corner case that should rarely happen
 	// except in testing.
+	// However, it is possible that the profile was actually removed on the device, but we did not get a status update.
+	// Because of that small possibility, we flag this declaration with resync=1 to make sure we do a DeclarativeManagement sync.
 	if len(profilesToInsert) == 0 {
 		return nil
 	}
@@ -5213,7 +5246,7 @@ func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, prof
 		}
 		markInstallProfilesVerified := fmt.Sprintf(`
 			UPDATE host_mdm_apple_declarations
-			SET status = ?
+			SET status = ?, resync = 1
 			WHERE (host_uuid, token) IN (%s)
 			AND operation_type = ?
 			`, strings.TrimSuffix(strings.Repeat("(?,?),", len(tokensToMarkVerified)), ","))

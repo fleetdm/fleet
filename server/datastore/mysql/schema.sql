@@ -546,6 +546,7 @@ CREATE TABLE `host_mdm_apple_declarations` (
   `declaration_identifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `declaration_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `secrets_updated_at` datetime(6) DEFAULT NULL,
+  `resync` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`host_uuid`,`declaration_uuid`),
   KEY `status` (`status`),
   KEY `operation_type` (`operation_type`),

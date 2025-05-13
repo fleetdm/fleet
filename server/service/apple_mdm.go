@@ -3797,6 +3797,16 @@ func ReconcileAppleDeclarations(
 		return ctxerr.Wrap(ctx, err, "updating host declaration state")
 	}
 
+	// Find any hosts that requested a resync. This is used to cover special cases where we're not
+	// 100% certain of the declarations on the device.
+	resyncHosts, err := ds.MDMAppleHostDeclarationsGetAndClearResync(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting and clearing resync hosts")
+	}
+	if len(resyncHosts) > 0 {
+		changedHosts = append(changedHosts, resyncHosts...)
+	}
+
 	if len(changedHosts) == 0 {
 		level.Info(logger).Log("msg", "no hosts with changed declarations")
 		return nil

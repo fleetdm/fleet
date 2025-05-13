@@ -944,6 +944,8 @@ type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier st
 
 type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]string, error)
 
+type MDMAppleHostDeclarationsGetAndClearResyncFunc func(ctx context.Context) (hostUUIDs []string, err error)
+
 type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
 
 type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
@@ -2733,6 +2735,9 @@ type DataStore struct {
 
 	MDMAppleBatchSetHostDeclarationStateFunc        MDMAppleBatchSetHostDeclarationStateFunc
 	MDMAppleBatchSetHostDeclarationStateFuncInvoked bool
+
+	MDMAppleHostDeclarationsGetAndClearResyncFunc        MDMAppleHostDeclarationsGetAndClearResyncFunc
+	MDMAppleHostDeclarationsGetAndClearResyncFuncInvoked bool
 
 	MDMAppleStoreDDMStatusReportFunc        MDMAppleStoreDDMStatusReportFunc
 	MDMAppleStoreDDMStatusReportFuncInvoked bool
@@ -6571,6 +6576,13 @@ func (s *DataStore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([
 	s.MDMAppleBatchSetHostDeclarationStateFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleBatchSetHostDeclarationStateFunc(ctx)
+}
+
+func (s *DataStore) MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error) {
+	s.mu.Lock()
+	s.MDMAppleHostDeclarationsGetAndClearResyncFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleHostDeclarationsGetAndClearResyncFunc(ctx)
 }
 
 func (s *DataStore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {

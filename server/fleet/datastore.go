@@ -1410,6 +1410,9 @@ type Datastore interface {
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
 	// MDMAppleBatchSetHostDeclarationState
 	MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error)
+	// MDMAppleHostDeclarationsGetAndClearResync finds any hosts that requested a resync.
+	// This is used to cover special cases where we're not 100% certain of the declarations on the device.
+	MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error)
 	// MDMAppleStoreDDMStatusReport receives a host.uuid and a slice
 	// of declarations, and updates the tracked host declaration status for
 	// matching declarations.

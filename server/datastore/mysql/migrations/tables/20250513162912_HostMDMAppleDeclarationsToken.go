@@ -11,7 +11,11 @@ func init() {
 
 func Up_20250513162912(tx *sql.Tx) error {
 	// Add an index to the token field. This is needed for finding identical declarations.
-	_, err := tx.Exec(`ALTER TABLE host_mdm_apple_declarations ADD INDEX idx_token (token);`)
+	// Add a resync column to force a DeclarativeManagement resync in some corner cases.
+	_, err := tx.Exec(`
+		ALTER TABLE host_mdm_apple_declarations ADD INDEX idx_token (token);
+		ALTER TABLE host_mdm_apple_declarations ADD COLUMN resync TINYINT(1) NOT NULL DEFAULT '0';
+	`)
 	if err != nil {
 		return fmt.Errorf("failed to add index to token field in host_mdm_apple_declarations table: %w", err)
 	}
