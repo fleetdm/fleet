@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250512154517, Down_20250512154517)
+	MigrationClient.AddMigration(Up_20250502154517, Down_20250502154517)
 }
 
-func Up_20250512154517(tx *sql.Tx) error {
+func Up_20250502154517(tx *sql.Tx) error {
 	if columnExists(tx, "host_mdm_apple_profiles", "variables_updated_at") {
 		return nil
 	}
@@ -23,6 +23,6 @@ func Up_20250512154517(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250512154517(tx *sql.Tx) error {
+func Down_20250502154517(tx *sql.Tx) error {
 	return nil
 }
