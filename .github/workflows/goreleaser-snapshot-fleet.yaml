@@ -133,29 +133,6 @@ jobs:
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
 
-      - name: Get tags
-        run: |
-          echo "TAG=$(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-        id: docker
-
-      - name: List tags for push
-        run: |
-          echo "The following TAGs are to be pushed: ${{ steps.docker.outputs.TAG }}"
-
-      - name: Login to quay.io
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
-        with:
-          registry: quay.io
-          username: fleetdm+fleetreleaser
-          password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
-
-      - name: Tag and push to quay.io
-        run: |
-          for TAG in ${{ steps.docker.outputs.TAG }}; do
-          docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
-          docker push quay.io/fleetdm/fleet:${TAG}
-          done
-
       - name: Slack notification
         if: github.event.schedule == '0 4 * * *' && failure()
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
