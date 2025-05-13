@@ -20,7 +20,6 @@ import paths from "router/paths";
 import { ScriptContent } from "interfaces/script";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getErrorMessage } from "../ScriptUploader/helpers";
-import EditScriptConfirmationModal from "./EditConfirmation";
 
 const baseClass = "edit-script-modal";
 
@@ -150,17 +149,9 @@ const EditScriptModal = ({
     }
   };
 
-  const onConfirm = () => {
-    setShowConfirmation(true);
-  };
-
-  const onCancelConfirm = () => {
-    setShowConfirmation(false);
-  };
-
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    onConfirm();
+    onSave();
   };
 
   const renderContent = () => {
@@ -215,7 +206,7 @@ const EditScriptModal = ({
                 Cancel
               </Button>
               <Button
-                onClick={onConfirm}
+                onClick={onSave}
                 isLoading={isSubmitting}
                 disabled={!!formError}
               >
