@@ -12964,6 +12964,43 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
 	require.True(t, details.SelfService)
 	require.EqualValues(t, fleet.SoftwareInstalled, details.Status)
+
+	// Do uninstall on host
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%d", token, titleIDSS), nil, http.StatusAccepted)
+	var getHostSoftwareResp getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 2)
+	assert.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+	assert.Equal(t, fleet.SoftwareUninstallPending, *getHostSoftwareResp.Software[0].Status)
+	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastUninstall)
+	uninstallExecutionID := getHostSoftwareResp.Software[0].SoftwarePackage.LastUninstall.ExecutionID
+
+	// Uninstall should show up as a pending activity
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), listUpcomingAct.Activities[0].Type)
+	uninstallDetails := make(map[string]interface{}, 5)
+	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &uninstallDetails))
+	assert.EqualValues(t, fleet.SoftwareUninstallPending, uninstallDetails["status"])
+	assert.Nil(t, listUpcomingAct.Activities[0].ActorID)
+	assert.False(t, listUpcomingAct.Activities[0].FleetInitiated)
+
+	// Host sends successful uninstall result
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host1.OrbitNodeKey,
+			uninstallExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// Check activity feed
+	var activitiesResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
+		"order_direction", "desc")
+	require.NotEmpty(t, activitiesResp.Activities)
+	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
+	uninstallDetails = make(map[string]interface{}, 5)
+	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &uninstallDetails))
+	assert.Equal(t, "uninstalled", uninstallDetails["status"])
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
