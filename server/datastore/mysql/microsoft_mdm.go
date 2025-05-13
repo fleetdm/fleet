@@ -754,8 +754,22 @@ WHERE
 }
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
-	// TODO(mna): on deletion, cancel any pending host installs immediately for this profile.
-	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profileUUID)
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
+			return err
+		}
+
+		// cancel any pending host installs immediately for this profile
+		if err := cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID}); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func deleteMDMWindowsConfigProfile(ctx context.Context, tx sqlx.ExtContext, profileUUID string) error {
+	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -763,6 +777,31 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 	deleted, _ := res.RowsAffected() // cannot fail for mysql
 	if deleted != 1 {
 		return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
+	}
+	return nil
+}
+
+func cancelWindowsHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+	// For Windows, we currently don't support sending a command to remove a
+	// profile that was installed, so all we need to do here is delete any
+	// host-profile tuple that had this profile (whether with operation install
+	// or remove, does not matter).
+	const delStmt = `
+	DELETE FROM 
+		host_mdm_windows_profiles 
+	WHERE profile_uuid IN (?)`
+
+	if len(profileUUIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(delStmt, profileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN to delete host_mdm_windows_profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host_mdm_windows_profiles for deleted profile")
 	}
 	return nil
 }

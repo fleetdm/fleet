@@ -344,8 +344,8 @@ func (ds *Datastore) DeleteMDMAppleDeclaration(ctx context.Context, declUUID str
 			return err
 		}
 
-		// TODO(mna): on deletion, cancel any pending host installs immediately for this profile.
-		if err := deleteUnsentAppleHostMDMDeclaration(ctx, tx, declUUID); err != nil {
+		// cancel any pending host installs immediately for this declaration
+		if err := cancelAppleHostInstallsForDeletedMDMDeclarations(ctx, tx, []string{declUUID}); err != nil {
 			return err
 		}
 
@@ -403,10 +403,53 @@ func deleteUnsentAppleHostMDMProfile(ctx context.Context, tx sqlx.ExtContext, uu
 	return nil
 }
 
-func deleteUnsentAppleHostMDMDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
-	const stmt = `DELETE FROM host_mdm_apple_declarations WHERE declaration_uuid = ? AND status IS NULL AND operation_type = ?`
-	if _, err := tx.ExecContext(ctx, stmt, uuid, fleet.MDMOperationTypeInstall); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host declaration that has not been sent to host")
+func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sqlx.ExtContext, declUUIDs []string) error {
+	// For Apple declarations, we can safely delete the rows for hosts where
+	// status is NULL and operation type is install, but if the status is not
+	// NULL, we need to change the operation to remove and set the status to NULL
+	// (i.e. Enforcing removal (pending)) so that on the next reconcile there is
+	// a DDM command issued to sync the host with the new declarative state
+	// (which will not include the deleted declaration(s) anymore).
+
+	if len(declUUIDs) == 0 {
+		return nil
+	}
+
+	const delStmt = `
+	DELETE FROM 
+		host_mdm_apple_declarations 
+	WHERE 
+		declaration_uuid IN (?) AND 
+		status IS NULL AND 
+		operation_type = ?`
+
+	stmt, args, err := sqlx.In(delStmt, declUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_declarations that have not been sent to host")
+	}
+
+	const updStmt = `
+	UPDATE
+		host_mdm_apple_declarations
+	SET
+		status = NULL,
+		operation_type = ?
+	WHERE
+		declaration_uuid IN (?) AND
+		status IS NOT NULL AND
+		operation_type = ?`
+
+	stmt, args, err = sqlx.In(updStmt, fleet.MDMOperationTypeRemove, declUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host_mdm_apple_declarations that may have been sent to host")
 	}
 
 	return nil
