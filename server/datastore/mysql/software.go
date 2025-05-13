@@ -3558,7 +3558,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			if s.VPPAppAdamID != nil {
 				tmpByVPPAdamID[*s.VPPAppAdamID] = s
 			}
-			hostVPPInstalledTitles[s.ID] = s
+			if VPPAppByFleet, ok := hostVPPInstalledTitles[s.ID]; ok {
+				// Vpp app installed by fleet, so we need to copy over the status,
+				// because all fleet installed apps show an installed status if available
+				tmpByVPPAdamID[*s.VPPAppAdamID].Status = VPPAppByFleet.Status
+			}
 			// If a VPP app is installed on the host, but not by fleet
 			// it will be present in bySoftwareTitleID, because osquery returned it as inventory.
 			// We need to remove it from bySoftwareTitleID and add it to byVPPAdamID
