@@ -674,9 +674,11 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 			if len(payloadChallenge) > maxValueCharsInError {
 				payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 			}
-			return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-				fleet.FleetVarCustomSCEPChallengePrefix + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
-				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					fleet.FleetVarCustomSCEPChallengePrefix + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
+				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge),
+			}
 		}
 		urlPrefix := "FLEET_VAR_" + fleet.FleetVarCustomSCEPProxyURLPrefix
 		if scepPayloadContent.URL != "$"+urlPrefix+ca && scepPayloadContent.URL != "${"+urlPrefix+ca+"}" {
@@ -684,9 +686,11 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 			if len(payloadURL) > maxValueCharsInError {
 				payloadURL = payloadURL[:maxValueCharsInError] + "..."
 			}
-			return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-				fleet.FleetVarCustomSCEPProxyURLPrefix + ca + "\" must be in the SCEP certificate's \"URL\" field.",
-				InternalErr: fmt.Errorf("URL: %s", payloadURL)}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					fleet.FleetVarCustomSCEPProxyURLPrefix + ca + "\" must be in the SCEP certificate's \"URL\" field.",
+				InternalErr: fmt.Errorf("URL: %s", payloadURL),
+			}
 		}
 		foundCAs = append(foundCAs, ca)
 	}
@@ -809,9 +813,11 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		if len(payloadChallenge) > maxValueCharsInError {
 			payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 		}
-		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPChallenge + "\" must be in the SCEP certificate's \"Challenge\" field.",
-			InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
+		return &fleet.BadRequestError{
+			Message: "Variable \"$FLEET_VAR_" +
+				fleet.FleetVarNDESSCEPChallenge + "\" must be in the SCEP certificate's \"Challenge\" field.",
+			InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge),
+		}
 	}
 	ndesURL := "FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL
 	if scepPayloadContent.URL != "$"+ndesURL && scepPayloadContent.URL != "${"+ndesURL+"}" {
@@ -819,9 +825,11 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		if len(payloadURL) > maxValueCharsInError {
 			payloadURL = payloadURL[:maxValueCharsInError] + "..."
 		}
-		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPProxyURL + "\" must be in the SCEP certificate's \"URL\" field.",
-			InternalErr: fmt.Errorf("URL: %s", payloadURL)}
+		return &fleet.BadRequestError{
+			Message: "Variable \"$FLEET_VAR_" +
+				fleet.FleetVarNDESSCEPProxyURL + "\" must be in the SCEP certificate's \"URL\" field.",
+			InternalErr: fmt.Errorf("URL: %s", payloadURL),
+		}
 	}
 	return nil
 }
@@ -4182,8 +4190,22 @@ func preprocessProfileContents(
 			continue
 		}
 
+		var variablesUpdatedAt *time.Time
+
 		// Do common validation that applies to all hosts in the target
 		valid := true
+		// Check if there are any CA variables first so that if a non-CA variable causes
+		// preprocessing to fail, we still set the variablesUpdatedAt timestamp so that
+		// validation works as expected
+		// TODO: Expand variablesUpdatedAt logic to include non-CA variables as well
+		for fleetVar := range fleetVars {
+			if fleetVar == fleet.FleetVarNDESSCEPChallenge || fleetVar == fleet.FleetVarNDESSCEPProxyURL || fleetVar == fleet.FleetVarSCEPRenewalID ||
+				strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertPasswordPrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertDataPrefix) ||
+				strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPProxyURLPrefix) {
+				variablesUpdatedAt = ptr.Time(time.Now().UTC())
+			}
+		}
+
 		for fleetVar := range fleetVars {
 			switch {
 			case fleetVar == fleet.FleetVarNDESSCEPChallenge || fleetVar == fleet.FleetVarNDESSCEPProxyURL:
@@ -4244,7 +4266,7 @@ func preprocessProfileContents(
 				// Otherwise, error out since this variable is unknown
 				detail := fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
 					fleetVar)
-				_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
+				_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail, variablesUpdatedAt)
 				if err != nil {
 					return err
 				}
@@ -4277,9 +4299,9 @@ func preprocessProfileContents(
 				continue
 			}
 			profile.CommandUUID = tempCmdUUID
+			profile.VariablesUpdatedAt = variablesUpdatedAt
 
 			hostContents := contentsStr
-
 			failed := false
 		fleetVarLoop:
 			for fleetVar := range fleetVars {
@@ -4322,11 +4344,12 @@ func preprocessProfileContents(
 							detail = fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarNDESSCEPChallenge, err.Error())
 						}
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:   target.cmdUUID,
-							HostUUID:      hostUUID,
-							Status:        &fleet.MDMDeliveryFailed,
-							Detail:        detail,
-							OperationType: fleet.MDMOperationTypeInstall,
+							CommandUUID:        target.cmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             detail,
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
 						})
 						if err != nil {
 							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for NDES SCEP challenge")
@@ -4487,11 +4510,12 @@ func preprocessProfileContents(
 					if err != nil {
 						detail := fmt.Sprintf("Couldn't get certificate from DigiCert for %s. %s", caCopy.Name, err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:   target.cmdUUID,
-							HostUUID:      hostUUID,
-							Status:        &fleet.MDMDeliveryFailed,
-							Detail:        detail,
-							OperationType: fleet.MDMOperationTypeInstall,
+							CommandUUID:        target.cmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             detail,
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
 						})
 						if err != nil {
 							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for DigiCert")
@@ -4813,7 +4837,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.")
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
 	if _, ok := digiCertCAs[caName]; ok {
 		return true, nil
@@ -4831,7 +4855,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	}
 	if !configured || digiCertCA == nil {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName))
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
 	}
 
 	// Get the API token
@@ -4839,7 +4863,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	switch {
 	case fleet.IsNotFound(err):
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			fmt.Sprintf("DigiCert CA '%s' is missing API token. Please configure in Settings > Integrations > Certificates.", caName))
+			fmt.Sprintf("DigiCert CA '%s' is missing API token. Please configure in Settings > Integrations > Certificates.", caName), ptr.Time(time.Now().UTC()))
 	case err != nil:
 		return false, ctxerr.Wrap(ctx, err, "getting CA config asset")
 	}
@@ -4869,7 +4893,6 @@ func (n *ndesVarsFound) Found() bool {
 
 func (n *ndesVarsFound) RenewalOnly() bool {
 	return n != nil && !n.urlFound && !n.challengeFound && n.renewalIdFound
-
 }
 
 func (n *ndesVarsFound) ErrorMessage() string {
@@ -4910,11 +4933,11 @@ func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, profUUID string, target *cmdTarget,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.")
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
 	if !appConfig.Integrations.NDESSCEPProxy.Valid {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.")
+			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.", ptr.Time(time.Now().UTC()))
 	}
 	return appConfig.Integrations.NDESSCEPProxy.Valid, nil
 }
@@ -5023,7 +5046,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 	customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.")
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
 	if _, ok := customSCEPCAs[caName]; ok {
 		return true, nil
@@ -5041,7 +5064,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 	}
 	if !configured || scepCA == nil {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName))
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
 	}
 
 	// Get the challenge
@@ -5049,7 +5072,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 	switch {
 	case fleet.IsNotFound(err):
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			fmt.Sprintf("Custom SCEP CA '%s' is missing a challenge. Please configure in Settings > Integrations > Certificates.", caName))
+			fmt.Sprintf("Custom SCEP CA '%s' is missing a challenge. Please configure in Settings > Integrations > Certificates.", caName), ptr.Time(time.Now().UTC()))
 	case err != nil:
 		return false, ctxerr.Wrap(ctx, err, "getting custom SCEP CA config asset")
 	}
@@ -5066,6 +5089,7 @@ func markProfilesFailed(
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	profUUID string,
 	detail string,
+	variablesUpdatedAt *time.Time,
 ) (bool, error) {
 	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
 	for _, hostUUID := range target.hostUUIDs {
@@ -5075,6 +5099,7 @@ func markProfilesFailed(
 		}
 		profile.Status = &fleet.MDMDeliveryFailed
 		profile.Detail = detail
+		profile.VariablesUpdatedAt = variablesUpdatedAt
 		profilesToUpdate = append(profilesToUpdate, profile)
 	}
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {

@@ -523,7 +523,7 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 	stmt := `
 	SELECT
 		hmap.host_uuid,
-		hmap.profile_uuid,
+		hmap.profile_uuid,F
 		hmap.status,
 		hmmc.challenge_retrieved_at,
 		hmmc.not_valid_before,
@@ -2927,7 +2927,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               command_uuid,
               checksum,
               secrets_updated_at,
-			  ignore_error
+			  ignore_error,
+			  variables_updated_at
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
@@ -2939,7 +2940,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               ignore_error = VALUES(ignore_error),
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
-              command_uuid = VALUES(command_uuid)`,
+              command_uuid = VALUES(command_uuid),
+			  variables_updated_at = VALUES(variables_updated_at)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -2956,10 +2958,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	}
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
-			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError,
+			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError, p.VariablesUpdatedAt,
 		}
 		return valuePart, args
 	}
@@ -3028,9 +3030,9 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `
           UPDATE host_mdm_apple_profiles
-          SET status = ?, operation_type = ?, detail = ?
+          SET status = ?, operation_type = ?, detail = ?, variables_updated_at = ?
           WHERE host_uuid = ? AND command_uuid = ?
-        `, status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID)
+        `, status, profile.OperationType, detail, profile.VariablesUpdatedAt, profile.HostUUID, profile.CommandUUID)
 		return err
 	})
 	return err

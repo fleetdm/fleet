@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -727,7 +728,7 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 
 	switch host.Platform {
 	case "darwin", "ios", "ipados":
-		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host.ID)
+		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host.ID, host.UUID)
 	case "windows":
 		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
 	default:
@@ -826,7 +827,7 @@ HAVING
 	return byName, nil
 }
 
-func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
+func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint, hostUUID string) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
 -- profiles without labels
 SELECT
@@ -932,6 +933,29 @@ HAVING
 	byIdentifier := make(map[string]*fleet.ExpectedMDMProfile, len(rows))
 	for _, r := range rows {
 		byIdentifier[r.Identifier] = r
+	}
+
+	// Override calculated EarliestInstallDate based on variable update times for profiles with
+	// variables
+	variableUpdateTimes := []struct {
+		ProfileIdentifier  string    `db:"profile_identifier"`
+		VariablesUpdatedAt time.Time `db:"variables_updated_at"`
+	}{}
+	variableUpdateTimesStmt := `
+	SELECT profile_identifier, max(variables_updated_at) AS variables_updated_at
+	FROM host_mdm_apple_profiles
+	WHERE host_uuid = ? AND variables_updated_at IS NOT NULL
+	GROUP BY profile_identifier
+	`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &variableUpdateTimes, variableUpdateTimesStmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
+	}
+	for _, r := range variableUpdateTimes {
+		if profile, ok := byIdentifier[r.ProfileIdentifier]; ok {
+			if r.VariablesUpdatedAt.After(profile.EarliestInstallDate) {
+				profile.EarliestInstallDate = r.VariablesUpdatedAt
+			}
+		}
 	}
 
 	return byIdentifier, nil
