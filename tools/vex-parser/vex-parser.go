@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -96,6 +97,9 @@ func main() {
 		return
 	}
 
+	sort.Slice(vexPaths, func(i, j int) bool {
+		return vexPaths[i] > vexPaths[j]
+	})
 	for _, vexPath := range vexPaths {
 		outputMarkdown(vexPath)
 	}

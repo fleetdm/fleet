@@ -196,7 +196,7 @@ const SoftwareAppStoreVpp = ({
     }
 
     if (errorVppInfo || errorVppApps || isErrorLabels) {
-      return <DataError className={`${baseClass}__error`} />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (noVppTokenUploaded) {

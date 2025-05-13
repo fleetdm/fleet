@@ -473,6 +473,9 @@ type Service interface {
 	// License returns the licensing information.
 	License(ctx context.Context) (*LicenseInfo, error)
 
+	// PartnershipsConfig returns Fleet partnership-specific configuration
+	PartnershipsConfig(ctx context.Context) (*Partnerships, error)
+
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)
 
@@ -1106,6 +1109,14 @@ type Service interface {
 
 	// ResendHostMDMProfile resends the MDM profile to the host.
 	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
+
+	// BatchResendMDMProfileToHosts resends an MDM profile to the hosts that
+	// satisfy the specified filters.
+	BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters BatchResendMDMProfileFilters) error
+
+	// GetMDMConfigProfileStatus returns the number of hosts for each status of a
+	// single configuration profile.
+	GetMDMConfigProfileStatus(ctx context.Context, profileUUID string) (MDMConfigProfileStatus, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution

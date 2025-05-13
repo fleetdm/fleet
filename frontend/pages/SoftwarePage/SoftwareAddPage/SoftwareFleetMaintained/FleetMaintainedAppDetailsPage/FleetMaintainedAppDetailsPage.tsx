@@ -252,7 +252,7 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     if (isErrorFleetApp || isErrorLabels) {
-      return <DataError className={`${baseClass}__data-error`} />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (fleetApp) {
@@ -320,6 +320,7 @@ const FleetMaintainedAppDetailsPage = ({
           name={fleetApp.name}
           platform={fleetApp.platform}
           version={fleetApp.version}
+          slug={fleetApp.slug}
           url={fleetApp.url}
           onCancel={() => setShowAppDetailsModal(false)}
         />

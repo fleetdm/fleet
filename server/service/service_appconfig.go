@@ -251,3 +251,17 @@ func (svc *Service) EmailConfig(ctx context.Context) (*fleet.EmailConfig, error)
 
 	return email, nil
 }
+
+func (svc *Service) PartnershipsConfig(ctx context.Context) (*fleet.Partnerships, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	enablePrimo := svc.config.Partnerships.EnablePrimo
+	if !enablePrimo {
+		// for now, since this is the only partnership of this type, exclude the whole struct if not enabled
+		return nil, nil
+	}
+	return &fleet.Partnerships{
+		EnablePrimo: svc.config.Partnerships.EnablePrimo,
+	}, nil
+}

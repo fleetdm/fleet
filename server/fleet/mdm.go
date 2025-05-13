@@ -965,3 +965,42 @@ type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
 }
+
+// MDMProfileUUIDFleetVariables represents the Fleet variables used by a
+// profile identified by its UUID.
+type MDMProfileUUIDFleetVariables struct {
+	// ProfileUUID is the UUID of the profile.
+	ProfileUUID string
+	// FleetVariables is the (deduplicated) list of Fleet variables used by the
+	// profile, without the "FLEET_VAR_" prefix (as returned by
+	// findFleetVariables).
+	FleetVariables []string
+}
+
+// MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
+// profile identified by its identifier.
+type MDMProfileIdentifierFleetVariables struct {
+	// Identifier is the identifier of the profile (which is unique by team for
+	// Apple profiles).
+	Identifier string
+	// FleetVariables is the (deduplicated) list of Fleet variables used by the
+	// profile, without the "FLEET_VAR_" prefix (as returned by
+	// findFleetVariables).
+	FleetVariables []string
+}
+
+// BatchResendMDMProfileFilters represents the filters to apply to hosts for
+// batch-redelivery of an MDM profile.
+type BatchResendMDMProfileFilters struct {
+	ProfileStatus MDMDeliveryStatus
+}
+
+// MDMConfigProfileStatus represents the number of hosts in each status for a
+// given configuration profile. See MDMProfilesSummary for more information on
+// each status, this struct is the same except for a single profile.
+type MDMConfigProfileStatus struct {
+	Verified  uint `json:"verified" db:"verified"`
+	Verifying uint `json:"verifying" db:"verifying"`
+	Pending   uint `json:"pending" db:"pending"`
+	Failed    uint `json:"failed" db:"failed"`
+}

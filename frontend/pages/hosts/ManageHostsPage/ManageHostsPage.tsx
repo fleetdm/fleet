@@ -80,7 +80,7 @@ import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TableDataError from "components/DataError";
+import DataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
@@ -1208,16 +1208,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const renderTeamsFilterDropdown = () => (
-    <TeamsDropdown
-      currentUserTeams={userTeams || []}
-      selectedTeamId={currentTeamId}
-      isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
-      onChange={onTeamChange}
-      includeNoTeams
-    />
-  );
-
   const renderEditColumnsModal = () => {
     if (!config || !currentUser) {
       return null;
@@ -1318,20 +1308,29 @@ const ManageHostsPage = ({
     />
   );
 
+  const renderHeaderContent = () => {
+    if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
+      if (userTeams.length > 1 || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams || []}
+            selectedTeamId={currentTeamId}
+            onChange={onTeamChange}
+            includeNoTeams
+          />
+        );
+      }
+      if (!isOnGlobalTeam && userTeams.length === 1) {
+        return <h1>{userTeams[0].name}</h1>;
+      }
+    }
+    return <h1>Hosts</h1>;
+  };
+
   const renderHeader = () => (
     <div className={`${baseClass}__header`}>
       <div className={`${baseClass}__text`}>
-        <div className={`${baseClass}__title`}>
-          {isFreeTier && <h1>Hosts</h1>}
-          {isPremiumTier &&
-            userTeams &&
-            (userTeams.length > 1 || isOnGlobalTeam) &&
-            renderTeamsFilterDropdown()}
-          {isPremiumTier &&
-            !isOnGlobalTeam &&
-            userTeams &&
-            userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
-        </div>
+        <div className={`${baseClass}__title`}>{renderHeaderContent()}</div>
       </div>
     </div>
   );
@@ -1485,7 +1484,7 @@ const ManageHostsPage = ({
     }
 
     if (hasErrors) {
-      return <TableDataError />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
     if (maybeEmptyHosts) {
       const emptyState = () => {
@@ -1779,7 +1778,7 @@ const ManageHostsPage = ({
       {showAddHostsModal && renderAddHostsModal()}
       {showTransferHostModal && renderTransferHostModal()}
       {showDeleteHostModal && renderDeleteHostModal()}
-      {showRunScriptBatchModal && currentTeamId && (
+      {showRunScriptBatchModal && currentTeamId !== undefined && (
         <RunScriptBatchModal
           selectedHostIds={selectedHostIds}
           onCancel={toggleRunScriptBatchModal}

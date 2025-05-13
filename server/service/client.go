@@ -721,6 +721,20 @@ func (c *Client) ApplyGroup(
 			}
 		}
 
+		tmFleetMaintainedApps := extractTmSpecsFleetMaintainedApps(specs.Teams)
+		for tmName, apps := range tmFleetMaintainedApps {
+			installDuringSetupKeys := tmSoftwareMacOSSetup[tmName]
+			softwarePayloads, err := buildSoftwarePackagesPayload(apps, installDuringSetupKeys)
+			if err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
+			}
+			if existingPayloads, ok := tmSoftwarePackagesPayloads[tmName]; ok {
+				tmSoftwarePackagesPayloads[tmName] = append(existingPayloads, softwarePayloads...)
+			} else {
+				tmSoftwarePackagesPayloads[tmName] = softwarePayloads
+			}
+		}
+
 		tmSoftwareApps := extractTmSpecsSoftwareApps(specs.Teams)
 		tmSoftwareAppsPayloads := make(map[string][]fleet.VPPBatchPayload)
 		tmSoftwareAppsByAppID := make(map[string]map[string]fleet.TeamSpecAppStoreApp, len(tmSoftwareApps))
@@ -739,6 +753,7 @@ func (c *Client) ApplyGroup(
 					InstallDuringSetup: installDuringSetup,
 					LabelsExcludeAny:   app.LabelsExcludeAny,
 					LabelsIncludeAny:   app.LabelsIncludeAny,
+					Categories:         app.Categories,
 				})
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
@@ -1074,6 +1089,12 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			LabelsIncludeAny:   si.LabelsIncludeAny,
 			LabelsExcludeAny:   si.LabelsExcludeAny,
 			SHA256:             si.SHA256,
+			Categories:         si.Categories,
+		}
+
+		if si.Slug != nil {
+			softwarePayloads[i].Slug = si.Slug
+			softwarePayloads[i].AutomaticInstall = si.AutomaticInstall
 		}
 	}
 
@@ -1407,6 +1428,51 @@ func extractTmSpecsSoftwarePackages(tmSpecs []json.RawMessage) map[string][]flee
 	return m
 }
 
+func extractTmSpecsFleetMaintainedApps(tmSpecs []json.RawMessage) map[string][]fleet.SoftwarePackageSpec {
+	var m map[string][]fleet.SoftwarePackageSpec
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name     string          `json:"name"`
+			Software json.RawMessage `json:"software"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		spec.Name = norm.NFC.String(spec.Name)
+		if spec.Name != "" && len(spec.Software) > 0 {
+			if m == nil {
+				m = make(map[string][]fleet.SoftwarePackageSpec)
+			}
+			var software fleet.SoftwareSpec
+			var packages []fleet.SoftwarePackageSpec
+			if err := json.Unmarshal(spec.Software, &software); err != nil {
+				// ignore, will fail in apply team specs call
+				continue
+			}
+			if !software.FleetMaintainedApps.Valid {
+				// to be consistent with the AppConfig custom settings, set it to an
+				// empty slice if the provided custom settings are present but empty.
+				packages = []fleet.SoftwarePackageSpec{}
+			} else {
+				for _, app := range software.FleetMaintainedApps.Value {
+					packages = append(packages, fleet.SoftwarePackageSpec{
+						Slug:             &app.Slug,
+						AutomaticInstall: app.AutomaticInstall,
+						SelfService:      app.SelfService,
+						LabelsIncludeAny: app.LabelsIncludeAny,
+						LabelsExcludeAny: app.LabelsExcludeAny,
+						Categories:       app.Categories,
+					})
+				}
+			}
+			m[spec.Name] = packages
+		}
+	}
+
+	return m
+}
+
 func extractTmSpecsSoftwareApps(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecAppStoreApp {
 	var m map[string][]fleet.TeamSpecAppStoreApp
 	for _, tm := range tmSpecs {
@@ -1728,6 +1794,7 @@ func (c *Client) DoGitOps(
 		team["software"] = map[string]any{}
 		team["software"].(map[string]any)["app_store_apps"] = config.Software.AppStoreApps
 		team["software"].(map[string]any)["packages"] = config.Software.Packages
+		team["software"].(map[string]any)["fleet_maintained_apps"] = config.Software.FleetMaintainedApps
 		team["secrets"] = config.TeamSettings["secrets"]
 
 		// Ensure webhooks settings exists
@@ -1793,7 +1860,9 @@ func (c *Client) DoGitOps(
 		if config.Controls.MacOSSettings != nil {
 			mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
 		} else {
-			mdmAppConfig["macos_settings"] = fleet.MacOSSettings{}
+			mdmAppConfig["macos_settings"] = fleet.MacOSSettings{
+				CustomSettings: []fleet.MDMProfileSpec{},
+			}
 		}
 		// Put in default values for macos_updates
 		if config.Controls.MacOSUpdates != nil {
@@ -1845,7 +1914,9 @@ func (c *Client) DoGitOps(
 		if config.Controls.WindowsSettings != nil {
 			mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
 		} else {
-			mdmAppConfig["windows_settings"] = fleet.WindowsSettings{}
+			mdmAppConfig["windows_settings"] = fleet.WindowsSettings{
+				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
+			}
 		}
 		// Put in default values for windows_updates
 		if config.Controls.WindowsUpdates != nil {
@@ -1987,6 +2058,17 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 			}
 		}
 	}
+	for _, software := range config.Software.FleetMaintainedApps {
+		if software != nil {
+			packages = append(packages, fleet.SoftwarePackageSpec{
+				Slug:             &software.Slug,
+				AutomaticInstall: software.AutomaticInstall,
+				SelfService:      software.SelfService,
+				LabelsIncludeAny: software.LabelsIncludeAny,
+				LabelsExcludeAny: software.LabelsExcludeAny,
+			})
+		}
+	}
 
 	var appsPayload []fleet.VPPBatchPayload
 	appsByAppID := make(map[string]fleet.TeamSpecAppStoreApp, len(config.Software.AppStoreApps))
@@ -2105,18 +2187,20 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		// Get software titles of packages for the team.
 		softwareTitleIDsByInstallerURL := make(map[string]uint)
 		softwareTitleIDsByAppStoreAppID := make(map[string]uint)
+		softwareTitleIDsByHash := make(map[string]uint)
 		for _, softwareInstaller := range teamSoftwareInstallers {
 			if softwareInstaller.TitleID == nil {
 				// Should not happen, but to not panic we just log a warning.
 				logFn("[!] software installer without title id: team_id=%d, url=%s\n", *teamID, softwareInstaller.URL)
 				continue
 			}
-			if softwareInstaller.URL == "" {
+			if softwareInstaller.URL == "" && softwareInstaller.HashSHA256 == "" {
 				// Should not happen because we previously applied packages via gitops, but to not panic we just log a warning.
 				logFn("[!] software installer without url: team_id=%d, title_id=%d\n", *teamID, *softwareInstaller.TitleID)
 				continue
 			}
 			softwareTitleIDsByInstallerURL[softwareInstaller.URL] = *softwareInstaller.TitleID
+			softwareTitleIDsByHash[softwareInstaller.HashSHA256] = *softwareInstaller.TitleID
 		}
 		for _, vppApp := range teamVPPApps {
 			if vppApp.Platform != fleet.MacOSPlatform {
@@ -2158,6 +2242,17 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					// Should not happen because app store apps are uploaded first.
 					if !dryRun {
 						logFn("[!] software app store app ID without software title ID: %s\n", config.Policies[i].InstallSoftware.AppStoreID)
+					}
+					continue
+				}
+				config.Policies[i].SoftwareTitleID = &softwareTitleID
+			}
+			if config.Policies[i].InstallSoftware.HashSHA256 != "" {
+				softwareTitleID, ok := softwareTitleIDsByHash[config.Policies[i].InstallSoftware.HashSHA256]
+				if !ok {
+					// Should not happen because software packages are uploaded first.
+					if !dryRun {
+						logFn("[!] software hash without software title ID: %s\n", config.Policies[i].InstallSoftware.HashSHA256)
 					}
 					continue
 				}

@@ -1325,6 +1325,11 @@ const (
 	TierTrial = "trial"
 )
 
+// Partnerships contains specialized configuration options for Fleet partners.
+type Partnerships struct {
+	EnablePrimo bool `json:"enable_primo,omitempty"`
+}
+
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
 	// Tier is the license tier (currently "free" or "premium")

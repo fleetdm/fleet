@@ -623,6 +623,7 @@ type FleetConfig struct {
 
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
+	EnablePrimo       bool `yaml:"enable_primo"`
 }
 
 type MicrosoftCompliancePartnerConfig struct {
@@ -1181,6 +1182,7 @@ func (man Manager) addConfigs() {
 
 	// Email
 	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
+
 	// SES
 	man.addConfigString("ses.region", "", "AWS Region to use")
 	man.addConfigString("ses.endpoint_url", "", "AWS Service Endpoint to use (leave empty for default service endpoints)")
@@ -1428,6 +1430,8 @@ func (man Manager) addConfigs() {
 	// Microsoft Compliance Partner
 	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
 	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
+
+	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1708,6 +1712,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
+			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
 		},
 		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
 			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),

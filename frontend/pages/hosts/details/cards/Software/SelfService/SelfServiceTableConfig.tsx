@@ -45,8 +45,11 @@ const STATUS_CONFIG: Record<
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ lastInstalledAt = "" }) =>
-      `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
+    tooltip: ({ lastInstalledAt = null }) => {
+      return `Software is installed${
+        lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""
+      }.`;
+    },
   },
   pending_install: {
     iconName: "pending-outline",
@@ -56,7 +59,7 @@ const STATUS_CONFIG: Record<
   failed_install: {
     iconName: "error",
     displayText: "Failed",
-    tooltip: ({ lastInstalledAt = "" }) => (
+    tooltip: ({ lastInstalledAt = null }) => (
       <>
         Software failed to install
         {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
@@ -273,11 +276,12 @@ export const generateSoftwareTableHeaders = ({
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source } = cellProps.row.original;
+        const { name, source, app_store_app } = cellProps.row.original;
         return (
           <SoftwareNameCell
             name={name}
             source={source}
+            iconUrl={app_store_app?.icon_url}
             myDevicePage
             isSelfService
           />
@@ -299,7 +303,9 @@ export const generateSoftwareTableHeaders = ({
         <InstallerStatus
           status={cellProps.row.original.status}
           last_install={
-            cellProps.row.original.software_package?.last_install || null
+            cellProps.row.original.software_package?.last_install ||
+            cellProps.row.original.app_store_app?.last_install ||
+            null
           }
           onShowInstallerDetails={onShowInstallerDetails}
         />

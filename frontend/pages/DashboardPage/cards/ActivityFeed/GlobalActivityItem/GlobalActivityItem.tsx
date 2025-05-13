@@ -135,6 +135,9 @@ const TAGGED_TEMPLATES = {
       ? "edited a query using fleetctl."
       : "edited queries using fleetctl.";
   },
+  editSoftwareCtlActivityTemplate: () => {
+    return "edited software using fleetctl.";
+  },
   editTeamCtlActivityTemplate: (activity: IActivity) => {
     const count = activity.details?.teams?.length;
     return count === 1 && activity.details?.teams ? (
@@ -882,6 +885,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resentConfigProfileBatch: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent the <b>{activity.details?.profile_name}</b> configuration profile{" "}
+        to {activity.details?.host_count}{" "}
+        {(activity.details?.host_count ?? 0) > 1 ? "hosts." : "host."}
+      </>
+    );
+  },
   addedSoftware: (activity: IActivity) => {
     return (
       <>
@@ -1170,6 +1183,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AppliedSpecSavedQuery: {
       return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
     }
+    case ActivityType.AppliedSpecSoftware: {
+      return TAGGED_TEMPLATES.editSoftwareCtlActivityTemplate();
+    }
     case ActivityType.AppliedSpecTeam: {
       return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
     }
@@ -1368,6 +1384,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ResentConfigurationProfile: {
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.ResentConfigurationProfileBatch: {
+      return TAGGED_TEMPLATES.resentConfigProfileBatch(activity);
     }
     case ActivityType.AddedSoftware: {
       return TAGGED_TEMPLATES.addedSoftware(activity);
