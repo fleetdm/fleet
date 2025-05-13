@@ -2902,6 +2902,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "not configured")
+	assert.NotNil(t, updatedPayload.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// Unknown variable
@@ -2962,6 +2963,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
 	assert.Contains(t, updatedProfile.Detail, "update credentials")
+	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// Password cache full
@@ -2976,6 +2978,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
 	assert.Contains(t, updatedProfile.Detail, "cached passwords")
+	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// Insufficient permissions
@@ -2990,6 +2993,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
 	assert.Contains(t, updatedProfile.Detail, "does not have sufficient permissions")
+	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// Other NDES challenge error
@@ -3005,6 +3009,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
 	assert.NotContains(t, updatedProfile.Detail, "cached passwords")
 	assert.NotContains(t, updatedProfile.Detail, "update credentials")
+	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// NDES challenge

@@ -1246,8 +1246,10 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		// if error is because the host does not exist, check first if the user
 		// had access to install/uninstall software (to prevent leaking valid host ids).
 		if fleet.IsNotFound(err) {
-			if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
-				return err
+			if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+				if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
+					return err
+				}
 			}
 		}
 		svc.authz.SkipAuthorization(ctx)
@@ -1268,8 +1270,10 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	}
 
 	// authorize with the host's team
-	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
-		return err
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+			return err
+		}
 	}
 
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)

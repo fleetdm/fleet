@@ -3244,6 +3244,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			// data from the byVPPAdamID to hostVPPInstalledTitles
 			// so we can later push to InstalledVersions
 			installedTitle := byVPPAdamID[*s.VPPAppAdamID]
+			if installedTitle == nil {
+				// This can happen when mdm_enrolled is false
+				// because in hostVPPInstalls we filter those out
+				installedTitle = bySoftwareTitleID[s.ID]
+			}
+			if installedTitle == nil {
+				// We somehow have a vpp app in host_vpp_software_installs,
+				// however osquery didn't pick it up in inventory
+				continue
+			}
 			s.SoftwareID = installedTitle.SoftwareID
 			s.SoftwareSource = installedTitle.SoftwareSource
 			s.Version = installedTitle.Version
@@ -3520,59 +3530,66 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				software.InstallerID = &s.InstallerID
 			}
 		}
-		// software installed on the host not by fleet and there exists a vpp app that matches this software
-		// so that makes it available for install
-		installedVPPAppsSql := `
-			SELECT
-				vpp_apps.title_id AS id,
-				vpp_apps.adam_id AS vpp_app_adam_id,
-				vpp_apps.latest_version AS vpp_app_version,
-				vpp_apps.platform as vpp_app_platform,
-				NULLIF(vpp_apps.icon_url, '') as vpp_app_icon_url,
-				vpp_apps_teams.self_service AS vpp_app_self_service
-			FROM
-				host_software
-			INNER JOIN
-				software ON host_software.software_id = software.id
-			INNER JOIN
-				vpp_apps ON software.title_id = vpp_apps.title_id AND :host_platform IN (:vpp_apps_platforms)
-			INNER JOIN
-				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
-			WHERE
-				host_software.host_id = :host_id
-			`
-		installedVPPAppsSql, args, err := sqlx.Named(installedVPPAppsSql, namedArgs)
-		if err != nil {
-			return nil, nil, err
-		}
-		installedVPPAppsSql, args, err = sqlx.In(installedVPPAppsSql, args...)
-		if err != nil {
-			return nil, nil, err
-		}
-		var installedVPPAppIDs []*hostSoftware
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &installedVPPAppIDs, installedVPPAppsSql, args...)
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, s := range installedVPPAppIDs {
-			if s.VPPAppAdamID != nil {
-				tmpByVPPAdamID[*s.VPPAppAdamID] = s
+		if !opts.SelfServiceOnly || (opts.SelfServiceOnly && opts.IsMDMEnrolled) {
+			// software installed on the host not by fleet and there exists a vpp app that matches this software
+			// so that makes it available for install
+			installedVPPAppsSql := `
+				SELECT
+					vpp_apps.title_id AS id,
+					vpp_apps.adam_id AS vpp_app_adam_id,
+					vpp_apps.latest_version AS vpp_app_version,
+					vpp_apps.platform as vpp_app_platform,
+					NULLIF(vpp_apps.icon_url, '') as vpp_app_icon_url,
+					vpp_apps_teams.self_service AS vpp_app_self_service
+				FROM
+					host_software
+				INNER JOIN
+					software ON host_software.software_id = software.id
+				INNER JOIN
+					vpp_apps ON software.title_id = vpp_apps.title_id AND :host_platform IN (:vpp_apps_platforms)
+				INNER JOIN
+					vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+				WHERE
+					host_software.host_id = :host_id
+				`
+			installedVPPAppsSql, args, err := sqlx.Named(installedVPPAppsSql, namedArgs)
+			if err != nil {
+				return nil, nil, err
 			}
-			hostVPPInstalledTitles[s.ID] = s
-			// If a VPP app is installed on the host, but not by fleet
-			// it will be present in bySoftwareTitleID, because osquery returned it as inventory.
-			// We need to remove it from bySoftwareTitleID and add it to byVPPAdamID
-			if invetoriedSoftware, ok := bySoftwareTitleID[s.ID]; ok {
-				delete(bySoftwareTitleID, s.ID)
-				invetoriedSoftware.VPPAppAdamID = s.VPPAppAdamID
-				invetoriedSoftware.VPPAppVersion = s.VPPAppVersion
-				invetoriedSoftware.VPPAppPlatform = s.VPPAppPlatform
-				invetoriedSoftware.VPPAppIconURL = s.VPPAppIconURL
-				invetoriedSoftware.VPPAppSelfService = s.VPPAppSelfService
-				byVPPAdamID[*s.VPPAppAdamID] = invetoriedSoftware
-				hostVPPInstalledTitles[s.ID] = invetoriedSoftware
+			installedVPPAppsSql, args, err = sqlx.In(installedVPPAppsSql, args...)
+			if err != nil {
+				return nil, nil, err
+			}
+			var installedVPPAppIDs []*hostSoftware
+			err = sqlx.SelectContext(ctx, ds.reader(ctx), &installedVPPAppIDs, installedVPPAppsSql, args...)
+			if err != nil {
+				return nil, nil, err
+			}
+			for _, s := range installedVPPAppIDs {
+				if s.VPPAppAdamID != nil {
+					tmpByVPPAdamID[*s.VPPAppAdamID] = s
+				}
+				if VPPAppByFleet, ok := hostVPPInstalledTitles[s.ID]; ok {
+					// Vpp app installed by fleet, so we need to copy over the status,
+					// because all fleet installed apps show an installed status if available
+					tmpByVPPAdamID[*s.VPPAppAdamID].Status = VPPAppByFleet.Status
+				}
+				// If a VPP app is installed on the host, but not by fleet
+				// it will be present in bySoftwareTitleID, because osquery returned it as inventory.
+				// We need to remove it from bySoftwareTitleID and add it to byVPPAdamID
+				if invetoriedSoftware, ok := bySoftwareTitleID[s.ID]; ok {
+					delete(bySoftwareTitleID, s.ID)
+					invetoriedSoftware.VPPAppAdamID = s.VPPAppAdamID
+					invetoriedSoftware.VPPAppVersion = s.VPPAppVersion
+					invetoriedSoftware.VPPAppPlatform = s.VPPAppPlatform
+					invetoriedSoftware.VPPAppIconURL = s.VPPAppIconURL
+					invetoriedSoftware.VPPAppSelfService = s.VPPAppSelfService
+					byVPPAdamID[*s.VPPAppAdamID] = invetoriedSoftware
+					hostVPPInstalledTitles[s.ID] = invetoriedSoftware
+				}
 			}
 		}
+
 		for _, s := range availableSoftwareTitles {
 			// If it's a VPP app
 			if s.VPPAppAdamID != nil {

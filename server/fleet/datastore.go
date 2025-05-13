@@ -1595,6 +1595,10 @@ type Datastore interface {
 	// be resent upon the next cron run.
 	BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters BatchResendMDMProfileFilters) (int64, error)
 
+	// GetMDMConfigProfileStatus returns the number of hosts per status for the
+	// specified profile UUID.
+	GetMDMConfigProfileStatus(ctx context.Context, profileUUID string) (MDMConfigProfileStatus, error)
+
 	// GetHostMDMProfileInstallStatus returns the status of the profile for the host.
 	GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (MDMDeliveryStatus, error)
 
