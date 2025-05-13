@@ -1276,7 +1276,7 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 				level.Info(logger).Log("msg", "handling mdm sso: redirect with deviceinfo", "host_uuid", parsed.UDID, "serial", parsed.Serial)
 				http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
 				return
-			} 
+			}
 			if len(v) > 0 && v[0] != di {
 				// something is wrong, the device info in the query params does not match
 				// the one in the header, so we just log the error and continue to next

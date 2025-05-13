@@ -6175,7 +6175,7 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get mdm apple legacy enroll ref")
 		}
-		result = legacyRef		
+		result = legacyRef
 		return nil
 	})
 
@@ -6370,10 +6370,9 @@ WHERE
 	if err := sqlx.GetContext(ctx, q, &idp, stmt, hostUUID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // TODO: maybe return a not found error?
-		}		
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account")
 	}
 
 	return &idp, nil
 }
-
