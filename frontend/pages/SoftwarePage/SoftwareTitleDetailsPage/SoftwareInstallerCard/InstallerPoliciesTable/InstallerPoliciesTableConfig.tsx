@@ -17,6 +17,10 @@ interface ICellProps {
   row: {
     original: ISoftwareInstallPolicy;
   };
+  column: {
+    isSortedDesc: boolean;
+    title: string;
+  };
 }
 
 const generateInstallerPoliciesTableConfig = ({
@@ -25,9 +29,13 @@ const generateInstallerPoliciesTableConfig = ({
   const tableHeaders = [
     {
       accessor: "name",
-      disableSortBy: false, // TODO: Sorting works, but arrows don't show sorting
       title: "Name",
-      Header: () => <HeaderCell value="Name" disableSortBy={false} />,
+      Header: (cellProps: ICellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       Cell: (cellProps: ICellProps) => (
         <LinkCell
           value={cellProps.cell.value}

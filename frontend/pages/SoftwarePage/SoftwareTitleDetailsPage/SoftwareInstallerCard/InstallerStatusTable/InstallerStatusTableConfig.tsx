@@ -1,16 +1,14 @@
 import React from "react";
-import { InjectedRouter } from "react-router";
 
 import { ISoftwareTitleVersion } from "interfaces/software";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
+import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import { access } from "fs";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ISoftwareTitleDetailsTableConfigProps {
   softwareId?: number;
@@ -107,9 +105,7 @@ const generateSoftwareTitleDetailsTableConfig = ({
       Cell: (cellProps: ICellProps) => {
         return (
           <LinkCell
-            value={`${cellProps.cell.value} host${
-              cellProps.cell.value === 1 ? "" : "s"
-            }`}
+            value={generateResultsCountText("hosts", cellProps.cell.value)}
             path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
               software_title_id: softwareId,
               software_status: "installed",
@@ -143,7 +139,7 @@ const generateSoftwareTitleDetailsTableConfig = ({
       Cell: (cellProps: ICellProps) => {
         return (
           <LinkCell
-            value={`${cellProps.cell.value} hosts`}
+            value={generateResultsCountText("hosts", cellProps.cell.value)}
             path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
               software_title_id: softwareId,
               software_status: "pending",
@@ -177,7 +173,7 @@ const generateSoftwareTitleDetailsTableConfig = ({
       Cell: (cellProps: ICellProps) => {
         return (
           <LinkCell
-            value={`${cellProps.cell.value} hosts`}
+            value={generateResultsCountText("hosts", cellProps.cell.value)}
             path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
               software_title_id: softwareId,
               software_status: "failed",

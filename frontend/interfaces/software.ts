@@ -102,6 +102,7 @@ export interface ISoftwarePackage {
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[];
+  fleet_maintained_app_id?: number | null;
 }
 
 export const isSoftwarePackage = (

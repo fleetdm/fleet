@@ -37,12 +37,20 @@ const InstallerName = ({ name }: IInstallerNameProps) => {
   );
 };
 
+const renderInstallerDisplayText = (installerType: string, isFma: boolean) => {
+  if (installerType === "package") {
+    return isFma ? "Fleet-maintained" : "Custom package";
+  }
+  return "App Store (VPP)";
+};
+
 interface IInstallerDetailsWidgetProps {
   className?: string;
   softwareName: string;
   installerType: "package" | "vpp";
   addedTimestamp?: string;
   versionInfo?: JSX.Element;
+  isFma: boolean;
 }
 
 const InstallerDetailsWidget = ({
@@ -51,6 +59,7 @@ const InstallerDetailsWidget = ({
   installerType,
   addedTimestamp,
   versionInfo,
+  isFma,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
 
@@ -63,10 +72,6 @@ const InstallerDetailsWidget = ({
   };
 
   const renderDetails = () => {
-    // TODO: Fleet-maintained display text will be an option when BE returns it in the API
-    const installerDisplayText =
-      installerType === "package" ? "Custom package" : "App Store (VPP)";
-
     const renderTimeStamp = () =>
       addedTimestamp ? (
         <>
@@ -85,7 +90,7 @@ const InstallerDetailsWidget = ({
 
     return (
       <>
-        {installerDisplayText} &bull; {versionInfo}
+        {renderInstallerDisplayText(installerType, isFma)} &bull; {versionInfo}
         {renderTimeStamp()}
       </>
     );

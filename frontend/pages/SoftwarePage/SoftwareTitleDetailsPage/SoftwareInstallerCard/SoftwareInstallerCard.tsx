@@ -216,6 +216,10 @@ const SoftwareInstallerCard = ({
   const installerType = isSoftwarePackage(softwareInstaller)
     ? "package"
     : "vpp";
+  const isFleetMaintainedApp =
+    "fleet_maintained_app_id" in softwareInstaller &&
+    !!softwareInstaller.fleet_maintained_app_id;
+
   const {
     automatic_install_policies: automaticInstallPolicies,
   } = softwareInstaller;
@@ -308,6 +312,7 @@ const SoftwareInstallerCard = ({
             installerType={installerType}
             versionInfo={versionInfo}
             addedTimestamp={addedTimestamp}
+            isFma={isFleetMaintainedApp}
           />
           <div className={`${baseClass}__tags-wrapper`}>
             {Array.isArray(automaticInstallPolicies) &&
