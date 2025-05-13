@@ -1,8 +1,8 @@
-# Fleet development huides
+# Fleet development guides
 
 This directory contains guides for common development tasks in Fleet.
 
-## General huides
+## General guides
 
 - [Seeding Data](seeding-data.md) - Guide for seeding data in Fleet
 - [Committing Changes](committing-changes.md) - Guide for committing changes to Fleet
