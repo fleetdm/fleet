@@ -3251,7 +3251,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 			if installedTitle == nil {
 				// We somehow have a vpp app in host_vpp_software_installs,
-				// however osquery didnt pick it up in inventory
+				// however osquery didn't pick it up in inventory
 				continue
 			}
 			s.SoftwareID = installedTitle.SoftwareID
