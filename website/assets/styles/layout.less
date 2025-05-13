@@ -500,6 +500,11 @@ html, body {
         &:not(:last-of-type) {
           margin-bottom: 4px;
         }
+        &[target="_blank"] {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+        }
       }
       a:hover {
         text-decoration: none;
