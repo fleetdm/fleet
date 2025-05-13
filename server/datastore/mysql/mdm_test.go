@@ -5415,8 +5415,11 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 	// Setup funcs
 
 	// ===================================================
-	// MacOS
+	// MacOS base tests
 	// ===================================================
+	baseEarliestInstallDate := time.Now().UTC().Add(-24 * time.Hour)
+	overrideEarliestInstallDate := time.Now().UTC().Add(-6 * time.Hour)
+
 	setup1 := func() (uint, uint, string) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test",
@@ -6011,6 +6014,96 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		return team.ID, host.ID, host.UUID
 	}
 
+	// ===================================================
+	// MacOS earliest install date override tests
+	// ===================================================
+	setup9 := func() (uint, uint, string) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-9",
+			OsqueryHostID: ptr.String("osquery-macos-9"),
+			NodeKey:       ptr.String("node-key-macos-9"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 9"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team 1
+		profiles := []*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "T9.1", "T9.1", "d"),
+			configProfileForTest(t, "T9.2", "T9.2", "e"),
+			configProfileForTest(t, "T9.3", "T9.3", "f"),
+		}
+
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		require.NoError(t, err)
+		assert.True(t, updates.AppleConfigProfile)
+		assert.False(t, updates.WindowsConfigProfile)
+		assert.False(t, updates.AppleDeclaration)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		// We cannot control the generated profile UUIDs here so we need to map them back to the
+		// creatd profiles for test correctness
+		for i := 0; i < len(profs); i++ {
+			for j := 0; j < len(profiles); j++ {
+				if profs[i].Identifier == profiles[j].Identifier {
+					profiles[j].ProfileUUID = profs[i].ProfileUUID
+					break
+				}
+			}
+		}
+
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE profile_uuid IN (?, ?, ?)",
+					baseEarliestInstallDate,
+					profiles[0].ProfileUUID,
+					profiles[1].ProfileUUID,
+					profiles[2].ProfileUUID,
+				)
+				return err
+			},
+		)
+
+		// Note what we're doing here is overriding install date for the first profile, creating an
+		// HMAP entry that doesn't override it for the second, then the third has no corresponding
+		// HMAP entry at all(which also means no override).
+		ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:        profiles[0].ProfileUUID,
+				ProfileIdentifier:  profiles[0].Identifier,
+				ProfileName:        profiles[0].Name,
+				HostUUID:           host.UUID,
+				CommandUUID:        uuid.NewString(),
+				VariablesUpdatedAt: &overrideEarliestInstallDate,
+				Status:             &fleet.MDMDeliveryVerified,
+				OperationType:      fleet.MDMOperationTypeInstall,
+			},
+			{
+				ProfileUUID:       profiles[1].ProfileUUID,
+				ProfileIdentifier: profiles[1].Identifier,
+				ProfileName:       profiles[1].Name,
+				HostUUID:          host.UUID,
+				CommandUUID:       uuid.NewString(),
+				Status:            &fleet.MDMDeliveryVerified,
+				OperationType:     fleet.MDMOperationTypeInstall,
+			},
+		})
+		return team.ID, host.ID, host.UUID
+	}
+
 	tests := []struct {
 		name        string
 		setupFunc   func() (uint, uint, string)
@@ -6092,16 +6185,30 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				"T8.2": {Name: "T8.2"},
 			},
 		},
+		{
+			name:      "macos basic team profiles no labels, install date overridden on first",
+			setupFunc: setup9,
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T9.1": {Identifier: "T9.1", EarliestInstallDate: overrideEarliestInstallDate},
+				"T9.2": {Identifier: "T9.2", EarliestInstallDate: baseEarliestInstallDate},
+				"T9.3": {Identifier: "T9.3", EarliestInstallDate: baseEarliestInstallDate},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			teamID, hostID, hostUUID := tt.setupFunc()
+			timeZero := time.Time{}
 			if len(tt.wantMac) > 0 {
 				got, err := ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, hostID, hostUUID)
 				require.NoError(t, err)
 				for k, v := range tt.wantMac {
 					require.Contains(t, got, k)
 					require.Equal(t, v.Identifier, got[k].Identifier)
+					// Only check earliest install date if we are overriding it in the test setup
+					if v.EarliestInstallDate != timeZero {
+						require.Equal(t, v.EarliestInstallDate, got[k].EarliestInstallDate)
+					}
 				}
 			}
 
@@ -6111,6 +6218,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				for k, v := range tt.wantWindows {
 					require.Contains(t, got, k)
 					require.Equal(t, v.Name, got[k].Name)
+					// windows does not currently use or care about earliest install date
 				}
 			}
 		})
