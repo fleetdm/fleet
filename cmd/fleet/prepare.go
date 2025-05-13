@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -149,7 +150,15 @@ func tablesAndDataToString(tables, data []int64) string {
 func checkForRunningFleet() (*bool, error) {
 	// run: ps aux | grep 'fleet serve'
 	// jq '[{"query":.queries[] | .query}]'
-	// out := exec.Command("bash", "-c", "ps", "aux", "|", "grep", "'[f]leet serve'", "|", "grep", "-q", ".")
+	// out := exec.Command("bash", "-c", "ps", "aux", "|", "grep", "'[f]leet serve'", "|", "grep",
+	// "-q", ".")
+
+	switch runtime.GOOS {
+	case "darwin", "linux":
+		// TODO
+	case "windows":
+		// TODO
+	}
 	cmd := exec.Command("bash", "-c", `ps aux | grep '[f]leet serve'`)
 	// var cmdOut bytes.Buffer
 
