@@ -4907,7 +4907,7 @@ func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID 
 SELECT
 	COALESCE(MD5(CONCAT(COUNT(0), GROUP_CONCAT(HEX(mad.token)
 		ORDER BY
-			mad.uploaded_at DESC separator ''))), '') AS token,
+			mad.uploaded_at DESC, mad.declaration_uuid ASC separator ''))), '') AS token,
 	COALESCE(MAX(mad.created_at), NOW()) AS latest_created_timestamp
 FROM
 	host_mdm_apple_declarations hmad
@@ -5268,7 +5268,7 @@ func (ds *Datastore) MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context,
 	stmt := `
   UPDATE host_mdm_apple_declarations
   SET
-    status = ?,
+    status = ?
   WHERE
     host_uuid = ?
     AND declaration_uuid IN (?)
@@ -5282,7 +5282,7 @@ func (ds *Datastore) MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context,
 	}
 
 	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
-	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
+	return ctxerr.Wrap(ctx, err, "updating host declaration status to pending")
 }
 
 func (ds *Datastore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType string, rawJSON json.RawMessage) error {
