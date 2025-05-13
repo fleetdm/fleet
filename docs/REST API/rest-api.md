@@ -1933,8 +1933,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------|
-| client_id                         | string  | **Required**. The client ID is an identifier that you use to identify Fleet when configuring the identity provider.                          |
-| client_secret                     | string  | **Required.** The client secret is used to authenticate Fleet when connecting to the identity provider.                                      |
+| client_id                         | string  | **Required**. The identity provider (IdP) provides client ID to identify Fleet with the IdP.                          |
+| client_secret                     | string  | **Required.** The client secret is provided by the identity provider (IdP) to authenticate Fleet with the IdP.                              |
 | token_endpoint_url                | string  | **Required.** Token endpoint URL provided by the identity provider.                                                                          |
 
 <br/>
