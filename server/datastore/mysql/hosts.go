@@ -3883,24 +3883,24 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		}
 	}
 
-	return maybeAssociateHostMDMIdPWithScimUser(ctx, ds.writer(ctx), ds.logger, hostID, idp)
-}
-
-func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
-	if idp == nil {
-		// TODO: confirm desired behavior here
-		return nil
-	}
-
 	// Check if a SCIM user association already exists for this host.
 	var exists uint
-	err := sqlx.GetContext(ctx, tx, &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "check host_scim_user existence")
 	}
 	if exists > 0 {
 		// We do not replace/delete the association since the IdP SCIM username/email may have changed after the initial association was made.
 		// If the SCIM user is deleted, this association will be deleted via CASCADE.
+		return nil
+	}
+
+	return maybeAssociateHostMDMIdPWithScimUser(ctx, ds.writer(ctx), ds.logger, hostID, idp)
+}
+
+func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {
+	if idp == nil {
+		// TODO: confirm desired behavior here
 		return nil
 	}
 
