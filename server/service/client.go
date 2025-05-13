@@ -2161,12 +2161,13 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 		if numUpdates > 0 {
 			logFn("[+] would've updated %d label%s\n", numUpdates, pluralize(numUpdates, "", "s"))
 		}
-	} else {
-		logFn("[+] syncing %d label%s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "", "s"), len(config.Labels)-numUpdates, numUpdates)
-		err = c.ApplyLabels(config.Labels)
-		if err != nil {
-			return nil, err
-		}
+		return nil, nil
+	}
+
+	logFn("[+] syncing %d label%s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "", "s"), len(config.Labels)-numUpdates, numUpdates)
+	err = c.ApplyLabels(config.Labels)
+	if err != nil {
+		return nil, err
 	}
 	return labelsToDelete, nil
 }
