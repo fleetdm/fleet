@@ -8,12 +8,9 @@ Fleet's Orchestration functionality allows organizations to manage and query dev
 
 ## Contents
 
-- [Orchestration Overview](orchestration-overview.md)
-- [Live Queries](live-queries.md)
-- [Scheduled Queries](scheduled-queries.md)
-- [Query Packs](query-packs.md)
-- [Host Vitals](host-vitals.md)
-- [Teams and Access Control](teams-and-access-control.md)
+- [Understanding Host Vitals](understanding-host-vitals.md)
+- [Teams](teams.md)
+- [File Carving](file-carving.md)
 
 ## Related Resources
 

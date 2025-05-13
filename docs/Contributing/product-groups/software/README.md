@@ -19,4 +19,3 @@ Fleet's Software functionality allows organizations to manage software across th
 
 - [Software Architecture](../../architecture/software/)
 - [Software Development Guides](../../guides/software/)
-- [Vulnerability Processing](../../guides/vulnerability-processing.md)

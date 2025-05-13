@@ -4,6 +4,7 @@ This directory contains reference documentation for Fleet.
 
 ## API Reference
 
+- [API for Contributors](api-for-contributors.md) - API reference for contributors
 - [API Versioning](api-versioning.md) - Documentation on API versioning
 
 ## Configuration

@@ -9,12 +9,12 @@ Fleet's MDM functionality allows organizations to manage and secure devices acro
 ## Contents
 
 - [MDM Overview](mdm-overview.md)
-- [Apple MDM](apple-mdm.md)
-- [Windows MDM](windows-mdm.md)
 - [End User Authentication](mdm-end-user-authentication.md)
-- [Disk Encryption](disk-encryption.md)
-- [Automated Device Enrollment (ADE)](ade.md)
-- [MDM Migrations](mdm-migrations.md)
+- [Apple Account Driven User Enrollment](apple-account-driven-user-enrollment.md)
+- [Android MDM](android-mdm.md)
+- [Windows MDM Glossary and Protocol](windows-mdm-glossary-and-protocol.md)
+- [Custom Configuration Web URL](custom-configuration-web-url.md)
+- [Custom SCEP Integration](custom-scep-integration.md)
 
 ## Related Resources
 

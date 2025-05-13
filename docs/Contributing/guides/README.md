@@ -6,12 +6,9 @@ This directory contains guides for common development tasks in Fleet.
 
 - [Seeding Data](seeding-data.md) - Guide for seeding data in Fleet
 - [Committing Changes](committing-changes.md) - Guide for committing changes to Fleet
-- [Releasing Fleet](releasing-fleet.md) - Guide for releasing Fleet
 - [Fleetctl Apply](fleetctl-apply.md) - Guide for using fleetctl apply
-- [Audit Logs](audit-logs.md) - Guide for working with audit logs
 - [Simulate Slow Network](simulate-slow-network.md) - Guide for simulating a slow network
 - [Troubleshooting Live Queries](troubleshooting-live-queries.md) - Guide for troubleshooting live queries
-- [Vulnerability Processing](vulnerability-processing.md) - Guide for vulnerability processing
 
 ## UI Development
 
@@ -25,7 +22,8 @@ This directory contains guides for common development tasks in Fleet.
 
 ## Integration Guides
 
-- [SCIM Integration](integration/scim-integration.md) - Guide for integrating Fleet with SCIM
+- [SCIM Integration](integrations/scim-integration.md) - Guide for integrating Fleet with SCIM
+- [Digicert Integration](integrations/digicert-integration.md) - Guide for integrating Fleet with Digicert
 
 ## Product Group Guides
 

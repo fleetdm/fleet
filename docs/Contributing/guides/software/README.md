@@ -18,4 +18,3 @@ These guides provide step-by-step instructions for common Software development t
 
 - [Software Product Group Documentation](../../product-groups/software/) - Documentation for the Software product group
 - [Software Architecture](../../architecture/software/) - Architecture for Software
-- [Vulnerability Processing](../vulnerability-processing.md) - Guide for vulnerability processing
