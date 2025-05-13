@@ -966,7 +966,7 @@ func dbFieldName(t reflect.Type, fieldName string) (string, error) {
 	return name, nil
 }
 
-func getListHostsSelect(opt *fleet.HostListOptions) string {
+func getListHostsColumns(opt *fleet.HostListOptions) []string {
 	t := reflect.TypeOf(fleet.Host{})
 	fieldNames := opt.HostFieldNames
 	if opt.DeviceMapping {
@@ -979,7 +979,6 @@ func getListHostsSelect(opt *fleet.HostListOptions) string {
 		fieldNames = append(fieldNames, []string{"FailingPoliciesCount", "CriticalVulnerabilitiesCount", "TotalIssuesCount"}...)
 	}
 	dbFieldNames := make([]string, 0, len(fieldNames))
-	dbFieldNames = append(dbFieldNames, "h.id")
 	for _, fieldName := range fieldNames {
 		if fieldName == "ID" {
 			continue
@@ -990,8 +989,15 @@ func getListHostsSelect(opt *fleet.HostListOptions) string {
 			continue
 		}
 		switch fieldName {
-		case "ScriptsEnabled", "OrbitVersion", "DesktopVersion":
+		case "ScriptsEnabled":
+			opt.OrbitInfo = true
 			dbFieldNames = append(dbFieldNames, "hoi."+dbFieldName)
+		case "DesktopVersion":
+			opt.OrbitInfo = true
+			dbFieldNames = append(dbFieldNames, "hoi.desktop_version AS "+dbFieldName)
+		case "OrbitVersion":
+			opt.OrbitInfo = true
+			dbFieldNames = append(dbFieldNames, "hoi.version AS "+dbFieldName)
 		case "GigsDiskSpaceAvailable", "PercentDiskSpaceAvailable", "GigsTotalDiskSpace":
 			dbFieldNames = append(dbFieldNames, fmt.Sprintf("COALESCE(hd.%s, 0) as %s", dbFieldName, dbFieldName))
 		case "FailingPoliciesCount", "CriticalVulnerabilitiesCount", "TotalIssuesCount":
@@ -1006,6 +1012,7 @@ func getListHostsSelect(opt *fleet.HostListOptions) string {
 		case "LastRestartedAt":
 			dbFieldNames = append(dbFieldNames, "(CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at")
 		case "DeviceMapping":
+			opt.DeviceMapping = true
 			dbFieldNames = append(dbFieldNames, "COALESCE(dm.device_mapping, 'null') as device_mapping")
 		case "MDMHostData":
 			opt.MDMInfo = ptr.Bool(true)
@@ -1013,17 +1020,12 @@ func getListHostsSelect(opt *fleet.HostListOptions) string {
 			dbFieldNames = append(dbFieldNames, "h."+dbFieldName)
 		}
 	}
-	sql := "SELECT " + strings.Join(dbFieldNames, ", ")
-	if opt.MDMInfo == nil || *opt.MDMInfo {
-		sql += hostMDMSelect
-	}
-	fmt.Println(sql)
-	return sql
+	dbFieldNames = append(dbFieldNames, "h.id")
+	return dbFieldNames
 }
 
 var defaultHostListOptions = fleet.HostListOptions{
 	HostFieldNames: []string{
-		"ID",
 		"OsqueryHostID",
 		"CreatedAt",
 		"UpdatedAt",
@@ -1071,16 +1073,31 @@ var defaultHostListOptions = fleet.HostListOptions{
 		"SoftwareUpdatedAt",
 		"LastRestartedAt",
 	},
+	MDMInfo:       ptr.Bool(false),
+	DeviceMapping: false,
+	OrbitInfo:     false,
+	DisableIssues: true,
 }
-var defaultListHostsSelect = getListHostsSelect(&defaultHostListOptions)
+var defaultListHostsColumns = getListHostsColumns(&defaultHostListOptions)
 
 func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 	var sql string
+	var sqlColumns []string
 	if len(opt.HostFieldNames) == 0 {
-		sql = defaultListHostsSelect
+		sqlColumns = defaultListHostsColumns
 	} else {
+		opt.MDMInfo = ptr.Bool(false)
+		opt.DeviceMapping = false
+		opt.OrbitInfo = false
 		opt.DisableIssues = true
-		sql = getListHostsSelect(&opt)
+		sqlColumns = make([]string, 0, 0)
+	}
+	sqlColumns = append(sqlColumns, getListHostsColumns(&opt)...)
+
+	sql = fmt.Sprintf(`SELECT %s `, strings.Join(sqlColumns, ", "))
+	fmt.Println(sql)
+	if opt.MDMInfo == nil || *opt.MDMInfo {
+		sql += hostMDMSelect
 	}
 
 	var params []interface{}
@@ -1106,6 +1123,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	}
 
 	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params)
+	fmt.Println(sql)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts: apply host filters")
 	}

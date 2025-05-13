@@ -1633,9 +1633,13 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		}
 
 		// Get the user record
-		user, err := ds.UserByID(ctx, *userID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "failed to get user")
+		var user fleet.User
+		if userID != nil {
+			userPtr, err := ds.UserByID(ctx, *userID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to get user")
+			}
+			user = *userPtr
 		}
 
 		for i := 0; i < len(hosts); i += hostScriptBatchSize {
@@ -1669,12 +1673,13 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 					continue
 				}
 				upcomingActivitiesArgs[numValidHosts] = map[string]any{
-					"host_id":           host.ID,
-					"user_id":           userID,
-					"exec_id":           fmt.Sprintf("%s:%d", batchExecID, host.ID),
-					"user_name":         user.Name,
-					"user_email":        user.Email,
-					"user_gravatar_url": user.GravatarURL,
+					"host_id":            host.ID,
+					"user_id":            user.ID,
+					"exec_id":            fmt.Sprintf("%s:%d", batchExecID, host.ID),
+					"user_name":          user.Name,
+					"user_email":         user.Email,
+					"user_gravatar_url":  user.GravatarURL,
+					"batch_execution_id": batchExecID,
 				}
 				numValidHosts++
 			}
@@ -1685,9 +1690,9 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 			// Insert the upcoming activities for the valid hosts
 			uaInsertStmt := `
 INSERT INTO upcoming_activities
-	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
+	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, batch_execution_id, payload)
 VALUES
-	(:host_id, 0, :user_id, false, 'script', :exec_id,
+	(:host_id, 0, :user_id, false, 'script', :exec_id, :batch_execution_id,
 		JSON_OBJECT(
 			'sync_request', false,
 			'is_internal', false,
@@ -1701,9 +1706,9 @@ VALUES
 		// Insert the script upcoming activities
 		suaInsertStmt := `
 INSERT INTO script_upcoming_activities
-	(upcoming_activity_id, script_id, script_content_id, policy_id, setup_experience_script_id)			
+	(upcoming_activity_id, script_id, script_content_id)			
 SELECT 
-	id, "?" as script_id, "?" as script_content_id
+	id, ? as script_id, ? as script_content_id
 FROM upcoming_activities
 WHERE
 	upcoming_activities.batch_execution_id = ?
@@ -1713,7 +1718,7 @@ ORDER BY id`
 		}
 		// Insert the host script results
 		hsrInsertStmt := `
-INSERT INTO host_script_results
+INSERT INTO batch_script_execution_host_results
 	(batch_execution_id, host_id, host_execution_id)
 SELECT
 	batch_execution_id, host_id, CONCAT(batch_execution_id, ':', host_id)
@@ -1725,13 +1730,15 @@ ORDER BY host_id`
 			return ctxerr.Wrap(ctx, err, "failed to insert host script results")
 		}
 		// Insert the host script results for the errored hosts
-		hsrErrorsInsertStmt := `
-INSERT INTO host_script_results
-	(host_id, error)
-VALUES
-	(:host_id, :error)`
-		if _, err := sqlx.NamedExecContext(ctx, tx, hsrErrorsInsertStmt, erroredHosts); err != nil {
-			return ctxerr.Wrap(ctx, err, "failed to insert errored activities")
+		if len(erroredHosts) > 0 {
+			hsrErrorsInsertStmt := `
+	INSERT INTO batch_script_execution_host_results
+		(host_id, error)
+	VALUES
+		(:host_id, :error)`
+			if _, err := sqlx.NamedExecContext(ctx, tx, hsrErrorsInsertStmt, erroredHosts); err != nil {
+				return ctxerr.Wrap(ctx, err, "failed to insert errored activities")
+			}
 		}
 		return nil
 	})

@@ -1022,7 +1022,7 @@ func testHostListOptionsHostFields(t *testing.T, ds *Datastore) {
 	err := ds.SetOrUpdateHostOrbitInfo(context.Background(), hosts[0].ID, "1.2.3", sql.NullString{String: "4.5.6", Valid: true}, sql.NullBool{Bool: true, Valid: true})
 	require.NoError(t, err)
 
-	// Retrieve five hosts by ID
+	// Retrieve hosts with specific fields
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	hostsList, err := ds.ListHosts(context.Background(), filter, fleet.HostListOptions{HostFieldNames: []string{"UUID", "Hostname", "ScriptsEnabled"}})
 	require.NoError(t, err)
@@ -1035,8 +1035,12 @@ func testHostListOptionsHostFields(t *testing.T, ds *Datastore) {
 		assert.Equal(t, hosts[i].Hostname, host.Hostname)
 		assert.Nil(t, host.OsqueryHostID)
 		assert.Nil(t, host.NodeKey)
+		if i == 0 {
+			assert.True(t, *hostsList[0].ScriptsEnabled)
+		} else {
+			assert.Nil(t, host.ScriptsEnabled)
+		}
 	}
-	assert.Equal(t, hosts[0].ScriptsEnabled, hostsList[0].ScriptsEnabled)
 }
 
 func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
@@ -6991,6 +6995,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
+		Platform:        "darwin",
+		ScriptsEnabled:  ptr.Bool(true),
+		OrbitNodeKey:    ptr.String("orbit-node-key"),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
@@ -7269,7 +7276,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	_, err = ds.BatchExecuteScript(ctx, nil, script.ID, []*fleet.Host{host})
+	scriptUser := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+	_, err = ds.BatchExecuteScript(ctx, ptr.Uint(scriptUser.ID), script.ID, []*fleet.Host{host})
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
