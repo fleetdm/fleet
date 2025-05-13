@@ -105,8 +105,10 @@ func TestDeclarativeManagement_DeclarationItems(t *testing.T) {
 	err = json.Unmarshal(response, &declarationItemsResponse)
 	require.NoError(t, err)
 
-	// Verify the token in the response
-	require.NotEmpty(t, declarationItemsResponse.DeclarationsToken)
+	// Get the expected declarations token from the DB.
+	declarationsToken, err := ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, declarationsToken.DeclarationsToken, declarationItemsResponse.DeclarationsToken)
 
 	// Verify the declarations in the response
 	require.Len(t, declarationItemsResponse.Declarations.Configurations, 1)
