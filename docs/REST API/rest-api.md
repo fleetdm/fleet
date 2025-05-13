@@ -1914,7 +1914,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------ |
 | saml                              | object  | See [`mdm.end_user_authentication.saml`](#mdm-end-user-authentication-saml).               |
-| oauth_rop                         | object  | See [`mdm.end_user_authentication.oatuh_rop`](#mdm-end-user-authentication-oauth-rop).     |
+| oauth_ropc                        | object  | See [`mdm.end_user_authentication.oatuh_ropc`](#mdm-end-user-authentication-oauth-ropc).     |
 
 ##### mdm.end_user_authentication.saml
 
@@ -1927,9 +1927,9 @@ _Available in Fleet Premium._
 | metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. Must be either https or http. |
 | metadata                          | string  | Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
 
-##### mdm.end_user_authentication.oauth_rop
+##### mdm.end_user_authentication.oauth_ropc
 
-`oauth_rop` is an object with the following structure:
+`oauth_ropc` is an object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------|
