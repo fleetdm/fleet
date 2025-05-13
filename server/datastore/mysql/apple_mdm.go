@@ -5105,7 +5105,18 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 			fmt.Sprintf(baseStmt, strings.TrimSuffix(valuePart, ",")),
 			args...,
 		)
-		return err
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending declarations insert")
+		}
+
+		// We do this cleanup as part of the main insert flow (as opposed to the clean up job)
+		// because the IT admin expects to see the update relatively quickly after they upload a new declaration
+		// If this becomes a bottleneck, we can move this to a separate job.
+		err = cleanUpDuplicateRemoveInstall(ctx, tx, profilesToInsert)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "clean up duplicate remove/install declarations")
+		}
+		return nil
 	}
 
 	generateValueArgs := func(d *fleet.MDMAppleHostDeclaration) (string, []any) {
@@ -5127,6 +5138,71 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 
 	err = batchProcessDB(changedDeclarations, batchSize, generateValueArgs, executeUpsertBatch)
 	return updatedDB, ctxerr.Wrap(ctx, err, "inserting changed host declaration state")
+}
+
+func cleanUpDuplicateRemoveInstall(ctx context.Context, tx sqlx.ExtContext, profilesToInsert map[string]*fleet.MDMAppleHostDeclaration) error {
+	// If we are inserting a declaration that has a matching pending "remove" declaration (same hash),
+	// we will mark the insert as verified. Why? Because there is nothing for the host to do if the same
+	// declaration was removed and then immediately added back. This is a corner case that should rarely happen
+	// except in testing.
+	if len(profilesToInsert) == 0 {
+		return nil
+	}
+	var findRemoveProfilesArgs []any
+	for _, p := range profilesToInsert {
+		findRemoveProfilesArgs = append(findRemoveProfilesArgs, p.HostUUID, p.Token)
+	}
+	findRemoveProfiles := fmt.Sprintf(`
+		SELECT host_uuid, token
+		FROM host_mdm_apple_declarations
+		WHERE (host_uuid, token) IN (%s)
+		AND operation_type = ?
+		AND status = ?
+		`, strings.TrimSuffix(strings.Repeat("(?,?),", len(findRemoveProfilesArgs)), ","))
+	fmt.Printf("%s\n", findRemoveProfiles)
+	findRemoveProfilesArgs = append(findRemoveProfilesArgs, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+	type tokensToMark struct {
+		HostUUID string
+		Token    string
+	}
+	var tokensToMarkVerified []tokensToMark
+	err := sqlx.SelectContext(ctx, tx, &tokensToMarkVerified, findRemoveProfiles, findRemoveProfilesArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting tokens to mark verified")
+	}
+
+	if len(tokensToMarkVerified) > 0 {
+		deleteRemoveProfiles := fmt.Sprintf(`
+			DELETE FROM host_mdm_apple_declarations
+			WHERE (host_uuid, token) IN (%s)
+			AND operation_type = ?
+			AND status = ?
+			`, strings.TrimSuffix(strings.Repeat("(?,?),", len(tokensToMarkVerified)), ","))
+		var removeProfilesArgs []any
+		var markVerifiedArgs []any
+		markVerifiedArgs = append(markVerifiedArgs, fleet.MDMDeliveryVerified)
+		for _, t := range tokensToMarkVerified {
+			removeProfilesArgs = append(removeProfilesArgs, t.HostUUID, t.Token)
+			markVerifiedArgs = append(markVerifiedArgs, t.HostUUID, t.Token)
+		}
+		removeProfilesArgs = append(removeProfilesArgs, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+		_, err = tx.ExecContext(ctx, deleteRemoveProfiles, removeProfilesArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk delete pending declarations")
+		}
+		markInstallProfilesVerified := fmt.Sprintf(`
+			UPDATE host_mdm_apple_declarations
+			SET status = ?
+			WHERE (host_uuid, token) IN (%s)
+			AND operation_type = ?
+			`, strings.TrimSuffix(strings.Repeat("(?,?),", len(tokensToMarkVerified)), ","))
+		markVerifiedArgs = append(markVerifiedArgs, fleet.MDMOperationTypeInstall)
+		_, err = tx.ExecContext(ctx, markInstallProfilesVerified, markVerifiedArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set declarations mark verified")
+		}
+	}
+	return nil
 }
 
 // mdmAppleGetHostsWithChangedDeclarationsDB returns a
