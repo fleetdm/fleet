@@ -523,7 +523,7 @@ func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID 
 	stmt := `
 	SELECT
 		hmap.host_uuid,
-		hmap.profile_uuid,F
+		hmap.profile_uuid,
 		hmap.status,
 		hmmc.challenge_retrieved_at,
 		hmmc.not_valid_before,
