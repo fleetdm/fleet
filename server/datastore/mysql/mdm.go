@@ -728,7 +728,7 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 
 	switch host.Platform {
 	case "darwin", "ios", "ipados":
-		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host.ID, host.UUID)
+		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host)
 	case "windows":
 		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
 	default:
@@ -830,7 +830,7 @@ HAVING
 	return byName, nil
 }
 
-func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint, hostUUID string) (map[string]*fleet.ExpectedMDMProfile, error) {
+func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID uint, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
 -- profiles without labels
 SELECT
@@ -932,7 +932,7 @@ HAVING
 `
 
 	var rows []*fleet.ExpectedMDMProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, hostID, teamID, hostID, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
@@ -948,7 +948,7 @@ HAVING
 	WHERE host_uuid = ? AND variables_updated_at IS NOT NULL
 	`
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &variableUpdateTimes, variableUpdateTimesStmt, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &variableUpdateTimes, variableUpdateTimesStmt, host.UUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 	variableUpdateTimesByProfileUUID := make(map[string]time.Time, len(variableUpdateTimes))

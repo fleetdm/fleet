@@ -269,7 +269,7 @@ type HostMDMAppleProfile struct {
 	Status             *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType      MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail             string             `db:"detail" json:"detail"`
-	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"variables_updated_at"`
+	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"-"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.

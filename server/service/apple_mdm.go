@@ -4205,6 +4205,7 @@ func preprocessProfileContents(
 				strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPProxyURLPrefix) {
 				// Give a few minutes leeway to account for clock skew
 				variablesUpdatedAt = ptr.Time(time.Now().UTC().Add(-3 * time.Minute))
+				break
 			}
 		}
 
