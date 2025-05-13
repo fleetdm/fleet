@@ -2805,3 +2805,218 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /configuration_profiles/resend/batch
+////////////////////////////////////////////////////////////////////////////////
+
+type batchResendMDMProfileToHostsRequest struct {
+	ProfileUUID string `json:"profile_uuid"`
+	Filters     struct {
+		ProfileStatus string `json:"profile_status"`
+	} `json:"filters"`
+}
+
+type batchResendMDMProfileToHostsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchResendMDMProfileToHostsResponse) Error() error { return r.Err }
+
+func (r batchResendMDMProfileToHostsResponse) Status() int { return http.StatusAccepted }
+
+func batchResendMDMProfileToHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchResendMDMProfileToHostsRequest)
+
+	if err := svc.BatchResendMDMProfileToHosts(ctx, req.ProfileUUID, fleet.BatchResendMDMProfileFilters{
+		ProfileStatus: fleet.MDMDeliveryStatus(req.Filters.ProfileStatus),
+	}); err != nil {
+		return batchResendMDMProfileToHostsResponse{Err: err}, nil
+	}
+	return batchResendMDMProfileToHostsResponse{}, nil
+}
+
+func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) error {
+	// do a basic authz check that before we can make a more specific check based
+	// on the team of the profile (just to ensure the user has _some_
+	// authorization before loading the profile).
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	switch filters.ProfileStatus {
+	case fleet.MDMDeliveryFailed:
+		// ok, only supported filter for now
+	default:
+		return &fleet.BadRequestError{
+			Message: "Invalid profile_status filter value, only 'failed' is currently supported.",
+		}
+	}
+
+	// get the profile to get the team it belongs to
+	var (
+		teamID      *uint
+		profileName string
+	)
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple MDM enabled")
+		}
+
+		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return err
+		}
+		teamID = prof.TeamID
+		profileName = prof.Name
+
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			err := fleet.NewInvalidArgumentError("profile_uuid", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+		}
+
+		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return err
+		}
+		teamID = prof.TeamID
+		profileName = prof.Name
+
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		return &fleet.BadRequestError{
+			Message: "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles.",
+		}
+
+	default:
+		return fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
+	}
+
+	// now we can do a write authz check based on team id of the profile
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	count, err := svc.ds.BatchResendMDMProfileToHosts(ctx, profileUUID, filters)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if count > 0 {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeResentConfigurationProfileBatch{
+				ProfileName: profileName,
+				HostCount:   count,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for batch-resend of profile")
+		}
+	}
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /configuration_profile/{profile_uuid}/status
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMConfigProfileStatusRequest struct {
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+type getMDMConfigProfileStatusResponse struct {
+	fleet.MDMConfigProfileStatus
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMConfigProfileStatusResponse) Error() error { return r.Err }
+
+func getMDMConfigProfileStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getMDMConfigProfileStatusRequest)
+
+	status, err := svc.GetMDMConfigProfileStatus(ctx, req.ProfileUUID)
+	if err != nil {
+		return getMDMConfigProfileStatusResponse{Err: err}, nil
+	}
+
+	return getMDMConfigProfileStatusResponse{MDMConfigProfileStatus: status}, nil
+}
+
+func (svc *Service) GetMDMConfigProfileStatus(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error) {
+	// do a basic authz check that before we can make a more specific check based
+	// on the team of the profile (just to ensure the user has _some_
+	// authorization before loading the profile).
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
+		return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, err)
+	}
+
+	// get the profile to get the team it belongs to
+	var teamID *uint
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple MDM enabled")
+		}
+
+		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return fleet.MDMConfigProfileStatus{}, err
+		}
+		if _, ok := mobileconfig.FleetPayloadIdentifiers()[prof.Identifier]; ok {
+			// this endpoint is for custom settings, not fleet-controlled profiles,
+			// return not found if such a profile is requested here (status of e.g.
+			// FileVault is considerably different than just checking the status of
+			// the profile).
+			return fleet.MDMConfigProfileStatus{}, fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
+		}
+		teamID = prof.TeamID
+
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			err := fleet.NewInvalidArgumentError("profile_uuid", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+		}
+
+		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return fleet.MDMConfigProfileStatus{}, err
+		}
+		if ok := slices.Contains(mdm.ListFleetReservedWindowsProfileNames(), prof.Name); ok {
+			// this endpoint is for custom settings, not fleet-controlled profiles,
+			// return not found if such a profile is requested here.
+			return fleet.MDMConfigProfileStatus{}, fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
+		}
+		teamID = prof.TeamID
+
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile_uuid", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple MDM enabled")
+		}
+
+		decl, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
+		if err != nil {
+			return fleet.MDMConfigProfileStatus{}, err
+		}
+		if ok := slices.Contains(mdm.ListFleetReservedMacOSDeclarationNames(), decl.Name); ok {
+			// this endpoint is for custom settings, not fleet-controlled profiles,
+			// return not found if such a profile is requested here (status of e.g.
+			// FileVault is considerably different than just checking the status of
+			// the profile).
+			return fleet.MDMConfigProfileStatus{}, fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
+		}
+		teamID = decl.TeamID
+
+	default:
+		return fleet.MDMConfigProfileStatus{}, fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
+	}
+
+	// now we can do a read authz check based on team id of the profile
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, err)
+	}
+
+	status, err := svc.ds.GetMDMConfigProfileStatus(ctx, profileUUID)
+	if err != nil {
+		return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, err)
+	}
+	return status, nil
+}

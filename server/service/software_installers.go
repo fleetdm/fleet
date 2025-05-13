@@ -775,6 +775,37 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 	return fleet.ErrMissingLicense
 }
 
+type fleetDeviceSoftwareUninstallRequest struct {
+	Token           string `url:"token"`
+	SoftwareTitleID uint   `url:"software_title_id"`
+}
+
+func (r *fleetDeviceSoftwareUninstallRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type submitDeviceSoftwareUninstallResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r submitDeviceSoftwareUninstallResponse) Error() error { return r.Err }
+func (r submitDeviceSoftwareUninstallResponse) Status() int  { return http.StatusAccepted }
+
+func submitDeviceSoftwareUninstall(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return submitDeviceSoftwareUninstallResponse{Err: err}, nil
+	}
+
+	req := request.(*fleetDeviceSoftwareUninstallRequest)
+	if err := svc.UninstallSoftwareTitle(ctx, host.ID, req.SoftwareTitleID); err != nil {
+		return submitDeviceSoftwareUninstallResponse{Err: err}, nil
+	}
+
+	return submitDeviceSoftwareUninstallResponse{}, nil
+}
+
 func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
 	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
 	if !alreadyAuthenticated {

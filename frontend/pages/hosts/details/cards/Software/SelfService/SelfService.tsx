@@ -27,7 +27,7 @@ import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwa
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
-import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
 import SearchField from "components/forms/fields/SearchField";
@@ -108,7 +108,6 @@ const SoftwareSelfService = ({
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: isSoftwareEnabled,
     keepPreviousData: true,
-    staleTime: 7000,
     onSuccess: (response) => {
       setSelfServiceData(response);
     },
@@ -292,7 +291,7 @@ const SoftwareSelfService = ({
             ...category,
             value: String(category.id), // DropdownWrapper only accepts string
           }))}
-          value={String(queryParams.category_id) || ""}
+          value={String(queryParams.category_id || 0)}
           onChange={onCategoriesDropdownChange}
           name="categories-dropdown"
           className={`${baseClass}__categories-dropdown`}
@@ -312,7 +311,7 @@ const SoftwareSelfService = ({
     }
 
     if (isError) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      return <DeviceUserError />; // Only shown on DeviceUserPage not HostDetailsPage
     }
 
     if (isEmpty || !selfServiceData) {

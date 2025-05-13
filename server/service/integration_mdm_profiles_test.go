@@ -5909,3 +5909,244 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	require.NoError(t, err)
 	assert.Len(t, profiles, 3)
 }
+
+func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	// create a few hosts
+	host1, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host3, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	forceSetAppleHostProfileStatus := func(hostUUID string, profile *fleet.MDMConfigProfilePayload, profileContent []byte, status fleet.MDMDeliveryStatus) {
+		ctx := t.Context()
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+				(profile_identifier, host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
+			VALUES
+				(?, ?, ?, ?, ?, ?, UNHEX(MD5(?)), ?)
+			ON DUPLICATE KEY UPDATE
+				status = VALUES(status),
+				operation_type = VALUES(operation_type)
+			`,
+				profile.Identifier, hostUUID, status, "install", uuid.NewString(), profile.Name, profileContent, profile.ProfileUUID)
+			return err
+		})
+	}
+
+	forceSetWindowsHostProfileStatus := func(hostUUID string, profile *fleet.MDMConfigProfilePayload, profileContent []byte, status fleet.MDMDeliveryStatus) {
+		ctx := t.Context()
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
+				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
+			VALUES
+				(?, ?, ?, ?, ?, UNHEX(MD5(?)), ?)
+			ON DUPLICATE KEY UPDATE
+				status = VALUES(status),
+				operation_type = VALUES(operation_type)
+			`,
+				hostUUID, status, "install", uuid.NewString(), profile.Name, profileContent, profile.ProfileUUID)
+			return err
+		})
+	}
+
+	// register a couple profiles for Apple and one for Windows
+	profN1 := mobileconfigForTest("N1", "I1")
+	profN2 := mobileconfigForTest("N2", "I2")
+	profN3 := syncMLForTest("./Foo/N3")
+	declN4 := declarationForTest("N4")
+	batchRequest := batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: profN1},
+		{Name: "N2", Contents: profN2},
+		{Name: "N3", Contents: profN3},
+		{Name: "N4", Contents: declN4},
+	}}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchRequest, http.StatusNoContent)
+
+	// list the profiles to get the UUIDs
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
+	profNameToPayload := make(map[string]*fleet.MDMConfigProfilePayload)
+	for _, prof := range listResp.Profiles {
+		profNameToPayload[prof.Name] = prof
+	}
+
+	// get status for non-existing profile
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", "ano-such-profile"), nil, http.StatusNotFound)
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", "wno-such-profile"), nil, http.StatusNotFound)
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", "dno-such-profile"), nil, http.StatusNotFound)
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", "zno-such-profile"), nil, http.StatusNotFound)
+
+	// get status for existing profiles, all 0 counts
+	for _, uuid := range []string{profNameToPayload["N1"].ProfileUUID, profNameToPayload["N2"].ProfileUUID, profNameToPayload["N3"].ProfileUUID} {
+		var statusResp getMDMConfigProfileStatusResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", uuid), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+		require.Equal(t, fleet.MDMConfigProfileStatus{}, statusResp.MDMConfigProfileStatus)
+	}
+	// except for the declaration, which is immediately set as pending on the hosts
+	var statusResp getMDMConfigProfileStatusResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N4"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 2}, statusResp.MDMConfigProfileStatus)
+
+	// try to batch-resend a non-existing profile
+	batchReq := batchResendMDMProfileToHostsRequest{ProfileUUID: "zzzz"} // not a known prefix
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusNotFound)
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: "azzzz"} // unknown Apple profile
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusNotFound)
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: "wzzzz"} // unknown Windows profile
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusNotFound)
+
+	// batch-resend with an invalid filter
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToPayload["N1"].ProfileUUID}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryPending)
+	res := s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusBadRequest)
+	msg := extractServerErrorText(res.Body)
+	require.Contains(t, msg, "Invalid profile_status filter value, only 'failed' is currently supported.")
+
+	// batch-resend with an Apple DDM
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToPayload["N4"].ProfileUUID}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	res = s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusBadRequest)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, "Can't resend declaration (DDM) profiles.")
+
+	// batch-resend an Apple and a Windows profile, does nothing as it is not delivered yet
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToPayload["N1"].ProfileUUID}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToPayload["N3"].ProfileUUID}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
+
+	forceSetAppleHostProfileStatus(host1.UUID, profNameToPayload["N1"], profN1, fleet.MDMDeliveryPending)
+	forceSetAppleHostProfileStatus(host1.UUID, profNameToPayload["N2"], profN2, fleet.MDMDeliveryPending)
+	forceSetAppleHostProfileStatus(host2.UUID, profNameToPayload["N1"], profN1, fleet.MDMDeliveryPending)
+	forceSetAppleHostProfileStatus(host2.UUID, profNameToPayload["N2"], profN2, fleet.MDMDeliveryPending)
+	forceSetWindowsHostProfileStatus(host3.UUID, profNameToPayload["N3"], profN3, fleet.MDMDeliveryPending)
+
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		host1: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+		host2: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		host3: {
+			{Name: "N3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N1"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 2}, statusResp.MDMConfigProfileStatus)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N2"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 2}, statusResp.MDMConfigProfileStatus)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N3"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 1}, statusResp.MDMConfigProfileStatus)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N4"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 2}, statusResp.MDMConfigProfileStatus)
+
+	// acknowledge the Apple profiles, failing I2 on both hosts, and fail the Windows one
+	forceSetAppleHostProfileStatus(host1.UUID, profNameToPayload["N1"], profN1, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(host1.UUID, profNameToPayload["N2"], profN2, fleet.MDMDeliveryFailed)
+	forceSetAppleHostProfileStatus(host2.UUID, profNameToPayload["N1"], profN1, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(host2.UUID, profNameToPayload["N2"], profN2, fleet.MDMDeliveryFailed)
+	forceSetWindowsHostProfileStatus(host3.UUID, profNameToPayload["N3"], profN3, fleet.MDMDeliveryFailed)
+
+	// batch-resend N2 profile
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToPayload["N2"].ProfileUUID}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeResentConfigurationProfileBatch{}.ActivityName(),
+		fmt.Sprintf(`{"profile_name": %q, "host_count": %d}`, "N2", 2),
+		0,
+	)
+
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		host1: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+		host2: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		host3: {
+			{Name: "N3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryFailed},
+		},
+	})
+
+	// set I2/N2 as verifying
+	forceSetAppleHostProfileStatus(host1.UUID, profNameToPayload["N2"], profN2, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(host2.UUID, profNameToPayload["N2"], profN2, fleet.MDMDeliveryVerifying)
+
+	// batch-resend N3 profile
+	batchReq = batchResendMDMProfileToHostsRequest{ProfileUUID: profNameToPayload["N3"].ProfileUUID}
+	batchReq.Filters.ProfileStatus = string(fleet.MDMDeliveryFailed)
+	s.Do("POST", "/api/v1/fleet/configuration_profiles/resend/batch", batchReq, http.StatusAccepted)
+
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		host1: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+		host2: {
+			{Identifier: "I1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "I2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "N4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		host3: {
+			{Name: "N3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeResentConfigurationProfileBatch{}.ActivityName(),
+		fmt.Sprintf(`{"profile_name": %q, "host_count": %d}`, "N3", 1),
+		0,
+	)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N1"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+	require.Equal(t, fleet.MDMConfigProfileStatus{Verifying: 2}, statusResp.MDMConfigProfileStatus)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N2"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+	require.Equal(t, fleet.MDMConfigProfileStatus{Verifying: 2}, statusResp.MDMConfigProfileStatus)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N3"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 1}, statusResp.MDMConfigProfileStatus)
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", profNameToPayload["N4"].ProfileUUID), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
+	require.Equal(t, fleet.MDMConfigProfileStatus{Pending: 2}, statusResp.MDMConfigProfileStatus)
+
+	// trigger profile schedule to get the fleet-controlled profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	// list the profiles to get a fleet-controlled profile UUID
+	gotProfs, err := s.ds.GetHostMDMAppleProfiles(ctx, host1.UUID)
+	require.NoError(t, err)
+	var fleetReservedProfile string
+	for _, prof := range gotProfs {
+		// find the fleetd config one
+		if prof.Identifier == mobileconfig.FleetdConfigPayloadIdentifier {
+			fleetReservedProfile = prof.ProfileUUID
+		}
+	}
+	require.NotEmpty(t, fleetReservedProfile)
+	// fleet-reserved profiles are not returned by the API, only custom profiles
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", fleetReservedProfile), getMDMConfigProfileStatusRequest{}, http.StatusNotFound)
+}

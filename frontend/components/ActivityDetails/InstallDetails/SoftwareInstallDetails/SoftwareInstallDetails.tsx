@@ -19,6 +19,7 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
@@ -121,18 +122,36 @@ export const SoftwareInstallDetails = ({
 
   if (isLoading) {
     return <Spinner />;
-  } else if (isError && error?.status === 404) {
-    return (
-      <DataError
-        description="Install details are no longer available for this activity."
-        excludeIssueLink
-      />
-    );
-  } else if (isError) {
-    return <DataError description="Close this modal and try again." />;
-  } else if (!result) {
+  }
+
+  if (isError) {
+    if (error?.status === 404) {
+      return deviceAuthToken ? (
+        <DeviceUserError />
+      ) : (
+        <DataError
+          description="Install details are no longer available for this activity."
+          excludeIssueLink
+        />
+      );
+    }
+
+    if (error?.status === 401) {
+      return deviceAuthToken ? (
+        <DeviceUserError />
+      ) : (
+        <DataError description="Close this modal and try again." />
+      );
+    }
+  }
+
+  if (!result) {
     // FIXME: Find a better solution for this.
-    return <DataError description="No data returned." />;
+    return deviceAuthToken ? (
+      <DeviceUserError />
+    ) : (
+      <DataError description="No data returned." />
+    );
   }
 
   return (

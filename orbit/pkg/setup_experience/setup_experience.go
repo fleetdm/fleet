@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -35,6 +36,7 @@ type SetupExperiencer struct {
 	sd *swiftdialog.SwiftDialog
 	// Name of each step -> is that step done
 	steps   map[string]bool
+	uiSteps map[string]swiftdialog.ListItem
 	started bool
 }
 
@@ -43,6 +45,7 @@ func NewSetupExperiencer(client Client, rootDirPath string) *SetupExperiencer {
 		OrbitClient: client,
 		closeChan:   make(chan struct{}),
 		steps:       make(map[string]bool),
+		uiSteps:     make(map[string]swiftdialog.ListItem),
 		rootDirPath: rootDirPath,
 	}
 }
@@ -143,17 +146,24 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		}
 
 		for _, step := range steps {
-			item := resultToListItem(step)
-			if _, ok := s.steps[step.Name]; ok {
-				err = s.sd.UpdateListItemByTitle(item.Title, item.StatusText, item.Status)
-				if err != nil {
-					log.Info().Err(err).Msg("updating list item in setup experience UI")
+			currentStepState := resultToListItem(step)
+			if priorStepState, ok := s.uiSteps[step.Name]; ok {
+				if currentStepState != priorStepState {
+					// We only want to resend on change so we're not unnecessarily scrolling the UI
+					err = s.sd.UpdateListItemByTitle(currentStepState.Title, currentStepState.StatusText, currentStepState.Status)
+					if err != nil {
+						log.Info().Err(err).Msg("updating list item in setup experience UI")
+					}
+				} else {
+					log.Info().Msgf("setup experience: no change in status for %s", step.Name)
+					continue
 				}
 			} else {
-				err = s.sd.AddListItem(item)
+				err = s.sd.AddListItem(currentStepState)
 				if err != nil {
 					log.Info().Err(err).Msg("adding list item in setup experience UI")
 				}
+				s.uiSteps[step.Name] = currentStepState
 				s.steps[step.Name] = false
 			}
 
@@ -205,6 +215,14 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 		if err := s.sd.EnableButton1(true); err != nil {
 			log.Info().Err(err).Msg("enabling close button in setup experience UI")
+		}
+
+		// Sleep for a few seconds to let the user see the done message before closing
+		// the UI
+		time.Sleep(3 * time.Second)
+
+		if err := s.sd.Quit(); err != nil {
+			log.Info().Err(err).Msg("quitting setup experience UI on completion")
 		}
 	}
 
@@ -264,9 +282,12 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			ProgressText:     "Configuring your device...",
 			Button1Text:      "Close",
 			Button1Disabled:  true,
+			BlurScreen:       true,
+			OnTop:            true,
+			QuitKey:          "X", // Capital X to require command+shift+x
 		}
 
-		if err := s.sd.Start(context.Background(), initOpts); err != nil {
+		if err := s.sd.Start(context.Background(), initOpts, true); err != nil {
 			log.Error().Err(err).Msg("starting swiftDialog instance")
 		}
 

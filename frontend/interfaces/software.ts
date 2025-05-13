@@ -68,6 +68,20 @@ export type SoftwareCategory =
   | "Developer tools"
   | "Productivity";
 
+export interface ISoftwarePackageStatus {
+  installed: number;
+  pending_install: number;
+  failed_install: number;
+  pending_uninstall: number;
+  failed_uninstall: number;
+}
+
+export interface ISoftwareAppStoreAppStatus {
+  installed: number;
+  pending: number;
+  failed: number;
+}
+
 export interface ISoftwarePackage {
   name: string;
   last_install: string | null;
@@ -82,18 +96,13 @@ export interface ISoftwarePackage {
   automatic_install?: boolean; // POST only
   self_service: boolean;
   icon_url: string | null;
-  status: {
-    installed: number;
-    pending_install: number;
-    failed_install: number;
-    pending_uninstall: number;
-    failed_uninstall: number;
-  };
+  status: ISoftwarePackageStatus;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[];
+  fleet_maintained_app_id?: number | null;
 }
 
 export const isSoftwarePackage = (
@@ -109,11 +118,7 @@ export interface IAppStoreApp {
   icon_url: string;
   self_service: boolean;
   platform: typeof HOST_APPLE_PLATFORMS[number];
-  status: {
-    installed: number;
-    pending: number;
-    failed: number;
-  };
+  status: ISoftwareAppStoreAppStatus;
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   automatic_install?: boolean;
@@ -365,7 +370,7 @@ export interface ISoftwareInstallVersion {
 export interface IHostSoftwarePackage {
   name: string;
   self_service: boolean;
-  icon_url: string;
+  icon_url: string | null;
   version: string;
   last_install: ISoftwareLastInstall | null;
   categories?: SoftwareCategory[];
@@ -493,6 +498,7 @@ export interface IFleetMaintainedAppDetails {
   post_install_script: string;
   uninstall_script: string;
   url: string;
+  slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
   categories: SoftwareCategory[];
 }

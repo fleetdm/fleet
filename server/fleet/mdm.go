@@ -988,3 +988,19 @@ type MDMProfileIdentifierFleetVariables struct {
 	// findFleetVariables).
 	FleetVariables []string
 }
+
+// BatchResendMDMProfileFilters represents the filters to apply to hosts for
+// batch-redelivery of an MDM profile.
+type BatchResendMDMProfileFilters struct {
+	ProfileStatus MDMDeliveryStatus
+}
+
+// MDMConfigProfileStatus represents the number of hosts in each status for a
+// given configuration profile. See MDMProfilesSummary for more information on
+// each status, this struct is the same except for a single profile.
+type MDMConfigProfileStatus struct {
+	Verified  uint `json:"verified" db:"verified"`
+	Verifying uint `json:"verifying" db:"verifying"`
+	Pending   uint `json:"pending" db:"pending"`
+	Failed    uint `json:"failed" db:"failed"`
+}
