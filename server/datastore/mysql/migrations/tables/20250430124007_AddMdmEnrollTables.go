@@ -185,7 +185,7 @@ FROM
 		}
 	}
 	if len(refConflicts) > 0 {
-		msg += fmt.Sprintf("found legacy enroll references with duplicative or conflicting account information\n", len(refConflicts))
+		msg += fmt.Sprintf("found %d legacy enroll references with duplicative or conflicting account information\n", len(refConflicts))
 		for _, m := range refConflicts {
 			msg += fmt.Sprintf("  - %+v\n", m)
 		}

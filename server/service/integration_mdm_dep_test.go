@@ -3115,8 +3115,8 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 				t.Run(tc.name, func(t *testing.T) {
 					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						copy := *tc.machineInfo
-						mi = &copy
+						miCopy := *tc.machineInfo
+						mi = &miCopy
 						mi.Serial = devices[0].SerialNumber
 						mi.UDID = uuid.New().String()
 					}
@@ -3140,8 +3140,8 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 				t.Run(tc.name, func(t *testing.T) {
 					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						copy := *tc.machineInfo
-						mi = &copy
+						miCopy := *tc.machineInfo
+						mi = &miCopy
 						mi.Serial = devices[0].SerialNumber
 						mi.UDID = uuid.New().String()
 					}
@@ -3159,8 +3159,8 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 				t.Run(tc.name, func(t *testing.T) {
 					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						copy := *tc.machineInfo
-						mi = &copy
+						miCopy := *tc.machineInfo
+						mi = &miCopy
 						mi.Serial = devices[0].SerialNumber
 						mi.UDID = uuid.New().String()
 					}
@@ -3187,8 +3187,8 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 				t.Run(tc.name, func(t *testing.T) {
 					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						copy := *tc.machineInfo
-						mi = &copy
+						miCopy := *tc.machineInfo
+						mi = &miCopy
 						mi.Serial = devices[0].SerialNumber
 						mi.UDID = uuid.New().String()
 					}

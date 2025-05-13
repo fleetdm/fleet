@@ -1253,7 +1253,8 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 
 			// if we get here, the minimum os version is satisfied, so we continue with SSO flow
 			q := r.URL.Query()
-			if v, ok := q["deviceinfo"]; !ok || len(v) == 0 {
+			v, ok := q["deviceinfo"]
+			if !ok || len(v) == 0 {
 				// If the deviceinfo query param is empty, we add the deviceinfo to the URL and
 				// redirect.
 				//
@@ -1267,14 +1268,13 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 				level.Info(logger).Log("msg", "handling mdm sso: redirect with deviceinfo", "host_uuid", parsed.UDID, "serial", parsed.Serial)
 				http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
 				return
-			} else {
-				if v != nil && len(v) > 0 && v[0] != di {
-					// something is wrong, the device info in the query params does not match
-					// the one in the header, so we just log the error and continue to next
-					level.Error(logger).Log("msg", "device info in query params does not match header", "header", di, "query", v[0])
-				}
-				level.Info(logger).Log("msg", "handling mdm sso: proceed to next", "host_uuid", parsed.UDID, "serial", parsed.Serial)
+			} 
+			if len(v) > 0 && v[0] != di {
+				// something is wrong, the device info in the query params does not match
+				// the one in the header, so we just log the error and continue to next
+				level.Error(logger).Log("msg", "device info in query params does not match header", "header", di, "query", v[0])
 			}
+			level.Info(logger).Log("msg", "handling mdm sso: proceed to next", "host_uuid", parsed.UDID, "serial", parsed.Serial)
 		}
 
 		next.ServeHTTP(w, r)
