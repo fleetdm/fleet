@@ -5468,7 +5468,6 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 
 	sort.SliceStable(tokens, func(i, j int) bool {
 		if tokens[i].uploadedAt.Equal(tokens[j].uploadedAt) {
-			// TODO: Add test coverage for this!
 			return tokens[i].declarationUUID < tokens[j].declarationUUID
 		}
 		return tokens[i].uploadedAt.After(tokens[j].uploadedAt)
