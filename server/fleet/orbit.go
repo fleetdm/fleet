@@ -57,7 +57,7 @@ type OrbitConfigNotifications struct {
 	// this alongside EscrowedKeySlot to validate that the escrowed key is still valid.
 	EscrowedKeySalt string `json:"escrowed_key_salt,omitempty"`
 
-	// LUSKEySlot if we are escrowing a disk encryption key for Linux,
+	// EscrowedKeySlot if we are escrowing a disk encryption key for Linux,
 	// this will have the key slot of the escrowed key. We use
 	//	// this alongside EscrowedKeySalt to validate that the escrowed key is still valid.
 	EscrowedKeySlot *uint `json:"escrowed_key_slot,omitempty"`
