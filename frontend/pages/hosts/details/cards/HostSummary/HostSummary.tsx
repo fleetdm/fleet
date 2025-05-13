@@ -147,7 +147,7 @@ const HostSummary = ({
           criticalVulnerabilitiesCount={
             summaryData.issues.critical_vulnerabilities_count
           }
-          failingPoliciesCount={summaryData.issues.failing_policies_count}
+          failingPoliciesCount={summaryData.failingPoliciesCount}
           tooltipPosition="bottom"
         />
       }

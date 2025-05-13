@@ -21,6 +21,7 @@ const baseClass = "policies-card";
 
 interface IPoliciesProps {
   policies: IHostPolicy[];
+  failingPoliciesCount: number;
   isLoading: boolean;
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
@@ -35,6 +36,7 @@ interface IHostPoliciesRowProps extends Row {
 
 const Policies = ({
   policies,
+  failingPoliciesCount,
   isLoading,
   deviceUser,
   togglePolicyDetailsModal,
@@ -50,9 +52,6 @@ const Policies = ({
     // Remove view all hosts link
     tableHeaders.pop();
   }
-  const failingResponses: IHostPolicy[] =
-    policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
-
   const onClickRow = useCallback(
     (row: IHostPoliciesRowProps) => {
       togglePolicyDetailsModal(row.original);
@@ -112,8 +111,11 @@ const Policies = ({
 
     return (
       <>
-        {failingResponses?.length > 0 && (
-          <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
+        {failingPoliciesCount > 0 && (
+          <PolicyFailingCount
+            failCount={failingPoliciesCount}
+            deviceUser={deviceUser}
+          />
         )}
         <TableContainer
           columnConfigs={tableHeaders}

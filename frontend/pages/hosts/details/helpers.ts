@@ -1,5 +1,9 @@
 /** Helpers used across the host details and my device pages and components. */
-import { HostMdmDeviceStatus, HostMdmPendingAction } from "interfaces/host";
+import {
+  HostMdmDeviceStatus,
+  HostMdmPendingAction,
+  IHost,
+} from "interfaces/host";
 import {
   IHostMdmProfile,
   WindowsDiskEncryptionStatus,
@@ -113,4 +117,13 @@ export const isDeviceStatusUpdating = (
   deviceStatus: HostMdmDeviceStatusUIState
 ) => {
   return deviceUpdatingStates.includes(deviceStatus as any);
+};
+
+export const getHostFailingPoliciesCount = (host: IHost | undefined) => {
+  if (!host) {
+    return 0;
+  }
+  return host.policies.reduce((sum, policy) => {
+    return policy.response === "fail" ? sum + 1 : sum;
+  }, 0);
 };

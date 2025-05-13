@@ -1,4 +1,3 @@
-import { IHostPolicy } from "interfaces/policy";
 import React from "react";
 
 import Icon from "components/Icon/Icon";
@@ -7,17 +6,13 @@ import InfoBanner from "components/InfoBanner";
 const baseClass = "policy-failing-count";
 
 interface IPolicyFailingCountProps {
-  policyList: IHostPolicy[];
+  failCount: number;
   deviceUser?: boolean;
 }
 const PolicyFailingCount = ({
-  policyList,
+  failCount,
   deviceUser,
 }: IPolicyFailingCountProps): JSX.Element | null => {
-  const failCount = policyList.reduce((sum, policy) => {
-    return policy.response === "fail" ? sum + 1 : sum;
-  }, 0);
-
   return failCount ? (
     <InfoBanner className={baseClass} color="grey" borderRadius="xlarge">
       <div className={`${baseClass}__count`}>
