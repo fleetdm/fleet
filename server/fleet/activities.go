@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-//go:generate go run gen_activity_doc.go "../../docs/Contributing/Audit-logs.md"
+//go:generate go run gen_activity_doc.go "../../docs/Contributing/guides/audit-logs.md"
 
 type ContextKey string
 

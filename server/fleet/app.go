@@ -1294,7 +1294,7 @@ const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
 	// Maximum number of enroll secrets that can be set per team, or globally.
-	// Make sure to change the documentation in docs/Contributing/API-for-Contributors.md
+	// Make sure to change the documentation in docs/Contributing/workflows/api-for-contributors.md
 	// if you change that value (look for the string `secrets`).
 	MaxEnrollSecretsCount = 50
 )

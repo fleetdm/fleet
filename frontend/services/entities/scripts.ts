@@ -69,7 +69,7 @@ export interface IHostScriptsResponse {
 /**
  * Request body for POST /scripts/run
  *
- * https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#run-script-asynchronously
+ * https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/api-for-contributors.md#run-script-asynchronously
  */
 export interface IScriptRunRequest {
   host_id: number;
@@ -80,7 +80,7 @@ export interface IScriptRunRequest {
 /**
  * Response body for POST /scripts/run
  *
- * https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#run-script-asynchronously
+ * https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/api-for-contributors.md#run-script-asynchronously
  */
 export interface IScriptRunResponse {
   host_id: number;
