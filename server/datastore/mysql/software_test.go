@@ -4925,6 +4925,13 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	host.TeamID = &tm.ID
 	numberOfApps := 5
 
+	// create a second host and add it to the team
+	anotherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	nanoEnroll(t, ds, anotherHost, false)
+	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{anotherHost.ID})
+	require.NoError(t, err)
+	anotherHost.TeamID = &tm.ID
+
 	software := []fleet.Software{}
 	for i := 0; i < numberOfApps; i++ {
 		software = append(software, fleet.Software{
@@ -4954,6 +4961,34 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
+
+	// vpp1 is not installed yet, but host is mdm enrolled so it should show up
+	sw, _, err := ds.ListHostSoftware(
+		ctx,
+		anotherHost,
+		fleet.HostSoftwareTitleListOptions{
+			OnlyAvailableForInstall: true,
+			IsMDMEnrolled:           true,
+			ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		},
+	)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	assert.Equal(t, vPPApp.Name, sw[0].Name)
+
+	// vpp1 is not installed yet, but host is not mdm enrolled so it should not show up
+	sw, _, err = ds.ListHostSoftware(
+		ctx,
+		anotherHost,
+		fleet.HostSoftwareTitleListOptions{
+			OnlyAvailableForInstall: true,
+			IsMDMEnrolled:           false,
+			ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		},
+	)
+	require.NoError(t, err)
+	assert.Len(t, sw, 0)
+
 	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user)
 	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
 	require.NoError(t, err)
@@ -4998,13 +5033,6 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, sw[0].InstalledVersions, 1)
 	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
-
-	// create a second host and add it to the team
-	anotherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
-	nanoEnroll(t, ds, anotherHost, false)
-	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{anotherHost.ID})
-	require.NoError(t, err)
-	anotherHost.TeamID = &tm.ID
 
 	// have the second host install a vpp app, but not by fleet
 	res, err = ds.writer(ctx).ExecContext(ctx, `
