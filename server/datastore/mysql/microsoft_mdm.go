@@ -754,6 +754,7 @@ WHERE
 }
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
+	// TODO(mna): on deletion, cancel any pending host installs immediately for this profile.
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)

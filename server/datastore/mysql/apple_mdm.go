@@ -346,6 +346,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUI
 				return err
 			}
 
+			// TODO(mna): on deletion, cancel any pending host installs immediately for this profile.
 			if err := deleteUnsentAppleHostMDMDeclaration(ctx, tx, profileUUID); err != nil {
 				return err
 			}
@@ -359,6 +360,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUI
 			return err
 		}
 
+		// TODO(mna): on deletion, cancel any pending host installs immediately for this profile.
 		if err := deleteUnsentAppleHostMDMProfile(ctx, tx, profileUUID); err != nil {
 			return err
 		}
@@ -6220,7 +6222,7 @@ func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID str
 	query := `
 	SELECT nd.authenticate_at, ne.last_seen_at
 	FROM nano_devices nd
-	  INNER JOIN nano_enrollments ne ON ne.id = nd.id 
+	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	WHERE ne.type = 'Device' AND nd.id = ?`
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
 
