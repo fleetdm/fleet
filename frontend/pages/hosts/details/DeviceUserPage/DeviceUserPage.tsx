@@ -77,7 +77,6 @@ import {
 import HostHeader from "../cards/HostHeader/HostHeader";
 import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceTableConfig";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
-import { getHostFailingPoliciesCount } from "../helpers";
 
 const baseClass = "device-user";
 
@@ -306,10 +305,7 @@ const DeviceUserPage = ({
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
 
-  const summaryData = {
-    ...normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA)),
-    failingPoliciesCount: getHostFailingPoliciesCount(host),
-  };
+  const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
@@ -406,6 +402,8 @@ const DeviceUserPage = ({
   };
 
   const renderDeviceUserPage = () => {
+    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+
     // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
     // a premium-only message in the case that a user tries direct navigation to a premium-only page
     // or silently redirect as below?
@@ -502,10 +500,7 @@ const DeviceUserPage = ({
                   )}
                   {isPremiumTier && (
                     <Tab>
-                      <TabText
-                        count={summaryData.failingPoliciesCount}
-                        isErrorCount
-                      >
+                      <TabText count={failingPoliciesCount} isErrorCount>
                         Policies
                       </TabText>
                     </Tab>
@@ -592,7 +587,6 @@ const DeviceUserPage = ({
                   <TabPanel>
                     <PoliciesCard
                       policies={host?.policies || []}
-                      failingPoliciesCount={summaryData.failingPoliciesCount}
                       isLoading={isLoadingHost}
                       deviceUser
                       togglePolicyDetailsModal={togglePolicyDetailsModal}

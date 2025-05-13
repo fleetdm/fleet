@@ -3,7 +3,7 @@ import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { get, pick } from "lodash";
+import { pick } from "lodash";
 
 import PATHS from "router/paths";
 
@@ -99,7 +99,6 @@ import UnlockModal from "./modals/UnlockModal";
 import {
   HostMdmDeviceStatusUIState,
   getHostDeviceStatusUIState,
-  getHostFailingPoliciesCount,
 } from "../helpers";
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
@@ -555,10 +554,7 @@ const HostDetailsPage = ({
     }
   }, [location.pathname, host]);
 
-  const summaryData = {
-    ...normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA)),
-    failingPoliciesCount: getHostFailingPoliciesCount(host),
-  };
+  const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
@@ -819,6 +815,8 @@ const HostDetailsPage = ({
   ) {
     return <Spinner />;
   }
+  const failingPoliciesCount = host?.issues.failing_policies_count || 0;
+
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
       name: "Details",
@@ -839,7 +837,7 @@ const HostDetailsPage = ({
       name: "Policies",
       title: "policies",
       pathname: PATHS.HOST_POLICIES(hostIdFromURL),
-      count: summaryData.failingPoliciesCount,
+      count: failingPoliciesCount,
     },
   ];
 
@@ -1101,7 +1099,6 @@ const HostDetailsPage = ({
             <TabPanel>
               <PoliciesCard
                 policies={host?.policies || []}
-                failingPoliciesCount={summaryData.failingPoliciesCount}
                 isLoading={isLoadingHost}
                 togglePolicyDetailsModal={togglePolicyDetailsModal}
                 hostPlatform={host.platform}
