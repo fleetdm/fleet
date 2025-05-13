@@ -344,7 +344,7 @@ After receiving the interview packet, the Head of Digital Experience uses the fo
 
 <!-- For future use: some ready-to-go language around rebencharking compensation for cost of living: https://github.com/fleetdm/fleet/pulls/13499 -->
 
-1. **Review the candidate's row in the ["🧑‍🚀 Fleeties" spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to be sure there are no dangling TODOs. Read the column headers and precisely follow the instructions about how to format the data. Verify the new team member's row in "🧑‍🚀 Fleeties" includes: 
+1. **Review the candidate's row in the ["🧑‍🚀 Fleeties" spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to be sure there are no dangling TODOs**. Read the column headers and precisely follow the instructions about how to format the data. Verify the new team member's row in "🧑‍🚀 Fleeties" includes: 
   - **Start date** _(The new fleetie's first day, YYYY-MM-DD)_
   - **LinkedIn** _(If available)_
   - **GitHub username** _(If available)_
