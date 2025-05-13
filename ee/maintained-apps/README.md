@@ -81,17 +81,21 @@ go run cmd/maintained-apps/main.go
 
 4. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
 5. The Product Designer is responsible for testing the app. If the app is a new app, add an icon for the app to the PR. To add the icon, add the SVG as a comment to the PR and then ask the contributor to add the SVG to their PR [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-3728cfaafa50a41f6b017a4ef6ab64f7ce99034a9e90ed46421670f76a2db17f). Also, ask them to update the `index.ts` file [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-628095892e1d16090be1db6cc1a5c9cebc65248c32a8b1312385394818f2907b).
-6. In your local copy of the fleetdm/fleet repository, edit the fleetctl [`docker-compose.yml`](https://github.com/fleetdm/fleet/blob/main/tools/osquery/in-a-box/docker-compose.yml) locally by adding the following environment variable twice, after the two instances for `FLEET_OSQUERY_HOST_IDENTIFIER`:
+6. In your local copy of the fleetdm/fleet repository, edit the fleetctl [`tools/osquery/in-a-box/docker-compose.yml`](https://github.com/fleetdm/fleet/blob/main/tools/osquery/in-a-box/docker-compose.yml) locally by adding the following environment variable twice, after the two instances for `FLEET_OSQUERY_HOST_IDENTIFIER`:
 
 ```
 FLEET_DEV_MAINTAINED_APPS_BASE_URL: https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs
 ```
 
-7. Run the following `fleetctl preview` command, using the PR's [Docker tag](https://hub.docker.com/r/fleetdm/fleet/tags), and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
+7. Run the following `fleetctl preview` command, using the PR's [Docker tag](https://hub.docker.com/r/fleetdm/fleet/tags). To find PR's tag, head to the ["Docker publish" action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) for the PR and select "Publish Docker images." The tag is the last 6-character hash in the output (ex. `f4cd9f7`).
 
 ```
-fleetctl preview --tag=<Docker-tag> --preview-config-path ./tools/osquery/in-a-box --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
+fleetctl preview --tag=<Docker-tag> --preview-config-path=./tools/osquery/in-a-box --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
 ```
 
-8. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
-9. If the test is successful, the PD approves and merges the PR.
+> Currently, if the app is a new app, and the contributor opened a PR from their fork of the fleetdm/fleet repo, Fleet won't publish a Docker tag. To create a Docker tag, create a copy of the contributor's PR in the fleetdm/fleet repo. To do this, create a new branch (ex. `copy/contributor-PR`) and open a PR from the contributors branch to the copy branch. Merge in those changes and open a PR from your copy branch to `main` in fleetdm/fleet.
+
+8. Test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
+
+9. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
+10. If the test is successful, the PD approves and merges the PR.
