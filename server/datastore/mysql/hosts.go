@@ -5456,6 +5456,20 @@ func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []s
 	return hostnames, nil
 }
 
+func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error) {
+	stmt := `
+		SELECT updated_at FROM host_issues WHERE host_id = ?
+	`
+	var lastUpdated time.Time
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastUpdated, stmt, hostId); err != nil {
+		if err == sql.ErrNoRows {
+			return lastUpdated, ctxerr.Wrap(ctx, notFound("Host issues").WithID(hostId))
+		}
+		return lastUpdated, ctxerr.Wrap(ctx, err, "checking host_issues last updated")
+	}
+	return lastUpdated, nil
+}
+
 func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
 	var tx sqlx.ExecerContext = ds.writer(ctx)
 	return updateHostIssuesFailingPolicies(ctx, tx, hostIDs)
