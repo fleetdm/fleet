@@ -51,6 +51,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfilesLotsOfHosts", testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts},
 		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
+		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
 	}
 
 	for _, c := range cases {
@@ -7910,7 +7911,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, appleProfsTm, windowsProfsTm, appleDeclsTm, nil)
 	require.NoError(t, err)
 
-	// collect the profile UUIDs in a lookup table by name
+	// collect the profiles in a lookup table by name
 	profNameToProf := make(map[string]*fleet.MDMConfigProfilePayload)
 	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -7976,29 +7977,6 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
-
-	toMDMAppleConfigProfile := func(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleConfigProfile {
-		return &fleet.MDMAppleConfigProfile{
-			Identifier:   p.Identifier,
-			Name:         p.Name,
-			ProfileUUID:  p.ProfileUUID,
-			Mobileconfig: p.Checksum, // not important for the test
-		}
-	}
-	toMDMWindowsConfigProfile := func(p *fleet.MDMConfigProfilePayload) *fleet.MDMWindowsConfigProfile {
-		return &fleet.MDMWindowsConfigProfile{
-			Name:        p.Name,
-			SyncML:      p.Checksum, // not important for the test
-			ProfileUUID: p.ProfileUUID,
-		}
-	}
-	toMDMAppleDecl := func(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleDeclaration {
-		return &fleet.MDMAppleDeclaration{
-			Name:            p.Name,
-			Identifier:      p.Identifier,
-			DeclarationUUID: p.ProfileUUID,
-		}
-	}
 
 	cases := []struct {
 		desc        string
@@ -8076,4 +8054,192 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.want, got)
 		})
 	}
+}
+
+func toMDMAppleConfigProfile(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleConfigProfile {
+	return &fleet.MDMAppleConfigProfile{
+		Identifier:   p.Identifier,
+		Name:         p.Name,
+		ProfileUUID:  p.ProfileUUID,
+		Mobileconfig: p.Checksum, // not important for the test
+	}
+}
+
+func toMDMWindowsConfigProfile(p *fleet.MDMConfigProfilePayload) *fleet.MDMWindowsConfigProfile {
+	return &fleet.MDMWindowsConfigProfile{
+		Name:        p.Name,
+		SyncML:      p.Checksum, // not important for the test
+		ProfileUUID: p.ProfileUUID,
+	}
+}
+
+func toMDMAppleDecl(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleDeclaration {
+	return &fleet.MDMAppleDeclaration{
+		Name:            p.Name,
+		Identifier:      p.Identifier,
+		DeclarationUUID: p.ProfileUUID,
+	}
+}
+
+func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	SetTestABMAssets(t, ds, "fleet")
+
+	// create some Apple and Windows profiles and declaration
+	appleProfs := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "A1", "A1", uuid.NewString()),
+		configProfileForTest(t, "A2", "A2", uuid.NewString()),
+		configProfileForTest(t, "A3", "A3", uuid.NewString()),
+	}
+	windowsProfs := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "W1", "W1"),
+		windowsConfigProfileForTest(t, "W2", "W2"),
+	}
+	appleDecls := []*fleet.MDMAppleDeclaration{
+		declForTest("D1", "D1", "{}"),
+		declForTest("D2", "D2", "{}"),
+	}
+	_, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, windowsProfs, appleDecls, nil)
+	require.NoError(t, err)
+
+	// collect the profiles in a lookup table by name
+	profNameToProf := make(map[string]*fleet.MDMConfigProfilePayload)
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, prof := range profs {
+		profNameToProf[prof.Name] = prof
+	}
+
+	// delete all kinds of profiles without any host impacted
+	err = ds.DeleteMDMAppleConfigProfile(ctx, profNameToProf["A1"].ProfileUUID)
+	require.NoError(t, err)
+	err = ds.DeleteMDMWindowsConfigProfile(ctx, profNameToProf["W1"].ProfileUUID)
+	require.NoError(t, err)
+	err = ds.DeleteMDMAppleDeclaration(ctx, profNameToProf["D1"].ProfileUUID)
+	require.NoError(t, err)
+
+	// create some macOS and Windows hosts
+	host1 := test.NewHost(t, ds, "host1", "1", "h1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "h2key", "host2uuid", time.Now())
+	nanoEnroll(t, ds, host1, false)
+	nanoEnroll(t, ds, host2, false)
+
+	host3 := test.NewHost(t, ds, "host3", "3", "h3key", "host3uuid", time.Now())
+	host3.Platform = "windows"
+	err = ds.UpdateHost(ctx, host3)
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host3)
+
+	host4 := test.NewHost(t, ds, "host4", "4", "h4key", "host4uuid", time.Now())
+	host4.Platform = "windows"
+	err = ds.UpdateHost(ctx, host4)
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host4)
+
+	for _, h := range []*fleet.Host{host1, host2, host3, host4} {
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "")
+		require.NoError(t, err)
+	}
+
+	// set the declaration as pending install on host1, installed on host2
+	forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, toMDMAppleDecl(profNameToProf["D2"]), fleet.MDMOperationTypeInstall, "")
+	forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, toMDMAppleDecl(profNameToProf["D2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+
+	err = ds.DeleteMDMAppleDeclaration(ctx, profNameToProf["D2"].ProfileUUID)
+	require.NoError(t, err)
+
+	assertHostProfileOpStatus(t, ds, host1.UUID)
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	// set the Windows profile as pending install on host3, installed on host4
+	forceSetWindowsHostProfileStatus(t, ds, host3.UUID, toMDMWindowsConfigProfile(profNameToProf["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	forceSetWindowsHostProfileStatus(t, ds, host4.UUID, toMDMWindowsConfigProfile(profNameToProf["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	assertHostProfileOpStatus(t, ds, host3.UUID,
+		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host4.UUID,
+		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+
+	err = ds.DeleteMDMWindowsConfigProfile(ctx, profNameToProf["W2"].ProfileUUID)
+	require.NoError(t, err)
+
+	assertHostProfileOpStatus(t, ds, host3.UUID)
+	assertHostProfileOpStatus(t, ds, host4.UUID)
+
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+
+	// set the Apple profile as pending install on host1, installed on host2
+	forceSetAppleHostProfileStatus(t, ds, host1.UUID, toMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, "")
+	forceSetAppleHostProfileStatus(t, ds, host2.UUID, toMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	// enqueue the corresponding command for the installed profile
+	cmdUUID := uuid.New().String()
+	err = commander.InstallProfile(ctx, []string{host2.UUID}, appleProfs[1].Mobileconfig, cmdUUID)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE host_uuid = ? AND profile_uuid = ?`, cmdUUID, host2.UUID, profNameToProf["A2"].ProfileUUID)
+		return err
+	})
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryVerifying, fleet.MDMOperationTypeInstall},
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	err = ds.DeleteMDMAppleConfigProfile(ctx, profNameToProf["A2"].ProfileUUID)
+	require.NoError(t, err)
+
+	assertHostProfileOpStatus(t, ds, host1.UUID)
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	// nano command is still active because it was already completed (verifying)
+	var active bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &active, `SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, host2.UUID, cmdUUID)
+	})
+	require.True(t, active)
+
+	// set the Apple profile as actually pending install (not NULL) on host1
+	forceSetAppleHostProfileStatus(t, ds, host1.UUID, toMDMAppleConfigProfile(profNameToProf["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	// enqueue the corresponding command for the installed profile
+	cmdUUID = uuid.New().String()
+	err = commander.InstallProfile(ctx, []string{host1.UUID}, appleProfs[2].Mobileconfig, cmdUUID)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE host_uuid = ? AND profile_uuid = ?`, cmdUUID, host1.UUID, profNameToProf["A3"].ProfileUUID)
+		return err
+	})
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profNameToProf["A3"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	err = ds.DeleteMDMAppleConfigProfile(ctx, profNameToProf["A3"].ProfileUUID)
+	require.NoError(t, err)
+
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profNameToProf["A3"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	// nano command is now inactive because it was in a pending state and we want to prevent delivery
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &active, `SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, host1.UUID, cmdUUID)
+	})
+	require.False(t, active)
+
+	// listing the MDM commands does not return the inactive one
+	cmds, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{
+		User:            test.UserAdmin,
+		IncludeObserver: true,
+	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
+	require.Len(t, cmds, 0)
 }
