@@ -879,6 +879,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
+		return nil
+	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
 	expectedEmptySlice := []fleet.HostMDMAppleProfile{}
