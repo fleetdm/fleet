@@ -7,6 +7,7 @@ import {
   isAppleDevice,
   isMobilePlatform,
   isAndroid,
+  isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
@@ -339,7 +340,7 @@ const modifyOptions = (
 
   let optionsToDisable: IDropdownOption[] = [];
   if (
-    !isHostOnline ||
+    (!isIPadOrIPhone(hostPlatform) && !isHostOnline) ||
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
     hostMdmDeviceStatus === "locked" ||
     hostMdmDeviceStatus === "wiped"
