@@ -1081,6 +1081,8 @@ func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service)
 	return batchScriptRunResponse{BatchExecutionID: batchID}, nil
 }
 
+const MAX_BATCH_EXECUTION_HOSTS = 5000
+
 func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error) {
 	// If we are given both host IDs and filters, return an error
 	if len(hostIDs) > 0 && filters != nil {
@@ -1136,7 +1138,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		hostIDsToExecute = hostIDs
 	}
 
-	// If we are given host IDs, we need to check that they match the script's team.
+	// Check that the given hosts match the script's team.
 	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDsToExecute)
 	if err != nil {
 		return "", err
@@ -1148,6 +1150,10 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		if host.TeamID == nil || *host.TeamID != *script.TeamID {
 			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
 		}
+	}
+
+	if len(hostIDsToExecute) > MAX_BATCH_EXECUTION_HOSTS {
+		return "", fleet.NewInvalidArgumentError("filters", "too_many_hosts")
 	}
 
 	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
