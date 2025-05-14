@@ -1221,6 +1221,10 @@ type Datastore interface {
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
+	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
+	// MDM protocol seen time for the host with the given UUID
+	GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
+
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
 
