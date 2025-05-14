@@ -93,7 +93,7 @@ jobs:
 
             Generated automatically with cmd/maintained-apps.
           body: Automated ingestion of latest Fleet-maintained app data.
-          assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
+#          assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
 
       - name: Close Existing PRs
         if: steps.search_pr.outputs.result != '[]'

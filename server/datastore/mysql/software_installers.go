@@ -1044,10 +1044,8 @@ VALUES
 	}
 
 	var userID *uint
-	fleetInitiated := true
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
-		fleetInitiated = false
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1055,7 +1053,7 @@ VALUES
 			hostID,
 			0, // Uninstalls are never used in setup experience, so always default priority
 			userID,
-			fleetInitiated,
+			false,
 			executionID,
 			installerDetails.TitleName,
 			userID,

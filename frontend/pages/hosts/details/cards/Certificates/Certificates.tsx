@@ -10,6 +10,7 @@ import { HostPlatform } from "interfaces/platform";
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 
 import CertificatesTable from "./CertificatesTable";
 
@@ -47,7 +48,13 @@ const CertificatesCard = ({
   onSortChange,
 }: ICertificatesProps) => {
   const renderContent = () => {
-    if (isError) return <DataError verticalPaddingSize="pad-large" />;
+    if (isError) {
+      return isMyDevicePage ? (
+        <DeviceUserError />
+      ) : (
+        <DataError verticalPaddingSize="pad-large" />
+      );
+    }
 
     return (
       <CertificatesTable

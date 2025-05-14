@@ -23,7 +23,7 @@ interface ISoftwareDetailsSummaryProps {
   type?: string;
   hosts: number;
   countsUpdatedAt?: string;
-  /** The query param that will be added when user clicks on "View all hosts" link */
+  /** The query param that will be added when user clicks on the host count */
   queryParams: QueryParams;
   name?: string;
   source?: string;

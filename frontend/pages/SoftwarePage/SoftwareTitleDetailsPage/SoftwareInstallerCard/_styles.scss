@@ -5,6 +5,15 @@
   align-items: center;
   gap: $pad-medium;
 
+  &__actions {
+    display: flex;
+  }
+
+  &__installer-status-table,
+  &__installer-policies-table {
+    width: 100%;
+  }
+
   &__row-1 {
     display: flex;
     width: 100%;

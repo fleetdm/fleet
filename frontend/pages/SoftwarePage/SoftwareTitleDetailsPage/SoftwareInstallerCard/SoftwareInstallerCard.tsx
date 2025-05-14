@@ -2,7 +2,6 @@
 
 import React, { useCallback, useContext, useState } from "react";
 
-import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import {
@@ -12,33 +11,32 @@ import {
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
-import { getPathWithQueryParams } from "utilities/url";
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
-import ActionsDropdown from "components/ActionsDropdown";
 import TooltipWrapper from "components/TooltipWrapper";
-import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import Tag from "components/Tag";
+import Button from "components/buttons/Button";
 
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import CustomLink from "components/CustomLink";
-import SoftwareDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/SoftwareDetailsWidget";
+import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 
 import {
-  APP_STORE_APP_DROPDOWN_OPTIONS,
-  SOFTWARE_PACKAGE_DROPDOWN_OPTIONS,
+  APP_STORE_APP_ACTION_OPTIONS,
+  SOFTWARE_PACKAGE_ACTION_OPTIONS,
   downloadFile,
 } from "./helpers";
-import AutomaticInstallModal from "../AutomaticInstallModal";
+import InstallerStatusTable from "./InstallerStatusTable";
+import InstallerPoliciesTable from "./InstallerPoliciesTable";
 
 const baseClass = "software-installer-card";
 
@@ -60,7 +58,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
     iconName: "success",
     tooltip: (
       <>
-        Software is installed on these hosts (install script finished
+        Software was installed on these hosts (install script finished
         <br />
         with exit code 0). Currently, if the software is uninstalled, the
         <br />
@@ -92,52 +90,6 @@ const STATUS_DISPLAY_OPTIONS: Record<
   },
 };
 
-interface IInstallerStatusCountProps {
-  softwareId: number;
-  status: SoftwareInstallDisplayStatus;
-  count: number;
-  teamId?: number;
-}
-
-const InstallerStatusCount = ({
-  softwareId,
-  status,
-  count,
-  teamId,
-}: IInstallerStatusCountProps) => {
-  const displayData = STATUS_DISPLAY_OPTIONS[status];
-  const linkUrl = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
-    software_title_id: softwareId,
-    software_status: status,
-    team_id: teamId,
-  });
-
-  return (
-    <DataSet
-      className={`${baseClass}__status`}
-      title={
-        <TooltipWrapper
-          position="top"
-          tipContent={displayData.tooltip}
-          underline={false}
-          showArrow
-          tipOffset={10}
-        >
-          <div className={`${baseClass}__status-title`}>
-            <Icon name={displayData.iconName} />
-            <div>{displayData.displayName}</div>
-          </div>
-        </TooltipWrapper>
-      }
-      value={
-        <a className={`${baseClass}__status-count`} href={linkUrl}>
-          {count} hosts
-        </a>
-      }
-    />
-  );
-};
-
 interface IActionsDropdownProps {
   installerType: "package" | "vpp";
   onDownloadClick: () => void;
@@ -145,7 +97,7 @@ interface IActionsDropdownProps {
   onEditSoftwareClick: () => void;
 }
 
-const SoftwareActionsDropdown = ({
+const SoftwareActionButtons = ({
   installerType,
   onDownloadClick,
   onDeleteClick,
@@ -155,26 +107,10 @@ const SoftwareActionsDropdown = ({
   const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
     config?.gitops || {};
 
-  const onSelect = (action: string) => {
-    switch (action) {
-      case "download":
-        onDownloadClick();
-        break;
-      case "delete":
-        onDeleteClick();
-        break;
-      case "edit":
-        onEditSoftwareClick();
-        break;
-      default:
-      // noop
-    }
-  };
-
   let options =
     installerType === "package"
-      ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
-      : [...APP_STORE_APP_DROPDOWN_OPTIONS];
+      ? [...SOFTWARE_PACKAGE_ACTION_OPTIONS]
+      : [...APP_STORE_APP_ACTION_OPTIONS];
 
   if (gitOpsModeEnabled) {
     const tooltipContent = (
@@ -206,15 +142,39 @@ const SoftwareActionsDropdown = ({
     });
   }
 
+  // Map action values to handlers
+  const actionHandlers = {
+    download: onDownloadClick,
+    delete: onDeleteClick,
+    edit: onEditSoftwareClick,
+  };
+
   return (
     <div className={`${baseClass}__actions`}>
-      <ActionsDropdown
-        className={`${baseClass}__software-actions-dropdown`}
-        onChange={onSelect}
-        placeholder="Actions"
-        menuAlign="right"
-        options={options}
-      />
+      {options.map((option) => {
+        const ButtonContent = (
+          <Button
+            key={option.value}
+            className={`btn btn-link ${baseClass}__action-btn`}
+            disabled={option.disabled}
+            onClick={() =>
+              actionHandlers[option.value as keyof typeof actionHandlers]?.()
+            }
+            variant="icon"
+          >
+            <Icon name={option.iconName} color="core-fleet-blue" />
+          </Button>
+        );
+
+        // If there's a tooltip, wrap the button
+        return option.tooltipContent ? (
+          <TooltipWrapper key={option.value} tipContent={option.tooltipContent}>
+            {ButtonContent}
+          </TooltipWrapper>
+        ) : (
+          ButtonContent
+        );
+      })}
     </div>
   );
 };
@@ -234,6 +194,7 @@ interface ISoftwareInstallerCardProps {
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
   onDelete: () => void;
   refetchSoftwareTitle: () => void;
+  isLoading: boolean;
 }
 
 // NOTE: This component is dependent on having either a software package
@@ -250,10 +211,19 @@ const SoftwareInstallerCard = ({
   teamId,
   onDelete,
   refetchSoftwareTitle,
+  isLoading,
 }: ISoftwareInstallerCardProps) => {
   const installerType = isSoftwarePackage(softwareInstaller)
     ? "package"
     : "vpp";
+  const isFleetMaintainedApp =
+    "fleet_maintained_app_id" in softwareInstaller &&
+    !!softwareInstaller.fleet_maintained_app_id;
+
+  const {
+    automatic_install_policies: automaticInstallPolicies,
+  } = softwareInstaller;
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -265,9 +235,6 @@ const SoftwareInstallerCard = ({
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showAutomaticInstallModal, setShowAutomaticInstallModal] = useState(
-    false
-  );
 
   const onEditSoftwareClick = () => {
     setShowEditSoftwareModal(true);
@@ -340,26 +307,27 @@ const SoftwareInstallerCard = ({
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
       <div className={`${baseClass}__row-1`}>
         <div className={`${baseClass}__row-1--responsive`}>
-          <SoftwareDetailsWidget
+          <InstallerDetailsWidget
             softwareName={softwareInstaller?.name || name}
             installerType={installerType}
             versionInfo={versionInfo}
             addedTimestamp={addedTimestamp}
+            isFma={isFleetMaintainedApp}
           />
           <div className={`${baseClass}__tags-wrapper`}>
-            {Array.isArray(softwareInstaller.automatic_install_policies) &&
-              softwareInstaller.automatic_install_policies.length > 0 && (
+            {Array.isArray(automaticInstallPolicies) &&
+              automaticInstallPolicies.length > 0 && (
                 <TooltipWrapper
                   showArrow
                   position="top"
-                  tipContent="Click to see policy that triggers automatic install."
+                  tipContent={
+                    automaticInstallPolicies.length === 1
+                      ? "A policy triggers install."
+                      : `${automaticInstallPolicies.length} policies trigger install.`
+                  }
                   underline={false}
                 >
-                  <Tag
-                    icon="refresh"
-                    text="Automatic install"
-                    onClick={() => setShowAutomaticInstallModal(true)}
-                  />
+                  <Tag icon="refresh" text="Automatic install" />
                 </TooltipWrapper>
               )}
             {isSelfService && (
@@ -376,7 +344,7 @@ const SoftwareInstallerCard = ({
         </div>
         <div className={`${baseClass}__actions-wrapper`}>
           {showActions && (
-            <SoftwareActionsDropdown
+            <SoftwareActionButtons
               installerType={installerType}
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
@@ -385,26 +353,23 @@ const SoftwareInstallerCard = ({
           )}
         </div>
       </div>
-      <div className={`${baseClass}__installer-statuses`}>
-        <InstallerStatusCount
+      <div className={`${baseClass}__installer-status-table`}>
+        <InstallerStatusTable
           softwareId={softwareId}
-          status="installed"
-          count={status.installed}
           teamId={teamId}
-        />
-        <InstallerStatusCount
-          softwareId={softwareId}
-          status="pending"
-          count={status.pending}
-          teamId={teamId}
-        />
-        <InstallerStatusCount
-          softwareId={softwareId}
-          status="failed"
-          count={status.failed}
-          teamId={teamId}
+          status={status}
+          isLoading={isLoading}
         />
       </div>
+      {automaticInstallPolicies && (
+        <div className={`${baseClass}__installer-policies-table`}>
+          <InstallerPoliciesTable
+            teamId={teamId}
+            isLoading={isLoading}
+            policies={automaticInstallPolicies}
+          />
+        </div>
+      )}
       {showEditSoftwareModal && (
         <EditSoftwareModal
           softwareId={softwareId}
@@ -424,15 +389,6 @@ const SoftwareInstallerCard = ({
           onSuccess={onDeleteSuccess}
         />
       )}
-      {showAutomaticInstallModal &&
-        softwareInstaller?.automatic_install_policies &&
-        softwareInstaller?.automatic_install_policies.length > 0 && (
-          <AutomaticInstallModal
-            teamId={teamId}
-            policies={softwareInstaller.automatic_install_policies}
-            onExit={() => setShowAutomaticInstallModal(false)}
-          />
-        )}
     </Card>
   );
 };
