@@ -5938,6 +5938,10 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
 	profNameToPayload := make(map[string]*fleet.MDMConfigProfilePayload)
 	for _, prof := range listResp.Profiles {
+		if len(prof.Checksum) == 0 {
+			// not important, but must not be empty or it causes issues when forcing a status
+			prof.Checksum = []byte("checksum")
+		}
 		profNameToPayload[prof.Name] = prof
 	}
 
@@ -6244,13 +6248,13 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 		var active bool
 		ctx := t.Context()
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &active, `SELECT neq.active 
-			FROM 
+			return sqlx.GetContext(ctx, q, &active, `SELECT neq.active
+			FROM
 				nano_enrollment_queue neq
-				JOIN host_mdm_apple_profiles hmap 
+				JOIN host_mdm_apple_profiles hmap
 					ON hmap.command_uuid = neq.command_uuid AND hmap.host_uuid = neq.id
-			WHERE 
-				hmap.host_uuid = ? AND 
+			WHERE
+				hmap.host_uuid = ? AND
 				hmap.profile_uuid = ?`, hostUUID, profileUUID)
 		})
 		if wantActive {
