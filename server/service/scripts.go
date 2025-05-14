@@ -1147,7 +1147,10 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		return "", &fleet.BadRequestError{Message: "no hosts match the specified host IDs"}
 	}
 	for _, host := range hosts {
-		if host.TeamID == nil || *host.TeamID != *script.TeamID {
+		if host.TeamID == nil && script.TeamID == nil {
+			continue
+		}
+		if *host.TeamID != *script.TeamID {
 			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
 		}
 	}
