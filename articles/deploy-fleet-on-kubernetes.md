@@ -8,13 +8,19 @@
 
 In this guide, we will focus on deploying Fleet only on a Kubernetes cluster. This guide has been written and tested using k3s, but should function on self-hosted Kubernetes, Lightweight Kubernetes, or managed Kubernetes offerings.
 
-## Pre-requisites
+## Getting Started
 
 > You will need to have **Helm (v3)** and/or **Terraform (v1.10.2**).
 
 Before we get started with deploying Fleet through Helm or Terraform you will need access to a Kubernetes cluster, MySQL database, and Redis cluster. We will also need to create some secrets to instruct Fleet on how to connect to MySQL and Redis.
 
-## Installing infrastructure dependencies with Helm
+Ensure a namespace is created or already exists for your Fleet deployment resources. Example of creating a kubernetes namespace - replace `<namespace>` with the name of the namespace you'd like to use.
+
+```sh
+kubectl create ns <namespace>
+```
+
+## Installing Infrastructure Dependencies with Helm
 
 ### MySQL
 
@@ -30,7 +36,7 @@ To install MySQL from Helm, run the following command. Note that there are some 
 ```sh
 helm install fleet-database \
   --namespace <namespace> \
-  --set auth.username=fleet,auth.database=fleet \
+  --set auth.username=fleet,auth.database=fleet,auth.password=<password> \
   oci://registry-1.docker.io/bitnamicharts/mysql 
 ```
 
@@ -42,7 +48,7 @@ fleet-database-mysql:3306
 
 We will use this address when we configure the Kubernetes deployment and database migration job, but if you're not using a Helm-installed MySQL in your deployment, you'll have to change this in your Kubernetes config files. 
 - For the Fleet Helm Chart, this will be used in the `values.yaml`
-- For Terraform, in the `Terraform module/main.tf`.
+- For Terraform, this will be used in `main.tf`.
 
 ### Redis
 
@@ -58,12 +64,12 @@ helm install fleet-cache \
 This helm package will create a Kubernetes `Service` which exposes the Redis server to the rest of the cluster on the following DNS address:
 
 ```
-fleet-cache-redis:6379
+fleet-cache-redis-headless:6379
 ```
 
 We will use this address when we configure the Kubernetes deployment, but if you're not using a Helm-installed Redis in your deployment, you'll have to change this in your Kubernetes config files. 
 - For the Fleet Helm Chart, this will be used in the `values.yaml`
-- For Terraform, in the `Terraform module/main.tf`.
+- For Terraform, this will be used in `main.tf`.
 
 ## Secrets
 
@@ -77,16 +83,10 @@ kubectl apply -f <example-manifest.yml>
 
 ### MySQL and Redis
 
+- Your mysql password will be what you set in the helm install command
+- Your redis password can be retrieved with the following command `kubectl get secret --namespace <namespace> fleet-cache-redis -o jsonpath="{.data.redis-password}" | base64 -d`
+
 ```yaml
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mysql
-  namespace: <namespace>
-type: kubernetes.io/basic-auth
-stringData:
-  mysql-password: <mysql-password-here>
 ---
 apiVersion: v1
 kind: Secret
@@ -95,7 +95,16 @@ metadata:
   namespace: <namespace>
 type: kubernetes.io/basic-auth
 stringData:
-  redis-password: <redis-password-here>
+  password: <redis-password-here>
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql
+  namespace: <namespace>
+type: kubernetes.io/basic-auth
+stringData:
+  password: <mysql-password-here>
 ```
 
 ### TLS Certificates (nginx)
