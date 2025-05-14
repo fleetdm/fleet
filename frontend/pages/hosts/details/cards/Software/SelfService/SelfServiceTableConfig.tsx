@@ -166,7 +166,7 @@ const InstallerStatus = ({
   );
 };
 
-interface IInstallerStatusActionProps {
+interface IInstallerStatusActionsProps {
   deviceToken: string;
   software: IHostSoftware;
   onInstallOrUninstall: () => void;
@@ -237,7 +237,7 @@ const InstallerStatusAction = ({
   software: { id, status, software_package, app_store_app },
   onInstallOrUninstall,
   onClickUninstallAction,
-}: IInstallerStatusActionProps) => {
+}: IInstallerStatusActionsProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   // displayActionItems is used to track the status of the any user-initiated install action
@@ -311,7 +311,7 @@ const InstallerStatusAction = ({
             size="small"
           />
 
-          <span data-testid={`${baseClass}__action-button--test`}>
+          <span data-testid={`${baseClass}__install-button--test`}>
             {displayActionItems.install.text}
           </span>
         </Button>
@@ -332,7 +332,7 @@ const InstallerStatusAction = ({
               color="core-fleet-blue"
               size="small"
             />
-            <span data-testid={`${baseClass}__action-button--test`}>
+            <span data-testid={`${baseClass}__uninstall-button--test`}>
               {displayActionItems.uninstall.text}
             </span>
           </Button>
