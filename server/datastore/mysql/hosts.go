@@ -1987,6 +1987,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 					"host_id", enrolledHostInfo.ID,
 				)
 			}
+			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
 
 			sqlUpdate := `
       UPDATE
@@ -1996,9 +1997,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-		computer_name = COALESCE(NULLIF(computer_name, ''), ?),
-		hardware_model = COALESCE(NULLIF(hardware_model, ''), ?),
-        team_id = ?
+        computer_name = COALESCE(NULLIF(computer_name, ''), ?),
+        hardware_model = COALESCE(NULLIF(hardware_model, ''), ?),
+        team_id = ?,
+        refetch_requested = ?
       WHERE id = ?`
 			_, err := tx.ExecContext(ctx, sqlUpdate,
 				orbitNodeKey,
@@ -2008,6 +2010,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 				hostInfo.ComputerName,
 				hostInfo.HardwareModel,
 				teamID,
+				refetchRequested,
 				enrolledHostInfo.ID,
 			)
 			if err != nil {
@@ -2171,6 +2174,8 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 				return ctxerr.Wrap(ctx, err, "error clearing host_mdm_actions")
 			}
 
+			refetchRequested := fleet.PlatformSupportsOsquery(enrolledHostInfo.Platform)
+
 			// Update existing host record
 			sqlUpdate := `
 				UPDATE hosts
@@ -2179,10 +2184,11 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 				last_enrolled_at = NOW(),
 				osquery_host_id = ?,
 				uuid = COALESCE(NULLIF(uuid, ''), ?),
-				hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?)
+				hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
+				refetch_requested = ?
 				WHERE id = ?
 			`
-			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID, hardwareUUID, hardwareSerial, enrolledHostInfo.ID)
+			_, err := tx.ExecContext(ctx, sqlUpdate, nodeKey, teamID, osqueryHostID, hardwareUUID, hardwareSerial, refetchRequested, enrolledHostInfo.ID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update host")
 			}
