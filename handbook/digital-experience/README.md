@@ -45,6 +45,26 @@ The Digital Experience department is directly responsible for the culture, train
 > For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
+### Manage duplicate accounts in CRM
+
+1. Navigate to ["Ω Possible duplicate accounts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001FA1h2AG/view?queryScope=userFolders).
+2. Verify that each potential duplicate account is indeed a duplicate of the account's it has been paired with.
+3. Open duplicate accounts and compare duplicate accounts to select the best account to "Use as principal" (the account all other duplicates will be merged into). Consider the following:
+  - Is there an open opportunity on any of the accounts? If so, this is your "principal" account.
+  - Do any of the accounts not have contacts? If no contacts found on the account and no significant activity, delete the account. 
+  - Do any of these accounts have activity that the others don't have (e.g. a rep sent an email or logged a call)? Be sure to preserve the maximum amount of historical activity on the principal account.
+4. Click view duplicates, select all relevant accounts that appear. Click next.
+5. Select the best and most up-to-date data to combine into the single principal account.
+
+> Do *NOT* change account owners if you can help it during this process. For "non-sales-ready" accounts default to the Integrations Admin. If the account is owned by an active user, be sure they maintain ownership of the principal account. 
+
+6. YOU CAN NOT UNDO THIS NEXT PART! Click next, click merge. 
+7. Verify that the principal account details match exactly what is on LinkedIn. The end result should be as follows:
+  - LinkedIn company url
+  - Website
+  - Employees
+
+
 ### QA a change to fleetdm.com
 
 Each PR to the website is manually checked for quality and tested before going live on fleetdm.com. To test any change to fleetdm.com
