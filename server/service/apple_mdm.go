@@ -3805,6 +3805,16 @@ func ReconcileAppleDeclarations(
 	}
 	if len(resyncHosts) > 0 {
 		changedHosts = append(changedHosts, resyncHosts...)
+		// Deduplicate changedHosts
+		uniqueHosts := make(map[string]struct{})
+		deduplicatedHosts := make([]string, 0, len(changedHosts))
+		for _, id := range changedHosts {
+			if _, exists := uniqueHosts[id]; !exists {
+				uniqueHosts[id] = struct{}{}
+				deduplicatedHosts = append(deduplicatedHosts, id)
+			}
+		}
+		changedHosts = deduplicatedHosts
 	}
 
 	if len(changedHosts) == 0 {
