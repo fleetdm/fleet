@@ -12,6 +12,6 @@ This directory contains documentation on common development workflows in Fleet.
 - [Deploying Chrome Test Extension](deploying-chrome-test-ext.md) - Workflow for deploying the Chrome test extension
 - [Fleet UI Testing](../guides/ui/fleet-ui-testing.md) - Workflow for testing the Fleet UI
 
-## Version Management
+## Dependency Management
 
 - [Upgrading Go Version](upgrading-go-version.md) - Workflow for upgrading the Go version
