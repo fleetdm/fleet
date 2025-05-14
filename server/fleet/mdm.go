@@ -39,6 +39,7 @@ const (
 	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
 	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
 	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
+	FleetVarSCEPRenewalID                   = "SCEP_RENEWAL_ID"
 
 	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
@@ -174,6 +175,7 @@ func (e MDMEULA) AuthzType() string {
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
 type ExpectedMDMProfile struct {
+	ProfileUUID string `db:"profile_uuid"`
 	// Identifier is the unique identifier used by macOS profiles
 	Identifier string `db:"identifier"`
 	// Name is the unique name used by Windows profiles
@@ -963,4 +965,27 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+}
+
+// MDMProfileUUIDFleetVariables represents the Fleet variables used by a
+// profile identified by its UUID.
+type MDMProfileUUIDFleetVariables struct {
+	// ProfileUUID is the UUID of the profile.
+	ProfileUUID string
+	// FleetVariables is the (deduplicated) list of Fleet variables used by the
+	// profile, without the "FLEET_VAR_" prefix (as returned by
+	// findFleetVariables).
+	FleetVariables []string
+}
+
+// MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
+// profile identified by its identifier.
+type MDMProfileIdentifierFleetVariables struct {
+	// Identifier is the identifier of the profile (which is unique by team for
+	// Apple profiles).
+	Identifier string
+	// FleetVariables is the (deduplicated) list of Fleet variables used by the
+	// profile, without the "FLEET_VAR_" prefix (as returned by
+	// findFleetVariables).
+	FleetVariables []string
 }

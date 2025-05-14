@@ -183,6 +183,9 @@ module.exports.custom = {
     // 🌐 GitHub issue templates
     '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
+    // 💝 Fleet-maintained apps
+    'ee/maintained-apps/inputs': 'mostlikelee',
+    'ee/maintained-apps/outputs': 'eugkuo',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -316,7 +319,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.17.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗

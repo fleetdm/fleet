@@ -280,7 +280,7 @@ type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (
 
 type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error)
 
-type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error
+type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error
 
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
 
@@ -477,6 +477,12 @@ type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
+
+type NewSoftwareCategoryFunc func(ctx context.Context, name string) (*fleet.SoftwareCategory, error)
+
+type GetSoftwareCategoryIDsFunc func(ctx context.Context, names []string) ([]uint, error)
+
+type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
@@ -762,7 +768,7 @@ type UpdateVulnerabilityHostCountsFunc func(ctx context.Context, maxRoutines int
 
 type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
-type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error)
+type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error)
 
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
@@ -837,6 +843,8 @@ type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uin
 type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error)
 
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
+
+type GetNanoMDMEnrollmentTimesFunc func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -1072,7 +1080,7 @@ type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindow
 
 type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
-type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates, err error)
+type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
@@ -1107,6 +1115,10 @@ type GetScriptIDByNameFunc func(ctx context.Context, name string, teamID *uint) 
 type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error)
 
 type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error)
+
+type BatchExecuteScriptFunc func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
+
+type BatchExecuteSummaryFunc func(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error)
 
 type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
@@ -1250,15 +1262,19 @@ type ClearRemovedFleetMaintainedAppsFunc func(ctx context.Context, slugsToKeep [
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error)
 
+type GetMaintainedAppBySlugFunc func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error)
+
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
 
-type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error
+type BulkUpsertMDMManagedCertificatesFunc func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error
 
 type GetHostMDMCertificateProfileFunc func(ctx context.Context, hostUUID string, profileUUID string, caName string) (*fleet.HostMDMCertificateProfile, error)
 
 type CleanUpMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type RenewMDMManagedCertificatesFunc func(ctx context.Context) error
+
+type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error)
 
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
 
@@ -2015,6 +2031,15 @@ type DataStore struct {
 	UploadedSoftwareExistsFunc        UploadedSoftwareExistsFunc
 	UploadedSoftwareExistsFuncInvoked bool
 
+	NewSoftwareCategoryFunc        NewSoftwareCategoryFunc
+	NewSoftwareCategoryFuncInvoked bool
+
+	GetSoftwareCategoryIDsFunc        GetSoftwareCategoryIDsFunc
+	GetSoftwareCategoryIDsFuncInvoked bool
+
+	GetCategoriesForSoftwareTitlesFunc        GetCategoriesForSoftwareTitlesFunc
+	GetCategoriesForSoftwareTitlesFuncInvoked bool
+
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
 
@@ -2555,6 +2580,9 @@ type DataStore struct {
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
 
+	GetNanoMDMEnrollmentTimesFunc 	  GetNanoMDMEnrollmentTimesFunc
+	GetNanoMDMEnrollmentTimesFuncInvoked bool
+
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
 
@@ -2960,6 +2988,12 @@ type DataStore struct {
 	BatchSetScriptsFunc        BatchSetScriptsFunc
 	BatchSetScriptsFuncInvoked bool
 
+	BatchExecuteScriptFunc        BatchExecuteScriptFunc
+	BatchExecuteScriptFuncInvoked bool
+
+	BatchExecuteSummaryFunc        BatchExecuteSummaryFunc
+	BatchExecuteSummaryFuncInvoked bool
+
 	GetHostLockWipeStatusFunc        GetHostLockWipeStatusFunc
 	GetHostLockWipeStatusFuncInvoked bool
 
@@ -3173,6 +3207,9 @@ type DataStore struct {
 	GetMaintainedAppByIDFunc        GetMaintainedAppByIDFunc
 	GetMaintainedAppByIDFuncInvoked bool
 
+	GetMaintainedAppBySlugFunc        GetMaintainedAppBySlugFunc
+	GetMaintainedAppBySlugFuncInvoked bool
+
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
 
@@ -3187,6 +3224,9 @@ type DataStore struct {
 
 	RenewMDMManagedCertificatesFunc        RenewMDMManagedCertificatesFunc
 	RenewMDMManagedCertificatesFuncInvoked bool
+
+	ListHostMDMManagedCertificatesFunc        ListHostMDMManagedCertificatesFunc
+	ListHostMDMManagedCertificatesFuncInvoked bool
 
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
@@ -4199,11 +4239,11 @@ func (s *DataStore) ListHostCertificates(ctx context.Context, hostID uint, opts 
 	return s.ListHostCertificatesFunc(ctx, hostID, opts)
 }
 
-func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, certs []*fleet.HostCertificateRecord) error {
+func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
 	s.mu.Lock()
 	s.UpdateHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateHostCertificatesFunc(ctx, hostID, certs)
+	return s.UpdateHostCertificatesFunc(ctx, hostID, hostUUID, certs)
 }
 
 func (s *DataStore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
@@ -4890,6 +4930,27 @@ func (s *DataStore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier
 	s.UploadedSoftwareExistsFuncInvoked = true
 	s.mu.Unlock()
 	return s.UploadedSoftwareExistsFunc(ctx, bundleIdentifier, teamID)
+}
+
+func (s *DataStore) NewSoftwareCategory(ctx context.Context, name string) (*fleet.SoftwareCategory, error) {
+	s.mu.Lock()
+	s.NewSoftwareCategoryFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewSoftwareCategoryFunc(ctx, name)
+}
+
+func (s *DataStore) GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error) {
+	s.mu.Lock()
+	s.GetSoftwareCategoryIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareCategoryIDsFunc(ctx, names)
+}
+
+func (s *DataStore) GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
+	s.mu.Lock()
+	s.GetCategoriesForSoftwareTitlesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCategoriesForSoftwareTitlesFunc(ctx, softwareTitleIDs, team_id)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
@@ -5886,11 +5947,11 @@ func (s *DataStore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 	return s.IsCVEKnownToFleetFunc(ctx, cve)
 }
 
-func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAppleConfigProfileFunc(ctx, p)
+	return s.NewMDMAppleConfigProfileFunc(ctx, p, usesFleetVars)
 }
 
 func (s *DataStore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
@@ -6150,6 +6211,13 @@ func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet
 	s.GetNanoMDMEnrollmentFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetNanoMDMEnrollmentFunc(ctx, id)
+}
+
+func (s *DataStore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+	s.mu.Lock()
+	s.GetNanoMDMEnrollmentTimesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetNanoMDMEnrollmentTimesFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
@@ -6971,11 +7039,11 @@ func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp f
 	return s.SetOrUpdateMDMWindowsConfigProfileFunc(ctx, cp)
 }
 
-func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates, err error) {
+func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error) {
 	s.mu.Lock()
 	s.BatchSetMDMProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations)
+	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations, profilesVariables)
 }
 
 func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -7095,6 +7163,20 @@ func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*
 	s.BatchSetScriptsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchSetScriptsFunc(ctx, tmID, scripts)
+}
+
+func (s *DataStore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	s.mu.Lock()
+	s.BatchExecuteScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchExecuteScriptFunc(ctx, userID, scriptID, hostIDs)
+}
+
+func (s *DataStore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+	s.mu.Lock()
+	s.BatchExecuteSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchExecuteSummaryFunc(ctx, executionID)
 }
 
 func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -7594,6 +7676,13 @@ func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID
 	return s.GetMaintainedAppByIDFunc(ctx, appID, teamID)
 }
 
+func (s *DataStore) GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+	s.mu.Lock()
+	s.GetMaintainedAppBySlugFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMaintainedAppBySlugFunc(ctx, slug, teamID)
+}
+
 func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	s.mu.Lock()
 	s.UpsertMaintainedAppFuncInvoked = true
@@ -7601,7 +7690,7 @@ func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.Maintain
 	return s.UpsertMaintainedAppFunc(ctx, app)
 }
 
-func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+func (s *DataStore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 	s.mu.Lock()
 	s.BulkUpsertMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
@@ -7627,6 +7716,13 @@ func (s *DataStore) RenewMDMManagedCertificates(ctx context.Context) error {
 	s.RenewMDMManagedCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.RenewMDMManagedCertificatesFunc(ctx)
+}
+
+func (s *DataStore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
+	s.mu.Lock()
+	s.ListHostMDMManagedCertificatesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMManagedCertificatesFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {

@@ -509,6 +509,11 @@ type FilesystemConfig struct {
 	MaxBackups           int    `json:"max_backups" yaml:"max_backups"`
 }
 
+type WebhookConfig struct {
+	StatusURL string `json:"status_url" yaml:"status_url"`
+	ResultURL string `json:"result_url" yaml:"result_url"`
+}
+
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
 type KafkaRESTConfig struct {
 	StatusTopic      string `json:"status_topic" yaml:"status_topic"`
@@ -601,6 +606,7 @@ type FleetConfig struct {
 	SES              SESConfig
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
+	Webhook          WebhookConfig
 	KafkaREST        KafkaRESTConfig
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
@@ -1298,6 +1304,10 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("filesystem.max_age", 28, "Maximum number of days to retain old log files based on the timestamp encoded in their filename. Setting to zero wil retain old log files indefinitely (only valid if enable_log_rotation is true) default is 28 days")
 	man.addConfigInt("filesystem.max_backups", 3, "Maximum number of old log files to retain. Setting to zero will retain all old log files (only valid if enable_log_rotation is true) default is 3")
 
+	// Webhook
+	man.addConfigString("webhook.status_url", "", "Webhook URL for osquery status logs")
+	man.addConfigString("webhook.result_url", "", "Webhook URL for osquery result logs")
+
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
 	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
@@ -1591,6 +1601,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxSize:              man.getConfigInt("filesystem.max_size"),
 			MaxAge:               man.getConfigInt("filesystem.max_age"),
 			MaxBackups:           man.getConfigInt("filesystem.max_backups"),
+		},
+		Webhook: WebhookConfig{
+			StatusURL: man.getConfigString("webhook.status_url"),
+			ResultURL: man.getConfigString("webhook.result_url"),
 		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),

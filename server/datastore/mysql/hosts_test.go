@@ -3417,7 +3417,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	}
 
 	// set up data
-	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0))
+	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
 	require.NoError(t, err)
 
 	// verifying status
@@ -7021,7 +7021,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host, "TESTKEY", "", nil)
 	require.NoError(t, err)
 	// set an mdm profile
-	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"))
+	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"), nil)
 	require.NoError(t, err)
 	err = ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{ProfileUUID: prof.ProfileUUID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("csum")},
@@ -7141,7 +7141,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.True(t, added)
 
 	// Add a host certificate
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, []*fleet.HostCertificateRecord{{
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
 		HostID:     host.ID,
 		CommonName: "foo",
 		SHA1Sum:    sha1.New().Sum([]byte("foo")),
@@ -7158,6 +7158,15 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user"})
 	require.NoError(t, err)
 	require.NoError(t, associateHostWithScimUser(ctx, ds.writer(ctx), host.ID, scimUserID))
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.BatchExecuteScript(ctx, nil, script.ID, []uint{host.ID})
+	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {

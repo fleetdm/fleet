@@ -37,9 +37,12 @@ jobs:
       fail-fast: false
       matrix:
         # See #9943, we just need to add windows-latest here once all issues are fixed.
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
+      # Tell git not to change line endings when checking out files on Windows. Without this gofmt
+      # flags every single file on windows-latest
+      - run: 'git config --global core.autocrlf input'
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:

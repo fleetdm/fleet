@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -123,16 +124,16 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 }
 
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates,
-	err error,
-) {
+	winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
+) (updates fleet.MDMProfilesUpdates, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
 		}
 
-		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
+		// for now, only apple profiles support Fleet variables
+		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
 
@@ -727,7 +728,7 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 
 	switch host.Platform {
 	case "darwin", "ios", "ipados":
-		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host.ID)
+		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host)
 	case "windows":
 		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
 	default:
@@ -739,6 +740,7 @@ func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx contex
 	stmt := `
 -- profiles without labels
 SELECT
+    mwcp.profile_uuid AS profile_uuid,
 	name,
 	syncml AS raw_profile,
 	min(mwcp.uploaded_at) AS earliest_install_date,
@@ -757,7 +759,7 @@ WHERE
 		WHERE
 			mcpl.windows_profile_uuid = mwcp.profile_uuid
 	)
-GROUP BY name, syncml
+GROUP BY profile_uuid, name, syncml
 
 UNION
 
@@ -765,6 +767,7 @@ UNION
 -- by design, "include" labels cannot match if they are broken (the host cannot be
 -- a member of a deleted label).
 SELECT
+	mwcp.profile_uuid AS profile_uuid,
 	name,
 	syncml AS raw_profile,
 	min(mwcp.uploaded_at) AS earliest_install_date,
@@ -780,7 +783,7 @@ FROM
 WHERE
 	mwcp.team_id = ?
 GROUP BY
-	name, syncml
+	profile_uuid, name, syncml
 HAVING
 	count_profile_labels > 0 AND
 	count_host_labels = count_profile_labels
@@ -790,6 +793,7 @@ UNION
 -- label-based entities where the host is NOT a member of any of the labels (exclude-any).
 -- explicitly ignore profiles with broken excluded labels so that they are never applied.
 SELECT
+	mwcp.profile_uuid AS profile_uuid,
 	name,
 	syncml AS raw_profile,
 	min(mwcp.uploaded_at) AS earliest_install_date,
@@ -805,7 +809,7 @@ FROM
 WHERE
 	mwcp.team_id = ?
 GROUP BY
-	name, syncml
+	profile_uuid, name, syncml
 HAVING
 	-- considers only the profiles with labels, without any broken label, and with the host not in any label
 	count_profile_labels > 0 AND
@@ -826,10 +830,11 @@ HAVING
 	return byName, nil
 }
 
-func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
+func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID uint, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
 -- profiles without labels
 SELECT
+    macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	0 AS count_profile_labels,
 	0 AS count_non_broken_labels,
@@ -862,6 +867,7 @@ UNION
 -- by design, "include" labels cannot match if they are broken (the host cannot be
 -- a member of a deleted label).
 SELECT
+	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	COUNT(*) AS count_profile_labels,
 	COUNT(mcpl.label_id) AS count_non_broken_labels,
@@ -884,7 +890,7 @@ FROM
 WHERE
 	macp.team_id = ?
 GROUP BY
-	identifier
+	profile_uuid, identifier
 HAVING
 	count_profile_labels > 0 AND
 	count_host_labels = count_profile_labels
@@ -894,6 +900,7 @@ UNION
 -- label-based entities where the host is NOT a member of any of the labels (exclude-any).
 -- explicitly ignore profiles with broken excluded labels so that they are never applied.
 SELECT
+	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	COUNT(*) AS count_profile_labels,
 	COUNT(mcpl.label_id) AS count_non_broken_labels,
@@ -916,7 +923,7 @@ FROM
 WHERE
 	macp.team_id = ?
 GROUP BY
-	identifier
+	profile_uuid, identifier
 HAVING
 	-- considers only the profiles with labels, without any broken label, and with the host not in any label
 	count_profile_labels > 0 AND
@@ -925,16 +932,39 @@ HAVING
 `
 
 	var rows []*fleet.ExpectedMDMProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, hostID, teamID, hostID, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
-	byIdentifier := make(map[string]*fleet.ExpectedMDMProfile, len(rows))
-	for _, r := range rows {
-		byIdentifier[r.Identifier] = r
+	// Fetch variables_updated_at for host profiles that have it set and override
+	// earliest_install_date if it's older than variables_updated_at.
+	variableUpdateTimes := []struct {
+		ProfileUUID        string    `db:"profile_uuid"`
+		VariablesUpdatedAt time.Time `db:"variables_updated_at"`
+	}{}
+	variableUpdateTimesStmt := `
+	SELECT profile_uuid, variables_updated_at AS variables_updated_at
+	FROM host_mdm_apple_profiles
+	WHERE host_uuid = ? AND variables_updated_at IS NOT NULL
+	`
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &variableUpdateTimes, variableUpdateTimesStmt, host.UUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
+	}
+	variableUpdateTimesByProfileUUID := make(map[string]time.Time, len(variableUpdateTimes))
+	for _, r := range variableUpdateTimes {
+		variableUpdateTimesByProfileUUID[r.ProfileUUID] = r.VariablesUpdatedAt
 	}
 
-	return byIdentifier, nil
+	expectedProfilesByIdentifier := make(map[string]*fleet.ExpectedMDMProfile, len(rows))
+	for _, r := range rows {
+		if variableUpdateTime, ok := variableUpdateTimesByProfileUUID[r.ProfileUUID]; ok && variableUpdateTime.After(r.EarliestInstallDate) {
+			r.EarliestInstallDate = variableUpdateTime
+		}
+		expectedProfilesByIdentifier[r.Identifier] = r
+	}
+
+	return expectedProfilesByIdentifier, nil
 }
 
 func (ds *Datastore) GetHostMDMProfilesRetryCounts(ctx context.Context, host *fleet.Host) ([]fleet.HostMDMProfileRetryCount, error) {
@@ -1501,4 +1531,117 @@ func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.
 		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
 	}
 	return mp[host.UUID], nil
+}
+
+func batchSetProfileVariableAssociationsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
+	platform string,
+) error {
+	if len(profileVariablesByUUID) == 0 {
+		return nil
+	}
+
+	var platformPrefix string
+	switch platform {
+	case "darwin":
+		platformPrefix = "apple"
+	case "windows":
+		platformPrefix = "windows"
+	default:
+		return fmt.Errorf("unsupported platform %s", platform)
+	}
+
+	// collect the profile uuids to clear
+	profileUUIDsToDelete := make([]string, 0, len(profileVariablesByUUID))
+	// small optimization - if there are no variables to insert, we can stop here
+	var varsToSet bool
+	for _, profVars := range profileVariablesByUUID {
+		profileUUIDsToDelete = append(profileUUIDsToDelete, profVars.ProfileUUID)
+		if len(profVars.FleetVariables) > 0 {
+			varsToSet = true
+		}
+	}
+
+	// delete variables associated with those profiles
+	clearVarsForProfilesStmt := fmt.Sprintf(`DELETE FROM mdm_configuration_profile_variables WHERE %s_profile_uuid IN (?)`, platformPrefix)
+	clearVarsForProfilesStmt, args, err := sqlx.In(clearVarsForProfilesStmt, profileUUIDsToDelete)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In delete variables for profiles")
+	}
+	if _, err := tx.ExecContext(ctx, clearVarsForProfilesStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting variables for profiles")
+	}
+
+	if !varsToSet {
+		return nil
+	}
+
+	// load fleet variables to map them to their IDs
+	type varDef struct {
+		ID       uint   `db:"id"`
+		Name     string `db:"name"`
+		IsPrefix bool   `db:"is_prefix"`
+	}
+
+	var varDefs []varDef
+	const varsStmt = `SELECT id, name, is_prefix FROM fleet_variables`
+	if err := sqlx.SelectContext(ctx, tx, &varDefs, varsStmt); err != nil {
+		return fmt.Errorf("failed to load fleet variables: %w", err)
+	}
+
+	// map the variables to their IDs (this looks terrible with the nested fors
+	// but those are all very small "n" - single-digit vars by profile and same
+	// in varDefs, so this is more efficient than building lookup maps).
+	type profVarTuple struct {
+		ProfileUUID string
+		VarID       uint
+	}
+	profVars := make([]profVarTuple, 0, len(profileVariablesByUUID))
+	for _, pv := range profileVariablesByUUID {
+		for _, v := range pv.FleetVariables {
+			// variables received here do not have the FLEET_VAR_ prefix, but variables
+			// in the fleet_variables table do.
+			v = "FLEET_VAR_" + v
+			for _, def := range varDefs {
+				if !def.IsPrefix && def.Name == v {
+					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
+					break
+				}
+				if def.IsPrefix && strings.HasPrefix(v, def.Name) {
+					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
+					break
+				}
+			}
+		}
+	}
+
+	const batchSize = 1000 // number of parameters is this times number of placeholders
+	generateValueArgs := func(p profVarTuple) (string, []any) {
+		valuePart := "(?, ?),"
+		args := []any{p.ProfileUUID, p.VarID}
+		return valuePart, args
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`
+			INSERT INTO mdm_configuration_profile_variables (
+				%s_profile_uuid,
+				fleet_variable_id
+			)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				fleet_variable_id = VALUES(fleet_variable_id)
+		`, platformPrefix, strings.TrimSuffix(valuePart, ","))
+
+		_, err := tx.ExecContext(ctx, stmt, args...)
+		return err
+	}
+
+	err = batchProcessDB(profVars, batchSize, generateValueArgs, executeUpsertBatch)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upserting profile variables")
+	}
+	return nil
 }

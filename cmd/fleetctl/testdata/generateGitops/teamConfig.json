@@ -1,0 +1,242 @@
+{
+    "id": 1,
+    "created_at": "2025-02-05T23:33:39Z",
+    "name": "Test Team",
+    "description": "A test team",
+    "agent_options": {
+        "config": {
+            "options": {
+                "pack_delimiter": "/",
+                "logger_tls_period": 10,
+                "distributed_plugin": "tls",
+                "disable_distributed": false,
+                "logger_tls_endpoint": "/api/osquery/log",
+                "distributed_interval": 10,
+                "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+                "load": [
+                    "SELECT uuid AS host_uuid FROM system_info;",
+                    "SELECT hostname AS hostname FROM system_info;"
+                ]
+            }
+        },
+        "update_channels": {
+            "orbit": "edge",
+            "desktop": "edge",
+            "osqueryd": "edge"
+        }
+    },
+    "host_expiry_settings": {
+        "host_expiry_enabled": false,
+        "host_expiry_window": 1
+    },
+    "webhook_settings": {
+        "host_status_webhook": {
+            "enable_host_status_webhook": false,
+            "destination_url": "https://some-team-host-status-webhook.com",
+            "host_percentage": 2,
+            "days_count": 3
+        },
+        "failing_policies_webhook": {
+            "enable_failing_policies_webhook": false,
+            "destination_url": "https://some-team-failing_policies-webhook.com",
+            "policy_ids": [
+                1,
+                2,
+                3
+            ],
+            "host_batch_size": 4
+        }
+    },
+    "integrations": {
+        "jira": [
+            {
+                "url": "https://some-team-jira-url.com",
+                "username": "some-team-jira-username",
+                "api_token": "some-team-jira-api-token",
+                "project_key": "some-team-jira-project-key"
+            }
+        ],
+        "zendesk": [
+            {
+                "url": "https://some-team-zendesk-url.com",
+                "email": "some-team-zendesk-email@example.com",
+                "api_token": "some-team-zendesk-api-token",
+                "group_id": 123456789
+            }
+        ],
+        "google_calendar": {
+            "enable_calendar_events": true,
+            "webhook_url": "https://some-team-google-calendar-webhook.com"
+        },
+        "digicert": [
+            {
+                "name": "some-team-digicert-name",
+                "url": "https://some-team-digicert-url.com",
+                "api_token": "some-team-digicert-api-token",
+                "profile_id": "some-team-digicert-profile-id",
+                "certificate_common_name": "some-team-digicert-certificate-common-name",
+                "certificate_user_principal_names": [
+                    "some-team-digicert-certificate-user-principal-name",
+                    "some-team-other-digicert-certificate-user-principal-name"
+                ],
+                "certificate_seat_id": "some-team-digicert-certificate-seat-id"
+            }
+        ],
+        "ndes_scep_proxy": {
+            "url": "https://some-team-ndes-scep-proxy-url.com",
+            "admin_url": "https://some-team-ndes-admin-url.com",
+            "username": "some-team-ndes-username",
+            "password": "some-team-ndes-password"
+        },
+        "custom_scep_proxy": [
+            {
+                "name": "some-team-custom-scep-proxy-name",
+                "url": "https://some-team-custom-scep-proxy-url.com",
+                "challenge": "some-team-custom-scep-proxy-challenge"
+            }
+        ]
+    },
+    "features": {
+        "enable_host_users": true,
+        "enable_software_inventory": true
+    },
+    "mdm": {
+        "enable_disk_encryption": true,
+        "macos_updates": {
+            "minimum_version": "95.1",
+            "deadline": "2020-12-31"
+        },
+        "ios_updates": {
+            "minimum_version": "98.1",
+            "deadline": "2021-12-31"
+        },
+        "ipados_updates": {
+            "minimum_version": "98.2",
+            "deadline": "2022-12-31"
+        },
+        "windows_updates": {
+            "deadline_days": 95,
+            "grace_period_days": 92
+        },
+        "macos_settings": {
+            "custom_settings": null
+        },
+        "macos_setup": {
+            "bootstrap_package": "",
+            "enable_end_user_authentication": false,
+            "macos_setup_assistant": "",
+            "enable_release_device_manually": false,
+            "script": "",
+            "software": []
+        },
+        "windows_settings": {
+            "custom_settings": null
+        }
+    },
+    "scripts": [
+        "/home/runner/work/fleet/fleet/it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh",
+        "/home/runner/work/fleet/fleet/it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1",
+        "/home/runner/work/fleet/fleet/it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh",
+        "/home/runner/work/fleet/fleet/it-and-security/lib/linux/scripts/install-fleet-desktop-required-extension.sh"
+    ],
+    "software": {
+        "packages": [
+            {
+                "url": "https://zoom.us/client/6.3.10.7150/zoom_amd64.deb",
+                "self_service": true,
+                "pre_install_query": {
+                    "path": ""
+                },
+                "install_script": {
+                    "path": ""
+                },
+                "post_install_script": {
+                    "path": ""
+                },
+                "uninstall_script": {
+                    "path": ""
+                },
+                "labels_include_any": [
+                    "Debian-based Linux hosts"
+                ],
+                "labels_exclude_any": null,
+                "referenced_yaml_path": "/home/runner/work/fleet/fleet/it-and-security/lib/linux/software/zoom-deb.yml"
+            },
+            {
+                "url": "https://zoom.us/client/6.3.10.7150/zoom_x86_64.rpm",
+                "self_service": true,
+                "pre_install_query": {
+                    "path": ""
+                },
+                "install_script": {
+                    "path": ""
+                },
+                "post_install_script": {
+                    "path": ""
+                },
+                "uninstall_script": {
+                    "path": ""
+                },
+                "labels_include_any": [
+                    "RPM-based Linux hosts"
+                ],
+                "labels_exclude_any": null,
+                "referenced_yaml_path": "/home/runner/work/fleet/fleet/it-and-security/lib/linux/software/zoom-rpm.yml"
+            },
+            {
+                "url": "https://downloads.slack-edge.com/desktop-releases/linux/x64/4.41.105/slack-desktop-4.41.105-amd64.deb",
+                "self_service": true,
+                "pre_install_query": {
+                    "path": ""
+                },
+                "install_script": {
+                    "path": ""
+                },
+                "post_install_script": {
+                    "path": ""
+                },
+                "uninstall_script": {
+                    "path": ""
+                },
+                "labels_include_any": [
+                    "Debian-based Linux hosts"
+                ],
+                "labels_exclude_any": null,
+                "referenced_yaml_path": "/home/runner/work/fleet/fleet/it-and-security/lib/linux/software/slack-deb.yml"
+            },
+            {
+                "url": "https://downloads.slack-edge.com/desktop-releases/linux/x64/4.41.105/slack-4.41.105-0.1.el8.x86_64.rpm",
+                "self_service": true,
+                "pre_install_query": {
+                    "path": ""
+                },
+                "install_script": {
+                    "path": ""
+                },
+                "post_install_script": {
+                    "path": ""
+                },
+                "uninstall_script": {
+                    "path": ""
+                },
+                "labels_include_any": [
+                    "RPM-based Linux hosts"
+                ],
+                "labels_exclude_any": null,
+                "referenced_yaml_path": "/home/runner/work/fleet/fleet/it-and-security/lib/linux/software/slack-rpm.yml"
+            }
+        ],
+        "app_store_apps": null
+    },
+    "user_count": 5,
+    "host_count": 24,
+    "secrets": [
+        {
+            "secret": "some-team-secret",
+            "created_at": "2025-02-05T23:33:40Z",
+            "team_id": 270
+        }
+    ]
+}

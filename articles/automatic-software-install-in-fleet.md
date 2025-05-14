@@ -30,9 +30,9 @@ SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_comp
 
 ![Install software modal](../website/assets/images/articles/automatic-software-install-install-software.png)
 
-Upon failure of the selected policy, the selected software installation will be triggered.
+When a host fails the selected policy, this will trigger the software to be installed on the host.
 
-> Adding a software automation to a policy, or changing the automated software title, will reset the policy's host counts.
+If the software install fails, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
 
 ## How does it work?
 

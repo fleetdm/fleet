@@ -21,11 +21,12 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Button from "components/buttons/Button";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import { getPathWithQueryParams } from "utilities/url";
-import SoftwareVppForm from "./SoftwareVppForm";
+import SoftwareVppForm from "../../components/forms/SoftwareVppForm";
 import { getErrorMessage, teamHasVPPToken } from "./helpers";
-import { ISoftwareVppFormData } from "./SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareVppFormData } from "../../components/forms/SoftwareVppForm/SoftwareVppForm";
 
 const baseClass = "software-app-store-vpp";
 //
@@ -93,6 +94,11 @@ const SoftwareAppStoreVpp = ({
   const { isPremiumTier } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [
+    showPreviewEndUserExperience,
+    setShowPreviewEndUserExperience,
+  ] = useState(false);
+
   const {
     data: vppInfo,
     isLoading: isLoadingVppInfo,
@@ -147,6 +153,10 @@ const SoftwareAppStoreVpp = ({
     };
 
     router.push(getPathWithQueryParams(PATHS.SOFTWARE_TITLES, queryParams));
+  };
+
+  const onClickPreviewEndUserExperience = () => {
+    setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
   };
 
   const onAddSoftware = async (formData: ISoftwareVppFormData) => {
@@ -214,9 +224,15 @@ const SoftwareAppStoreVpp = ({
           labels={labels || []}
           onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareTitles}
+          onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
           isLoading={isLoading}
           vppApps={vppApps}
         />
+        {showPreviewEndUserExperience && (
+          <CategoriesEndUserExperienceModal
+            onCancel={onClickPreviewEndUserExperience}
+          />
+        )}
       </div>
     );
   };

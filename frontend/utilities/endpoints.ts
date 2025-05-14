@@ -39,6 +39,10 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
+  DEVICE_VPP_COMMAND_RESULTS: (token: string, uuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/commands/${uuid}/results`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },

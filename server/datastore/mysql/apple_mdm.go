@@ -36,7 +36,7 @@ import (
 // addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
 var addHostMDMCommandsBatchSize = 10000
 
-func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 	stmt := `
 INSERT INTO
@@ -106,6 +106,11 @@ INSERT INTO
 		}
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
+		}
+		if err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+			{ProfileUUID: profUUID, FleetVariables: usesFleetVars},
+		}, "darwin"); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting darwin profile variable associations")
 		}
 
 		return nil
@@ -555,55 +560,67 @@ func (ds *Datastore) CleanUpMDMManagedCertificates(ctx context.Context) error {
 
 // RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
 func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
-	// Fetch all MDM Managed digicert certificates that aren't already queued for resend(hmap.status=null) and which
-	// * Have a validity period > 30 days and are expiring in the next 30 days
-	// * Have a validity period <= 30 days and are within half the validity period of expiration
-	// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
-	// we don't actually need them for the update logic.
-	hostCertsToRenew := []struct {
-		HostUUID       string    `db:"host_uuid"`
-		ProfileUUID    string    `db:"profile_uuid"`
-		NotValidAfter  time.Time `db:"not_valid_after"`
-		ValidityPeriod int       `db:"validity_period"`
-	}{}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
+	// This will trigger a resend next time profiles are checked
+	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
+	hostProfileClause := ``
+	values := []interface{}{fleet.MDMOperationTypeInstall}
+
+	totalHostCertsToRenew := 0
+	hostCertTypesToRenew := []fleet.CAConfigAssetType{fleet.CAConfigDigiCert, fleet.CAConfigCustomSCEPProxy, fleet.CAConfigNDES}
+	for _, hostCertType := range hostCertTypesToRenew {
+		hostCertsToRenew := []struct {
+			HostUUID       string    `db:"host_uuid"`
+			ProfileUUID    string    `db:"profile_uuid"`
+			NotValidAfter  time.Time `db:"not_valid_after"`
+			ValidityPeriod int       `db:"validity_period"`
+		}{}
+		// Fetch all MDM Managed certificates of the given type that aren't already queued for
+		// resend(hmap.status=null) and which
+		// * Have a validity period > 30 days and are expiring in the next 30 days
+		// * Have a validity period <= 30 days and are within half the validity period of expiration
+		// nb: we SELECT not_valid_after and validity_period here so we can use them in the HAVING clause, but
+		// we don't actually need them for the update logic.
+		err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
 	SELECT
-		hmmc.host_uuid, 
-		hmmc.profile_uuid, 
-		hmmc.not_valid_after, 
+		hmmc.host_uuid,
+		hmmc.profile_uuid,
+		hmmc.not_valid_after,
 		DATEDIFF(hmmc.not_valid_after, hmmc.not_valid_before) AS validity_period
-	FROM 
+	FROM
 		host_mdm_managed_certificates hmmc
-	INNER JOIN 
-		host_mdm_apple_profiles hmap 
+	INNER JOIN
+		host_mdm_apple_profiles hmap
 		ON hmmc.host_uuid = hmap.host_uuid AND hmmc.profile_uuid = hmap.profile_uuid
-	WHERE 
-		hmmc.type = ? AND hmap.status IS NOT NULL
+	WHERE
+		hmmc.type = ? AND hmap.status IS NOT NULL AND hmap.operation_type = ?
 	HAVING
 		validity_period IS NOT NULL AND
 		((validity_period > 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL 30 DAY)) OR
 		(validity_period <= 30 AND not_valid_after < DATE_ADD(NOW(), INTERVAL validity_period/2 DAY)))
-	LIMIT 1000`, fleet.CAConfigDigiCert)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
+	LIMIT 1000`, hostCertType, fleet.MDMOperationTypeInstall)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "retrieving mdm managed certificates to renew")
+		}
+		if len(hostCertsToRenew) == 0 {
+			level.Debug(ds.logger).Log("msg", "No "+hostCertType+" certificates to renew")
+			continue
+		}
+		totalHostCertsToRenew += len(hostCertsToRenew)
+
+		for _, hostCertToRenew := range hostCertsToRenew {
+			hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
+			values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
+		}
 	}
-	if len(hostCertsToRenew) == 0 {
-		level.Debug(ds.logger).Log("msg", "No digicert certificates to renew")
+	if totalHostCertsToRenew == 0 {
 		return nil
 	}
 
-	// This will trigger a resend next time profiles are checked
-	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE `
-	hostProfileClause := ``
-	values := []interface{}{}
-	for _, hostCertToRenew := range hostCertsToRenew {
-		hostProfileClause += `(host_uuid = ? AND profile_uuid = ?) OR `
-		values = append(values, hostCertToRenew.HostUUID, hostCertToRenew.ProfileUUID)
-	}
+	hostProfileClause = strings.TrimSuffix(hostProfileClause, " OR ")
 
-	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert certificates", "len(hostCertsToRenew)", len(hostCertsToRenew))
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, updateQuery+strings.TrimSuffix(hostProfileClause, " OR "), values...)
+	level.Debug(ds.logger).Log("msg", "Renewing MDM managed digicert/SCEP certificates", "len(hostCertsToRenew)", totalHostCertsToRenew)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, updateQuery+hostProfileClause+")", values...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "updating mdm managed certificates to renew")
 		}
@@ -1827,9 +1844,11 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 	return &nanoEnroll, nil
 }
 
+// NOTE: this is only called from a deprecated endpoint that does not support
+// Fleet variables in profiles.
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles)
+		_, err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles, nil)
 		return err
 	})
 }
@@ -1840,6 +1859,7 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMAppleConfigProfile,
+	profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updatedDB bool, err error) {
 	const loadExistingProfiles = `
 SELECT
@@ -1952,7 +1972,11 @@ ON DUPLICATE KEY UPDATE
 		updatedDB = rows > 0
 	}
 
-	// insert the new profiles and the ones that have changed
+	// insert the new profiles and the ones that have changed, and track those
+	// that did insert or update, as we will need to update their variables (if
+	// the profile did not change, its variables cannot have changed since the
+	// contents is the same as it was already).
+	var profileIdentsInsertedOrUpdated []string
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name,
 			p.Mobileconfig, p.SecretsUpdatedAt); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
@@ -1961,7 +1985,44 @@ ON DUPLICATE KEY UPDATE
 			}
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 		}
-		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
+		didInsertOrUpdate := insertOnDuplicateDidInsertOrUpdate(result)
+		updatedDB = updatedDB || didInsertOrUpdate
+
+		if didInsertOrUpdate {
+			profileIdentsInsertedOrUpdated = append(profileIdentsInsertedOrUpdated, p.Identifier)
+		}
+	}
+
+	if len(profileIdentsInsertedOrUpdated) > 0 {
+		var insertedUpdatedProfs []*fleet.MDMAppleConfigProfile
+		// load the profiles that match the inserted/updated profiles by identifier
+		// to grab their uuids
+		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, profileIdentsInsertedOrUpdated)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "build query to load inserted/updated profiles")
+		}
+		if err := sqlx.SelectContext(ctx, tx, &insertedUpdatedProfs, stmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "load inserted/updated profiles")
+		}
+
+		lookupVariablesByIdentifier := make(map[string][]string, len(profilesVariablesByIdentifier))
+		for _, p := range profilesVariablesByIdentifier {
+			lookupVariablesByIdentifier[p.Identifier] = p.FleetVariables
+		}
+
+		// collect the profiles+variables that need to be upserted, keyed by
+		// profile UUID as needed by the batch-set profile variables function.
+		profilesVarsToUpsert := make([]fleet.MDMProfileUUIDFleetVariables, 0, len(insertedUpdatedProfs))
+		for _, p := range insertedUpdatedProfs {
+			profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
+				ProfileUUID:    p.ProfileUUID,
+				FleetVariables: lookupVariablesByIdentifier[p.Identifier],
+			})
+		}
+
+		if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "darwin"); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "inserting apple profile variable associations")
+		}
 	}
 
 	// build a list of labels so the associations can be batch-set all at once
@@ -2866,7 +2927,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               command_uuid,
               checksum,
               secrets_updated_at,
-			  ignore_error
+			  ignore_error,
+			  variables_updated_at
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
@@ -2878,7 +2940,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               ignore_error = VALUES(ignore_error),
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
-              command_uuid = VALUES(command_uuid)`,
+              command_uuid = VALUES(command_uuid),
+			  variables_updated_at = VALUES(variables_updated_at)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -2895,10 +2958,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	}
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
-			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError,
+			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError, p.VariablesUpdatedAt,
 		}
 		return valuePart, args
 	}
@@ -2964,12 +3027,25 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 
 	// We need to run with retry due to potential deadlocks with BulkSetPendingMDMHostProfiles.
 	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
+
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `
+		var err error
+		if profile.VariablesUpdatedAt != nil {
+			// Only update variable_updated_at if the caller supplied it. Not all callers care but
+			// we don't want to "lose" it since the install time should never need to be earlier
+			// than it currently is set to.
+			_, err = tx.ExecContext(ctx, `
+          UPDATE host_mdm_apple_profiles
+          SET status = ?, operation_type = ?, detail = ?, variables_updated_at = ?
+          WHERE host_uuid = ? AND command_uuid = ?
+        `, status, profile.OperationType, detail, profile.VariablesUpdatedAt, profile.HostUUID, profile.CommandUUID)
+		} else {
+			_, err = tx.ExecContext(ctx, `
           UPDATE host_mdm_apple_profiles
           SET status = ?, operation_type = ?, detail = ?
           WHERE host_uuid = ? AND command_uuid = ?
         `, status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID)
+		}
 		return err
 	})
 	return err
@@ -3356,6 +3432,10 @@ WHERE
 	return &res, nil
 }
 
+// NOTE: this method is only used internally to upsert Fleet-controlled
+// profiles (called in service.ensureFleetProfiles with the Fleet configuration
+// profiles). Those are known not to use any Fleet variables. This method must
+// not be used for any profile that uses Fleet variables.
 func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error {
 	if len(payload) == 0 {
 		return nil
@@ -6023,7 +6103,7 @@ LIMIT 1`
 	return &settings, nil
 }
 
-func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMBulkUpsertManagedCertificatePayload) error {
+func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 	if len(payload) == 0 {
 		return nil
 	}
@@ -6055,7 +6135,7 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 		return err
 	}
 
-	generateValueArgs := func(p *fleet.MDMBulkUpsertManagedCertificatePayload) (string, []any) {
+	generateValueArgs := func(p *fleet.MDMManagedCertificate) (string, []any) {
 		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{p.HostUUID, p.ProfileUUID, p.ChallengeRetrievedAt, p.NotValidBefore, p.NotValidAfter, p.Type, p.CAName, p.Serial}
 		return valuePart, args
@@ -6072,6 +6152,16 @@ func (ds *Datastore) BulkUpsertMDMManagedCertificates(ctx context.Context, paylo
 	}
 
 	return nil
+}
+
+func (ds *Datastore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error) {
+	hostCertsToRenew := []*fleet.MDMManagedCertificate{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCertsToRenew, `
+	SELECT profile_uuid, host_uuid, challenge_retrieved_at, not_valid_before, not_valid_after, type, ca_name, serial
+	FROM host_mdm_managed_certificates
+	WHERE host_uuid = ?
+	`, hostUUID)
+	return hostCertsToRenew, ctxerr.Wrap(ctx, err, "get mdm managed certificates for host")
 }
 
 // ClearMDMUpcomingActivitiesDB clears the upcoming activities of the host that
@@ -6161,6 +6251,32 @@ LIMIT ?
 		return nil, ctxerr.Wrap(ctx, err, "list mdm apple enrolled but deleted iDevices")
 	}
 	return res, nil
+}
+
+func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+	res := []struct {
+		LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
+		LastMDMSeenTime       *time.Time `db:"last_seen_at"`
+	}{}
+	// We are specifically only looking at the singular device enrollment row and not the
+	// potentially many user enrollment rows that will exist for a given device. The device
+	// enrollment row is the only one that gets regularly updated with the last seen time. Along
+	// those same lines authenticate_at gets updated only at the authenticate step during the
+	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
+	query := `
+	SELECT nd.authenticate_at, ne.last_seen_at
+	FROM nano_devices nd
+	  INNER JOIN nano_enrollments ne ON ne.id = nd.id 
+	WHERE ne.type = 'Device' AND nd.id = ?`
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
+
+	if err == sql.ErrNoRows || len(res) == 0 {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
+	}
+	return res[0].LastMDMEnrollmentTime, res[0].LastMDMSeenTime, nil
 }
 
 func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
