@@ -1,8 +1,8 @@
 # Deploy Fleet on Kubernetes
 
-> **Archived.** While still usable, this guide has not been updated recently. See the [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) docs for supported deployment methods.
+> **Archived -** While still usable, this guide has not been updated recently. See the [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) docs for supported deployment methods.
 
-> Updated on May 8th, 2025, by [Jorge Falcon](https://github.com/BCTBB).
+> **Updated -** May 8th, 2025, by [Jorge Falcon](https://github.com/BCTBB).
 
 ![Deploy Fleet on Kubernetes](../website/assets/images/articles/deploy-fleet-on-kubernetes-800x450@2x.png)
 
@@ -10,27 +10,17 @@ In this guide, we will focus on deploying Fleet only on a Kubernetes cluster. Th
 
 ## Pre-requisites
 
-You will need to have either Helm (v3) and/or Terraform (v1.10.2).
+> You will need to have **Helm (v3)** and/or **Terraform (v1.10.2**).
 
-Before we can get started with deploying Fleet through Helm or Terraform, there are several pre-requisites that must exist beforehand.
-
-1. Kubernetes Cluster
-2. Kubernetes Namespace
-3. MySQL database instance or MySQL database cluster
-4. MySQL secret(s) 
-5. Redis Cluster
-6. Redis secret(s)
-7. TLS secret(s)
+Before we get started with deploying Fleet through Helm or Terraform you will need access to a Kubernetes cluster, MySQL database, and Redis cluster. We will also need to create some secrets to instruct Fleet on how to connect to MySQL and Redis.
 
 ## Installing infrastructure dependencies with Helm
 
-> If you already have a MySQL instance/cluster that you're planning on using, you can skip down to the Redis cluster Install.
+#### MySQL
 
-> If you already have a Redis cluster that you're planning on using, you can skip down the Helm or Terraform deployment.
+> Skip if you already have a MySQL database that you plan on using.
 
-### MySQL
-
-The MySQL that we will use for this tutorial is not replicated and it is not Highly Available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc), I suggest using their MySQL product if possible as running HA MySQL in Kubernetes can be difficult. To make this tutorial cloud provider agnostic however, we will use a non-replicated instance of MySQL.
+The MySQL that we will use for this tutorial is not replicated and it is not Highly Available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc), I suggest using their MySQL product if possible as running HA MySQL in Kubernetes can be complex. To make this tutorial cloud provider agnostic however, we will use a non-replicated instance of MySQL.
 
 To install MySQL from Helm, run the following command. Note that there are some options that need to be defined:
 
@@ -51,10 +41,12 @@ fleet-database-mysql:3306
 ```
 
 We will use this address when we configure the Kubernetes deployment and database migration job, but if you're not using a Helm-installed MySQL in your deployment, you'll have to change this in your Kubernetes config files. 
-* For the Fleet Helm Chart, this will be used in the `values.yaml`
-* For Terraform, in the `Terraform module/main.tf`.
+- For the Fleet Helm Chart, this will be used in the `values.yaml`
+- For Terraform, in the `Terraform module/main.tf`.
 
-### Redis
+#### Redis
+
+> Skip if you already have a Redis cluster that you plan on using.
 
 ```sh
 helm install fleet-cache \
@@ -70,14 +62,69 @@ fleet-cache-redis:6379
 ```
 
 We will use this address when we configure the Kubernetes deployment, but if you're not using a Helm-installed Redis in your deployment, you'll have to change this in your Kubernetes config files. 
-* For the Fleet Helm Chart, this will be used in the `values.yaml`
-* For Terraform, in the `Terraform module/main.tf`.
+- For the Fleet Helm Chart, this will be used in the `values.yaml`
+- For Terraform, in the `Terraform module/main.tf`.
+
+## Secrets
+
+As noted earlier in the guide, the Fleet deployment needs to know the credentials to connect to MySQL and Redis. The secrets need to be created in the namespace that you will be deploying Fleet to. Below is an example of the body of a Kubernetes manifest to create various secrets.
+
+To apply the secrets, you can modify the examples below as necessary and deploy to your Kubernetes cluster.
+
+```sh
+kubectl apply -f <example-manifest.yml>
+```
+
+#### MySQL and Redis
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql
+  namespace: <namespace>
+type: kubernetes.io/basic-auth
+stringData:
+  mysql-password: <mysql-password-here>
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: redis
+  namespace: <namespace>
+type: kubernetes.io/basic-auth
+stringData:
+  redis-password: <redis-password-here>
+```
+
+#### TLS Certificates (nginx)
+
+If you're going to be terminating TLS at your ingress (nginx) through either the Fleet Helm chart or Terraform, we'll need to create that secret.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: chart-example-tls
+  namespace: <namespace>
+type: kubernetes.io/tls
+data:
+  tls.crt: |
+    <base64-encoded-tls-crt>
+  tls.key: |
+    <base64-encoded-tls-key>
+```
 
 ## Deployment
 
 While the examples below support ingress settings, they are limited to nginx. If you or your organization would like to use a specific ingress controller, they can be configured to handle and route traffic to the Fleet pods.
 
-### Helm
+#### Configuration
+
+Before attempting to deploy Fleet with Helm or Terraform, we need to edit the `values.yaml` (Helm) or `main.tf` (Terraform), we the configurations pertaining to your environment such as hostname
+
+#### Helm
 
 To configure preferences for Fleet for use in Helm, including secret names, MySQL and Redis hostnames, and TLS certificates, download the [values.yaml](https://raw.githubusercontent.com/fleetdm/fleet/main/charts/fleet/values.yaml) and change the settings to match your configuration.
 
@@ -92,17 +139,13 @@ helm upgrade --install fleet fleet \
   --values values.yaml
 ```
 
-### Terraform
+#### Terraform
 
-Let's start by cloning the [fleet-terraform repository](https://github.com/fleetdm/fleet-terraform/tree/tf-fleetk8s-support/addons).
+Let's start by cloning the [fleet-terraform repository](https://github.com/fleetdm/fleet-terraform).
 
-```sh
-git clone https://github.com/fleetdm/fleet-terraform.git
-```
+To configure preferences for Fleet for use in Terraform, including secret names, including secret names, MySQL and Redis hostnames, and TLS certificates, we'll be modifying `fleet-terraform/k8s/example/main.tf`.
 
-To configure preferences for Fleet for use in Terraform, including secret names, including secret names, MySQL and Redis hostnames, and TLS certificates, you'll need to create a new directory and copy over the contents of `fleet-terraform/k8s/example/`.
-
-Afterwards, you'll want to change your working directory to be the newly created directory containing the `main.tf` file. Here you will modify the `main.tf` with your configuration preferences for Fleet and `provider.tf` with your KUBECONFIG details for authentication. The following [link to the kubernetes provider terraform docs](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/guides/getting-started.html) has examples documented for AWS EKS, GCP GKE, and Azure.
+Before you can leverage the Terraform module, you will need to modify the `main.tf` with your configuration preferences for Fleet and `provider.tf` with your KUBECONFIG details for authentication. The following [link to the kubernetes provider terraform docs](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/guides/getting-started.html) has examples documented for AWS EKS, GCP GKE, and Azure.
 
 ```
 provider "kubernetes" {
@@ -148,7 +191,7 @@ If your Fleet deployment was successful, you should be able to access fleet with
 
 Fleet requires that there be no active connections to the MySQL Fleet database, prior to initializing a deployment, as Database migrations are often included and risk failing. Below are instructions that can be followed to Upgrade Fleet using Helm or Terraform
 
-### Helm
+#### Helm
 
 If you've deployed Fleet with Helm, prior to an upgrade, you will need to update your `values.yml` to update the `imageTag` to be a newer version of a Fleet container image tag. Afterwards, you will need to make sure no Fleet pods are running.
 
@@ -162,10 +205,10 @@ When the Fleet `deployment` has been reduced to 0 running pods, you can proceed 
 helm upgrade --install fleet fleet \
   --repo https://fleetdm.github.io/fleet/charts \ 
   --namespace <namespace> \
-  --values ../../../values.yaml
+  --values values.yaml
 ```
 
-### Terraform
+#### Terraform
 
 If you've deployed Fleet with Terraform, prior to an upgrade, you will need to update your `main.tf` to update the `image_tag` to be a newer version of Fleet container image tag. Afterwards, you can initiate a Terraform apply instructing Terraform to also initiate a database migration.
 
