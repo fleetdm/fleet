@@ -4777,7 +4777,7 @@ func (ds *Datastore) deleteObsoleteDeclarations(ctx context.Context, tx sqlx.Ext
 	deletedDeclUUIDs []string, updatedDB bool, err error,
 ) {
 	const loadToBeDeletedProfilesStmt = `
-SELECT 
+SELECT
 	declaration_uuid
 FROM
   mdm_apple_declarations

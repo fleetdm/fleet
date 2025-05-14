@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -5832,6 +5833,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	// Make sure deleted profile no longer shows up
 	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
+	spew.Dump(profiles)
 	assert.Len(t, profiles, 3)
 
 	// Add a profile again
