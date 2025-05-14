@@ -16,7 +16,7 @@ Before we get started with deploying Fleet through Helm or Terraform you will ne
 
 ## Installing infrastructure dependencies with Helm
 
-#### MySQL
+### MySQL
 
 > Skip if you already have a MySQL database that you plan on using.
 
@@ -44,7 +44,7 @@ We will use this address when we configure the Kubernetes deployment and databas
 - For the Fleet Helm Chart, this will be used in the `values.yaml`
 - For Terraform, in the `Terraform module/main.tf`.
 
-#### Redis
+### Redis
 
 > Skip if you already have a Redis cluster that you plan on using.
 
@@ -75,7 +75,7 @@ To apply the secrets, you can modify the examples below as necessary and deploy 
 kubectl apply -f <example-manifest.yml>
 ```
 
-#### MySQL and Redis
+### MySQL and Redis
 
 ```yaml
 ---
@@ -98,7 +98,7 @@ stringData:
   redis-password: <redis-password-here>
 ```
 
-#### TLS Certificates (nginx)
+### TLS Certificates (nginx)
 
 If you're going to be terminating TLS at your ingress (nginx) through either the Fleet Helm chart or Terraform, we'll need to create that secret.
 
@@ -120,11 +120,7 @@ data:
 
 While the examples below support ingress settings, they are limited to nginx. If you or your organization would like to use a specific ingress controller, they can be configured to handle and route traffic to the Fleet pods.
 
-#### Configuration
-
-Before attempting to deploy Fleet with Helm or Terraform, we need to edit the `values.yaml` (Helm) or `main.tf` (Terraform), we the configurations pertaining to your environment such as hostname
-
-#### Helm
+### Helm
 
 To configure preferences for Fleet for use in Helm, including secret names, MySQL and Redis hostnames, and TLS certificates, download the [values.yaml](https://raw.githubusercontent.com/fleetdm/fleet/main/charts/fleet/values.yaml) and change the settings to match your configuration.
 
@@ -139,7 +135,7 @@ helm upgrade --install fleet fleet \
   --values values.yaml
 ```
 
-#### Terraform
+### Terraform
 
 Let's start by cloning the [fleet-terraform repository](https://github.com/fleetdm/fleet-terraform).
 
