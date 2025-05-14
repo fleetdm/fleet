@@ -441,10 +441,10 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 	const deactivateNanoStmt = `
 	UPDATE
 		nano_enrollment_queue
-		JOIN host_mdm_apple_profiles hmap 
-			ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND 
+		JOIN host_mdm_apple_profiles hmap
+			ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND
 				hmap.host_uuid = nano_enrollment_queue.id
-	SET 
+	SET
 		nano_enrollment_queue.active = 0
 	WHERE
 		hmap.profile_uuid IN (?) AND
@@ -2005,6 +2005,16 @@ WHERE
   identifier NOT IN (?)
 `
 
+	const loadToBeDeletedProfilesNotInList = `
+SELECT
+	profile_uuid
+FROM
+	mdm_apple_configuration_profiles
+WHERE
+	team_id = ? AND
+	identifier NOT IN (?)
+`
+
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
@@ -2072,9 +2082,19 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	var (
-		stmt string
-		args []interface{}
+		stmt                string
+		args                []interface{}
+		deletedProfileUUIDs []string
 	)
+	// load the profiles that will be deleted, so we can cancel the install immediately
+	stmt, args, err = sqlx.In(loadToBeDeletedProfilesNotInList, profTeamID, append(keepIdents, fleetIdents...))
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "build query to load profiles to be deleted")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, stmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load profiles to be deleted")
+	}
+
 	// delete the obsolete profiles (all those that are not in keepIdents or delivered by Fleet)
 	var result sql.Result
 	stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, append(keepIdents, fleetIdents...))
@@ -2093,6 +2113,12 @@ ON DUPLICATE KEY UPDATE
 	if result != nil {
 		rows, _ := result.RowsAffected()
 		updatedDB = rows > 0
+	}
+	if len(deletedProfileUUIDs) > 0 {
+		// cancel installs of the deleted profiles immediately
+		if err := cancelAppleHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
+		}
 	}
 
 	// insert the new profiles and the ones that have changed, and track those
@@ -4610,9 +4636,15 @@ func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.E
 	}
 	keepNames = append(keepNames, fleetmdm.ListFleetReservedMacOSDeclarationNames()...)
 
-	deletedDeclarations, err := ds.deleteObsoleteDeclarations(ctx, tx, keepNames, teamIDOrZero)
+	deletedDeclUUIDs, deletedDeclarations, err := ds.deleteObsoleteDeclarations(ctx, tx, keepNames, teamIDOrZero)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
+	}
+	if len(deletedDeclUUIDs) > 0 {
+		// cancel installs of the deleted declarations immediately
+		if err := cancelAppleHostInstallsForDeletedMDMDeclarations(ctx, tx, deletedDeclUUIDs); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted declarations")
+		}
 	}
 
 	insertedOrUpdatedDeclarations, err := ds.insertOrUpdateDeclarations(ctx, tx, incomingDeclarations, teamIDOrZero)
@@ -4741,9 +4773,18 @@ ON DUPLICATE KEY UPDATE
 }
 
 // deleteObsoleteDeclarations deletes all declarations that are not in the keepNames list.
-func (ds *Datastore) deleteObsoleteDeclarations(ctx context.Context, tx sqlx.ExtContext, keepNames []string, teamID uint) (updatedDB bool,
-	err error,
+func (ds *Datastore) deleteObsoleteDeclarations(ctx context.Context, tx sqlx.ExtContext, keepNames []string, teamID uint) (
+	deletedDeclUUIDs []string, updatedDB bool, err error,
 ) {
+	const loadToBeDeletedProfilesStmt = `
+SELECT 
+	declaration_uuid
+FROM
+  mdm_apple_declarations
+WHERE
+  team_id = ? AND name NOT IN (?)
+`
+
 	const fmtDeleteStmt = `
 DELETE FROM
   mdm_apple_declarations
@@ -4751,9 +4792,17 @@ WHERE
   team_id = ? AND name NOT IN (?)
 `
 
+	selStmt, selArgs, err := sqlx.In(loadToBeDeletedProfilesStmt, teamID, keepNames)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "build query to load deleted declarations")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &deletedDeclUUIDs, selStmt, selArgs...); err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "load deleted declarations")
+	}
+
 	delStmt, delArgs, err := sqlx.In(fmtDeleteStmt, teamID, keepNames)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
+		return nil, false, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
 	}
 
 	var result sql.Result
@@ -4762,13 +4811,13 @@ WHERE
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
+		return nil, false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
 	}
 	if result != nil {
 		rows, _ := result.RowsAffected()
 		updatedDB = rows > 0
 	}
-	return updatedDB, nil
+	return deletedDeclUUIDs, updatedDB, nil
 }
 
 func (ds *Datastore) getExistingDeclarations(ctx context.Context, tx sqlx.ExtContext, incomingNames []string,
