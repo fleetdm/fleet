@@ -41,7 +41,7 @@ CREATE TABLE nano_devices (
     CHECK (token_update IS NULL OR token_update != ''),
 
     CHECK (bootstrap_token_b64 IS NULL OR bootstrap_token_b64 != '')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE nano_users (
@@ -77,7 +77,7 @@ CREATE TABLE nano_users (
 
     CHECK (user_authenticate        IS NULL OR user_authenticate        != ''),
     CHECK (user_authenticate_digest IS NULL OR user_authenticate_digest != '')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE nano_users ADD CONSTRAINT idx_unique_id UNIQUE (id);
 
@@ -130,7 +130,7 @@ CREATE TABLE nano_enrollments (
     CHECK (topic != ''),
     CHECK (push_magic != ''),
     CHECK (token_hex != '')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 /* Commands stand alone. By themsevles they aren't associated with
@@ -138,7 +138,7 @@ CREATE TABLE nano_enrollments (
  * for more context.
  */
 CREATE TABLE nano_commands (
-    command_uuid VARCHAR(127) NOT NULL,
+    command_uuid VARCHAR(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
     request_type VARCHAR(63)  NOT NULL,
     -- Raw command Plist
     command      MEDIUMTEXT   NOT NULL,
@@ -192,7 +192,7 @@ CREATE TABLE nano_command_results (
     CHECK (status != ''),
     INDEX (status),
     CHECK (SUBSTRING(result FROM 1 FOR 5) = '<?xml')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE nano_enrollment_queue (
@@ -214,7 +214,7 @@ CREATE TABLE nano_enrollment_queue (
     FOREIGN KEY (command_uuid)
         REFERENCES nano_commands (command_uuid)
         ON DELETE CASCADE ON UPDATE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* An enrollment's queue is a view into commands, enrollment queued
  * commands, and any results received. Outstanding queue items (i.e.
@@ -282,4 +282,4 @@ CREATE TABLE nano_cert_auth_associations (
 
     CHECK (id != ''),
     CHECK (sha256 != '')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

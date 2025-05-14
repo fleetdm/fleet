@@ -155,6 +155,49 @@ func insertQuery(t *testing.T, db *sqlx.DB) uint {
 	return uint(id) //nolint:gosec // dismiss G115
 }
 
+func checkCollation(t *testing.T, db *sqlx.DB) {
+	var gotTables []struct {
+		TableName      string `db:"TABLE_NAME"`
+		TableSchema    string `db:"TABLE_SCHEMA"`
+		TableCollation string `db:"TABLE_COLLATION"`
+	}
+	// 	stmt := `
+	// SELECT
+	// 	table_name, table_schema
+	// FROM
+	// 	information_schema.columns
+	// WHERE
+	// 	table_schema = (SELECT database())
+	// 	AND collation_name != 'utf8mb4_unicode_ci'
+	// 	AND collation_name != 'utf8mb4_bin'
+	// 	`
+
+	stmt := `
+  SELECT table_name, table_schema, table_collation
+          FROM information_schema.TABLES AS T, information_schema.COLLATION_CHARACTER_SET_APPLICABILITY AS C
+          WHERE C.collation_name = T.table_collation
+          AND T.table_schema = (SELECT database())
+          -- AND (C.CHARACTER_SET_NAME != ? OR C.COLLATION_NAME != ?)
+	  -- exclude tables that have columns with specific collations
+	  AND table_name NOT IN ('hosts', 'enroll_secrets')
+	  AND table_name = 'software_categories'
+`
+	// err := db.Select(&gotTables, stmt, "utf8mb4", "utf8mb4_unicode_ci")
+	err := db.Select(&gotTables, stmt)
+	require.NoError(t, err)
+
+	stmt2 := `SHOW CREATE TABLE software_categories`
+	var data []struct {
+		CreateTable string `db:"Create Table"`
+		Table       string `db:"Table"`
+	}
+	err = db.Select(&data, stmt2)
+	require.NoError(t, err)
+	fmt.Printf("data: %v\n", data)
+
+	require.Empty(t, gotTables)
+}
+
 func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
 	// Insert a minimal record into hosts table
 	insertHostStmt := `
