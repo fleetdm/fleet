@@ -240,7 +240,7 @@ const InstallerStatusAction = ({
 }: IInstallerStatusActionsProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  // displayActionItems is used to track the status of the any user-initiated install action
+  // displayActionItems is used to track the display text and icons of the install and uninstall button
   const [
     displayActionItems,
     setDisplayActionItems,
@@ -256,7 +256,11 @@ const InstallerStatusAction = ({
   });
 
   useEffect(() => {
-    // We don't want to update the action text/icon unless the status changes
+    // We update the text/icon only when we see a change to a non-pending status
+    // Pending statuses keep the original text shown (e.g. "Retry" text on failed
+    // install shouldn't change to "Install" text because it was clicked and went
+    // pending. Once the status is no longer pending, like 'installed' the
+    // text will update to "Reinstall")
     if (status !== "pending_install" && status !== "pending_uninstall") {
       setDisplayActionItems({
         install: {
