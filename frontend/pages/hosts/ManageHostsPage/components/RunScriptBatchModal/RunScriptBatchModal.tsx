@@ -85,7 +85,9 @@ const RunScriptBatchModal = ({
         await scriptsAPI.runScriptBatch(body);
         renderFlash(
           "success",
-          `Script is running on ${selectedHostIds.length} hosts, or will run as each host comes online. See host details for individual results.`
+          `Script is running on ${
+            runByFilters ? totalFilteredHostsCount : selectedHostIds.length
+          } hosts, or will run as each host comes online. See host details for individual results.`
         );
       } catch (error) {
         renderFlash("error", "Could not run script.");
