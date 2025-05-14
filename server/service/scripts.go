@@ -1164,7 +1164,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		if host.TeamID == nil && script.TeamID == nil {
 			continue
 		}
-		if *host.TeamID != *script.TeamID {
+		if host.TeamID == nil || script.TeamID == nil || *host.TeamID != *script.TeamID {
 			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
 		}
 	}
