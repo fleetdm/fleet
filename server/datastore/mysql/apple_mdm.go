@@ -465,9 +465,9 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 	UPDATE
 		host_mdm_apple_profiles
 	SET
-		status = NULL,
 		operation_type = ?,
-		ignore_error = IF(status = ?, 1, 0)
+		ignore_error = IF(status = ?, 1, 0),
+		status = NULL
 	WHERE
 		profile_uuid IN (?) AND
 		status IS NOT NULL AND
@@ -3088,11 +3088,12 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               detail = VALUES(detail),
               checksum = VALUES(checksum),
               secrets_updated_at = VALUES(secrets_updated_at),
-              ignore_error = VALUES(ignore_error),
+							-- keep ignore error flag if the operation is still a remove
+              ignore_error = IF(VALUES(operation_type) = '%s', ignore_error, VALUES(ignore_error)),
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid)`,
-			strings.TrimSuffix(valuePart, ","),
+			strings.TrimSuffix(valuePart, ","), fleet.MDMOperationTypeRemove,
 		)
 
 		// We need to run with retry due to deadlocks.
