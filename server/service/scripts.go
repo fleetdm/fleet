@@ -1113,9 +1113,9 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		userId = &ctxUser.ID
 	}
 
-	var hostIDsToExecute []uint
+	var hosts []*fleet.Host
 
-	// If we are given filters, we need to get the host IDs from the filters
+	// If we are given filters, we need to get the hosts matching those filters
 	if filters != nil {
 		opt, lid, err := hostListOptionsFromFilters(filters)
 		if err != nil {
@@ -1130,22 +1130,35 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 			return "", fleet.NewInvalidArgumentError("filters", "filters must include a team filter")
 		}
 
-		hostIDsToExecute, _, _, err = svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
+		filter := fleet.TeamFilter{User: ctxUser, IncludeObserver: true}
+
+		// Load hosts, either from label if provided or from all hosts.
+		if lid != nil {
+			hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, *opt)
+		} else {
+			opt.DisableIssues = true // intentionally ignore failing policies
+			hosts, err = svc.ds.ListHosts(ctx, filter, *opt)
+		}
+
 		if err != nil {
 			return "", err
 		}
 	} else {
-		hostIDsToExecute = hostIDs
-	}
-
-	// Check that the given hosts match the script's team.
-	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDsToExecute)
-	if err != nil {
-		return "", err
+		// Get the hosts matching the host IDs
+		hosts, err = svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+		if err != nil {
+			return "", err
+		}
 	}
 	if len(hosts) == 0 {
 		return "", &fleet.BadRequestError{Message: "no hosts match the specified host IDs"}
 	}
+
+	if len(hosts) > MAX_BATCH_EXECUTION_HOSTS {
+		return "", fleet.NewInvalidArgumentError("filters", "too_many_hosts")
+	}
+
+	hostIDsToExecute := make([]uint, 0, len(hosts))
 	for _, host := range hosts {
 		if host.TeamID == nil && script.TeamID == nil {
 			continue
@@ -1153,10 +1166,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		if *host.TeamID != *script.TeamID {
 			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
 		}
-	}
-
-	if len(hostIDsToExecute) > MAX_BATCH_EXECUTION_HOSTS {
-		return "", fleet.NewInvalidArgumentError("filters", "too_many_hosts")
+		hostIDsToExecute = append(hostIDsToExecute, host.ID)
 	}
 
 	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
