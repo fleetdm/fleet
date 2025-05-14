@@ -1111,6 +1111,8 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		userId = &ctxUser.ID
 	}
 
+	var hostIDsToExecute []uint
+
 	// If we are given filters, we need to get the host IDs from the filters
 	if filters != nil {
 		opt, lid, err := hostListOptionsFromFilters(filters)
@@ -1126,31 +1128,29 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 			return "", fleet.NewInvalidArgumentError("filters", "filters must include a team filter")
 		}
 
-		hostIDs, _, _, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
+		hostIDsToExecute, _, _, err = svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
 		if err != nil {
 			return "", err
-		}
-
-		if len(hostIDs) == 0 {
-			return "", fleet.NewInvalidArgumentError("filters", "no hosts match the specified filters")
 		}
 	} else {
-		// If we are given host IDs, we need to check that they match the script's team.
-		hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
-		if err != nil {
-			return "", err
-		}
-		if len(hosts) == 0 {
-			return "", &fleet.BadRequestError{Message: "no hosts match the specified host IDs"}
-		}
-		for _, host := range hosts {
-			if host.TeamID == nil || *host.TeamID != *script.TeamID {
-				return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
-			}
+		hostIDsToExecute = hostIDs
+	}
+
+	// If we are given host IDs, we need to check that they match the script's team.
+	hosts, err := svc.ds.ListHostsLiteByIDs(ctx, hostIDsToExecute)
+	if err != nil {
+		return "", err
+	}
+	if len(hosts) == 0 {
+		return "", &fleet.BadRequestError{Message: "no hosts match the specified host IDs"}
+	}
+	for _, host := range hosts {
+		if host.TeamID == nil || *host.TeamID != *script.TeamID {
+			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
 		}
 	}
 
-	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDs)
+	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
@@ -1158,7 +1158,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
 		ScriptName:       script.Name,
 		BatchExeuctionID: batchID,
-		HostCount:        uint(len(hostIDs)),
+		HostCount:        uint(len(hostIDsToExecute)),
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
 	}
