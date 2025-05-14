@@ -53,8 +53,13 @@ The user channel has its own push magic, which is delivered via `TokenUpdate` co
 ## Considerations for product
 
 - Will we support multiple users?
+  - No. We/Apple do not support multiple users managed by MDM.
 - We plan to link IdP groups to labels. This means those labels/groups will apply to user-scoped profiles as well.
+  - Yes
 - Will we support [Shared iPad](https://support.apple.com/guide/deployment/shared-ipad-overview-dep9a34c2ba2/1/web/1.0)
+  - Not right now. Shared iPad is mostly used in education and our customers do not require it right now.
 - Will we support user-scoped DDM?
+  - Initial focus is to support `.mobileconfig` since the primary use case is to deliver certificates.
 - Will we allow IT admin to select in the UI whether a profile is device or user-scoped? Or rely on the PayloadScope of the top-level configuration profile?
+  - Rely on PayloadScope since we recommend iMazing Profile Editor.
 - What about security--do we need to guarantee that the cert is only delivered to a specific user?
