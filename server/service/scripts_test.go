@@ -910,7 +910,7 @@ func TestBatchScriptExecute(t *testing.T) {
 	t.Run("error if filters match too many hosts", func(t *testing.T) {
 		hosts := make([]*fleet.Host, 5001)
 		for i := 0; i < 5001; i++ {
-			hosts[i] = &fleet.Host{ID: uint(i + 1), TeamID: ptr.Uint(1)}
+			hosts[i] = &fleet.Host{ID: uint(i + 1), TeamID: ptr.Uint(1)} // nolint:gosec // ignore G115
 		}
 		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 			return hosts, nil
