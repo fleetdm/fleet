@@ -626,8 +626,13 @@ func (d *DEPService) processDeviceResponse(
 		}
 	}
 
+	// Devices just added to an MDM server must have their profile updated.
+	// In our testing, added devices with a profile_uuid (which were removed and then re-added, for example)
+	// may not be able to download the profile and enroll in MDM.
+	needProfileAssign := make(map[string]struct{})
 	for _, addedDevice := range addedDevices {
 		addedDevicesSlice = append(addedDevicesSlice, addedDevice)
+		needProfileAssign[addedDevice.SerialNumber] = struct{}{}
 	}
 	for _, modifiedDevice := range modifiedDevices {
 		modifiedSerials = append(modifiedSerials, modifiedDevice.SerialNumber)
@@ -766,8 +771,9 @@ func (d *DEPService) processDeviceResponse(
 	for profUUID, devices := range profileToDevices {
 		var serials []string
 		for _, device := range devices {
-			_, ok := existingDeletedSerials[device.SerialNumber]
-			if device.ProfileUUID == profUUID && !ok {
+			_, deleted := existingDeletedSerials[device.SerialNumber]
+			_, needsProfile := needProfileAssign[device.SerialNumber]
+			if device.ProfileUUID == profUUID && !deleted && !needsProfile {
 				skippedSerials = append(skippedSerials, device.SerialNumber)
 				continue
 			}
