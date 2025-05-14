@@ -1,4 +1,4 @@
-# Bridging the gap: How Fleet empowers Linux device management in a multi-platform world 
+# Bridging the gap: How Fleet enables Linux device management in a multi-platform world 
 
 Over the past 20 years, I’ve been in roles that ultimately supported or managed Apple devices. I consider myself fortunate to have avoided managing Windows devices in an enterprise environment, aside from the occasional virtual machine or user needing Boot Camp (remember that?!). Throughout my career, I’ve also spent considerable time managing various Linux servers and can confirm that the tools available for Linux administration are as diverse in functionality and usability as the many Linux distributions themselves. 
 
