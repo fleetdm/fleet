@@ -77,6 +77,7 @@ import WelcomeHost from "./cards/WelcomeHost";
 import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
+import DataVisualizations from "./cards/DataVisualizations";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
 import ActivityFeedAutomationsModal from "./components/ActivityFeedAutomationsModal";
@@ -745,6 +746,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         {showSoftwareCard && SoftwareCard}
         {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
         {showMdmCard && <>{MDMCard}</>}
+        <DataVisualizations teamId={teamIdForApi} />
       </div>
     );
   };
