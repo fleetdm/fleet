@@ -87,7 +87,8 @@ const SoftwareSelfService = ({
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
-  const [selectedSoftware, setSelectedSoftware] = useState<{
+
+  const selectedSoftware = useRef<{
     softwareId: number;
     softwareName: string;
     softwareInstallerType?: string;
@@ -137,7 +138,11 @@ const SoftwareSelfService = ({
         // Get the set of pending software IDs
         const newPendingSet = new Set(
           response.software
-            .filter((software) => software.status === "pending_install")
+            .filter(
+              (software) =>
+                software.status === "pending_install" ||
+                software.status === "pending_uninstall"
+            )
             .map((software) => String(software.id))
         );
 
@@ -251,6 +256,17 @@ const SoftwareSelfService = ({
     );
   };
 
+  const onExitUninstallSoftwareModal = () => {
+    selectedSoftware.current = null;
+    setShowUninstallSoftwareModal(false);
+  };
+
+  const onSuccessUninstallSoftwareModal = () => {
+    selectedSoftware.current = null;
+    setShowUninstallSoftwareModal(false);
+    onInstallOrUninstall;
+  };
+
   const onNextPage = useCallback(() => {
     router.push(
       getPathWithQueryParams(pathname, {
@@ -289,14 +305,14 @@ const SoftwareSelfService = ({
       onInstall: onInstallOrUninstall,
       onShowInstallerDetails,
       onClickUninstallAction: (software) => {
-        setSelectedSoftware({
+        selectedSoftware.current = {
           softwareId: software.id,
           softwareName: software.name,
           softwareInstallerType: getExtensionFromFileName(
             software.software_package?.name || ""
           ),
           version: software.software_package?.version || "",
-        });
+        };
         setShowUninstallSoftwareModal(true);
       },
     });
@@ -456,15 +472,15 @@ const SoftwareSelfService = ({
         />
         {renderSelfServiceCard()}
       </Card>
-      {showUninstallSoftwareModal && selectedSoftware && (
+      {showUninstallSoftwareModal && selectedSoftware.current && (
         <UninstallSoftwareModal
-          softwareId={selectedSoftware.softwareId}
-          softwareName={selectedSoftware.softwareName}
-          softwareInstallerType={selectedSoftware.softwareInstallerType}
-          version={selectedSoftware.version}
+          softwareId={selectedSoftware.current.softwareId}
+          softwareName={selectedSoftware.current.softwareName}
+          softwareInstallerType={selectedSoftware.current.softwareInstallerType}
+          version={selectedSoftware.current.version}
           token={deviceToken}
-          onExit={() => setShowUninstallSoftwareModal(false)}
-          onSuccess={onInstallOrUninstall}
+          onExit={onExitUninstallSoftwareModal}
+          onSuccess={onSuccessUninstallSoftwareModal}
         />
       )}
     </>

@@ -36,7 +36,8 @@ const UninstallSoftwareModal = ({
     setIsUninstalling(true);
     try {
       await deviceUserAPI.uninstallSelfServiceSoftware(token, softwareId);
-      renderFlash("success", "Software uninstalled successfully!");
+      // TODO: Change this toast message or hide it all together?
+      // renderFlash("success", "Software uninstalled successfully!");
       onSuccess();
     } catch (error) {
       renderFlash("error", "Couldn't uninstall. Please try again.");
