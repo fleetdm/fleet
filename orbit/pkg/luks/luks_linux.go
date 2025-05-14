@@ -38,7 +38,7 @@ const (
 	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
 
-var errKeySlotNotFound = errors.New("key slot not found")
+var ErrKeySlotNotFound = errors.New("key slot not found")
 
 func isInstalled(toolName string) bool {
 	path, err := exec.LookPath(toolName)
@@ -100,10 +100,10 @@ func (lr *LuksRunner) validateEscrowedKeyWorkflow(
 	escrowedKeySlot uint,
 ) error {
 	log.Debug().Msgf("fetching salt for key slot %d", escrowedKeySlot)
-	storedSalt, err := getSaltForKeySlot(ctx, devicePath, escrowedKeySlot)
+	storedSalt, err := GetSaltForKeySlot(ctx, devicePath, escrowedKeySlot)
 
 	if err != nil {
-		if errors.Is(err, errKeySlotNotFound) {
+		if errors.Is(err, ErrKeySlotNotFound) {
 			log.Debug().Msgf("key slot %d not found", escrowedKeySlot)
 			return lr.deleteEscrowedKey(escrowedKeySlot)
 		}
@@ -153,7 +153,7 @@ func (lr *LuksRunner) newUserKeyWorkflow(ctx context.Context, devicePath string)
 	response.KeySlot = keyslot
 
 	if keyslot != nil {
-		salt, err := getSaltForKeySlot(ctx, devicePath, *keyslot)
+		salt, err := GetSaltForKeySlot(ctx, devicePath, *keyslot)
 		if err != nil {
 			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
 				log.Error().Err(err).Msgf("failed to remove key slot %d", *keyslot)
@@ -452,7 +452,7 @@ func getLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	return &dump, nil
 }
 
-func getSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
+func GetSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
 	dump, err := getLuksDump(ctx, devicePath)
 	if err != nil {
 		return "", fmt.Errorf("getting salt for key slot: %w", err)
@@ -460,7 +460,7 @@ func getSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (st
 
 	slot, ok := dump.Keyslots[fmt.Sprintf("%d", keySlot)]
 	if !ok {
-		return "", errKeySlotNotFound
+		return "", ErrKeySlotNotFound
 	}
 
 	return slot.KDF.Salt, nil

@@ -6,6 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falcon_kernel_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/crowdstrike/falconctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptsetup"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptsetup_luks_salt"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dconf_read"
 	"github.com/osquery/osquery-go"
@@ -27,6 +28,12 @@ func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 			dataflattentable.JsonType,
 			[]string{"lsblk", "-n", "-O", "--json"}, // -n (no header) -O (all vars) --json (output in json)
 			dataflattentable.WithBinDirs("/usr/bin", "/usr/sbin"),
+		),
+
+		table.NewPlugin(
+			cryptsetup_luks_salt.TblName,
+			cryptsetup_luks_salt.Columns(),
+			cryptsetup_luks_salt.Generate,
 		),
 	}, nil
 }
