@@ -1160,13 +1160,13 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 
 	hostIDsToExecute := make([]uint, 0, len(hosts))
 	for _, host := range hosts {
+		hostIDsToExecute = append(hostIDsToExecute, host.ID)
 		if host.TeamID == nil && script.TeamID == nil {
 			continue
 		}
 		if *host.TeamID != *script.TeamID {
 			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
 		}
-		hostIDsToExecute = append(hostIDsToExecute, host.ID)
 	}
 
 	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
