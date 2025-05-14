@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -560,77 +561,103 @@ func (ds *Datastore) ListLabelsForHost(ctx context.Context, hid uint) ([]*fleet.
 // ListHostsInLabel returns a list of fleet.Host that are associated
 // with fleet.Label referenced by Label ID
 func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-	queryFmt := `
-    SELECT
-      h.id,
-      h.osquery_host_id,
-      h.created_at,
-      h.updated_at,
-      h.detail_updated_at,
-      h.node_key,
-      h.hostname,
-      h.uuid,
-      h.platform,
-      h.osquery_version,
-      h.os_version,
-      h.build,
-      h.platform_like,
-      h.code_name,
-      h.uptime,
-      h.memory,
-      h.cpu_type,
-      h.cpu_subtype,
-      h.cpu_brand,
-      h.cpu_physical_cores,
-      h.cpu_logical_cores,
-      h.hardware_vendor,
-      h.hardware_model,
-      h.hardware_version,
-      h.hardware_serial,
-      h.computer_name,
-      h.primary_ip_id,
-      h.distributed_interval,
-      h.logger_tls_period,
-      h.config_tls_refresh,
-      h.primary_ip,
-      h.primary_mac,
-      h.label_updated_at,
-      h.last_enrolled_at,
-      h.refetch_requested,
-      h.refetch_critical_queries_until,
-      h.team_id,
-      h.policy_updated_at,
-      h.public_ip,
-      COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
-      COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
-      COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-      COALESCE(hst.seen_time, h.created_at) as seen_time,
-      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
-      (CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at,
-      (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
-      %s
-      %s
+	// 	queryFmt := `
+	//     SELECT
+	//       h.id,
+	//       h.osquery_host_id,
+	//       h.created_at,
+	//       h.updated_at,
+	//       h.detail_updated_at,
+	//       h.node_key,
+	//       h.hostname,
+	//       h.uuid,
+	//       h.platform,
+	//       h.osquery_version,
+	//       h.os_version,
+	//       h.build,
+	//       h.platform_like,
+	//       h.code_name,
+	//       h.uptime,
+	//       h.memory,
+	//       h.cpu_type,
+	//       h.cpu_subtype,
+	//       h.cpu_brand,
+	//       h.cpu_physical_cores,
+	//       h.cpu_logical_cores,
+	//       h.hardware_vendor,
+	//       h.hardware_model,
+	//       h.hardware_version,
+	//       h.hardware_serial,
+	//       h.computer_name,
+	//       h.primary_ip_id,
+	//       h.distributed_interval,
+	//       h.logger_tls_period,
+	//       h.config_tls_refresh,
+	//       h.primary_ip,
+	//       h.primary_mac,
+	//       h.label_updated_at,
+	//       h.last_enrolled_at,
+	//       h.refetch_requested,
+	//       h.refetch_critical_queries_until,
+	//       h.team_id,
+	//       h.policy_updated_at,
+	//       h.public_ip,
+	//       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
+	//       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
+	//       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
+	//       COALESCE(hst.seen_time, h.created_at) as seen_time,
+	//       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
+	//       (CASE WHEN uptime = 0 THEN DATE('0001-01-01') ELSE DATE_SUB(h.detail_updated_at, INTERVAL uptime/1000 MICROSECOND) END) as last_restarted_at,
+	//       (SELECT name FROM teams t WHERE t.id = h.team_id) AS team_name
+	//       %s
+	//       %s
+	// 	    %s
+	// 			%s
+	//     FROM label_membership lm
+	//     JOIN hosts h ON (lm.host_id = h.id)
+	//     LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+	//     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+	//     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+	//     %s
+	//     %s
+	// 		%s
+	//     %s
+	// `
+
+	var sql string
+	var sqlColumns []string
+	if len(opt.HostFieldNames) == 0 {
+		sqlColumns = defaultListHostsColumns
+	} else {
+		opt.MDMInfo = ptr.Bool(false)
+		opt.DeviceMapping = false
+		opt.OrbitInfo = false
+		opt.DisableIssues = true
+		sqlColumns = make([]string, 0, 0)
+	}
+	sqlColumns = append(sqlColumns, getListHostsColumns(&opt)...)
+
+	sql = fmt.Sprintf(`SELECT %s `, strings.Join(sqlColumns, ", "))
+	if opt.MDMInfo == nil || *opt.MDMInfo {
+		sql += hostMDMSelect
+	}
+
+	sql += `
+	    FROM label_membership lm
+	    JOIN hosts h ON (lm.host_id = h.id)
+	    LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+	    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
+	    LEFT JOIN host_disks hd ON (h.id=hd.host_id)
+		LEFT JOIN teams t ON (h.team_id = t.id)
 	    %s
-			%s
-    FROM label_membership lm
-    JOIN hosts h ON (lm.host_id = h.id)
-    LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
-    LEFT JOIN host_updates hu ON (h.id = hu.host_id)
-    LEFT JOIN host_disks hd ON (h.id=hd.host_id)
-    %s
-    %s
+	    %s
 		%s
-    %s
-`
-	failingIssuesSelect := `,
-		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
-		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
-		COALESCE(host_issues.total_issues_count, 0) AS total_issues_count
+	    %s
 	`
+
 	failingIssuesJoin := `LEFT JOIN host_issues ON h.id = host_issues.host_id`
 
 	if opt.DisableIssues {
-		failingIssuesSelect = ""
 		failingIssuesJoin = ""
 	}
 
@@ -646,33 +673,22 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		deviceMappingJoin = ""
 	}
 
-	var deviceMappingSelect string
-	if opt.DeviceMapping {
-		deviceMappingSelect = `,
-	COALESCE(dm.device_mapping, 'null') as device_mapping`
-	}
-
 	orbitInfoJoin := "LEFT JOIN host_orbit_info hoi ON h.id = hoi.host_id"
 	if !opt.OrbitInfo {
 		orbitInfoJoin = ""
 	}
 
-	var orbitInfoSelect string
-	if opt.OrbitInfo {
-		orbitInfoSelect = `, hoi.version AS orbit_version, hoi.desktop_version AS fleet_desktop_version, hoi.scripts_enabled AS scripts_enabled`
-	}
-
-	query := fmt.Sprintf(
-		queryFmt, hostMDMSelect, failingIssuesSelect, deviceMappingSelect, orbitInfoSelect, hostMDMJoin, failingIssuesJoin, deviceMappingJoin, orbitInfoJoin,
+	sql = fmt.Sprintf(
+		sql, hostMDMJoin, failingIssuesJoin, deviceMappingJoin, orbitInfoJoin,
 	)
 
-	query, params, err := ds.applyHostLabelFilters(ctx, filter, lid, query, opt)
+	sql, params, err := ds.applyHostLabelFilters(ctx, filter, lid, sql, opt)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "applying label query filters")
 	}
 
 	hosts := []*fleet.Host{}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, params...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting label query executions")
 	}
