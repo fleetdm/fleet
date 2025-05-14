@@ -69,7 +69,7 @@ These are command lines that will be run _after_ the generated uninstall script 
 
 ### Testing
 
-Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updates to existing apps, skip to step 5.
+Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updates to existing apps, skip to step 7.
 
 1. When a pull request (PR) is opened in `inputs/`, the [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
 2. The EM is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the EM will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
@@ -87,15 +87,22 @@ go run cmd/maintained-apps/main.go
 FLEET_DEV_MAINTAINED_APPS_BASE_URL: https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs
 ```
 
-7. Run the following `fleetctl preview` command, using the PR's [Docker tag](https://hub.docker.com/r/fleetdm/fleet/tags). To find PR's tag, head to the ["Docker publish" action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) for the PR and select "Publish Docker images." The tag is the last 6-character hash in the output (ex. `f4cd9f7`).
+7. If the app is a new app run the ["Docker publish" action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) for the PR by selecting **Run workflow**, entering the PR's branch name, and selecting **Run workflow** again.
+
+> Currently, if the contributor opened a PR from their fork of the fleetdm/fleet repo, Fleet won't publish a Docker tag. To create a Docker tag, create a copy of the contributor's PR in the fleetdm/fleet repo. To do this, create a new branch (ex. `copy/contributor-PR`) and open a PR from the contributors branch to the copy branch. Merge in those changes and open a PR from your copy branch to `main` in fleetdm/fleet.
+
+8. Run the following `fleetctl preview` command.
+
+If the app is a new app, use the PR's [Docker tag](https://hub.docker.com/r/fleetdm/fleet/tags). To find PR's tag, head to the ["Docker publish" action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) for the PR and select "Publish Docker images." The tag is the last 6-character hash in the output (ex. `f4cd9f7`).
+
+If we're testing an update to an existing app, leave out the `--tag=<Docker-tag>`.
 
 ```
 fleetctl preview --tag=<Docker-tag> --preview-config-path=./tools/osquery/in-a-box --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
 ```
 
-> Currently, if the app is a new app, and the contributor opened a PR from their fork of the fleetdm/fleet repo, Fleet won't publish a Docker tag. To create a Docker tag, create a copy of the contributor's PR in the fleetdm/fleet repo. To do this, create a new branch (ex. `copy/contributor-PR`) and open a PR from the contributors branch to the copy branch. Merge in those changes and open a PR from your copy branch to `main` in fleetdm/fleet.
+9. Test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
 
-8. Test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
-
-9. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
-10. If the test is successful, the PD approves and merges the PR.
+10. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
+    
+11. If the test is successful, the PD approves and merges the PR.
