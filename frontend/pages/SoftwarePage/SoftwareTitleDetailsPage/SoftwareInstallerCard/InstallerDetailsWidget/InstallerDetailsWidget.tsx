@@ -1,8 +1,9 @@
 /** TODO: This component is similar to other UI elements that can
  * be abstracted to use a shared base component (e.g. DetailsWidget) */
 
-import React from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
+import { stringToClipboard } from "utilities/copy_text";
 
 import { internationalTimeFormat } from "utilities/helpers";
 import { addedFromNow } from "utilities/date_format";
@@ -11,6 +12,8 @@ import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 const baseClass = "installer-details-widget";
 
@@ -50,6 +53,7 @@ interface IInstallerDetailsWidgetProps {
   installerType: "package" | "vpp";
   addedTimestamp?: string;
   versionInfo?: JSX.Element;
+  sha256?: string | null;
   isFma: boolean;
 }
 
@@ -58,10 +62,26 @@ const InstallerDetailsWidget = ({
   softwareName,
   installerType,
   addedTimestamp,
+  sha256,
   versionInfo,
   isFma,
 }: IInstallerDetailsWidgetProps) => {
   const classNames = classnames(baseClass, className);
+
+  const [copyMessage, setCopyMessage] = useState("");
+
+  const onCopySha256 = (evt: React.MouseEvent) => {
+    evt.preventDefault();
+
+    stringToClipboard(sha256)
+      .then(() => setCopyMessage("Copied!"))
+      .catch(() => setCopyMessage("Copy failed"));
+
+    // Clear message after 1 second
+    setTimeout(() => setCopyMessage(""), 1000);
+
+    return false;
+  };
 
   const renderIcon = () => {
     return installerType === "package" ? (
@@ -88,10 +108,44 @@ const InstallerDetailsWidget = ({
         ""
       );
 
+    const renderSha256 = () => {
+      return sha256 ? (
+        <>
+          {" "}
+          &bull;{" "}
+          <span className={`${baseClass}__sha256`}>
+            <TooltipWrapper
+              tipContent={<>The software&apos;s SHA-256 hash.</>}
+              position="top"
+              showArrow
+              underline={false}
+            >
+              {sha256.slice(0, 6)}&hellip;
+            </TooltipWrapper>
+            <div className={`${baseClass}__sha-copy-button`}>
+              <Button variant="icon" iconStroke onClick={onCopySha256}>
+                <Icon name="copy" />
+              </Button>
+            </div>
+            <div className={`${baseClass}__copy-overlay`}>
+              {copyMessage && (
+                <div
+                  className={`${baseClass}__copy-message`}
+                >{`${copyMessage} `}</div>
+              )}
+            </div>
+          </span>
+        </>
+      ) : (
+        ""
+      );
+    };
+
     return (
       <>
         {renderInstallerDisplayText(installerType, isFma)} &bull; {versionInfo}
         {renderTimeStamp()}
+        {renderSha256()}
       </>
     );
   };
@@ -101,7 +155,7 @@ const InstallerDetailsWidget = ({
       {renderIcon()}
       <div className={`${baseClass}__info`}>
         <InstallerName name={softwareName} />
-        <span className={`${baseClass}__details`}>{renderDetails()}</span>
+        <div className={`${baseClass}__details`}>{renderDetails()}</div>
       </div>
     </div>
   );
