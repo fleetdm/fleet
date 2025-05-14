@@ -121,6 +121,8 @@ ORDER BY
 	inet_aton(ia.address) IS NOT NULL DESC
 LIMIT 1;`
 
+// TODO Juan: Define new detail query for new table.
+
 // hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // fleet.Host data model (via IngestFunc).

@@ -20,5 +20,13 @@ func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		falcon_kernel_check.TablePlugin(log.Logger),   // table name is "falcon_kernel_check"
 		dataflattentable.TablePluginExec(log.Logger, "nftables", dataflattentable.JsonType, []string{"nft", "-jat", "list", "ruleset"}, dataflattentable.WithBinDirs("/usr/bin", "/usr/sbin")), // -j (json) -a (show object handles) -t (terse, omit set contents)
 		table.NewPlugin("dconf_read", dconf_read.Columns(), dconf_read.Generate),
+
+		dataflattentable.TablePluginExec(
+			log.Logger,
+			"lsblk",
+			dataflattentable.JsonType,
+			[]string{"lsblk", "-n", "-O", "--json"}, // -n (no header) -O (all vars) --json (output in json)
+			dataflattentable.WithBinDirs("/usr/bin", "/usr/sbin"),
+		),
 	}, nil
 }
