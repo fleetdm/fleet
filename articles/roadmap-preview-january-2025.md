@@ -19,7 +19,7 @@ In the next 3 months, Fleet will ship...
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 - 🍏 Account-based user enrollment for personal devices (BYOD)
-- 🗓️ Native patching for apps and OS during maintenance windows
+- 🗓️ Enhanced coordination of remote actions during maintenance windows
 - 🤖 AI-generated osquery queries
 
 Any feedback or a questions?  Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).

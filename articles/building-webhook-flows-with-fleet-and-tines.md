@@ -2,11 +2,11 @@
 
 ![Building webhook flows with Fleet and Tines](../website/assets/images/articles/building-webhook-flows-with-fleet-and-tines-1600x900@2x.png)
 
-For IT Admins, updating systems is crucial for security and system performance. However, managing updates across numerous devices can be a daunting task. That's where automation tools like Tines and Fleet come into play. In our latest blog post, [Fleet in Your Calendar: Introducing Maintenance Windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows), we introduced a new feature that allows you to schedule maintenance windows directly in your users' calendar. This feature helps in planning updates and ensures minimal disruption to end users.
+For IT Admins, coordinating necessary actions with users is crucial for maintaining system security and performance. However, managing these actions across numerous devices can be a daunting task. That's where automation tools like Tines and Fleet come into play. In our latest blog post, [Fleet in Your Calendar: Introducing Maintenance Windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows), we introduced a new feature that allows you to schedule maintenance windows directly in your users' calendar. This feature helps in planning necessary actions and ensures minimal disruption to end users.
 
 Building on that, this guide will walk you through setting up an automated workflow using webhooks and Tines. Maintenance windows call the webhook and initiate the workflow we are building here at the beginning of the calendar event for the user. Tines serves as the low-code/no-code environment for this example, but this workflow can be adapted to any low-code/no-code environment that supports webhooks.
 
-We will demonstrate how to receive a webhook callback from Fleet when a device's OS is outdated and automatically send an MDM command to update the OS. By the end of this tutorial, you'll have a fully automated process that leverages the power of Tines to keep your fleet of devices up to date seamlessly.
+We will demonstrate how to receive a webhook callback from Fleet when a policy is failing on a device and automatically send an MDM command to address the issue. In this example, we'll use a policy for OS version as an illustration, but the same approach can be used for any policy or remote action you need to coordinate with users. By the end of this tutorial, you'll have a fully automated process that leverages the power of Tines to coordinate necessary actions with your users seamlessly.
 
 Let's dive in and see how you can enhance your IT operations with this powerful integration.
 
@@ -27,9 +27,9 @@ A webhook is a custom HTTP callback that allows one application to send data to 
 
 ## Our example IT workflow
 
-When a device's OS version is outdated, Tines receives a webhook callback from Fleet and using information from the webhook, builds and sends an MDM (Mobile Device Management) command to update the device’s OS version.
+In this example, when a policy is failing on a device, Tines receives a webhook callback from Fleet and using information from the webhook, builds and sends an MDM (Mobile Device Management) command to address the issue. For illustration purposes, we'll use a policy related to OS version, but the same approach can be applied to any policy or remote action.
 
-Fleet will send a callback via its calendar integration feature, a maintenance window. Fleet places a scheduled maintenance event on the device user’s calendar. This event warns the device owner that their computer will be restarted to remediate one or more failing policies. During the calendar event time, Fleet sends a webhook. The IT admin must set up a flow to remediate the failing policy. This article is an example of one such flow.
+Fleet will send a callback via its calendar integration feature, a maintenance window. Fleet places a scheduled maintenance event on the device user's calendar. This event informs the device owner that an action needs to be taken during the scheduled time. During the calendar event time, Fleet sends a webhook. The IT admin must set up a flow to handle the necessary action. This article is an example of one such flow.
 
 
 ## Getting started – webhook action
@@ -56,9 +56,9 @@ _Tines trigger action checking for an error._
 We leave this error-handling portion of the story as a stub. In the future, we can expand it by sending an email or triggering other actions.
 
 
-## Checking whether webhook indicates an outdated OS
+## Checking the webhook payload for failing policies
 
-At the same time, we also check whether the webhook was triggered by a policy indicating an outdated OS. From previous testing, we know that the webhook payload will look like this:
+At the same time, we also check what policy triggered the webhook. From previous testing, we know that the webhook payload will look like this:
 
 ```json
 {
@@ -84,14 +84,14 @@ The payload contains:
 * Serial number. 
 * A list of failing policies.
 
-We are interested in the failing policies. When one of the failing policies contains a policy named “macOS - OS version up to date,” we know that the device’s OS is outdated. Hence, we create a trigger that looks for this policy.
+We are interested in the failing policies. For this example, we'll look for a policy named "macOS - OS version up to date," but you could adapt this to check for any policy relevant to your needs. We create a trigger that looks for this specific policy.
 
 
-![Tines trigger action checking for an outdated OS](../website/assets/images/articles/building-webhook-flows-with-fleet-and-tines-4-1920x1080@2x.png "Tines trigger action checking for an outdated OS")
+![Tines trigger action checking for a specific policy](../website/assets/images/articles/building-webhook-flows-with-fleet-and-tines-4-1920x1080@2x.png "Tines trigger action checking for a specific policy")
 
 
 
-_Tines trigger action checking for an outdated OS._
+_Tines trigger action checking for a specific policy._
 
 We use the following formula, which loops over all policies and will only allow the workflow to proceed if true:
 
@@ -120,9 +120,9 @@ To access Fleet’s API, we need to provide an API key. We store the API key as 
 _Add credential to Tines story._
 
 
-## Creating MDM command payload to update OS version
+## Creating MDM command payload for our example action
 
-Now that we have the device’s UUID, we can create the MDM payload. The payload contains the command to update the OS version. We use the [ScheduleOSUpdate](https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update?language=objc) command from Apple’s MDM protocol.
+Now that we have the device's UUID, we can create the MDM payload. For this example, we'll use a command related to OS updates, but you could adapt this to any MDM command relevant to your needs. We use the [ScheduleOSUpdate](https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update?language=objc) command from Apple's MDM protocol as an illustration.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -149,14 +149,14 @@ Now that we have the device’s UUID, we can create the MDM payload. The payload
 </plist>
 ```
 
-This command will download macOS 14.5, install it, and pop up a 60-second countdown dialog box before restarting the device. Note that the `<<UUID()>>` Tines function creates a unique UUID for this MDM command.
+This example command would download macOS 14.5, install it, and pop up a 60-second countdown dialog box before restarting the device. Note that the `<<UUID()>>` Tines function creates a unique UUID for this MDM command. Remember, this is just an example - you would adapt the command to whatever action you need to perform.
 
 
-![Tines event to create ScheduleOSUpdate MDM command](../website/assets/images/articles/building-webhook-flows-with-fleet-and-tines-8-1920x1080@2x.png "Tines event to create ScheduleOSUpdate MDM command")
+![Tines event to create an MDM command](../website/assets/images/articles/building-webhook-flows-with-fleet-and-tines-8-1920x1080@2x.png "Tines event to create an MDM command")
 
 
 
-_Tines event to create ScheduleOSUpdate MDM command._
+_Tines event to create an MDM command._
 
 The Fleet API requires the command to be sent as a base64-encoded string. We add a “Base64 Encode” action to the story to encode the XML payload. It uses the Tines `BASE64_ENCODE` function.
 
@@ -179,19 +179,19 @@ Finally, we send the MDM command to the device. We add another “HTTP Request�
 
 _Tines HTTP Request action to run MDM command on the device._
 
-The MDM command will run on the device, downloading and installing the OS update.
+The MDM command will run on the device, performing the action you've specified.
 
 
-![macOS restart notification after OS update.](../website/assets/images/articles/building-webhook-flows-with-fleet-and-tines-6-355x118@2x.png "macOS restart notification after OS update.")
+![Example of a macOS notification.](../website/assets/images/articles/building-webhook-flows-with-fleet-and-tines-6-355x118@2x.png "Example of a macOS notification.")
 
 
 
-_macOS restart notification after OS update._
+_Example of a macOS notification._
 
 
 ## Conclusion
 
-In this article, we built a webhook flow with Tines. We received a webhook callback from Fleet when a device had an outdated OS version. We then sent an MDM command to update the OS version. This example demonstrates how Tines can automate workflows and tasks in IT environments.
+In this article, we built a webhook flow with Tines. We received a webhook callback from Fleet when a policy was failing on a device. We then sent an MDM command to address the issue. While we used an OS version policy as an example, this same approach can be used for any policy or remote action you need to coordinate with your users. This example demonstrates how Tines can automate workflows and tasks in IT environments, making it easier to coordinate necessary actions with your users through scheduled maintenance windows.
 
 
 
@@ -204,4 +204,4 @@ In this article, we built a webhook flow with Tines. We received a webhook callb
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-05-30">
 <meta name="articleImageUrl" value="../website/assets/images/articles/building-webhook-flows-with-fleet-and-tines-1600x900@2x.png">
-<meta name="description" value="A guide to workflows using Tines and Fleet via webhook to update outdated OS versions.">
+<meta name="description" value="A guide to workflows using Tines and Fleet via webhook to coordinate necessary actions with users through scheduled maintenance windows.">
