@@ -7988,7 +7988,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "macOS no team profile A1 all pending",
 			profileUUID: profNameToProf["A1"].ProfileUUID,
 			setup: func(t *testing.T) {
-				appleA1 := toMDMAppleConfigProfile(profNameToProf["A1"])
+				appleA1 := test.ToMDMAppleConfigProfile(profNameToProf["A1"])
 				forceSetAppleHostProfileStatus(t, ds, host1.UUID, appleA1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 				forceSetAppleHostProfileStatus(t, ds, host2.UUID, appleA1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 				forceSetAppleHostProfileStatus(t, ds, host3.UUID, appleA1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
@@ -7999,7 +7999,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "windows no team profile W1 pending failed",
 			profileUUID: profNameToProf["W1"].ProfileUUID,
 			setup: func(t *testing.T) {
-				winW1 := toMDMWindowsConfigProfile(profNameToProf["W1"])
+				winW1 := test.ToMDMWindowsConfigProfile(profNameToProf["W1"])
 				forceSetWindowsHostProfileStatus(t, ds, host6.UUID, winW1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 				forceSetWindowsHostProfileStatus(t, ds, host7.UUID, winW1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 			},
@@ -8009,7 +8009,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "macOS no team decl D1 pending failed verified",
 			profileUUID: profNameToProf["D1"].ProfileUUID,
 			setup: func(t *testing.T) {
-				declD1 := toMDMAppleDecl(profNameToProf["D1"])
+				declD1 := test.ToMDMAppleDecl(profNameToProf["D1"])
 				forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, declD1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 				forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, declD1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 				forceSetAppleHostDeclarationStatus(t, ds, host3.UUID, declD1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
@@ -8020,7 +8020,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "macOS team profile A2 verifying verified",
 			profileUUID: profNameToProf["A2"].ProfileUUID,
 			setup: func(t *testing.T) {
-				appleA2 := toMDMAppleConfigProfile(profNameToProf["A2"])
+				appleA2 := test.ToMDMAppleConfigProfile(profNameToProf["A2"])
 				forceSetAppleHostProfileStatus(t, ds, host4.UUID, appleA2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 				forceSetAppleHostProfileStatus(t, ds, host5.UUID, appleA2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 			},
@@ -8030,7 +8030,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "macOS team decl D2 all failed",
 			profileUUID: profNameToProf["D2"].ProfileUUID,
 			setup: func(t *testing.T) {
-				declD2 := toMDMAppleDecl(profNameToProf["D2"])
+				declD2 := test.ToMDMAppleDecl(profNameToProf["D2"])
 				forceSetAppleHostDeclarationStatus(t, ds, host4.UUID, declD2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 				forceSetAppleHostDeclarationStatus(t, ds, host5.UUID, declD2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 			},
@@ -8040,7 +8040,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "windows team profile W2 pending",
 			profileUUID: profNameToProf["W2"].ProfileUUID,
 			setup: func(t *testing.T) {
-				winW2 := toMDMWindowsConfigProfile(profNameToProf["W2"])
+				winW2 := test.ToMDMWindowsConfigProfile(profNameToProf["W2"])
 				forceSetWindowsHostProfileStatus(t, ds, host8.UUID, winW2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 			},
 			want: fleet.MDMConfigProfileStatus{Pending: 1},
@@ -8053,31 +8053,6 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			require.Equal(t, c.want, got)
 		})
-	}
-}
-
-func toMDMAppleConfigProfile(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleConfigProfile {
-	return &fleet.MDMAppleConfigProfile{
-		Identifier:   p.Identifier,
-		Name:         p.Name,
-		ProfileUUID:  p.ProfileUUID,
-		Mobileconfig: p.Checksum, // not important for the test
-	}
-}
-
-func toMDMWindowsConfigProfile(p *fleet.MDMConfigProfilePayload) *fleet.MDMWindowsConfigProfile {
-	return &fleet.MDMWindowsConfigProfile{
-		Name:        p.Name,
-		SyncML:      p.Checksum, // not important for the test
-		ProfileUUID: p.ProfileUUID,
-	}
-}
-
-func toMDMAppleDecl(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleDeclaration {
-	return &fleet.MDMAppleDeclaration{
-		Name:            p.Name,
-		Identifier:      p.Identifier,
-		DeclarationUUID: p.ProfileUUID,
 	}
 }
 
@@ -8143,8 +8118,8 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	}
 
 	// set the declaration as pending install on host1, installed on host2
-	forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, toMDMAppleDecl(profNameToProf["D2"]), fleet.MDMOperationTypeInstall, "")
-	forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, toMDMAppleDecl(profNameToProf["D2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, test.ToMDMAppleDecl(profNameToProf["D2"]), fleet.MDMOperationTypeInstall, "")
+	forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, test.ToMDMAppleDecl(profNameToProf["D2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 	assertHostProfileOpStatus(t, ds, host1.UUID,
 		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
 	assertHostProfileOpStatus(t, ds, host2.UUID,
@@ -8158,8 +8133,8 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
 
 	// set the Windows profile as pending install on host3, installed on host4
-	forceSetWindowsHostProfileStatus(t, ds, host3.UUID, toMDMWindowsConfigProfile(profNameToProf["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
-	forceSetWindowsHostProfileStatus(t, ds, host4.UUID, toMDMWindowsConfigProfile(profNameToProf["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	forceSetWindowsHostProfileStatus(t, ds, host3.UUID, test.ToMDMWindowsConfigProfile(profNameToProf["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	forceSetWindowsHostProfileStatus(t, ds, host4.UUID, test.ToMDMWindowsConfigProfile(profNameToProf["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 	assertHostProfileOpStatus(t, ds, host3.UUID,
 		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
 	assertHostProfileOpStatus(t, ds, host4.UUID,
@@ -8174,8 +8149,8 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 
 	// set the Apple profile as pending install on host1, installed on host2
-	forceSetAppleHostProfileStatus(t, ds, host1.UUID, toMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, "")
-	forceSetAppleHostProfileStatus(t, ds, host2.UUID, toMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	forceSetAppleHostProfileStatus(t, ds, host1.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, "")
+	forceSetAppleHostProfileStatus(t, ds, host2.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	// enqueue the corresponding command for the installed profile
 	cmdUUID := uuid.New().String()
 	err = commander.InstallProfile(ctx, []string{host2.UUID}, appleProfs[1].Mobileconfig, cmdUUID)
@@ -8206,7 +8181,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	require.True(t, active)
 
 	// set the Apple profile as actually pending install (not NULL) on host1
-	forceSetAppleHostProfileStatus(t, ds, host1.UUID, toMDMAppleConfigProfile(profNameToProf["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	forceSetAppleHostProfileStatus(t, ds, host1.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 	// enqueue the corresponding command for the installed profile
 	cmdUUID = uuid.New().String()
 	err = commander.InstallProfile(ctx, []string{host1.UUID}, appleProfs[2].Mobileconfig, cmdUUID)
