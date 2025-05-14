@@ -1,24 +1,19 @@
-# Fleet Reference Documentation
+# Fleet reference documentation
 
 This directory contains reference documentation for Fleet.
 
-## API Reference
+## API reference
 
-- [API for Contributors](api-for-contributors.md) - API reference for contributors
-- [API Versioning](api-versioning.md) - Documentation on API versioning
+- [API for contributors](api-for-contributors.md) - API reference for contributors
 
 ## Configuration
 
-- [Configuration for Contributors](configuration-for-contributors.md) - Configuration reference for contributors
+- [Configuration for contributors](configuration-for-contributors.md) - Configuration reference for contributors
 
-## Development Patterns
+## Development patterns
 
-- [Backend Patterns](patterns-backend.md) - Common patterns for backend development
+- [Backend patterns](patterns-backend.md) - Common patterns for backend development
 
 ## FAQ
 
 - [FAQ](faq.md) - Frequently asked questions
-
-## Roadmap
-
-- [Upcoming Activities](upcoming-activities.md) - Upcoming development activities

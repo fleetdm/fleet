@@ -8,6 +8,6 @@ This directory contains guides for CLI development in Fleet.
 
 ## Related Resources
 
-- [API for Contributors](../../workflows/api-for-contributors.md) - Workflow for API development
+- [API for Contributors](../../reference/api-for-contributors.md) - Workflow for API development
 - [Workflows](../../workflows/README.md) - Development workflows
 - [Reference](../../reference/README.md) - API reference, configuration, etc.

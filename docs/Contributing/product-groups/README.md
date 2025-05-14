@@ -1,4 +1,4 @@
-# Fleet Product Groups
+# Fleet product groups
 
 Fleet is organized into three main product groups:
 
@@ -23,6 +23,8 @@ The [Orchestration product group](orchestration/README.md) focuses on device orc
 - Host vitals
 - Teams and access control
 - File carving
+- Policies
+- Scripts
 
 ## Software
 
@@ -33,6 +35,7 @@ The [Software product group](software/README.md) focuses on software management,
 - Software installation
 - Software updates
 - Software policies
+- Fleet-maintained apps
 
 ## Cross-Product Documentation
 

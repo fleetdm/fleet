@@ -17,51 +17,13 @@ The Teams and Access Control architecture enables the organization of devices an
 - **Access Control**: The mechanism for controlling user access to resources.
 - **Resource Ownership**: The association of resources with teams.
 
-## Architecture Diagram
-
-```
-[Placeholder for Teams and Access Control Architecture Diagram]
-```
-
-## Team Structure
-
-Teams in Fleet have the following characteristics:
-
-- **Name**: A unique name for the team.
-- **Description**: A description of the team's purpose.
-- **Members**: Users who are members of the team.
-- **Devices**: Devices that are assigned to the team.
-- **Resources**: Resources (queries, packs, etc.) that are owned by the team.
-
 ## Role-Based Access Control
 
-Fleet uses role-based access control (RBAC) to manage user access to resources. Roles define what actions users can perform on resources.
-
-### Default Roles
-
-Fleet includes the following default roles:
-
-- **Admin**: Full access to all resources.
-- **Maintainer**: Can manage resources but cannot manage users or teams.
-- **Observer**: Can view resources but cannot modify them.
-
-### Permission Model
-
-Permissions in Fleet are defined at the resource level and are associated with roles. The permission model includes:
-
-- **Resource Types**: The types of resources that can be accessed (devices, queries, packs, etc.).
-- **Actions**: The actions that can be performed on resources (view, create, update, delete).
-- **Scopes**: The scope of the permission (global, team).
-
-## Resource Ownership
-
-Resources in Fleet can be owned by a team or be global. Resource ownership determines who can access and manage the resource:
-
-- **Team Resources**: Resources owned by a team can be accessed by team members based on their roles.
-- **Global Resources**: Resources that are not owned by a team can be accessed by all users based on their roles.
+Fleet uses role-based access control (RBAC) to manage user access to resources. Roles define what actions users can perform on resources. See our [RBAC guide](https://fleetdm.com/guides/role-based-access) for details.
 
 ## Related Resources
 
+- [Role-based access control guide](https://fleetdm.com/guides/role-based-access)
 - [Orchestration Product Group Documentation](../../product-groups/orchestration/) - Documentation for the Orchestration product group
 - [Orchestration Development Guides](../../guides/orchestration/) - Guides for Orchestration development
 - [Teams](../../product-groups/orchestration/teams.md) - Detailed documentation on teams

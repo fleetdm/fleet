@@ -9,6 +9,6 @@ This directory contains guides for API development in Fleet.
 ## Related Resources
 
 - [API Versioning](../../reference/api-versioning.md) - Documentation on API versioning
-- [API for Contributors](../../workflows/api-for-contributors.md) - Workflow for API development
+- [API for Contributors](../../reference/api-for-contributors.md) - Workflow for API development
 - [Workflows](../../workflows/README.md) - Development workflows
 - [Reference](../../reference/README.md) - API reference, configuration, etc.

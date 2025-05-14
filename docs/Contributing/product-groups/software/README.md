@@ -8,7 +8,6 @@ Fleet's Software functionality allows organizations to manage software across th
 
 ## Contents
 
-- [Software Vulnerability Processing](vulnerability-management-development.md)
 
 ## Related Resources
 

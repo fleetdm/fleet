@@ -54,16 +54,9 @@ UI -> Server -> DB
 3. Server returns metrics to the UI.
 4. UI displays the metrics.
 
-## Collected Metrics
+## Host vitals collected
 
-Host Vitals collect the following metrics:
-
-- **CPU Usage**: The percentage of CPU usage.
-- **Memory Usage**: The amount of memory used and available.
-- **Disk Usage**: The amount of disk space used and available.
-- **Uptime**: The time since the device was last booted.
-- **Load Average**: The system load average.
-- **Network Traffic**: The amount of network traffic.
+See the [host details API](https://fleetdm.com/docs/rest-api/rest-api#get-host) documentation for details on collected vitals.
 
 ## Performance Considerations
 
@@ -75,6 +68,7 @@ Host Vitals collection can impact device and server performance, especially for 
 
 ## Related Resources
 
+- [Host details API documentation](https://fleetdm.com/docs/rest-api/rest-api#get-host)
 - [Orchestration Product Group Documentation](../../product-groups/orchestration/) - Documentation for the Orchestration product group
 - [Orchestration Development Guides](../../guides/orchestration/) - Guides for Orchestration development
 - [Understanding Host Vitals](../../product-groups/orchestration/understanding-host-vitals.md) - Detailed documentation on host vitals

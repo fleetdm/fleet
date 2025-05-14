@@ -10,6 +10,7 @@ This directory contains guides for common development tasks in Fleet.
 - [Simulate Slow Network](simulate-slow-network.md) - Guide for simulating a slow network
 - [Troubleshooting Live Queries](troubleshooting-live-queries.md) - Guide for troubleshooting live queries
 - [Enroll hosts with plain osquery](enroll-hosts-with-plain-osquery.md) - Guide for enrolling hosts with plain osquery
+- [Upcoming activities](upcoming-activities.md) - Guide for managing upcoming host activities
 
 ## UI development
 
