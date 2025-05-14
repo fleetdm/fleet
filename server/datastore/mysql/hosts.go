@@ -3845,7 +3845,7 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	// enroll ref never reported detail query results (i.e. host has no host_emails.source =
 	// 'mdm_idp_accounts') so maybe we can get rid of this function entirely?
 	//
-	// If don't make a change here, hosts that reenroll from a team with SSO on to off will have the old IdP
+	// If we don't make a change here, hosts that reenroll from a team with SSO on to off will have the old IdP
 	// account re-associated on the first detail query report after. At a minimum, we should
 	// limit this to only set the email if SSO is enabled on the host's current team.
 
