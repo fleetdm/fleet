@@ -592,6 +592,15 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						MacOSSetup: fleet.MacOSSetup{
+							EnableEndUserAuthentication: true,
+						},
+					},
+				}, nil
+			}
 			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
 				require.Equal(t, isServer, c.wantParams[0])
 				require.Equal(t, enrolled, c.wantParams[1])
@@ -711,6 +720,15 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 
 				return nil
 			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						MacOSSetup: fleet.MacOSSetup{
+							EnableEndUserAuthentication: true,
+						},
+					},
+				}, nil
+			}
 
 			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, tc.mdmData)
 			require.NoError(t, err)
@@ -720,6 +738,61 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = false
 		})
 	}
+
+	t.Run("end user authentication disabled", func(t *testing.T) {
+		// Test that email isn't set when end user authentication is disabled
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					MacOSSetup: fleet.MacOSSetup{
+						EnableEndUserAuthentication: false,
+					},
+				},
+			}, nil
+		}
+		ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: id, Config: fleet.TeamConfig{
+				MDM: fleet.TeamMDM{
+					MacOSSetup: fleet.MacOSSetup{
+						EnableEndUserAuthentication: false,
+					},
+				},
+			}}, nil
+		}
+		ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+			require.Equal(t, "test-reference", fleetEnrollmentRef)
+			return nil
+		}
+		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			require.False(t, isServer)
+			require.True(t, enrolled)
+			require.True(t, installedFromDep)
+			require.Equal(t, "https://test.example.com", serverURL)
+			require.Equal(t, "test-reference", fleetEnrollmentRef)
+			require.Equal(t, fleet.WellKnownMDMFleet, name)
+
+			return nil
+		}
+
+		t.Run("no team", func(t *testing.T) {
+			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier))
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+			require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+			require.False(t, ds.TeamWithoutExtrasFuncInvoked)
+		})
+
+		t.Run("team", func(t *testing.T) {
+			host.TeamID = ptr.Uint(1)
+			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier))
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+			require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+			require.True(t, ds.TeamWithoutExtrasFuncInvoked)
+		})
+	})
 }
 
 func TestDirectIngestMDMWindows(t *testing.T) {

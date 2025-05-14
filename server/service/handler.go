@@ -1251,6 +1251,9 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 				return
 			}
 
+			// TODO: Do non-Apple devices ever use this route? If so, we probably need to change the
+			// approach below so we don't endlessly redirect non-Apple clients to the same URL.
+
 			// if we get here, the minimum os version is satisfied, so we continue with SSO flow
 			q := r.URL.Query()
 			v, ok := q["deviceinfo"]
