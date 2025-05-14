@@ -42,6 +42,7 @@ type HostOptions struct {
 	EnrollReference         string
 	Host                    *fleet.Host
 	HasSetupExperienceItems bool
+	SCEPRenewalInProgress   bool
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -95,7 +96,7 @@ func (t *HostLifecycle) doApple(ctx context.Context, opts HostOptions) error {
 func (t *HostLifecycle) doWindows(ctx context.Context, opts HostOptions) error {
 	switch opts.Action {
 	case HostActionReset, HostActionTurnOn:
-		return t.doWithUUIDValidation(ctx, t.ds.MDMResetEnrollment, opts)
+		return t.ds.MDMResetEnrollment(ctx, opts.UUID, opts.SCEPRenewalInProgress)
 
 	case HostActionTurnOff:
 		return t.doWithUUIDValidation(ctx, t.ds.MDMTurnOff, opts)
@@ -129,11 +130,19 @@ func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error 
 		HardwareModel:  opts.HardwareModel,
 		Platform:       opts.Platform,
 	}
-	if err := t.ds.MDMAppleUpsertHost(ctx, host); err != nil {
-		return ctxerr.Wrap(ctx, err, "upserting mdm host")
+
+	// FIXME: Why skip this step if we're in the middle of a SCEP renewal?
+	// We need to revisit the renewal flow. Short-circuiting in random places means it is
+	// much more difficult to reason about the state of the host. We should try instead
+	// to centralize the flow control in the lifecycle methods.
+	if !opts.SCEPRenewalInProgress {
+		// upsert the host to ensure we have the latest information
+		if err := t.ds.MDMAppleUpsertHost(ctx, host); err != nil {
+			return ctxerr.Wrap(ctx, err, "upserting mdm host")
+		}
 	}
 
-	err := t.ds.MDMResetEnrollment(ctx, opts.UUID)
+	err := t.ds.MDMResetEnrollment(ctx, opts.UUID, opts.SCEPRenewalInProgress)
 	return ctxerr.Wrap(ctx, err, "reset mdm enrollment")
 }
 

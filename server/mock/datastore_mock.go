@@ -834,7 +834,7 @@ type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host) error
 
 type RestoreMDMApplePendingDEPHostFunc func(ctx context.Context, host *fleet.Host) error
 
-type MDMResetEnrollmentFunc func(ctx context.Context, hostUUID string) error
+type MDMResetEnrollmentFunc func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
 
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
@@ -2580,7 +2580,7 @@ type DataStore struct {
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
 
-	GetNanoMDMEnrollmentTimesFunc 	  GetNanoMDMEnrollmentTimesFunc
+	GetNanoMDMEnrollmentTimesFunc        GetNanoMDMEnrollmentTimesFunc
 	GetNanoMDMEnrollmentTimesFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
@@ -6178,11 +6178,11 @@ func (s *DataStore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fle
 	return s.RestoreMDMApplePendingDEPHostFunc(ctx, host)
 }
 
-func (s *DataStore) MDMResetEnrollment(ctx context.Context, hostUUID string) error {
+func (s *DataStore) MDMResetEnrollment(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 	s.mu.Lock()
 	s.MDMResetEnrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMResetEnrollmentFunc(ctx, hostUUID)
+	return s.MDMResetEnrollmentFunc(ctx, hostUUID, scepRenewalInProgress)
 }
 
 func (s *DataStore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {

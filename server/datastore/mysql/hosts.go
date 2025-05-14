@@ -3936,6 +3936,9 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
 	}
+	// TODO: do we want this to apply in the new SSO flow? we may need to split up this operation in
+	// some cases?
+	//
 	// resend profiles that depend on the user now associated with that host
 	return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
 }

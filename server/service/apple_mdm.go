@@ -3172,13 +3172,8 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		if !errors.As(err, &nfe) {
 			return ctxerr.Wrap(r.Context, err, "getting checkin info")
 		}
-	} else if existingDeviceInfo.SCEPRenewalInProgress {
-		// TODO: we need to revisit this logic, short-circuiting here means we can't add the
-		// mdm_ipd_account reconciliation to the reset step. We should try instead to add it as a
-		// param on the lifecycle methods so we can centralize the logic there.
-		svc.logger.Log("info", "host lifecycle action received for a SCEP renewal in process, skipping host ingestion and cleanups", "host_uuid", r.ID)
-		return nil
 	}
+	scepRenewalInProgress := existingDeviceInfo.SCEPRenewalInProgress
 
 	// iPhones and iPads send ProductName but not Model/ModelName,
 	// thus we use this field as the device's Model (which is required on lifecycle stages).
@@ -3194,31 +3189,38 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		}
 	}
 
-	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
-		Action:         mdmlifecycle.HostActionReset,
-		Platform:       platform,
-		UUID:           m.UDID,
-		HardwareSerial: m.SerialNumber,
-		HardwareModel:  m.Model,
-	})
-	if err != nil {
+	if err := svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
+		Action:                mdmlifecycle.HostActionReset,
+		Platform:              platform,
+		UUID:                  m.UDID,
+		HardwareSerial:        m.SerialNumber,
+		HardwareModel:         m.Model,
+		SCEPRenewalInProgress: scepRenewalInProgress,
+	}); err != nil {
 		return err
 	}
 
-	// MDM state changes after is reset, fetch the checkin updatedInfo again
-	updatedInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
-	if err != nil {
-		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
+	// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
+	// much more difficult to reason about the state of the host. We should try instead
+	// to centralize the flow control in the lifecycle methods.
+	if !scepRenewalInProgress {
+		// Create a new activity for the enrollment, MDM state changes after is reset, fetch the
+		// checkin updatedInfo again
+		updatedInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
+		}
+		return newActivity(
+			r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
+				HostSerial:       updatedInfo.HardwareSerial,
+				HostDisplayName:  updatedInfo.DisplayName,
+				InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
+				MDMPlatform:      fleet.MDMPlatformApple,
+			}, svc.ds, svc.logger,
+		)
 	}
 
-	return newActivity(
-		r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
-			HostSerial:       updatedInfo.HardwareSerial,
-			HostDisplayName:  updatedInfo.DisplayName,
-			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
-			MDMPlatform:      fleet.MDMPlatformApple,
-		}, svc.ds, svc.logger,
-	)
+	return nil
 }
 
 // TokenUpdate handles MDM [TokenUpdate][1] requests.
@@ -3233,6 +3235,9 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		return ctxerr.Wrap(r.Context, err, "getting checkin info")
 	}
 
+	// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
+	// much more difficult to reason about the state of the host. We should try instead
+	// to centralize the flow control in the lifecycle methods.
 	if info.SCEPRenewalInProgress {
 		svc.logger.Log("info", "token update received for a SCEP renewal in process, cleaning SCEP refs", "host_uuid", r.ID)
 		if err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID); err != nil {

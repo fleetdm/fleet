@@ -1162,7 +1162,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		return nil
 	}
 
-	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
 	}
@@ -1227,7 +1227,7 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		return nil
 	}
 
-	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
 	}
@@ -1274,7 +1274,7 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	) error {
 		return nil
 	}
-	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 		return nil
 	}
 	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host) error {

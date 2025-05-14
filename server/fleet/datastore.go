@@ -1203,7 +1203,7 @@ type Datastore interface {
 
 	// MDMResetEnrollment resets all tables with enrollment-related
 	// information if a matching row for the host exists.
-	MDMResetEnrollment(ctx context.Context, hostUUID string) error
+	MDMResetEnrollment(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
 
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the

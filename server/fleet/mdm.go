@@ -989,3 +989,37 @@ type MDMProfileIdentifierFleetVariables struct {
 	// findFleetVariables).
 	FleetVariables []string
 }
+
+// HostOptions are the options that can be provided for an action.
+//
+// Not all options are required for all actions, each individual action should
+// validate that it receives the required information.
+type MDMLifecyleHostOptions struct {
+	Action                  MDMLifecycleHostAction
+	Platform                string
+	UUID                    string
+	HardwareSerial          string
+	HardwareModel           string
+	EnrollReference         string
+	Host                    *Host
+	HasSetupExperienceItems bool
+	SCEPRenewalInProgress   bool
+}
+
+// MDMLifecycleHostAction is a supported MDM lifecycle action that can be performed on a
+// host.
+type MDMLifecycleHostAction string
+
+// TODO: we're hooking into the reset step for processing related to mdm idp accounts, but should
+// consider if we need to do anything in the turn-on step or other lifecycle steps
+const (
+	// MDMHostActionTurnOn performs tasks right after a host turns on MDM.
+	MDMHostActionTurnOn MDMLifecycleHostAction = "turn-on"
+	// MDMHostActionTurnOn performs tasks right after a host turns off MDM.
+	MDMHostActionTurnOff MDMLifecycleHostAction = "turn-off"
+	// MDMHostActionTurnOn perform tasks to reset mdm-related information.
+	MDMHostActionReset MDMLifecycleHostAction = "reset"
+	// MDMHostActionDelete perform tasks to cleanup MDM information when a
+	// host is deleted from fleet.
+	MDMHostActionDelete MDMLifecycleHostAction = "delete"
+)

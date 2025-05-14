@@ -4328,7 +4328,7 @@ WHERE
 	return nil
 }
 
-func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var hosts []fleet.Host
 		err := sqlx.SelectContext(
@@ -4353,6 +4353,33 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 
 		if !fleet.MDMSupported(host.Platform) {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
+		}
+
+		// Reconcile host_emails and host_scim_users sourced from mdm_idp_accounts.
+		//
+		// Note that we aren't deleting the mdm_idp_accounts themselves, just prior associations
+		// for the host. This ensures that hosts that reenroll their emails up-to-date.
+		switch host.Platform {
+		case "darwin", "ios", "ipados":
+			idp, err := reconcileHostEmailsFromMdmIdpAccountsDB(ctx, tx, ds.logger, host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
+			}
+			// TODO: confirm approach with Victor
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting host_scim_users")
+			}
+			if err := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, idp); err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
+			}
+		}
+
+		if scepRenewalInProgress {
+			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
+			// much more difficult to reason about the state of the host. We should try instead
+			// to centralize the flow control in the lifecycle methods.
+			level.Info(ds.logger).Log("host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
+			return nil
 		}
 
 		// Deleting profiles from this table will cause all profiles to
@@ -4385,25 +4412,6 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 			_, err = tx.ExecContext(ctx, `DELETE FROM host_mdm_apple_bootstrap_packages WHERE host_uuid = ?`, hostUUID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "resetting host_mdm_apple_bootstrap_packages")
-			}
-		}
-
-		// Reconcile host_emails and host_scim_users sourced from mdm_idp_accounts.
-		//
-		// Note that we aren't deleting the mdm_idp_accounts themselves, just prior associations
-		// for the host. This ensures that hosts that reenroll their emails up-to-date.
-		switch host.Platform {
-		case "darwin", "ios", "ipados":
-			idp, err := reconcileHostEmailsFromMdmIdpAccountsDB(ctx, tx, ds.logger, host.ID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
-			}
-			// TODO: confirm approach with Victor
-			if _, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, host.ID); err != nil {
-				return ctxerr.Wrap(ctx, err, "resetting host_scim_users")
-			}
-			if err := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, idp); err != nil {
-				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 			}
 		}
 
