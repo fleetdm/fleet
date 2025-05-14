@@ -468,7 +468,7 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 	SET
 		status = NULL,
 		operation_type = ?,
-		IF(status = ?, ignore_error = 1, ignore_error = 0)
+		ignore_error = IF(status = ?, 1, 0)
 	WHERE
 		profile_uuid IN (?) AND
 		status IS NOT NULL AND
@@ -515,22 +515,18 @@ func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sq
 		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_declarations that have not been sent to host")
 	}
 
-	// we set the ignore_error flag if status was "pending" because the declaration
-	// may _not_ have been delivered, so if the remove command fails, we don't
-	// want to show it.
 	const updStmt = `
 	UPDATE
 		host_mdm_apple_declarations
 	SET
 		status = NULL,
-		operation_type = ?,
-		IF(status = ?, ignore_error = 1, ignore_error = 0)
+		operation_type = ?
 	WHERE
 		declaration_uuid IN (?) AND
 		status IS NOT NULL AND
 		operation_type = ?`
 
-	stmt, args, err = sqlx.In(updStmt, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, declUUIDs, fleet.MDMOperationTypeInstall)
+	stmt, args, err = sqlx.In(updStmt, fleet.MDMOperationTypeRemove, declUUIDs, fleet.MDMOperationTypeInstall)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building in statement")
 	}
