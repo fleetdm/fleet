@@ -805,6 +805,9 @@ func TestHostAuth(t *testing.T) {
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
 	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
+		return time.Time{}, nil
+	}
 
 	testCases := []struct {
 		name                  string
