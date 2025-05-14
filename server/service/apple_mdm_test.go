@@ -1275,6 +1275,8 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 		return nil
 	}
 	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
+		require.Equal(t, uuid, hostUUID)
+		require.True(t, scepRenewalInProgress)
 		return nil
 	}
 	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host) error {
@@ -1295,7 +1297,7 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	require.False(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.False(t, ds.NewActivityFuncInvoked)
-	require.False(t, ds.MDMResetEnrollmentFuncInvoked)
+	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
 func TestMDMTokenUpdate(t *testing.T) {

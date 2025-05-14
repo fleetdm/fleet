@@ -4374,6 +4374,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			}
 		}
 
+		// TODO: Add test coverage for scepRenewalInProgress branching logic.
 		if scepRenewalInProgress {
 			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
 			// much more difficult to reason about the state of the host. We should try instead

@@ -96,7 +96,7 @@ func (t *HostLifecycle) doApple(ctx context.Context, opts HostOptions) error {
 func (t *HostLifecycle) doWindows(ctx context.Context, opts HostOptions) error {
 	switch opts.Action {
 	case HostActionReset, HostActionTurnOn:
-		return t.ds.MDMResetEnrollment(ctx, opts.UUID, opts.SCEPRenewalInProgress)
+		return t.resetWindows(ctx, opts)
 
 	case HostActionTurnOff:
 		return t.doWithUUIDValidation(ctx, t.ds.MDMTurnOff, opts)
@@ -117,6 +117,14 @@ func (t *HostLifecycle) doWithUUIDValidation(ctx context.Context, action uuidFn,
 	}
 
 	return action(ctx, opts.UUID)
+}
+
+func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) error {
+	if opts.UUID == "" {
+		return ctxerr.New(ctx, "UUID option is required for this action")
+	}
+
+	return t.ds.MDMResetEnrollment(ctx, opts.UUID, false)
 }
 
 func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error {
