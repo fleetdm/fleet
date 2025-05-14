@@ -8241,5 +8241,6 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 		User:            test.UserAdmin,
 		IncludeObserver: true,
 	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
+	require.NoError(t, err)
 	require.Len(t, cmds, 0)
 }

@@ -6150,3 +6150,51 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	// fleet-reserved profiles are not returned by the API, only custom profiles
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", fleetReservedProfile), getMDMConfigProfileStatusRequest{}, http.StatusNotFound)
 }
+
+func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	// create some Apple, Windows and declaration profiles
+	profiles := []fleet.MDMProfileBatchPayload{
+		{
+			Name:     "A1",
+			Contents: mobileconfigForTest("A1", "A1"),
+		},
+		{
+			Name:     "A2",
+			Contents: mobileconfigForTest("A2", "A2"),
+		},
+		{
+			Name:     "D1",
+			Contents: declarationForTest("D1"),
+		},
+		{
+			Name:     "D2",
+			Contents: declarationForTest("D2"),
+		},
+		{
+			Name:     "W1",
+			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "W1", Data: "W1"}}),
+		},
+		{
+			Name:     "W2",
+			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "W2", Data: "W2"}}),
+		},
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, http.StatusNoContent)
+
+	// list the profiles to get the UUIDs
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
+	profNameToPayload := make(map[string]*fleet.MDMConfigProfilePayload)
+	for _, prof := range listResp.Profiles {
+		profNameToPayload[prof.Name] = prof
+	}
+
+	// deleting without any affected host is fine
+	var deleteResp deleteMDMConfigProfileResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["A1"].ProfileUUID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["D1"].ProfileUUID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["W1"].ProfileUUID), nil, http.StatusOK, &deleteResp)
+}
