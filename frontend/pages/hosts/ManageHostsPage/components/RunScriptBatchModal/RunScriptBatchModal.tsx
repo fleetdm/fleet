@@ -116,13 +116,15 @@ const RunScriptBatchModal = ({
         />
       );
     }
+    const targetCount = runByFilters
+      ? totalFilteredHostsCount
+      : selectedHostIds.length;
     return (
       <>
         <p>
           Will run on{" "}
           <b>
-            {runByFilters ? totalFilteredHostsCount : selectedHostIds.length}{" "}
-            hosts
+            {targetCount} host{targetCount > 1 ? "s" : ""}
           </b>
           . You can see individual script results on the host details page.
         </p>

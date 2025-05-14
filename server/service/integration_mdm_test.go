@@ -10839,9 +10839,13 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 	require.NotNil(t, hostResp.Host)
 	lastEnrolledAt := hostResp.Host.LastEnrolledAt
 
+	assert.Nil(t, hostResp.Host.LastMDMEnrolledAt)
+	assert.Nil(t, hostResp.Host.LastMDMCheckedInAt)
+
 	// Add the following here for debug: time.Sleep(2 * time.Second)
 
 	// Enroll with MDM manually after.
+	enrollTime := time.Now().UTC().Truncate(time.Second)
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
@@ -10849,6 +10853,10 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetHost.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
 	assert.Equal(t, lastEnrolledAt, hostResp.Host.LastEnrolledAt)
+	assert.NotNil(t, hostResp.Host.LastMDMEnrolledAt)
+	assert.GreaterOrEqual(t, *hostResp.Host.LastMDMEnrolledAt, enrollTime)
+	assert.NotNil(t, hostResp.Host.LastMDMCheckedInAt)
+	assert.GreaterOrEqual(t, *hostResp.Host.LastMDMCheckedInAt, enrollTime)
 }
 
 func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
@@ -13390,6 +13398,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		globalSecret,
 		hwModel,
 	)
+	enrollTime := time.Now().UTC().Truncate(time.Second)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, true)
@@ -13399,6 +13408,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
 	require.Equal(t, "darwin", hostByIdentifierResp.Host.Platform)
 	require.Nil(t, hostByIdentifierResp.Host.TeamID)
+	require.NotNil(t, hostByIdentifierResp.Host.LastMDMEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.LastMDMCheckedInAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMCheckedInAt, enrollTime)
 
 	// create a team with a different enroll secret
 	var specResp applyTeamSpecsResponse
@@ -13412,6 +13425,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 		teamSecret,
 		hwModel,
 	)
+	enrollTime = time.Now().UTC().Truncate(time.Second)
 	require.NoError(t, mdmDevice.Enroll())
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, false)
@@ -13422,6 +13436,10 @@ func (s *integrationMDMTestSuite) TestOTAEnrollment() {
 	require.Equal(t, "ipados", hostByIdentifierResp.Host.Platform)
 	require.NotNil(t, hostByIdentifierResp.Host.TeamID)
 	require.Equal(t, specResp.TeamIDsByName["newteam"], *hostByIdentifierResp.Host.TeamID)
+	require.NotNil(t, hostByIdentifierResp.Host.LastMDMEnrolledAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMEnrolledAt, enrollTime)
+	require.NotNil(t, hostByIdentifierResp.Host.LastMDMCheckedInAt)
+	assert.GreaterOrEqual(t, *hostByIdentifierResp.Host.LastMDMCheckedInAt, enrollTime)
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {
@@ -16278,7 +16296,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusBadRequest, "some or all of the categories provided don't exist")
 
 	// Set some real categories
-	updatePayload.Categories = []string{cat1.Name, cat2.Name}
+	updatePayload.Categories = []string{cat1.Name, cat2.Name, cat2.Name} // duplicate category shouldn't fail
 	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
@@ -16373,7 +16391,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		TeamID:     nil,
 		Platform:   addedApp.Platform,
 		AppStoreID: addedApp.AdamID,
-		Categories: []string{cat2.Name, cat3.Name},
+		Categories: []string{cat2.Name, cat3.Name, cat3.Name}, // duplicate category shouldn't fail
 	}, http.StatusOK, &addedMacOSApp)
 
 	// get the title ID
@@ -16410,7 +16428,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		batchURL,
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
-				{AppStoreID: addedApp.AdamID, SelfService: true, Categories: []string{"Developer tools", "Communication"}},
+				{AppStoreID: addedApp.AdamID, SelfService: true, Categories: []string{"Developer tools", "Communication", "Communication"}}, // duplicate category shouldn't fail
 			},
 		}, http.StatusOK, &batchAssociateResponse,
 	)

@@ -33,7 +33,7 @@ export interface IScriptResultResponse {
   host_id: number;
   execution_id: string;
   script_contents: string;
-  script_id: number;
+  script_id: number | null; // null for ad-hoc script run via API
   exit_code: number | null;
   output: string;
   message: string;

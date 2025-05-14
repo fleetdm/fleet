@@ -3046,6 +3046,8 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's software](#get-devices-software)
 - [Get device's software install results](#get-devices-software-install-results)
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results)
+- [Install self-service software](#install-self-service-software)
+- [Uninstall software via self-service](#uninstall-software-via-self-service)
 - [Get device's policies](#get-devices-policies)
 - [Get device's certificate](#get-devices-certificate)
 - [Get device's API features](#get-devices-api-features)
@@ -3344,6 +3346,27 @@ Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The sof
 ##### Example
 
 `POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
+
+##### Default response
+
+`Status: 202`
+
+### Uninstall software via self-service
+
+Uninstalls software from a host via the My device page.
+
+`POST /api/v1/fleet/device/{token}/software/uninstall/:software_title_id`
+
+#### Parameters
+
+| Name              | Type       | In   | Description                                      |
+| ---------         | ---------- | ---- | --------------------------------------------     |
+| token | string | path | **Required**. The device's authentication token. |
+| software_title_id | integer    | path | **Required**. The software title's ID.           |
+
+#### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/123`
 
 ##### Default response
 

@@ -532,8 +532,9 @@ type SoftwarePackageOrApp struct {
 	PackageURL    *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
-	InstallDuringSetup *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
-	Categories         []string `json:"categories,omitempty"`
+	InstallDuringSetup   *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	FleetMaintainedAppID *uint    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
+	Categories           []string `json:"categories,omitempty"`
 }
 
 type SoftwarePackageSpec struct {
@@ -545,6 +546,10 @@ type SoftwarePackageSpec struct {
 	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
 	LabelsIncludeAny  []string              `json:"labels_include_any"`
 	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
+
+	// FMA
+	Slug             *string `json:"slug"`
+	AutomaticInstall *bool   `json:"automatic_install"`
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
@@ -559,9 +564,19 @@ type SoftwarePackageSpec struct {
 	Categories         []string `json:"categories"`
 }
 
+type FleetMaintainedAppsSpec struct {
+	Slug             string   `json:"slug"`
+	AutomaticInstall *bool    `json:"automatic_install"`
+	SelfService      bool     `json:"self_service"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	Categories       []string `json:"categories"`
+}
+
 type SoftwareSpec struct {
-	Packages     optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
-	AppStoreApps optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
+	Packages            optjson.Slice[SoftwarePackageSpec]     `json:"packages,omitempty"`
+	FleetMaintainedApps optjson.Slice[FleetMaintainedAppsSpec] `json:"fleet_maintained_apps,omitempty"`
+	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

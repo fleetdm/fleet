@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/ghodss/yaml"
 	"github.com/google/uuid"
 
@@ -84,7 +85,7 @@ var setCurrentUserSession = func(t *testing.T, ds *mock.Store, user *fleet.User)
 }
 
 func TestGetUserRoles(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 		return userRoleList, nil
@@ -115,9 +116,9 @@ spec:
 	expectedJson := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"admin2@example.com":{"global_role":null,"teams":[{"team":"team1","role":"maintainer"}]}}}}
 `
 
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "user_roles", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "user_roles", "--json"}))
+	assert.Equal(t, expectedText, RunAppForTest(t, []string{"get", "user_roles"}))
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "user_roles", "--yaml"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "user_roles", "--json"}))
 }
 
 func TestGetTeams(t *testing.T) {
@@ -145,7 +146,7 @@ func TestGetTeams(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			license := tt.license
-			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: license})
+			_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
 
 			agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
 			additionalQueries := json.RawMessage(`{"foo":"bar"}`)
@@ -234,7 +235,7 @@ func TestGetTeams(t *testing.T) {
 
 			var errBuffer strings.Builder
 
-			actualText, err := runWithErrWriter([]string{"get", "teams"}, &errBuffer)
+			actualText, err := RunWithErrWriter([]string{"get", "teams"}, &errBuffer)
 			require.NoError(t, err)
 			require.Equal(t, expectedText, actualText.String())
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
@@ -242,13 +243,13 @@ func TestGetTeams(t *testing.T) {
 			// cannot use assert.JSONEq like we do for YAML because this is not a
 			// single JSON value, it is a list of 2 JSON objects.
 			errBuffer.Reset()
-			actualJSON, err := runWithErrWriter([]string{"get", "teams", "--json"}, &errBuffer)
+			actualJSON, err := RunWithErrWriter([]string{"get", "teams", "--json"}, &errBuffer)
 			require.NoError(t, err)
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 			require.Equal(t, expectedJson, actualJSON.String())
 
 			errBuffer.Reset()
-			actualYaml, err := runWithErrWriter([]string{"get", "teams", "--yaml"}, &errBuffer)
+			actualYaml, err := RunWithErrWriter([]string{"get", "teams", "--yaml"}, &errBuffer)
 			require.NoError(t, err)
 			assert.YAMLEq(t, expectedYaml, actualYaml.String())
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
@@ -257,7 +258,8 @@ func TestGetTeams(t *testing.T) {
 }
 
 func TestGetTeamsByName(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
+	_, ds := testing_utils.RunServerWithMockedDS(t,
+		&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}})
 
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		require.Equal(t, "test1", opt.MatchQuery)
@@ -282,11 +284,11 @@ func TestGetTeamsByName(t *testing.T) {
 | team1     |      42 |         43 |         99 |
 +-----------+---------+------------+------------+
 `
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "teams", "--name", "test1"}))
+	assert.Equal(t, expectedText, RunAppForTest(t, []string{"get", "teams", "--name", "test1"}))
 }
 
 func TestGetHosts(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -409,13 +411,13 @@ func TestGetHosts(t *testing.T) {
 +------+------------+----------+-----------------+---------+
 `
 
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "hosts"}))
+	assert.Equal(t, expectedText, RunAppForTest(t, []string{"get", "hosts"}))
 
-	_, err := runAppNoChecks([]string{"get", "hosts", "--mdm"})
+	_, err := RunAppNoChecks([]string{"get", "hosts", "--mdm"})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "MDM features aren't turned on")
 
-	_, err = runAppNoChecks([]string{"get", "hosts", "--mdm-pending"})
+	_, err = RunAppNoChecks([]string{"get", "hosts", "--mdm-pending"})
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "MDM features aren't turned on")
 
@@ -481,7 +483,7 @@ func TestGetHosts(t *testing.T) {
 			expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
-			actualResult := tt.scanner(runAppForTest(t, tt.args))
+			actualResult := tt.scanner(RunAppForTest(t, tt.args))
 			require.Equal(t, len(expectedResults), len(actualResult))
 			for i := range expectedResults {
 				require.Equal(t, tt.prettifier(t, expectedResults[i]), tt.prettifier(t, actualResult[i]))
@@ -491,7 +493,7 @@ func TestGetHosts(t *testing.T) {
 }
 
 func TestGetHostsMDM(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
@@ -575,7 +577,7 @@ func TestGetHostsMDM(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%s - %s", tt.name, tt.goldenFile), func(t *testing.T) {
-			got, err := runAppNoChecks(tt.args)
+			got, err := RunAppNoChecks(tt.args)
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, tt.wantErr)
@@ -601,7 +603,7 @@ func TestGetHostsMDM(t *testing.T) {
 }
 
 func TestGetConfig(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -627,9 +629,9 @@ func TestGetConfig(t *testing.T) {
 		require.NoError(t, err)
 		expectedJson := string(b)
 
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+		assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "config"}))
+		assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "config", "--json"}))
 	})
 
 	t.Run("IncludeServerConfig", func(t *testing.T) {
@@ -641,9 +643,9 @@ func TestGetConfig(t *testing.T) {
 		require.NoError(t, err)
 		expectedJSON := string(b)
 
-		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config"}))
-		assert.YAMLEq(t, expectedYAML, runAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
-		require.JSONEq(t, expectedJSON, runAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
+		assert.YAMLEq(t, expectedYAML, RunAppForTest(t, []string{"get", "config", "--include-server-config"}))
+		assert.YAMLEq(t, expectedYAML, RunAppForTest(t, []string{"get", "config", "--include-server-config", "--yaml"}))
+		require.JSONEq(t, expectedJSON, RunAppForTest(t, []string{"get", "config", "--include-server-config", "--json"}))
 	})
 
 	t.Run("AppConfigAsTeamUsers", func(t *testing.T) {
@@ -674,9 +676,9 @@ func TestGetConfig(t *testing.T) {
 		require.NoError(t, err)
 		expectedJson := string(b)
 
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+		assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "config"}))
+		assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "config", "--json"}))
 
 		// test as team maintainer
 		setCurrentUserSession(t, ds, &fleet.User{
@@ -705,14 +707,14 @@ func TestGetConfig(t *testing.T) {
 		require.NoError(t, err)
 		expectedJson = string(b)
 
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config"}))
-		assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "config", "--yaml"}))
-		assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "config", "--json"}))
+		assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "config"}))
+		assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "config", "--json"}))
 	})
 }
 
 func TestGetSoftwareTitles(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier:       fleet.TierPremium,
 			Expiration: time.Now().Add(24 * time.Hour),
@@ -864,17 +866,17 @@ spec:
 }
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "software"}))
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "software", "--yaml"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "software", "--json"}))
 
-	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
+	RunAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
 }
 
 func TestGetSoftwareVersions(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
@@ -1011,17 +1013,17 @@ spec:
 }
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software", "--versions"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--versions", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--versions", "--json"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "software", "--versions"}))
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "software", "--versions", "--yaml"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "software", "--versions", "--json"}))
 
-	runAppForTest(t, []string{"get", "software", "--versions", "--json", "--team", "999"})
+	RunAppForTest(t, []string{"get", "software", "--versions", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
 }
 
 func TestGetLabels(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
 		return []*fleet.LabelSpec{
@@ -1077,13 +1079,13 @@ spec:
 {"kind":"label","apiVersion":"v1","spec":{"id":33,"name":"label2","description":"some other description","query":"select 42;","platform":"linux","label_membership_type":"dynamic","hosts":null}}
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "labels"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "labels", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "labels", "--json"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "labels"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "labels", "--yaml"}))
+	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "labels", "--json"}))
 }
 
 func TestGetLabel(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
 		if name != "label1" {
@@ -1113,13 +1115,13 @@ spec:
 	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"id":32,"name":"label1","description":"some description","query":"select 1;","platform":"windows","label_membership_type":"dynamic","hosts":null}}
 `
 
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "--yaml", "label1"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "label", "--json", "label1"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "label", "label1"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "label", "--yaml", "label1"}))
+	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "label", "--json", "label1"}))
 }
 
 func TestGetEnrollmentSecrets(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
 		return []*fleet.EnrollSecret{
@@ -1147,13 +1149,13 @@ spec:
 	expectedJson := `{"kind":"enroll_secret","apiVersion":"v1","spec":{"secrets":[{"secret":"abcd","created_at":"0001-01-01T00:00:00Z"},{"secret":"efgh","created_at":"0001-01-01T00:00:00Z"}]}}
 `
 
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "enroll_secrets", "--json"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "enroll_secrets"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "enroll_secrets", "--yaml"}))
+	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "enroll_secrets", "--json"}))
 }
 
 func TestGetPacks(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
 		return []*fleet.PackSpec{
@@ -1210,9 +1212,9 @@ spec:
 }
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "packs"}))
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "packs", "--yaml"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "packs", "--json"}))
 
 	// test output when there are no packs
 	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
@@ -1221,13 +1223,13 @@ spec:
 
 	expected = `No 2017 "Packs" found.
 `
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--json"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "packs"}))
+	assert.Empty(t, RunAppForTest(t, []string{"get", "packs", "--yaml"}))
+	assert.Empty(t, RunAppForTest(t, []string{"get", "packs", "--json"}))
 }
 
 func TestGetPack(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.PackByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
 		if name != "pack1" {
@@ -1285,9 +1287,9 @@ spec:
 }
 `
 
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "packs", "pack1"}))
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
 
 	expectedEmptyYaml := `---
 apiVersion: v1
@@ -1302,13 +1304,13 @@ spec: null
   "spec": null
 }`
 
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "no-such-pack"}))
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "no-such-pack"}))
-	assert.JSONEq(t, expectedEmptyJson, runAppForTest(t, []string{"get", "packs", "--json", "no-such-pack"}))
+	assert.YAMLEq(t, expectedEmptyYaml, RunAppForTest(t, []string{"get", "packs", "no-such-pack"}))
+	assert.YAMLEq(t, expectedEmptyYaml, RunAppForTest(t, []string{"get", "packs", "--yaml", "no-such-pack"}))
+	assert.JSONEq(t, expectedEmptyJson, RunAppForTest(t, []string{"get", "packs", "--json", "no-such-pack"}))
 }
 
 func TestGetQueries(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier:       fleet.TierPremium,
 			Expiration: time.Now().Add(24 * time.Hour),
@@ -1531,21 +1533,21 @@ spec:
 	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"darwin","min_osquery_version":"5.4.0","automations_enabled":false,"logging":"snapshot","discard_data":false}}
 `
 
-	assert.Equal(t, expectedGlobal, runAppForTest(t, []string{"get", "queries"}))
-	assert.Equal(t, expectedYAMLGlobal, runAppForTest(t, []string{"get", "queries", "--yaml"}))
-	assert.Equal(t, expectedJSONGlobal, runAppForTest(t, []string{"get", "queries", "--json"}))
+	assert.Equal(t, expectedGlobal, RunAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expectedYAMLGlobal, RunAppForTest(t, []string{"get", "queries", "--yaml"}))
+	assert.Equal(t, expectedJSONGlobal, RunAppForTest(t, []string{"get", "queries", "--json"}))
 
-	assert.Equal(t, expectedTeam, runAppForTest(t, []string{"get", "queries", "--team", "1"}))
-	assert.Equal(t, expectedYAMLTeam, runAppForTest(t, []string{"get", "queries", "--yaml", "--team", "1"}))
-	assert.Equal(t, expectedJSONTeam, runAppForTest(t, []string{"get", "queries", "--json", "--team", "1"}))
+	assert.Equal(t, expectedTeam, RunAppForTest(t, []string{"get", "queries", "--team", "1"}))
+	assert.Equal(t, expectedYAMLTeam, RunAppForTest(t, []string{"get", "queries", "--yaml", "--team", "1"}))
+	assert.Equal(t, expectedJSONTeam, RunAppForTest(t, []string{"get", "queries", "--json", "--team", "1"}))
 
-	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries", "--team", "2"}))
-	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries", "--yaml", "--team", "2"}))
-	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries", "--json", "--team", "2"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries", "--team", "2"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries", "--yaml", "--team", "2"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries", "--json", "--team", "2"}))
 }
 
 func TestGetQuery(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier:       fleet.TierPremium,
 			Expiration: time.Now().Add(24 * time.Hour),
@@ -1617,9 +1619,9 @@ spec:
 	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "globalQuery1"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "globalQuery1"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "globalQuery1"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "globalQuery1"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "--yaml", "globalQuery1"}))
+	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "query", "--json", "globalQuery1"}))
 
 	expectedYaml = `---
 apiVersion: v1
@@ -1640,15 +1642,15 @@ spec:
 	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential","discard_data":false}}
 `
 
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--team", "1", "teamQuery1"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "--team", "1", "teamQuery1"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "--team", "1", "teamQuery1"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "--team", "1", "teamQuery1"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "--yaml", "--team", "1", "teamQuery1"}))
+	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "query", "--json", "--team", "1", "teamQuery1"}))
 }
 
 // TestGetQueriesAsObservers tests that when observers run `fleectl get queries` they
 // only get queries that they can execute.
 func TestGetQueriesAsObserver(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return []*fleet.Query{
@@ -1760,9 +1762,9 @@ spec:
 			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
-			assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
-			assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
-			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+			assert.Equal(t, expected, RunAppForTest(t, []string{"get", "queries"}))
+			assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "queries", "--yaml"}))
+			assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "queries", "--json"}))
 		})
 	}
 
@@ -1876,9 +1878,9 @@ spec:
 {"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
-	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "queries", "--yaml"}))
-	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "queries", "--json"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "queries", "--yaml"}))
+	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "queries", "--json"}))
 
 	// No queries are returned if none is observer_can_run.
 	setCurrentUserSession(t, ds, &fleet.User{
@@ -1907,7 +1909,7 @@ spec:
 			},
 		}, 2, nil, nil
 	}
-	assert.Equal(t, "", runAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries"}))
 
 	// No filtering is performed if all are observer_can_run.
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
@@ -1956,7 +1958,7 @@ spec:
 |        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "queries"}))
 }
 
 func TestEnrichedAppConfig(t *testing.T) {
@@ -2113,13 +2115,13 @@ func TestEnrichedAppConfig(t *testing.T) {
 }
 
 func TestGetAppleMDM(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 
-	out := runAppForTest(t, []string{"get", "mdm_apple"})
+	out := RunAppForTest(t, []string{"get", "mdm_apple"})
 	assert.Contains(t, out, "Common name (CN):")
 	assert.Contains(t, out, "Serial number:")
 	assert.Contains(t, out, "Issuer:")
@@ -2149,23 +2151,24 @@ func TestGetAppleBM(t *testing.T) {
 	}
 
 	t.Run("free license", func(t *testing.T) {
-		runServerWithMockedDS(t)
+		testing_utils.RunServerWithMockedDS(t)
 
 		expected := `could not get Apple BM information: missing or invalid license`
-		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		_, err := RunAppNoChecks([]string{"get", "mdm_apple_bm"})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), expected)
 	})
 
 	t.Run("premium license, single token", func(t *testing.T) {
-		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		_, ds := testing_utils.RunServerWithMockedDS(t,
+			&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{
 				{ID: 1},
 			}, nil
 		}
 
-		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		out := RunAppForTest(t, []string{"get", "mdm_apple_bm"})
 		assert.Contains(t, out, "Apple ID:")
 		assert.Contains(t, out, "Organization name:")
 		assert.Contains(t, out, "MDM server URL:")
@@ -2174,17 +2177,19 @@ func TestGetAppleBM(t *testing.T) {
 	})
 
 	t.Run("premium license, no token", func(t *testing.T) {
-		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		_, ds := testing_utils.RunServerWithMockedDS(t,
+			&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return nil, nil
 		}
 
-		out := runAppForTest(t, []string{"get", "mdm_apple_bm"})
+		out := RunAppForTest(t, []string{"get", "mdm_apple_bm"})
 		assert.Contains(t, out, "No Apple Business Manager server token found.")
 	})
 
 	t.Run("premium license, multiple tokens", func(t *testing.T) {
-		_, ds := runServerWithMockedDS(t, &service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
+		_, ds := testing_utils.RunServerWithMockedDS(t,
+			&service.TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, DEPStorage: depStorage})
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{
 				{ID: 1},
@@ -2192,13 +2197,13 @@ func TestGetAppleBM(t *testing.T) {
 			}, nil
 		}
 
-		_, err := runAppNoChecks([]string{"get", "mdm_apple_bm"})
+		_, err := RunAppNoChecks([]string{"get", "mdm_apple_bm"})
 		assert.ErrorContains(t, err, "This API endpoint has been deprecated. Please use the new GET /abm_tokens API endpoint")
 	})
 }
 
 func TestGetCarves(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 	require.NoError(t, err)
@@ -2240,11 +2245,11 @@ func TestGetCarves(t *testing.T) {
 |    | UTC                            |              |            |            |         |
 +----+--------------------------------+--------------+------------+------------+---------+
 `
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "carves"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "carves"}))
 }
 
 func TestGetCarve(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 	require.NoError(t, err)
@@ -2278,11 +2283,11 @@ request_id: request_id_1
 session_id: session_id_1
 `
 
-	assert.Equal(t, expectedOut, runAppForTest(t, []string{"get", "carve", "1"}))
+	assert.Equal(t, expectedOut, RunAppForTest(t, []string{"get", "carve", "1"}))
 }
 
 func TestGetCarveWithError(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	createdAt, err := time.Parse(time.RFC3339, "1999-03-10T02:45:06.371Z")
 	require.NoError(t, err)
@@ -2301,14 +2306,14 @@ func TestGetCarveWithError(t *testing.T) {
 		}, nil
 	}
 
-	runAppCheckErr(t, []string{"get", "carve", "1"}, "test error")
+	RunAppCheckErr(t, []string{"get", "carve", "1"}, "test error")
 }
 
 // TestGetTeamsYAMLAndApply checks that the output of `get teams --yaml` can be applied
 // via the `apply` command.
 func TestGetTeamsYAMLAndApply(t *testing.T) {
 	cfg := config.TestConfig()
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		License:     &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
 		FleetConfig: &cfg,
 	})
@@ -2421,14 +2426,14 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		return nil
 	}
 
-	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
+	actualYaml := RunAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
 
-	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 teams\n")
 }
 
 func TestGetMDMCommandResults(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	applePayloadXML := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -2594,14 +2599,14 @@ func TestGetMDMCommandResults(t *testing.T) {
 	}
 
 	t.Run("command flag required", func(t *testing.T) {
-		_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
+		_, err := RunAppNoChecks([]string{"get", "mdm-command-results"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, `Required flag "id" not set`)
 	})
 
 	t.Run("command not found", func(t *testing.T) {
 		platform = "darwin"
-		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		_, err := RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, `The command doesn't exist.`)
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
@@ -2610,7 +2615,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 
 		platform = "windows"
-		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		_, err = RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, `The command doesn't exist.`)
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
@@ -2621,7 +2626,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 
 	t.Run("command results error", func(t *testing.T) {
 		platform = "darwin"
-		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		_, err := RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, `EOF`)
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
@@ -2631,7 +2636,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 		ds.GetMDMAppleCommandResultsFuncInvoked = false
 
 		platform = "windows"
-		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		_, err = RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, `EOF`)
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
@@ -2649,7 +2654,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 `)
 
 		platform = "darwin"
-		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		buf, err := RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
 		require.NoError(t, err)
 		require.Contains(t, buf.String(), expectedOutput)
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
@@ -2659,7 +2664,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 		ds.GetMDMAppleCommandResultsFuncInvoked = false
 
 		platform = "windows"
-		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		buf, err = RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
 		require.NoError(t, err)
 		require.Contains(t, buf.String(), expectedOutput)
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
@@ -2711,7 +2716,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 `)
 
 		platform = "darwin"
-		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		buf, err := RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
 		require.NoError(t, err)
 		require.Contains(t, buf.String(), expectedOutput)
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
@@ -2808,7 +2813,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 `)
 
 		platform = "windows"
-		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		buf, err := RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
 		require.NoError(t, err)
 		require.Contains(t, buf.String(), expectedOutput)
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
@@ -2820,7 +2825,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 }
 
 func TestGetMDMCommands(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
@@ -2876,18 +2881,18 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 
 	listErr = io.ErrUnexpectedEOF
-	_, err := runAppNoChecks([]string{"get", "mdm-commands"})
+	_, err := RunAppNoChecks([]string{"get", "mdm-commands"})
 	require.Error(t, err)
 	require.ErrorContains(t, err, io.ErrUnexpectedEOF.Error())
 
 	listErr = nil
 	empty = true
-	buf, err := runAppNoChecks([]string{"get", "mdm-commands"})
+	buf, err := RunAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.")
 
 	empty = false
-	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
+	buf, err = RunAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
 
@@ -2905,14 +2910,14 @@ The list of 3 most recent commands:
 `))
 
 	// Test with invalid option
-	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--invalid", "foo"})
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--invalid", "foo"})
 	require.Error(t, err)
 
 	// Test with host identifier filter
 	listErr = nil
 	empty = false
 	expectIdentifier = true
-	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
 	require.NoError(t, err)
 
 	// Test with request type filter
@@ -2920,7 +2925,7 @@ The list of 3 most recent commands:
 	empty = false
 	expectRequestType = true
 	expectIdentifier = false
-	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo"})
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--type", "foo"})
 	require.NoError(t, err)
 
 	// Test with request type and host identifier filter
@@ -2928,7 +2933,7 @@ The list of 3 most recent commands:
 	empty = false
 	expectRequestType = true
 	expectIdentifier = true
-	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo", "--host", "bar"})
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--type", "foo", "--host", "bar"})
 	require.NoError(t, err)
 
 	// No Host Identifier found
@@ -2937,7 +2942,7 @@ The list of 3 most recent commands:
 	expectRequestType = false
 	expectIdentifier = true
 	noHostErr = errors.New(fleet.HostIdentiferNotFound)
-	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
 	require.Error(t, err)
 	require.ErrorContains(t, err, fleet.HostIdentiferNotFound)
 }
@@ -3020,7 +3025,7 @@ func TestUserIsObserver(t *testing.T) {
 }
 
 func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	agentOpts := json.RawMessage(`
 {
@@ -3096,7 +3101,7 @@ func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			setCurrentUserSession(t, ds, tc.user)
 
-			ok := tc.checkOutput(runAppForTest(t, []string{"get", "config"}))
+			ok := tc.checkOutput(RunAppForTest(t, []string{"get", "config"}))
 			require.True(t, ok)
 		})
 	}

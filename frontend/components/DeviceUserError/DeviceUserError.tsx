@@ -14,8 +14,8 @@ const DeviceUserError = (): JSX.Element => {
             This URL is invalid or expired.
           </span>
           <span className="info__data">
-            To access your device information, please click “My Device” from the
-            Fleet Desktop menu icon.
+            To access your device information, please click <br />
+            “My Device” from the Fleet Desktop menu icon.
           </span>
         </div>
       </div>
