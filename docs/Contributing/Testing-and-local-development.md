@@ -609,7 +609,7 @@ To use the workflow, follow these steps:
 
 #### Building a signed fleetd-base installer from `local TUF` and signing with Apple Developer Account
 
-1. Build fleetd from your [local TUF](https://github.com/fleetdm/fleet/blob/HEAD/docs/Contributing/Run-Locally-Built-Fleetd.md) service
+1. Build fleetd base pkg installer from your [local TUF](https://github.com/fleetdm/fleet/blob/HEAD/docs/Contributing/Run-Locally-Built-Fleetd.md) service by running the following command after the local TUF repository is generated `fleetctl package --type=pkg --update-roots=$(fleetctl updates roots --path ./test_tuf) --disable-open-folder --debug --update-url=$LOCAL_TUF_URL --enable-scripts --use-system-configuration`.
 2. Obtain a `Developer ID Installer Certificate`:
 - Sign in to your Apple Developer account.
 - Navigate to "Certificates, IDs, & Profiles".
