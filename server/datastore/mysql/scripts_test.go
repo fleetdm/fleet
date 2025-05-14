@@ -1708,6 +1708,18 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	test.SetOrbitEnrollment(t, host2, ds)
 	test.SetOrbitEnrollment(t, hostTeam1, ds)
 
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: user}, fleet.HostListOptions{
+		HostIDFilter: []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, hostTeam1.ID},
+		OrbitInfo:    true,
+	})
+	require.NoError(t, err)
+	require.Len(t, hosts, 5)
+
+	retrievedHosts := make(map[string]*fleet.Host, len(hosts))
+	for _, host := range hosts {
+		retrievedHosts[host.Hostname] = host
+	}
+
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "script1.sh",
 		ScriptContents: "echo hi",
@@ -1723,12 +1735,12 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 
 	/// No team script
 	// Hosts all have to be on the same team as the script
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []*fleet.Host{hostNoScripts, hostTeam1})
+	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []*fleet.Host{retrievedHosts["hostNoScripts"], retrievedHosts["hostTeam1"]})
 	require.Empty(t, execID)
 	require.ErrorContains(t, err, "same team")
 
 	// Actual good execution
-	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []*fleet.Host{hostNoScripts, hostWindows, host1, host2})
+	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []*fleet.Host{retrievedHosts["hostNoScripts"], retrievedHosts["hostWin"], retrievedHosts["host1"], retrievedHosts["host2"]})
 	require.NoError(t, err)
 
 	summary, err := ds.BatchExecuteSummary(ctx, execID)
@@ -1738,25 +1750,25 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.Equal(t, script.TeamID, summary.TeamID)
 	require.Len(t, summary.Hosts, 4)
 
-	assertBadSummary(t, hostNoScripts, fleet.BatchExecuteIncompatibleFleetd, summary.Hosts[0])
-	assertBadSummary(t, hostWindows, fleet.BatchExecuteIncompatiblePlatform, summary.Hosts[1])
-	assertGoodSummary(t, host1, summary.Hosts[2])
-	assertGoodSummary(t, host2, summary.Hosts[3])
+	assertBadSummary(t, hostNoScripts, fleet.BatchExecuteIncompatibleFleetd, summary.Hosts[2])
+	assertBadSummary(t, hostWindows, fleet.BatchExecuteIncompatiblePlatform, summary.Hosts[3])
+	assertGoodSummary(t, host1, summary.Hosts[0])
+	assertGoodSummary(t, host2, summary.Hosts[1])
 
 	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
 	require.NoError(t, err)
 	require.Len(t, host1Upcoming, 1)
-	require.Equal(t, summary.Hosts[2].ExecutionID, &host1Upcoming[0].ExecutionID)
+	require.Equal(t, summary.Hosts[0].ExecutionID, &host1Upcoming[0].ExecutionID)
 	require.Equal(t, &summary.ScriptID, host1Upcoming[0].ScriptID)
 
 	/// Team 1 script
 	// Hosts all have to be on the same team as the script
-	execID, err = ds.BatchExecuteScript(ctx, &user.ID, scriptTeam1.ID, []*fleet.Host{hostTeam1, host1})
+	execID, err = ds.BatchExecuteScript(ctx, &user.ID, scriptTeam1.ID, []*fleet.Host{retrievedHosts["hostTeam1"], retrievedHosts["host1"]})
 	require.Empty(t, execID)
 	require.ErrorContains(t, err, "same team")
 
 	// Actual good execution
-	execID, err = ds.BatchExecuteScript(ctx, &user.ID, scriptTeam1.ID, []*fleet.Host{hostTeam1})
+	execID, err = ds.BatchExecuteScript(ctx, &user.ID, scriptTeam1.ID, []*fleet.Host{retrievedHosts["hostTeam1"]})
 	require.NoError(t, err)
 
 	summary, err = ds.BatchExecuteSummary(ctx, execID)

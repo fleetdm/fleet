@@ -1615,6 +1615,16 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
 	}
 
+	// Validate that every host is on the same team as the script
+	for _, host := range hosts {
+		if host.TeamID == script.TeamID {
+			continue
+		}
+		if host.TeamID == nil || script.TeamID == nil || *host.TeamID != *script.TeamID {
+			return "", fleet.NewInvalidArgumentError("script_id", "same team")
+		}
+	}
+
 	// Initialize an empty slice of hosts with various errors
 	erroredHosts := make([]map[string]any, 0)
 
@@ -1660,15 +1670,17 @@ func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scrip
 				scriptsDisabled := host.ScriptsEnabled != nil && !*host.ScriptsEnabled
 				if noNodeKey || scriptsDisabled {
 					erroredHosts = append(erroredHosts, map[string]any{
-						"host_id": host.ID,
-						"error":   &fleet.BatchExecuteIncompatibleFleetd,
+						"host_id":            host.ID,
+						"batch_execution_id": batchExecID,
+						"error":              &fleet.BatchExecuteIncompatibleFleetd,
 					})
 					continue
 				}
 				if !fleet.ValidateScriptPlatform(script.Name, host.Platform) {
 					erroredHosts = append(erroredHosts, map[string]any{
-						"host_id": host.ID,
-						"error":   &fleet.BatchExecuteIncompatiblePlatform,
+						"host_id":            host.ID,
+						"batch_execution_id": batchExecID,
+						"error":              &fleet.BatchExecuteIncompatiblePlatform,
 					})
 					continue
 				}
@@ -1733,9 +1745,9 @@ ORDER BY host_id`
 		if len(erroredHosts) > 0 {
 			hsrErrorsInsertStmt := `
 	INSERT INTO batch_script_execution_host_results
-		(host_id, error)
+		(batch_execution_id, host_id, error)
 	VALUES
-		(:host_id, :error)`
+		(:batch_execution_id, :host_id, :error)`
 			if _, err := sqlx.NamedExecContext(ctx, tx, hsrErrorsInsertStmt, erroredHosts); err != nil {
 				return ctxerr.Wrap(ctx, err, "failed to insert errored activities")
 			}

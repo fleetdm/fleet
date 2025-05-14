@@ -293,7 +293,7 @@ type Host struct {
 	Hostname         string    `json:"hostname" db:"hostname" csv:"hostname"` // there is a fulltext index on this field
 	UUID             string    `json:"uuid" db:"uuid" csv:"uuid"`             // there is a fulltext index on this field
 	// Platform is the host's platform as defined by osquery's os_version.platform.
-	Platform       string        `json:"platform" csv:"platform"`
+	Platform       string        `json:"platform" db:"platform" csv:"platform"`
 	OsqueryVersion string        `json:"osquery_version" db:"osquery_version" csv:"osquery_version"`
 	OrbitVersion   *string       `json:"orbit_version" db:"orbit_version" csv:"orbit_version"`
 	DesktopVersion *string       `json:"fleet_desktop_version" db:"fleet_desktop_version" csv:"fleet_desktop_version"`

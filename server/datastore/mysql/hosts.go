@@ -1095,7 +1095,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	sqlColumns = append(sqlColumns, getListHostsColumns(&opt)...)
 
 	sql = fmt.Sprintf(`SELECT %s `, strings.Join(sqlColumns, ", "))
-	fmt.Println(sql)
+	// fmt.Println(sql)
 	if opt.MDMInfo == nil || *opt.MDMInfo {
 		sql += hostMDMSelect
 	}
@@ -1123,12 +1123,13 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	}
 
 	sql, params, err := ds.applyHostFilters(ctx, opt, sql, filter, params)
-	fmt.Println(sql)
+	// fmt.Println(sql)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts: apply host filters")
 	}
 
 	hosts := []*fleet.Host{}
+	// fmt.Println(sql)
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
