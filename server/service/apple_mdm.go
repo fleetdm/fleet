@@ -3166,6 +3166,7 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
 func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	var scepRenewalInProgress bool
 	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		var nfe fleet.NotFoundError
@@ -3173,7 +3174,9 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 			return ctxerr.Wrap(r.Context, err, "getting checkin info")
 		}
 	}
-	scepRenewalInProgress := existingDeviceInfo.SCEPRenewalInProgress
+	if existingDeviceInfo != nil {
+		scepRenewalInProgress = existingDeviceInfo.SCEPRenewalInProgress
+	}
 
 	// iPhones and iPads send ProductName but not Model/ModelName,
 	// thus we use this field as the device's Model (which is required on lifecycle stages).
