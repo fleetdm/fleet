@@ -5810,6 +5810,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
+
 	sendErrorOnRemoveProfile := func(device *mdmtest.TestAppleMDMClient) {
 		// The host grabs the removal command from Fleet
 		cmd, err := device.Idle()
