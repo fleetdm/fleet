@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20250430124007(t *testing.T) {
+func TestUp_20250502222222(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	type hostEmail struct {

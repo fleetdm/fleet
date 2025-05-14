@@ -13,10 +13,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250430124007, Down_20250430124007)
+	MigrationClient.AddMigration(Up_20250502222222, Down_20250502222222)
 }
 
-func Up_20250430124007(tx *sql.Tx) error {
+func Up_20250502222222(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
 	// legacy_host_mdm_enroll_refs captures existing enroll refs from the host_mdm table. Going
@@ -254,6 +254,6 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-func Down_20250430124007(tx *sql.Tx) error {
+func Down_20250502222222(tx *sql.Tx) error {
 	return nil
 }

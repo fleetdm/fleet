@@ -3921,6 +3921,12 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 	return nil
 }
 
+func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
+	})
+}
+
 func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {
 	_, err := tx.ExecContext(
 		ctx,
