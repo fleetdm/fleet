@@ -28,6 +28,8 @@ import Card from "components/Card";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
 
@@ -133,6 +135,10 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAddFleetAppSoftwareModal,
   ] = useState(false);
   const [showAppDetailsModal, setShowAppDetailsModal] = useState(false);
+  const [
+    showPreviewEndUserExperience,
+    setShowPreviewEndUserExperience,
+  ] = useState(false);
 
   const {
     data: fleetApp,
@@ -171,6 +177,10 @@ const FleetMaintainedAppDetailsPage = ({
 
   const onClickShowAppDetails = () => {
     setShowAppDetailsModal(true);
+  };
+
+  const onClickPreviewEndUserExperience = () => {
+    setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
   };
 
   const backToAddSoftwareUrl = getPathWithQueryParams(
@@ -242,7 +252,7 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     if (isErrorFleetApp || isErrorLabels) {
-      return <DataError className={`${baseClass}__data-error`} />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (fleetApp) {
@@ -263,6 +273,7 @@ const FleetMaintainedAppDetailsPage = ({
             />
             <FleetAppDetailsForm
               labels={labels || []}
+              categories={fleetApp.categories}
               name={fleetApp.name}
               showSchemaButton={!isSidePanelOpen}
               defaultInstallScript={fleetApp.install_script}
@@ -273,8 +284,14 @@ const FleetMaintainedAppDetailsPage = ({
               onCancel={onCancel}
               onSubmit={onSubmit}
               softwareTitleId={fleetApp.software_title_id}
+              onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
             />
           </div>
+          {showPreviewEndUserExperience && (
+            <CategoriesEndUserExperienceModal
+              onCancel={onClickPreviewEndUserExperience}
+            />
+          )}
         </>
       );
     }
@@ -303,6 +320,7 @@ const FleetMaintainedAppDetailsPage = ({
           name={fleetApp.name}
           platform={fleetApp.platform}
           version={fleetApp.version}
+          slug={fleetApp.slug}
           url={fleetApp.url}
           onCancel={() => setShowAppDetailsModal(false)}
         />

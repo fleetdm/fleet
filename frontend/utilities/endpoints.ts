@@ -39,6 +39,10 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
+  DEVICE_VPP_COMMAND_RESULTS: (token: string, uuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/commands/${uuid}/results`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
@@ -258,9 +262,17 @@ export default {
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
-
+  SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
+  // summary endpoint in next iteration
+  // SCRIPT_RUN_BATCH_SUMMARY: (batchExecutionId: string) =>
+  //   `/${API_VERSION}/fleet/scripts/batch/${batchExecutionId}`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 
   // idp endpoints
   SCIM_DETAILS: `/${API_VERSION}/fleet/scim/details`,
+
+  // configuration profile endpoints
+  CONFIG_PROFILE_STATUS: (uuid: string) =>
+    `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
+  CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/batch/resend`,
 };

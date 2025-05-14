@@ -20,10 +20,11 @@ export enum ActivityType {
   CreatedTeam = "created_team",
   DeletedTeam = "deleted_team",
   LiveQuery = "live_query",
-  AppliedSpecPack = "applied_spec_pack",
-  AppliedSpecPolicy = "applied_spec_policy",
-  AppliedSpecSavedQuery = "applied_spec_saved_query",
-  AppliedSpecTeam = "applied_spec_team",
+  AppliedSpecPack = "applied_spec_pack", // fleetctl
+  AppliedSpecPolicy = "applied_spec_policy", // fleetctl
+  AppliedSpecSavedQuery = "applied_spec_saved_query", // fleetctl
+  AppliedSpecSoftware = "applied_spec_software", // fleetctl
+  AppliedSpecTeam = "applied_spec_team", // fleetctl
   EditedAgentOptions = "edited_agent_options",
   UserAddedBySSO = "user_added_by_sso",
   UserLoggedIn = "user_logged_in",
@@ -81,6 +82,7 @@ export enum ActivityType {
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
+  RanScriptBatch = "ran_script_batch",
   AddedScript = "added_script",
   UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
@@ -93,6 +95,7 @@ export enum ActivityType {
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
+  ResentConfigurationProfileBatch = "resent_configuration_profile_batch",
   AddedSoftware = "added_software",
   EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
@@ -170,6 +173,7 @@ export type IHostUpcomingActivity = Omit<
 export interface IActivityDetails {
   app_store_id?: number;
   bootstrap_package_name?: string;
+  batch_exection_id?: string;
   command_uuid?: string;
   deadline_days?: number;
   deadline?: string;
@@ -180,6 +184,7 @@ export interface IActivityDetails {
   host_display_names?: string[];
   host_id?: number;
   host_ids?: number[];
+  host_count?: number;
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;

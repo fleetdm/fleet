@@ -38,13 +38,16 @@ interface IPoliciesPaginatedListProps {
     onChange: (item: IFormPolicy) => void
   ) => ReactElement | false | null | undefined;
   onToggleItem: (item: IFormPolicy) => IFormPolicy;
+  /** A function defining the conditions under which to disable a policy. */
+  getPolicyDisabled?: (policy: IFormPolicy) => boolean;
+  getPolicyTooltipContent?: (policy: IFormPolicy) => React.ReactNode;
   onCancel: () => void;
   onSubmit: (formData: IFormPolicy[]) => void;
   isUpdating: boolean;
-  disabled?: boolean;
+  disableList?: boolean;
   disableSave?: (changedItems: IFormPolicy[]) => boolean | string;
   teamId: number;
-  footer: ReactElement | undefined | null;
+  helpText: ReactElement | undefined | null;
 }
 
 const baseClass = "policies-paginated-list";
@@ -54,13 +57,15 @@ function PoliciesPaginatedList(
     isSelected,
     renderItemRow,
     onToggleItem,
+    getPolicyDisabled,
+    getPolicyTooltipContent,
     onCancel,
     onSubmit,
     isUpdating,
-    disabled = false,
+    disableList = false,
     disableSave,
     teamId,
-    footer,
+    helpText,
   }: IPoliciesPaginatedListProps,
   ref: Ref<IPaginatedListHandle<IFormPolicy>>
 ) {
@@ -109,57 +114,62 @@ function PoliciesPaginatedList(
   const DEFAULT_PAGE_SIZE = 10;
   const DEFAULT_SORT_COLUMN = "name";
 
-  const fetchPage = useCallback((pageNumber: number) => {
-    let fetchPromise;
+  const fetchPage = useCallback(
+    (pageNumber: number) => {
+      let fetchPromise;
 
-    if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
-      fetchPromise = queryClient.fetchQuery(
-        [
-          {
-            scope: "globalPolicies",
-            page: pageNumber,
-            perPage: DEFAULT_PAGE_SIZE,
-            query: "",
-            orderDirection: "asc" as const,
-            orderKey: DEFAULT_SORT_COLUMN,
-          },
-        ],
-        ({ queryKey }) => {
-          return globalPoliciesAPI.loadAllNew(queryKey[0]);
-        }
-      );
-    } else {
-      fetchPromise = queryClient.fetchQuery(
-        [
-          {
-            scope: "teamPolicies",
-            page: pageNumber,
-            perPage: DEFAULT_PAGE_SIZE,
-            query: "",
-            orderDirection: "asc" as const,
-            orderKey: DEFAULT_SORT_COLUMN,
-            teamId,
-            mergeInherited: false,
-          },
-        ],
-        ({ queryKey }) => {
-          return teamPoliciesAPI.loadAllNew(queryKey[0]);
-        }
-      );
-    }
+      if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
+        fetchPromise = queryClient.fetchQuery(
+          [
+            {
+              scope: "globalPolicies",
+              page: pageNumber,
+              perPage: DEFAULT_PAGE_SIZE,
+              query: "",
+              orderDirection: "asc" as const,
+              orderKey: DEFAULT_SORT_COLUMN,
+            },
+          ],
+          ({ queryKey }) => {
+            return globalPoliciesAPI.loadAllNew(queryKey[0]);
+          }
+        );
+      } else {
+        fetchPromise = queryClient.fetchQuery(
+          [
+            {
+              scope: "teamPolicies",
+              page: pageNumber,
+              perPage: DEFAULT_PAGE_SIZE,
+              query: "",
+              orderDirection: "asc" as const,
+              orderKey: DEFAULT_SORT_COLUMN,
+              teamId,
+              mergeInherited: false,
+            },
+          ],
+          ({ queryKey }) => {
+            return teamPoliciesAPI.loadAllNew(queryKey[0]);
+          }
+        );
+      }
 
-    return fetchPromise.then((policiesResponse) => {
-      // Marshall the response into IFormPolicy objects.
-      return (policiesResponse.policies || []).map((policy) => ({
-        ...policy,
-        installSoftwareEnabled: !!policy.install_software,
-        swIdToInstall: policy.install_software?.software_title_id,
-        runScriptEnabled: !!policy.run_script,
-        scriptIdToRun: policy.run_script?.id,
-        scriptNameToRun: policy.run_script?.name,
-      })) as IFormPolicy[];
-    });
-  }, []);
+      return fetchPromise.then((policiesResponse) => {
+        // Marshall the response into IFormPolicy objects.
+        return (policiesResponse.policies || []).map((policy) => {
+          return {
+            ...policy,
+            installSoftwareEnabled: !!policy.install_software,
+            swIdToInstall: policy.install_software?.software_title_id,
+            runScriptEnabled: !!policy.run_script,
+            scriptIdToRun: policy.run_script?.id,
+            scriptNameToRun: policy.run_script?.name,
+          };
+        }) as IFormPolicy[];
+      });
+    },
+    [queryClient, teamId]
+  );
 
   const fetchCount = useCallback(() => {
     let fetchPromise;
@@ -203,18 +213,20 @@ function PoliciesPaginatedList(
           fetchPage={fetchPage}
           fetchCount={fetchCount}
           isSelected={isSelected}
-          onToggleItem={onToggleItem}
+          isItemDisabled={getPolicyDisabled}
+          getItemTooltipContent={getPolicyTooltipContent}
+          onClickRow={onToggleItem}
           renderItemRow={renderItemRow}
           pageSize={DEFAULT_PAGE_SIZE}
           onUpdate={onUpdate}
-          disabled={disabled || gitOpsModeEnabled}
+          disabled={disableList || gitOpsModeEnabled}
           heading={<span className={`${baseClass}__header`}>Policies</span>}
+          helpText={helpText}
         />
       </div>
-      {footer && <p className="form-field__help-text">{footer}</p>}
       <div className="modal-cta-wrap">
         <GitOpsModeTooltipWrapper
-          position="right"
+          position="top"
           tipOffset={8}
           renderChildren={(disableChildren) => (
             <TooltipWrapper

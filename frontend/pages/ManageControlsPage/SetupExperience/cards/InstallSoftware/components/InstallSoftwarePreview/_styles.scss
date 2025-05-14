@@ -5,9 +5,10 @@
     font-weight: normal;
   }
 
-  &__preview-img {
+  &__preview-video {
     margin-top: $pad-xxlarge;
     width: 100%;
     display: block;
+    border-radius: $border-radius-large;
   }
 }

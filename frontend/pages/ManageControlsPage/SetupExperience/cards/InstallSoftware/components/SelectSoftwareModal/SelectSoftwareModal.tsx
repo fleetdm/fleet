@@ -56,7 +56,6 @@ const SelectSoftwareModal = ({
         selectedSoftwareIds
       );
     } catch (e) {
-      console.log("error");
       renderFlash("error", "Couldn't save software. Please try again.");
     }
     setIsSaving(false);

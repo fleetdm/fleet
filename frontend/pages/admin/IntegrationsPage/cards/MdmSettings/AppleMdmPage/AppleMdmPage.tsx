@@ -100,7 +100,7 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
         />
         <h1>Apple Push Certificate Portal</h1>
         {showSpinner && <Spinner />}
-        {showError && <DataError />}
+        {showError && <DataError verticalPaddingSize="pad-xxxlarge" />}
         {showContent &&
           (!appleAPNInfo ? (
             <ApplePushCertSetup

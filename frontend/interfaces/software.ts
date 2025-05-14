@@ -62,6 +62,12 @@ export interface ISoftwareInstallPolicy {
   name: string;
 }
 
+export type SoftwareCategory =
+  | "Browsers"
+  | "Communication"
+  | "Developer tools"
+  | "Productivity";
+
 export interface ISoftwarePackage {
   name: string;
   last_install: string | null;
@@ -87,6 +93,7 @@ export interface ISoftwarePackage {
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
+  categories?: SoftwareCategory[];
 }
 
 export const isSoftwarePackage = (
@@ -122,6 +129,7 @@ export interface IAppStoreApp {
   version?: string;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface ISoftwareTitle {
@@ -186,6 +194,7 @@ export const SOURCE_TYPE_CONVERSION = {
   npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
+  tgz_packages: "Package (tar)",
   apps: "Application (macOS)",
   ios_apps: "Application (iOS)",
   ipados_apps: "Application (iPadOS)",
@@ -209,6 +218,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   portage_packages: "linux",
   rpm_packages: "linux",
   yum_sources: "linux",
+  tgz_packages: "linux",
   npm_packages: null,
   atom_packages: null,
   python_packages: null,
@@ -355,9 +365,10 @@ export interface ISoftwareInstallVersion {
 export interface IHostSoftwarePackage {
   name: string;
   self_service: boolean;
-  icon_url: string;
+  icon_url: string | null;
   version: string;
   last_install: ISoftwareLastInstall | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface IHostAppStoreApp {
@@ -366,6 +377,7 @@ export interface IHostAppStoreApp {
   icon_url: string;
   version: string;
   last_install: IAppLastInstall | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface IHostSoftware {
@@ -481,5 +493,7 @@ export interface IFleetMaintainedAppDetails {
   post_install_script: string;
   uninstall_script: string;
   url: string;
+  slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
+  categories: SoftwareCategory[];
 }

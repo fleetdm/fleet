@@ -369,7 +369,7 @@ type Datastore interface {
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificateRecord, *PaginationMetadata, error)
-	UpdateHostCertificates(ctx context.Context, hostID uint, certs []*HostCertificateRecord) error
+	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord) error
 
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
@@ -640,6 +640,14 @@ type Datastore interface {
 	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
 	// the given team.
 	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
+
+	// NewSoftwareCategory creates a new category for software.
+	NewSoftwareCategory(ctx context.Context, name string) (*SoftwareCategory, error)
+	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names.
+	GetSoftwareCategoryIDs(ctx context.Context, names []string) ([]uint, error)
+	// GetCategoriesForSoftwareTitles takes a set of software title IDs and returns a map
+	// from the title IDs to the categories assigned to the installers for those titles.
+	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
@@ -1074,7 +1082,7 @@ type Datastore interface {
 	// Apple MDM
 
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
-	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []string) (*MDMAppleConfigProfile, error)
 
 	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
 	// profiles in bulk with the current payload.
@@ -1138,6 +1146,10 @@ type Datastore interface {
 
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
+
+	// GetVPPCommandResults returns the execution results of a command identified by a CommandUUID,
+	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
+	GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
 	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
@@ -1208,6 +1220,10 @@ type Datastore interface {
 
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
+
+	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
+	// MDM protocol seen time for the host with the given UUID
+	GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
@@ -1574,6 +1590,11 @@ type Datastore interface {
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
+	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
+	// matching hosts that satisfy the filter, thereby triggering the profile to
+	// be resent upon the next cron run.
+	BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters BatchResendMDMProfileFilters) (int64, error)
+
 	// GetHostMDMProfileInstallStatus returns the status of the profile for the host.
 	GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (MDMDeliveryStatus, error)
 
@@ -1646,7 +1667,7 @@ type Datastore interface {
 	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
 	// no team in a single transaction.
 	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile,
-		macDeclarations []*MDMAppleDeclaration) (updates MDMProfilesUpdates, err error)
+		macDeclarations []*MDMAppleDeclaration, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
@@ -1712,6 +1733,13 @@ type Datastore interface {
 
 	// BatchSetScripts sets the scripts for the given team or no team.
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) ([]ScriptResponse, error)
+
+	// BatchExecuteScript queues a script to run on a set of hosts and returns the batch script
+	// execution ID.
+	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
+
+	// BatchExecuteSummary returns the summary of a batch script execution
+	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchExecutionSummary, error)
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)
@@ -1976,6 +2004,9 @@ type Datastore interface {
 	// if a team is specified.
 	GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
 
+	// GetMaintainedAppBySlug gets a Fleet-maintained app by its slug
+	GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*MaintainedApp, error)
+
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.
 	UpsertMaintainedApp(ctx context.Context, app *MaintainedApp) (*MaintainedApp, error)
@@ -1984,7 +2015,7 @@ type Datastore interface {
 	// Certificate management
 
 	// BulkUpsertMDMManagedCertificates updates metadata regarding certificates on the host.
-	BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*MDMBulkUpsertManagedCertificatePayload) error
+	BulkUpsertMDMManagedCertificates(ctx context.Context, payload []*MDMManagedCertificate) error
 
 	// GetHostMDMCertificateProfile returns the MDM profile information for the specified host UUID and profile UUID.
 	// nil is returned if the profile is not found.
@@ -1992,6 +2023,12 @@ type Datastore interface {
 
 	// CleanUpMDMManagedCertificates removes all managed certificates that are not associated with any host+profile.
 	CleanUpMDMManagedCertificates(ctx context.Context) error
+
+	// RenewMDMManagedCertificates marks managed certificate profiles for resend when renewal is required
+	RenewMDMManagedCertificates(ctx context.Context) error
+
+	// ListHostMDMManagedCertificates returns the managed certificates for the given host UUID
+	ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*MDMManagedCertificate, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
@@ -2034,6 +2071,9 @@ type Datastore interface {
 	ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*ScimUser, error)
 	// ScimUserByHostID retrieves a SCIM user associated with a host ID
 	ScimUserByHostID(ctx context.Context, hostID uint) (*ScimUser, error)
+	// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
+	// If the slice is empty, it returns true
+	ScimUsersExist(ctx context.Context, ids []uint) (bool, error)
 	// ReplaceScimUser replaces an existing SCIM user in the database
 	ReplaceScimUser(ctx context.Context, user *ScimUser) error
 	// DeleteScimUser deletes a SCIM user from the database
@@ -2043,7 +2083,8 @@ type Datastore interface {
 	// CreateScimGroup creates a new SCIM group in the database
 	CreateScimGroup(ctx context.Context, group *ScimGroup) (uint, error)
 	// ScimGroupByID retrieves a SCIM group by ID
-	ScimGroupByID(ctx context.Context, id uint) (*ScimGroup, error)
+	// If excludeUsers is true, the group's users will not be fetched
+	ScimGroupByID(ctx context.Context, id uint, excludeUsers bool) (*ScimGroup, error)
 	// ScimGroupByDisplayName retrieves a SCIM group by display name
 	ScimGroupByDisplayName(ctx context.Context, displayName string) (*ScimGroup, error)
 	// ReplaceScimGroup replaces an existing SCIM group in the database
@@ -2051,7 +2092,7 @@ type Datastore interface {
 	// DeleteScimGroup deletes a SCIM group from the database
 	DeleteScimGroup(ctx context.Context, id uint) error
 	// ListScimGroups retrieves a list of SCIM groups with pagination
-	ListScimGroups(ctx context.Context, opts ScimListOptions) (groups []ScimGroup, totalResults uint, err error)
+	ListScimGroups(ctx context.Context, opts ScimGroupsListOptions) (groups []ScimGroup, totalResults uint, err error)
 	// ScimLastRequest retrieves the last SCIM request info
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info

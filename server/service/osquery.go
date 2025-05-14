@@ -2277,7 +2277,7 @@ func (svc *Service) preProcessOsqueryResults(
 	}
 
 	queriesDBData = make(map[string]*fleet.Query)
-	for _, queryResult := range unmarshaledResults {
+	for i, queryResult := range unmarshaledResults {
 		if queryResult == nil {
 			// These are results that could not be unmarshaled.
 			continue
@@ -2292,18 +2292,42 @@ func (svc *Service) preProcessOsqueryResults(
 			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
 		}
-		if _, ok := queriesDBData[queryResult.QueryName]; ok {
-			// Already loaded.
-			continue
+
+		existingQuery, foundQuery := queriesDBData[queryResult.QueryName]
+		if !foundQuery {
+			query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+			if err != nil {
+				level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+				continue
+			}
+			queriesDBData[queryResult.QueryName] = query
+			existingQuery = query
 		}
-		query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+
+		updatedResult, err := addQueryIDToLogResult(ctx, osqueryResults[i], existingQuery.ID)
 		if err != nil {
-			level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+			level.Debug(svc.logger).Log("msg", "inserting query id into query result", "err", err, "query_id", existingQuery.ID)
 			continue
 		}
-		queriesDBData[queryResult.QueryName] = query
+
+		// Set the updated query results if we find query ID. This is used one level up by the logger
+		osqueryResults[i] = updatedResult
 	}
 	return unmarshaledResults, queriesDBData
+}
+
+func addQueryIDToLogResult(ctx context.Context, logResult json.RawMessage, queryID uint) (json.RawMessage, error) {
+	var query map[string]json.RawMessage
+	if err := json.Unmarshal(logResult, &query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to unmarshal query result to insert query id")
+	}
+
+	query["query_id"] = json.RawMessage(strconv.FormatUint(uint64(queryID), 10))
+	newResult, err := json.Marshal(query)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to marshal query result with query id")
+	}
+	return newResult, nil
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {

@@ -16,7 +16,7 @@ Currently, the macOS versions of these apps are Apple Silicon-only rather than u
 * Brave
 * Docker Desktop
 * Figma
-* Microsoft Visual Studio (VS) Code,
+* Microsoft Visual Studio (VS) Code
 * Notion
 * Postman
 * Slack
@@ -64,6 +64,12 @@ To get the latest version of a Fleet-maintained app,
 3. Install the new version of the app via one of the three methods above.
 
 A streamlined flow for pulling the latest version of a Fleet-maintained app is [coming soon](https://github.com/fleetdm/fleet/issues/25636).
+
+## Manage apps with GitOps
+
+To manage Fleet-maintained apps using Fleet's best practice GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#software). There is a `fleet_maintained_apps` key you can use to specify via slug a list of apps. This makes it even more simple to add additional apps available for your fleet.
+
+> Note: with GitOps enabled, any Fleet-maintained apps added using the web UI will not persist.
 
 ## How does Fleet maintain these apps?
 

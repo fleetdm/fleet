@@ -26,7 +26,7 @@ export type IStatusDisplayConfig = {
     | "error"
     | "install"
     | "install-self-service";
-  displayText: string;
+  displayText: string | JSX.Element;
   tooltip: (args: TootipArgs) => ReactNode;
 };
 
@@ -38,15 +38,29 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     iconName: "success",
     displayText: "Installed",
     tooltip: ({ isAppStoreApp }) =>
-      isAppStoreApp
-        ? "The host acknowledged the MDM command to install App Store app."
-        : "Software is installed (install script finished with exit code 0).",
+      isAppStoreApp ? (
+        <>
+          The host acknowledged the MDM
+          <br />
+          command to install the app.
+        </>
+      ) : (
+        <>
+          Software is installed (install
+          <br />
+          script finished with exit code 0).
+        </>
+      ),
   },
   pending_install: {
     iconName: "pending-outline",
     displayText: "Installing (pending)",
-    tooltip: () =>
-      "Fleet is installing or will install when the host comes online.",
+    tooltip: () => (
+      <>
+        Fleet is installing or will install
+        <br /> when the host comes online.
+      </>
+    ),
   },
   pending_uninstall: {
     iconName: "pending-outline",
@@ -93,7 +107,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ) : (
         <>
           {softwareName ? <b>{softwareName}</b> : "Software"} can be installed
-          on the host. Select <b>Actions {">"} Install</b> to install.
+          on the host. Select <b>Actions &gt; Install</b> to install.
         </>
       ),
   },
@@ -109,7 +123,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
 };
 
-type IInstallStatusCellProps = IHostSoftware;
+type IInstallStatusCellProps = Pick<IHostSoftware, "status"> &
+  Partial<Pick<IHostSoftware, "software_package" | "app_store_app">>;
 
 const InstallStatusCell = ({
   status,
@@ -124,8 +139,7 @@ const InstallStatusCell = ({
 
   if (status !== null) {
     displayStatus = status;
-  } else if (software_package?.self_service) {
-    // currently only software packages can be self-service
+  } else if (software_package?.self_service || app_store_app?.self_service) {
     displayStatus = "selfService";
   } else if (hasPackage || hasAppStoreApp) {
     displayStatus = "avaiableForInstall";

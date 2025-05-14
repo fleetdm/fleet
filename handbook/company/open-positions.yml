@@ -1,4 +1,4 @@
-# Example Open positon entry:
+# Example Open position entry:
 # - jobTitle:
 #   department: 
 #   hiringManagerName: 
@@ -22,7 +22,7 @@
       - 💭 Manage and optimize scalable distributed systems in the cloud.
       - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
       - 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-      - 🌟 Contribute to the overall success of the [MDM](https://fleetdm.com/handbook/company/product-groups#mdm-group) product group by ensuring users receive valuable new features.
+      - 🌟 Contribute to the overall success of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features .
   experience: |
       - 💭 3-5 years of experience in backend/SaaS development.
       - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
@@ -61,32 +61,6 @@
       - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus. 
       - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
-- jobTitle: 🐋 Customer Success Manager
-  department: Customers
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  responsibilities: |
-      - ⏫ Own post-sales relationships with a portfolio of our customers and be responsible for advocating for their success.
-      - 📣 Manage multiple customer deployments and escalations simultaneously.
-      - 🌡️ Work alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
-      - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
-      - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
-      - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
-      - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
-      - 💡 Excellent communication and collaboration skills, with the ability to partner with various teams and stakeholders to drive desired customer outcomes and key objectives.
-      - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
-  experience: |
-      - 💭 IT or device management background supporting solutions like Fleet, Intune, Jamf, Workspace One, etc.
-      - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
-      - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
-      - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
-      - 🧑‍🔬 Experience working with Enterprise customers to coordinate resolution of complex technical issues and project manage intricate deployment initiatives.
-      - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing. 
-      - 🦉 2-3 years of work experience managing relationships with enterprise customers in the device management space. Experience with executing and tracking results tied to customer escalations, customer renewals, and customer expansion opportunities.
-      - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
-      - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
-
 
 - jobTitle: 🌦️ Customer Solutions Architect
   department: Customers
@@ -116,9 +90,10 @@
 
 - jobTitle: 🎐 Solutions Consultant
   department: Sales
-  hiringManagerName: Mike Mcneil
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/mikermcneil/
-  hiringManagerGithubUsername: mikermcneil
+  hiringManagerName: Allen Houchins
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
+  hiringManagerGithubUsername: allenhouchins
+  onTargetEarnings: '$135,000 - $175,000'
   responsibilities: |
       - ⏫ Work hand-in-hand with the Sales team by participating in calls with potential customers to show them a demonstration of Fleet in action.
       - 📖 You’ll provide commentary, detailed technical explanations, examples from your experience, and answer customer questions based on your experience managing Apple, Windows, and Linux devices with MDM and other tools (osquery).
@@ -138,3 +113,32 @@
       - 🤝 Collaboration: You work best in a participatory, team-based environment.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
+
+
+- jobTitle: 🚀 Quality Assurance Engineer
+  department: Engineering
+  hiringManagerName: Luke Heath
+  hiringManagerGithubUsername: lukeheath
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
+  responsibilities: |
+      - ⏫ Work closely with CTO to continually improve overall quality assurance efficiency and effectiveness throughout the product design and engineering process.
+      - 🤝 Collaborate with the engineering managers and quality assurance engineers in the [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), actively participating in some engineering scrum meetings, sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
+      - 🌟 Contribute to the overall success of all [product groups}(https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features that work as intended.
+      - 🧪 Develop and execute testing plans based on feature specifications, outlining step-by-step actions for each user role to confirm that features function as intended.
+      - 🚀 Perform manual testing of newly developed features on all supported devices, platforms, and browsers, ensuring a seamless user experience.
+      - 🐞 Identify, document, and report any bugs or unusual behavior, creating and assigning bug tickets to the appropriate engineering manager for resolution.
+      - 🔧 Verify that bugs have been resolved after engineers have addressed them, repeating the testing process as needed.
+  experience: |
+      - 💭 3-5 years' of experience in a product quality, QA, or testing role.
+      - 💖 Proficient in creating comprehensive testing plans.
+      - ✍️ Experience working with engineering and product teams in an agile environment.
+      - 🎯 Strong attention to detail and ability to identify inconsistencies or deviations from specifications.
+      - 💡 Excellent communication and collaboration skills, with the ability to work closely with engineering and product teams.
+      - 🌐 Experience in manual testing across various devices, platforms, and browsers.
+      - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
+      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+      - 🤝 Collaboration: You work best in a participatory, team-based environment.
+      - 🛠️ Technical: You understand the software development processes.
+      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+      - ➕ Bonus: Cybersecurity or IT background.
+

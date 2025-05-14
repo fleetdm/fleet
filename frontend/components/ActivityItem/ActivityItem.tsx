@@ -113,7 +113,10 @@ const ActivityItem = ({
     [`${baseClass}__no-details`]: hideShowDetails,
   });
 
-  const onShowActivityDetails = () => {
+  const onShowActivityDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // added this stopPropagation as there is some weirdness around the event
+    // bubbling up and calling the Modals onEnter handler.
+    e.stopPropagation();
     onShowDetails({ type: activity.type, details: activity.details });
   };
 
@@ -137,7 +140,8 @@ const ActivityItem = ({
         />
         <div className={`${baseClass}__avatar-lower-dash`} />
       </div>
-      <div
+      <button
+        disabled={hideShowDetails}
         className={`${baseClass}__details-wrapper`}
         onClick={onShowActivityDetails}
       >
@@ -168,12 +172,17 @@ const ActivityItem = ({
         </div>
         <div className={`${baseClass}__details-actions`}>
           {!hideShowDetails && (
-            <Button variant="icon" onClick={onShowActivityDetails}>
+            <Button
+              className={`${baseClass}__action-button`}
+              variant="icon"
+              onClick={onShowActivityDetails}
+            >
               <Icon name="info-outline" />
             </Button>
           )}
           {!hideCancel && (
             <Button
+              className={`${baseClass}__action-button`}
               variant="icon"
               onClick={onCancelActivity}
               disabled={disableCancel}
@@ -186,7 +195,7 @@ const ActivityItem = ({
             </Button>
           )}
         </div>
-      </div>
+      </button>
     </div>
   );
 };

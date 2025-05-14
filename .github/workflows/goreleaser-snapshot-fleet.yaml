@@ -127,6 +127,7 @@ jobs:
           only-vex-affected: true
           write-comment: false
           vex-location: ./security/vex/fleet
+          exit-code: true
             
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images

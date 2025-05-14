@@ -2551,7 +2551,7 @@ spec:
   name: Get Shimcache table
   platform: windows
   description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
-  query: select * from Shimcache
+  query: select * from shimcache
   purpose: Informational
   tags: hunting
   contributors: puffyCid

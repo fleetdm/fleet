@@ -545,6 +545,7 @@ var hostRefs = []string{
 	"host_certificates",
 	"android_devices",
 	"host_scim_user",
+	"batch_script_execution_host_results",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -1859,6 +1860,8 @@ type enrolledHostInfo struct {
 	// NodeKeySet indicates whether `node_key` is set (NOT NULL) for a osquery host
 	// or if `orbit_node_key` is set (NOT NULL) for a orbit host.
 	NodeKeySet bool
+	// Platform is the OS of the host.
+	Platform string
 }
 
 // Attempts to find the matching host ID by osqueryID, host UUID or serial
@@ -1887,6 +1890,7 @@ func matchHostDuringEnrollment(
 		LastEnrolledAt time.Time `db:"last_enrolled_at"`
 		NodeKeySet     bool      `db:"node_key_set"`
 		Priority       int
+		Platform       string `db:"platform"`
 	}
 
 	var (
@@ -1902,7 +1906,7 @@ func matchHostDuringEnrollment(
 	}
 
 	if osqueryID != "" || uuid != "" {
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 1 priority FROM hosts WHERE osquery_host_id = ?)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 1 priority, platform FROM hosts WHERE osquery_host_id = ?)`, nodeKeyColumn))
 		osqueryHostID := osqueryID
 		if osqueryID == "" {
 			// special-case, if there's no osquery identifier, use the uuid
@@ -1918,7 +1922,7 @@ func matchHostDuringEnrollment(
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
-		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT id, last_enrolled_at, %s IS NOT NULL AS node_key_set, 2 priority, platform FROM hosts WHERE hardware_serial = ? AND (platform = 'darwin' OR platform = 'ios' OR platform = 'ipados') ORDER BY id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, serial)
 	}
 
@@ -1936,6 +1940,7 @@ func matchHostDuringEnrollment(
 		ID:             rows[0].ID,
 		LastEnrolledAt: rows[0].LastEnrolledAt,
 		NodeKeySet:     rows[0].NodeKeySet,
+		Platform:       rows[0].Platform,
 	}, nil
 }
 
@@ -2013,6 +2018,14 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 			// clear any host_mdm_actions following re-enrollment here
 			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, enrolledHostInfo.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error clearing host_mdm_actions")
+			}
+
+			// Clear host_mdm table row for this host if switching from Windows to non-Windows(e.g. Ubuntu) platform
+			// so that hosts that get re-imaged with other OS don't show erroneous MDM status
+			if enrolledHostInfo.Platform == "windows" && hostInfo.Platform != "" && hostInfo.Platform != "windows" {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm WHERE host_id = ?`, enrolledHostInfo.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "orbit enroll error clearing host_mdm entry on platform change re-enrollment")
+				}
 			}
 
 		case errors.Is(err, sql.ErrNoRows):
@@ -3892,15 +3905,18 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 }
 
 func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
-	_, err := ds.writer(ctx).ExecContext(
-		ctx,
-		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
-		hostID, scimUserID,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
-	}
-	return nil
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+			hostID, scimUserID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
+		}
+		// resend profiles that depend on the user now associated with that host
+		return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
+	})
 }
 
 func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {

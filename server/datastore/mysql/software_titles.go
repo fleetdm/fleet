@@ -320,6 +320,8 @@ SELECT
 	si.platform as package_platform,
 	si.url AS package_url,
 	si.install_during_setup as package_install_during_setup,
+	si.storage_id as package_storage_id,
+	si.fleet_maintained_app_id,
 	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vat.install_during_setup as vpp_install_during_setup,
@@ -337,7 +339,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, package_self_service, package_name, package_version, package_platform, package_url, package_install_during_setup, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_platform, vpp_app_icon_url, vpp_install_during_setup`
+GROUP BY st.id, package_self_service, package_name, package_version, package_platform, package_url, package_install_during_setup, package_storage_id, fleet_maintained_app_id, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_platform, vpp_app_icon_url, vpp_install_during_setup`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {

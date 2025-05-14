@@ -132,7 +132,7 @@ module.exports.custom = {
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
-    'articles': 'drew-p-drawers',
+    'articles': 'sampfluger88',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -183,6 +183,9 @@ module.exports.custom = {
     // 🌐 GitHub issue templates
     '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
+    // 💝 Fleet-maintained apps
+    'ee/maintained-apps/inputs': 'mostlikelee',
+    'ee/maintained-apps/outputs': 'eugkuo',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -220,7 +223,7 @@ module.exports.custom = {
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'drew-p-drawers', 'lukeheath'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath'],
     'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)

@@ -3417,7 +3417,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	}
 
 	// set up data
-	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0))
+	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
 	require.NoError(t, err)
 
 	// verifying status
@@ -7021,7 +7021,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateHostDiskEncryptionKey(context.Background(), host, "TESTKEY", "", nil)
 	require.NoError(t, err)
 	// set an mdm profile
-	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"))
+	prof, err := ds.NewMDMAppleConfigProfile(context.Background(), *configProfileForTest(t, "N1", "I1", "U1"), nil)
 	require.NoError(t, err)
 	err = ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{ProfileUUID: prof.ProfileUUID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("csum")},
@@ -7141,7 +7141,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.True(t, added)
 
 	// Add a host certificate
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, []*fleet.HostCertificateRecord{{
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
 		HostID:     host.ID,
 		CommonName: "foo",
 		SHA1Sum:    sha1.New().Sum([]byte("foo")),
@@ -7158,6 +7158,15 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user"})
 	require.NoError(t, err)
 	require.NoError(t, ds.associateHostWithScimUser(ctx, host.ID, scimUserID))
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.BatchExecuteScript(ctx, nil, script.ID, []uint{host.ID})
+	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
@@ -8847,6 +8856,90 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			t.Parallel()
 			scenarioD(platform)
 		})
+	}
+
+	// Scenario E:
+	//	- Fleet with MDM enabled.
+	// 	- two hosts with the same hardware identifiers (e.g. two cloned VMs) but platform may be different
+	//	- fleetd running with host identifier set to uuid (default).
+	//	- orbit enrolls first, then osquery
+	//  - host_mdm entry exists after first host enrolls
+	// Expected output: The two fleetd instances should be enrolled as one host and if the first host was
+	//   platform="windows" and the second host was not, the host_mdm entry should be removed
+	scenarioE := func(fromPlatform, toPlatform string) {
+		dupUUID := uuid.New().String()
+		dupHWSerial := uuid.New().String()
+
+		h1Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   dupUUID,
+			HardwareSerial: dupHWSerial,
+			Platform:       fromPlatform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
+		require.NoError(t, err)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+		h1Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		h1OsqueryFetched, err := ds.Host(ctx, h1Osquery.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, h1OrbitFetched.LastEnrolledAt, h1OsqueryFetched.LastEnrolledAt)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm(host_id, enrolled, server_url, installed_from_dep, mdm_id, is_server)
+		VALUES(?, 1, 'https://example.com/mdm', 0, ?, 0)`, h1Orbit.ID, h1Orbit.ID+100)
+			return err
+		})
+		h1WithMdmFetched, err := ds.Host(ctx, h1Orbit.ID)
+		require.NoError(t, err)
+		require.NotNil(t, h1WithMdmFetched.MDM.ServerURL)
+		require.NotNil(t, h1WithMdmFetched.MDM.EnrollmentStatus)
+
+		h2Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   dupUUID,
+			HardwareSerial: dupHWSerial,
+			Platform:       toPlatform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h2OrbitFetched, err := ds.Host(ctx, h2Orbit.ID)
+		require.NoError(t, err)
+		// orbit should not update last_enrolled_at if re-enrolling (because last_enrolled_at
+		// is to be set by osquery only).
+		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+		h2Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+		h2OsqueryFetched, err := ds.Host(ctx, h2Osquery.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, h2OrbitFetched.LastEnrolledAt, h2OsqueryFetched.LastEnrolledAt)
+
+		// the hosts compete for the host entry (all have same row id)
+		require.Equal(t, h1Orbit.ID, h2Orbit.ID)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+
+		if fromPlatform == "windows" && toPlatform != "windows" {
+			assert.Nil(t, h2OrbitFetched.MDM.EnrollmentStatus)
+			assert.Nil(t, h2OrbitFetched.MDM.ServerURL)
+		} else {
+			require.NotNil(t, h2OrbitFetched.MDM.EnrollmentStatus)
+			assert.Equal(t, *h1WithMdmFetched.MDM.EnrollmentStatus, *h2OrbitFetched.MDM.EnrollmentStatus)
+			require.NotNil(t, h2OrbitFetched.MDM.ServerURL)
+			assert.Equal(t, *h1WithMdmFetched.MDM.ServerURL, *h2OrbitFetched.MDM.ServerURL)
+		}
+	}
+	for _, fromPlatform := range []string{"ubuntu", "windows", "darwin"} {
+		for _, toPlatform := range []string{"ubuntu", "windows", "darwin"} {
+			fromPlatform := fromPlatform
+			toPlatform := toPlatform
+			t.Run("scenarioE_from_"+fromPlatform+"_to_"+toPlatform, func(t *testing.T) {
+				t.Parallel()
+				scenarioE(fromPlatform, toPlatform)
+			})
+		}
 	}
 }
 

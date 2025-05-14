@@ -7,7 +7,7 @@
           <h1>Manage everything in one place</h1>
         </div>
         <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
-        <%if(['eo-security','vm'].includes(primaryBuyingSituation)) { %>
+        <%if(['security-misc','security-vm'].includes(primaryBuyingSituation)) { %>
           <div purpose="testimonial-quote">
             <div purpose="quote">
               <img alt="Deloitte logo" purpose="quote-logo" src="/images/social-proof-logo-deloitte-130x32@2x.png">
@@ -356,7 +356,7 @@
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column" v-else-if="comparisonMode === 'intune'">
-                <p>6 Hours</p>
+                <p>6 hours</p>
               </div>
               <div purpose="comparison-column" v-else-if="['puppet', 'chef', 'ansible'].includes(comparisonMode)">
                 <p>One-off scripts</p>
