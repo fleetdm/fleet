@@ -213,11 +213,9 @@ To manage setup experience software and script using Fleet's best practice GitOp
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent, you can install it using a bootstrap package.
+By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent on macOS hosts that automatically enroll, you can use a bootstrap package.
 
-If you deploy a custom fleetd, also add the software and scripts you want to isntall/run during out-of-the-box macOS setup to your bootstrap package. Fleet won't install the software and run the script [configured in setup experience](#software-and-script).
-
-How to deloy a custom fleetd agent:
+How to deploy a custom fleetd:
 
 1. Generate your fleetd package by running the command `fleetctl package`, ensuring you do **not** use the `--use-system-configuration` flag. 
 
@@ -226,6 +224,8 @@ How to deloy a custom fleetd agent:
 3. In Fleet, head to **Controls > Setup Experience > Bootstrap package** and add your bootstrap package. Make sure to check the option **Install Fleet’s agent (fleetd) manually** and then select **Save**.
 
 4. Once the option to manually install Fleet's agent is checked, instead of using **Install software** and **Run script** options, include your software in the bootstrap package.
+
+If you deploy a custom fleetd, also add the software and scripts you want to install/run during out-of-the-box macOS setup to your bootstrap package. Fleet won't install the software and run the script [configured in setup experience](#software-and-script).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
