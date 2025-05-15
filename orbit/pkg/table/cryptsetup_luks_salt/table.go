@@ -14,8 +14,7 @@ const TblName = "cryptsetup_luks_salt"
 const requiredCriteria = "device"
 
 type criteria struct {
-	keySlot uint
-	device  string
+	device string
 }
 
 func Columns() []table.ColumnDefinition {
