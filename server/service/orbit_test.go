@@ -138,8 +138,6 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		cfg, err = svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
 		require.False(t, cfg.Notifications.RunDiskEncryptionEscrow)
-		require.Nil(t, cfg.Notifications.EscrowedKeySlot)
-		require.Empty(t, cfg.Notifications.EscrowedKeySalt)
 	})
 
 	t.Run("pending escrow sets config flag and clears in DB", func(t *testing.T) {
@@ -168,83 +166,6 @@ func TestGetOrbitConfigLinuxEscrow(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, cfg.Notifications.RunDiskEncryptionEscrow)
 		require.True(t, ds.ClearPendingEscrowFuncInvoked)
-		require.Nil(t, cfg.Notifications.EscrowedKeySlot)
-		require.Empty(t, cfg.Notifications.EscrowedKeySalt)
-	})
-
-	t.Run("salt and key slot are set", func(t *testing.T) {
-		ds, svc, ctx, _, _ := setupEscrowContext()
-
-		// We don't want to send the salt nor the key slot if there is host needs to update is escrow key anyways
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return true
-		}
-		cfg, err := svc.GetOrbitConfig(ctx)
-		require.NoError(t, err)
-		require.Nil(t, cfg.Notifications.EscrowedKeySlot)
-		require.Empty(t, cfg.Notifications.EscrowedKeySalt)
-
-		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
-			return false
-		}
-
-		salt := "some salt"
-		key := config.TestConfig().Server.PrivateKey
-		encryptedSalt, err := mdm.EncryptAndEncode(salt, key)
-		require.NoError(t, err)
-
-		testCases := []struct {
-			title             string
-			diskEncryptionKey *fleet.HostDiskEncryptionKey
-			err               error
-			expectedSalt      string
-			expectedKeySlot   *uint
-		}{
-			{
-				title: "no disk encryption key",
-			},
-			{
-				title: "error returned",
-				err:   errors.New("error"),
-			},
-			{
-				title:             "key without salt nor key slot",
-				diskEncryptionKey: &fleet.HostDiskEncryptionKey{},
-			},
-			{
-				title: "key with salt but no key slot",
-				diskEncryptionKey: &fleet.HostDiskEncryptionKey{
-					Base64EncryptedSalt: encryptedSalt,
-				},
-			},
-			{
-				title: "key with key slot but no salt",
-				diskEncryptionKey: &fleet.HostDiskEncryptionKey{
-					KeySlot: ptr.Uint(0),
-				},
-			},
-			{
-				title: "key with both salt and key slot",
-				diskEncryptionKey: &fleet.HostDiskEncryptionKey{
-					Base64EncryptedSalt: encryptedSalt,
-					KeySlot:             ptr.Uint(0),
-				},
-				expectedSalt:    salt,
-				expectedKeySlot: ptr.Uint(0),
-			},
-		}
-
-		for _, testCase := range testCases {
-			t.Run(testCase.title, func(t *testing.T) {
-				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
-					return testCase.diskEncryptionKey, testCase.err
-				}
-				cfg, err := svc.GetOrbitConfig(ctx)
-				require.NoError(t, err)
-				require.Equal(t, testCase.expectedSalt, cfg.Notifications.EscrowedKeySalt)
-				require.Equal(t, testCase.expectedKeySlot, cfg.Notifications.EscrowedKeySlot)
-			})
-		}
 	})
 }
 

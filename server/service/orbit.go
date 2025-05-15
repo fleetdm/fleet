@@ -310,23 +310,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	shouldEscrowKey := host.IsLUKSSupported() && host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled
-	if shouldEscrowKey {
-		notifs.RunDiskEncryptionEscrow = svc.ds.IsHostPendingEscrow(ctx, host.ID)
-
-		// If we are requesting a new user key, then we don't need to do any checks on the client side
-		if !notifs.RunDiskEncryptionEscrow {
-			salt, slot, err := svc.saltAndSlot(ctx, host.ID)
-			if err != nil {
-				level.Debug(svc.logger).Log("msg", "failed to get salt and slot for host", "host_uuid", host.UUID, "err", err)
-				return fleet.OrbitConfig{}, err
-			}
-
-			if salt != "" && slot != nil {
-				notifs.EscrowedKeySalt = salt
-				notifs.EscrowedKeySlot = slot
-			}
-		}
-	}
+	notifs.RunDiskEncryptionEscrow = shouldEscrowKey && svc.ds.IsHostPendingEscrow(ctx, host.ID)
 
 	// load the (active, ready to execute) pending software install executions for that host
 	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
@@ -498,23 +482,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		NudgeConfig:      nudgeConfig,
 		UpdateChannels:   updateChannels,
 	}, nil
-}
-
-func (svc *Service) saltAndSlot(ctx context.Context, hostID uint) (string, *uint, error) {
-	encryptionKey, err := svc.ds.GetHostDiskEncryptionKey(ctx, hostID)
-
-	if fleet.IsNotFound(err) ||
-		encryptionKey == nil ||
-		len(encryptionKey.Base64EncryptedSalt) == 0 {
-		return "", nil, nil
-	}
-
-	salt, err := mdm.DecodeAndDecrypt(encryptionKey.Base64EncryptedSalt, svc.config.Server.PrivateKey)
-	if err != nil {
-		return "", nil, err
-	}
-
-	return salt, encryptionKey.KeySlot, nil
 }
 
 func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *fleet.Host) error {
