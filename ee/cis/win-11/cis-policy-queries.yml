@@ -1954,6 +1954,27 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'Network security: LDAP client encryption requirements' is set to 'Negotiate sealing' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines the level of data encryption that is requested on behalf of clients that issue LDAP BIND requests.
+    The recommended state for this setting is: 'Negotiate sealing'.
+    Configuring this setting to 'Require sealing' also conforms to the Benchmark.
+    Note: This policy setting does not have any impact on LDAP simple bind
+    (ldap_simple_bind) or LDAP simple bind through SSL (ldap_simple_bind_s).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Negotiate sealing' or higher:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: LDAP client encryption requirements'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LDAP\\LDAPClientConfidentiality' AND data IN (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Network security Force logoff when logon hours expire' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -2932,6 +2953,26 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'WinHTTP Web Proxy Auto-Discovery Service (WinHttpAutoProxySvc)' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    WinHTTP implements the client HTTP stack and provides developers with a Win32 API and COM Automation component for sending HTTP requests and receiving responses.
+    In addition, WinHTTP provides support for auto-discovering a proxy configuration via its implementation of the Web Proxy Auto-Discovery (WPAD) protocol.
+    The recommended state for this setting is: Disabled.
+    Note: Although CIS categorizes this as a L2 recommendation, if none of the cases listed in the Impact Section apply, we highly recommend disabling this service.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to: Disabled.
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\WinHTTP Web Proxy Auto-Discovery Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WinHttpAutoProxySvc\\Start' AND data = 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
 ---
 apiVersion: v1
 kind: policy
@@ -5013,6 +5054,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Turn off default IPv6 DNS Servers' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the DNS client will use the default IPv6 DNS server addresses provided by Windows.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Turn off default IPv6 DNS Servers'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DnsClient.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\DisableIPv6DefaultDnsServers' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Turn off multicast name resolution' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -5271,6 +5332,27 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure multicast DNS (mDNS) protocol' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines if the DNS client will perform name resolution over Multicast DNS (mDNS).
+    mDNS performs local network name and service discoveries without the need for central DNS.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Configure multicast DNS (mDNS) protocol'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DnsClient.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\EnableMDNS' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -8838,6 +8920,27 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn on Basic feed authentication over HTTP' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether RSS feeds can be authenticated using the Basic authentication scheme over an unencrypted HTTP connection.
+    The recommended state for this setting is: Disabled.
+    Note: A developer cannot change this setting through the Feed APIs.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Administrative Templates\Windows Components\RSS Feeds\Turn on Basic feed authentication over HTTP'
+    Note: This Group Policy path is provided by the Group Policy template
+    'InetRes.admx/adml' that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+   SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\InternetExplorer\\Feeds\\AllowBasicAuthInClear' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
