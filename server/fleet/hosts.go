@@ -381,6 +381,10 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+
+	// LUKSRootDevicePath If the host is using LUKS, this will be the device path
+	// of the LUKS block device where '/' is mounted
+	LUKSRootDevicePath *string `json:"-" db:"-" csv:"-"`
 }
 
 type AndroidHost struct {

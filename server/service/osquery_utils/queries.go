@@ -121,8 +121,6 @@ ORDER BY
 	inet_aton(ia.address) IS NOT NULL DESC
 LIMIT 1;`
 
-// TODO Juan: Define new detail query for new table.
-
 // hostDetailQueries defines the detail queries that should be run on the host, as
 // well as how the results of those queries should be ingested into the
 // fleet.Host data model (via IngestFunc).
@@ -399,6 +397,63 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Query:      `SELECT * from kubernetes_info`,
 		IngestFunc: ingestKubequeryInfo,
 		Discovery:  discoveryTable("kubernetes_info"),
+	},
+
+	"luks_root_device_path": {
+		// Returns the path of the LUKS block device where '/' is mounted.
+		Platforms: fleet.HostLinuxOSs,
+		Query: `
+		WITH RECURSIVE
+		devices AS (
+			SELECT 
+				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
+				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
+				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
+				MAX(CASE WHEN key = 'fstype' THEN value ELSE NULL END) AS fstype,
+				MAX(CASE WHEN key = 'mountpoint' THEN value ELSE NULL END) as mountpoint
+			FROM lsblk
+			GROUP BY parent
+		HAVING path <> '' AND fstype <> ''
+		),
+		-- ATM fleet only supports escrowed the LUKS key for '/'
+		root_mount AS (
+			SELECT 
+				path, 
+				kname, 
+				-- if '/' is mounted in a LUKS FS, then we don't need to transverse the tree
+				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname, 
+				fstype 
+			FROM devices
+			WHERE mountpoint = '/'
+		),
+		luks_h(path, kname, pkname, fstype) AS (
+			SELECT 
+				rtm.path, 
+				rtm.kname, 
+				rtm.pkname, 
+				rtm.fstype 
+			FROM root_mount rtm
+			UNION
+		   SELECT 
+				dv.path,
+				dv.kname,
+				dv.pkname,
+				dv.fstype
+		   FROM devices dv 
+		   JOIN luks_h ON dv.kname=luks_h.pkname
+		)
+		SELECT path FROM luks_h WHERE fstype = 'crypto_LUKS'`,
+		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+			if len(rows) > 1 {
+				logger.Log("component", "service", "method", "IngestFunc", "err",
+					fmt.Sprintf("luks_root_device expected a single result got %d", len(rows)))
+				return nil
+			}
+			if devicePath, ok := rows[0]["path"]; ok {
+				host.LUKSRootDevicePath = ptr.String(devicePath)
+			}
+			return nil
+		},
 	},
 }
 
