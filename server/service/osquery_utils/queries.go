@@ -2119,9 +2119,9 @@ var luksVerifyQuery = DetailQuery{
 	},
 }
 
-// We need to define the ingest function inline like this
-// because we need access to the private key
-var luksVerifyQueryIngester = func(privateKey string) func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+// We need to define the ingest function inline like this because we need access to the server private key
+var luksVerifyQueryIngester = func(privateKey string) func(
+	ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	return func(
 		ctx context.Context,
 		logger log.Logger,
@@ -2129,17 +2129,7 @@ var luksVerifyQueryIngester = func(privateKey string) func(ctx context.Context, 
 		ds fleet.Datastore,
 		rows []map[string]string,
 	) error {
-		if len(rows) != 1 {
-			level.Debug(logger).Log("component", "service", "method", "IngestFunc", "err",
-				fmt.Sprintf("luks_verify expected a single result got %d", len(rows)))
-			return nil
-		}
-
-		hostSalt, okSalt := rows[0]["salt"]
-		hostKeySlot, okKeySlot := rows[0]["key_slot"]
-		if !okSalt || !okKeySlot {
-			level.Debug(logger).Log("component", "service", "method", "IngestFunc", "err",
-				"luks_verify expected some salt and a key_slot")
+		if len(rows) == 0 {
 			return nil
 		}
 
@@ -2156,12 +2146,44 @@ var luksVerifyQueryIngester = func(privateKey string) func(ctx context.Context, 
 
 		storedSalt, err := mdm.DecodeAndDecrypt(dek.Base64EncryptedSalt, privateKey)
 		if err != nil {
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "IngestFunc",
+				"host", host.ID,
+				"err", err,
+			)
 			return err
 		}
-		if storedSalt != hostSalt || strconv.Itoa(int(*dek.KeySlot)) != hostKeySlot {
+		storedKeySlot := fmt.Sprintf("%d", *dek.KeySlot)
+
+		var entryFound bool
+		for _, row := range rows {
+			hostSalt, okSalt := row["salt"]
+			hostKeySlot, okKeySlot := row["key_slot"]
+
+			if !okSalt || !okKeySlot {
+				level.Debug(logger).Log(
+					"component", "service",
+					"method", "IngestFunc",
+					"host", host.ID,
+					"err", "luks_verify expected some salt and a key_slot",
+				)
+				return nil
+			}
+			if hostSalt == storedSalt && hostKeySlot == storedKeySlot {
+				entryFound = true
+				break
+			}
+		}
+		if !entryFound {
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "IngestFunc",
+				"host", host.ID,
+				"msg", "LUKS key do not match, deleting",
+			)
 			return ds.DeleteLUKSData(ctx, host.ID, *dek.KeySlot)
 		}
-
 		return nil
 	}
 }
