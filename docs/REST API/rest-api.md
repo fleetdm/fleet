@@ -854,10 +854,12 @@ None.
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
-      "entity_id": "",
-      "metadata": "",
-      "metadata_url": "",
-      "idp_name": ""
+      "saml": {
+        "entity_id": "",
+        "metadata": "",
+        "metadata_url": "",
+        "idp_name": ""
+      }
     },
     "macos_migration": {
       "enable": false,
@@ -1193,10 +1195,12 @@ Modifies the Fleet's configuration with the supplied information.
       ]
     },
     "end_user_authentication": {
-      "entity_id": "",
-      "metadata": "",
-      "metadata_url": "",
-      "idp_name": ""
+      "saml": {
+        "entity_id": "",
+        "metadata": "",
+        "metadata_url": "",
+        "idp_name": ""
+      }
     },
     "macos_migration": {
       "enable": false,
@@ -1908,13 +1912,33 @@ _Available in Fleet Premium._
 `mdm.end_user_authentication` is an object with the following structure:
 
 | Name                              | Type    | Description   |
+| ---------------------             | ------- | ------------------------------------------------------------------------------------------ |
+| saml                              | object  | See [`mdm.end_user_authentication.saml`](#mdm-end-user-authentication-saml).               |
+| oauth_ropc                        | object  | See [`mdm.end_user_authentication.oatuh_ropc`](#mdm-end-user-authentication-oauth-ropc).     |
+
+##### mdm.end_user_authentication.saml
+
+`saml` is an object with the following structure:
+
+| Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | entity_id                         | string  | **Required**. The entity ID is a URI that you use to identify Fleet when configuring the identity provider. Must be 5 or more characters.                                   |
 | idp_name                          | string  | **Required.** A human friendly name for the identity provider that will provide single sign-on authentication.                                                              |
 | metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. Must be either https or http. |
 | metadata                          | string  | Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
 
+##### mdm.end_user_authentication.oauth_ropc
+
+`oauth_ropc` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------|
+| client_id                         | string  | **Required**. The identity provider (IdP) provides client ID to identify Fleet with the IdP.                          |
+| client_secret                     | string  | **Required.** The client secret is provided by the identity provider (IdP) to authenticate Fleet with the IdP.                              |
+| token_endpoint_url                | string  | **Required.** Token endpoint URL provided by the identity provider.                                                                          |
+
 <br/>
+
 
 ##### Example request body
 
@@ -1952,10 +1976,12 @@ _Available in Fleet Premium._
       ]
     },
     "end_user_authentication": {
-      "entity_id": "",
-      "metadata": "",
-      "metadata_url": "",
-      "idp_name": ""
+      "saml": {
+        "entity_id": "",
+        "metadata": "",
+        "metadata_url": "",
+        "idp_name": ""
+      }
     },
     "macos_migration": {
       "enable": false,
