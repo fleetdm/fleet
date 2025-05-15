@@ -221,10 +221,11 @@ If you've deployed Fleet with Terraform, prior to an upgrade, you will need to u
 terraform apply -replace=module.fleet.kubernetes_deployment.fleet
 ```
 
+
 <meta name="articleTitle" value="Deploy Fleet on Kubernetes">
-<meta name="authorGitHubUsername" value="BCTBB">
-<meta name="authorFullName" value="Jorge Falcon">
+<meta name="authorGitHubUsername" value="marpaia">
+<meta name="authorFullName" value="Mike Arpaia">
 <meta name="publishedOn" value="2017-11-18">
 <meta name="category" value="guides">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-fleet-on-kubernetes-800x450@2x.png">
-<meta name="description" value="Learn how to deploy Fleet on Kubernetes.">
+<meta name="description" value="Learn how to deploy Fleet on Kubernetes">
