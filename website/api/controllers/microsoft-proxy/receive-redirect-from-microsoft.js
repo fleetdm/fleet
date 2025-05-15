@@ -28,7 +28,8 @@ module.exports = {
 
 
   exits: {
-    success: { description: 'The admin consent status of compliance tenant was successfully updated.', responseType: 'ok'},
+    success: { description: 'The admin consent status of compliance tenant was successfully updated.', responseType: 'redirect'},
+    redirect: { responseType: 'redirect' },
     adminDidNotConsent: { description: 'An entra admin did not grant permissions to the Fleet compliance partner application for entra', responseType: 'ok'}
   },
 
@@ -65,16 +66,17 @@ module.exports = {
         complianceTenantRecordId: informationAboutThisTenant.id
       });
 
-      let accessToken = accessTokenAndApiUrls.accessToken;
+      let manageApiAccessToken = accessTokenAndApiUrls.manageApiAccessToken;
+      let graphAccessToken = accessTokenAndApiUrls.graphAccessToken;
       let tenantDataSyncUrl = accessTokenAndApiUrls.tenantDataSyncUrl;
-      let partnerCompliancePoliciesUrl = accessTokenAndApiUrls.partnerCompliancePoliciesUrl;
+      // let partnerCompliancePoliciesUrl = accessTokenAndApiUrls.partnerCompliancePoliciesUrl;
 
       // Send a request to provision the new compliance tenant.
-      await sails.helpers.http.sendHtttpRequest.with({
+      await sails.helpers.http.sendHttpRequest.with({
         method: 'PUT',
-        url: `${tenantDataSyncUrl}/PartnerTenants(guid${encodeURIComponent(informationAboutThisTenant.entraTenantId)})}?api-version=1.0`,
+        url: `${tenantDataSyncUrl}/PartnerTenants(guid'${informationAboutThisTenant.entraTenantId}')}?api-version=1.6`,
         headers: {
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${manageApiAccessToken}`
         },
         body: {
           Provisioned: 1,// 1 = provisioned, 2 = deprovisioned.
@@ -84,7 +86,7 @@ module.exports = {
       }).intercept(async (err)=>{
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
         sails.log.warn(`an error occurred when provisioning a new Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return this.res.redirect(fleetInstanceUrlToRedirectTo);
+        return {redirect: fleetInstanceUrlToRedirectTo };
       });
       // Example response:
       // HTTP/1.1 200 OK
@@ -96,12 +98,16 @@ module.exports = {
       //   "ErrorDetail": null
       // }
 
+
+
+
+      // (2025-05-14) Testing note: If a request after this request fails, the request to create a policy will return a 409 error on subsequent runs.
       // Now send a request to create a new compliance policy on the tenant.
       let createPolicyResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'POST',
-        url: `${partnerCompliancePoliciesUrl}/PartnerCompliancePolicies?api-version=1.6`,
+        url: `${tenantDataSyncUrl}/PartnerCompliancePolicies?api-version=1.6`,
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${manageApiAccessToken}`,
           'Content-Type': 'application/json'
         },
         body: {
@@ -110,10 +116,21 @@ module.exports = {
           Platform: 'macOS',
           PartnerManagedCompliance: true
         }
+      }).tolerate({raw:{statusCode: 409}}, async ()=>{
+        // If a partner compliance policy already exists, send a request to get all policies and return the URL.
+        let getPoliciesResponse = await sails.helpers.http.sendHttpRequest.with({
+          method: 'GET',
+          url: `${tenantDataSyncUrl}/PartnerCompliancePolicies?api-version=1.6`,
+          headers: {
+            'Authorization': `Bearer ${manageApiAccessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        return getPoliciesResponse;
       }).intercept(async (err)=>{
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
         sails.log.warn(`An error occurred when creating a new compliance policy on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return this.res.redirect(fleetInstanceUrlToRedirectTo);
+        return {redirect: fleetInstanceUrlToRedirectTo };
       });
 
       // Example response:
@@ -130,32 +147,33 @@ module.exports = {
       //   “PartnerManagedCompliance”: true
       // }
 
-
       // Get the id of the new policy from the API response.
-      let createdPolicyId = createPolicyResponse.Id;
+      let parsedPoliciesResponse = JSON.parse(createPolicyResponse.body);
+      let createdPolicyId = parsedPoliciesResponse.value[0].Id;
 
       // Use the Microsoft Graph API to retreive the ID of the default "All users" group to assign the policy to.
       let groupResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'GET',
-        url: `https://graph.microsoft.com/v1.0/groups?$filter=${encodeURIComponent(`displayName eq 'All Users' and securityEnabled eq true`)}`,
+        url: `https://graph.microsoft.com/v1.0/groups`,
         headers: {
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${graphAccessToken}`
         }
       }).intercept(async (err)=>{
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
         sails.log.warn(`An error occurred when sending a request to find the default "All users" group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return this.res.redirect(fleetInstanceUrlToRedirectTo);
+        return {redirect: fleetInstanceUrlToRedirectTo };
       });
       // Get the ID returned in the response.
-      let groupId = groupResponse.value[0].id;
+      let parsedGroupResponse = JSON.parse(groupResponse.body);
+      let groupId = parsedGroupResponse.value[0].id;
 
 
       // Send a request to assign the new compliance policy to the "All users" group.
       await sails.helpers.http.sendHttpRequest.with({
         method: 'POST',
-        url: `${partnerCompliancePoliciesUrl}/PartnerCompliancePolicies(guid'${encodeURIComponent(createdPolicyId)}')/Assign?api-version=1.6`,
+        url: `${tenantDataSyncUrl}/PartnerCompliancePolicies(guid'${encodeURIComponent(createdPolicyId)}')/Assign?api-version=1.6`,
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'Authorization': `Bearer ${manageApiAccessToken}`,
           'Content-Type': 'application/json'
         },
         body: {
@@ -166,7 +184,7 @@ module.exports = {
       }).intercept(async (err)=>{
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
         sails.log.warn(`An error occurred when sending a assign a new compliance policy to "All users" on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
-        return this.res.redirect(fleetInstanceUrlToRedirectTo);
+        return {redirect: fleetInstanceUrlToRedirectTo };
       });
       // Example response:
       // {
@@ -174,7 +192,7 @@ module.exports = {
       //   "value": “{\”assignments\":[\"GuidValue\",\"GuidValue\"]}”
       // }
 
-      // Update the databse record to show that setup was completed for this compliance tenant.
+      // Update the database record to show that setup was completed for this compliance tenant.
       await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({
         setupCompleted: true,
         adminConsented: true,
@@ -182,7 +200,7 @@ module.exports = {
       });
 
       // Redirect the user to their Fleet instance.
-      return this.res.redirect(fleetInstanceUrlToRedirectTo);
+      return fleetInstanceUrlToRedirectTo;
     }
 
   }
