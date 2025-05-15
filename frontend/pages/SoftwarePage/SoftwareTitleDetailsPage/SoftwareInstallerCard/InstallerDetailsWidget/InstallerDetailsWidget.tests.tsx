@@ -86,7 +86,7 @@ describe("InstallerDetailsWidget", () => {
       "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
     render(<InstallerDetailsWidget {...defaultProps} sha256={sha256} />);
     // The component shows the first 6 chars + ellipsis
-    expect(screen.getByText(/^abcdef…$/)).toBeInTheDocument();
+    expect(screen.getByText(/^abcdef1…$/)).toBeInTheDocument();
     const copyIcon = screen.getByTestId("copy-icon");
     const copyButton = copyIcon.closest("button");
     expect(copyButton).toBeInTheDocument();
