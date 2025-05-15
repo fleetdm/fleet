@@ -48,12 +48,12 @@ module.exports = {
       complianceTenantRecordId: informationAboutThisTenant.id
     });
 
-    let accessToken = tokenAndApiUrls.accessToken;
+    let accessToken = tokenAndApiUrls.manageApiAccessToken;
     let deviceDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
 
     let complianceStatusResultResponse = await sails.helpers.http.sendHtttpRequest.with({
       method: 'GET',
-      url: `${deviceDataSyncUrl}/${encodeURIComponent(`DataUploadMessages(guid${messageId}`)}?api-version=1.2`,
+      url: `${deviceDataSyncUrl}/(DataUploadMessages(guid'${encodeURIComponent(messageId)}')}?api-version=1.2`,
       headers: {
         'Authorization': `Bearer ${accessToken}`
       }

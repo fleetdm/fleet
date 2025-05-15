@@ -30,14 +30,14 @@ module.exports = {
         return;
       }
 
-      let accessToken = tokenAndApiUrls.accessToken;
+      let accessToken = tokenAndApiUrls.manageApiAccessToken;
       let tenantDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
 
 
       // Send a heartbeat request.
       let tenantHeartbeatResponse = await sails.helpers.http.sendHtttpRequest.with({
         method: 'PUT',
-        url: `${tenantDataSyncUrl}/${encodeURIComponent(`PartnerTenantHeartbeat(guid${entraTenant.entraTenantId}`)}?api-version=1.6`,
+        url: `${tenantDataSyncUrl}/PartnerTenantHeartbeat(guid'${encodeURIComponent(entraTenant.entraTenantId)}')?api-version=1.6`,
         headers: {
           'Authorization': `Bearer ${accessToken}`
         },
