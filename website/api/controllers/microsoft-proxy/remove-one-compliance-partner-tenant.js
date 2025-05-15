@@ -44,14 +44,14 @@ module.exports = {
         complianceTenantRecordId: informationAboutThisTenant.id
       });
 
-      let accessToken = tokenAndApiUrls.accessToken;
+      let accessToken = tokenAndApiUrls.manageApiAccessToken;
       let tenantDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
 
 
       // Deprovison this tenant
-      await sails.helpers.http.sendHtttpRequest.with({
+      await sails.helpers.http.sendHttpRequest.with({
         method: 'PUT',
-        url: `${tenantDataSyncUrl}/${encodeURIComponent(`PartnerTenants(guid${informationAboutThisTenant.entraTenantId}`)}?api-version=1.0`,
+        url: `${tenantDataSyncUrl}/PartnerTenants(guid'${informationAboutThisTenant.entraTenantId}')?api-version=1.6`,
         headers: {
           'Authorization': `Bearer ${accessToken}`
         },
