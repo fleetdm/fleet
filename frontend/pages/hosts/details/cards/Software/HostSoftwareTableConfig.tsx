@@ -205,7 +205,15 @@ export const generateSoftwareTableHeaders = ({
       Header: () => (
         <HeaderCell
           value={
-            <TooltipWrapper tipContent="Indicates the results of Fleet-managed installations only.">
+            <TooltipWrapper
+              tipContent={
+                <>
+                  The status of the last time <br />
+                  Fleet attempted an install <br />
+                  or uninstall.
+                </>
+              }
+            >
               Install status
             </TooltipWrapper>
           }
@@ -224,9 +232,9 @@ export const generateSoftwareTableHeaders = ({
             <TooltipWrapper
               tipContent={
                 <>
-                  The current version installed on
+                  The current verified version
                   <br />
-                  this host verified with osquery.
+                  installed on host.
                 </>
               }
             >
