@@ -7,12 +7,11 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
-	"strconv"
 	"strings"
 )
 
 const TblName = "cryptsetup_luks_salt"
-const requiredCriteria = "key_slot, device"
+const requiredCriteria = "device"
 
 type criteria struct {
 	keySlot uint
@@ -21,8 +20,8 @@ type criteria struct {
 
 func Columns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
-		table.TextColumn("key_slot"), // required
-		table.TextColumn("device"),   // required
+		table.TextColumn("device"), // required
+		table.TextColumn("key_slot"),
 		table.TextColumn("salt"),
 	}
 }
@@ -45,23 +44,9 @@ func getCriteria(qContext table.QueryContext) (*criteria, error) {
 			return nil, errors.New("only the = operator is supported on the where clause")
 		}
 	}
-
-	result := criteria{}
-	kS := qContext.Constraints["key_slot"]
-	kSVal, err := strconv.ParseUint(kS.Constraints[0].Expression, 10, 64)
-	if err != nil {
-		return nil, errors.New("invalid value for key_slot")
-	}
-	if kSVal > uint64(^uint(0)) {
-		return nil, errors.New("key_slot exceeds the maximum value for uint")
-	}
-	if kSVal < 0 {
-		return nil, errors.New("key_slot must be an integer greater than zero")
-	}
-
-	result.keySlot = uint(kSVal)
-	result.device = qContext.Constraints["device"].Constraints[0].Expression
-	return &result, nil
+	return &criteria{
+		device: qContext.Constraints["device"].Constraints[0].Expression,
+	}, nil
 }
 
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
@@ -71,18 +56,21 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, err
 	}
 
-	storedSalt, err := luks.GetSaltForKeySlot(ctx, criteria.device, criteria.keySlot)
+	result, err := luks.GetLuksDump(ctx, criteria.device)
 	if err != nil {
-		if errors.Is(err, luks.ErrKeySlotNotFound) {
-			log.Debug().Msgf("key slot %d not found", criteria.keySlot)
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to get salt for key slot: %w", err)
+		return nil, fmt.Errorf("failed to run luksDump: %w", err)
 	}
 
-	return []map[string]string{{
-		"device":   criteria.device,
-		"key_slot": strconv.Itoa(int(criteria.keySlot)),
-		"salt":     storedSalt,
-	}}, nil
+	if result != nil {
+		rows := make([]map[string]string, len(result.Keyslots))
+		for keySlot, entries := range result.Keyslots {
+			rows = append(rows, map[string]string{
+				"device":   criteria.device,
+				"key_slot": keySlot,
+				"salt":     entries.KDF.Salt,
+			})
+		}
+		return rows, nil
+	}
+	return nil, nil
 }

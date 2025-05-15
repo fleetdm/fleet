@@ -100,7 +100,7 @@ func (lr *LuksRunner) validateEscrowedKeyWorkflow(
 	escrowedKeySlot uint,
 ) error {
 	log.Debug().Msgf("fetching salt for key slot %d", escrowedKeySlot)
-	storedSalt, err := GetSaltForKeySlot(ctx, devicePath, escrowedKeySlot)
+	storedSalt, err := getSaltForKeySlot(ctx, devicePath, escrowedKeySlot)
 
 	if err != nil {
 		if errors.Is(err, ErrKeySlotNotFound) {
@@ -153,7 +153,7 @@ func (lr *LuksRunner) newUserKeyWorkflow(ctx context.Context, devicePath string)
 	response.KeySlot = keyslot
 
 	if keyslot != nil {
-		salt, err := GetSaltForKeySlot(ctx, devicePath, *keyslot)
+		salt, err := getSaltForKeySlot(ctx, devicePath, *keyslot)
 		if err != nil {
 			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
 				log.Error().Err(err).Msgf("failed to remove key slot %d", *keyslot)
@@ -296,7 +296,7 @@ func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luksdevice.
 }
 
 func getNextAvailableKeySlot(ctx context.Context, devicePath string) (uint, error) {
-	dump, err := getLuksDump(ctx, devicePath)
+	dump, err := GetLuksDump(ctx, devicePath)
 	if err != nil {
 		return 0, fmt.Errorf("get next available key slot: %w", err)
 	}
@@ -415,7 +415,7 @@ type KDF struct {
 	Salt string `json:"salt"`
 }
 
-func getLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
+func GetLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	var jsonFlag string
 	var jsonNeedsExtraction bool
 
@@ -452,8 +452,8 @@ func getLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	return &dump, nil
 }
 
-func GetSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
-	dump, err := getLuksDump(ctx, devicePath)
+func getSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
+	dump, err := GetLuksDump(ctx, devicePath)
 	if err != nil {
 		return "", fmt.Errorf("getting salt for key slot: %w", err)
 	}
