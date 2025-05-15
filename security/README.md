@@ -41,7 +41,7 @@ First we would need to create a VEX entry with the "affected" status for all rel
 > We have the `./tools/github-releases` tooling to help list all released versions of Fleet.
 
 ```sh
-all_fleet_releases=$(go run ./tools/github-releases --all-releases --separator=,)
+all_fleet_releases=$(go run ./tools/github-releases --all-cpes --separator=,)
 
 vexctl create --product="$all_fleet_releases" \
   --vuln="CVE-2025-27509" \
