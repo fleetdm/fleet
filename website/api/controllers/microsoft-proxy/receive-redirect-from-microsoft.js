@@ -59,7 +59,7 @@ module.exports = {
         });
 
         // Redirect the user to their Fleet instance.
-        return this.res.redirect(fleetInstanceUrlToRedirectTo);
+        return fleetInstanceUrlToRedirectTo;
       }
       // Use the microsoftProcy.getAccessTokenAndApiUrls helper to get an access token and API urls for this tenant.
       let accessTokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
@@ -117,7 +117,7 @@ module.exports = {
           PartnerManagedCompliance: true
         }
       }).tolerate({raw:{statusCode: 409}}, async ()=>{
-        // If a partner compliance policy already exists, send a request to get all policies and return the URL.
+        // If a partner compliance policy already exists, send a request to get all policies and return the previously created policy.
         let getPoliciesResponse = await sails.helpers.http.sendHttpRequest.with({
           method: 'GET',
           url: `${tenantDataSyncUrl}/PartnerCompliancePolicies?api-version=1.6`,
@@ -148,7 +148,16 @@ module.exports = {
       // }
 
       // Get the id of the new policy from the API response.
-      let parsedPoliciesResponse = JSON.parse(createPolicyResponse.body);
+
+
+      let parsedPoliciesResponse;
+      try {
+        parsedPoliciesResponse = JSON.parse(createPolicyResponse.body);
+      } catch(err){
+        sails.log.warn(`An error occured when parsing the JSON response body from the PartnerCompliancePolicies endpoint for a microsoft compliance tenant. full error`, err);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
+        return {redirect: fleetInstanceUrlToRedirectTo };
+      }
       let createdPolicyId = parsedPoliciesResponse.value[0].Id;
 
       // Use the Microsoft Graph API to retreive the ID of the default "All users" group to assign the policy to.
@@ -164,7 +173,14 @@ module.exports = {
         return {redirect: fleetInstanceUrlToRedirectTo };
       });
       // Get the ID returned in the response.
-      let parsedGroupResponse = JSON.parse(groupResponse.body);
+      let parsedGroupResponse;
+      try {
+        parsedGroupResponse = JSON.parse(groupResponse.body);
+      } catch(err){
+        sails.log.warn(`An error occured when parsing the JSON response body returned by the Microsoft graph API for a new Microsoft compliance tenant. full error`, err);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
+        return {redirect: fleetInstanceUrlToRedirectTo };
+      }
       let groupId = parsedGroupResponse.value[0].id;
 
 

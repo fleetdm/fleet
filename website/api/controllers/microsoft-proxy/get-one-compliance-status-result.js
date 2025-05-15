@@ -60,7 +60,13 @@ module.exports = {
     }).intercept((err)=>{
       return new Error({error: `An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
-    let parsedComplianceUpdateResponse = JSON.parse(complianceStatusResultResponse);
+
+    let parsedComplianceUpdateResponse;
+    try {
+      parsedComplianceUpdateResponse = JSON.parse(complianceStatusResultResponse);
+    } catch(err){
+      throw new Error(`When parsing the JSON response body of a Microsoft compliance partner update status, an error occured. full error: ${require('util').inspect(err)}`);
+    }
     let result = {
       message_id: messageId,// eslint-disable-line camelcase
       status: parsedComplianceUpdateResponse.Status

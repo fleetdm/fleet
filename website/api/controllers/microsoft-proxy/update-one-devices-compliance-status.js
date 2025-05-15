@@ -123,7 +123,12 @@ module.exports = {
       return new Error({error: `An error occurred when sending a request to sync a device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
 
-    let parsedComplianceUpdateResponse = JSON.parse(complianceUpdateResponse);
+    let parsedComplianceUpdateResponse;
+    try {
+      parsedComplianceUpdateResponse = JSON.parse(complianceUpdateResponse);
+    } catch(err){
+      throw new Error(`When parsing the JSON response body of a Microsoft compliance partner update, an error occured. full error: ${require('util').inspect(err)}`);
+    }
 
     return {
       message_id: parsedComplianceUpdateResponse.MessageId,// eslint-disable-line camelcase

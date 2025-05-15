@@ -44,10 +44,28 @@ module.exports = {
         body: {
           Timestamp: new Date().toISOString(),
         }
+      }).tolerate((err)=>{
+        errorReportById[connectionIdAsString] = new Error(`Could not send a heartbeat request for a MicrosoftComplianceTenant (id: ${connectionIdAsString}). Full error: ${err}`);
       });
-      if(tenantHeartbeatResponse.ResyncTimestamp){
+      if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Entra tenant.
+        return;
+      }
+
+      let parsedtenantHeartbeatResponse;
+      try {
+        parsedtenantHeartbeatResponse = JSON.parse(tenantHeartbeatResponse);
+      } catch(err){
+        errorReportById[connectionIdAsString] = new Error(`Could not parse the JSON response of a heartbeat request for a Microsoft compliance tenant (id: ${connectionIdAsString}). Full error: ${err}`);
+      }
+
+      if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Entra tenant.
+        return;
+      }
+
+      if(parsedtenantHeartbeatResponse.ResyncTimestamp){
         // TODO: do we want to do anything about the resync timestamp if it is set?
       }
+
       await MicrosoftComplianceTenant.updateOne({id: entraTenant.id}).with({
         lastHeartbeatAt: Date.now(),
       });
