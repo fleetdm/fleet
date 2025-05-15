@@ -8793,6 +8793,8 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
+- [Batch-run script](#batch-run-script)
+- [Get batch script summary](#get-batch-script-summary)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -8943,6 +8945,43 @@ Request (using `filters`):
 }
 ```
 
+### Get batch script summary
+
+Get statuses and host counts for a batch-run script.
+
+`GET /api/v1/fleet/scripts/batch/summary`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| batch_execution_id | integer | body | **Required**. The ID returned from a batch script run. |
+
+
+#### Example
+
+`GET /api/v1/fleet/scripts/batch/summary`
+
+##### Request body
+
+```json
+{
+  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+
+```json
+{
+  "ran": 12345,
+  "pending": 234,
+  "error": 18
+}
+```
 
 ### Add script
 
