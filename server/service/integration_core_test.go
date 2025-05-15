@@ -2905,6 +2905,10 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	}
 }
 
+func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
+	// TODO
+}
+
 func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	t := s.T()
 
