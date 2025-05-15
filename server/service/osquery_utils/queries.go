@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"net"
 	"net/url"
 	"regexp"
@@ -397,63 +398,6 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Query:      `SELECT * from kubernetes_info`,
 		IngestFunc: ingestKubequeryInfo,
 		Discovery:  discoveryTable("kubernetes_info"),
-	},
-
-	"luks_root_device_path": {
-		// Returns the path of the LUKS block device where '/' is mounted.
-		Platforms: fleet.HostLinuxOSs,
-		Query: `
-		WITH RECURSIVE
-		devices AS (
-			SELECT 
-				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
-				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
-				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
-				MAX(CASE WHEN key = 'fstype' THEN value ELSE NULL END) AS fstype,
-				MAX(CASE WHEN key = 'mountpoint' THEN value ELSE NULL END) as mountpoint
-			FROM lsblk
-			GROUP BY parent
-		HAVING path <> '' AND fstype <> ''
-		),
-		-- ATM fleet only supports escrowed the LUKS key for '/'
-		root_mount AS (
-			SELECT 
-				path, 
-				kname, 
-				-- if '/' is mounted in a LUKS FS, then we don't need to transverse the tree
-				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname, 
-				fstype 
-			FROM devices
-			WHERE mountpoint = '/'
-		),
-		luks_h(path, kname, pkname, fstype) AS (
-			SELECT 
-				rtm.path, 
-				rtm.kname, 
-				rtm.pkname, 
-				rtm.fstype 
-			FROM root_mount rtm
-			UNION
-		   SELECT 
-				dv.path,
-				dv.kname,
-				dv.pkname,
-				dv.fstype
-		   FROM devices dv 
-		   JOIN luks_h ON dv.kname=luks_h.pkname
-		)
-		SELECT path FROM luks_h WHERE fstype = 'crypto_LUKS'`,
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-			if len(rows) > 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("luks_root_device expected a single result got %d", len(rows)))
-				return nil
-			}
-			if devicePath, ok := rows[0]["path"]; ok {
-				host.LUKSRootDevicePath = ptr.String(devicePath)
-			}
-			return nil
-		},
 	},
 }
 
@@ -2120,6 +2064,108 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
+var luksVerifyQuery = DetailQuery{
+	Platforms: fleet.HostLinuxOSs,
+	QueryFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) string {
+		emptyQuery := "SELECT 1 WHERE 1 = 0"
+		if !host.IsLUKSSupported() {
+			return emptyQuery
+		}
+
+		// Returns the key_slot and salt of the LUKS block device were '/' is mounted.
+		query := `
+		WITH RECURSIVE
+		devices AS (
+			SELECT 
+				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
+				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
+				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
+				MAX(CASE WHEN key = 'fstype' THEN value ELSE NULL END) AS fstype,
+				MAX(CASE WHEN key = 'mountpoint' THEN value ELSE NULL END) as mountpoint
+			FROM lsblk
+			GROUP BY parent
+		HAVING path <> '' AND fstype <> ''
+		),
+		root_mount AS (
+			SELECT 
+				path, 
+				kname, 
+				-- if '/' is mounted in a LUKS FS, then we don't need to transverse the tree
+				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname, 
+				fstype 
+			FROM devices
+			WHERE mountpoint = '/'
+		),
+		luks_h(path, kname, pkname, fstype) AS (
+			SELECT 
+				rtm.path, 
+				rtm.kname, 
+				rtm.pkname, 
+				rtm.fstype 
+			FROM root_mount rtm
+			UNION
+		   SELECT 
+				dv.path,
+				dv.kname,
+				dv.pkname,
+				dv.fstype
+		   FROM devices dv 
+		   JOIN luks_h ON dv.kname=luks_h.pkname
+		)
+		SELECT salt, key_slot
+		FROM cryptsetup_luks_salt 
+		WHERE device = (SELECT path FROM luks_h WHERE fstype = 'crypto_LUKS' LIMIT 1)`
+		return query
+	},
+}
+
+// We need to define the ingest function inline like this
+// because we need access to the private key
+var luksVerifyQueryIngester = func(privateKey string) func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	return func(
+		ctx context.Context,
+		logger log.Logger,
+		host *fleet.Host,
+		ds fleet.Datastore,
+		rows []map[string]string,
+	) error {
+		if len(rows) != 1 {
+			level.Debug(logger).Log("component", "service", "method", "IngestFunc", "err",
+				fmt.Sprintf("luks_verify expected a single result got %d", len(rows)))
+			return nil
+		}
+
+		hostSalt, okSalt := rows[0]["salt"]
+		hostKeySlot, okKeySlot := rows[0]["key_slot"]
+		if !okSalt || !okKeySlot {
+			level.Debug(logger).Log("component", "service", "method", "IngestFunc", "err",
+				"luks_verify expected some salt and a key_slot")
+			return nil
+		}
+
+		dek, err := ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		if dek == nil || dek.Base64EncryptedSalt == "" || dek.KeySlot == nil {
+			return nil
+		}
+
+		storedSalt, err := mdm.DecodeAndDecrypt(dek.Base64EncryptedSalt, privateKey)
+		if err != nil {
+			return err
+		}
+		if storedSalt != hostSalt || strconv.Itoa(int(*dek.KeySlot)) != hostKeySlot {
+			return ds.DeleteLUKSData(ctx, host.ID, *dek.KeySlot)
+		}
+
+		return nil
+	}
+}
+
 //go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
 
 func GetDetailQueries(
@@ -2170,6 +2216,11 @@ func GetDetailQueries(
 			}
 			generatedMap[key] = query
 		}
+	}
+
+	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
+		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(fleetConfig.Server.PrivateKey)
+		generatedMap["luks_verify"] = luksVerifyQuery
 	}
 
 	if features != nil {
