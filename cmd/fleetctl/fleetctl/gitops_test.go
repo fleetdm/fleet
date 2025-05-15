@@ -2815,7 +2815,6 @@ func TestGitOpsSSOSettings(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
 	appConfig := fleet.AppConfig{
-		// During dry run, the global calendar integration setting may not be set
 		SSOSettings: &fleet.SSOSettings{
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:  "some-entity-id",
@@ -2862,7 +2861,6 @@ func TestGitOpsSMTPSettings(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
 	appConfig := fleet.AppConfig{
-		// During dry run, the global calendar integration setting may not be set
 		SMTPSettings: &fleet.SMTPSettings{
 			SMTPEnabled:              true,
 			SMTPConfigured:           true,
@@ -2889,7 +2887,7 @@ func TestGitOpsSMTPSettings(t *testing.T) {
 		return nil
 	}
 
-	// Do a GitOps run with no sso settings.
+	// Do a GitOps run with no smtp settings.
 	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
@@ -2914,7 +2912,6 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
 	appConfig := fleet.AppConfig{
-		// During dry run, the global calendar integration setting may not be set
 		MDM: fleet.MDM{
 			EndUserAuthentication: fleet.MDMEndUserAuthentication{
 				SSOProviderSettings: fleet.SSOProviderSettings{
@@ -2936,7 +2933,7 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 		return nil
 	}
 
-	// Do a GitOps run with no sso settings.
+	// Do a GitOps run with no mdm end user auth settings.
 	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
