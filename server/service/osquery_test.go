@@ -1412,6 +1412,9 @@ func TestLabelQueries(t *testing.T) {
 			EnableSoftwareInventory: true,
 		}}, nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return false, nil
+	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
@@ -1577,6 +1580,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return false, nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -1808,6 +1814,9 @@ func TestDetailQueries(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 		return host, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return false, nil
 	}
 
 	// With a new host, we should get the detail queries (and accelerated
@@ -3135,6 +3144,9 @@ func TestPolicyQueries(t *testing.T) {
 			EnableSoftwareInventory: true,
 		}}, nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return false, nil
+	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
 
@@ -3409,6 +3421,9 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
 		host = gotHost
 		return nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return false, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -3689,6 +3704,9 @@ func TestLiveQueriesFailing(t *testing.T) {
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return false, nil
 	}
 
 	ctx = hostctx.NewContext(ctx, host)
