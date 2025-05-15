@@ -1188,3 +1188,77 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitOpsDeletesNonManagedL
 	require.NoError(t, err)
 	require.Empty(t, result)
 }
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupScriptWithFleetSecret() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_SECRET_MY_SECRET", "my-secret-value")
+
+	// Create a script file that uses the fleet secret
+	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
+	require.NoError(t, err)
+	_, err = scriptFile.WriteString(`echo "Using secret: $FLEET_SECRET_MY_SECRET"`)
+	require.NoError(t, err)
+	err = scriptFile.Close()
+	require.NoError(t, err)
+
+	scriptContents, err := os.ReadFile(scriptFile.Name())
+	require.NoError(t, err)
+	fmt.Println("Script file contents:", string(scriptContents))
+
+	// Create a no-team file with the script
+	const noTeamTemplate = `name: No team
+policies:
+controls:
+  macos_setup:
+    script: %s
+software:
+`
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, scriptFile.Name()))
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	contents, err := os.ReadFile(noTeamFilePath)
+	require.NoError(t, err)
+	fmt.Println("noTeamFile contents:", string(contents))
+
+	// Create a global file
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`)
+	require.NoError(t, err)
+
+	t.Setenv("FLEET_SECRET_MY_SECRET", "my-secret-value")
+	// Apply the configs
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+
+	// Verify the script was saved with the secret
+	script, err := s.DS.GetSetupExperienceScript(ctx, nil)
+	require.NoError(t, err)
+	fmt.Println("scriptContents", script.ScriptContents)
+	require.Contains(t, script.ScriptContents, "my-secret-value")
+}
