@@ -155,7 +155,9 @@ const RunScriptBatchModal = ({
         <>
           {renderModalContent()}
           <div className="modal-cta-wrap">
-            <Button onClick={onCancel}>Done</Button>
+            <Button disabled={isUpdating} onClick={onCancel}>
+              Done
+            </Button>
           </div>
         </>
       </Modal>
