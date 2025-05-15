@@ -16,6 +16,12 @@ You can customize these flows with a webhook (e.g. Tines) to run scripts, use th
 
 > 🔜 Auto-remediation for patching (OS updates, software) is coming soon.
 
+### Setup
+
+1. Connect a Google Workspace service account to Fleet under **Settings > Integrations > Calendars**.
+2. Create a webhook to handle the remediation (see [Fleet + Tines guide](https://fleetdm.com/guides/building-webhook-flows-with-fleet-and-tines)).
+3. In the **Policies** tab, click **Manage automations > Calendar events**, enable the feature, and paste your webhook URL.
+
 ### End user experience
 
 * If a user owns multiple failing hosts, only one host is scheduled at a time. Once it's fixed, Fleet schedules the next.
@@ -25,17 +31,10 @@ You can customize these flows with a webhook (e.g. Tines) to run scripts, use th
 * If a user deletes the event, Fleet automatically reschedules it for the next day.
 * Fleet monitors calendar changes in real time (reschedules within ~30 seconds), but only for events in the upcoming week. Events further out are updated within 30 minutes.
 
-### Setup
-
-1. Connect a Google Workspace service account to Fleet under **Settings > Integrations > Calendars**.
-2. Create a webhook to handle the remediation (see [Fleet + Tines guide](https://fleetdm.com/guides/building-webhook-flows-with-fleet-and-tines)).
-3. In the **Policies** tab, click **Manage automations > Calendar events**, enable the feature, and paste your webhook URL.
-
 ### What happens when a policy fails?
 
 1. A calendar event is scheduled for the user who owns the host.
 2. Fleet waits for the scheduled time, then calls the webhook with host + failure details.
-3. If the user moves or deletes the event, Fleet reschedules automatically
 
 ---
 
