@@ -356,18 +356,6 @@ func (lr *LuksRunner) infoPrompt(title, text string) error {
 	return nil
 }
 
-type LuksDump struct {
-	Keyslots map[string]Keyslot `json:"keyslots"`
-}
-
-type Keyslot struct {
-	KDF KDF `json:"kdf"`
-}
-
-type KDF struct {
-	Salt string `json:"salt"`
-}
-
 func GetLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	var jsonFlag string
 	var jsonNeedsExtraction bool
