@@ -293,6 +293,7 @@ const InstallerStatusAction = ({
         onInstallOrUninstall();
       }
     } catch (error) {
+      // We only show toast message if API returns an error
       renderFlash("error", "Couldn't install. Please try again.");
     }
   }, [deviceToken, id, onInstallOrUninstall, renderFlash]);
