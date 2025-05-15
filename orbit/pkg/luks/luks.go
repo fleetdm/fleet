@@ -9,7 +9,6 @@ import (
 
 type KeyEscrower interface {
 	SendLinuxKeyEscrowResponse(LuksResponse) error
-	DeleteEscrowedKey(keySlot uint) error
 }
 
 type LuksRunner struct {
