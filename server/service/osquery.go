@@ -789,13 +789,11 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 	}
 	if disablePolicies {
-		level.Info(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
+		level.Debug(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
 		return nil, false, nil
 	}
-	level.Info(svc.logger).Log("msg", "evaluating if policy queries for host not in setup experience should run", "host_id", host.ID)
 	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
 	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
-		level.Info(svc.logger).Log("msg", "skipping policy queries for host not in setup experience becaues !shouldUpdate", "host_id", host.ID)
 		return nil, false, nil
 	}
 	policyQueries, err = svc.ds.PolicyQueriesForHost(ctx, host)
@@ -803,10 +801,8 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, false, ctxerr.Wrap(ctx, err, "retrieve policy queries")
 	}
 	if len(policyQueries) == 0 {
-		level.Info(svc.logger).Log("msg", "skipping policy queries for host not in setup experience becaues no queries", "host_id", host.ID)
 		return nil, true, nil
 	}
-	level.Info(svc.logger).Log("msg", "running policy queries for host not in setup experience", "host_id", host.ID)
 	return policyQueries, false, nil
 }
 
