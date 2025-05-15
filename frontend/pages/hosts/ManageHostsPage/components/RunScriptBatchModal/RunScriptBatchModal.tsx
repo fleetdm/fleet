@@ -150,7 +150,7 @@ const RunScriptBatchModal = ({
         onExit={onCancel}
         onEnter={onCancel}
         className={classes}
-        isLoading={isUpdating}
+        disableClosingModal={isUpdating}
       >
         <>
           {renderModalContent()}
