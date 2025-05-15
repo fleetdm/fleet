@@ -468,6 +468,8 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.AppConfig != nil {
+		// if appConfigMap, ok := specs.AppConfig.(map[string]interface{}); ok {
+		// 	if features, ok := appConfigMap["features"].(map[string]interface{}); ok && mdm != nil {
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 
@@ -1958,7 +1960,8 @@ func (c *Client) DoGitOps(
 	// Apply org settings, scripts, enroll secrets, team entities (software, scripts, etc.), and controls.
 	teamIDsByName, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, err := c.ApplyGroup(ctx, true, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
 		ApplySpecOptions: fleet.ApplySpecOptions{
-			DryRun: dryRun,
+			DryRun:    dryRun,
+			Overwrite: true,
 		},
 		ExpandEnvConfigProfiles: true,
 	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
@@ -2108,12 +2111,12 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	}
 
 	logFn("[+] applying %d software packages for 'No team'\n", len(swPkgPayload))
-	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
+	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun, Overwrite: true})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
 	logFn("[+] applying %d app store apps for 'No team'\n", len(appsPayload))
-	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
+	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun, Overwrite: true})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying app store apps: %w", err)
 	}
