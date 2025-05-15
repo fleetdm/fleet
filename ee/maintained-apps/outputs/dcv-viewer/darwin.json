@@ -8,7 +8,8 @@
       "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2024.0/Clients/nice-dcv-viewer-2024.0.7209.arm64.dmg",
       "install_script_ref": "e67e5dda",
       "uninstall_script_ref": "881f68dc",
-      "sha256": "29a4efb592aaf07f2e6d09de0cf2dbafb11ab0beb6522bc09a0b5e6e303a9ddb"
+      "sha256": "29a4efb592aaf07f2e6d09de0cf2dbafb11ab0beb6522bc09a0b5e6e303a9ddb",
+      "default_categories": null
     }
   ],
   "refs": {
