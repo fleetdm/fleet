@@ -17570,7 +17570,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.True(t, hitPkgURL)
 	hitPkgURL = false
 
-	// attempt to add the exe to team 1 without scripts. Even though the admin has access to
+	// Attempt to add the exe to team 1 without scripts. Even though the admin has access to
 	// both teams, it should fail because scripts are required for exes.
 	// Check without either script first.
 	s.token = s.getTestAdminToken()
@@ -17634,6 +17634,27 @@ done
 	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
 	require.Equal(t, file.GetInstallScript("pkg"), stResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
+
+	// Clean up all installers from the store
+	e, err := s.softwareInstallStore.Cleanup(ctx, []string{}, time.Now())
+	require.NoError(t, err)
+	require.Equal(t, 3, e)
+
+	// At this point in the test, the exe payload has no URL. Batch set should fail because the
+	// installer bytes don't exist anymore and there is no URL provided.
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, fmt.Sprintf("package not found with hash %s", exeHash))
+
+	// Add the URL back and do the batch set. Should succeed and re-download all installers.
+	softwareToInstall[1].URL = exeURL
+	hitDebURL, hitExeURL, hitPkgURL = false, false, false
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 3)
+	for _, v := range []bool{hitDebURL, hitExeURL, hitPkgURL} {
+		require.True(t, v)
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategories() {
