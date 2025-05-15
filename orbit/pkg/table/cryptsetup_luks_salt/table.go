@@ -49,7 +49,13 @@ func getCriteria(qContext table.QueryContext) (*criteria, error) {
 	result := criteria{}
 	kS := qContext.Constraints["key_slot"]
 	kSVal, err := strconv.ParseUint(kS.Constraints[0].Expression, 10, 64)
-	if err != nil || kSVal < 0 {
+	if err != nil {
+		return nil, errors.New("invalid value for key_slot")
+	}
+	if kSVal > uint64(^uint(0)) {
+		return nil, errors.New("key_slot exceeds the maximum value for uint")
+	}
+	if kSVal < 0 {
 		return nil, errors.New("key_slot must be an integer greater than zero")
 	}
 
