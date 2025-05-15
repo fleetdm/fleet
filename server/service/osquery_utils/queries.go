@@ -2115,7 +2115,7 @@ var luksVerifyQuery = DetailQuery{
 }
 
 // We need to define the ingest function inline like this because we need access to the server private key
-var luksVerifyQueryIngester = func(privateKey string) func(
+var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 	ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	return func(
 		ctx context.Context,
@@ -2124,7 +2124,7 @@ var luksVerifyQueryIngester = func(privateKey string) func(
 		ds fleet.Datastore,
 		rows []map[string]string,
 	) error {
-		if len(rows) == 0 {
+		if len(rows) == 0 || host == nil || !host.IsLUKSSupported() {
 			return nil
 		}
 
@@ -2139,7 +2139,7 @@ var luksVerifyQueryIngester = func(privateKey string) func(
 			return nil
 		}
 
-		storedSalt, err := mdm.DecodeAndDecrypt(dek.Base64EncryptedSalt, privateKey)
+		storedSalt, err := decrypter(dek.Base64EncryptedSalt)
 		if err != nil {
 			level.Debug(logger).Log(
 				"component", "service",
@@ -2236,7 +2236,11 @@ func GetDetailQueries(
 	}
 
 	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
-		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(fleetConfig.Server.PrivateKey)
+		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(func(privateKey string) func(string) (string, error) {
+			return func(encrypted string) (string, error) {
+				return mdm.DecodeAndDecrypt(privateKey, encrypted)
+			}
+		}(fleetConfig.Server.PrivateKey))
 		generatedMap["luks_verify"] = luksVerifyQuery
 	}
 
