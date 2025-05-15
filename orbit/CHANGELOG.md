@@ -1,3 +1,29 @@
+## Orbit 1.42.0 (May 15, 2025)
+
+* Made the macOS Setup Experience dialog more reliable by preventing system sleep while it is shown, changing the key combo to cmd+shift+x to exit, keeping it on top of all other windows and making sure it closes once it completes
+
+* Fixed "concurrent map writes" crashes in orbit when both `EscrowBuddy` and `swiftDialog` components are updated/fetched.
+
+* Removed popup loading indicator for LUKS key escrow
+
+* Fixed an issue causing Nudge launch failures.
+
+* Improved support for wide aspect ratio icons in the MDM setup experience and migration dialogs for
+  Apple devices.
+
+* Changed orbit to unconditionally install Escrow Buddy and Swift Dialog on macOS hosts
+
+* When fleetd on a Windows host installs an update it detects from TUF, also update the
+  corresponding `DisplayVersion` in the Registry
+
+* Added automatic extraction of .tar.gz/.tgz archives prior to running the associated install script.
+
+* Updated Fleet Desktop's "My device" menu item to route to the policies tab on the "My device" web page.
+
+* Updated go to 1.24.2.
+
+* Updated the 'windows_updates' Orbit table so that results are only returned iff there are non-installed windows updates.
+
 ## Orbit 1.41.0 (Apr 14, 2025)
 
 * Fixed osquery flag parsing when the argument contained `=`.
