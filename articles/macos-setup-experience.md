@@ -67,6 +67,8 @@ Whether you have to download or generate a package depends on what you want to d
 
 * A single client or agent, like Munki or Puppet, can usually be downloaded from the tool's GitHub repository or website. For example, you can download Munki, the Munki client on their [releases page on GitHub](https://github.com/munki/munki/releases).
 
+  > Packages deployed via bootstrap need to be signed. The packages on the official Munki release page above are not signed. You will either need to sign the   package yourself (see Step 2 below) or use an already signed release from [MacAdmins Open Source](https://github.com/macadmins/munki-builds/releases).
+
 * To deploy custom scripts, you need to generate a package. The [munkipkg tool](https://github.com/munki/munki-pkg) is a popular tool for generating packages.
 
 Verify that the package is a distribution package:

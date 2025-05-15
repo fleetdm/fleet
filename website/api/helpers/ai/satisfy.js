@@ -7,17 +7,23 @@ module.exports = {
   description: 'Modify some data such that it satisfies one or more constraints.',
 
 
+  extendedDescription: 'e.g. wedding seating chart, generate work schedule',
+
+
+  sideEffects: 'cacheable',
+
+
   inputs: {
+    data: {
+      type: 'json',
+      required: true
+    },
+
     constraints: {
       description: 'A list of constraints to impose upon the provided data and any changes to it.',
       type: [ 'string' ],
       required: true,
       example: [ `Every table must have no more than 2 empty seats.`, `Couples with the same last name should sit together at the same table.` ]
-    },
-
-    data: {
-      type: 'json',
-      required: true
     },
 
     changes: {
@@ -33,12 +39,13 @@ module.exports = {
     success: {
       outputType: 'json',
       outputDescription: 'The modified data.',
+      extendedDescription: 'Note that this is a deep clone returned from the LLM.  (The original data is not modified in-place.)'
     },
 
   },
 
 
-  fn: async function ({constraints, data, changes}) {
+  fn: async function ({data, constraints, changes}) {
 
     let prompt = `Given some data and a set of constraints, make sure the data matches all of those constraints.`;
 
