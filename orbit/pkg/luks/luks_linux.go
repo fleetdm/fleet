@@ -38,7 +38,7 @@ const (
 	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
 
-var ErrKeySlotNotFound = errors.New("key slot not found")
+var errKeySlotNotFound = errors.New("key slot not found")
 
 func isInstalled(toolName string) bool {
 	path, err := exec.LookPath(toolName)
@@ -76,53 +76,6 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 				return lr.newUserKeyWorkflow(ctx, devicePath)
 			})
 		})
-	}
-
-	salt := oc.Notifications.EscrowedKeySalt
-	slot := oc.Notifications.EscrowedKeySlot
-	if len(salt) == 0 || slot == nil {
-		log.Debug().Msg("No salt or key slot provided, skipping escrowed key validation")
-		return nil
-	}
-	return checkInstalled([]string{"cryptsetup"}, func() error {
-		return withRootDevicePath(func(devicePath string) error {
-			return lr.validateEscrowedKeyWorkflow(ctx, devicePath, salt, *slot)
-		})
-	})
-}
-
-// validateEscrowedKeyWorkflow checks that the escrowed key is valid
-// and if not, requests a new one from the user
-func (lr *LuksRunner) validateEscrowedKeyWorkflow(
-	ctx context.Context,
-	devicePath string,
-	escrowedSalt string,
-	escrowedKeySlot uint,
-) error {
-	log.Debug().Msgf("fetching salt for key slot %d", escrowedKeySlot)
-	storedSalt, err := getSaltForKeySlot(ctx, devicePath, escrowedKeySlot)
-
-	if err != nil {
-		if errors.Is(err, ErrKeySlotNotFound) {
-			log.Debug().Msgf("key slot %d not found", escrowedKeySlot)
-			return lr.deleteEscrowedKey(escrowedKeySlot)
-		}
-		return fmt.Errorf("failed to get salt for key slot: %w", err)
-	}
-
-	if storedSalt != escrowedSalt {
-		log.Debug().Msgf("comparing salts stored: ****%s vs escrowed: ****%s",
-			storedSalt[len(storedSalt)-4:], escrowedSalt[len(storedSalt)-4:])
-		return lr.deleteEscrowedKey(escrowedKeySlot)
-	}
-	return nil
-}
-
-func (lr *LuksRunner) deleteEscrowedKey(escrowedKeySlot uint) error {
-	log.Info().Msg("Escrowed key is no longer valid, notifying Fleet Server")
-	if err := lr.escrower.DeleteEscrowedKey(escrowedKeySlot); err != nil {
-		log.Error().Err(err).Msg("failed to remove key slot")
-		return err
 	}
 	return nil
 }
@@ -460,7 +413,7 @@ func getSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (st
 
 	slot, ok := dump.Keyslots[fmt.Sprintf("%d", keySlot)]
 	if !ok {
-		return "", ErrKeySlotNotFound
+		return "", errKeySlotNotFound
 	}
 
 	return slot.KDF.Salt, nil
