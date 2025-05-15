@@ -2809,3 +2809,141 @@ func TestGitOpsTeamWebhooks(t *testing.T) {
 	require.True(t, team.Config.WebhookSettings.HostStatusWebhook.Enable)
 	require.Equal(t, "http://coolwebhook.biz", team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }
+
+func TestGitOpsSSOSettings(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{
+		// During dry run, the global calendar integration setting may not be set
+		SSOSettings: &fleet.SSOSettings{
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:  "some-entity-id",
+				IssuerURI: "https://example.com/saml",
+				Metadata:  "some-metadata",
+				IDPName:   "some-idp-name",
+			},
+			IDPImageURL:           "https://example.com/logo.png",
+			EnableSSO:             true,
+			EnableSSOIdPLogin:     true,
+			EnableJITProvisioning: true,
+			EnableJITRoleSync:     true,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with no sso settings.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	require.NotNil(t, appConfig.SSOSettings)
+	require.Empty(t, appConfig.SSOSettings.SSOProviderSettings.EntityID)
+	require.Empty(t, appConfig.SSOSettings.SSOProviderSettings.IssuerURI)
+	require.Empty(t, appConfig.SSOSettings.SSOProviderSettings.Metadata)
+	require.Empty(t, appConfig.SSOSettings.SSOProviderSettings.MetadataURL)
+	require.Empty(t, appConfig.SSOSettings.SSOProviderSettings.IDPName)
+	require.Empty(t, appConfig.SSOSettings.IDPImageURL)
+	require.False(t, appConfig.SSOSettings.EnableSSO)
+	require.False(t, appConfig.SSOSettings.EnableSSOIdPLogin)
+	require.False(t, appConfig.SSOSettings.EnableJITProvisioning)
+	require.False(t, appConfig.SSOSettings.EnableJITRoleSync)
+}
+
+func TestGitOpsSMTPSettings(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{
+		// During dry run, the global calendar integration setting may not be set
+		SMTPSettings: &fleet.SMTPSettings{
+			SMTPEnabled:              true,
+			SMTPConfigured:           true,
+			SMTPSenderAddress:        "http://example.com",
+			SMTPServer:               "server.example.com",
+			SMTPPort:                 587,
+			SMTPAuthenticationType:   "smoooth",
+			SMTPUserName:             "uzer",
+			SMTPPassword:             "pazzword",
+			SMTPEnableTLS:            true,
+			SMTPAuthenticationMethod: "crunchy",
+			SMTPDomain:               "smtp.example.com",
+			SMTPVerifySSLCerts:       true,
+			SMTPEnableStartTLS:       true,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with no sso settings.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	require.NotNil(t, appConfig.SMTPSettings)
+	require.False(t, appConfig.SMTPSettings.SMTPEnabled)
+	require.False(t, appConfig.SMTPSettings.SMTPConfigured)
+	require.Empty(t, appConfig.SMTPSettings.SMTPSenderAddress)
+	require.Empty(t, appConfig.SMTPSettings.SMTPServer)
+	require.Equal(t, uint(0), appConfig.SMTPSettings.SMTPPort)
+	require.Empty(t, appConfig.SMTPSettings.SMTPAuthenticationType)
+	require.Empty(t, appConfig.SMTPSettings.SMTPUserName)
+	require.Empty(t, appConfig.SMTPSettings.SMTPPassword)
+	require.False(t, appConfig.SMTPSettings.SMTPEnableTLS)
+	require.Empty(t, appConfig.SMTPSettings.SMTPAuthenticationType)
+	require.Empty(t, appConfig.SMTPSettings.SMTPDomain)
+	require.False(t, appConfig.SMTPSettings.SMTPVerifySSLCerts)
+	require.False(t, appConfig.SMTPSettings.SMTPEnableStartTLS)
+}
+
+func TestGitOpsMDMAuthSettings(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{
+		// During dry run, the global calendar integration setting may not be set
+		MDM: fleet.MDM{
+			EndUserAuthentication: fleet.MDMEndUserAuthentication{
+				SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:  "some-entity-id",
+					IssuerURI: "https://example.com/saml",
+					Metadata:  "some-metadata",
+					IDPName:   "some-idp-name",
+				},
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with no sso settings.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	require.NotNil(t, appConfig.MDM.EndUserAuthentication)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.EntityID)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IssuerURI)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.Metadata)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.MetadataURL)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IDPName)
+}
