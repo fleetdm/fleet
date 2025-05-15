@@ -767,6 +767,8 @@ org_settings:
 
 #### failing_policies_webhook
 
+> These settings can also be configured per-team when nested under `team_settings`. 
+
 - `enable_failing_policies_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `policy_ids` is the list of policies that will trigger a webhook.
