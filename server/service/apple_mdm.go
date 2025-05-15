@@ -1995,12 +1995,6 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	}
 
 	switch h.Platform {
-	case "ios":
-		fallthrough
-	case "ipados":
-		return &fleet.BadRequestError{
-			Message: fleet.CantTurnOffMDMForIOSOrIPadOSMessage,
-		}
 	case "windows":
 		return &fleet.BadRequestError{
 			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,

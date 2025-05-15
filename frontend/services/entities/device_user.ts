@@ -90,6 +90,17 @@ export default {
     return sendRequest("POST", path);
   },
 
+  uninstallSelfServiceSoftware: (
+    deviceToken: string,
+    softwareTitleId: number
+  ) => {
+    const { DEVICE_SOFTWARE_UNINSTALL } = endpoints;
+    return sendRequest(
+      "POST",
+      DEVICE_SOFTWARE_UNINSTALL(deviceToken, softwareTitleId)
+    );
+  },
+
   /** Gets more info on FMA/custom package install for device user */
   getSoftwareInstallResult: (deviceToken: string, uuid: string) => {
     const { DEVICE_SOFTWARE_INSTALL_RESULTS } = endpoints;

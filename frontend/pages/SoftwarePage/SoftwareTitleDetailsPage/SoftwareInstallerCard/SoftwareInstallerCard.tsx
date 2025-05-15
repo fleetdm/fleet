@@ -58,7 +58,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
     iconName: "success",
     tooltip: (
       <>
-        Software is installed on these hosts (install script finished
+        Software was installed on these hosts (install script finished
         <br />
         with exit code 0). Currently, if the software is uninstalled, the
         <br />

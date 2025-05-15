@@ -104,11 +104,15 @@ const RunScriptBatchModal = ({
         />
       );
     }
+    const targetCount = selectedHostIds.length;
     return (
       <>
         <p>
-          Will run on <b>{selectedHostIds.length} hosts</b>. You can see
-          individual script results on the host details page.
+          Will run on{" "}
+          <b>
+            {targetCount} host{targetCount > 1 ? "s" : ""}
+          </b>
+          . You can see individual script results on the host details page.
         </p>
         <RunScriptBatchPaginatedList
           onRunScript={onRunScriptBatch}
