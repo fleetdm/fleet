@@ -765,7 +765,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Configure 'Log on as a service'
+  name: CIS - Ensure 'Log on as a service' is configured
   platforms: win11
   platform: windows
   description: |
@@ -980,24 +980,6 @@ spec:
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/TakeOwnership</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, english-support-only
-  contributors: marcosd4h
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Accounts Block Microsoft accounts' is set to 'Users can't add or log on with Microsoft accounts'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting prevents users from adding new Microsoft accounts on this computer.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Users can't add or log on with Microsoft account':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Accounts: Block Microsoft accounts'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\NoConnectedUser' AND data == 3);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -2501,82 +2483,6 @@ spec:
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND data == 4 );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Peer Name Resolution Protocol (PNRPsvc)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Enables serverless peer name resolution over the Internet using the Peer Name Resolution Protocol (PNRP).
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Name Resolution Protocol'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PNRPsvc\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Peer Networking Grouping (p2psvc)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Enables multi-party communication using Peer-to-Peer Grouping.
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Networking Grouping'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\p2psvc\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Peer Networking Identity Manager (p2pimsvc)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Provides identity services for the Peer Name Resolution Protocol (PNRP) and Peer-to-Peer Grouping services.
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Networking Identity Manager'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\p2pimsvc\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'PNRP Machine Name Publication Service (PNRPAutoReg)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This service publishes a machine name using the Peer Name Resolution Protocol. Configuration is managed via the netsh context ‘p2p pnrp peer’.
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\PNRP Machine Name Publication Service'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PNRPAutoReg\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -5370,24 +5276,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Configure DNS over HTTPS (DoH) name resolution' is set to 'Enabled: Allow DoH' or higher (Automated)
-  platforms: win11
-  platform: windows
-  description: |
-    This setting determines if DNS over HTTPS (DoH) is used by the system. DNS over HTTPS (DoH) is a protocol for performing remote Domain Name System (DNS) resolution over the Hypertext Transfer Protocol Secure (HTTPS). For additional information on DNS over HTTPS (DoH), visit: Secure DNS Client over HTTPS (DoH) on Windows Server 2022 | Microsoft Docs.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled: Allow DoH (configuring to Enabled: Require DoH also conforms to the benchmark):
-    'Computer Configuration\Policies\Administrative Templates\Network\DNSClient\Configure DNS over HTTPS (DoH) name resolution'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\DoHPolicy' AND (data in (2,3)));
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: DefensiveDepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Configure NetBIOS settings' is set to 'Enabled: Disable NetBIOS name resolution on public networks'
   platforms: win11
   platform: windows
@@ -5759,66 +5647,6 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_LEVEL1
   contributors: DefensiveDepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Prevent installation of devices that match any of these device IDs' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting allows you to specify a list of Plug and Play hardware IDs and compatible IDs for devices that Windows is prevented from installing. This policy setting takes precedence over any other policy setting that allows Windows to install a device.
-    If you enable this policy setting, Windows is prevented from installing a device whose hardware ID or compatible ID appears in the list you create. If you enable this policy setting on a remote desktop server, the policy setting affects redirection of the specified devices from a remote desktop client to the remote desktop server.
-    If you disable or do not configure this policy setting, devices can be installed and updated as allowed or prevented by other policy settings.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices that match any of these device IDs'
-  query: |
-    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceInstall\\Restrictions\DenyDeviceIDs' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Prevent installation of devices that match any of these device IDs: Prevent installation of devices that match any of these device IDs' is set to 'PCI\CC_0C0A'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting allows you to specify a list of Plug and Play hardware IDs and compatible IDs for devices that Windows is prevented from installing. This policy setting takes precedence over any other policy setting that allows Windows to install a device.
-    If you enable this policy setting, Windows is prevented from installing a device whose hardware ID or compatible ID appears in the list you create. If you enable this policy setting on a remote desktop server, the policy setting affects redirection of the specified devices from a remote desktop client to the remote desktop server.
-    If you disable or do not configure this policy setting, devices can be installed and updated as allowed or prevented by other policy settings.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled', and add 'PCI\CC_0C0A' to the Device IDs list:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices that match any of these device IDs'
-  query: |
-    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceInstall\\Restrictions\\DenyDeviceIDs\1' AND data = 'PCI\CC_0C0A');
-  purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Prevent installation of devices that match any of these device IDs: Also apply to matching devices that are already installed.' is set to 'True' (checked)
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting allows you to specify a list of Plug and Play hardware IDs and compatible IDs for devices that Windows is prevented from installing. This policy setting takes precedence over any other policy setting that allows Windows to install a device.
-    If you enable this policy setting, Windows is prevented from installing a device whose hardware ID or compatible ID appears in the list you create. If you enable this policy setting on a remote desktop server, the policy setting affects redirection of the specified devices from a remote desktop client to the remote desktop server.
-    If you disable or do not configure this policy setting, devices can be installed and updated as allowed or prevented by other policy settings.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled', and check the 'Also apply to matching devices that are already installed'. checkbox:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices that match any of these device IDs'
-  query: |
-    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceInstall\\Restrictions\DenyDeviceIDsRetroactive' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
 ---
 apiVersion: v1
 kind: policy
@@ -8089,24 +7917,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Toggle user control over Insider builds' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines whether users can access the Insider build controls in the Advanced Options for Windows Update. These controls are located under "Get Insider builds," and enable users to make their devices available for downloading and installing Windows preview software.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Toggle user control over Insider builds'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PreviewBuilds\AllowBuildPreview' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Download Mode' is NOT set to 'Enabled: Internet'
   platforms: win11
   platform: windows
@@ -8799,25 +8609,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Turn off Microsoft Defender AntiVirus' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting turns off Microsoft Defender Antivirus. If the setting is configured to Disabled, Microsoft Defender Antivirus runs and computers are scanned for malware and other potentially unwanted software.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Turn off Microsoft Defender AntiVirus'
-    Note: This Group Policy path is provided by the Group Policy template WindowsDefender.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\DisableAntiSpyware' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Allow auditing events in Microsoft Defender Application Guard' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -9450,25 +9241,6 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\DisableStoreApps' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Only display the private store within the Microsoft Store' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting denies access to the retail catalog in the Microsoft Store, but displays the private store.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Only display the private store within the Microsoft Store'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\RequirePrivateStoreOnly' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
 ---
 apiVersion: v1
