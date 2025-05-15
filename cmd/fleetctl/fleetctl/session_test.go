@@ -7,13 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/stretchr/testify/require"
 )
 
 func TestEarlySessionCheck(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
@@ -30,6 +31,6 @@ func TestEarlySessionCheck(t *testing.T) {
 	err := os.WriteFile(configPath, []byte(config), configFilePerms)
 	require.NoError(t, err)
 
-	_, err = runAppNoChecks([]string{"get", "queries", "--config", configPath})
+	_, err = RunAppNoChecks([]string{"get", "queries", "--config", configPath})
 	require.ErrorIs(t, err, service.ErrUnauthenticated)
 }

@@ -142,7 +142,16 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 		return nil, notFound("scim user")
 	}
 
-	// Try to find the user by email
+	// Now, try to find the user by using the email as the userName
+	user, err := ds.ScimUserByUserName(ctx, email)
+	switch {
+	case err == nil:
+		return user, nil
+	case !fleet.IsNotFound(err):
+		return nil, ctxerr.Wrap(ctx, err, "select scim user by userName")
+	}
+
+	// Next, to find the user by email
 	const query = `
 		SELECT
 			scim_users.id, external_id, user_name, given_name, family_name, active, scim_users.updated_at
@@ -152,7 +161,7 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 	`
 
 	var users []fleet.ScimUser
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, email)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, email)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select scim user by email")
 	}

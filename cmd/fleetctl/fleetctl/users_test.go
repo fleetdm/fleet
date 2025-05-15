@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 
@@ -20,7 +21,7 @@ import (
 )
 
 func TestUserDelete(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return &fleet.User{
@@ -43,7 +44,7 @@ func TestUserDelete(t *testing.T) {
 		return nil
 	}
 
-	assert.Equal(t, "", runAppForTest(t, []string{"user", "delete", "--email", "user1@test.com"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"user", "delete", "--email", "user1@test.com"}))
 	assert.Equal(t, uint(42), deletedUser)
 }
 
@@ -63,7 +64,7 @@ func (e *notFoundError) Error() string {
 // creates a user with the proper "AdminForcePasswordReset" value depending on
 // the passed flags (e.g. SSO users shouldn't be required to do password reset on first login).
 func TestUserCreateForcePasswordReset(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	pwd := test.GoodPassword
 
@@ -140,7 +141,7 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 			return user, nil
 		}
 
-		stdout := runAppForTest(t, append(
+		stdout := RunAppForTest(t, append(
 			[]string{"user", "create"},
 			tc.args...,
 		))
@@ -163,7 +164,7 @@ func writeTmpCsv(t *testing.T, contents string) string {
 }
 
 func TestCreateBulkUsers(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
 		return nil, nil
 	}
@@ -194,12 +195,12 @@ func TestCreateBulkUsers(t *testing.T) {
 	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"global_role":"admin","teams":null},"user11@example.com":{"global_role":"maintainer","teams":null},"user12@example.com":{"global_role":"observer","teams":null},"user13@example.com":{"global_role":"admin","teams":null},"user14@example.com":{"global_role":null,"teams":[{"team":"","role":"maintainer"}]},"user15@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"}]},"user16@example.com":{"global_role":null,"teams":[{"team":"","role":"admin"},{"team":"","role":"maintainer"}]},"user1@example.com":{"global_role":"maintainer","teams":null},"user2@example.com":{"global_role":"observer","teams":null}}}}
 `
 
-	assert.Equal(t, "", runAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles", "--json"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
+	assert.Equal(t, expectedText, RunAppForTest(t, []string{"get", "user_roles", "--json"}))
 }
 
 func TestDeleteBulkUsers(t *testing.T) {
-	_, ds := runServerWithMockedDS(t)
+	_, ds := testing_utils.RunServerWithMockedDS(t)
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 	) error {
@@ -248,7 +249,7 @@ func TestDeleteBulkUsers(t *testing.T) {
 		return nil
 	}
 
-	assert.Equal(t, "", runAppForTest(t, []string{"user", "delete-users", "--csv", csvFilePath}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"user", "delete-users", "--csv", csvFilePath}))
 	for indx, user := range users {
 		deletedUser = deletedUserIds[indx]
 		assert.Equal(t, user.ID, deletedUser)

@@ -1221,6 +1221,10 @@ type Datastore interface {
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
+	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
+	// MDM protocol seen time for the host with the given UUID
+	GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
+
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
 
@@ -1590,6 +1594,10 @@ type Datastore interface {
 	// matching hosts that satisfy the filter, thereby triggering the profile to
 	// be resent upon the next cron run.
 	BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters BatchResendMDMProfileFilters) (int64, error)
+
+	// GetMDMConfigProfileStatus returns the number of hosts per status for the
+	// specified profile UUID.
+	GetMDMConfigProfileStatus(ctx context.Context, profileUUID string) (MDMConfigProfileStatus, error)
 
 	// GetHostMDMProfileInstallStatus returns the status of the profile for the host.
 	GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (MDMDeliveryStatus, error)

@@ -77,6 +77,7 @@ func TestSoftware(t *testing.T) {
 		{"TestListHostSoftwareVulnerabileAndVPP", testListHostSoftwareVulnerabileAndVPP},
 		{"TestListHostSoftwareQuerySearching", testListHostSoftwareQuerySearching},
 		{"TestListHostSoftwareWithLabelScopingVPP", testListHostSoftwareWithLabelScopingVPP},
+		{"TestListHostSoftwareSelfServiceWithLabelScopingHostInstalled", testListHostSoftwareSelfServiceWithLabelScopingHostInstalled},
 		{"DeletedInstalledSoftware", testDeletedInstalledSoftware},
 		{"SoftwareCategories", testSoftwareCategories},
 	}
@@ -4925,6 +4926,13 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	host.TeamID = &tm.ID
 	numberOfApps := 5
 
+	// create a second host and add it to the team
+	anotherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	nanoEnroll(t, ds, anotherHost, false)
+	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{anotherHost.ID})
+	require.NoError(t, err)
+	anotherHost.TeamID = &tm.ID
+
 	software := []fleet.Software{}
 	for i := 0; i < numberOfApps; i++ {
 		software = append(software, fleet.Software{
@@ -4949,10 +4957,39 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}},
 		Name:             "vpp1",
 		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
 	}
 	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
+
+	// vpp1 is not installed yet, but host is mdm enrolled so it should show up
+	sw, _, err := ds.ListHostSoftware(
+		ctx,
+		anotherHost,
+		fleet.HostSoftwareTitleListOptions{
+			OnlyAvailableForInstall: true,
+			IsMDMEnrolled:           true,
+			ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		},
+	)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	assert.Equal(t, vPPApp.Name, sw[0].Name)
+
+	// vpp1 is not installed yet, but host is not mdm enrolled so it should not show up
+	sw, _, err = ds.ListHostSoftware(
+		ctx,
+		anotherHost,
+		fleet.HostSoftwareTitleListOptions{
+			OnlyAvailableForInstall: true,
+			IsMDMEnrolled:           false,
+			ListOptions:             fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		},
+	)
+	require.NoError(t, err)
+	assert.Len(t, sw, 0)
+
 	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user)
 	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
 	require.NoError(t, err)
@@ -4962,7 +4999,7 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
-		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+		vPPApp.Name, "1.2.3", "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
 	)
 	require.NoError(t, err)
 	time.Sleep(time.Second)
@@ -4980,13 +5017,23 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Len(t, sw, numberOfApps-1)
 	assert.Equal(t, numberOfApps+1, int(meta.TotalResults))
 	assert.True(t, meta.HasNextResults)
+	// The vpp app returned should have an installed version as per the sql above.
+	// However this is a special case because we are not
+	// passing one of the IncludeAvailableForInstall or OnlyAvailableForInstall flags.
+	// Passing one of those flags would typically add the installed version (from host_software/software) to the list
+	// of InstalledVersions. But we need to make a special case for this when neither of those flags are set.
+	assert.Len(t, sw[0].InstalledVersions, 1)
+	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
+	assert.Equal(t, "apps", sw[0].InstalledVersions[0].Source)
+	assert.Equal(t, vPPApp.BundleIdentifier, sw[0].InstalledVersions[0].BundleIdentifier)
 
-	// create a second host and add it to the team
-	anotherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
-	nanoEnroll(t, ds, anotherHost, false)
-	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{anotherHost.ID})
+	// The vpp app is installed by fleet, and also has been inventoried by osquery
+	// Ensure we don't lose the version for the vpp app
+	opts.IncludeAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
-	anotherHost.TeamID = &tm.ID
+	assert.Len(t, sw[0].InstalledVersions, 1)
+	assert.Equal(t, "1.2.3", sw[0].InstalledVersions[0].Version)
 
 	// have the second host install a vpp app, but not by fleet
 	res, err = ds.writer(ctx).ExecContext(ctx, `
@@ -5031,6 +5078,16 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	host.TeamID = &tm.ID
 
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:            true,
+		IsMDMEnrolled:              true,
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    false,
+		VulnerableOnly:             false,
+		KnownExploit:               false,
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+	}
+
 	// setup vpp
 	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
 	require.NoError(t, err)
@@ -5049,7 +5106,13 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
-	createVPPAppInstallRequest(t, ds, host, vpp1, user)
+
+	// vpp1 is self service, not installed yet, so it should show as available for install
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user)
 	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
 	require.NoError(t, err)
 
@@ -5077,24 +5140,49 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	`, host.ID, softwareID)
 	require.NoError(t, err)
 
-	opts := fleet.HostSoftwareTitleListOptions{
-		SelfServiceOnly:            true,
-		IsMDMEnrolled:              true,
-		IncludeAvailableForInstall: true,
-		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
-	}
-	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	assert.Len(t, sw, 2)
 
+	// pending install
 	assert.NotNil(t, sw[0].AppStoreApp)
 	assert.Equal(t, "1.0.0", sw[0].AppStoreApp.Version)
+	assert.Equal(t, fleet.SoftwareInstallerStatus("pending_install"), *sw[0].Status)
+	assert.NotNil(t, sw[0].AppStoreApp.LastInstall)
 	assert.Nil(t, sw[0].InstalledVersions)
 
+	// installed but not by fleet, so status is nil
 	assert.NotNil(t, sw[1].AppStoreApp)
 	assert.Equal(t, "1.0.1", sw[1].AppStoreApp.Version)
+	assert.Nil(t, sw[1].Status)
+	assert.Nil(t, sw[1].AppStoreApp.LastInstall)
 	assert.NotNil(t, sw[1].InstalledVersions)
 	assert.Equal(t, "0.5.0", sw[1].InstalledVersions[0].Version)
+
+	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	// Insert software entry for vpp app
+	res, err = ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		vPPApp.Name, "1.2.3", "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+	)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	softwareID, err = res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_software (host_id, software_id)
+		VALUES (?, ?)
+	`, host.ID, softwareID)
+	require.NoError(t, err)
+
+	// vpp apps should not be returned in self service
+	// if the host is not mdm enrolled
+	opts.IsMDMEnrolled = false
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 0)
 }
 
 func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
@@ -6939,6 +7027,46 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	require.Equal(t, software[2].Name, sw[0].Name)
 	require.Equal(t, software[0].Name, sw[1].Name)
 	require.Equal(t, vPPApp.Name, sw[2].Name)
+
+	// search with solf-service
+	vPPAppSlack := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}},
+		Name:             "slack",
+		BundleIdentifier: "com.app.slack",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vPPAppSlack, &tm.ID)
+	require.NoError(t, err)
+
+	vPPApp1Password := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}},
+		Name:             "1password",
+		BundleIdentifier: "com.app.1password",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp1Password, &tm.ID)
+	require.NoError(t, err)
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:            true,
+		IsMDMEnrolled:              true,
+		IncludeAvailableForInstall: true,
+		ListOptions: fleet.ListOptions{
+			PerPage:               10,
+			IncludeMetadata:       true,
+			OrderKey:              "name",
+			TestSecondaryOrderKey: "source",
+		},
+	}
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 2)
+	require.Equal(t, vPPApp1Password.Name, sw[0].Name)
+	require.Equal(t, vPPAppSlack.Name, sw[1].Name)
+
+	opts.ListOptions.MatchQuery = "1password"
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	require.Equal(t, vPPApp1Password.Name, sw[0].Name)
 }
 
 func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
@@ -7262,6 +7390,174 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
 	require.NoError(t, err)
 	require.True(t, scoped)
+}
+
+func testListHostSoftwareSelfServiceWithLabelScopingHostInstalled(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
+	require.NoError(t, err)
+	host.TeamID = &tm.ID
+
+	opts := fleet.HostSoftwareTitleListOptions{
+		SelfServiceOnly:            true,
+		IsMDMEnrolled:              true,
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    false,
+		VulnerableOnly:             false,
+		KnownExploit:               false,
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+	}
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	// self-service software installer
+	tfr2, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	selfServiceinstaller := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello 2",
+		PreInstallQuery:   "SELECT 2",
+		PostInstallScript: "world 2",
+		UninstallScript:   "goodbye 2",
+		InstallerFile:     tfr2,
+		StorageID:         "storage 2",
+		Filename:          "file2",
+		Title:             "file2",
+		Version:           "1.0",
+		Source:            "apps",
+		UserID:            user1.ID,
+		BundleIdentifier:  "bi2",
+		Platform:          "darwin",
+		SelfService:       true,
+		TeamID:            &tm.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	selfServiceInstallerID, selfServiceTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, selfServiceinstaller)
+	require.NoError(t, err)
+
+	vPPApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			SelfService: true,
+			VPPAppID: fleet.VPPAppID{
+				AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	require.NoError(t, err)
+
+	// Install software on host
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software (name, source, bundle_identifier, version, title_id) VALUES (?, ?, ?, ?, ?)`,
+			selfServiceinstaller.Title, selfServiceinstaller.Source, selfServiceinstaller.BundleIdentifier, selfServiceinstaller.Version, selfServiceTitleID)
+		if err != nil {
+			return err
+		}
+		softwareID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`,
+			host.ID, softwareID)
+		if err != nil {
+			return err
+		}
+
+		res, err = q.ExecContext(ctx, `
+        	INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        	VALUES (?, ?, ?, ?, ?, ?)
+		`,
+			vPPApp.Name, "1.2.3", "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+		)
+		require.NoError(t, err)
+		time.Sleep(time.Second)
+		softwareID, err = res.LastInsertId()
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, `
+			INSERT INTO host_software (host_id, software_id)
+			VALUES (?, ?)
+		`,
+			host.ID, softwareID)
+		require.NoError(t, err)
+
+		return nil
+	})
+
+	sw, _, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 2)
+
+	// selfServiceIstaller should be in scope since it has no labels
+	scoped, err := ds.IsSoftwareInstallerLabelScoped(ctx, selfServiceInstallerID, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+	hostsInScope, err := ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, selfServiceInstallerID)
+	require.NoError(t, err)
+	require.Contains(t, hostsInScope, host.ID)
+	// vppApp should be in scope since it has no labels
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vPPApp.VPPAppTeam.AppTeamID)
+	require.NoError(t, err)
+	require.Contains(t, hostsInScope, host.ID)
+
+	// exclude label
+	excludeLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "Exclude Label" + t.Name()})
+	require.NoError(t, err)
+
+	// label host
+	require.NoError(t, ds.AddLabelsToHost(ctx, host.ID, []uint{excludeLabel.ID}))
+	host.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+	// label software
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), selfServiceInstallerID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{excludeLabel.Name: {LabelName: excludeLabel.Name, LabelID: excludeLabel.ID}},
+	}, softwareTypeInstaller)
+	require.NoError(t, err)
+	// label vpp app
+	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vPPApp.VPPAppTeam.AppTeamID, fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName:     map[string]fleet.LabelIdent{excludeLabel.Name: {LabelName: excludeLabel.Name, LabelID: excludeLabel.ID}},
+	}, softwareTypeVPP)
+	require.NoError(t, err)
+
+	// selfServiceIstaller should not be in scope since it has exclude any label
+	scoped, err = ds.IsSoftwareInstallerLabelScoped(ctx, selfServiceInstallerID, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+	hostsInScope, err = ds.GetIncludedHostIDMapForSoftwareInstaller(ctx, selfServiceInstallerID)
+	require.NoError(t, err)
+	require.Empty(t, hostsInScope)
+
+	// vppApp should not be in scope since it has exclude any label
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vPPApp.VPPAppTeam.AppTeamID, host.ID)
+	require.NoError(t, err)
+	require.False(t, scoped)
+	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vPPApp.VPPAppTeam.AppTeamID)
+	require.NoError(t, err)
+	require.Empty(t, hostsInScope)
+
+	// both apps are out of scope so we should get an empty list
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 0)
 }
 
 func testDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
