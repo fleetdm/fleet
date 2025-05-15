@@ -3876,7 +3876,7 @@ Notifies the server about an agent error, resulting in two outcomes:
       "2267a440-4cfb-48af-804b-d52224a05e1b"
     ],
     "run_setup_experience": true,
-    "run_disk_encryption_escrow": true,
+    "run_disk_encryption_escrow": true
   },
   "update_channels": {
     "orbit": "stable",
