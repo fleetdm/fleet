@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -910,10 +911,18 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 	}
 
 	var baseMetricV2 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV2
-	for _, cvssMetricV2 := range cve.Metrics.CVSSMetricV2 {
-		if cvssMetricV2.Type != "Primary" {
-			continue
-		}
+
+	if len(cve.Metrics.CVSSMetricV2) > 0 {
+		slices.SortFunc(cve.Metrics.CVSSMetricV2, func(a nvdapi.CVSSMetricV2, b nvdapi.CVSSMetricV2) int {
+			if a.Type == "Primary" && b.Type != "Primary" {
+				return -1
+			} else if a.Type != "Primary" && b.Type == "Primary" {
+				return 1
+			}
+
+			return 0
+		})
+		cvssMetricV2 := cve.Metrics.CVSSMetricV2[0]
 		baseMetricV2 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV2{
 			AcInsufInfo: *cvssMetricV2.ACInsufInfo,
 			CVSSV2: &schema.CVSSV20{
@@ -948,10 +957,18 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 	}
 
 	var baseMetricV3 *schema.NVDCVEFeedJSON10DefImpactBaseMetricV3
-	for _, cvssMetricV30 := range cve.Metrics.CVSSMetricV30 {
-		if cvssMetricV30.Type != "Primary" {
-			continue
-		}
+	if len(cve.Metrics.CVSSMetricV30) > 0 {
+		slices.SortFunc(cve.Metrics.CVSSMetricV30, func(a nvdapi.CVSSMetricV30, b nvdapi.CVSSMetricV30) int {
+			if a.Type == "Primary" && b.Type != "Primary" {
+				return -1
+			} else if a.Type != "Primary" && b.Type == "Primary" {
+				return 1
+			}
+
+			return 0
+		})
+
+		cvssMetricV30 := cve.Metrics.CVSSMetricV30[0]
 		baseMetricV3 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV3{
 			CVSSV3: &schema.CVSSV30{
 				AttackComplexity:              derefPtr(cvssMetricV30.CVSSData.AttackComplexity),
@@ -990,10 +1007,18 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 		}
 	}
 	// Use CVSSMetricV31 if available (override CVSSMetricV30)
-	for _, cvssMetricV31 := range cve.Metrics.CVSSMetricV31 {
-		if cvssMetricV31.Type != "Primary" {
-			continue
-		}
+	if len(cve.Metrics.CVSSMetricV31) > 0 {
+		slices.SortFunc(cve.Metrics.CVSSMetricV31, func(a nvdapi.CVSSMetricV31, b nvdapi.CVSSMetricV31) int {
+			if a.Type == "Primary" && b.Type != "Primary" {
+				return -1
+			} else if a.Type != "Primary" && b.Type == "Primary" {
+				return 1
+			}
+
+			return 0
+		})
+
+		cvssMetricV31 := cve.Metrics.CVSSMetricV31[0]
 		baseMetricV3 = &schema.NVDCVEFeedJSON10DefImpactBaseMetricV3{
 			CVSSV3: &schema.CVSSV30{
 				AttackComplexity:              derefPtr(cvssMetricV31.CVSSData.AttackComplexity),
