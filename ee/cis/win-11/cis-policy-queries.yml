@@ -9539,6 +9539,34 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure the transmission of the user's password in the content of MPR notifications sent by winlogon.' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether winlogon includes a user's password in the content
+    of Multiple Provider Router (MPR) notifications. MPR handles communication between
+    the Windows operating system and the installed network providers. MPR checks the
+    registry to determine which providers are installed on the system and the order they are
+    cycled through. The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Logon Options\Configure the transmission of the user's password in the content of MPR notifications sent by winlogon.'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template WinLogon.admx/adml that is included with the Microsoft Windows 11 Release
+    22H2 Administrative Templates v1.0 (or newer).
+    Note #2: This setting was initially released with the Windows 11 Release 22H2
+    Administrative Templates, named Enable MPR notifications for the system. It was
+    renamed starting with the Windows 11 Release 24H2 Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\EnableMPR' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Sign-in and lock last interactive user automatically after a restart' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -9933,7 +9961,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableAppInstaller' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  tags: compliance, CIS, CIS_Level2, CIS_group_policy_template_required
   contributors: DefensiveDepth
 ---
 apiVersion: v1
