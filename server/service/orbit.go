@@ -1091,55 +1091,6 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-// Delete Orbit LUKS (Linux disk encryption) data
-/////////////////////////////////////////////////////////////////////////////////
-
-type orbitDeleteLUKSRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-	KeySlot      uint   `json:"key_slot"`
-}
-
-// interface implementation required by the OrbitClient
-func (r *orbitDeleteLUKSRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
-// interface implementation required by orbit authentication
-func (r *orbitDeleteLUKSRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type orbitDeleteLUKSResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r orbitDeleteLUKSResponse) Error() error { return r.Err }
-func (r orbitDeleteLUKSResponse) Status() int  { return http.StatusNoContent }
-
-// deleteOrbitLUKSEndpoint actioned by the orbit host if it detects that the escrowed LUKS key
-// is no longer valid.
-func deleteOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*orbitDeleteLUKSRequest)
-
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return orbitDeleteLUKSResponse{Err: newOsqueryError("internal error: missing host from request context")}, nil
-	}
-
-	if err := svc.DeleteLUKSData(ctx, host.ID, req.KeySlot); err != nil {
-		return orbitDeleteLUKSResponse{Err: newOsqueryError("internal error: could not delete escrowed key")}, nil
-	}
-
-	return orbitDeleteLUKSResponse{}, nil
-}
-
-func (svc *Service) DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error {
-	// this is not a user-authenticated endpoint
-	svc.authz.SkipAuthorization(ctx)
-	return svc.ds.DeleteLUKSData(ctx, hostID, keySlot)
-}
-
-/////////////////////////////////////////////////////////////////////////////////
 // Post Orbit LUKS (Linux disk encryption) data
 /////////////////////////////////////////////////////////////////////////////////
 
