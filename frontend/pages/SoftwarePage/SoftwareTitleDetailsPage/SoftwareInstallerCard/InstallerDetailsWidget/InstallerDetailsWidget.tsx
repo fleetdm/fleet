@@ -120,7 +120,7 @@ const InstallerDetailsWidget = ({
               showArrow
               underline={false}
             >
-              {sha256.slice(0, 6)}&hellip;
+              {sha256.slice(0, 7)}&hellip;
             </TooltipWrapper>
             <div className={`${baseClass}__sha-copy-button`}>
               <Button variant="icon" iconStroke onClick={onCopySha256}>
