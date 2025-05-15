@@ -3350,10 +3350,6 @@ func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
 		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
 	}
 
-	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint, err error) {
-		return nil, nil, nil
-	}
-
 	ctx = hostctx.NewContext(ctx, host)
 
 	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
