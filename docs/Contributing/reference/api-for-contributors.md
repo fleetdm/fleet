@@ -3644,7 +3644,6 @@ Notifies the server about an agent error, resulting in two outcomes:
 ## Orbit-authenticated routes
 
 - [Escrow LUKS data](#escrow-luks-data)
-- [Delete escrowed LUKS data](#delete-escrowed-luks-data)
 - [Get the status of a device in the setup experience](#get-the-status-of-a-device-in-the-setup-experience)
 - [Set or update device token](#set-or-update-device-token)
 - [Get orbit script](#get-orbit-script)
@@ -3684,37 +3683,6 @@ Notifies the server about an agent error, resulting in two outcomes:
   "salt": "d34db33f",
   "key_slot": 1,
   "client_error": ""
-}
-```
-
-##### Default response
-
-`Status: 204`
-
----
-
-### Delete escrowed LUKS data
-`DELETE /api/fleet/orbit/luks_data`
-
-Use by Orbit to notify Fleet server that the escrowed key is no longer valid and should be deleted
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| orbit_node_key | string | body | The Orbit node key for authentication. |
-| key_slot | int | body | The LUKS key slot ID corresponding to the provided passphrase |
-
-##### Example
-
-`DELETE /api/v1/fleet/orbit/luks_data`
-
-##### Request body
-
-```json
-{
-  "orbit_node_key":"FbvSsWfTRwXEecUlCBTLmBcjGFAdzqd/",
-  "key_slot": 1,
 }
 ```
 
@@ -3909,8 +3877,6 @@ Use by Orbit to notify Fleet server that the escrowed key is no longer valid and
     ],
     "run_setup_experience": true,
     "run_disk_encryption_escrow": true,
-    "escrowed_key_salt": "d34db33f",
-    "escrowed_key_slot": 1
   },
   "update_channels": {
     "orbit": "stable",
