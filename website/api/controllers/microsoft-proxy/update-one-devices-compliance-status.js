@@ -123,9 +123,10 @@ module.exports = {
       return new Error({error: `An error occurred when sending a request to sync a device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
 
+    let parsedComplianceUpdateResponse = JSON.parse(complianceUpdateResponse);
 
     return {
-      message_id: complianceUpdateResponse.MessageId,// eslint-disable-line camelcase
+      message_id: parsedComplianceUpdateResponse.MessageId,// eslint-disable-line camelcase
     };
   }
 
