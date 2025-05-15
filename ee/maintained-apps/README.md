@@ -26,7 +26,7 @@
    }
    ```
 5. Open a PR to the `fleet` repository with the new app file. This will trigger a CI job which will automatically update your PR with the required output files. These files contain important data such as the install and uninstall scripts for the app.
-6. A Fleetie will test and review the PR. Once approved and merged, the app should appear in the Fleet-maintained apps section when adding new software to Fleet.
+6. The [#g-software product group](https://fleetdm.com/handbook/company/product-groups#software-group) will review the PR and test the app. Once approved and merged, the app should appear in the Fleet-maintained apps section when adding new software to Fleet.
 
 ### Input file schema
 

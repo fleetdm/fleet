@@ -19,7 +19,6 @@ package file
 // https://github.com/sassoftware/relic
 
 import (
-	"bytes"
 	"compress/bzip2"
 	"compress/zlib"
 	"crypto"
@@ -173,35 +172,40 @@ type distributionApp struct {
 	ID string `xml:"id,attr"`
 }
 
+// XARHasDistribution checks if XAR archive has a Distribution file
+func XARHasDistribution(r io.Reader) (bool, error) {
+	hdr, err := readXARFileHeader(r)
+	if err != nil {
+		return false, err
+	}
+	root, err := decodeXARTOCData(r, hdr)
+	if err != nil {
+		return false, err
+	}
+	for _, f := range root.TOC.Files {
+		if f.Name == "Distribution" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // ExtractXARMetadata extracts the name and version metadata from a .pkg file
 // in the XAR format.
 func ExtractXARMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
-	var hdr xarHeader
-
 	h := sha256.New()
 	size, _ := io.Copy(h, tfr) // writes to a hash cannot fail
-
 	if err := tfr.Rewind(); err != nil {
 		return nil, fmt.Errorf("rewind reader: %w", err)
 	}
 
-	// read the file header
-	if err := binary.Read(tfr, binary.BigEndian, &hdr); err != nil {
-		return nil, fmt.Errorf("decode xar header: %w", err)
-	}
-
-	zr, err := zlib.NewReader(io.LimitReader(tfr, hdr.CompressedSize))
+	hdr, err := readXARFileHeader(tfr)
 	if err != nil {
-		return nil, fmt.Errorf("create zlib reader: %w", err)
+		return nil, err
 	}
-	defer zr.Close()
-
-	// decode the TOC data (in XML inside the zlib-compressed data)
-	var root xmlXar
-	decoder := xml.NewDecoder(zr)
-	decoder.Strict = false
-	if err := decoder.Decode(&root); err != nil {
-		return nil, fmt.Errorf("decode xar xml: %w", err)
+	root, err := decodeXARTOCData(tfr, hdr)
+	if err != nil {
+		return nil, err
 	}
 
 	// look for the distribution file, with the metadata information
@@ -243,6 +247,31 @@ func ExtractXARMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	}
 
 	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
+}
+
+func readXARFileHeader(r io.Reader) (xarHeader, error) {
+	var hdr xarHeader
+	if err := binary.Read(r, binary.BigEndian, &hdr); err != nil {
+		return hdr, fmt.Errorf("decode xar header: %w", err)
+	}
+	return hdr, nil
+}
+
+func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
+	var root xmlXar
+	zr, err := zlib.NewReader(io.LimitReader(r, hdr.CompressedSize))
+	if err != nil {
+		return root, fmt.Errorf("create zlib reader: %w", err)
+	}
+	defer zr.Close()
+
+	// decode the TOC data (in XML inside the zlib-compressed data)
+	decoder := xml.NewDecoder(zr)
+	decoder.Strict = false
+	if err := decoder.Decode(&root); err != nil {
+		return root, fmt.Errorf("decode xar xml: %w", err)
+	}
+	return root, nil
 }
 
 func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, f *xmlFile) ([]byte, error) {
@@ -544,13 +573,7 @@ func isValidAppFilePath(input string) (string, bool) {
 //
 // - If the file is not xar, it returns a ErrInvalidType error
 // - If the file is not signed, it returns a ErrNotSigned error
-func CheckPKGSignature(pkg io.Reader) error {
-	buff := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buff, pkg); err != nil {
-		return err
-	}
-	r := bytes.NewReader(buff.Bytes())
-
+func CheckPKGSignature(r io.ReaderAt) error {
 	hdr, hashType, err := parseHeader(io.NewSectionReader(r, 0, 28))
 	if err != nil {
 		return err

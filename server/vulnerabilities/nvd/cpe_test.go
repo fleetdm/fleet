@@ -1426,6 +1426,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:gitkraken:gitlens:14.9.0:*:*:*:*:visual_studio_code:*:*",
 		},
+		{ // skipped because the Docker DX VSCode extension has no vulnerabilities, so a CPE hasn't been built
+			software: fleet.Software{
+				Name:    "docker.docker",
+				Source:  "vscode_extensions",
+				Version: "0.6.0",
+				Vendor:  "Docker",
+			},
+			cpe: ``,
+		},
 		{
 			software: fleet.Software{
 				Name:    "ms-python.python",

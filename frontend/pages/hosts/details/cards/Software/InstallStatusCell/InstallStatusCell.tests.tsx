@@ -28,7 +28,7 @@ describe("InstallStatusCell - component", () => {
     expect(screen.getByText("Installed")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Installed"));
-    expect(screen.getByText(/Software is installed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Software was installed/i)).toBeInTheDocument();
   });
 
   it("renders 'Installing (pending)' status with tooltip", async () => {

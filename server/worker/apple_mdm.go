@@ -245,17 +245,20 @@ func (a *AppleMDM) getAppConfig(ctx context.Context, appConfig *fleet.AppConfig)
 }
 
 func (a *AppleMDM) getIdPDisplayName(ctx context.Context, acct *fleet.MDMIdPAccount, args appleMDMArgs) (string, error) {
-	if acct.Fullname != "" {
+	if acct.Fullname != "" && !strings.Contains(acct.Fullname, "@") {
 		return acct.Fullname, nil
 	}
 
-	// If full name is empty, see if it exists via SCIM integration
+	// If full name is empty or appears to be an email, see if it exists via SCIM integration
 	scimUser, err := a.Datastore.ScimUserByUserNameOrEmail(ctx, acct.Username, acct.Email)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
 		return "", ctxerr.Wrap(ctx, err, "getting scim user details for enroll reference %s and host_uuid %s", acct.UUID, args.HostUUID)
 	case scimUser == nil:
-		return "", nil
+		return acct.Fullname, nil
+	}
+	if scimUser.DisplayName() == "" {
+		return acct.Fullname, nil
 	}
 	return scimUser.DisplayName(), nil
 }

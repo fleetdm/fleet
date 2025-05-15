@@ -22,7 +22,7 @@
       - 💭 Manage and optimize scalable distributed systems in the cloud.
       - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
       - 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-      - 🌟 Contribute to the overall success of the [MDM](https://fleetdm.com/handbook/company/product-groups#mdm-group) product group by ensuring users receive valuable new features.
+      - 🌟 Contribute to the overall success of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features .
   experience: |
       - 💭 3-5 years of experience in backend/SaaS development.
       - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
@@ -38,28 +38,6 @@
       - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Cybersecurity or IT background.
-      
-- jobTitle: 🌦️ Customer Support Engineer
-  department: Sales
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  responsibilities: |
-      - 🏋🏻 Leverage technical expertise to assist Customer Success and Engineering to refine Fleet's troubleshooting processes and ensure seamless access to documentation and the Fleet repo.
-      - 🚀 Deploy Fleet on your own in complex environments to gain firsthand insights into the customer experience and proactively identify areas for improvement. 
-      - ⏫ Work hand-in-hand with Customer Success by participating in calls with customers to discuss support issues, diagnose challenges, propose solutions, and drive long-term adoption.
-      - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
-      - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
-      - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
-      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
-  experience: |
-      - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, and MacOS devices. Experience with AWS, SQL, Redis, Terraform, and osquery. 
-      - 💭 IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
-      - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
-      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-      - 💖 An excellent understanding of macOS, Windows, Linux and core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
-      - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus. 
-      - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
 
 - jobTitle: 🌦️ Customer Solutions Architect
@@ -115,25 +93,30 @@
       - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
 
 
-- jobTitle: 🌐 Apprentice
-  department: 🌐 Digital Experience
-  hiringManagerName: Sam Pfluger
-  hiringManagerGithubUsername: sampfluger88
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/sampfluger88/
+- jobTitle: 🚀 Quality Assurance Engineer
+  department: Engineering
+  hiringManagerName: Luke Heath
+  hiringManagerGithubUsername: lukeheath
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/lukeheath/
   responsibilities: |
-      - 👥 Work to own day-to-day AR/AP responsibilities including sending invoices, tracking payments, following up with customers, and ensuring data accuracy.
-      - 🧑‍🔬 Perform processes as described in the [Digital Experience](https://fleetdm.com/handbook/digital-experience) and [Finance](https://fleetdm.com/handbook/finance) handbook pages.
-      - 📖 Maintain and update the structure and content of the company handbook.
-      - 🗣️ Act as secondary/backup point of contact for Fleet to aid in both internal and external initiatives.
-      - 🗓️ Comfort navigating Slack, Salesforce, GitHub, and Google Suite to stay in sync and get work done.
-      - 🧪 Help implement and drive change management for any new or modified processes and tools across the team and/or the organization.
-      - 📈 Collect and report data to help drive business decisions and KPIs.
+      - ⏫ Work closely with CTO to continually improve overall quality assurance efficiency and effectiveness throughout the product design and engineering process.
+      - 🤝 Collaborate with the engineering managers and quality assurance engineers in the [product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups), actively participating in some engineering scrum meetings, sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
+      - 🌟 Contribute to the overall success of all [product groups}(https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features that work as intended.
+      - 🧪 Develop and execute testing plans based on feature specifications, outlining step-by-step actions for each user role to confirm that features function as intended.
+      - 🚀 Perform manual testing of newly developed features on all supported devices, platforms, and browsers, ensuring a seamless user experience.
+      - 🐞 Identify, document, and report any bugs or unusual behavior, creating and assigning bug tickets to the appropriate engineering manager for resolution.
+      - 🔧 Verify that bugs have been resolved after engineers have addressed them, repeating the testing process as needed.
   experience: |
-       - 🏃‍♂️ Strong desire to build a technical and operational-based skill set.
-       - 🚀 Detail-oriented, highly organized, and able to move quickly to solve complex problems using boring solutions.
-       - 🫀 Experience dealing with sensitive personal information of team members and customers.
-       - 🛠️ Strong writing and oral communication, capable of understanding and translating technical concepts and personas.
-       - 🤝 Ability to work in a process-driven team-based environment.
-       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-       - ➕ Bonus: Customer service\support background.
+      - 💭 3-5 years' of experience in a product quality, QA, or testing role.
+      - 💖 Proficient in creating comprehensive testing plans.
+      - ✍️ Experience working with engineering and product teams in an agile environment.
+      - 🎯 Strong attention to detail and ability to identify inconsistencies or deviations from specifications.
+      - 💡 Excellent communication and collaboration skills, with the ability to work closely with engineering and product teams.
+      - 🌐 Experience in manual testing across various devices, platforms, and browsers.
+      - 🏃‍♂️ Familiarity with agile development processes and scrum methodologies.
+      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+      - 🤝 Collaboration: You work best in a participatory, team-based environment.
+      - 🛠️ Technical: You understand the software development processes.
+      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+      - ➕ Bonus: Cybersecurity or IT background.
 

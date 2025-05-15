@@ -30,6 +30,9 @@ import hostCountAPI, {
   IHostsCountQueryKey,
   IHostsCountResponse,
 } from "services/entities/host_count";
+import configProfileAPI, {
+  IGetConfigProfileResponse,
+} from "services/entities/config_profiles";
 
 import {
   getOSVersions,
@@ -80,7 +83,7 @@ import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TableDataError from "components/DataError";
+import DataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import Spinner from "components/Spinner";
@@ -281,6 +284,8 @@ const ManageHostsPage = ({
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
     queryParams?.bootstrap_package;
+  const configProfileStatus = queryParams?.profile_status;
+  const configProfileUUID = queryParams?.profile_uuid;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -368,6 +373,19 @@ const ManageHostsPage = ({
     }
   );
 
+  const {
+    data: configProfile,
+    isLoading: isLoadingConfigProfile,
+    error: errorConfigProfile,
+  } = useQuery<IGetConfigProfileResponse, Error>(
+    ["config-profile", configProfileUUID],
+    () => configProfileAPI.getConfigProfile(configProfileUUID),
+    {
+      enabled: isRouteOk && !!configProfileUUID,
+      // select: (data) => data.policy,
+    }
+  );
+
   const { data: osVersions } = useQuery<
     IOSVersionsResponse,
     Error,
@@ -422,6 +440,8 @@ const ManageHostsPage = ({
         diskEncryptionStatus,
         bootstrapPackageStatus,
         macSettingsStatus,
+        configProfileStatus,
+        configProfileUUID,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -463,6 +483,8 @@ const ManageHostsPage = ({
         diskEncryptionStatus,
         bootstrapPackageStatus,
         macSettingsStatus,
+        configProfileStatus,
+        configProfileUUID,
       },
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),
@@ -502,7 +524,8 @@ const ManageHostsPage = ({
     refetchHostsCountAPI();
   };
 
-  const hasErrors = !!errorHosts || !!errorHostsCount || !!errorPolicy;
+  const hasErrors =
+    !!errorHosts || !!errorHostsCount || !!errorPolicy || !!errorConfigProfile;
 
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
@@ -757,6 +780,22 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleConfigProfileStatusChange = (newStatus: string) => {
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: {
+          ...queryParams,
+          profile_status: newStatus,
+          profile_uuid: configProfileUUID,
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       const path = PATHS.HOST_DETAILS(row.original.id);
@@ -894,6 +933,9 @@ const ManageHostsPage = ({
         newQueryParams[PARAMS.DISK_ENCRYPTION] = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
         newQueryParams.bootstrap_package = bootstrapPackageStatus;
+      } else if (configProfileStatus && configProfileUUID) {
+        newQueryParams.profile_status = configProfileStatus;
+        newQueryParams.profile_uuid = configProfileUUID;
       }
 
       router.replace(
@@ -918,7 +960,6 @@ const ManageHostsPage = ({
       softwareId,
       softwareVersionId,
       softwareTitleId,
-      softwareStatus,
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
@@ -928,13 +969,16 @@ const ManageHostsPage = ({
       osVersionId,
       osName,
       osVersion,
-      router,
-      routeTemplate,
-      routeParams,
+      vulnerability,
       osSettingsStatus,
       diskEncryptionStatus,
       bootstrapPackageStatus,
-      vulnerability,
+      configProfileStatus,
+      configProfileUUID,
+      router,
+      routeTemplate,
+      routeParams,
+      softwareStatus,
     ]
   );
 
@@ -1208,16 +1252,6 @@ const ManageHostsPage = ({
     }
   };
 
-  const renderTeamsFilterDropdown = () => (
-    <TeamsDropdown
-      currentUserTeams={userTeams || []}
-      selectedTeamId={currentTeamId}
-      isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
-      onChange={onTeamChange}
-      includeNoTeams
-    />
-  );
-
   const renderEditColumnsModal = () => {
     if (!config || !currentUser) {
       return null;
@@ -1318,20 +1352,29 @@ const ManageHostsPage = ({
     />
   );
 
+  const renderHeaderContent = () => {
+    if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
+      if (userTeams.length > 1 || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams || []}
+            selectedTeamId={currentTeamId}
+            onChange={onTeamChange}
+            includeNoTeams
+          />
+        );
+      }
+      if (!isOnGlobalTeam && userTeams.length === 1) {
+        return <h1>{userTeams[0].name}</h1>;
+      }
+    }
+    return <h1>Hosts</h1>;
+  };
+
   const renderHeader = () => (
     <div className={`${baseClass}__header`}>
       <div className={`${baseClass}__text`}>
-        <div className={`${baseClass}__title`}>
-          {isFreeTier && <h1>Hosts</h1>}
-          {isPremiumTier &&
-            userTeams &&
-            (userTeams.length > 1 || isOnGlobalTeam) &&
-            renderTeamsFilterDropdown()}
-          {isPremiumTier &&
-            !isOnGlobalTeam &&
-            userTeams &&
-            userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
-        </div>
+        <div className={`${baseClass}__title`}>{renderHeaderContent()}</div>
       </div>
     </div>
   );
@@ -1485,7 +1528,7 @@ const ManageHostsPage = ({
     }
 
     if (hasErrors) {
-      return <TableDataError />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
     if (maybeEmptyHosts) {
       const emptyState = () => {
@@ -1611,7 +1654,12 @@ const ManageHostsPage = ({
         resultsTitle="hosts"
         columnConfigs={tableColumns}
         data={hostsData?.hosts || []}
-        isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
+        isLoading={
+          isLoadingHosts ||
+          isLoadingHostsCount ||
+          isLoadingPolicy ||
+          isLoadingConfigProfile
+        }
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
@@ -1747,6 +1795,9 @@ const ManageHostsPage = ({
               diskEncryptionStatus,
               bootstrapPackageStatus,
               vulnerability,
+              configProfileStatus,
+              configProfileUUID,
+              configProfile,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}
@@ -1764,6 +1815,7 @@ const ManageHostsPage = ({
             onChangeSoftwareInstallStatusFilter={
               handleSoftwareInstallStatusChange
             }
+            onChangeConfigProfileStatusFilter={handleConfigProfileStatusChange}
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
           />
@@ -1779,7 +1831,7 @@ const ManageHostsPage = ({
       {showAddHostsModal && renderAddHostsModal()}
       {showTransferHostModal && renderTransferHostModal()}
       {showDeleteHostModal && renderDeleteHostModal()}
-      {showRunScriptBatchModal && currentTeamId && (
+      {showRunScriptBatchModal && currentTeamId !== undefined && (
         <RunScriptBatchModal
           selectedHostIds={selectedHostIds}
           onCancel={toggleRunScriptBatchModal}

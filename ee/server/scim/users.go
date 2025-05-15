@@ -406,9 +406,7 @@ func (u *UserHandler) Delete(r *http.Request, id string) error {
 	return nil
 }
 
-// Patch
-// Okta only requires patching the "active" attribute:
-// https://developer.okta.com/docs/api/openapi/okta-scim/guides/scim-20/#update-a-specific-user-patch
+// Patch - https://datatracker.ietf.org/doc/html/rfc7644#section-3.5.2
 func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
 	idUint, err := extractUserIDFromValue(id)
 	if err != nil {
@@ -426,12 +424,17 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	}
 
 	for _, op := range operations {
-		if op.Op != "replace" {
+		if op.Op != scim.PatchOperationAdd && op.Op != scim.PatchOperationReplace && op.Op != scim.PatchOperationRemove {
 			level.Info(u.logger).Log("msg", "unsupported patch operation", "op", op.Op)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 		switch {
+		// If path is not specified, we look for the path in the value attribute.
 		case op.Path == nil:
+			if op.Op == scim.PatchOperationRemove {
+				level.Info(u.logger).Log("msg", "the 'path' attribute is REQUIRED for 'remove' operations", "op", op.Op)
+				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
 			newValues, ok := op.Value.(map[string]interface{})
 			if !ok {
 				level.Info(u.logger).Log("msg", "unsupported patch value", "value", op.Value)
@@ -439,27 +442,28 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			}
 			for k, v := range newValues {
 				switch k {
+				case externalIdAttr:
+					err = u.patchExternalId(op.Op, v, user)
+					if err != nil {
+						return scim.Resource{}, err
+					}
 				case userNameAttr:
-					err = u.patchUserName(v, user)
+					err = u.patchUserName(op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
 				case activeAttr:
-					if v == nil {
-						user.Active = nil
-						continue
-					}
-					err = u.patchActive(v, user)
+					err = u.patchActive(op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
 				case nameAttr + "." + givenNameAttr:
-					err = u.patchGivenName(v, user)
+					err = u.patchGivenName(op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
 				case nameAttr + "." + familyNameAttr:
-					err = u.patchFamilyName(v, user)
+					err = u.patchFamilyName(op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
@@ -478,27 +482,28 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 				}
 			}
+		case op.Path.String() == externalIdAttr:
+			err = u.patchExternalId(op.Op, op.Value, user)
+			if err != nil {
+				return scim.Resource{}, err
+			}
 		case op.Path.String() == userNameAttr:
-			err = u.patchUserName(op.Value, user)
+			err = u.patchUserName(op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
 		case op.Path.String() == activeAttr:
-			if op.Value == nil {
-				user.Active = nil
-				continue
-			}
-			err = u.patchActive(op.Value, user)
+			err = u.patchActive(op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
 		case op.Path.String() == nameAttr+"."+givenNameAttr:
-			err = u.patchGivenName(op.Value, user)
+			err = u.patchGivenName(op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
 		case op.Path.String() == nameAttr+"."+familyNameAttr:
-			err = u.patchFamilyName(op.Value, user)
+			err = u.patchFamilyName(op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
@@ -513,83 +518,9 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 				return scim.Resource{}, err
 			}
 		case op.Path.AttributePath.String() == emailsAttr:
-			emailType, err := u.getEmailType(op)
+			err = u.patchEmailsWithPathFiltering(op, user)
 			if err != nil {
 				return scim.Resource{}, err
-			}
-			emailFound := false
-			var emailIndex int
-			for i, email := range user.Emails {
-				if email.Type != nil && *email.Type == emailType {
-					emailIndex = i
-					emailFound = true
-					break
-				}
-			}
-			if !emailFound {
-				level.Info(u.logger).Log("msg", "email not found", "email_type", emailType)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-			}
-			if op.Path.SubAttribute == nil {
-				// The value for emails comes in as an array.
-				userEmails, ok := op.Value.([]interface{})
-				if !ok {
-					level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
-					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-				}
-				if len(userEmails) == 0 {
-					user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex)
-					continue
-				}
-				if len(userEmails) != 1 {
-					level.Info(u.logger).Log("msg", "only 1 email should be present for replacement", "emails", userEmails)
-					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
-				}
-				userEmail, err := u.extractEmail(userEmails[0], op)
-				if err != nil {
-					return scim.Resource{}, err
-				}
-				// If setting primary to true, then unset true from other emails
-				if userEmail.Primary != nil && *userEmail.Primary {
-					clearPrimaryFlagFromEmails(user)
-				}
-				user.Emails[emailIndex] = userEmail
-				continue
-			}
-			switch *op.Path.SubAttribute {
-			case primaryAttr:
-				if op.Value == nil {
-					user.Emails[emailIndex].Primary = nil
-					continue
-				}
-				primary, err := getConcreteType[bool](u, op.Value, primaryAttr)
-				if err != nil {
-					return scim.Resource{}, err
-				}
-				// If setting primary to true, then unset true from other emails
-				if primary {
-					clearPrimaryFlagFromEmails(user)
-				}
-				user.Emails[emailIndex].Primary = &primary
-			case valueAttr:
-				value, err := getConcreteType[string](u, op.Value, valueAttr)
-				if err != nil {
-					return scim.Resource{}, err
-				}
-				user.Emails[emailIndex].Email = value
-			case typeAttr:
-				if op.Value == nil {
-					user.Emails[emailIndex].Type = nil
-					continue
-				}
-				newEmailType, err := getConcreteType[string](u, op.Value, typeAttr)
-				if err != nil {
-					return scim.Resource{}, err
-				}
-				user.Emails[emailIndex].Type = &newEmailType
-			default:
-				level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
-				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 		default:
 			level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
@@ -610,6 +541,146 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	}
 
 	return createUserResource(user), nil
+}
+
+func (u *UserHandler) patchEmailsWithPathFiltering(op scim.PatchOperation, user *fleet.ScimUser) error {
+	emailType, err := u.getEmailType(op)
+	if err != nil {
+		return err
+	}
+	emailFound := false
+	var emailIndex int
+	for i, email := range user.Emails {
+		if email.Type != nil && *email.Type == emailType {
+			emailIndex = i
+			emailFound = true
+			break
+		}
+	}
+	if !emailFound && op.Op != scim.PatchOperationAdd {
+		level.Info(u.logger).Log("msg", "email not found", "email_type", emailType, "op", fmt.Sprintf("%v", op))
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+	if op.Path.SubAttribute == nil {
+		if op.Op == scim.PatchOperationRemove {
+			user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex+1)
+			return nil
+		}
+
+		// For add and replace operations, we need to extract the emails
+		var emailsList []interface{}
+		// Handle different value formats
+		switch val := op.Value.(type) {
+		case []interface{}:
+			// Direct array of members
+			emailsList = val
+		case map[string]interface{}:
+			// Single member as a map
+			emailsList = []interface{}{val}
+		default:
+			level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
+			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		}
+
+		switch op.Op {
+		case scim.PatchOperationReplace:
+			if len(emailsList) == 0 {
+				user.Emails = slices.Delete(user.Emails, emailIndex, emailIndex+1)
+				return nil
+			}
+			if len(emailsList) != 1 {
+				level.Info(u.logger).Log("msg", "only 1 email should be present for replacement", "emails", emailsList)
+				return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			userEmail, err := u.extractEmail(emailsList[0], op)
+			if err != nil {
+				return err
+			}
+			// If setting primary to true, then unset true from other emails
+			if userEmail.Primary != nil && *userEmail.Primary {
+				clearPrimaryFlagFromEmails(user)
+			}
+			user.Emails[emailIndex] = userEmail
+		case scim.PatchOperationAdd:
+			if len(emailsList) == 0 {
+				level.Info(u.logger).Log("msg", "no emails provided to add", "emails", emailsList)
+				return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			}
+			var newEmails []fleet.ScimUserEmail
+			for e := range emailsList {
+				userEmail, err := u.extractEmail(emailsList[e], op)
+				if err != nil {
+					return err
+				}
+				userEmail.Type = &emailType
+				newEmails = append(newEmails, userEmail)
+			}
+			primaryExists, err := u.checkEmailPrimary(newEmails)
+			if err != nil {
+				return err
+			}
+			if primaryExists {
+				clearPrimaryFlagFromEmails(user)
+			}
+			user.Emails = append(user.Emails, newEmails...)
+		}
+		return nil
+	}
+	if op.Op == scim.PatchOperationAdd && !emailFound {
+		user.Emails = append(user.Emails, fleet.ScimUserEmail{
+			Type: ptr.String(emailType),
+		})
+		emailIndex = len(user.Emails) - 1
+	}
+	switch *op.Path.SubAttribute {
+	case primaryAttr:
+		if op.Op == scim.PatchOperationRemove {
+			user.Emails[emailIndex].Primary = nil
+			return nil
+		}
+		if op.Value == nil {
+			user.Emails[emailIndex].Primary = nil
+			return nil
+		}
+		primary, err := getConcreteType[bool](u, op.Value, primaryAttr)
+		if err != nil {
+			return err
+		}
+		// If setting primary to true, then unset true from other emails
+		if primary {
+			clearPrimaryFlagFromEmails(user)
+		}
+		user.Emails[emailIndex].Primary = &primary
+	case valueAttr:
+		if op.Op == scim.PatchOperationRemove {
+			// The operation of removing an email value doesn't make sense, but we allow it.
+			user.Emails[emailIndex].Email = ""
+			return nil
+		}
+		value, err := getConcreteType[string](u, op.Value, valueAttr)
+		if err != nil {
+			return err
+		}
+		user.Emails[emailIndex].Email = value
+	case typeAttr:
+		if op.Op == scim.PatchOperationRemove {
+			user.Emails[emailIndex].Type = nil
+			return nil
+		}
+		if op.Value == nil {
+			user.Emails[emailIndex].Type = nil
+			return nil
+		}
+		newEmailType, err := getConcreteType[string](u, op.Value, typeAttr)
+		if err != nil {
+			return err
+		}
+		user.Emails[emailIndex].Type = &newEmailType
+	default:
+		level.Info(u.logger).Log("msg", "unsupported patch path", "path", op.Path)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
+	return nil
 }
 
 func (u *UserHandler) getEmailType(op scim.PatchOperation) (string, error) {
@@ -641,7 +712,11 @@ func getConcreteType[T string | bool](u *UserHandler, v interface{}, name string
 	return concreteType, nil
 }
 
-func (u *UserHandler) patchFamilyName(v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchFamilyName(op string, v interface{}, user *fleet.ScimUser) error {
+	if op == scim.PatchOperationRemove {
+		level.Info(u.logger).Log("msg", "cannot remove required attribute", "attribute", nameAttr+"."+familyNameAttr)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
 	familyName, err := getConcreteType[string](u, v, nameAttr+"."+familyNameAttr)
 	if err != nil {
 		return err
@@ -650,7 +725,11 @@ func (u *UserHandler) patchFamilyName(v interface{}, user *fleet.ScimUser) error
 	return nil
 }
 
-func (u *UserHandler) patchGivenName(v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchGivenName(op string, v interface{}, user *fleet.ScimUser) error {
+	if op == scim.PatchOperationRemove {
+		level.Info(u.logger).Log("msg", "cannot remove required attribute", "attribute", nameAttr+"."+givenNameAttr)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
 	givenName, err := getConcreteType[string](u, v, nameAttr+"."+givenNameAttr)
 	if err != nil {
 		return err
@@ -659,7 +738,11 @@ func (u *UserHandler) patchGivenName(v interface{}, user *fleet.ScimUser) error 
 	return nil
 }
 
-func (u *UserHandler) patchActive(v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchActive(op string, v interface{}, user *fleet.ScimUser) error {
+	if op == scim.PatchOperationRemove || v == nil {
+		user.Active = nil
+		return nil
+	}
 	active, err := getConcreteType[bool](u, v, activeAttr)
 	if err != nil {
 		return err
@@ -668,7 +751,24 @@ func (u *UserHandler) patchActive(v interface{}, user *fleet.ScimUser) error {
 	return nil
 }
 
-func (u *UserHandler) patchUserName(v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchExternalId(op string, v interface{}, user *fleet.ScimUser) error {
+	if op == scim.PatchOperationRemove || v == nil {
+		user.ExternalID = nil
+		return nil
+	}
+	externalId, err := getConcreteType[string](u, v, externalIdAttr)
+	if err != nil {
+		return err
+	}
+	user.ExternalID = ptr.String(externalId)
+	return nil
+}
+
+func (u *UserHandler) patchUserName(op string, v interface{}, user *fleet.ScimUser) error {
+	if op == scim.PatchOperationRemove {
+		level.Info(u.logger).Log("msg", "cannot remove required attribute", "attribute", userNameAttr)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
 	userName, err := getConcreteType[string](u, v, userNameAttr)
 	if err != nil {
 		return err
@@ -690,24 +790,50 @@ func clearPrimaryFlagFromEmails(user *fleet.ScimUser) {
 }
 
 func (u *UserHandler) patchEmails(v interface{}, op scim.PatchOperation, user *fleet.ScimUser) error {
-	emailsValue, ok := v.([]interface{})
-	if !ok {
+	if op.Op == scim.PatchOperationRemove {
+		user.Emails = nil
+		return nil
+	}
+
+	// For add and replace operations, we need to extract the emails
+	var emailsList []interface{}
+	// Handle different value formats
+	switch val := v.(type) {
+	case []interface{}:
+		// Direct array of members
+		emailsList = val
+	case map[string]interface{}:
+		// Single member as a map
+		emailsList = []interface{}{val}
+	default:
 		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
+
+	if op.Op == scim.PatchOperationAdd && len(emailsList) == 0 {
+		level.Info(u.logger).Log("msg", "no emails provided to add", "emails", emailsList)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
 	// Convert the emails to the expected format
-	userEmails := make([]fleet.ScimUserEmail, 0, len(emailsValue))
-	for _, emailIntf := range emailsValue {
+	userEmails := make([]fleet.ScimUserEmail, 0, len(emailsList))
+	for _, emailIntf := range emailsList {
 		userEmail, err := u.extractEmail(emailIntf, op)
 		if err != nil {
 			return err
 		}
 		userEmails = append(userEmails, userEmail)
 	}
-
-	err := u.checkEmailPrimary(userEmails)
+	primaryExists, err := u.checkEmailPrimary(userEmails)
 	if err != nil {
 		return err
+	}
+
+	if op.Op == scim.PatchOperationAdd {
+		if primaryExists {
+			// Clear the primary flag from current emails because we are merging the two email lists and a new email has that flag.
+			clearPrimaryFlagFromEmails(user)
+		}
+		userEmails = append(user.Emails, userEmails...)
 	}
 
 	user.Emails = userEmails
@@ -715,18 +841,18 @@ func (u *UserHandler) patchEmails(v interface{}, op scim.PatchOperation, user *f
 }
 
 // checkEmailPrimary ensures at most one email is marked as primary
-func (u *UserHandler) checkEmailPrimary(userEmails []fleet.ScimUserEmail) error {
+func (u *UserHandler) checkEmailPrimary(userEmails []fleet.ScimUserEmail) (bool, error) {
 	primaryEmailCount := 0
 	for _, email := range userEmails {
 		if email.Primary != nil && *email.Primary {
 			primaryEmailCount++
 			if primaryEmailCount > 1 {
 				level.Info(u.logger).Log("msg", "multiple primary emails found")
-				return errors.ScimErrorBadParams([]string{"Only one email can be marked as primary"})
+				return false, errors.ScimErrorBadParams([]string{"Only one email can be marked as primary"})
 			}
 		}
 	}
-	return nil
+	return primaryEmailCount > 0, nil
 }
 
 func (u *UserHandler) extractEmail(emailIntf interface{}, op scim.PatchOperation) (fleet.ScimUserEmail, error) {
@@ -770,6 +896,10 @@ func (u *UserHandler) extractEmail(emailIntf interface{}, op scim.PatchOperation
 }
 
 func (u *UserHandler) patchName(v interface{}, op scim.PatchOperation, user *fleet.ScimUser) error {
+	if op.Op == scim.PatchOperationRemove {
+		level.Info(u.logger).Log("msg", "cannot remove required attribute", "attribute", nameAttr)
+		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+	}
 	name, ok := v.(map[string]interface{})
 	if !ok {
 		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr), "value", op.Value)

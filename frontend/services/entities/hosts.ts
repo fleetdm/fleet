@@ -90,6 +90,8 @@ export interface ILoadHostsOptions {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
+  configProfileStatus?: string;
+  configProfileUUID?: string;
 }
 
 export interface IExportHostsOptions {
@@ -411,6 +413,8 @@ export default {
     osSettings,
     diskEncryptionStatus,
     bootstrapPackageStatus,
+    configProfileStatus,
+    configProfileUUID,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -449,6 +453,8 @@ export default {
         diskEncryptionStatus,
         osSettings,
         bootstrapPackageStatus,
+        configProfileStatus,
+        configProfileUUID,
       }),
     };
 

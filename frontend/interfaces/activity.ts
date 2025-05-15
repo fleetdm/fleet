@@ -20,10 +20,11 @@ export enum ActivityType {
   CreatedTeam = "created_team",
   DeletedTeam = "deleted_team",
   LiveQuery = "live_query",
-  AppliedSpecPack = "applied_spec_pack",
-  AppliedSpecPolicy = "applied_spec_policy",
-  AppliedSpecSavedQuery = "applied_spec_saved_query",
-  AppliedSpecTeam = "applied_spec_team",
+  AppliedSpecPack = "applied_spec_pack", // fleetctl
+  AppliedSpecPolicy = "applied_spec_policy", // fleetctl
+  AppliedSpecSavedQuery = "applied_spec_saved_query", // fleetctl
+  AppliedSpecSoftware = "applied_spec_software", // fleetctl
+  AppliedSpecTeam = "applied_spec_team", // fleetctl
   EditedAgentOptions = "edited_agent_options",
   UserAddedBySSO = "user_added_by_sso",
   UserLoggedIn = "user_logged_in",
@@ -94,6 +95,7 @@ export enum ActivityType {
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
+  ResentConfigurationProfileBatch = "resent_configuration_profile_batch",
   AddedSoftware = "added_software",
   EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",

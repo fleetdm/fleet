@@ -654,6 +654,7 @@ SELECT
   si.team_id,
   si.title_id,
   si.storage_id,
+  si.fleet_maintained_app_id,
   si.package_ids,
   si.filename,
   si.extension,
@@ -1043,10 +1044,8 @@ VALUES
 	}
 
 	var userID *uint
-	fleetInitiated := true
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
-		fleetInitiated = false
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1054,7 +1053,7 @@ VALUES
 			hostID,
 			0, // Uninstalls are never used in setup experience, so always default priority
 			userID,
-			fleetInitiated,
+			false,
 			executionID,
 			installerDetails.TitleName,
 			userID,
@@ -1653,11 +1652,12 @@ INSERT INTO software_installers (
 	user_email,
 	url,
 	package_ids,
-	install_during_setup
+	install_during_setup,
+	fleet_maintained_app_id
 ) VALUES (
   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE unique_identifier = ? AND source = ? AND browser = ''),
-  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false)
+  ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, COALESCE(?, false), ?
 )
 ON DUPLICATE KEY UPDATE
   install_script_content_id = VALUES(install_script_content_id),
@@ -1724,6 +1724,31 @@ FROM
 	software_installer_labels
 WHERE
 	software_installer_id = ?
+`
+
+	const deleteAllInstallerCategories = `
+DELETE FROM 
+	software_installer_software_categories
+WHERE
+	software_installer_id = ?
+`
+
+	const deleteInstallerCategoriesNotInList = `
+DELETE FROM
+	software_installer_software_categories
+WHERE
+	software_installer_id = ? AND
+	software_category_id NOT IN (?)
+`
+
+	const upsertInstallerCategories = `
+INSERT IGNORE INTO
+	software_installer_software_categories (
+		software_installer_id,
+		software_category_id
+	)
+VALUES
+	%s
 `
 
 	// use a team id of 0 if no-team
@@ -1957,6 +1982,7 @@ WHERE
 				installer.URL,
 				strings.Join(installer.PackageIDs, ","),
 				installer.InstallDuringSetup,
+				installer.FleetMaintainedAppID,
 				installer.InstallDuringSetup,
 			}
 			upsertQuery := insertNewOrEditedInstaller
@@ -2042,6 +2068,35 @@ WHERE
 				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerLabels, upsertLabelValues), upsertLabelArgs...)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "insert new/edited labels for installer with name %q", installer.Filename)
+				}
+			}
+
+			if len(installer.CategoryIDs) == 0 {
+				// delete all categories if there are any
+				_, err := tx.ExecContext(ctx, deleteAllInstallerCategories, installerID)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete installer categories for %s", installer.Filename)
+				}
+			} else {
+				// there are new categories to apply, delete only the obsolete ones
+				stmt, args, err := sqlx.In(deleteInstallerCategoriesNotInList, installerID, installer.CategoryIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build statement to delete installer categories not in list")
+				}
+
+				_, err = tx.ExecContext(ctx, stmt, args...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete installer categories not in list for %s", installer.Filename)
+				}
+
+				var upsertCategoriesArgs []any
+				for _, catID := range installer.CategoryIDs {
+					upsertCategoriesArgs = append(upsertCategoriesArgs, installerID, catID)
+				}
+				upsertCategoriesValues := strings.TrimSuffix(strings.Repeat("(?,?),", len(installer.CategoryIDs)), ",")
+				_, err = tx.ExecContext(ctx, fmt.Sprintf(upsertInstallerCategories, upsertCategoriesValues), upsertCategoriesArgs...)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "insert new/edited categories for installer with name %q", installer.Filename)
 				}
 			}
 
@@ -2166,7 +2221,9 @@ func (ds *Datastore) GetSoftwareInstallers(ctx context.Context, teamID uint) ([]
 SELECT
   team_id,
   title_id,
-  url
+  url,
+  storage_id as hash_sha256,
+  fleet_maintained_app_id
 FROM
   software_installers
 WHERE global_or_team_id = ?

@@ -401,12 +401,10 @@ const QueryDetailsPage = ({
       disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
-    // Loading state
     if (isLoading) {
       return <Spinner />;
     }
 
-    // Error state
     if (isApiError) {
       return <DataError />;
     }

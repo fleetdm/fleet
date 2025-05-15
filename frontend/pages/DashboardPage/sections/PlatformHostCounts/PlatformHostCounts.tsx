@@ -7,6 +7,7 @@ import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 import { IHostSummary } from "interfaces/host_summary";
 import { PlatformValueOptions } from "utilities/constants";
 import DataError from "components/DataError";
+import Card from "components/Card";
 
 import HostCountCard from "../../cards/HostCountCard";
 
@@ -23,7 +24,6 @@ interface IPlatformHostCountsProps {
   ipadosCount: number;
   androidCount: number;
   builtInLabels?: IHostSummary["builtin_labels"];
-  errorHosts: boolean;
   selectedPlatform?: PlatformValueOptions;
   totalHostCount?: number;
 }
@@ -39,7 +39,6 @@ const PlatformHostCounts = ({
   ipadosCount,
   androidCount,
   builtInLabels,
-  errorHosts,
   selectedPlatform,
   totalHostCount,
 }: IPlatformHostCountsProps): JSX.Element => {
@@ -251,10 +250,6 @@ const PlatformHostCounts = ({
         );
     }
   };
-
-  if (errorHosts) {
-    return <DataError card />;
-  }
 
   return <div className={baseClass}>{renderCounts(currentTeamId)}</div>;
 };

@@ -339,6 +339,16 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 	}
 }
 
+func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID uint) ([]uint, error) {
+	stmt := `SELECT software_category_id FROM vpp_app_team_software_categories WHERE vpp_app_team_id = ?`
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, vppAppTeamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting existing software categories for vpp app team")
+	}
+
+	return ids, nil
+}
+
 func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets []fleet.VPPAppTeam) error {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
@@ -379,7 +389,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
 		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
 		appFleet.AppTeamID = existingApp.AppTeamID
-		var labelsChanged bool
+		var labelsChanged, categoriesChanged bool
 		if isExistingApp {
 			existingLabels, err := ds.getExistingLabels(ctx, appFleet.AppTeamID)
 			if err != nil {
@@ -387,6 +397,13 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			}
 
 			labelsChanged = !existingLabels.Equal(appFleet.ValidatedLabels)
+
+			existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, appFleet.AppTeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
+			}
+
+			categoriesChanged = !slices.Equal(existingCatIDs, appFleet.CategoryIDs)
 
 		}
 
@@ -403,6 +420,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		if !isExistingApp ||
 			existingApp.SelfService != appFleet.SelfService ||
 			labelsChanged ||
+			categoriesChanged ||
 			appFleet.InstallDuringSetup != nil &&
 				existingApp.InstallDuringSetup != nil &&
 				*appFleet.InstallDuringSetup != *existingApp.InstallDuringSetup {
@@ -428,6 +446,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			if toAdd.ValidatedLabels != nil {
 				if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *toAdd.ValidatedLabels, softwareTypeVPP); err != nil {
 					return ctxerr.Wrap(ctx, err, "failed to update labels on vpp apps batch operation")
+				}
+			}
+
+			if toAdd.CategoryIDs != nil {
+				if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, vppAppTeamID, toAdd.CategoryIDs, softwareTypeVPP); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to update categories on vpp apps batch operation")
 				}
 			}
 

@@ -58,6 +58,13 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
+      "name": "Amazon DCV",
+      "slug": "dcv-viewer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nicesoftware.dcvviewer",
+      "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker/darwin",
       "platform": "darwin",
