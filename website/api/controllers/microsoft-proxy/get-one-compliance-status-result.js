@@ -60,15 +60,14 @@ module.exports = {
     }).intercept((err)=>{
       return new Error({error: `An error occurred when retrieving a compliance status result of a device for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
-
+    let parsedComplianceUpdateResponse = JSON.parse(complianceStatusResultResponse);
     let result = {
       message_id: messageId,// eslint-disable-line camelcase
-      // status: complianceStatusResultResponse.Status
-      status: 'completed'
+      status: parsedComplianceUpdateResponse.Status
     };
     // If the status is "Failed", attach the error details to the response body.
-    if(complianceStatusResultResponse.Status === 'Failed') {
-      result.details = complianceStatusResultResponse.ErrorDetail;
+    if(parsedComplianceUpdateResponse.Status === 'Failed') {
+      result.details = parsedComplianceUpdateResponse.ErrorDetail;
     }
     // All done.
     return result;
