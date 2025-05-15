@@ -468,23 +468,24 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.AppConfig != nil {
-		if _, ok := specs.AppConfig.(map[string]interface{}); ok {
+		if appConfigMap, ok := specs.AppConfig.(map[string]interface{}); ok {
 			// Clear out SSO settings if not provided.
-			if _, ok := specs.AppConfig.(map[string]interface{})["sso_settings"]; !ok {
-				specs.AppConfig.(map[string]interface{})["sso_settings"] = fleet.SSOSettings{}
+			if _, ok := appConfigMap["sso_settings"]; !ok {
+				appConfigMap["sso_settings"] = fleet.SSOSettings{}
 			}
 
 			// Clear out SMTP settings if not provided.
-			if _, ok := specs.AppConfig.(map[string]interface{})["smtp_settings"]; !ok {
-				specs.AppConfig.(map[string]interface{})["smtp_settings"] = fleet.SMTPSettings{}
+			if _, ok := appConfigMap["smtp_settings"]; !ok {
+				appConfigMap["smtp_settings"] = fleet.SMTPSettings{}
 			}
 
 			// Clear out MDM end_user_authentication settings if not provided.
 			// TODO -- clear out all MDM settings if not provided?
-			if _, ok := specs.AppConfig.(map[string]interface{})["mdm"]; ok {
-				mdm := specs.AppConfig.(map[string]interface{})["mdm"]
-				if _, ok := mdm.(map[string]interface{})["end_user_authentication"]; !ok {
-					mdm.(map[string]interface{})["end_user_authentication"] = fleet.MDMEndUserAuthentication{}
+			if mdmMap, ok := appConfigMap["mdm"]; ok {
+				if mdm, ok := mdmMap.(map[string]interface{}); ok && mdm != nil {
+					if _, ok := mdm["end_user_authentication"]; !ok {
+						mdm["end_user_authentication"] = fleet.MDMEndUserAuthentication{}
+					}
 				}
 			}
 		}
