@@ -481,11 +481,9 @@ func (c *Client) ApplyGroup(
 
 			// Clear out MDM end_user_authentication settings if not provided.
 			// TODO -- clear out all MDM settings if not provided?
-			if mdmMap, ok := appConfigMap["mdm"]; ok {
-				if mdm, ok := mdmMap.(map[string]interface{}); ok && mdm != nil {
-					if _, ok := mdm["end_user_authentication"]; !ok {
-						mdm["end_user_authentication"] = fleet.MDMEndUserAuthentication{}
-					}
+			if mdm, ok := appConfigMap["mdm"].(map[string]interface{}); ok && mdm != nil {
+				if _, ok := mdm["end_user_authentication"]; !ok {
+					mdm["end_user_authentication"] = fleet.MDMEndUserAuthentication{}
 				}
 			}
 		}
