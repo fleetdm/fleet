@@ -5460,14 +5460,18 @@ func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) 
 	stmt := `
 		SELECT updated_at FROM host_issues WHERE host_id = ?
 	`
-	var lastUpdated time.Time
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastUpdated, stmt, hostId); err != nil {
-		if err == sql.ErrNoRows {
-			return lastUpdated, ctxerr.Wrap(ctx, notFound("Host issues").WithID(hostId))
-		}
-		return lastUpdated, ctxerr.Wrap(ctx, err, "checking host_issues last updated")
+	var out []time.Time
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &out, stmt, hostId); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "checking host_issues last updated")
 	}
-	return lastUpdated, nil
+	if len(out) == 0 {
+		// okay
+		return time.Time{}, nil
+	}
+	if len(out) > 1 {
+		return time.Time{}, ctxerr.New(ctx, "Multiple host_issues rows found for this host_id")
+	}
+	return out[0], nil
 }
 
 func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
