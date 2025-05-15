@@ -23,4 +23,8 @@
       }
     }
   }
+
+  &__tooltip-text {
+    @include ellipse-text(166px);
+  }
 }

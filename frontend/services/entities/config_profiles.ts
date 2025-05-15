@@ -1,7 +1,8 @@
-import { getConfig } from "@testing-library/react";
-import { profile } from "console";
+import { IMdmProfile } from "interfaces/mdm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+
+export type IGetConfigProfileResponse = IMdmProfile;
 
 export interface IGetConfigProfileStatusResponse {
   verified: number;
@@ -11,20 +12,16 @@ export interface IGetConfigProfileStatusResponse {
 }
 
 export default {
+  getConfigProfile: (uuid: string): Promise<IGetConfigProfileResponse> => {
+    const { CONFIG_PROFILE } = endpoints;
+    return sendRequest("GET", CONFIG_PROFILE(uuid));
+  },
+
   getConfigProfileStatus: (
     uuid: string
   ): Promise<IGetConfigProfileStatusResponse> => {
     const { CONFIG_PROFILE_STATUS } = endpoints;
-    // return sendRequest("GET", CONFIG_PROFILE_STATUS(uuid));
-
-    return new Promise((resolve) => {
-      resolve({
-        verified: 0,
-        verifying: 1,
-        failed: 2,
-        pending: 3,
-      });
-    });
+    return sendRequest("GET", CONFIG_PROFILE_STATUS(uuid));
   },
 
   batchResendConfigProfile: (uuid: string): Promise<void> => {
