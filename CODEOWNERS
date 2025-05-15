@@ -41,7 +41,7 @@ go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
 /ee/server/ @fleetdm/go
-/orbit/ @lucasmrod @roperzh @lukeheath @georgekarrv @sharon-fdm
+/orbit/ @fleetdm/go
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
@@ -56,27 +56,22 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
-/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
-/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv
-/it-and-security/ @noahtalerman @lukeheath @spokanemac @getvictor
+/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
+/charts/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
+/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @georgekarrv @BCTBB
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @rachaelshaw @lukeheath
-/docs/REST\ API/rest-api.md                     @rachaelshaw @lukeheath # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @lukeheath # « Advanced / contributors-only API reference documentation
+/docs                                           @rachaelshaw
+/docs/Contributing                              @lukeheath # « Contributing guidelines
+/docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
+/docs/Contributing/Audit-logs.md                @rachaelshaw # « Advanced / contributors-only audit log documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
-/docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
-##############################################################################################
-# 🫧 Pricing and features
-#
-# (see website/config/custom.js for DRIs of other paths not listed here)
-##############################################################################################
-/handbook/company/pricing-features-table.yml          @noahtalerman # « Head of Product Design is current DRI for features table
+/render.yaml                                    @edwardsb
 
 ##############################################################################################
 # 🌐 Repo automation and change control settings
@@ -88,31 +83,34 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/README.md                                      @mikermcneil
-/handbook/company/communications.md                              @mikermcneil
-/handbook/company/leadership.md                                  @mikermcneil
-/handbook/company/why-this-way.md                                @mikermcneil
-/handbook/README.md                                              @mikermcneil
-/handbook/company/open-positions.yml                             @sampfluger88
-/handbook/company/product-groups.md                              @lukeheath
-/handbook/finance/README.md                          @sampfluger88
-/handbook/finance/finance.rituals.yml    @sampfluger88
-/handbook/digital-experience/application-security.md            @lukeheath
-/handbook/digital-experience/security-audits.md                 @lukeheath
-/handbook/digital-experience/security-policies.md               @lukeheath
-/handbook/digital-experience/security.md                        @lukeheath
-/handbook/digital-experience/vendor-questionnaires.md           @lukeheath
-/handbook/digital-experience                              @sampfluger88
-/handbook/customer-success                                @sampfluger88
-/handbook/demand                                          @sampfluger88
-/handbook/engineering                                     @sampfluger88 @lukeheath
-/handbook/sales                                           @sampfluger88
-/handbook/product-design                                  @sampfluger88
+/handbook/company/README.md                                     @mikermcneil
+/handbook/company/communications.md                             @sampfluger88
+/handbook/company/leadership.md                                 @sampfluger88
+/handbook/company/why-this-way.md                               @mikermcneil
+/handbook/README.md                                             @mikermcneil
+/handbook/company/open-positions.yml                            @sampfluger88
+#/handbook/company/product-groups.md                            🤡 Covered in custom.js
+/handbook/company/go-to-market-groups.md                        @sampfluger88
+/handbook/finance/README.md                   				          @sampfluger88
+/handbook/finance/finance.rituals.yml  						              @sampfluger88
+/handbook/digital-experience/security.md                        @sampfluger88
+/handbook/digital-experience                             	      @sampfluger88
+/handbook/customer-success                                		  @sampfluger88
+/handbook/marketing                                          	  @sampfluger88
+#/handbook/engineering                                     	  	🤡 Covered in custom.js
+/handbook/sales                                           	  	@sampfluger88
+#/handbook/product-design                                    	  🤡 Covered in custom.js
 
 ##############################################################################################
 # 🌐 GitHub issue templates
 ##############################################################################################
 #/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
+
+
+##############################################################################################
+# 🌐 Fleet website
+##############################################################################################
+/website/.sailsrc 		@eashaw # Note: eashaw will not approve any PR that changes this file. This codeowner exists to make sure no changes are committed to the repo.
 
 ##############################################################################################
 # 🌐 GitHub workflows
@@ -127,7 +125,11 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🚀 GitHub workflows
 ##############################################################################################
-/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm @mostlikelee
 
+##############################################################################################
+# 🌐 Fleet-maintained apps
+##############################################################################################
+/ee/maintained-apps/outputs/apps.json @eashaw
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

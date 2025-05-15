@@ -18,7 +18,7 @@ func TestUp_20240314085226(t *testing.T) {
 		EndTime:   time.Now().UTC().Add(30 * time.Minute),
 		Data:      []byte("{\"foo\": \"bar\"}"),
 	}
-	sampleEvent.ID = uint(execNoErrLastID(t, db,
+	sampleEvent.ID = uint(execNoErrLastID(t, db, //nolint:gosec // dismiss G115
 		`INSERT INTO calendar_events (email, start_time, end_time, event) VALUES (?, ?, ?, ?);`,
 		sampleEvent.Email, sampleEvent.StartTime, sampleEvent.EndTime, sampleEvent.Data,
 	))
@@ -28,7 +28,7 @@ func TestUp_20240314085226(t *testing.T) {
 		CalendarEventID: sampleEvent.ID,
 		WebhookStatus:   fleet.CalendarWebhookStatusPending,
 	}
-	sampleHostEvent.ID = uint(execNoErrLastID(t, db,
+	sampleHostEvent.ID = uint(execNoErrLastID(t, db, //nolint:gosec // dismiss G115
 		`INSERT INTO host_calendar_events (host_id, calendar_event_id, webhook_status) VALUES (?, ?, ?);`,
 		sampleHostEvent.HostID, sampleHostEvent.CalendarEventID, sampleHostEvent.WebhookStatus,
 	))

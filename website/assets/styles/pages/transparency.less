@@ -6,10 +6,18 @@
   @page-container-max-width-lg: 840px;
   @page-container-max-width-md: 480px;
 
+  h1 {
+    color: #192147;
+    font-size: 48px;
+    font-weight: 800;
+    line-height: @heading-lineheight; /* 120% */
+  }
+
   h2 {
     font-size: 32px;
     font-weight: 800;
     line-height: @heading-lineheight;
+    margin-bottom: 16px;
   }
   h3 {
     font-size: 24px;
@@ -20,7 +28,9 @@
     font-size: 20px;
     line-height: @heading-lineheight;
   }
-
+  p {
+    color: #515774;
+  }
   a {
     text-decoration: underline;
     color: @core-fleet-black-75;
@@ -54,7 +64,7 @@
   }
   [purpose='hero-text'] {
     text-align: center;
-    margin-bottom: 80px;
+    margin-bottom: 40px;
     h1 {
       font-size: 48px;
       font-weight: 800;
@@ -64,49 +74,60 @@
     p {
       margin-left: auto;
       margin-right: auto;
-      max-width: 526px;
+      max-width: 600px;
       margin-bottom: 0px;
+      color: #515774;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 400;
+      line-height: @text-lineheight;
     }
   }
-  [purpose='calendar-feature'] {
+  [purpose='swag-cta'] {
+    display: flex;
+    width: 263px;
+    // padding: 16px 24px;
+    align-items: center;
+    text-decoration: none;
+    border-radius: 6px;
+    border: 1px solid var(--UI-Gray, #E3E3E3);
+    background: #FFF;
+    box-shadow: 1px 2px 2px 0px rgba(197, 199, 209, 0.20);
+    font-size: 14px;
+    [purpose='swag-link'] {
+      padding: 16px 24px;
+      display: block;
+    }
+    strong {
+      font-weight: 800;
+    }
+    img {
+      width: 55px;
+      height: 51px;
+      margin-right: 24px;
+    }
+  }
+  [purpose='feature'] {
     padding-top: 64px;
     padding-bottom: 64px;
-    h2 {
+    h3 {
       margin-bottom: 32px;
     }
     p {
       margin-bottom: 32px;
+      color: var(--ui-fleet-black-75, #515774);
+
+      /* Body MD (FKA p) */
+      font-family: Inter;
+      font-size: 16px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 24px; /* 150% */
     }
-    [purpose='calendar-feature-text'] {
-      max-width: 480px;
+    [purpose='feature-text'] {
+      max-width: 430px;
     }
-    [purpose='calendar-checklist'] {
-      margin-bottom: 32px;
-      p {
-        font-size: 14px;
-        font-style: normal;
-        font-weight: 400;
-        line-height: 21px;
-        padding-left: 37px;
-        text-indent: -37px;
-        margin-bottom: 32px;
-        &:last-of-type {
-          margin-bottom: 0px;
-        }
-      }
-      p::before {
-        content: ' ';
-        background-image: url('/images/icon-checkmark-green-20x20@2x.png');
-        background-size: 20px 20px;
-        display: inline-block;
-        position: relative;
-        top: 5px;
-        margin-right: 16px;
-        width: 20px;
-        height: 20px;
-      }
-    }
-    [purpose='feature-video'] {
+    [purpose='feature-image'] {
       margin-left: 80px;
       max-width: 468px;
       img {
@@ -132,6 +153,7 @@
     width: 100%;
     text-align: center;
     color: #FFF;
+    margin-bottom: 48px;
     h2, p {
       color: #FFF;
     }
@@ -191,18 +213,22 @@
   }
 
 
+  [purpose='agents-note'] {
+    color: #515774;
+    font-size: 16px;
+    line-height: 24px;
+    padding-top: 24px;
+    margin-bottom: 40px;
+  }
 
   [purpose='accordion'] {
 
-    h2 {
-      padding-bottom: 16px;
-    }
     [purpose='accordion-body'] {
+      margin-top: 40px;
       width: 100%;
 
       [purpose='accordion-item'] {
         border-bottom: 1px solid #E2E4EA;
-        padding-bottom: ;
         margin-top: 16px;
         margin-bottom: 16px;
       }
@@ -261,9 +287,9 @@
       max-width: @page-container-max-width-lg;
     }
 
-    [purpose='calendar-feature'] {
+    [purpose='feature'] {
       margin-bottom: 64px;
-      [purpose='feature-video'] {
+      [purpose='feature-image'] {
         margin-left: auto;
         margin-right: auto;
         margin-bottom: 40px;
@@ -276,6 +302,7 @@
       text-align: center;
       margin-bottom: 0px;
     }
+
   }
 
   @media (max-width: 767px) {
@@ -284,7 +311,6 @@
       padding-top: 40px;
       padding-bottom: 40px;
     }
-
     [purpose='feature-row'] {
       flex-direction: row;
       align-items: start;
@@ -329,7 +355,7 @@
     [purpose='feature-headline'] {
       margin-bottom: 40px;
     }
-    [purpose='calendar-feature'] {
+    [purpose='feature'] {
       padding-top: 40px;
       padding-bottom: 0px;
     }
@@ -357,6 +383,9 @@
         margin-right: auto;
       }
     }
+    h2 {
+      font-size: 24px;
+    }
     [purpose='secureframe-banner'] {
       padding: 32px 16px;
       h2 {
@@ -372,7 +401,7 @@
         font-size: 32px;
       }
     }
-    [purpose='calendar-feature-text'] {
+    [purpose='feature-text'] {
       h2 {
         font-size: 24px;
       }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -28,7 +29,7 @@ func ExecCmd(ctx context.Context, scriptPath string, env []string) (output []byt
 	cmd := exec.CommandContext(ctx, "/bin/sh", scriptPath)
 
 	if directExecute {
-		err = os.Chmod(scriptPath, 0700)
+		err = os.Chmod(scriptPath, 0o700)
 		if err != nil {
 			return nil, -1, ctxerr.Wrapf(ctx, err, "marking script as executable %s", scriptPath)
 		}
@@ -40,8 +41,12 @@ func ExecCmd(ctx context.Context, scriptPath string, env []string) (output []byt
 	}
 
 	cmd.Dir = filepath.Dir(scriptPath)
+
+	// WaitDelay is necessary to ensure that the process is killed when the
+	// context is cancelled
+	cmd.WaitDelay = time.Second
 	output, err = cmd.CombinedOutput()
-	if cmd.ProcessState != nil {
+	if cmd.ProcessState != nil && ctx.Err() == nil {
 		exitCode = cmd.ProcessState.ExitCode()
 	}
 	return output, exitCode, err

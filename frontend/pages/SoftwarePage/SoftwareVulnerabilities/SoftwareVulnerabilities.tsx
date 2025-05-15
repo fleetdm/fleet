@@ -35,7 +35,6 @@ interface ISoftwareVulnerabilitiesProps {
   currentPage: number;
   teamId?: number;
   showExploitedVulnerabilitiesOnly: boolean;
-  resetPageIndex: boolean;
 }
 
 const SoftwareVulnerabilities = ({
@@ -48,7 +47,6 @@ const SoftwareVulnerabilities = ({
   currentPage,
   teamId,
   showExploitedVulnerabilitiesOnly,
-  resetPageIndex,
 }: ISoftwareVulnerabilitiesProps) => {
   const [tableData, setTableData] = useState<IVulnerabilitiesResponse>();
   const [
@@ -238,12 +236,15 @@ const SoftwareVulnerabilities = ({
     }
   }, [queryParams.exploit, isExactMatchQuery]);
 
-  if (isLoading || isLoadingExactMatch) {
+  // !tableData is used to show the Spinner only on the first render.
+  // This prevents the Spinner from flashing on every data refresh, noticable
+  // when going between search and exact match search deselects search box.
+  if (!tableData && (isLoading || isLoadingExactMatch)) {
     return <Spinner />;
   }
 
   if (isError) {
-    return <TableDataError className={`${baseClass}__table-error`} />;
+    return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (
@@ -261,7 +262,6 @@ const SoftwareVulnerabilities = ({
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isFetching || isFetchingExactMatch}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

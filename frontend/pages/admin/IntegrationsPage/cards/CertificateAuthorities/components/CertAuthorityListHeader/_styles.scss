@@ -1,0 +1,13 @@
+.cert-authority-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &__name {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+  &__add-button {
+    height: auto;
+  }
+}

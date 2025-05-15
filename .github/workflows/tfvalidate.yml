@@ -41,8 +41,8 @@ jobs:
       - name: Install terraform
         uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
-          terraform_version: 1.3.0
-
+          terraform_version: 1.9.0
+      # If we want to test more of these, consider using a matrix.  With a matrix of directories, all terraform modules could be fully tested and potentially in parallel.
       - name: Validate loadtesting
         working-directory: ./infrastructure/loadtesting/terraform
         run: |
@@ -51,6 +51,18 @@ jobs:
 
       - name: Validate infrastructure
         working-directory: ./infrastructure/infrastructure/terraform
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Validate dogfood
+        working-directory: ./infrastructure/dogfood/terraform/aws-tf-module
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Validate root terraform module
+        working-directory: ./terraform
         run: |
           terraform init -backend=false
           terraform validate

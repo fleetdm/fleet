@@ -76,7 +76,7 @@ const generateTableHeaders = (): IDataColumn[] => {
           indeterminate: props.indeterminate,
           onChange: () => cellProps.toggleAllRowsSelected(),
         };
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
         const props = cellProps.row.getToggleRowSelectedProps();
@@ -84,7 +84,7 @@ const generateTableHeaders = (): IDataColumn[] => {
           value: props.checked,
           onChange: () => cellProps.row.toggleRowSelected(),
         };
-        return <Checkbox {...checkboxProps} />;
+        return <Checkbox {...checkboxProps} enableEnterToCheck />;
       },
       disableHidden: true,
     },

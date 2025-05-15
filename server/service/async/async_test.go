@@ -188,7 +188,7 @@ func TestActiveHostIDsSet(t *testing.T) {
 			}
 
 			// none ever get deleted, all are after tpurgeNone
-			n, err := storePurgeActiveHostID(pool, zkey, uint(i+1), time.Unix(ts[i], 0), tpurgeNone)
+			n, err := storePurgeActiveHostID(pool, zkey, uint(i+1), time.Unix(ts[i], 0), tpurgeNone) //nolint:gosec // dismiss G115
 			require.NoError(t, err)
 			require.Equal(t, 0, n)
 		}
@@ -201,7 +201,8 @@ func TestActiveHostIDsSet(t *testing.T) {
 		}
 
 		// store a new one but now use t[1] as purge date - will remove two
-		ts2 := append(ts, time.Unix(ts[len(ts)-1], 0).Add(time.Second).Unix())
+		ts2 := ts
+		ts2 = append(ts2, time.Unix(ts[len(ts)-1], 0).Add(time.Second).Unix())
 		n, err := storePurgeActiveHostID(pool, zkey, uint(len(ts2)), time.Unix(ts2[len(ts2)-1], 0), time.Unix(ts2[1], 0))
 		require.NoError(t, err)
 		require.Equal(t, 2, n)

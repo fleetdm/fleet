@@ -88,17 +88,18 @@ jobs:
       timeout-minutes: 10
       run: |
         chmod +x ./build/fleetctl
-        ./build/fleetctl preview --no-hosts
+        ./build/fleetctl preview --no-hosts --disable-open-browser
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
         ./build/fleetctl get enroll-secret
         docker compose -f ~/.fleet/preview/docker-compose.yml logs --follow fleet01 fleet02 &
         # Wait for all of the hosts to be enrolled
         EXPECTED=3
-        until [ $(./build/fleetctl get hosts --json | wc -l | tee hostcount) -ge $EXPECTED ]; do
+        until [ $(./build/fleetctl get hosts --json | grep -v "No hosts found" | wc -l | tee hostcount) -ge $EXPECTED ]; do
           echo -n "Waiting for hosts to enroll: "
           cat hostcount | xargs echo -n
           echo " / $EXPECTED"
-          sleep 20
+          ./build/fleetctl get hosts --json
+          sleep 10
         done
         echo "Success! $EXPECTED hosts enrolled."
 
@@ -134,7 +135,7 @@ jobs:
 
     - name: Upload cloudflared logs
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
       with:
         name: cloudflared.log
         path: cloudflared.log
@@ -206,6 +207,14 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
+    - name: Wait until fleet address is reachable and fleet responds
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+        do
+          echo "Awaiting until fleet server responds..."
+          sleep 10
+        done
+
     - name: Install Orbit
       run: |
         sudo hostname macos-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
@@ -230,7 +239,7 @@ jobs:
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
       with:
         name: orbit-macos-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
         path: |
@@ -238,7 +247,7 @@ jobs:
 
     - name: Uninstall Orbit
       run: |
-        sudo ./orbit/tools/cleanup/cleanup_macos.sh
+        sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 10
@@ -275,6 +284,14 @@ jobs:
     - name: Build Fleetctl
       run: make fleetctl
 
+    - name: Wait until fleet address is reachable and fleet responds
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+        do
+          echo "Awaiting until fleet server responds..."
+          sleep 10
+        done
+
     - name: Install Orbit
       run: |
         sudo hostname ubuntu-orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}
@@ -300,7 +317,7 @@ jobs:
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
       with:
         name: orbit-ubuntu-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
         path: |
@@ -335,6 +352,14 @@ jobs:
         npm install -g fleetctl
         fleetctl config set --address ${{ needs.gen.outputs.address }} --token ${{ needs.login.outputs.token }}
 
+    - name: Wait until fleet address is reachable and fleet responds
+      run: |
+        until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+        do
+          echo "Awaiting until fleet server responds..."
+          sleep 10
+        done
+
     - name: Build Orbit
       run: |
         SECRET_JSON=$(fleetctl get enroll_secret --json --debug)
@@ -346,7 +371,7 @@ jobs:
         mv fleet-osquery.msi orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
 
     - name: Upload MSI
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
         path: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
@@ -378,7 +403,7 @@ jobs:
 
     - name: Download MSI
       id: download
-      uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+      uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
       with:
         name: orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi
 
@@ -386,7 +411,7 @@ jobs:
       shell: cmd
       run: |
         msiexec /i ${{steps.download.outputs.download-path}}\orbit-${{ matrix.orbit-channel }}-osqueryd-${{ matrix.osqueryd-channel }}-desktop-${{ matrix.desktop-channel }}.msi /quiet /passive /lv log.txt
-        sleep 30
+        sleep 120
 
     # We can't very accurately check the install on these Windows hosts since the hostnames tend to
     # overlap and we can't control the hostnames. Instead we just return and have the run-server job
@@ -394,14 +419,14 @@ jobs:
 
     - name: Upload orbit install log
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
       with:
         name: msiexec-install-log
         path: log.txt
 
     - name: Upload Orbit logs
       if: always()
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+      uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
       with:
         name: orbit-windows-${{ matrix.orbit-channel }}-${{ matrix.osqueryd-channel }}-${{ matrix.desktop-channel }}-logs
         path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

@@ -1,0 +1,12 @@
+{
+  "name": "Microsoft Visual Studio Code",
+  "slug": "visual-studio-code/windows",
+  "package_identifier": "Microsoft.VisualStudioCode",
+  "unique_identifier": "Microsoft Visual Studio Code",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/vscode_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/vscode_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -65,7 +64,7 @@ func GetAssetMetadata(adamIDs []string, filter *AssetMetadataFilter) (map[string
 
 	metadata := make(map[string]AssetMetadata)
 	for _, a := range bodyResp.Results {
-		metadata[strconv.Itoa(int(a.TrackID))] = a
+		metadata[fmt.Sprint(a.TrackID)] = a
 	}
 
 	return metadata, nil
@@ -95,7 +94,6 @@ func do[T any](req *http.Request, dest *T) error {
 				retry.WithInterval(1*time.Second),
 				retry.WithMaxAttempts(4),
 			)
-
 		}
 
 		return fmt.Errorf("calling Apple iTunes endpoint failed with status %d: %s", resp.StatusCode, string(limitedBody))

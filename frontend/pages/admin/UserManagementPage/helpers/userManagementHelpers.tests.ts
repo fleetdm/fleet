@@ -2,7 +2,7 @@ import { userTeamStub } from "test/stubs";
 import createMockUser from "__mocks__/userMock";
 import { IUserUpdateBody } from "interfaces/user";
 
-import { IFormData, NewUserType } from "../components/UserForm/UserForm";
+import { IUserFormData, NewUserType } from "../components/UserForm/UserForm";
 import userManagementHelpers from "./userManagementHelpers";
 
 describe("userManagementHelpers module", () => {
@@ -18,7 +18,7 @@ describe("userManagementHelpers module", () => {
         role: "observer",
       };
 
-      const formData: IFormData = {
+      const formData: IUserFormData = {
         email: "newemail@test.com",
         sso_enabled: false,
         name: "Test User",

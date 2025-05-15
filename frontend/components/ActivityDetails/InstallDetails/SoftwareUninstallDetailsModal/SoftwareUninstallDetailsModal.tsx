@@ -1,3 +1,5 @@
+// Used on: Dashboard > activity, Host details > past activity
+
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
@@ -9,6 +11,7 @@ import { IActivityDetails } from "interfaces/activity";
 import { isPendingStatus, SoftwareInstallStatus } from "interfaces/software";
 import React from "react";
 import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import {
@@ -55,7 +58,10 @@ const StatusMessage = ({
   return (
     <div className={`${baseClass}__status-message`}>
       <Icon
-        name={INSTALL_DETAILS_STATUS_ICONS[status as SoftwareInstallStatus]}
+        name={
+          INSTALL_DETAILS_STATUS_ICONS[status as SoftwareInstallStatus] ??
+          "pending-outline"
+        }
       />
       <span>
         Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
@@ -80,20 +86,29 @@ const SoftwareUninstallDetailsModal = ({
     software_title = "",
     status = "",
   }: ISoftwareUninstallDetails) => {
-    const {
-      data: scriptResult,
-      isLoading,
-      isError,
-    } = useQuery<IScriptResultResponse>(
+    const { data: scriptResult, isLoading, isError, error } = useQuery<
+      IScriptResultResponse,
+      AxiosError
+    >(
       ["uninstallResult", details.script_execution_id],
       () => {
         return scriptsAPI.getScriptResult(script_execution_id);
       },
-      { ...DEFAULT_USE_QUERY_OPTIONS }
+      {
+        ...DEFAULT_USE_QUERY_OPTIONS,
+        retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+      }
     );
 
     if (isLoading) {
       return <Spinner />;
+    } else if (isError && error?.status === 404) {
+      return (
+        <DataError
+          description="Uninstall details are no longer available for this activity."
+          excludeIssueLink
+        />
+      );
     } else if (isError) {
       return <DataError description="Close this modal and try again." />;
     } else if (!scriptResult) {
@@ -113,19 +128,12 @@ const SoftwareUninstallDetailsModal = ({
         />
         {!isPendingStatus(status) && scriptResult && (
           <>
-            <div className={`${baseClass}__script-output`}>
-              Uninstall script content:
-              <Textarea className={`${baseClass}__output-textarea`}>
-                {scriptResult.script_contents}
-              </Textarea>
-            </div>
-
-            <div className={`${baseClass}__script-output`}>
-              Uninstall script output:
-              <Textarea className={`${baseClass}__output-textarea`}>
-                {scriptResult.output}
-              </Textarea>
-            </div>
+            <Textarea label="Uninstall script content:" variant="code">
+              {scriptResult.script_contents}
+            </Textarea>
+            <Textarea label="Uninstall script output:" variant="code">
+              {scriptResult.output}
+            </Textarea>
           </>
         )}
       </>
@@ -145,9 +153,7 @@ const SoftwareUninstallDetailsModal = ({
           <SoftwareUninstallDetails {...details} />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     </Modal>

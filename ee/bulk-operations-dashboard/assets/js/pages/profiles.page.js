@@ -23,6 +23,8 @@ parasails.registerPage('profiles', {
     profileToEdit: {},
     cloudError: '',
     newProfile: undefined,
+    syncingMessage: '',
+    overlaySyncing: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -53,13 +55,13 @@ parasails.registerPage('profiles', {
       if(this.teamFilter !== undefined){
         this.selectedTeam = _.find(this.teams, {fleetApid: this.teamFilter});
         let profilesOnThisTeam = _.filter(this.profiles, (profile)=>{
-          // console.log(profile.profiles);
           return profile.teams && _.where(profile.teams, {'fleetApid': this.selectedTeam.fleetApid}).length > 0;
         });
         this.profilesToDisplay = profilesOnThisTeam;
       } else {
         this.profilesToDisplay = this.profiles;
       }
+      await this.forceRender();
     },
     clickChangeTeamFilter: async function(teamApid) {// Used by the tooltip links.
       this.teamFilter = teamApid;
@@ -77,22 +79,35 @@ parasails.registerPage('profiles', {
       }
     },
     clickOpenEditModal: async function(profile) {
-      this.profileToEdit = _.clone(profile);
-      this.formData.newTeamIds = _.pluck(this.profileToEdit.teams, 'fleetApid');
-      this.formData.profile = profile;
+      this.profileToEdit = _.cloneDeep(profile);
+      console.log(this.profileToEdit);
+      this.formData = {
+        profile: _.clone(this.profileToEdit),
+        newTeamIds: _.pluck(this.profileToEdit.teams, 'fleetApid'),
+        profileTarget: this.profileToEdit.profileTarget === 'custom' ? 'custom' : 'all',
+        labelTargetBehavior: this.profileToEdit.labelTargetBehavior ? this.profileToEdit.labelTargetBehavior : 'include',
+        labels: this.profileToEdit.labels ? this.profileToEdit.labels : [],
+      };
+      console.log(this.formData);
       this.modal = 'edit-profile';
+      await this._getLabels();
     },
     clickOpenDeleteModal: async function(profile) {
       this.formData.profile = _.clone(profile);
       this.modal = 'delete-profile';
     },
     clickOpenAddProfileModal: async function() {
+      this.$set(this.formData, 'profileTarget', 'all');
+      this.$set(this.formData, 'labels', []);
+      this.$set(this.formData, 'labelTargetBehavior', 'include');
       this.modal = 'add-profile';
+      await this._getLabels();
     },
     closeModal: async function() {
       this.modal = '';
       this.formErrors = {};
       this.formData = {};
+      this.cloudError = '';
       await this.forceRender();
     },
     submittedForm: async function() {
@@ -106,7 +121,13 @@ parasails.registerPage('profiles', {
     },
     handleSubmittingAddProfileForm: async function() {
       let argins = _.clone(this.formData);
-      await Cloud.uploadProfile.with({newProfile: argins.newProfile, teams: argins.teams});
+      await Cloud.uploadProfile.with({
+        newProfile: argins.newProfile,
+        teams: argins.teams,
+        profileTarget: argins.profileTarget,
+        labels: argins.profileTarget !== 'all' ? argins.labels : [],
+        labelTargetBehavior: argins.profileTarget !== 'all' ? argins.labelTargetBehavior : undefined,
+      });
       await this._getProfiles();
     },
     handleSubmittingEditProfileForm: async function() {
@@ -114,15 +135,44 @@ parasails.registerPage('profiles', {
       if(argins.newTeamIds === [undefined]){
         argins.newTeamIds = [];
       }
-      await Cloud.editProfile.with({profile: argins.profile, newProfile: argins.newProfile, newTeamIds: argins.newTeamIds});
+      if(argins.profileTarget === 'custom'){
+        await Cloud.editProfile.with({
+          profile: argins.profile,
+          newTeamIds: argins.newTeamIds,
+          newProfile: argins.newProfile,
+          labels: argins.labels,
+          profileTarget: argins.profileTarget,
+          labelTargetBehavior: argins.labelTargetBehavior,
+        });
+      } else {
+        await Cloud.editProfile.with({
+          profile: argins.profile,
+          newTeamIds: argins.newTeamIds,
+          newProfile: argins.newProfile
+        });
+      }
       await this._getProfiles();
     },
     _getProfiles: async function() {
-      this.syncing = true;
+      this.overlaySyncing = true;
+      this.syncingMessage = 'Gathering profiles';
       let newProfilesInformation = await Cloud.getProfiles();
       this.profiles = newProfilesInformation;
-      this.syncing = false;
+      this.overlaySyncing = false;
       await this.changeTeamFilter();
+    },
+    _getLabels: async function() {
+      this.syncing = true;
+      this.labelsSyncing = true;
+      this.labels = await Cloud.getLabels().tolerate((err)=>{
+        this.cloudError = err;
+        this.syncing = false;
+      });
+      if(!this.cloudError){
+        this.labelsSyncing = false;
+        this.syncing = false;
+
+      }
     }
   }
 });

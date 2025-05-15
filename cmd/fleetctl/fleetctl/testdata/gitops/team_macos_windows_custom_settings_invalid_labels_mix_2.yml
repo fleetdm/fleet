@@ -1,0 +1,29 @@
+name: "${TEST_TEAM_NAME}"
+team_settings:
+  secrets:
+    - secret: "ABC"
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./lib/macos-password.mobileconfig
+        labels_include_any:
+          - A
+        labels:
+          - B
+  windows_settings:
+    custom_settings:
+      - path: ./lib/windows-screenlock.xml
+        labels_include_any:
+          - A
+        labels_exclude_any:
+          - C
+policies:
+queries:
+software:

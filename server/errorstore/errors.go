@@ -158,6 +158,15 @@ func hashError(err error) string {
 		fmt.Fprint(&sb, strings.Join(ferr.Stack(), "\n"))
 	}
 
+	// hash the vital FleetError fields
+	if fleetdErr, ok := cause.(fleet.FleetdError); ok {
+		_, _ = fmt.Fprint(&sb,
+			fleetdErr.ErrorSource,
+			fleetdErr.ErrorSourceVersion,
+			fleetdErr.ErrorAdditionalInfo,
+		)
+	}
+
 	return sha256b64(sb.String())
 }
 
@@ -261,6 +270,11 @@ func (h *Handler) Store(err error) {
 // ServeHTTP implements an http.Handler that retrieves the errors stored
 // by the Handler and returns them in the response as JSON.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return
+	}
+
 	var flush bool
 	opts := r.URL.Query()
 
@@ -285,5 +299,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(bytes) //nolint:errcheck
 }

@@ -29,6 +29,12 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount enrolled hosts by os")
 		}
+
+		numHostsABMPending, err := numHostsABMPendingDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount hosts that are ABM pending")
+		}
+
 		amountUsers, err := tableRowsCount(ctx, ds.reader(ctx), "users")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount users")
@@ -103,8 +109,13 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "number of hosts with Fleet desktop installed")
 		}
+		numQueries, err := numSavedQueriesDB(ctx, ds.reader(ctx))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "number of saved queries in DB")
+		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
+		stats.NumHostsABMPending = numHostsABMPending
 		stats.NumUsers = amountUsers
 		stats.NumSoftwareVersions = amountSoftwaresVersions
 		stats.NumHostSoftwares = amountHostSoftwares
@@ -152,6 +163,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 			}
 		}
 		stats.NumHostsFleetDesktopEnabled = numHostsFleetDesktopEnabled
+		stats.NumQueries = numQueries
 		return nil
 	}
 

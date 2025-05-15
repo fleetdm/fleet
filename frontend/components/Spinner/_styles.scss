@@ -4,6 +4,10 @@
   justify-content: center;
   &.centered {
     margin: 120px auto;
+
+    &.small-padding {
+      margin: 60px auto;
+    }
   }
 
   &.include-container {

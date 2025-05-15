@@ -227,7 +227,7 @@ func createScriptContentsEntries(txx *sqlx.Tx, stmtTable, stmt string, scriptCon
 					return fmt.Errorf("create script_contents from %s: %w", stmtTable, err)
 				}
 				id, _ := res.LastInsertId()
-				scriptContentsIDLookup[hexChecksum] = uint(id)
+				scriptContentsIDLookup[hexChecksum] = uint(id) //nolint:gosec // dismiss G115
 			}
 		}
 	}

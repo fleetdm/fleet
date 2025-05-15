@@ -30,7 +30,7 @@ const CustomLabelGroupHeading = (
   const handleInputClick = (
     event: React.MouseEvent<HTMLInputElement, MouseEvent>
   ) => {
-    onClickLabelSearchInput(event);
+    onClickLabelSearchInput && onClickLabelSearchInput(event);
     inputRef.current?.focus();
     event.stopPropagation();
   };
@@ -47,11 +47,7 @@ const CustomLabelGroupHeading = (
         <span className={`${baseClass}__label-title`}>{props.children}</span>
         <div className={`${baseClass}__add_new_label`}>
           {canAddNewLabels && (
-            <Button
-              variant="text-icon"
-              onClick={onAddLabel}
-              className={`${baseClass}__add-label-btn`}
-            >
+            <Button variant="text-icon" onClick={onAddLabel} iconStroke>
               <>
                 Add label
                 <Icon name="plus" />

@@ -1,4 +1,4 @@
-# What are Fleet policies?
+# Policies
 
 Fleet policies are a great way to quickly monitor your devices by asking yes or no questions about them. Policies are also an easy way to make sure you maintain data integrity, confidentiality, and security. Whether you’re checking in on a small set of devices, or a fleet of thousands, policies give quick insight into their status and IT compliance. For example, suppose one of your defined controls makes sure that all of your macOS devices have Gatekeeper enabled. In that case, the Security team can create a policy to quickly and easily return a yes or no response from all of your enrolled devices.
 
@@ -17,6 +17,18 @@ To reduce the barrier of entry with Fleet, we’ve introduced our [standard temp
 4. Select **Save**, enter a name, description, and resolution for your policy and then select **Save policy**.
 
 5. By default, policies are evaluated on an hourly interval, which is controlled by this [server setting](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval). Please see [this article](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies) for more information.
+
+## Targeting hosts using platforms
+
+When creating or editing a policy, you can restrict the set of hosts it will run on by selecting one or more _platforms_ listed in the **Target** section. The policy will only be applied to hosts that run one of the selected platforms. For example, if only MacOS and Linux are selected, then the policy will not run on Windows or ChromeOS hosts.  When you first create a policy, Fleet will attempt to automatically select all of the platforms that have the ability to run the related query.
+
+## Targeting hosts using labels 
+
+_Available in Fleet Premium._
+
+You can further restrict the set of hosts that a policy runs on by using [labels](https://fleetdm.com/guides/managing-labels-in-fleet).  By default, a new policy will target all hosts of the selected platforms (see [Targeting hosts using platforms](https://fleetdm.com/docs/configuration/what-are-fleet-policies#targeting-hosts-using-labels) above), indicated by the **All Hosts** option being selected beneath the **Target** setting.  If you select **Custom** instead, you will be able to select one or more labels for the policy to target. You can elect to have the policy run on hosts that match any of the selected labels by selecting "Include Any" from the provided dropdown. To instead _exclude_ hosts from running the policy if they match any of the selected labels, switch the dropdown to "Exclude any".  
+
+To learn more about labels, see [Managing labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet).
 
 ## Identifying out-of-policy devices
 
@@ -54,6 +66,11 @@ These principles helped us create policies for our own devices to track:
 - Is system Integrity Protection enabled (macOS)
 
 Policies and automation help your security and IT teams feel confident that devices are passing your organization’s standards. Fleet is building an open, transparent, and simple future for device management and is the [most widely deployed osquery fleet manager.](https://fleetdm.com/) 
+
+## Further reading
+
+- [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies)
+
 
 <meta name="category" value="security">
 <meta name="authorGitHubUsername" value="Drew-P-drawers">

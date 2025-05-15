@@ -65,6 +65,10 @@ echo "Deleting old fleet package"
 echo "Creating fleet package..."
 ./build/fleetctl package --type=pkg --enable-scripts --fleet-desktop --disable-open-folder --fleet-url="$FLEET_URL" --enroll-secret="$FLEET_ENROLL_SECRET"
 
+if [ ! -f fleet-osquery.pkg ]; then
+    echo "package not generated"
+    exit 1
+fi
 
 if tart list | grep $vm_name >/dev/null 2>&1; then
     echo 'Enrollment test VM exists, deleting...'

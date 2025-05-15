@@ -2,11 +2,14 @@ import React, { useState, useContext, useEffect, useCallback } from "react";
 import { size } from "lodash";
 import classNames from "classnames";
 
+import CUSTOM_TARGET_OPTIONS from "pages/policies/helpers";
+
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
+import { ILabelSummary } from "interfaces/label";
 import { IPolicyFormData } from "interfaces/policy";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import useDeepEffect from "hooks/useDeepEffect";
 
 // @ts-ignore
@@ -15,6 +18,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import TargetLabelSelector from "components/TargetLabelSelector";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
@@ -32,6 +36,7 @@ export interface ISaveNewPolicyModalProps {
   isFetchingAutofillResolution: boolean;
   onClickAutofillDescription: () => Promise<void>;
   onClickAutofillResolution: () => Promise<void>;
+  labels: ILabelSummary[];
 }
 
 const validatePolicyName = (name: string) => {
@@ -58,6 +63,7 @@ const SaveNewPolicyModal = ({
   isFetchingAutofillResolution,
   onClickAutofillDescription,
   onClickAutofillResolution,
+  labels,
 }: ISaveNewPolicyModalProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
   const {
@@ -77,9 +83,34 @@ const SaveNewPolicyModal = ({
     backendValidators
   );
 
+  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState(
+    "labelsIncludeAny"
+  );
+  const [selectedLabels, setSelectedLabels] = useState({});
+
+  const onSelectLabel = ({
+    name: labelName,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedLabels({
+      ...selectedLabels,
+      [labelName]: value,
+    });
+  };
+
   const disableForm =
     isFetchingAutofillDescription || isFetchingAutofillResolution;
-  const disableSave = !platformSelector.isAnyPlatformSelected || disableForm;
+  const disableSave =
+    !platformSelector.isAnyPlatformSelected ||
+    disableForm ||
+    (selectedTargetType === "Custom" &&
+      !Object.entries(selectedLabels).some(([, value]) => {
+        return value;
+      }));
 
   useDeepEffect(() => {
     if (lastEditedQueryName) {
@@ -96,7 +127,7 @@ const SaveNewPolicyModal = ({
 
     const newPlatformString = platformSelector
       .getSelectedPlatforms()
-      .join(",") as SelectedPlatformString;
+      .join(",") as CommaSeparatedPlatformString;
     setLastEditedQueryPlatform(newPlatformString);
 
     const { valid: validName, errors: newErrors } = validatePolicyName(
@@ -115,6 +146,20 @@ const SaveNewPolicyModal = ({
         resolution: lastEditedQueryResolution,
         platform: newPlatformString,
         critical: lastEditedQueryCritical,
+        labels_include_any:
+          selectedTargetType === "Custom" &&
+          selectedCustomTarget === "labelsIncludeAny"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
+        labels_exclude_any:
+          selectedTargetType === "Custom" &&
+          selectedCustomTarget === "labelsExcludeAny"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
       });
     }
   };
@@ -236,6 +281,26 @@ const SaveNewPolicyModal = ({
           />
           {platformSelector.render()}
           {isPremiumTier && (
+            <TargetLabelSelector
+              selectedTargetType={selectedTargetType}
+              selectedCustomTarget={selectedCustomTarget}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              onSelectCustomTarget={setSelectedCustomTarget}
+              selectedLabels={selectedLabels}
+              className={`${baseClass}__target`}
+              onSelectTargetType={setSelectedTargetType}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              customHelpText={
+                <span className="form-field__help-text">
+                  Policy will target hosts on selected platforms that{" "}
+                  <b>have any</b> of these labels:
+                </span>
+              }
+              suppressTitle
+            />
+          )}
+          {isPremiumTier && (
             <div className="critical-checkbox-wrapper">
               <Checkbox
                 name="critical-policy"
@@ -266,13 +331,12 @@ const SaveNewPolicyModal = ({
             >
               <Button
                 type="submit"
-                variant="brand"
                 onClick={handleSavePolicy}
                 disabled={disableSave}
                 className="save-policy-loading"
                 isLoading={isUpdatingPolicy}
               >
-                Save policy
+                Save
               </Button>
               <ReactTooltip
                 className={`${baseClass}__button--modal-save-tooltip`}
@@ -281,7 +345,7 @@ const SaveNewPolicyModal = ({
                 id={`${baseClass}__button--modal-save-tooltip`}
                 backgroundColor={COLORS["tooltip-bg"]}
               >
-                Select the platform(s) this
+                Select the platforms this
                 <br />
                 policy will be checked on
                 <br />

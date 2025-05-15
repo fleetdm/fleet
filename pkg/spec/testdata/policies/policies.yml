@@ -1,0 +1,19 @@
+- name: 😊 Failing policy
+  platform: linux
+  description: This policy should always fail.
+  resolution: There is no resolution for this policy.
+  query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+- name: Passing policy
+  platform: linux,windows,darwin,chrome
+  description: This policy should always pass.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:
+    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed "s/${origExpire}/expire-after:60d OR 5G/" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;
+  query: SELECT 1;
+- name: No root logins (macOS, Linux)
+  platform: linux,darwin
+  query: SELECT 1 WHERE NOT EXISTS (SELECT * FROM last
+    WHERE username = "root"
+    AND time > (( SELECT unix_time FROM time ) - 3600 ))
+  critical: true

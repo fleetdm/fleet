@@ -87,7 +87,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Mobileconfig: dummyMC,
 				TeamID:       &team.ID,
 			}
-			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP)
+			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP, nil)
 			require.NoError(t, err)
 
 			wcp, err := ds.NewMDMWindowsConfigProfile(context.Background(), fleet.MDMWindowsConfigProfile{
@@ -217,13 +217,13 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 		{User: user1, Role: "maintainer"},
 		{User: user2, Role: "observer"},
 	}
-	team1, err = ds.SaveTeam(context.Background(), team1)
+	_, err = ds.SaveTeam(context.Background(), team1)
 	require.NoError(t, err)
 
 	team2.Users = []fleet.TeamUser{
 		{User: user1, Role: "maintainer"},
 	}
-	team1, err = ds.SaveTeam(context.Background(), team2)
+	_, err = ds.SaveTeam(context.Background(), team2)
 	require.NoError(t, err)
 
 	teams, err = ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{})
@@ -610,6 +610,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 					MacOSSetup: fleet.MacOSSetup{
 						BootstrapPackage:    optjson.SetString("bootstrap"),
 						MacOSSetupAssistant: optjson.SetString("assistant"),
+						ManualAgentInstall:  optjson.SetBool(true),
 					},
 					WindowsSettings: fleet.WindowsSettings{
 						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
@@ -642,6 +643,9 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				BootstrapPackage:            optjson.SetString("bootstrap"),
 				MacOSSetupAssistant:         optjson.SetString("assistant"),
 				EnableReleaseDeviceManually: optjson.SetBool(false),
+				Script:                      optjson.String{Set: true},
+				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+				ManualAgentInstall:          optjson.SetBool(true),
 			},
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),

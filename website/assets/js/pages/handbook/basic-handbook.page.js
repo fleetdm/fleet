@@ -123,6 +123,13 @@ parasails.registerPage('basic-handbook', {
       let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
       ol.style.counterReset = 'custom-counter ' + startValue;
     });
+    // Add links to the responsibilities under the responsibilities heading.
+    if($('h2#responsibilities')){
+      let responsibilitiesLinksHtml = '<ul>\n';
+      $('h3').each((unused, el)=>{ responsibilitiesLinksHtml += '<li><a href="#'+_.escape($(el).attr('id'))+'">'+_.escape($(el).text())+'</a></li>\n';  });
+      responsibilitiesLinksHtml+= '</ul>';
+      $('h2#responsibilities + p').after(responsibilitiesLinksHtml);
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -147,7 +154,18 @@ parasails.registerPage('basic-handbook', {
     },
     handleScrollingInHandbook: function () {
       let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
+      let sidebarCta = document.querySelector('div[purpose="sidebar-cta"]');
+      let windowHeight = window.innerHeight;
       let scrollTop = window.pageYOffset;
+      if (sidebarCta) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+          sidebarCta.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
+          sidebarCta.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
+        }
+      }
       if (backToTopButton) {
         if(scrollTop > 2500) {
           backToTopButton.classList.add('show');
@@ -172,6 +190,6 @@ parasails.registerPage('basic-handbook', {
         left: 0,
         behavior: 'smooth',
       });
-    }
+    },
   }
 });

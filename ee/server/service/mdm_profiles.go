@@ -1,6 +1,10 @@
 package service
 
-import "text/template"
+import (
+	"text/template"
+
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+)
 
 type fileVaultProfileOptions struct {
 	PayloadIdentifier    string
@@ -22,9 +26,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>PayloadDisplayName</key>
 			<string>FileVault 2</string>
 			<key>PayloadIdentifier</key>
-			<string>com.apple.MCX.FileVault2.3548D750-6357-4910-8DEA-D80ADCE2C787</string>
+			<string>` + mobileconfig.FleetFileVaultPayloadType + `.3548D750-6357-4910-8DEA-D80ADCE2C787</string>
 			<key>PayloadType</key>
-			<string>com.apple.MCX.FileVault2</string>
+			<string>` + mobileconfig.FleetFileVaultPayloadType + `</string>
 			<key>PayloadUUID</key>
 			<string>3548D750-6357-4910-8DEA-D80ADCE2C787</string>
 			<key>PayloadVersion</key>
@@ -44,9 +48,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>PayloadDisplayName</key>
 			<string>FileVault Recovery Key Escrow</string>
 			<key>PayloadIdentifier</key>
-			<string>com.apple.security.FDERecoveryKeyEscrow.3690D771-DCB8-4D5D-97D6-209A138DF03E</string>
+			<string>` + mobileconfig.FleetRecoveryKeyEscrowPayloadType + `.3690D771-DCB8-4D5D-97D6-209A138DF03E</string>
 			<key>PayloadType</key>
-			<string>com.apple.security.FDERecoveryKeyEscrow</string>
+			<string>` + mobileconfig.FleetRecoveryKeyEscrowPayloadType + `</string>
 			<key>PayloadUUID</key>
 			<string>3C329F2B-3D47-4141-A2B5-5C52A2FD74F8</string>
 			<key>PayloadVersion</key>
@@ -72,9 +76,9 @@ var fileVaultProfileTemplate = template.Must(template.New("").Option("missingkey
 			<key>dontAllowFDEDisable</key>
 			<true/>
 			<key>PayloadIdentifier</key>
-			<string>com.apple.MCX.62024f29-105E-497A-A724-1D5BA4D9E854</string>
+			<string>` + mobileconfig.FleetCustomSettingsPayloadType + `.62024f29-105E-497A-A724-1D5BA4D9E854</string>
 			<key>PayloadType</key>
-			<string>com.apple.MCX</string>
+			<string>` + mobileconfig.FleetCustomSettingsPayloadType + `</string>
 			<key>PayloadUUID</key>
 			<string>62024f29-105E-497A-A724-1D5BA4D9E854</string>
 			<key>PayloadVersion</key>

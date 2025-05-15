@@ -56,7 +56,7 @@ func TestUp_20240730215453(t *testing.T) {
 		res := db.QueryRow("SELECT `software_title_id`, `hosts_count`, `team_id`, `global_stats` FROM `software_titles_host_counts` WHERE `software_title_id` = ? AND `team_id` = ? AND global_stats = ?", softwareID, teamID, globalStats)
 		err = res.Scan(&result.SoftwareID, &result.HostsCount, &result.TeamID, &result.GlobalStats)
 		require.NoError(t, err)
-		require.Equal(t, softwareID, int(result.SoftwareID))
+		require.EqualValues(t, softwareID, result.SoftwareID)
 		require.Equal(t, hostsCount, result.HostsCount)
 		require.Equal(t, teamID, result.TeamID)
 		require.Equal(t, globalStats, result.GlobalStats)

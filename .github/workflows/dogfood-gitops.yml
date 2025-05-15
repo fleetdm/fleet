@@ -48,13 +48,6 @@ jobs:
           ref: main
           path: fleet-gitops
 
-      - name: Apply env vars to profiles
-        env:
-          MANAGED_CHROME_ENROLLMENT_TOKEN: ${{ secrets.CLOUD_MANAGEMENT_ENROLLMENT_TOKEN }}
-        run: |
-          envsubst < ./it-and-security/lib/configuration-profiles/macos-chrome-enrollment.mobileconfig > ./it-and-security/lib/configuration-profiles/macos-chrome-enrollment.confidential.mobileconfig
-          mv ./it-and-security/lib/configuration-profiles/macos-chrome-enrollment.confidential.mobileconfig ./it-and-security/lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
-
       - name: Apply latest configuration to Fleet
         uses: ./fleet-gitops/.github/gitops-action
         with:
@@ -67,13 +60,11 @@ jobs:
           DOGFOOD_APPLE_BM_DEFAULT_TEAM: "💻 Workstations"
           DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL: ${{ secrets.DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL }}
           DOGFOOD_GLOBAL_ENROLL_SECRET: ${{ secrets.DOGFOOD_GLOBAL_ENROLL_SECRET }}
-          DOGFOOD_SSO_ISSUER_URI: ${{ secrets.DOGFOOD_SSO_ISSUER_URI }}
           DOGFOOD_SSO_METADATA: ${{ secrets.DOGFOOD_SSO_METADATA }}
           DOGFOOD_MDM_SSO_METADATA_URL: ${{ secrets.DOGFOOD_MDM_SSO_METADATA_URL }}
           DOGFOOD_FAILING_POLICIES_WEBHOOK_URL: ${{ secrets.DOGFOOD_FAILING_POLICIES_WEBHOOK_URL }}
           DOGFOOD_VULNERABILITIES_WEBHOOK_URL: ${{ secrets.DOGFOOD_VULNERABILITIES_WEBHOOK_URL }}
           DOGFOOD_WORKSTATIONS_ENROLL_SECRET: ${{ secrets.DOGFOOD_WORKSTATIONS_ENROLL_SECRET }}
-          DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL: ${{ secrets.DOGFOOD_WORKSTATIONS_CANARY_CALENDAR_WEBHOOK_URL }}
           DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET: ${{ secrets.DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET }}
           DOGFOOD_SERVERS_ENROLL_SECRET: ${{ secrets.DOGFOOD_SERVERS_ENROLL_SECRET }}
           DOGFOOD_SERVERS_CANARY_ENROLL_SECRET: ${{ secrets.DOGFOOD_SERVERS_CANARY_ENROLL_SECRET }}
@@ -82,3 +73,40 @@ jobs:
           DOGFOOD_COMPLIANCE_EXCLUSIONS_ENROLL_SECRET: ${{ secrets.DOGFOOD_COMPLIANCE_EXCLUSIONS_ENROLL_SECRET }}
           DOGFOOD_COMPANY_OWNED_IPHONES_ENROLL_SECRET: ${{ secrets.DOGFOOD_COMPANY_OWNED_IPHONES_ENROLL_SECRET }}
           DOGFOOD_COMPANY_OWNED_IPADS_ENROLL_SECRET: ${{ secrets.DOGFOOD_COMPANY_OWNED_IPADS_ENROLL_SECRET }}
+          DOGFOOD_COMPANY_OWNED_MOBILE_DEVICES_ENROLL_SECRET: ${{ secrets.DOGFOOD_COMPANY_OWNED_MOBILE_DEVICES_ENROLL_SECRET }}
+          DOGFOOD_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET: ${{ secrets.DOGFOOD_PERSONAL_MOBILE_DEVICES_ENROLL_SECRET }}
+          FLEET_SECRET_MANAGED_CHROME_ENROLLMENT_TOKEN: ${{ secrets.CLOUD_MANAGEMENT_ENROLLMENT_TOKEN }}
+          DOGFOOD_PERSONALLY_OWNED_IPHONES_ENROLL_SECRET: ${{ secrets.DOGFOOD_PERSONALLY_OWNED_IPHONES_ENROLL_SECRET }}
+          DOGFOOD_ACTIVITIES_WEBHOOK_URL: ${{ secrets.DOGFOOD_ACTIVITIES_WEBHOOK_URL }}
+          DOGFOOD_CALENDAR_WEBHOOK_URL: ${{ secrets.DOGFOOD_CALENDAR_WEBHOOK_URL }}
+          DOGFOOD_HOST_STATUS_WEBHOOK_URL: ${{ secrets.DOGFOOD_HOST_STATUS_WEBHOOK_URL }}
+          DOGFOOD_END_USER_SSO_METADATA: ${{ secrets.DOGFOOD_END_USER_SSO_METADATA }}
+
+      - name: Notify on Gitops failure
+        if: failure() && github.ref_name == 'main'
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "GitOps run failed for ${{ env.RUN_URL }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitOps run failed on ${{ github.ref_name }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "For more details see:\n${{ env.RUN_URL }}"
+                  }
+                }
+              ]
+            }
+        env:
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_DOGFOODING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

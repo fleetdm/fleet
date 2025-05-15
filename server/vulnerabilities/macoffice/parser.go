@@ -2,6 +2,7 @@ package macoffice
 
 import (
 	"io"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -31,6 +32,52 @@ var nameToType = map[string]ProductType{
 	"excel":                Excel,
 	"onenote":              OneNote,
 	"microsoft autoupdate": WholeSuite,
+}
+
+type releaseNotesURL string // type added to calm gosec variable URL warnings down
+const (
+	primaryURL = releaseNotesURL("https://learn.microsoft.com/en-us/officeupdates/release-notes-office-for-mac")
+	archiveURL = releaseNotesURL("https://learn.microsoft.com/en-us/officeupdates/release-notes-office-for-mac-archived")
+)
+
+func GetReleaseNotes(includeInvalid bool) (ReleaseNotes, error) {
+	var relNotes ReleaseNotes
+
+	relNotes, err := addReleaseNotes(relNotes, primaryURL, includeInvalid)
+	if err != nil {
+		return nil, err
+	}
+
+	relNotes, err = addReleaseNotes(relNotes, archiveURL, includeInvalid)
+	if err != nil {
+		return nil, err
+	}
+
+	return relNotes, nil
+}
+
+func addReleaseNotes(relNotes ReleaseNotes, url releaseNotesURL, includeInvalid bool) (ReleaseNotes, error) {
+	res, err := http.Get(string(url))
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	parsed, err := parseReleaseHTML(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rn := range parsed {
+		// Under normal operation (outside parser tests), we only care about release notes that have a version set
+		// (because we need that for matching software entries) and also that contain some
+		// security updates (because we only intend to use the release notes for vulnerability processing).
+		if includeInvalid || rn.Valid() {
+			relNotes = append(relNotes, rn)
+		}
+	}
+
+	return relNotes, nil
 }
 
 func parseRelDate(raw string) (time.Time, bool) {
@@ -70,7 +117,7 @@ func getId(token html.Token) string {
 // ParseReleaseHTML parses the release page using the provided reader. It is assumed that elements
 // in the page appear in order: first the release date then the version and finally any related
 // security updates.
-func ParseReleaseHTML(reader io.Reader) ([]ReleaseNote, error) {
+func parseReleaseHTML(reader io.Reader) ([]ReleaseNote, error) {
 	var result []ReleaseNote
 
 	// We use these pieces of state to keep track of whether we are inside a 'Security Updates'

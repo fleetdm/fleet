@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +29,10 @@ const (
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
 	SoftwareArchMaxLength    = 16
+
+	// SoftwareTeamIdentifierMaxLength is the max length for Apple's Team ID,
+	// see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id
+	SoftwareTeamIdentifierMaxLength = 10
 )
 
 type Vulnerabilities []CVE
@@ -81,6 +86,11 @@ type Software struct {
 	// TitleID is the ID of the associated software title, representing a unique combination of name
 	// and source.
 	TitleID *uint `json:"-" db:"title_id"`
+	// NameSource indicates whether the name for this Software was changed during the migration to
+	// Fleet 4.67.0
+	NameSource string `json:"-" db:"name_source"`
+	// Checksum is the unique checksum generated for this Software.
+	Checksum string `json:"-" db:"checksum"`
 }
 
 func (Software) AuthzType() string {
@@ -103,6 +113,23 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
+// computeRawChecksum computes the checksum for a software entry
+// The calculation must match the one in softwareChecksumComputedColumn
+func (s Software) ComputeRawChecksum() ([]byte, error) {
+	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.Browser, s.ExtensionID}
+	// Only incorporate name if the Software is not a macOS app, because names on macOS are easily
+	// mutable and can lead to unintentional duplicates of Software in Fleet.
+	if s.Source != "apps" {
+		cols = append([]string{s.Name}, cols...)
+	}
+	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
+	if err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
+}
+
 type VulnerableSoftware struct {
 	ID                uint    `json:"id" db:"id"`
 	Name              string  `json:"name" db:"name"`
@@ -123,8 +150,7 @@ type VulnSoftwareFilter struct {
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
-	switch tv := v.(type) {
-	case []byte:
+	if tv, ok := v.([]byte); ok {
 		return json.Unmarshal(tv, &c)
 	}
 	return errors.New("unsupported type")
@@ -163,7 +189,7 @@ type SoftwareTitle struct {
 	Versions []SoftwareVersion `json:"versions" db:"-"`
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
-	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
+	CountsUpdatedAt *time.Time `json:"counts_updated_at" db:"counts_updated_at"`
 	// SoftwareInstallersCount is 0 or 1, indicating if the software title has an
 	// installer. This is an internal field for an optimization so that the extra
 	// queries to fetch installer information is done only if necessary.
@@ -214,6 +240,7 @@ type SoftwareTitleListResult struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
 }
 
 type SoftwareTitleListOptions struct {
@@ -228,6 +255,7 @@ type SoftwareTitleListOptions struct {
 	MinimumCVSS         float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
 	PackagesOnly        bool    `query:"packages_only,optional"`
+	Platform            string  `query:"platform,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -249,7 +277,13 @@ type HostSoftwareTitleListOptions struct {
 	// the host.
 	OnlyAvailableForInstall bool `query:"available_for_install,optional"`
 
-	VulnerableOnly bool `query:"vulnerable,optional"`
+	VulnerableOnly bool    `query:"vulnerable,optional"`
+	KnownExploit   bool    `query:"exploit,optional"`
+	MinimumCVSS    float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS    float64 `query:"max_cvss_score,optional"`
+
+	// Non-MDM-enabled hosts cannot install VPP apps
+	IsMDMEnrolled bool
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -268,7 +302,13 @@ type HostSoftwareEntry struct {
 	Software
 	// Where this software was installed on the host, value is derived from the
 	// host_software_installed_paths table.
-	InstalledPaths []string `json:"installed_paths"`
+	InstalledPaths           []string                   `json:"installed_paths"`
+	PathSignatureInformation []PathSignatureInformation `json:"signature_information"`
+}
+
+type PathSignatureInformation struct {
+	InstalledPath  string `json:"installed_path"`
+	TeamIdentifier string `json:"team_identifier"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -292,13 +332,14 @@ type SoftwareListOptions struct {
 	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
-	HostID           *uint
-	TeamID           *uint `query:"team_id,optional"`
-	VulnerableOnly   bool  `query:"vulnerable,optional"`
-	IncludeCVEScores bool
-	KnownExploit     bool    `query:"exploit,optional"`
-	MinimumCVSS      float64 `query:"min_cvss_score,optional"`
-	MaximumCVSS      float64 `query:"max_cvss_score,optional"`
+	HostID                      *uint
+	TeamID                      *uint `query:"team_id,optional"`
+	VulnerableOnly              bool  `query:"vulnerable,optional"`
+	WithoutVulnerabilityDetails bool  `query:"without_vulnerability_details,optional"`
+	IncludeCVEScores            bool
+	KnownExploit                bool    `query:"exploit,optional"`
+	MinimumCVSS                 float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
@@ -350,9 +391,7 @@ func (uhsdbr *UpdateHostSoftwareDBResult) CurrInstalled() []Software {
 		}
 	}
 
-	for _, i := range uhsdbr.Inserted {
-		r = append(r, i)
-	}
+	r = append(r, uhsdbr.Inserted...)
 
 	return r
 }
@@ -382,9 +421,10 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 //
 // All fields are trimmed to fit on Fleet's database.
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
-func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, release, arch, bundleIdentifier, extensionId, browser, lastOpenedAt string) (
-	*Software, error,
-) {
+func SoftwareFromOsqueryRow(
+	name, version, source, vendor, installedPath, release, arch,
+	bundleIdentifier, extensionId, browser, lastOpenedAt string,
+) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
 	}
@@ -427,12 +467,29 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 }
 
 type VPPBatchPayload struct {
-	AppStoreID  string `json:"app_store_id"`
-	SelfService bool   `json:"self_service"`
+	AppStoreID         string   `json:"app_store_id"`
+	SelfService        bool     `json:"self_service"`
+	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string `json:"labels_include_any"`
+	// Categories is the list of names of software categories associated with this VPP app.
+	Categories []string `json:"categories"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
-	AppStoreID  string              `json:"app_store_id"`
-	SelfService bool                `json:"self_service"`
-	Platform    AppleDevicePlatform `json:"platform"`
+	AppStoreID         string              `json:"app_store_id"`
+	SelfService        bool                `json:"self_service"`
+	Platform           AppleDevicePlatform `json:"platform"`
+	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
+	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
+	LabelsIncludeAny   []string            `json:"labels_include_any"`
+	// Categories is the list of names of software categories associated with this VPP app.
+	Categories []string `json:"categories"`
+	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
+	CategoryIDs []uint `json:"-"`
+}
+
+type SoftwareCategory struct {
+	ID   uint   `db:"id"`
+	Name string `db:"name"`
 }

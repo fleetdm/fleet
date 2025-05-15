@@ -1,0 +1,9 @@
+- name: All debian hosts
+  automations_enabled: false
+  description: Collects all debian-based hosts.
+  discard_data: false
+  interval: 300
+  logging: snapshot
+  observer_can_run: true
+  platform: linux
+  query: SELECT * FROM os_version WHERE platform = 'debian';

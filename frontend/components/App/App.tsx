@@ -23,6 +23,7 @@ import mdmAppleBMAPI, {
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
+import mdmAndroidAPI from "services/entities/mdm_android";
 
 // @ts-ignore
 import Fleet403 from "pages/errors/Fleet403";
@@ -32,7 +33,6 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 
 import Spinner from "components/Spinner";
-import { IMdmVppToken } from "interfaces/mdm";
 
 interface IAppProps {
   children: JSX.Element;
@@ -78,9 +78,11 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
     setAvailableTeams,
+    setUserSettings,
     setCurrentUser,
     setConfig,
     setEnrollSecret,
+    setAndroidEnterpriseDeleted,
     setABMExpiry,
     setAPNsExpiry,
     setVppExpiry,
@@ -92,6 +94,22 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   // We will do a series of API calls to get the data that we need to display
   // warnings to the user about various token expirations.
+
+  useQuery(["android_enterprise"], () => mdmAndroidAPI.getAndroidEnterprise(), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    retry: false,
+    enabled:
+      false && // TODO: reenable when the BE is completed
+      !!isGlobalAdmin &&
+      !!config?.mdm.android_enabled_and_configured &&
+      config?.android_enabled, // TODO: remove android feature flag
+    onSuccess: () => {
+      setAndroidEnterpriseDeleted(false);
+    },
+    onError: () => {
+      setAndroidEnterpriseDeleted(true);
+    },
+  });
 
   // Get the ABM tokens
   useQuery<IGetAbmTokensResponse, AxiosError>(
@@ -166,9 +184,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   const fetchCurrentUser = async () => {
     try {
-      const { user, available_teams } = await usersAPI.me();
+      const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
       fetchConfig();
     } catch (error) {
       if (

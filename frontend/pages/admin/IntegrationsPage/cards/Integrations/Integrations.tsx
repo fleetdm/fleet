@@ -17,10 +17,10 @@ import configAPI from "services/entities/config";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
-import EditIntegrationModal from "./components/EditIntegrationModal";
 import EmptyIntegrationsTable from "./components/EmptyIntegrationsTable";
 
 import {
@@ -45,9 +45,6 @@ const Integrations = (): JSX.Element => {
   const [showDeleteIntegrationModal, setShowDeleteIntegrationModal] = useState(
     false
   );
-  const [showEditIntegrationModal, setShowEditIntegrationModal] = useState(
-    false
-  );
   const [
     integrationEditing,
     setIntegrationEditing,
@@ -59,9 +56,6 @@ const Integrations = (): JSX.Element => {
   const [zendeskIntegrations, setZendeskIntegrations] = useState<
     IZendeskIntegration[]
   >();
-  const [backendValidators, setBackendValidators] = useState<{
-    [key: string]: string;
-  }>({});
   const [testingConnection, setTestingConnection] = useState(false);
 
   const {
@@ -91,12 +85,7 @@ const Integrations = (): JSX.Element => {
 
   const toggleAddIntegrationModal = useCallback(() => {
     setShowAddIntegrationModal(!showAddIntegrationModal);
-    setBackendValidators({});
-  }, [
-    showAddIntegrationModal,
-    setShowAddIntegrationModal,
-    setBackendValidators,
-  ]);
+  }, [showAddIntegrationModal, setShowAddIntegrationModal]);
 
   const toggleDeleteIntegrationModal = useCallback(
     (integration?: IIntegrationTableData) => {
@@ -109,22 +98,6 @@ const Integrations = (): JSX.Element => {
       showDeleteIntegrationModal,
       setShowDeleteIntegrationModal,
       setIntegrationEditing,
-    ]
-  );
-
-  const toggleEditIntegrationModal = useCallback(
-    (integration?: IIntegrationTableData) => {
-      setShowEditIntegrationModal(!showEditIntegrationModal);
-      setBackendValidators({});
-      integration
-        ? setIntegrationEditing(integration)
-        : setIntegrationEditing(undefined);
-    },
-    [
-      showEditIntegrationModal,
-      setShowEditIntegrationModal,
-      setIntegrationEditing,
-      setBackendValidators,
     ]
   );
 
@@ -161,7 +134,6 @@ const Integrations = (): JSX.Element => {
               </b>
             </>
           );
-          setBackendValidators({});
           toggleAddIntegrationModal();
           refetchIntegrations();
         })
@@ -274,87 +246,9 @@ const Integrations = (): JSX.Element => {
     }
   }, [integrationEditing, toggleDeleteIntegrationModal]);
 
-  const onEditSubmit = useCallback(
-    (integrationSubmitData: IIntegration[]) => {
-      if (integrationEditing) {
-        setTestingConnection(true);
-
-        const editIntegrationDestination = () => {
-          if (integrationEditing.type === "jira") {
-            return configAPI.update({
-              integrations: {
-                jira: integrationSubmitData,
-                zendesk: zendeskIntegrations,
-              },
-            });
-          }
-          return configAPI.update({
-            integrations: {
-              zendesk: integrationSubmitData,
-              jira: jiraIntegrations,
-            },
-          });
-        };
-
-        editIntegrationDestination()
-          .then(() => {
-            renderFlash(
-              "success",
-              <>
-                Successfully edited{" "}
-                <b>
-                  {integrationSubmitData[integrationEditing?.originalIndex].url}{" "}
-                  -{" "}
-                  {integrationSubmitData[integrationEditing?.originalIndex]
-                    .project_key ||
-                    integrationSubmitData[integrationEditing?.originalIndex]
-                      .group_id}
-                </b>
-              </>
-            );
-            setBackendValidators({});
-            setTestingConnection(false);
-            setShowEditIntegrationModal(false);
-            refetchIntegrations();
-          })
-          .catch((editError: { data: IApiError }) => {
-            if (editError.data.message.includes("Validation Failed")) {
-              renderFlash("error", VALIDATION_FAILED_ERROR);
-            }
-            if (editError.data.message.includes("Bad request")) {
-              renderFlash("error", BAD_REQUEST_ERROR);
-            }
-            if (editError.data.message.includes("Unknown Error")) {
-              renderFlash("error", UNKNOWN_ERROR);
-            } else {
-              renderFlash(
-                "error",
-                <>
-                  Could not edit{" "}
-                  <b>
-                    {integrationEditing?.url} -{" "}
-                    {integrationEditing?.projectKey ||
-                      integrationEditing?.groupId?.toString()}
-                  </b>
-                  . Please try again.
-                </>
-              );
-            }
-          })
-          .finally(() => {
-            setTestingConnection(false);
-          });
-      }
-    },
-    [integrationEditing, toggleEditIntegrationModal]
-  );
-
   const onActionSelection = useCallback(
     (action: string, integration: IIntegrationTableData): void => {
       switch (action) {
-        case "edit":
-          toggleEditIntegrationModal(integration);
-          break;
         case "delete":
           toggleDeleteIntegrationModal(integration);
           break;
@@ -362,7 +256,7 @@ const Integrations = (): JSX.Element => {
         // do nothing
       }
     },
-    [toggleEditIntegrationModal, toggleDeleteIntegrationModal]
+    [toggleDeleteIntegrationModal]
   );
 
   const tableHeaders = useMemo(() => generateTableHeaders(onActionSelection), [
@@ -374,6 +268,41 @@ const Integrations = (): JSX.Element => {
     [jiraIntegrations, zendeskIntegrations]
   );
 
+  const renderTable = () => {
+    if (loadingIntegrationsError) {
+      return <TableDataError />;
+    }
+    if (isLoadingIntegrations) {
+      return <Spinner />;
+    }
+    return (
+      <TableContainer
+        columnConfigs={tableHeaders}
+        data={tableData}
+        defaultSortHeader="name"
+        defaultSortDirection="asc"
+        isLoading={false}
+        actionButton={{
+          name: "add integration",
+          buttonText: "Add integration",
+          variant: "default",
+          onClick: toggleAddIntegrationModal,
+          hideButton: !tableData?.length,
+        }}
+        resultsTitle="integrations"
+        emptyComponent={() => (
+          <EmptyIntegrationsTable
+            className={noIntegrationsClass}
+            onActionButtonClick={toggleAddIntegrationModal}
+          />
+        )}
+        showMarkAllPages={false}
+        isAllPagesSelected={false}
+        disablePagination
+      />
+    );
+  };
+
   return (
     <div className={`${baseClass}`}>
       <SectionHeader title="Ticket destinations" />
@@ -381,39 +310,11 @@ const Integrations = (): JSX.Element => {
         Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities.
       </p>
-      {loadingIntegrationsError ? (
-        <TableDataError />
-      ) : (
-        <TableContainer
-          columnConfigs={tableHeaders}
-          data={tableData}
-          isLoading={isLoadingIntegrations}
-          defaultSortHeader="name"
-          defaultSortDirection="asc"
-          actionButton={{
-            name: "add integration",
-            buttonText: "Add integration",
-            variant: "brand",
-            onActionButtonClick: toggleAddIntegrationModal,
-            hideButton: !tableData?.length,
-          }}
-          resultsTitle="integrations"
-          emptyComponent={() => (
-            <EmptyIntegrationsTable
-              className={noIntegrationsClass}
-              onActionButtonClick={toggleAddIntegrationModal}
-            />
-          )}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          disablePagination
-        />
-      )}
+      {renderTable()}
       {showAddIntegrationModal && (
         <AddIntegrationModal
           onCancel={toggleAddIntegrationModal}
           onSubmit={onAddSubmit}
-          backendValidators={backendValidators}
           integrations={integrations || { jira: [], zendesk: [] }}
           testingConnection={testingConnection}
         />
@@ -429,16 +330,6 @@ const Integrations = (): JSX.Element => {
             ""
           }
           isUpdatingIntegration={isUpdatingIntegration}
-        />
-      )}
-      {showEditIntegrationModal && integrations && (
-        <EditIntegrationModal
-          onCancel={toggleEditIntegrationModal}
-          onSubmit={onEditSubmit}
-          backendValidators={backendValidators}
-          integrations={integrations}
-          integrationEditing={integrationEditing}
-          testingConnection={testingConnection}
         />
       )}
     </div>

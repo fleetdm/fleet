@@ -133,6 +133,10 @@ resource "aws_ecs_task_definition" "backend" {
         ]
         environment = concat([
           {
+            name  = "FLEET_LOGGING_JSON"
+            value = "true"
+          },
+          {
             name  = "FLEET_MYSQL_USERNAME"
             value = module.aurora_mysql.cluster_master_username
           },

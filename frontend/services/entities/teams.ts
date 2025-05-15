@@ -68,6 +68,10 @@ export default {
   create: (formData: ITeamFormData) => {
     const { TEAMS } = endpoints;
 
+    if (formData.name) {
+      formData.name = formData.name.trim();
+    }
+
     return sendRequest("POST", TEAMS, formData);
   },
   destroy: (teamId: number) => {
@@ -120,13 +124,18 @@ export default {
     const path = `${TEAMS}/${teamId}`;
     const requestBody: Record<string, unknown> = {};
     if (name) {
-      requestBody.name = name;
+      requestBody.name = name.trim();
     }
     if (webhook_settings) {
       requestBody.webhook_settings = webhook_settings;
     }
     if (integrations) {
-      const { jira, zendesk, google_calendar } = integrations;
+      const {
+        jira,
+        zendesk,
+        google_calendar,
+        conditional_access_enabled,
+      } = integrations;
       const teamIntegrationProps = [
         "enable_failing_policies",
         "group_id",
@@ -137,6 +146,7 @@ export default {
         jira: jira?.map((j) => pick(j, teamIntegrationProps)),
         zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
         google_calendar,
+        conditional_access_enabled,
       };
     }
     if (mdm) {

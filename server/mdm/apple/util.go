@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
@@ -60,7 +59,7 @@ func EncodePrivateKeyPEM(key *rsa.PrivateKey) []byte {
 //
 // The implementation details have been mostly taken from https://github.com/pquerna/otp
 func GenerateRandomPin(length int) string {
-	counter := uint64(time.Now().Unix())
+	counter := uint64(time.Now().Unix()) //nolint:gosec // dismiss G115
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, counter)
 	m := sha256.New()
@@ -71,7 +70,7 @@ func GenerateRandomPin(length int) string {
 		((int(sum[offset+1] & 0xff)) << 16) |
 		((int(sum[offset+2] & 0xff)) << 8) |
 		(int(sum[offset+3]) & 0xff))
-	v := int32(value % int64(math.Pow10(length)))
+	v := int32(value % int64(math.Pow10(length))) //nolint:gosec // dismiss G115
 	f := fmt.Sprintf("%%0%dd", length)
 	return fmt.Sprintf(f, v)
 }
@@ -99,7 +98,7 @@ func FmtDDMError(reasons []fleet.MDMAppleDDMStatusErrorReason) string {
 }
 
 func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
-	enrollURL, err := url.Parse(appConfig.ServerSettings.ServerURL)
+	enrollURL, err := url.Parse(appConfig.MDMUrl())
 	if err != nil {
 		return "", err
 	}
@@ -113,33 +112,14 @@ func EnrollURL(token string, appConfig *fleet.AppConfig) (string, error) {
 // IsLessThanVersion returns true if the current version is less than the target version.
 // If either version is invalid, an error is returned.
 func IsLessThanVersion(current string, target string) (bool, error) {
-	cv, err := semver.NewVersion(current)
+	cv, err := fleet.VersionToSemverVersion(current)
 	if err != nil {
 		return false, fmt.Errorf("invalid current version: %w", err)
 	}
-	tv, err := semver.NewVersion(target)
+	tv, err := fleet.VersionToSemverVersion(target)
 	if err != nil {
 		return false, fmt.Errorf("invalid target version: %w", err)
 	}
 
 	return cv.LessThan(tv), nil
-}
-
-// CompareVersions returns an integer comparing two versions according to semantic version
-// precedence. The result will be 0 if a == b, -1 if a < b, or +1 if a > b.
-// An invalid semantic version string is considered less than a valid one. All invalid semantic
-// version strings compare equal to each other.
-func CompareVersions(a string, b string) int {
-	verA, errA := semver.NewVersion(a)
-	verB, errB := semver.NewVersion(b)
-	switch {
-	case errA != nil && errB != nil:
-		return 0
-	case errA != nil:
-		return -1
-	case errB != nil:
-		return 1
-	default:
-		return verA.Compare(verB)
-	}
 }

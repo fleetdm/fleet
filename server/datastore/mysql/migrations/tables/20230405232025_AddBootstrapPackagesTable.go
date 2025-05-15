@@ -19,7 +19,7 @@ func Up_20230405232025(tx *sql.Tx) error {
 
 	    PRIMARY KEY (team_id),
 	    UNIQUE KEY idx_token (token)
-          )`)
+          ) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return err
 	}

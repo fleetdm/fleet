@@ -2,6 +2,9 @@ import React, { useState, useCallback, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
+import { PRIMO_TOOLTIP } from "utilities/constants";
+import { getGitOpsModeTipContent } from "utilities/helpers";
+
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
@@ -35,7 +38,10 @@ const TeamManagementPage = (): JSX.Element => {
     setCurrentTeam,
     setCurrentUser,
     setAvailableTeams,
+    setUserSettings,
+    config,
   } = useContext(AppContext);
+
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
@@ -48,9 +54,10 @@ const TeamManagementPage = (): JSX.Element => {
 
   const { refetch: refetchMe } = useQuery(["me"], () => usersAPI.me(), {
     enabled: false,
-    onSuccess: ({ user, available_teams }: IGetMeResponse) => {
+    onSuccess: ({ user, available_teams, settings }: IGetMeResponse) => {
       setCurrentUser(user);
       setAvailableTeams(user, available_teams);
+      setUserSettings(settings);
     },
   });
 
@@ -248,11 +255,18 @@ const TeamManagementPage = (): JSX.Element => {
     return <TableCount name="teams" count={teams?.length} />;
   }, [teams]);
 
+  const disabledPrimaryActionTooltip = (() => {
+    if (config?.partnerships?.enable_primo) {
+      return PRIMO_TOOLTIP;
+    }
+    if (config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url) {
+      return getGitOpsModeTipContent(config.gitops.repository_url);
+    }
+    return null;
+  })();
+
   return (
     <div className={`${baseClass}`}>
-      <p className={`${baseClass}__page-description`}>
-        Create, customize, and remove teams from Fleet.
-      </p>
       <SandboxGate
         fallbackComponent={() => (
           <SandboxMessage
@@ -270,20 +284,22 @@ const TeamManagementPage = (): JSX.Element => {
             columnConfigs={tableHeaders}
             data={tableData}
             isLoading={isFetchingTeams}
-            defaultSortHeader={"name"}
-            defaultSortDirection={"asc"}
+            defaultSortHeader="name"
+            defaultSortDirection="asc"
             actionButton={{
               name: "create team",
               buttonText: "Create team",
-              variant: "brand",
-              onActionButtonClick: toggleCreateTeamModal,
+              variant: "default",
+              onClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
+              disabledTooltipContent: disabledPrimaryActionTooltip,
             }}
-            resultsTitle={"teams"}
+            resultsTitle="teams"
             emptyComponent={() => (
               <EmptyTeamsTable
                 className={noTeamsClass}
                 onActionButtonClick={toggleCreateTeamModal}
+                disabledPrimaryActionTooltip={disabledPrimaryActionTooltip}
               />
             )}
             showMarkAllPages={false}

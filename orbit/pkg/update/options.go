@@ -15,12 +15,12 @@ var DefaultOptions = defaultOptions
 
 var (
 	DarwinTargets = Targets{
-		"orbit": TargetInfo{
+		constant.OrbitTUFTargetName: TargetInfo{
 			Platform:   "macos",
 			Channel:    "stable",
 			TargetFile: "orbit",
 		},
-		"osqueryd": TargetInfo{
+		constant.OsqueryTUFTargetName: TargetInfo{
 			Platform:             "macos-app",
 			Channel:              "stable",
 			TargetFile:           "osqueryd.app.tar.gz",
@@ -29,12 +29,12 @@ var (
 	}
 
 	LinuxTargets = Targets{
-		"orbit": TargetInfo{
+		constant.OrbitTUFTargetName: TargetInfo{
 			Platform:   "linux",
 			Channel:    "stable",
 			TargetFile: "orbit",
 		},
-		"osqueryd": TargetInfo{
+		constant.OsqueryTUFTargetName: TargetInfo{
 			Platform:   "linux",
 			Channel:    "stable",
 			TargetFile: "osqueryd",
@@ -42,25 +42,39 @@ var (
 	}
 
 	LinuxArm64Targets = Targets{
-		"orbit": TargetInfo{
+		constant.OrbitTUFTargetName: TargetInfo{
 			Platform:   "linux-arm64",
 			Channel:    "stable",
 			TargetFile: "orbit",
 		},
-		"osqueryd": TargetInfo{
+		constant.OsqueryTUFTargetName: TargetInfo{
 			Platform:   "linux-arm64",
 			Channel:    "stable",
 			TargetFile: "osqueryd",
 		},
 	}
 
+	WindowsArm64Targets = Targets{
+		constant.OrbitTUFTargetName: TargetInfo{
+			Platform:   "windows-arm64",
+			Channel:    "stable",
+			TargetFile: "orbit.exe",
+		},
+		// NOTE: Currently osquery doesn't fully support ARM64, this is experimental
+		constant.OsqueryTUFTargetName: TargetInfo{
+			Platform:   "windows-arm64",
+			Channel:    "stable",
+			TargetFile: "osqueryd.exe",
+		},
+	}
+
 	WindowsTargets = Targets{
-		"orbit": TargetInfo{
+		constant.OrbitTUFTargetName: TargetInfo{
 			Platform:   "windows",
 			Channel:    "stable",
 			TargetFile: "orbit.exe",
 		},
-		"osqueryd": TargetInfo{
+		constant.OsqueryTUFTargetName: TargetInfo{
 			Platform:   "windows",
 			Channel:    "stable",
 			TargetFile: "osqueryd.exe",
@@ -76,6 +90,12 @@ var (
 
 	DesktopWindowsTarget = TargetInfo{
 		Platform:   "windows",
+		Channel:    "stable",
+		TargetFile: constant.DesktopAppExecName + ".exe",
+	}
+
+	DesktopWindowsArm64Target = TargetInfo{
+		Platform:   "windows-arm64",
 		Channel:    "stable",
 		TargetFile: constant.DesktopAppExecName + ".exe",
 	}

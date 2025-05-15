@@ -43,6 +43,26 @@ func (o *AgentOptions) ForPlatform(platform string) json.RawMessage {
 	return o.Config
 }
 
+func SuggestAgentOptionsCorrection(err error) error {
+	if field := GetJSONUnknownField(err); field != nil {
+		correctKeyPath, keyErr := FindAgentOptionsKeyPath(*field)
+		if keyErr != nil {
+			return fmt.Errorf("error parsing generated agent options struct: %w", err)
+		}
+		var keyPathJoined string
+		switch pathLen := len(correctKeyPath); {
+		case pathLen > 1:
+			keyPathJoined = fmt.Sprintf("%q", strings.Join(correctKeyPath[:len(correctKeyPath)-1], "."))
+		case pathLen == 1:
+			keyPathJoined = "top level"
+		}
+		if keyPathJoined != "" {
+			err = fmt.Errorf("%q should be part of the %s object", *field, keyPathJoined)
+		}
+	}
+	return err
+}
+
 // ValidateJSONAgentOptions validates the given raw JSON bytes as an Agent
 // Options payload. It ensures that all fields are known and have valid values.
 // The validation always uses the most recent Osquery version that is available
@@ -304,6 +324,7 @@ type OsqueryCommandLineFlagsHidden struct {
 	AuditShowPartialFIMEvents     bool   `json:"audit_show_partial_fim_events"`
 	AuditShowUntrackedResWarnings bool   `json:"audit_show_untracked_res_warnings"`
 	AuditFIMShowAccesses          bool   `json:"audit_fim_show_accesses"`
+	VModule                       string `json:"vmodule"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,
@@ -324,4 +345,89 @@ func validateJSONAgentOptionsSet(rawJSON json.RawMessage) error {
 		}
 	}
 	return nil
+}
+
+func FindAgentOptionsKeyPath(key string) ([]string, error) {
+	if key == "script_execution_timeout" {
+		return []string{"script_execution_timeout"}, nil
+	}
+
+	configPath, err := locateStructJSONKeyPath(key, "config", osqueryAgentOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("locating key path in agent options: %w", err)
+	}
+	if configPath != nil {
+		return configPath, nil
+	}
+
+	if key == "overrides" {
+		return []string{"overrides"}, nil
+	}
+	if key == "platforms" {
+		return []string{"overrides", "platforms"}, nil
+	}
+
+	commandLinePath, err := locateStructJSONKeyPath(key, "command_line_flags", osqueryCommandLineFlags{})
+	if err != nil {
+		return nil, fmt.Errorf("locating key path in agent command line options: %w", err)
+	}
+	if commandLinePath != nil {
+		return commandLinePath, nil
+	}
+
+	extensionsPath, err := locateStructJSONKeyPath(key, "extensions", ExtensionInfo{})
+	if err != nil {
+		return nil, fmt.Errorf("locating key path in agent extensions options: %w", err)
+	}
+	if extensionsPath != nil {
+		return extensionsPath, nil
+	}
+
+	channelsPath, err := locateStructJSONKeyPath(key, "update_channels", OrbitUpdateChannels{})
+	if err != nil {
+		return nil, fmt.Errorf("locating key path in agent update channels: %w", err)
+	}
+	if channelsPath != nil {
+		return channelsPath, nil
+	}
+
+	return nil, nil
+}
+
+// Only searches two layers deep
+func locateStructJSONKeyPath(key, startKey string, target any) ([]string, error) {
+	if key == startKey {
+		return []string{startKey}, nil
+	}
+
+	optionsBytes, err := json.Marshal(target)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshall target: %w", err)
+	}
+
+	var opts map[string]any
+
+	if err := json.Unmarshal(optionsBytes, &opts); err != nil {
+		return nil, fmt.Errorf("unable to unmarshall target: %w", err)
+	}
+
+	var path [3]string
+	path[0] = startKey
+	for k, v := range opts {
+		path[1] = k
+		if k == key {
+			return path[:2], nil
+		}
+
+		if inner, ok := v.(map[string]any); ok {
+			for k2 := range inner {
+				path[2] = k2
+				if key == k2 {
+					return path[:3], nil
+				}
+			}
+		}
+	}
+
+	return nil, nil
 }

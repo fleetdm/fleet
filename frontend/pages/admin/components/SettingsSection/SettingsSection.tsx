@@ -21,7 +21,7 @@ const SettingsSection = ({
 
   return (
     <section className={classes}>
-      <SectionHeader title={title} className={`${baseClass}__title`} />
+      <SectionHeader title={title} wrapperCustomClass={`${baseClass}__title`} />
       <>{children}</>
     </section>
   );

@@ -14,4 +14,8 @@
   &--hidden {
     display: none;
   }
+
+  .software-vpp-form__form-frame {
+    flex-direction: column;
+  }
 }

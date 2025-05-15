@@ -7,6 +7,8 @@ import {
   ISoftwareTitle,
   ISoftwareTitleDetails,
   IAppStoreApp,
+  IFleetMaintainedApp,
+  IFleetMaintainedAppDetails,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -69,8 +71,8 @@ const DEFAULT_SOFTWARE_VERSION_MOCK: ISoftwareVersion = {
   name: "test.app",
   version: "1.2.3",
   bundle_identifier: "com.test.Desktop",
-  source: "test_package",
-  browser: "",
+  source: "apps",
+  browser: "chrome",
   release: "1",
   vendor: "test_vendor",
   arch: "x86_64",
@@ -140,6 +142,8 @@ export const createMockOSVersionsResponse = (
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   name: "test app",
   app_store_id: 1,
+  created_at: "2020-01-01T00:00:00.000Z",
+  platform: "darwin",
   icon_url: "https://via.placeholder.com/512",
   latest_version: "1.2.3",
   self_service: true,
@@ -148,6 +152,8 @@ const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
     pending: 2,
     failed: 3,
   },
+  labels_include_any: null,
+  labels_exclude_any: null,
 };
 
 export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {
@@ -159,11 +165,12 @@ const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   name: "test.app",
   software_package: null,
   app_store_app: null,
-  source: "test_package",
+  source: "apps",
   hosts_count: 1,
   versions: [createMockSoftwareTitleVersion()],
   bundle_identifier: "com.test.Desktop",
   versions_count: 1,
+  counts_updated_at: "2024-11-01T01:23:45Z",
 };
 
 export const createMockSoftwareTitleDetails = (
@@ -197,6 +204,7 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   version: "1.2.3",
   uploaded_at: "2020-01-01T00:00:00.000Z",
   install_script: "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+  uninstall_script: "sudo rm -rf /Applications/Falcon.app",
   pre_install_query: "SELECT 1 FROM macos_profiles WHERE uuid='abc123';",
   post_install_script:
     "sudo /Applications/Falcon.app/Contents/Resources/falconctl license abc123",
@@ -209,6 +217,12 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
     pending_uninstall: 1,
     failed_uninstall: 1,
   },
+  automatic_install_policies: [],
+  last_install: null,
+  last_uninstall: null,
+  package_url: "",
+  labels_include_any: null,
+  labels_exclude_any: null,
 };
 
 export const createMockSoftwarePackage = (
@@ -252,4 +266,41 @@ export const createMockSoftwareTitlesResponse = (
   overrides?: Partial<ISoftwareTitlesResponse>
 ): ISoftwareTitlesResponse => {
   return { ...DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_FLEET_MAINTAINED_APPS_MOCK: IFleetMaintainedApp = {
+  id: 1,
+  name: "test app",
+  version: "1.2.3",
+  platform: "darwin",
+};
+
+export const createMockFleetMaintainedApp = (
+  overrides?: Partial<IFleetMaintainedApp>
+): IFleetMaintainedApp => {
+  return {
+    ...DEFAULT_FLEET_MAINTAINED_APPS_MOCK,
+    ...overrides,
+  };
+};
+
+const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
+  id: 1,
+  name: "Test app",
+  version: "1.2.3",
+  platform: "darwin",
+  pre_install_script: "SELECT * FROM osquery_info WHERE start_time > 1",
+  install_script: '#!/bin/sh\n\ninstaller -pkg "$INSTALLER" -target /',
+  post_install_script: 'echo "Installed"',
+  uninstall_script:
+    "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+  slug: "applications/test-app",
+  url: "http://www.testurl1234abcd.com/testapp",
+  categories: ["Browsers"],
+};
+
+export const createMockFleetMaintainedAppDetails = (
+  overrides?: Partial<IFleetMaintainedAppDetails>
+) => {
+  return { ...DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK, ...overrides };
 };

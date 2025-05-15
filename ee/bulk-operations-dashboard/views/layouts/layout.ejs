@@ -55,7 +55,10 @@
           <!-- LOGGED-IN NAVIGATION -->
           <a class="nav-item nav-link mr-3 d-flex align-items-center" href="/profiles">Configuration profiles</a>
           <a class="nav-item nav-link ml-3 mr-3 d-flex align-items-center" href="/scripts">Scripts</a>
+          <a class="nav-item nav-link ml-3 mr-3 d-flex align-items-center" href="/software">Software</a>
           <% if(me) { %>
+
+          <a class="nav-item nav-link ml-3 d-flex align-items-center" href="/account">Account</a>
           <a class="nav-item nav-link ml-3 d-flex align-items-center" href="/logout">Sign out</a>
           <% } else { %>
           <a class="nav-item nav-link ml-3 d-flex align-items-center mr-2" href="/login">Log in</a>
@@ -67,6 +70,7 @@
             <a class="dropdown-item nav-link" href="/dashboard">Configuration profiles</a>
             <a class="dropdown-item nav-link" href="/patch-progress">Scripts</a>
             <% if(me) { %>
+            <a class="dropdown-item nav-link" href="/account">Account</a>
             <a class="dropdown-item nav-link" href="/logout">Sign out</a>
             <% } else { %>
             <a class="dropdown-item nav-link" href="/login">Log in</a>
@@ -125,14 +129,24 @@
     <script src="/dependencies/jquery.min.js"></script>
     <script src="/dependencies/vue.js"></script>
     <script src="/dependencies/vue-router.js"></script>
+    <script src="/dependencies/ace-editor/ace.js"></script>
+    <script src="/dependencies/ace-editor/mode-fleet-highlight-rules.js"></script>
+    <script src="/dependencies/ace-editor/mode-fleet.js"></script>
+    <script src="/dependencies/ace-editor/mode-powershell.js"></script>
+    <script src="/dependencies/ace-editor/mode-sh.js"></script>
+    <script src="/dependencies/ace-editor/mode-sql.js"></script>
+    <script src="/dependencies/ace-editor/theme-fleet.js"></script>
+    <script src="/dependencies/ace-editor/worker-base.js"></script>
     <script src="/dependencies/bootstrap-4/bootstrap-4.bundle.js"></script>
     <script src="/dependencies/cloud.js"></script>
     <script src="/dependencies/moment.js"></script>
     <script src="/dependencies/parasails.js"></script>
     <script src="/js/cloud.setup.js"></script>
     <script src="/js/components/account-notification-banner.component.js"></script>
+    <script src="/js/components/ace-editor.component.js"></script>
     <script src="/js/components/ajax-button.component.js"></script>
     <script src="/js/components/ajax-form.component.js"></script>
+    <script src="/js/components/ajax-overlay.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/file-upload.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
@@ -157,6 +171,7 @@
     <script src="/js/pages/legal/terms.page.js"></script>
     <script src="/js/pages/profiles.page.js"></script>
     <script src="/js/pages/scripts.page.js"></script>
+    <script src="/js/pages/software/software.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

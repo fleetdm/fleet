@@ -1,12 +1,16 @@
-import React, { useContext } from "react";
+import React, { useContext, useCallback } from "react";
 import { RouteComponentProps } from "react-router";
 
 import PATHS from "router/paths";
 import labelsAPI from "services/entities/labels";
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import { getPathWithQueryParams } from "utilities/url";
+import { IApiError } from "interfaces/errors";
 
 import DynamicLabelForm from "pages/labels/components/DynamicLabelForm";
 import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
+import { DUPLICATE_ENTRY_ERROR } from "../ManualLabel/ManualLabel";
 
 const baseClass = "dynamic-label";
 
@@ -24,17 +28,32 @@ const DynamicLabel = ({
   onOpenSidebar,
   onOsqueryTableSelect,
 }: IDynamicLabelProps) => {
+  const { currentTeam } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const onSaveNewLabel = async (formData: IDynamicLabelFormData) => {
-    try {
-      const res = await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
-      renderFlash("success", "Label added successfully.");
-    } catch {
-      renderFlash("error", "Couldn't add label. Please try again.");
-    }
-  };
+  const onSaveNewLabel = useCallback(
+    (formData: IDynamicLabelFormData) => {
+      labelsAPI
+        .create(formData)
+        .then((res) => {
+          router.push(
+            getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(res.label.id), {
+              team_id: currentTeam?.id,
+            })
+          );
+          renderFlash("success", "Label added successfully.");
+        })
+        .catch((error: { data: IApiError }) => {
+          renderFlash(
+            "error",
+            error.data.errors[0].reason.includes("Duplicate entry")
+              ? DUPLICATE_ENTRY_ERROR
+              : "Couldn't add label. Please try again."
+          );
+        });
+    },
+    [renderFlash, router]
+  );
 
   const onCancelLabel = () => {
     router.goBack();

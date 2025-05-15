@@ -32,10 +32,10 @@ import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
 
-import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
-import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
-import DetailsNoHosts from "../components/DetailsNoHosts";
-import { VulnsNotSupported } from "../components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
+import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
+import DetailsNoHosts from "../components/cards/DetailsNoHosts";
+import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 
 const baseClass = "software-version-details-page";
 
@@ -159,17 +159,23 @@ const SoftwareVersionDetailsPage = ({
           />
         ) : (
           <>
-            <SoftwareDetailsSummary
-              title={`${softwareVersion.name}, ${softwareVersion.version}`}
-              type={formatSoftwareType(softwareVersion)}
-              hosts={hostsCount ?? 0}
-              queryParams={{
-                software_version_id: softwareVersion.id,
-                team_id: teamIdForApi,
-              }}
-              name={softwareVersion.name}
-              source={softwareVersion.source}
-            />
+            <Card
+              borderRadiusSize="xxlarge"
+              includeShadow
+              className={`${baseClass}__summary-section`}
+            >
+              <SoftwareDetailsSummary
+                title={`${softwareVersion.name}, ${softwareVersion.version}`}
+                type={formatSoftwareType(softwareVersion)}
+                hosts={hostsCount ?? 0}
+                queryParams={{
+                  software_version_id: softwareVersion.id,
+                  team_id: teamIdForApi,
+                }}
+                name={softwareVersion.name}
+                source={softwareVersion.source}
+              />
+            </Card>
             <Card
               borderRadiusSize="xxlarge"
               includeShadow

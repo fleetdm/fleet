@@ -1,8 +1,13 @@
-import React from "react";
+import React, { useContext } from "react";
+
+import { AppContext } from "context/app";
+
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
+import paths from "router/paths";
+
 import SideNav from "../components/SideNav";
-import integrationSettingsNavItems from "./IntegrationNavItems";
+import getIntegrationSettingsNavItems from "./IntegrationNavItems";
 
 const baseClass = "integrations";
 
@@ -15,8 +20,20 @@ const IntegrationsPage = ({
   router,
   params,
 }: IIntegrationSettingsPageProps) => {
+  const { config } = useContext(AppContext);
+  if (!config) return <></>;
+
+  const isManagedCloud = config.license.managed_cloud;
+
   const { section } = params;
-  const navItems = integrationSettingsNavItems;
+
+  if (
+    section?.includes("conditional-access") &&
+    (!isManagedCloud || featureFlags.allowConditionalAccess !== "true")
+  ) {
+    router.push(paths.ADMIN_SETTINGS);
+  }
+  const navItems = getIntegrationSettingsNavItems(isManagedCloud);
   const DEFAULT_SETTINGS_SECTION = navItems[0];
   const currentSection =
     navItems.find((item) => item.urlSection === section) ??
@@ -26,9 +43,6 @@ const IntegrationsPage = ({
 
   return (
     <div className={`${baseClass}`}>
-      <p className={`${baseClass}__page-description`}>
-        Add ticket destinations and turn on mobile device management features.
-      </p>
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={navItems}

@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 )
@@ -118,11 +119,15 @@ func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVeri
 	}
 
 	// otherwise update status and detail as usual
-	return ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+	err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 		CommandUUID:   cmdUUID,
 		HostUUID:      hostUUID,
 		Status:        status,
 		Detail:        detail,
 		OperationType: fleet.MDMOperationTypeInstall,
 	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile install result")
+	}
+	return nil
 }

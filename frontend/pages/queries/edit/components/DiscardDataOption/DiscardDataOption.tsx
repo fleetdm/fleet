@@ -1,3 +1,4 @@
+import Card from "components/Card";
 import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
@@ -13,7 +14,6 @@ interface IDiscardDataOptionProps {
   selectedLoggingType: QueryLoggingOption;
   discardData: boolean;
   setDiscardData: (value: boolean) => void;
-  breakHelpText?: boolean;
 }
 
 const DiscardDataOption = ({
@@ -21,7 +21,6 @@ const DiscardDataOption = ({
   selectedLoggingType,
   discardData,
   setDiscardData,
-  breakHelpText = false,
 }: IDiscardDataOptionProps) => {
   const [forceEditDiscardData, setForceEditDiscardData] = useState(false);
   const disable = queryReportsDisabled && !forceEditDiscardData;
@@ -60,14 +59,7 @@ const DiscardDataOption = ({
           </Link>
         </>
       ) : (
-        <>
-          The most recent results for each host will not be available in Fleet.
-          {breakHelpText ? <br /> : " "}
-          Data will still be sent to your log destination if <b>
-            automations
-          </b>{" "}
-          are <b>on</b>.
-        </>
+        "The most recent results for each host will not be available in Fleet."
       )}
     </div>
   );
@@ -76,12 +68,12 @@ const DiscardDataOption = ({
       {["differential", "differential_ignore_removals"].includes(
         selectedLoggingType
       ) && (
-        <InfoBanner color="purple-bold-border">
-          <>
+        <>
+          <InfoBanner color="purple">
             The <b>Discard data</b> setting is ignored when differential logging
             is enabled. This query&apos;s results will not be saved in Fleet.
-          </>
-        </InfoBanner>
+          </InfoBanner>
+        </>
       )}
       <Checkbox
         name="discardData"

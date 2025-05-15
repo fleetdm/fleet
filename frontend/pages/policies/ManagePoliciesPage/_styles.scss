@@ -1,9 +1,6 @@
 .manage-policies-page {
   &__header-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 38px;
+    @include normalize-team-header;
 
     .button-wrap {
       display: flex;
@@ -18,10 +15,22 @@
     .Select-multi-value-wrapper {
       width: 146px;
     }
+
+    // When tabbing through the app
+    .manage-policies-page__manage-automations-dropdown {
+      &.is-focused {
+        outline: 2px solid $ui-vibrant-blue-25;
+      }
+    }
+
     .Select > .Select-menu-outer {
       left: -186px;
       width: 360px;
     }
+    .Select-input {
+      padding: 8px;
+    }
+
     .Select-control {
       margin-top: 0;
       gap: 6px;
@@ -45,6 +54,10 @@
 
     .form-field {
       margin-bottom: 0;
+    }
+
+    &__tooltip {
+      text-align: center;
     }
   }
 
@@ -176,27 +189,6 @@
     .data-table-block {
       .data-table {
         tbody {
-          .name__cell {
-            .policy-name-cell {
-              display: flex; // required for inline icon
-              gap: $pad-xsmall;
-
-              // Underlines only the name text
-              &:hover {
-                text-decoration: none;
-
-                .policy-name-text {
-                  text-decoration: underline;
-                }
-              }
-
-              .policy-name-text {
-                text-overflow: ellipsis;
-                overflow: hidden;
-              }
-            }
-          }
-
           .critical-badge,
           .policy-has-not-run {
             .critical-badge-icon {
@@ -230,6 +222,7 @@
     border: 1px solid $ui-fleet-black-10;
     // negate ul padding
     padding-left: 0;
+    margin: 0;
 
     .policy-row {
       display: flex;

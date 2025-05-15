@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -30,43 +31,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// osqueryError is the error returned to osquery agents.
-type osqueryError struct {
-	message     string
-	nodeInvalid bool
-	statusCode  int
-	fleet.ErrorWithUUID
+func newOsqueryErrorWithInvalidNode(msg string) *endpoint_utils.OsqueryError {
+	return endpoint_utils.NewOsqueryError(msg, true)
 }
 
-var _ fleet.ErrorUUIDer = (*osqueryError)(nil)
-
-// Error implements the error interface.
-func (e *osqueryError) Error() string {
-	return e.message
-}
-
-// NodeInvalid returns whether the error returned to osquery
-// should contain the node_invalid property.
-func (e *osqueryError) NodeInvalid() bool {
-	return e.nodeInvalid
-}
-
-func (e *osqueryError) Status() int {
-	return e.statusCode
-}
-
-func newOsqueryErrorWithInvalidNode(msg string) *osqueryError {
-	return &osqueryError{
-		message:     msg,
-		nodeInvalid: true,
-	}
-}
-
-func newOsqueryError(msg string) *osqueryError {
-	return &osqueryError{
-		message:     msg,
-		nodeInvalid: false,
-	}
+func newOsqueryError(msg string) *endpoint_utils.OsqueryError {
+	return endpoint_utils.NewOsqueryError(msg, false)
 }
 
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
@@ -116,9 +86,9 @@ type enrollAgentResponse struct {
 	Err     error  `json:"error,omitempty"`
 }
 
-func (r enrollAgentResponse) error() error { return r.Err }
+func (r enrollAgentResponse) Error() error { return r.Err }
 
-func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*enrollAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
@@ -242,7 +212,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "instance":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -260,7 +230,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "uuid":
 		r, ok := details["osquery_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing osquery_info",
@@ -278,7 +248,7 @@ func getHostIdentifier(logger log.Logger, identifierOption, providedIdentifier s
 
 	case "hostname":
 		r, ok := details["system_info"]
-		if !ok {
+		if !ok { //nolint:gocritic // ignore ifElseChain
 			level.Info(logger).Log(
 				"msg", "could not get host identifier",
 				"reason", "missing system_info",
@@ -334,7 +304,7 @@ type getClientConfigResponse struct {
 	Err    error `json:"error,omitempty"`
 }
 
-func (r getClientConfigResponse) error() error { return r.Err }
+func (r getClientConfigResponse) Error() error { return r.Err }
 
 // MarshalJSON implements json.Marshaler.
 //
@@ -352,7 +322,7 @@ func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &r.Config)
 }
 
-func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
@@ -369,7 +339,12 @@ func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (flee
 		return nil, ctxerr.Wrap(ctx, err, "load app config")
 	}
 
-	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID, appConfig.ServerSettings.QueryReportsDisabled)
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, newOsqueryError("internal error: missing host from request context")
+	}
+
+	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID, &host.ID, appConfig.ServerSettings.QueryReportsDisabled)
 	if err != nil {
 		return nil, err
 	}
@@ -580,9 +555,9 @@ type getDistributedQueriesResponse struct {
 	Err        error             `json:"error,omitempty"`
 }
 
-func (r getDistributedQueriesResponse) error() error { return r.Err }
+func (r getDistributedQueriesResponse) Error() error { return r.Err }
 
-func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
@@ -691,7 +666,8 @@ const alwaysTrueQuery = "SELECT 1"
 // list of detail queries that are returned when only the critical queries
 // should be returned (due to RefetchCriticalQueriesUntil timestamp being set).
 var criticalDetailQueries = map[string]bool{
-	"mdm": true,
+	"mdm":         true,
+	"mdm_windows": true,
 }
 
 // detailQueriesForHost returns the map of detail+additional queries that should be executed by
@@ -883,9 +859,9 @@ type submitDistributedQueryResultsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitDistributedQueryResultsResponse) error() error { return r.Err }
+func (r submitDistributedQueryResultsResponse) Error() error { return r.Err }
 
-func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
 	req, err := shim.toRequest(ctx)
 	if err != nil {
@@ -978,7 +954,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
-		queryStats, _ := stats[query]
+		queryStats := stats[query]
 
 		ingestedDetailUpdated, ingestedAdditionalUpdated, err := svc.ingestQueryResults(
 			ctx, query, host, rows, failed, messages, policyResults, labelResults, additionalResults, queryStats,
@@ -1009,6 +985,20 @@ func (svc *Service) SubmitDistributedQueryResults(
 			logging.WithErr(ctx, err)
 		}
 
+		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
+			logging.WithErr(ctx, err)
+		}
+
+		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
+			// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			if err := svc.processVPPForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
+		}
+
+		// NOTE: if the installers for the policies here are not scoped to the host via labels, we update the policy status here to stop it from showing up as "failed" in the
+		// host details.
 		if err := svc.processSoftwareForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, policyResults); err != nil {
 			logging.WithErr(ctx, err)
 		}
@@ -1023,10 +1013,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 			team, err := svc.ds.Team(ctx, *host.TeamID)
 			if err != nil {
 				logging.WithErr(ctx, err)
-			} else {
-				if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-					policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-				}
+			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
+				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 			}
 		}
 
@@ -1054,12 +1042,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, policyResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}
-	} else {
-		if hostWithoutPolicies {
-			// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
-			if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
-				logging.WithErr(ctx, err)
-			}
+	} else if hostWithoutPolicies {
+		// RecordPolicyQueryExecutions called with results=nil will still update the host's policy_updated_at column.
+		if err := svc.task.RecordPolicyQueryExecutions(ctx, host, nil, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
+			logging.WithErr(ctx, err)
 		}
 	}
 
@@ -1240,20 +1226,24 @@ func preProcessSoftwareResults(
 	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
-	//
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
 	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
+	preProcessSoftwareExtraResults(pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	pythonPakcagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
+	preProcessSoftwareExtraResults(pythonPakcagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
 		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
 	}
 
-	// Filter out python packages that are also deb packages on ubuntu
+	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
 }
 
-// pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu.
+// pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
 // python_packages not matching a Debian package names are updated to "python3-packagename" to match OVAL definitions.
 func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQueryResults, statuses *map[string]fleet.OsqueryStatus) {
 	const pythonPrefix = "python3-"
@@ -1261,9 +1251,9 @@ func pythonPackageFilter(platform string, results *fleet.OsqueryDistributedQuery
 	const debSource = "deb_packages"
 	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
 
-	// Return early if platform is not Ubuntu
+	// Return early if platform is not Ubuntu or Debian
 	// We may need to add more platforms in the future
-	if platform != "ubuntu" {
+	if platform != "ubuntu" && platform != "debian" {
 		return
 	}
 
@@ -1358,7 +1348,7 @@ func preProcessSoftwareExtraResults(
 	}
 
 	// Extract the results of the extra query.
-	softwareExtraRows, _ := (*results)[softwareExtraQuery]
+	softwareExtraRows := (*results)[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
 		return
 	}
@@ -1377,9 +1367,12 @@ func preProcessSoftwareExtraResults(
 			// Do not append results if the main query failed to run.
 			continue
 		}
-		(*results)[query] = removeOverrides((*results)[query], override)
-
-		(*results)[query] = append((*results)[query], softwareExtraRows...)
+		if override.SoftwareProcessResults != nil {
+			(*results)[query] = override.SoftwareProcessResults((*results)[query], softwareExtraRows)
+		} else {
+			(*results)[query] = removeOverrides((*results)[query], override)
+			(*results)[query] = append((*results)[query], softwareExtraRows...)
+		}
 		return
 	}
 }
@@ -1534,7 +1527,7 @@ func (svc *Service) ingestDistributedQuery(
 
 	// Write the results to the pubsub store
 	res := fleet.DistributedQueryResult{
-		DistributedQueryCampaignID: uint(campaignID),
+		DistributedQueryCampaignID: uint(campaignID), //nolint:gosec // dismiss G115
 		Host: fleet.ResultHostData{
 			ID:          host.ID,
 			Hostname:    host.Hostname,
@@ -1558,7 +1551,7 @@ func (svc *Service) ingestDistributedQuery(
 		// If there are no subscribers, the campaign is "orphaned"
 		// and should be closed so that we don't continue trying to
 		// execute that query when we can't write to any subscriber
-		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID))
+		campaign, err := svc.ds.DistributedQueryCampaign(ctx, uint(campaignID)) //nolint:gosec // dismiss G115
 		if err != nil {
 			if err := svc.liveQueryStore.StopQuery(strconv.Itoa(campaignID)); err != nil {
 				return newOsqueryError("stop orphaned campaign after load failure: " + err.Error())
@@ -1620,9 +1613,9 @@ func ingestMembershipQuery(
 	// A label/policy query matches if there is at least one result for that
 	// query. We must also store negative results.
 	if failed {
-		results[uint(trimmedQueryNum)] = nil
+		results[uint(trimmedQueryNum)] = nil //nolint:gosec // dismiss G115
 	} else {
-		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0)
+		results[uint(trimmedQueryNum)] = ptr.Bool(len(rows) > 0) //nolint:gosec // dismiss G115
 	}
 
 	return nil
@@ -1775,6 +1768,7 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 	}
 
 	for _, failingPolicyWithInstaller := range failingPoliciesWithInstaller {
+		policyID := failingPolicyWithInstaller.ID
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
@@ -1789,6 +1783,17 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		)
 		if fleet.PlatformFromHost(hostPlatform) != installerMetadata.Platform {
 			level.Debug(logger).Log("msg", "installer platform does not match host platform")
+			continue
+		}
+		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, failingPolicyWithInstaller.InstallerID, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if software installer is label scoped to host")
+		}
+		if !scoped {
+			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			incomingPolicyResults[failingPolicyWithInstaller.ID] = nil
+			level.Debug(logger).Log("msg", "not marking policy as failed since software is out of scope for host")
 			continue
 		}
 		hostLastInstall, err := svc.ds.GetHostLastInstallData(ctx, hostID, installerMetadata.InstallerID)
@@ -1808,13 +1813,14 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		}
 		// NOTE(lucas): The user_id set in this software install will be NULL
 		// so this means that when generating the activity for this action
-		// (in SaveHostSoftwareInstallResult)
-		// the author will be set to the user that uploaded the software (we want this
-		// by design).
+		// (in SaveHostSoftwareInstallResult) the author will be set to Fleet.
 		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
 			ctx, hostID,
 			installerMetadata.InstallerID,
-			false, // Set Self-service as false because this is triggered by Fleet.
+			fleet.HostSoftwareInstallOptions{
+				SelfService: false,
+				PolicyID:    &policyID,
+			},
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err,
@@ -1827,6 +1833,336 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 			"install_uuid", installUUID,
 		)
 	}
+	return nil
+}
+
+func (svc *Service) processVPPForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated VPP apps for the team.
+	policiesWithVPP, err := svc.ds.GetPoliciesWithAssociatedVPP(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with installer")
+	}
+	if len(policiesWithVPP) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to VPP apps.
+	policiesWithVPPMap := make(map[uint]fleet.PolicyVPPData)
+	for _, policyWithVPP := range policiesWithVPP {
+		policiesWithVPPMap[policyWithVPP.ID] = policyWithVPP
+	}
+	policyResultsOfPoliciesWithVPP := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithVPPMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithVPP[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithVPP) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with VPP apps that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithVPP, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithVPP,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithVPP) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithVPPSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithVPP {
+		policyIDsOfNewlyFailingPoliciesWithVPPSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with VPP apps that are not newly failing.
+	var failingPoliciesWithVPP []fleet.PolicyVPPData
+	for _, policyWithVPP := range policiesWithVPP {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithVPPSet[policyWithVPP.ID]; ok {
+			failingPoliciesWithVPP = append(failingPoliciesWithVPP, policyWithVPP)
+		}
+	}
+
+	if len(failingPoliciesWithVPP) == 0 {
+		return nil
+	}
+
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to get host details")
+	}
+	vppToken, err := svc.EnterpriseOverrides.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "host is not able to install VPP apps")
+	}
+
+	pendingAppInstalls, err := svc.ds.MapAdamIDsPendingInstall(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
+	}
+
+	for _, failingPolicyWithVPP := range failingPoliciesWithVPP {
+		policyID := failingPolicyWithVPP.ID
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", policyID,
+			"vpp_adam_id", failingPolicyWithVPP.AdamID,
+			"vpp_platform", failingPolicyWithVPP.AdamID,
+			"software_title_id", failingPolicyWithVPP.Platform,
+		)
+
+		if _, hasPendingInstall := pendingAppInstalls[failingPolicyWithVPP.AdamID]; hasPendingInstall {
+			level.Debug(svc.logger).Log(
+				"msg", "install of app is already pending",
+			)
+			continue
+		}
+
+		vppMetadata, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, failingPolicyWithVPP.AdamID, failingPolicyWithVPP.Platform, host.TeamID)
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "failed to get VPP metadata",
+				"error", err,
+			)
+			continue
+		}
+
+		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.AppTeamID, hostID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if vpp app is label scoped to host")
+		}
+
+		if !scoped {
+			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
+			// host details.
+			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
+			level.Debug(logger).Log("msg", "not marking policy as failed since vpp app is out of scope for host")
+			continue
+		}
+
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
+			SelfService: false,
+			PolicyID:    &policyID,
+		})
+		if err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "failed to get install VPP app",
+				"error", err,
+			)
+			continue
+		}
+
+		level.Debug(logger).Log("msg", "vpp install request sent", "command_uuid", commandUUID)
+	}
+
+	return nil
+}
+
+func (svc *Service) processScriptsForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostPlatform string,
+	hostOrbitNodeKey *string,
+	hostScriptsEnabled *bool,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		return nil // vanilla osquery hosts can't run scripts
+	}
+	// not logging here to avoid spamming logs on every policy failure for every no-scripts host even if the policy
+	// doesn't have a script attached
+	if hostScriptsEnabled != nil && !*hostScriptsEnabled {
+		return nil
+	}
+
+	// Bail if scripts are disabled globally
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if cfg.ServerSettings.ScriptsDisabled {
+		return nil
+	}
+
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	// Filter out results that are not failures (we are only interested on failing policies,
+	// we don't care about passing policies or policies that failed to execute).
+	incomingFailingPolicies := make(map[uint]*bool)
+	var incomingFailingPoliciesIDs []uint
+	for policyID, policyResult := range incomingPolicyResults {
+		if policyResult != nil && !*policyResult {
+			incomingFailingPolicies[policyID] = policyResult
+			incomingFailingPoliciesIDs = append(incomingFailingPoliciesIDs, policyID)
+		}
+	}
+	if len(incomingFailingPolicies) == 0 {
+		return nil
+	}
+
+	// Get policies with associated scripts for the team.
+	policiesWithScript, err := svc.ds.GetPoliciesWithAssociatedScript(ctx, policyTeamID, incomingFailingPoliciesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with script")
+	}
+	if len(policiesWithScript) == 0 {
+		return nil
+	}
+
+	// Filter out results of policies that are not associated to scripts.
+	policiesWithScriptsMap := make(map[uint]fleet.PolicyScriptData)
+	for _, policyWithScript := range policiesWithScript {
+		policiesWithScriptsMap[policyWithScript.ID] = policyWithScript
+	}
+	policyResultsOfPoliciesWithScripts := make(map[uint]*bool)
+	for policyID, passes := range incomingFailingPolicies {
+		if _, ok := policiesWithScriptsMap[policyID]; !ok {
+			continue
+		}
+		policyResultsOfPoliciesWithScripts[policyID] = passes
+	}
+	if len(policyResultsOfPoliciesWithScripts) == 0 {
+		return nil
+	}
+
+	// Get the policies associated with scripts that are flipping from passing to failing on this host.
+	policyIDsOfNewlyFailingPoliciesWithScripts, _, err := svc.ds.FlippingPoliciesForHost(
+		ctx, hostID, policyResultsOfPoliciesWithScripts,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get flipping policies for host")
+	}
+	if len(policyIDsOfNewlyFailingPoliciesWithScripts) == 0 {
+		return nil
+	}
+	policyIDsOfNewlyFailingPoliciesWithScriptsSet := make(map[uint]struct{})
+	for _, policyID := range policyIDsOfNewlyFailingPoliciesWithScripts {
+		policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyID] = struct{}{}
+	}
+
+	// Finally filter out policies with scripts that are not newly failing.
+	var failingPoliciesWithScript []fleet.PolicyScriptData
+	for _, policyWithScript := range policiesWithScript {
+		if _, ok := policyIDsOfNewlyFailingPoliciesWithScriptsSet[policyWithScript.ID]; ok {
+			failingPoliciesWithScript = append(failingPoliciesWithScript, policyWithScript)
+		}
+	}
+
+	for _, failingPolicyWithScript := range failingPoliciesWithScript {
+		policyID := failingPolicyWithScript.ID
+
+		scriptMetadata, err := svc.ds.Script(ctx, failingPolicyWithScript.ScriptID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script metadata by id")
+		}
+		logger := log.With(svc.logger,
+			"host_id", hostID,
+			"host_platform", hostPlatform,
+			"policy_id", policyID,
+			"script_id", failingPolicyWithScript.ScriptID,
+			"script_name", scriptMetadata.Name,
+		)
+
+		allScriptsExecutionPending, err := svc.ds.ListPendingHostScriptExecutions(ctx, hostID, false)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "list host pending script executions")
+		}
+		if len(allScriptsExecutionPending) > maxPendingScripts {
+			level.Warn(logger).Log("msg", "too many scripts pending for host")
+			return nil
+		}
+
+		// skip incompatible scripts
+		hostPlatform := fleet.PlatformFromHost(hostPlatform)
+		if (hostPlatform == "windows" && strings.HasSuffix(scriptMetadata.Name, ".sh")) ||
+			(hostPlatform != "windows" && strings.HasSuffix(scriptMetadata.Name, ".ps1")) {
+			level.Info(logger).Log("msg", "script type does not match host platform")
+			continue
+		}
+
+		// skip different-team scripts
+		var scriptTeamID uint
+		if scriptMetadata.TeamID != nil {
+			scriptTeamID = *scriptMetadata.TeamID
+		}
+		if policyTeamID != scriptTeamID { // this should not happen
+			level.Error(logger).Log("msg", "script team does not match host team")
+			continue
+		}
+
+		scriptIsAlreadyPending, err := svc.ds.IsExecutionPendingForHost(ctx, hostID, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check whether script is pending execution")
+		}
+		if scriptIsAlreadyPending {
+			level.Debug(logger).Log("msg", "script is already pending on host")
+			continue
+		}
+
+		contents, err := svc.ds.GetScriptContents(ctx, scriptMetadata.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get script contents")
+		}
+		runScriptRequest := fleet.HostScriptRequestPayload{
+			HostID:          hostID,
+			ScriptContents:  string(contents),
+			ScriptContentID: scriptMetadata.ScriptContentID,
+			ScriptID:        &scriptMetadata.ID,
+			TeamID:          policyTeamID,
+			PolicyID:        &policyID,
+			// no user ID as scripts are executed by Fleet
+		}
+
+		scriptResult, err := svc.ds.NewHostScriptExecutionRequest(ctx, &runScriptRequest)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err,
+				"insert script run request; host_id=%d, script_id=%d",
+				hostID, scriptMetadata.ID,
+			)
+		}
+
+		level.Debug(logger).Log(
+			"msg", "script run request sent",
+			"execution_id", scriptResult.ExecutionID,
+		)
+	}
+
 	return nil
 }
 
@@ -1854,9 +2190,9 @@ func (svc *Service) maybeDebugHost(
 ////////////////////////////////////////////////////////////////////////////////
 
 type submitLogsRequest struct {
-	NodeKey string          `json:"node_key"`
-	LogType string          `json:"log_type"`
-	Data    json.RawMessage `json:"data"`
+	NodeKey string            `json:"node_key"`
+	LogType string            `json:"log_type"`
+	Data    []json.RawMessage `json:"data"`
 }
 
 func (r *submitLogsRequest) hostNodeKey() string {
@@ -1867,42 +2203,25 @@ type submitLogsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r submitLogsResponse) error() error { return r.Err }
+func (r submitLogsResponse) Error() error { return r.Err }
 
-func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*submitLogsRequest)
 
 	var err error
 	switch req.LogType {
 	case "status":
-		var statuses []json.RawMessage
-		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
-		// Maybe there's a reason for it, we need to test such a change before fixing what appears
-		// to be a bug because the `err` is lost.
-		if err := json.Unmarshal(req.Data, &statuses); err != nil {
-			err = newOsqueryError("unmarshalling status logs: " + err.Error())
-			break
-		}
-
-		err = svc.SubmitStatusLogs(ctx, statuses)
+		err = svc.SubmitStatusLogs(ctx, req.Data)
 		if err != nil {
 			break
 		}
 
 	case "result":
-		var results []json.RawMessage
-		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
-		// Maybe there's a reason for it, we need to test such a change before fixing what appears
-		// to be a bug because the `err` is lost.
-		if err := json.Unmarshal(req.Data, &results); err != nil {
-			err = newOsqueryError("unmarshalling result logs: " + err.Error())
-			break
-		}
-		logging.WithExtras(ctx, "results", len(results))
+		logging.WithExtras(ctx, "results", len(req.Data))
 
 		// We currently return errors to osqueryd if there are any issues submitting results
 		// to the configured external destinations.
-		if err = svc.SubmitResultLogs(ctx, results); err != nil {
+		if err = svc.SubmitResultLogs(ctx, req.Data); err != nil {
 			break
 		}
 
@@ -1945,12 +2264,10 @@ func (svc *Service) preProcessOsqueryResults(
 			// 	field could not be unmarshalled.
 			//
 			// In both scenarios we want to add `result` to `unmarshaledResults`.
-		} else {
+		} else if result != nil && result.QueryName == "" {
 			// If the unmarshaled result doesn't have a "name" field then we ignore the result.
-			if result != nil && result.QueryName == "" {
-				level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
-				result = nil
-			}
+			level.Debug(svc.logger).Log("msg", "missing name field", "result", lograw(raw))
+			result = nil
 		}
 		unmarshaledResults = append(unmarshaledResults, result)
 	}
@@ -1960,28 +2277,57 @@ func (svc *Service) preProcessOsqueryResults(
 	}
 
 	queriesDBData = make(map[string]*fleet.Query)
-	for _, queryResult := range unmarshaledResults {
+	for i, queryResult := range unmarshaledResults {
 		if queryResult == nil {
 			// These are results that could not be unmarshaled.
 			continue
 		}
 		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
+		if errors.Is(err, fleet.ErrLegacyQueryPack) {
+			// Legacy query. Cannot be stored and cannot
+			// infer team ID, but still used by some customers
+			continue
+		}
 		if err != nil {
 			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
 		}
-		if _, ok := queriesDBData[queryResult.QueryName]; ok {
-			// Already loaded.
-			continue
+
+		existingQuery, foundQuery := queriesDBData[queryResult.QueryName]
+		if !foundQuery {
+			query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+			if err != nil {
+				level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+				continue
+			}
+			queriesDBData[queryResult.QueryName] = query
+			existingQuery = query
 		}
-		query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+
+		updatedResult, err := addQueryIDToLogResult(ctx, osqueryResults[i], existingQuery.ID)
 		if err != nil {
-			level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+			level.Debug(svc.logger).Log("msg", "inserting query id into query result", "err", err, "query_id", existingQuery.ID)
 			continue
 		}
-		queriesDBData[queryResult.QueryName] = query
+
+		// Set the updated query results if we find query ID. This is used one level up by the logger
+		osqueryResults[i] = updatedResult
 	}
 	return unmarshaledResults, queriesDBData
+}
+
+func addQueryIDToLogResult(ctx context.Context, logResult json.RawMessage, queryID uint) (json.RawMessage, error) {
+	var query map[string]json.RawMessage
+	if err := json.Unmarshal(logResult, &query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to unmarshal query result to insert query id")
+	}
+
+	query["query_id"] = json.RawMessage(strconv.FormatUint(uint64(queryID), 10))
+	newResult, err := json.Marshal(query)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to marshal query result with query id")
+	}
+	return newResult, nil
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
@@ -1991,7 +2337,7 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		osqueryErr := newOsqueryError("error writing status logs: " + err.Error())
 		// Attempting to write a large amount of data is the most likely explanation for this error.
-		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		osqueryErr.StatusCode = http.StatusRequestEntityTooLarge
 		return osqueryErr
 	}
 	return nil
@@ -2076,7 +2422,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 				"increasing logger_tls_period and decreasing logger_tls_max_lines): " + err.Error(),
 		)
 		// Attempting to write a large amount of data is the most likely explanation for this error.
-		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		osqueryErr.StatusCode = http.StatusRequestEntityTooLarge
 		return osqueryErr
 	}
 	return nil
@@ -2101,10 +2447,15 @@ func (svc *Service) saveResultLogsToQueryReports(
 		return
 	}
 
-	// Filter results to only the most recent for each query.
-	filtered := getMostRecentResults(unmarshaledResults)
+	// Transform results that are in "event format" to "snapshot format".
+	// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
+	// in their agent options.
+	unmarshaledResultsFiltered := transformEventFormatToSnapshotFormat(unmarshaledResults)
 
-	for _, result := range filtered {
+	// Filter results to only the most recent for each query.
+	unmarshaledResultsFiltered = getMostRecentResults(unmarshaledResultsFiltered)
+
+	for _, result := range unmarshaledResultsFiltered {
 		dbQuery, ok := queriesDBData[result.QueryName]
 		if !ok {
 			// Means the query does not exist with such name anymore. Thus we ignore its result.
@@ -2142,6 +2493,127 @@ func (svc *Service) saveResultLogsToQueryReports(
 			continue
 		}
 	}
+}
+
+// transformEventFormatToSnapshotFormat transforms results that are in "event format" to "snapshot format".
+// This is needed to support query reports for hosts that are configured with `--logger_snapshot_event_type=true`
+// in their agent options.
+//
+// "Snapshot format" contains all of the result rows of the same query on one entry with the "snapshot" field, example:
+//
+//	[
+//		{
+//			"snapshot":[
+//				{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},
+//				{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}
+//			],
+//			"action":"snapshot",
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 22:17:17 2025 UTC",
+//			"unixTime":1738189037,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"}
+//		}
+//	]
+//
+// "Event format" will split result rows of the same query into two separate entries each with its own "columns" field, example with same data as above:
+//
+//	[
+//		{
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 12:32:54 2025 UTC",
+//			"unixTime":1738153974,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},
+//			"columns": {
+//				"class":"9",
+//				"model":"AppleUSBVHCIBCE Root Hub Simulation",
+//				"model_id":"8007",
+//				"protocol":"",
+//				"removable":"0",
+//				"serial":"0",
+//				"subclass":"255",
+//				"usb_address":"",
+//				"usb_port":"",
+//				"vendor":"Apple Inc.",
+//				"vendor_id":"05ac",
+//				"version":"0.0"
+//			},
+//			"action":"snapshot"
+//		},
+//		{
+//			"name":"pack/Global/All USB devices",
+//			"hostIdentifier":"F5B29579-E946-46A2-BB0F-7A8D1E304940",
+//			"calendarTime":"Wed Jan 29 12:32:54 2025 UTC",
+//			"unixTime":1738153974,
+//			"epoch":0,
+//			"counter":0,
+//			"numerics":false,
+//			"decorations":{"host_uuid":"F5B29579-E946-46A2-BB0F-7A8D1E304940","hostname":"foobar.local"},
+//			"columns":{
+//				"class":"9",
+//				"model":"AppleUSBXHCI Root Hub Simulation",
+//				"model_id":"8007",
+//				"protocol":"",
+//				"removable":"0",
+//				"serial":"0",
+//				"subclass":"255",
+//				"usb_address":"",
+//				"usb_port":"",
+//				"vendor":"Apple Inc.",
+//				"vendor_id":"05ac",
+//				"version":"0.0"
+//			},
+//			"action":"snapshot"
+//		}
+//	]
+func transformEventFormatToSnapshotFormat(results []*fleet.ScheduledQueryResult) []*fleet.ScheduledQueryResult {
+	isEventFormat := func(result *fleet.ScheduledQueryResult) bool {
+		return result != nil && result.Action == "snapshot" && len(result.Snapshot) == 0 && len(result.Columns) > 0
+	}
+
+	resultsInEventFormat := make(map[string]*fleet.ScheduledQueryResult)
+	for _, result := range results {
+		if !isEventFormat(result) {
+			continue
+		}
+		allResults, ok := resultsInEventFormat[result.QueryName]
+		if !ok {
+			// All snapshot results in "event format" for the same query have the same `hostIdentifier` and `unixTime`.
+			resultsInEventFormat[result.QueryName] = &fleet.ScheduledQueryResult{
+				QueryName:     result.QueryName,
+				OsqueryHostID: result.OsqueryHostID,
+				Snapshot:      []*json.RawMessage{&result.Columns},
+				UnixTime:      result.UnixTime,
+			}
+		} else {
+			resultsInEventFormat[allResults.QueryName].Snapshot = append(resultsInEventFormat[allResults.QueryName].Snapshot, &result.Columns)
+		}
+	}
+
+	if len(resultsInEventFormat) == 0 {
+		return results
+	}
+
+	replaced := make(map[string]struct{})
+	var filteredResults []*fleet.ScheduledQueryResult
+	for _, result := range results {
+		if isEventFormat(result) {
+			if _, ok := replaced[result.QueryName]; !ok {
+				filteredResults = append(filteredResults, resultsInEventFormat[result.QueryName])
+				replaced[result.QueryName] = struct{}{}
+			}
+			continue
+		}
+		filteredResults = append(filteredResults, result)
+	}
+	return filteredResults
 }
 
 // overwriteResultRows deletes existing and inserts the new results for a query and host.
@@ -2277,6 +2749,13 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 		// 2017/legacy packs with the format "pack/<Pack name>/<Query name> are
 		// considered unknown format (they are not considered global or team
 		// scheduled queries).
+
+		// We can't infer the team from this and it can't be stored, but it's still valid
+		if strings.HasPrefix(path, "pack/") && strings.Count(path, "/") == 2 {
+			return nil, "", fleet.ErrLegacyQueryPack
+		}
+
+		// Truly unknown
 		return nil, "", fmt.Errorf("unknown format: %q", path)
 	}
 
@@ -2311,4 +2790,40 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 
 	// If none of the above patterns match, return error
 	return nil, "", fmt.Errorf("unknown format: %q", path)
+}
+
+// Yara rules
+
+func (svc *Service) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	return svc.ds.YaraRuleByName(ctx, name)
+}
+
+type getYaraRequest struct {
+	NodeKey string `json:"node_key"`
+	Name    string `url:"name"`
+}
+
+func (r *getYaraRequest) hostNodeKey() string {
+	return r.NodeKey
+}
+
+type getYaraResponse struct {
+	Err     error `json:"error,omitempty"`
+	Content string
+}
+
+func (r getYaraResponse) Error() error { return r.Err }
+
+func (r getYaraResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte(r.Content))
+}
+
+func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	r := request.(*getYaraRequest)
+	rule, err := svc.YaraRuleByName(ctx, r.Name)
+	if err != nil {
+		return getYaraResponse{Err: err}, nil
+	}
+	return getYaraResponse{Content: rule.Contents}, nil
 }

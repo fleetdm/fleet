@@ -22,6 +22,7 @@ import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrappe
 import App from "components/App";
 import ConfirmInvitePage from "pages/ConfirmInvitePage";
 import ConfirmSSOInvitePage from "pages/ConfirmSSOInvitePage";
+import MfaPage from "pages/MfaPage";
 import CoreLayout from "layouts/CoreLayout";
 import DashboardPage from "pages/DashboardPage";
 import DeviceUserPage from "pages/hosts/details/DeviceUserPage";
@@ -63,6 +64,7 @@ import OSSettings from "pages/ManageControlsPage/OSSettings";
 import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
+import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
@@ -77,6 +79,11 @@ import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetail
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
 import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
 import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage";
+import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
+import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
+import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
+import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
+import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -138,6 +145,7 @@ const routes = (
             path="login/ssoinvites/:invite_token"
             component={ConfirmSSOInvitePage}
           />
+          <Route path="login/mfa/:token" component={MfaPage} />
           <Route path="login/forgot" component={ForgotPasswordPage} />
           <Route path="login/reset" component={ResetPasswordPage} />
           <Route path="login/denied" component={NoAccessPage} />
@@ -157,6 +165,7 @@ const routes = (
             <Route path="chrome" component={DashboardPage} />
             <Route path="ios" component={DashboardPage} />
             <Route path="ipados" component={DashboardPage} />
+            <Route path="android" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to="organization/info" />
@@ -189,6 +198,7 @@ const routes = (
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="integrations/mdm/apple" component={AppleMdmPage} />
+            <Route path="integrations/mdm/android" component={AndroidMdmPage} />
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"
@@ -271,6 +281,21 @@ const routes = (
           </Route>
           <Route path="software">
             <IndexRedirect to="titles" />
+            {/* we check the add route first otherwise a route like 'software/add' will be caught
+             * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
+            <Route path="add" component={SoftwareAddPage}>
+              <IndexRedirect to="fleet-maintained" />
+              <Route
+                path="fleet-maintained"
+                component={SoftwareFleetMaintained}
+              />
+              <Route path="app-store" component={SoftwareAppStore} />
+              <Route path="package" component={SoftwareCustomPackage} />
+            </Route>
+            <Route
+              path="add/fleet-maintained/:id"
+              component={FleetMaintainedAppDetailsPage}
+            />
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />
@@ -330,7 +355,6 @@ const routes = (
       </Route>
       <Route path="device">
         <IndexRedirect to=":device_auth_token" />
-
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
             <Route path="self-service" component={DeviceUserPage} />

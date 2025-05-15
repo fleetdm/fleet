@@ -3,6 +3,7 @@ import React from "react";
 import { ITeam } from "interfaces/team";
 import { IEnrollSecret } from "interfaces/enroll_secret";
 
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -81,20 +82,24 @@ const EnrollSecretModal = ({
           </>
         )}
         <div className={`${baseClass}__add-secret`}>
-          <Button
-            onClick={addNewSecretClick}
-            className={`${baseClass}__add-secret-btn`}
-            variant="text-icon"
-          >
-            <>
-              Add secret <Icon name="plus" />
-            </>
-          </Button>
+          <GitOpsModeTooltipWrapper
+            position="right"
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                disabled={disableChildren}
+                onClick={addNewSecretClick}
+                className={`${baseClass}__add-secret-btn`}
+                variant="text-icon"
+                iconStroke
+              >
+                Add secret <Icon name="plus" />
+              </Button>
+            )}
+          />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onReturnToApp} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onReturnToApp}>Done</Button>
         </div>
       </div>
     </Modal>

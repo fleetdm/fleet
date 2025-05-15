@@ -10,7 +10,7 @@ examples: |-
   
   
   ```
-  SELECT datetime,computer_name,data FROM windows_eventlog WHERE eventid=4720 AND channel='Security'"
+  SELECT datetime,computer_name,data FROM windows_eventlog WHERE eventid=4720 AND channel='Security'
   ```
   
 notes: |-

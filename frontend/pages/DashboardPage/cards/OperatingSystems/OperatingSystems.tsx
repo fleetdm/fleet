@@ -14,7 +14,7 @@ import {
 import { PlatformValueOptions } from "utilities/constants";
 
 import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
+import DataError from "components/DataError";
 import LastUpdatedText from "components/LastUpdatedText";
 import CustomLink from "components/CustomLink";
 import { AxiosError } from "axios";
@@ -78,7 +78,7 @@ const OperatingSystems = ({
           auto-update expiration date.{" "}
           <CustomLink
             url="https://fleetdm.com/learn-more-about/chromeos-updates"
-            text="See supported devices"
+            text="Learn more"
             newTab
             multiline
           />
@@ -142,7 +142,7 @@ const OperatingSystems = ({
       )}
       <div style={opacity}>
         {error?.status && error?.status >= 500 ? (
-          <TableDataError card />
+          <DataError verticalPaddingSize="pad-large" />
         ) : (
           <OSTable
             currentTeamId={currentTeamId}

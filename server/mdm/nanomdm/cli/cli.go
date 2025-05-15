@@ -6,15 +6,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/allmulti"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/file"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/pgsql"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"github.com/micromdm/nanolib/log"
 )
 
 type StringAccumulator []string
@@ -74,12 +73,6 @@ func (s *Storage) Parse(logger log.Logger) (storage.AllStorage, error) {
 				return nil, err
 			}
 			mdmStorage = append(mdmStorage, mysqlStorage)
-		case "pgsql":
-			pgsqlStorage, err := pgsqlStorageConfig(dsn, options, logger)
-			if err != nil {
-				return nil, err
-			}
-			mdmStorage = append(mdmStorage, pgsqlStorage)
 		default:
 			return nil, fmt.Errorf("unknown storage: %s", storage)
 		}
@@ -141,28 +134,4 @@ func splitOptions(s string) map[string]string {
 		out[optKAndV[0]] = optKAndV[1]
 	}
 	return out
-}
-
-func pgsqlStorageConfig(dsn, options string, logger log.Logger) (*pgsql.PgSQLStorage, error) {
-	logger = logger.With("storage", "pgsql")
-	opts := []pgsql.Option{
-		pgsql.WithDSN(dsn),
-		pgsql.WithLogger(logger),
-	}
-	if options != "" {
-		for k, v := range splitOptions(options) {
-			switch k {
-			case "delete":
-				if v == "1" {
-					opts = append(opts, pgsql.WithDeleteCommands())
-					logger.Debug("msg", "deleting commands")
-				} else if v != "0" {
-					return nil, fmt.Errorf("invalid value for delete option: %q", v)
-				}
-			default:
-				return nil, fmt.Errorf("invalid option: %q", k)
-			}
-		}
-	}
-	return pgsql.New(opts...)
 }

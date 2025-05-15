@@ -45,6 +45,7 @@ const config: StorybookConfig = {
   stories: [
     "../frontend/components/**/*.stories.mdx",
     "../frontend/components/**/*.stories.@(js|jsx|ts|tsx)",
+    "../frontend/pages/SoftwarePage/components/**/*.stories.@(js|jsx|ts|tsx)",
   ],
   addons: [
     "@storybook/addon-links",
@@ -53,6 +54,7 @@ const config: StorybookConfig = {
     "@storybook/addon-a11y",
     "@storybook/test-runner",
     "@storybook/addon-designs",
+    "@storybook/addon-webpack5-compiler-babel",
   ],
   typescript: {
     check: false,
@@ -68,9 +70,7 @@ const config: StorybookConfig = {
     name: "@storybook/react-webpack5",
     options: {},
   },
-  docs: {
-    autodocs: true,
-  },
+  docs: {},
 };
 
 export default config;

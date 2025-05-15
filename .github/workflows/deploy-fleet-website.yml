@@ -27,11 +27,11 @@ jobs:
   build:
     if: ${{ github.repository == 'fleetdm/fleet' }}
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
-        node-version: [16.x]
+        node-version: [20.x]
 
     steps:
     - name: Harden Runner

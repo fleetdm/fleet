@@ -8,11 +8,19 @@
     .icon {
       margin-right: $pad-xsmall;
     }
+
+    span {
+      white-space: nowrap;
+    }
   }
 
   // overrides for different layout
   &__value-vertical {
     flex-direction: column;
     gap: $pad-xsmall;
+  }
+
+  .indicator-tip-text {
+    text-align: center;
   }
 }

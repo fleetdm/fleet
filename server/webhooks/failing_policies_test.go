@@ -382,7 +382,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 		hosts := make([]fleet.PolicySetHost, c)
 		for i := 0; i < len(hosts); i++ {
 			hosts[i] = fleet.PolicySetHost{
-				ID:       uint(i + 1),
+				ID:       uint(i + 1), //nolint:gosec // dismiss G115
 				Hostname: fmt.Sprintf("hostname-%d", i+1),
 			}
 		}

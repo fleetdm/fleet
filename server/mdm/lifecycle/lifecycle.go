@@ -32,13 +32,14 @@ const (
 // Not all options are required for all actions, each individual action should
 // validate that it receives the required information.
 type HostOptions struct {
-	Action          HostAction
-	Platform        string
-	UUID            string
-	HardwareSerial  string
-	HardwareModel   string
-	EnrollReference string
-	Host            *fleet.Host
+	Action                  HostAction
+	Platform                string
+	UUID                    string
+	HardwareSerial          string
+	HardwareModel           string
+	EnrollReference         string
+	Host                    *fleet.Host
+	HasSetupExperienceItems bool
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -148,6 +149,20 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 		!nanoEnroll.Enabled ||
 		nanoEnroll.Type != "Device" ||
 		nanoEnroll.TokenUpdateTally != 1 {
+		// something unexpected, so we skip the turn on
+		// and log the details for debugging
+		keyvals := []interface{}{"debug", "skipping turn on darwin", "host_uuid", opts.UUID}
+		if nanoEnroll == nil {
+			keyvals = append(keyvals, "nano_enroll", "nil")
+		} else {
+			keyvals = append(keyvals,
+				"enabled", nanoEnroll.Enabled,
+				"type", nanoEnroll.Type,
+				"token_update_tally", nanoEnroll.TokenUpdateTally,
+			)
+		}
+		t.logger.Log(keyvals...)
+
 		return nil
 	}
 
@@ -174,12 +189,14 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 			opts.Platform,
 			tmID,
 			opts.EnrollReference,
+			!opts.HasSetupExperienceItems,
 		)
 		return ctxerr.Wrap(ctx, err, "queue DEP post-enroll task")
 	}
 
 	// manual MDM enrollments
 	if !info.InstalledFromDEP {
+		t.logger.Log("info", "queueing post-enroll task for manual enrolled device", "host_uuid", opts.UUID)
 		if err := worker.QueueAppleMDMJob(
 			ctx,
 			t.ds,
@@ -189,6 +206,7 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 			opts.Platform,
 			tmID,
 			opts.EnrollReference,
+			false,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue manual post-enroll task")
 		}

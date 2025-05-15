@@ -1,14 +1,16 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
-import CustomLink from "components/CustomLink";
+
+import stringUtils from "utilities/strings";
 import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import stringUtils from "utilities/strings";
+
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import ActionsDropdown from "components/ActionsDropdown";
+import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import { COLORS } from "styles/var/colors";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -29,7 +31,7 @@ interface ICellProps extends IRowProps {
   };
 }
 
-interface IDropdownCellProps extends IRowProps {
+interface IActionsDropdownProps extends IRowProps {
   cell: {
     value: IDropdownOption[];
   };
@@ -41,7 +43,7 @@ interface IDataColumn {
   accessor: string;
   Cell:
     | ((props: ICellProps) => JSX.Element)
-    | ((props: IDropdownCellProps) => JSX.Element);
+    | ((props: IActionsDropdownProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -56,6 +58,32 @@ export interface ITeamUsersTableData {
   id: number;
 }
 
+export const renderApiUserIndicator = () => {
+  return (
+    <TooltipWrapper
+      className="api-only-tooltip"
+      tipContent={
+        <>
+          This user was created using fleetctl and
+          <br /> only has API access.{" "}
+          <CustomLink
+            text="Learn more"
+            newTab
+            url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user"
+            variant="tooltip-link"
+          />
+        </>
+      }
+      tipOffset={14}
+      position="top"
+      showArrow
+      underline={false}
+    >
+      <span className="team-users__api-only-user">API</span>
+    </TooltipWrapper>
+  );
+};
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateColumnConfigs = (
@@ -69,52 +97,17 @@ const generateColumnConfigs = (
       sortType: "caseInsensitive",
       accessor: "name",
       Cell: (cellProps: ICellProps) => {
-        const formatter = (val: string) => {
-          const apiOnlyUser =
-            "api_only" in cellProps.row.original
-              ? cellProps.row.original.api_only
-              : false;
+        const apiOnlyUser =
+          "api_only" in cellProps.row.original
+            ? cellProps.row.original.api_only
+            : false;
 
-          return (
-            <>
-              {val}
-              {apiOnlyUser && (
-                <>
-                  <span
-                    className="team-users__api-only-user"
-                    data-tip
-                    data-for={`api-only-tooltip-${cellProps.row.original.id}`}
-                  >
-                    API
-                  </span>
-                  <ReactTooltip
-                    className="api-only-tooltip"
-                    place="top"
-                    type="dark"
-                    effect="solid"
-                    id={`api-only-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor={COLORS["tooltip-bg"]}
-                    clickable
-                    delayHide={200} // need delay set to hover using clickable
-                  >
-                    <>
-                      This user was created using fleetctl and
-                      <br /> only has API access.{" "}
-                      <CustomLink
-                        text="Learn more"
-                        newTab
-                        url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user"
-                        iconColor="core-fleet-white"
-                      />
-                    </>
-                  </ReactTooltip>
-                </>
-              )}
-            </>
-          );
-        };
-
-        return <TextCell value={cellProps.cell.value} formatter={formatter} />;
+        return (
+          <TooltipTruncatedTextCell
+            value={cellProps.cell.value}
+            suffix={apiOnlyUser && renderApiUserIndicator()}
+          />
+        );
       },
     },
     {
@@ -174,8 +167,8 @@ const generateColumnConfigs = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IDropdownCellProps) => (
-        <DropdownCell
+      Cell: (cellProps: IActionsDropdownProps) => (
+        <ActionsDropdown
           options={cellProps.cell.value}
           onChange={(value: string) =>
             actionSelectHandler(value, cellProps.row.original)
@@ -217,6 +210,7 @@ const enhanceUsersData = (
       role: generateRole(teamId, user.teams),
       teams: user.teams,
       sso_enabled: user.sso_enabled,
+      mfa_enabled: user.mfa_enabled,
       global_role: user.global_role,
       actions: generateActionDropdownOptions(),
       id: user.id,

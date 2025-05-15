@@ -1,0 +1,18 @@
+<Replace>
+  <!-- Powershell configs, modify the admx keys as needed for your env -->     
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging</LocURI>
+    </Target>
+    <Data>
+      <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
+      <data id="Listbox_ModuleNames" value="*"/>
+      <data id="OutputDirectory" value="false"/>
+      <data id="EnableScriptBlockInvocationLogging" value="true"/>
+      <data id="SourcePathForUpdateHelp" value="false"/>]]>
+    </Data>
+  </Item>
+</Replace>

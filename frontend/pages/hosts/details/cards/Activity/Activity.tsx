@@ -1,44 +1,30 @@
 import React from "react";
+import classnames from "classnames";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import { IActivityDetails } from "interfaces/activity";
+import { IHostUpcomingActivity } from "interfaces/activity";
 import {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
 
 import Card from "components/Card";
-import TabsWrapper from "components/TabsWrapper";
+import CardHeader from "components/CardHeader";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
 
 const baseClass = "activity-card";
 
-export interface IShowActivityDetailsData {
-  type: string;
-  details?: IActivityDetails;
-}
-
-export type ShowActivityDetailsHandler = (
-  data: IShowActivityDetailsData
-) => void;
-
 const UpcomingTooltip = () => {
   return (
     <TooltipWrapper
-      tipContent={
-        <>
-          Currently, only scripts run before other scripts and
-          <br />
-          software is installed before other software.
-          <br />
-          <br />
-          Failure of one activity won&apos;t cancel other activities.
-        </>
-      }
+      tipContent="Failure of one activity won't cancel other activities."
       className={`${baseClass}__upcoming-tooltip`}
     >
       Activities run as listed
@@ -51,11 +37,14 @@ interface IActivityProps {
   activities?: IHostPastActivitiesResponse | IHostUpcomingActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
+  className?: string;
   upcomingCount: number;
+  canCancelActivities: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
   onShowDetails: ShowActivityDetailsHandler;
+  onCancel: (activity: IHostUpcomingActivity) => void;
 }
 
 const Activity = ({
@@ -63,45 +52,47 @@ const Activity = ({
   activities,
   isLoading,
   isError,
+  className,
   upcomingCount,
+  canCancelActivities,
   onChangeTab,
   onNextPage,
   onPreviousPage,
   onShowDetails,
+  onCancel,
 }: IActivityProps) => {
+  const classNames = classnames(baseClass, className);
+
   return (
     <Card
       borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      largePadding
-      className={baseClass}
+      className={classNames}
     >
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
-          <Spinner />
+          <Spinner centered />
         </div>
       )}
-      <h2>Activity</h2>
-      <TabsWrapper>
+      <CardHeader header="Activity" />
+      <TabNav>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
           onSelect={onChangeTab}
         >
           <TabList>
-            <Tab>Past</Tab>
             <Tab>
-              Upcoming
-              {!!upcomingCount && (
-                <span className={`${baseClass}__upcoming-count`}>
-                  {upcomingCount}
-                </span>
-              )}
+              <TabText>Past</TabText>
+            </Tab>
+            <Tab>
+              <TabText count={upcomingCount}>Upcoming</TabText>
             </Tab>
           </TabList>
           <TabPanel>
             <PastActivityFeed
               activities={activities as IHostPastActivitiesResponse | undefined}
-              onDetailsClick={onShowDetails}
+              onShowDetails={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
@@ -113,14 +104,16 @@ const Activity = ({
               activities={
                 activities as IHostUpcomingActivitiesResponse | undefined
               }
-              onDetailsClick={onShowDetails}
+              onShowDetails={onShowDetails}
+              onCancel={onCancel}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
+              canCancelActivities={canCancelActivities}
             />
           </TabPanel>
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
     </Card>
   );
 };

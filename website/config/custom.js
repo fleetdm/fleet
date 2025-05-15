@@ -115,7 +115,7 @@ module.exports.custom = {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // FUTURE: To avoid repeating structure and comments, consolidate all these configs w/ something like:
     //    ````
-    //    'articles': { dri: 'mike-j-thomas', maintainers: ['mike-j-thomas', 'mike-j-thomas', 'spokanemac', 'mikermcneil'], repo: 'fleetdm/fleet' },
+    //    'articles': { dri: 'mike-j-thomas', maintainers: ['mike-j-thomas', 'mike-j-thomas', 'mikermcneil'], repo: 'fleetdm/fleet' },
     //    ````
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -132,7 +132,7 @@ module.exports.custom = {
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
-    'articles': 'spokanemac',
+    'articles': 'sampfluger88',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -161,9 +161,12 @@ module.exports.custom = {
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
-    // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
-
+    'handbook/company/pricing-features-table.yml': 'noahtalerman',
     'handbook/company/testimonials.yml': 'mike-j-thomas',
+    'handbook/company/product-groups.md': 'lukeheath',
+    'handbook/engineering': 'lukeheath',
+    'handbook/product-design': 'noahtalerman',
+
 
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
@@ -180,6 +183,9 @@ module.exports.custom = {
     // 🌐 GitHub issue templates
     '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
+    // 💝 Fleet-maintained apps
+    'ee/maintained-apps/inputs': 'mostlikelee',
+    'ee/maintained-apps/outputs': 'eugkuo',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -203,7 +209,7 @@ module.exports.custom = {
   githubRepoMaintainersByPath: {// fleetdm/fleet
 
     // Code for core product and integrations
-    'ee/tools/puppet': ['lukeheath', 'roperzh', 'gillespi314', 'mna', 'georgekarrv'],
+    'ee/tools/puppet': ['lukeheath', 'gillespi314', 'mna', 'georgekarrv'],
     'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
@@ -216,19 +222,18 @@ module.exports.custom = {
 
 
     // Articles and release notes
-    'CHANGELOG.md': ['mikermcneil', 'spokanemac', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil', 'spokanemac'],
-    'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'mikermcneil'],
+    'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath'],
+    'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
     'website': ['mikermcneil', 'eashaw'],// (default for website)
-    'website/views': 'eashaw',
+    'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
-    'website/api/controllers/imagine': ['eashaw', 'mike-j-thomas'],// landing pages
 
     // 🫧 Vulnerability dashboard
     'ee/vulnerability-dashboard': ['eashaw', 'mikermcneil'],// (catch-all)
@@ -264,13 +269,15 @@ module.exports.custom = {
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
     'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
-    'handbook/company/open-positions.yml': ['@sampfluger88','mikermcneil'],
+    'handbook/company/open-positions.yml': ['sampfluger88','mikermcneil'],
+    'handbook/company/communications.md': ['sampfluger88','mikermcneil'],
+    'handbook/company/leadership.md': ['sampfluger88','mikermcneil'],
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
     'handbook/finance': ['sampfluger88','mikermcneil'],
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
-    'handbook/product-design': ['sampfluger88','mikermcneil'],
+    'handbook/product-design': ['sampfluger88','mikermcneil','noahtalerman'],
     'handbook/sales': ['sampfluger88','mikermcneil'],
-    'handbook/demand': ['sampfluger88','mikermcneil'],
+    'handbook/marketing': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],
     'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
 
@@ -296,10 +303,6 @@ module.exports.custom = {
     // "Secret handbook"
     // Standard operating procedures (SOP), etc that would be public handbook content except for that it's confidential.
     'README.md': ['mikermcneil'],// « about this repo
-    'cold-outbound-strategy.md': ['mikermcneil', 'sampfluger88'],// « Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
-
-    // GitHub issue templates
-    '.github/ISSUE_TEMPLATE': ['mikermcneil', 'sampfluger88', 'lukeheath'],// FUTURE: Bust out individual maintainership for issue templates once relevant DRIs are GitHub, markdown, and content design-certified
 
   },
 
@@ -316,7 +319,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.17.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -381,6 +384,9 @@ module.exports.custom = {
     'ymail.com',
     'qq.com',
   ],
+
+  // Zapier:
+  // zapierWebhookSecret: '…',
 
   // Contact form:
   // slackWebhookUrlForContactForm: '…',

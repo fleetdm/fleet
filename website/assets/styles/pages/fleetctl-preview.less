@@ -137,7 +137,7 @@
     }
 
     [purpose='install-copy-button'], [purpose='command-copy-button'] {
-      display: none;
+      display: inline-block;
       background: url('/images/icon-copy-16x16@2x.png');
       font-size: 32px;
       position: absolute;
@@ -163,10 +163,7 @@
     }
     &:hover {
       [purpose='install-copy-button'], [purpose='command-copy-button'] {
-        display: inline-block;
-        &:hover {
-          background-color: #F2F2F5;
-        }
+        background-color: #F2F2F5;
       }
     }
   }

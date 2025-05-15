@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -7,6 +7,8 @@ import { GraphicNames } from "components/graphics";
 import Icon from "components/Icon";
 import Graphic from "components/Graphic";
 import FileDetails from "components/FileDetails";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "file-uploader";
 
@@ -47,6 +49,9 @@ interface IFileUploaderProps {
    * @default "button"
    */
   buttonType?: "button" | "link";
+  /** renders a tooltip for the button. If `gitopsCompatible` is set to `true`
+   * this tooltip will not be rendered if gitops mode is enabled. */
+  buttonTooltip?: React.ReactNode;
   onFileUpload: (files: FileList | null) => void;
   /** renders the current file with the edit pencil button */
   canEdit?: boolean;
@@ -54,6 +59,10 @@ interface IFileUploaderProps {
     name: string;
     platform?: string;
   };
+  /** Indicates that this file uploader deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
+  gitopsCompatible?: boolean;
+  /** Whether or not GitOpsMode is enabled. Has no effect if `gitopsCompatible` is false */
+  gitOpsModeEnabled?: boolean;
 }
 
 /**
@@ -69,23 +78,40 @@ export const FileUploader = ({
   className,
   buttonMessage = "Upload",
   buttonType = "button",
+  buttonTooltip,
   onFileUpload,
   canEdit = false,
   fileDetails,
+  gitopsCompatible = false,
+  gitOpsModeEnabled = false,
 }: IFileUploaderProps) => {
   const [isFileSelected, setIsFileSelected] = useState(!!fileDetails);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
   });
-  const buttonVariant = buttonType === "button" ? "brand" : "text-icon";
+  const buttonVariant = buttonType === "button" ? "default" : "text-icon";
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     onFileUpload(files);
     setIsFileSelected(true);
 
-    e.target.value = "";
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      triggerFileInput();
+    }
   };
 
   const renderGraphics = () => {
@@ -100,6 +126,67 @@ export const FileUploader = ({
     ));
   };
 
+  const renderUploadButton = () => {
+    // the gitops mode tooltip wrapper takes presedence over other button
+    // renderings
+    if (gitopsCompatible) {
+      return (
+        <GitOpsModeTooltipWrapper
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
+            <TooltipWrapper
+              className={`${baseClass}__manual-install-tooltip`}
+              tipContent={buttonTooltip}
+              disableTooltip={disableChildren || !buttonTooltip}
+              position="top"
+              showArrow
+              underline={false}
+            >
+              <Button
+                className={`${baseClass}__upload-button`}
+                variant={buttonVariant}
+                isLoading={isLoading}
+                disabled={disabled || disableChildren}
+                customOnKeyDown={handleKeyDown}
+                tabIndex={0}
+              >
+                <label htmlFor="upload-file">
+                  {buttonType === "link" && <Icon name="upload" />}
+                  <span>{buttonMessage}</span>
+                </label>
+              </Button>
+            </TooltipWrapper>
+          )}
+        />
+      );
+    }
+
+    return (
+      <TooltipWrapper
+        className={`${baseClass}__upload-button`}
+        position="top"
+        tipContent={buttonTooltip}
+        underline={false}
+        showArrow
+        disableTooltip={!buttonTooltip}
+      >
+        <Button
+          className={`${baseClass}__upload-button`}
+          variant={buttonVariant}
+          isLoading={isLoading}
+          disabled={disabled}
+          customOnKeyDown={handleKeyDown}
+          tabIndex={0}
+        >
+          <label htmlFor="upload-file">
+            {buttonType === "link" && <Icon name="upload" />}
+            <span>{buttonMessage}</span>
+          </label>
+        </Button>
+      </TooltipWrapper>
+    );
+  };
+
   const renderFileUploader = () => {
     return (
       <>
@@ -108,18 +195,9 @@ export const FileUploader = ({
         {additionalInfo && (
           <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
         )}
-        <Button
-          className={`${baseClass}__upload-button`}
-          variant={buttonVariant}
-          isLoading={isLoading}
-          disabled={disabled}
-        >
-          <label htmlFor="upload-file">
-            {buttonType === "link" && <Icon name="upload" />}
-            <span>{buttonMessage}</span>
-          </label>
-        </Button>
+        {renderUploadButton()}
         <input
+          ref={fileInputRef}
           accept={accept}
           id="upload-file"
           type="file"
@@ -130,7 +208,7 @@ export const FileUploader = ({
   };
 
   return (
-    <Card color="gray" className={classes}>
+    <Card color="grey" className={classes}>
       {isFileSelected && fileDetails ? (
         <FileDetails
           graphicNames={graphicNames}
@@ -138,6 +216,7 @@ export const FileUploader = ({
           canEdit={canEdit}
           onFileSelect={onFileSelect}
           accept={accept}
+          gitOpsModeEnabled={gitopsCompatible && gitOpsModeEnabled}
         />
       ) : (
         renderFileUploader()

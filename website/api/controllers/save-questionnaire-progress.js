@@ -21,7 +21,7 @@ module.exports = {
         'what-does-your-team-manage-eo-it',
         'what-does-your-team-manage-vm',
         'what-do-you-manage-mdm',
-        'cross-platform-mdm',
+        'message-about-cross-platform-mdm',
         'is-it-any-good',
         'what-did-you-think',
         'deploy-fleet-in-your-environment',
@@ -57,7 +57,6 @@ module.exports = {
     } else {// other wise clone it from the user record.
       questionnaireProgress = _.clone(userRecord.getStartedQuestionnaireAnswers);
     }
-
     // Tease out what liur buying situation will now be (or is and was, if it's not changing)
     let primaryBuyingSituation = formData.primaryBuyingSituation === undefined ? this.req.me.primaryBuyingSituation : formData.primaryBuyingSituation;
 
@@ -161,7 +160,7 @@ module.exports = {
         if(currentSelectedBuyingSituation === 'mdm') {
           // Since the mdm use case question is the only buying situation-specific question where a use case can't
           // be selected,  we'll check the user's previous answers before changing their psyStage
-          if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
+          if(typeof questionnaireProgress['what-do-you-manage-mdm'] !== 'undefined' && questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
             // Check the user's answer to the have-you-ever-used-fleet question.
             psychologicalStage = '3 - Intrigued';
           } else {
@@ -212,39 +211,57 @@ module.exports = {
       questionnaireProgressAsAFormattedString = JSON.stringify(getStartedProgress)
       .replace(/[\{|\}|"]/g, '')// Remove the curly braces and quotation marks wrapping JSON objects
       .replace(/,/g, '\n')// Replace commas with newlines.
-      .replace(/:\w+:/g, ':\t');// Replace the key from the formData with a color and tab, (e.g., what-are-you-using-fleet-for:primaryBuyingSituation:eo-security, » what-are-you-using-fleet-for:   eo-security)
+      .replace(/:\w+:/g, ':\t')// Replace the key from the formData with a colon and tab, (e.g., what-are-you-using-fleet-for:primaryBuyingSituation:eo-security, » what-are-you-using-fleet-for:   eo-security)
+      .replace(/(true)/g, 'step completed');// Replace any "true" answers with "step completed".
     } catch(err){
       sails.log.warn(`When converting a user's (email: ${this.req.me.emailAddress}) getStartedQuestionnaireAnswers to a formatted string to send to the CRM, and error occurred`, err);
     }
-    // Only update CRM records if the user's psychological stage changes.
+    // Prepend the user's reported organization to the questionnaireProgressAsAFormattedString
+    questionnaireProgressAsAFormattedString = `organization-according-to-fleetdm.com: ${this.req.me.organization}\n` + questionnaireProgressAsAFormattedString;
+
+    // Create a dictionary of values to send to the CRM for this user.
+    let contactInformation = {
+      emailAddress: this.req.me.emailAddress,
+      firstName: this.req.me.firstName,
+      lastName: this.req.me.lastName,
+      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+      organization: this.req.me.organization,
+      psychologicalStage,
+      getStartedResponses: questionnaireProgressAsAFormattedString,
+      contactSource: 'Website - Sign up',
+    };
+    // If the user's psychologicalStage changes, add a psychologicalStageChangeReason to the contactInformation dictionary that we'll update the CRM record with.
     if(psychologicalStage !== userRecord.psychologicalStage) {
       let psychologicalStageChangeReason = 'Website - Organic start flow'; // Default psystageChangeReason to "Website - Organic start flow"
       if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
-        let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
+        let sevenDaysAgoAt = Date.now() - (1000 * 60 * 60 * 24 * 7);
         // If this user visited the website from an ad, set the psychologicalStageChangeReason to be the adCampaignId stored in their session.
-        if(this.req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {
+        if(this.req.session.visitedSiteFromAdAt > sevenDaysAgoAt) {
           psychologicalStageChangeReason = this.req.session.adAttributionString;
         }
       }
-      // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
+      contactInformation.psychologicalStageChangeReason = psychologicalStageChangeReason;
+      // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage has changed (otherwise this is set to the current value)
       psychologicalStageLastChangedAt = Date.now();
-      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-        emailAddress: this.req.me.emailAddress,
-        firstName: this.req.me.firstName,
-        lastName: this.req.me.lastName,
-        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        organization: this.req.me.organization,
-        psychologicalStage,
-        psychologicalStageChangeReason,
-        getStartedResponses: questionnaireProgressAsAFormattedString,
-        contactSource: 'Website - Sign up',
-      }).exec((err)=>{
-        if(err){
-          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
-        }
-        return;
-      });
     }//ﬁ
+    // Update the CRM record for this user.
+    sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
+      // Check to see if the error returned is related to duplicate records.
+      if(err && err.errorCode === 'DUPLICATES_DETECTED') {
+        // Because we create/update CRM records in the background, it is possible to complete the first steps of the get started questionnaire before any CRM records are created.
+        // If the CRM helper returns an error related to a duplicate record, we will log a message if it occured when a user submitted one of the first three steps of the questionnaire.
+        if(['start','what-are-you-using-fleet-for','have-you-ever-used-fleet'].includes(currentStep)){
+          sails.log.verbose(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire (${currentStep}), a Contact and Account record could not be created/updated in the CRM because a duplicate record was found.`, err);
+        } else {
+          // If this was not one of the first three steps, log a warning to alert us.
+          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire (${currentStep}), a Contact and Account record could not be created/updated in the CRM because a duplicate record was found.`, err);
+        }
+      } else if(err){
+        // If it is any other kind of error or t, log a warning.
+        sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire (${currentStep}), a Contact and Account record could not be created/updated in the CRM.`, err);
+      }
+      return;
+    });
     // Update the user's database model.
     await User.updateOne({id: userRecord.id})
     .set({

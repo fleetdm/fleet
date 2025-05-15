@@ -2,9 +2,13 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-Fleet UI:
+## Turning on enforcement
+
+For Apple (macOS, iOS, and iPadOS) hosts, the you can find the list of available OS versions in the Apple Software Lookup Service [here](https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv). The update will only be enforced if you use a version in that list.
+
+### Fleet UI
 
 1. Head to the **Controls** > **OS updates** tab.
 
@@ -12,28 +16,37 @@ Fleet UI:
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#modify-team).
+### Fleet API
+
+Use the [modify team endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
++ `macos_updates`
++ `ios_updates`
++ `ipados_updates`
++ `windows_updates`
+
+### GitOps
+
+OS version enforcement options are declared within the [controls](https://fleetdm.com/docs/configuration/yaml-files#controls) section of a Fleet GitOps YAML file, using the following keys: 
++ [macos_updates](https://fleetdm.com/docs/configuration/yaml-files#macos-updates)
++ [ios_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates)
++ [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates)
++ [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates)
 
 ## End user experience
 
-### macOS
+### Apple (macOS, iOS, and iPadOS)
 
-When a minimum version is enforced, the end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.   
+On macOS hosts, when a minimum version is enforced, end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.
+
+> Certain user preferences may suppress macOS update notifications. To prevent users from being surprised by a forced update or unexpected restart, consider communicating OS update deadlines through additional channels.
+
+On iOS and iPadOS hosts, end users will see a notification in their Notification Center after the deadline. They can’t use their iPhone or iPad until the OS update is installed.
 
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
 
-For macOS devices that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest [available version](#available-macos-ios-and-ipados-versions) during ADE before device setup and enrollment can proceed.
+If you set a past date (ex. yesterday) as the deadline, the end user will immediately be prompted to install the update. If they don't, the update will automatically install in one hour. Similarly, if you set the deadline to today, end users will experience the same behavior if it's after 12 PM (end user local time).
 
-### iOS and iPadOS
-
-End users will see a notification in their Notification Center after the deadline when a minimum version is enforced. They can’t use their iPhone or iPad until the OS update is installed.
-
-For iOS and iPadOS devices that use Automated Device Enrollment (ADE), if the device is below the specified
-minimum version, it will be required to update to the latest [available version](#available-macos-ios-and-ipados-versions) during ADE before device setup and enrollment can proceed.
-
-### Available macOS, iOS, and iPadOS versions
-
-The Apple Software Lookup Service (available at [https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv)) is the official resource for obtaining a list of publicly available updates, upgrades, and Rapid Security Responses. Make sure to use versions available in GDMF; otherwise, the update will not be scheduled.
+For hosts that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest version during ADE before device setup and enrollment can proceed. You can find the latest version in the Apple Software Lookup Service [here](https://gdmf.apple.com/v2/pmv).
 
 ### Windows
 

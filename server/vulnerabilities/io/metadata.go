@@ -78,7 +78,7 @@ func (mfn MetadataFileName) ProductName() string {
 		return ""
 	}
 
-	return strings.Replace(parts[0], "_", " ", -1)
+	return strings.ReplaceAll(parts[0], "_", " ")
 }
 
 func (mfn MetadataFileName) String() string {
@@ -86,7 +86,7 @@ func (mfn MetadataFileName) String() string {
 }
 
 func MSRCFileName(productName string, date time.Time) string {
-	pName := strings.Replace(productName, " ", "_", -1)
+	pName := strings.ReplaceAll(productName, " ", "_")
 	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", mSRCFilePrefix, pName, date.Year(), date.Month(), date.Day(), fileExt)
 }
 

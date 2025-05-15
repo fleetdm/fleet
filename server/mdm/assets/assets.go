@@ -26,7 +26,7 @@ func KeyPair(ctx context.Context, ds fleet.MDMAssetRetriever, certName, keyName 
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		certName,
 		keyName,
-	})
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading %s, %s keypair from the database: %w", certName, keyName, err)
 	}
@@ -45,7 +45,7 @@ func KeyPair(ctx context.Context, ds fleet.MDMAssetRetriever, certName, keyName 
 }
 
 func X509Cert(ctx context.Context, ds fleet.MDMAssetRetriever, certName fleet.MDMAssetName) (*x509.Certificate, error) {
-	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{certName})
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{certName}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading certificate %s from the database: %w", certName, err)
 	}
@@ -76,7 +76,7 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever, abmOrgName string
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
-	})
+	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("loading ABM assets from the database: %w", err)
 	}

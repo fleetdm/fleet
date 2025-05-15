@@ -2,17 +2,23 @@ import React, { useContext } from "react";
 import { Link } from "react-router";
 import classnames from "classnames";
 
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import { AppContext } from "context/app";
+
 import { IConfig } from "interfaces/config";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import { QueryParams } from "utilities/url";
 
 import LinkWithContext from "components/LinkWithContext";
-import UserMenu from "components/top_nav/UserMenu";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
 
+import UserMenu from "../UserMenu";
 import getNavItems, { INavItem } from "./navItems";
 
 interface ISiteTopNavProps {
@@ -20,12 +26,10 @@ interface ISiteTopNavProps {
   currentUser: IUser;
   location: {
     pathname: string;
-    search: string;
-    hash?: string;
     query: QueryParams;
   };
   onLogoutUser: () => void;
-  onNavItemClick: (path: string) => void;
+  onUserMenuItemClick: (path: string) => void;
 }
 
 // TODO(sarah): Build RegExps for other routes that need to be differentiated in order to build
@@ -72,12 +76,41 @@ const isGlobalPage = (path: string) => {
   return Object.values(REGEX_GLOBAL_PAGES).some((re) => path.match(re));
 };
 
+const GitOpsModeIndicator = () => {
+  const baseClass = "gitops-mode-indicator";
+  const tipContent = (
+    <>
+      Items managed in YAML are read-only.
+      <br />
+      <CustomLink
+        newTab
+        text="Learn more"
+        variant="tooltip-link"
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/ui-gitops-mode`}
+      />
+    </>
+  );
+  return (
+    <TooltipWrapper
+      position="bottom"
+      underline={false}
+      showArrow
+      tipContent={tipContent}
+      className={baseClass}
+      tipOffset={2}
+    >
+      <Icon name="gitops-mode" />
+      <div className={`${baseClass}__text`}>GitOps mode</div>
+    </TooltipWrapper>
+  );
+};
+
 const SiteTopNav = ({
   config,
   currentUser,
-  location: { pathname: currentPath, search, hash = "", query },
+  location: { pathname: currentPath, query },
   onLogoutUser,
-  onNavItemClick,
+  onUserMenuItemClick,
 }: ISiteTopNavProps): JSX.Element => {
   const {
     currentTeam,
@@ -137,7 +170,9 @@ const SiteTopNav = ({
 
       const includeTeamId = (activePath: string) => {
         if (currentQueryParams.team_id !== API_ALL_TEAMS_ID) {
-          return `${path}?team_id=${currentQueryParams.team_id}`;
+          return getPathWithQueryParams(path, {
+            team_id: currentQueryParams.team_id,
+          });
         }
         return activePath;
       };
@@ -205,18 +240,21 @@ const SiteTopNav = ({
   const renderNavItems = () => {
     return (
       <div className="site-nav-content">
-        <ul className="site-nav-list">
+        <ul className="site-nav-left">
           {userNavItems.map((navItem) => {
             return renderNavItem(navItem);
           })}
         </ul>
-        <UserMenu
-          onLogout={onLogoutUser}
-          onNavItemClick={onNavItemClick}
-          currentUser={currentUser}
-          isAnyTeamAdmin={isAnyTeamAdmin}
-          isGlobalAdmin={isGlobalAdmin}
-        />
+        <div className="site-nav-right">
+          {config.gitops.gitops_mode_enabled && <GitOpsModeIndicator />}
+          <UserMenu
+            onLogout={onLogoutUser}
+            onUserMenuItemClick={onUserMenuItemClick}
+            currentUser={currentUser}
+            isAnyTeamAdmin={isAnyTeamAdmin}
+            isGlobalAdmin={isGlobalAdmin}
+          />
+        </div>
       </div>
     );
   };

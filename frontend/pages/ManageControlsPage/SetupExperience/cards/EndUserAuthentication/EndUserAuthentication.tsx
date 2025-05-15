@@ -10,12 +10,11 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
-import EndUserExperiencePreview from "pages/ManageControlsPage/components/EndUserExperiencePreview";
 
 import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
-
-import OsSetupPreview from "../../../../../../assets/images/os-setup-preview.gif";
+import EndUserExperiencePreview from "./components/EndUserExperiencePreview";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
 const baseClass = "end-user-authentication";
 
@@ -41,7 +40,9 @@ const getEnabledEndUserAuth = (
 const isIdPConfigured = ({
   end_user_authentication: idp,
 }: Pick<IMdmConfig, "end_user_authentication">) => {
-  return !!idp.entity_id && !!idp.metadata_url && !!idp.idp_name;
+  return (
+    !!idp.entity_id && !!idp.idp_name && (!!idp.metadata_url || !!idp.metadata)
+  );
 };
 
 interface IEndUserAuthenticationProps {
@@ -83,12 +84,12 @@ const EndUserAuthentication = ({
   };
 
   return (
-    <div className={baseClass}>
+    <section className={baseClass}>
       <SectionHeader title="End user authentication" />
       {isLoadingGlobalConfig || isLoadingTeamConfig ? (
         <Spinner />
       ) : (
-        <div className={`${baseClass}__content`}>
+        <SetupExperienceContentContainer>
           {!globalConfig || !isIdPConfigured(globalConfig.mdm) ? (
             <RequireEndUserAuth onClickConnect={onClickConnect} />
           ) : (
@@ -97,20 +98,10 @@ const EndUserAuthentication = ({
               defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
             />
           )}
-          <EndUserExperiencePreview previewImage={OsSetupPreview}>
-            <p>
-              When the end user reaches the <b>Remote Management</b> pane in the
-              macOS Setup Assistant, they are asked to authenticate and agree to
-              the end user license agreement (EULA).
-            </p>
-            <p>
-              After, Fleet enrolls the Mac, applies macOS settings, and installs
-              the bootstrap package.
-            </p>
-          </EndUserExperiencePreview>
-        </div>
+          <EndUserExperiencePreview />
+        </SetupExperienceContentContainer>
       )}
-    </div>
+    </section>
   );
 };
 

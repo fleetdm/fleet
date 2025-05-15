@@ -23,6 +23,18 @@ import Falcon from "./Falcon";
 import AppStore from "./AppStore";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
+import TeamViewer from "./TeamViewer";
+import Box from "./Box";
+import Brave from "./Brave";
+import Cloudflare from "./Cloudflare";
+import Docker from "./Docker";
+import Edge from "./Edge";
+import Figma from "./Figma";
+import Notion from "./Notion";
+import WindowsDefender from "./WindowsDefender";
+import WhatsApp from "./WhatsApp";
+import Postman from "./Postman";
+import OnePassword from "./OnePassword";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -33,16 +45,18 @@ const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
-const SOFTWARE_NAME_TO_ICON_MAP = {
+export const SOFTWARE_NAME_TO_ICON_MAP = {
   appStore: AppStore,
   "adobe acrobat reader": AcrobatReader,
   "microsoft excel": Excel,
   falcon: Falcon,
   firefox: Firefox,
+  "mozilla firefox": Firefox,
   package: Package,
   safari: Safari,
   slack: Slack,
   "microsoft teams": Teams,
+  "microsoft visual studio code": VisualStudioCode,
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
   "google chrome": ChromeApp,
@@ -51,12 +65,24 @@ const SOFTWARE_NAME_TO_ICON_MAP = {
   chrome: ChromeOS,
   ios: iOS,
   ipados: iPadOS,
+  whatsapp: WhatsApp,
+  notion: Notion,
+  figma: Figma,
+  "microsoft edge": Edge,
+  docker: Docker,
+  cloudflare: Cloudflare,
+  brave: Brave,
+  box: Box,
+  teamviewer: TeamViewer,
+  "windows defender": WindowsDefender,
+  postman: Postman,
+  "1password": OnePassword,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
 // icon.
-const SOFTWARE_SOURCE_TO_ICON_MAP = {
+export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   package: Package,
   apt_sources: Package,
   deb_packages: Package,

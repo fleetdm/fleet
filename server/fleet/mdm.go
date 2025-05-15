@@ -18,6 +18,33 @@ const (
 	MDMAppleDeclarationUUIDPrefix = "d"
 	MDMAppleProfileUUIDPrefix     = "a"
 	MDMWindowsProfileUUIDPrefix   = "w"
+
+	// RefetchMDMUnenrollCriticalQueryDuration is the duration to set the
+	// RefetchCriticalQueriesUntil field when migrating a device from a
+	// third-party MDM solution to Fleet.
+	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+
+	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
+	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
+	// Currently, we assume the variables are fully unique and not substrings of each other.
+	//
+	// NOTE: if you add new variables, make sure you create a DB migration to insert them
+	// in the fleet_variables table. At some point we should refactor those constants/regexp
+	// and the findFleetVariables logic to use the DB table instead of hardcoding them here
+	// (not doing it now because of time constraints to finish the story for the release).
+	FleetVarNDESSCEPChallenge               = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL                = "NDES_SCEP_PROXY_URL"
+	FleetVarHostEndUserEmailIDP             = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostHardwareSerial              = "HOST_HARDWARE_SERIAL"
+	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
+	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
+	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
+	FleetVarSCEPRenewalID                   = "SCEP_RENEWAL_ID"
+
+	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
+	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
+	FleetVarCustomSCEPChallengePrefix = "CUSTOM_SCEP_CHALLENGE_"
+	FleetVarCustomSCEPProxyURLPrefix  = "CUSTOM_SCEP_PROXY_URL_"
 )
 
 type AppleMDM struct {
@@ -148,6 +175,7 @@ func (e MDMEULA) AuthzType() string {
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
 type ExpectedMDMProfile struct {
+	ProfileUUID string `db:"profile_uuid"`
 	// Identifier is the unique identifier used by macOS profiles
 	Identifier string `db:"identifier"`
 	// Name is the unique name used by Windows profiles
@@ -298,6 +326,7 @@ type MDMCommandFilters struct {
 type MDMPlatformsCounts struct {
 	MacOS   uint `db:"macos" json:"macos"`
 	Windows uint `db:"windows" json:"windows"`
+	Linux   uint `db:"linux" json:"linux"`
 }
 
 type MDMDiskEncryptionSummary struct {
@@ -309,8 +338,8 @@ type MDMDiskEncryptionSummary struct {
 	RemovingEnforcement MDMPlatformsCounts `db:"removing_enforcement" json:"removing_enforcement"`
 }
 
-// MDMProfilesSummary reports the number of hosts being managed with MDM configuration
-// profiles. Each host may be counted in only one of four mutually-exclusive categories:
+// MDMProfilesSummary reports the number of hosts being managed with configuration
+// profiles and/or disk encryption. Each host may be counted in only one of four mutually-exclusive categories:
 // Failed, Pending, Verifying, or Verified.
 type MDMProfilesSummary struct {
 	// Verified includes each host where Fleet has verified the installation of all of the
@@ -410,15 +439,20 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // MDMConfigProfilePayload is the platform-agnostic struct returned by
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
-	ProfileUUID      string                      `json:"profile_uuid" db:"profile_uuid"`
-	TeamID           *uint                       `json:"team_id" db:"team_id"` // null for no-team
-	Name             string                      `json:"name" db:"name"`
-	Platform         string                      `json:"platform" db:"platform"`               // "windows" or "darwin"
-	Identifier       string                      `json:"identifier,omitempty" db:"identifier"` // only set for macOS
-	Checksum         []byte                      `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
+	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
+	TeamID      *uint  `json:"team_id" db:"team_id"` // null for no-team
+	Name        string `json:"name" db:"name"`
+	Platform    string `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	// Checksum is the following
+	// - for Apple configuration profiles: the MD5 checksum of the profile contents
+	// - for Apple device declarations: the MD5 checksum of the profile contents and secrets updated timestamp (if profile contains secret variables)
+	// - for Windows: always empty
+	Checksum         []byte                      `json:"checksum,omitempty" db:"checksum"`
 	CreatedAt        time.Time                   `json:"created_at" db:"created_at"`
 	UploadedAt       time.Time                   `json:"updated_at" db:"uploaded_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
+	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
 }
 
@@ -430,9 +464,11 @@ type MDMProfileBatchPayload struct {
 
 	// Deprecated: Labels is the backwards-compatible way of specifying
 	// LabelsIncludeAll.
-	Labels           []string `json:"labels,omitempty"`
-	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
-	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	Labels           []string   `json:"labels,omitempty"`
+	LabelsIncludeAll []string   `json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []string   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string   `json:"labels_exclude_any,omitempty"`
+	SecretsUpdatedAt *time.Time `json:"-"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -448,6 +484,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
 		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
@@ -467,6 +504,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
 		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
@@ -482,10 +520,11 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		Name:             decl.Name,
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
-		Checksum:         []byte(decl.Checksum),
+		Checksum:         []byte(decl.Token),
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
+		LabelsIncludeAny: decl.LabelsIncludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
 }
@@ -504,6 +543,10 @@ type MDMProfileSpec struct {
 	// of in order to receive the profile. It must be a member of all listed
 	// labels.
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	// LabelsIncludeAny is a list of label names that the host must be a member
+	// of in order to receive the profile. It may be a member of
+	// any listed labels.
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	// LabelsExcludeAll is a list of label names that the host must not be a
 	// member of in order to receive the profile. It must not be a member of any
 	// of the listed labels.
@@ -516,26 +559,30 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
-
 	if lookAhead := bytes.TrimSpace(data); len(lookAhead) > 0 && lookAhead[0] == '"' {
 		var backwardsCompat string
 		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
 			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 		}
 		p.Path = backwardsCompat
+
+		// FIXME: equivalent of no label condition, should clear all labels slice?
+		// p.Labels = nil
+		// p.LabelsIncludeAll = nil
+		// p.LabelsIncludeAny = nil
+		// p.LabelsExcludeAny = nil
 		return nil
 	}
 
 	// use an alias type to avoid recursively calling this function forever.
 	type Alias MDMProfileSpec
-	aliasData := struct {
-		*Alias
-	}{
-		Alias: (*Alias)(p),
-	}
+	var aliasData Alias
 	if err := json.Unmarshal(data, &aliasData); err != nil {
 		return fmt.Errorf("unmarshal profile spec. Error using new format: %w", err)
 	}
+	// NOTE: we always want the newly unmarshaled profile spec to completely replace the old one
+	// (rather than merging the new data into the old one).
+	*p = MDMProfileSpec(aliasData)
 	return nil
 }
 
@@ -548,8 +595,7 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 		return nil
 	}
 
-	var clone MDMProfileSpec
-	clone = *p
+	clone := *p
 
 	if len(p.Labels) > 0 {
 		clone.Labels = make([]string, len(p.Labels))
@@ -558,6 +604,10 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 	if len(p.LabelsIncludeAll) > 0 {
 		clone.LabelsIncludeAll = make([]string, len(p.LabelsIncludeAll))
 		copy(clone.LabelsIncludeAll, p.LabelsIncludeAll)
+	}
+	if len(p.LabelsIncludeAny) > 0 {
+		clone.LabelsIncludeAny = make([]string, len(p.LabelsIncludeAny))
+		copy(clone.LabelsIncludeAny, p.LabelsIncludeAny)
 	}
 	if len(p.LabelsExcludeAny) > 0 {
 		clone.LabelsExcludeAny = make([]string, len(p.LabelsExcludeAny))
@@ -592,6 +642,10 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
 		}
 	}
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
+	}
 	pathLabelExcludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
 		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
@@ -599,8 +653,9 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 
 	for _, v := range b {
 		includeLabels, okIncl := pathLabelIncludeCounts[v.Path]
+		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
 		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
-		if !okIncl || !okExcl {
+		if !okIncl || !okExcl || !okInclAny {
 			return false
 		}
 
@@ -622,6 +677,19 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 			}
 		}
 
+		bLabelIncludeAnyCounts := labelCountMap(v.LabelsIncludeAny)
+		for label, count := range bLabelIncludeAnyCounts {
+			if includeAnyLabels[label] != count {
+				return false
+			}
+			includeAnyLabels[label] -= count
+		}
+		for _, count := range includeAnyLabels {
+			if count != 0 {
+				return false
+			}
+		}
+
 		bLabelExcludeCounts := labelCountMap(v.LabelsExcludeAny)
 		for label, count := range bLabelExcludeCounts {
 			if excludeLabels[label] != count {
@@ -636,11 +704,20 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		}
 
 		delete(pathLabelIncludeCounts, v.Path)
+		delete(pathLabelsIncludeAnyCounts, v.Path)
 		delete(pathLabelExcludeCounts, v.Path)
 	}
 
-	return len(pathLabelIncludeCounts) == 0 && len(pathLabelExcludeCounts) == 0
+	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
 }
+
+type MDMLabelsMode string
+
+const (
+	LabelsIncludeAll MDMLabelsMode = "labels_include_all"
+	LabelsIncludeAny MDMLabelsMode = "labels_include_any"
+	LabelsExcludeAny MDMLabelsMode = "labels_exclude_any"
+)
 
 type MDMAssetName string
 
@@ -676,6 +753,11 @@ const (
 	// Deprecated: VPP tokens are now stored in the vpp_tokens table, they are
 	// not in mdm_config_assets anymore.
 	MDMAssetVPPTokenDeprecated MDMAssetName = "vpp_token"
+	// MDMAssetNDESPassword is the password used to retrieve SCEP challenge from
+	// NDES SCEP server. It is used by Fleet's SCEP proxy.
+	MDMAssetNDESPassword MDMAssetName = "ndes_password"
+	// MDMAssetAndroidPubSubToken is the token used to authenticate the Android PubSub messages coming from Google.
+	MDMAssetAndroidPubSubToken MDMAssetName = "android_pubsub_token" // nolint:gosec // Ignore G101: Potential hardcoded credentials
 )
 
 type MDMConfigAsset struct {
@@ -702,6 +784,20 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	return clone
 }
 
+type CAConfigAssetType string
+
+const (
+	CAConfigNDES            CAConfigAssetType = "ndes"
+	CAConfigDigiCert        CAConfigAssetType = "digicert"
+	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
+)
+
+type CAConfigAsset struct {
+	Name  string            `db:"name"`
+	Value []byte            `db:"value"`
+	Type  CAConfigAssetType `db:"type"`
+}
+
 // MDMPlatform returns "darwin" or "windows" as MDM platforms
 // derived from a host's platform (hosts.platform field).
 //
@@ -713,6 +809,7 @@ func MDMPlatform(hostPlatform string) string {
 		return "darwin"
 	case "windows":
 		return "windows"
+		// TODO(android): add android to this list?
 	}
 	return ""
 }
@@ -739,9 +836,12 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 }
 
 // RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
-const RefetchBaseCommandUUIDPrefix = "REFETCH-"
-const RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
-const RefetchAppsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "APPS-"
+const (
+	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
+	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
+	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
+)
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
@@ -865,4 +965,43 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+}
+
+// MDMProfileUUIDFleetVariables represents the Fleet variables used by a
+// profile identified by its UUID.
+type MDMProfileUUIDFleetVariables struct {
+	// ProfileUUID is the UUID of the profile.
+	ProfileUUID string
+	// FleetVariables is the (deduplicated) list of Fleet variables used by the
+	// profile, without the "FLEET_VAR_" prefix (as returned by
+	// findFleetVariables).
+	FleetVariables []string
+}
+
+// MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
+// profile identified by its identifier.
+type MDMProfileIdentifierFleetVariables struct {
+	// Identifier is the identifier of the profile (which is unique by team for
+	// Apple profiles).
+	Identifier string
+	// FleetVariables is the (deduplicated) list of Fleet variables used by the
+	// profile, without the "FLEET_VAR_" prefix (as returned by
+	// findFleetVariables).
+	FleetVariables []string
+}
+
+// BatchResendMDMProfileFilters represents the filters to apply to hosts for
+// batch-redelivery of an MDM profile.
+type BatchResendMDMProfileFilters struct {
+	ProfileStatus MDMDeliveryStatus
+}
+
+// MDMConfigProfileStatus represents the number of hosts in each status for a
+// given configuration profile. See MDMProfilesSummary for more information on
+// each status, this struct is the same except for a single profile.
+type MDMConfigProfileStatus struct {
+	Verified  uint `json:"verified" db:"verified"`
+	Verifying uint `json:"verifying" db:"verifying"`
+	Pending   uint `json:"pending" db:"pending"`
+	Failed    uint `json:"failed" db:"failed"`
 }

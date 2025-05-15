@@ -83,7 +83,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 				webhook_status = VALUES(webhook_status),
 				calendar_event_id = VALUES(calendar_event_id);
 		`
-		result, err = tx.ExecContext(
+		_, err = tx.ExecContext(
 			ctx,
 			hostCalendarEventsQuery,
 			hostID,
@@ -98,7 +98,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	calendarEvent, err := getCalendarEventByID(ctx, ds.writer(ctx), uint(id))
+	calendarEvent, err := getCalendarEventByID(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get created calendar event by id")
 	}

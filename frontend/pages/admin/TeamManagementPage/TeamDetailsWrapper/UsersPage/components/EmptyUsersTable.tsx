@@ -4,6 +4,7 @@ import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IEmptyUsersTableProps {
   className: string;
@@ -12,6 +13,7 @@ interface IEmptyUsersTableProps {
   isTeamAdmin: boolean;
   toggleAddUserModal: () => void;
   toggleCreateMemberModal: () => void;
+  disabled?: boolean;
 }
 
 const infoLink = (
@@ -27,6 +29,7 @@ const CreateUserButton = ({
   isTeamAdmin,
   toggleAddUserModal,
   toggleCreateMemberModal,
+  disabled = false,
 }: Omit<IEmptyUsersTableProps, "searchString">) => {
   if (!isGlobalAdmin && !isTeamAdmin) {
     return null;
@@ -35,9 +38,9 @@ const CreateUserButton = ({
   if (isGlobalAdmin) {
     return (
       <Button
-        variant="brand"
         className={`${className}__create-button`}
         onClick={toggleAddUserModal}
+        disabled={disabled}
       >
         Add user
       </Button>
@@ -46,9 +49,9 @@ const CreateUserButton = ({
 
   return (
     <Button
-      variant="brand"
       className={`${className}__create-button`}
       onClick={toggleCreateMemberModal}
+      disabled={disabled}
     >
       Create user
     </Button>
@@ -78,12 +81,18 @@ const EmptyMembersTable = ({
       header="No users on this team"
       info={infoLink}
       primaryButton={
-        <CreateUserButton
-          className={className}
-          isGlobalAdmin={isGlobalAdmin}
-          isTeamAdmin={isTeamAdmin}
-          toggleAddUserModal={toggleAddUserModal}
-          toggleCreateMemberModal={toggleCreateMemberModal}
+        <GitOpsModeTooltipWrapper
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
+            <CreateUserButton
+              className={className}
+              isGlobalAdmin={isGlobalAdmin}
+              isTeamAdmin={isTeamAdmin}
+              toggleAddUserModal={toggleAddUserModal}
+              toggleCreateMemberModal={toggleCreateMemberModal}
+              disabled={disableChildren}
+            />
+          )}
         />
       }
     />

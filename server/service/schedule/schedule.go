@@ -7,6 +7,8 @@ package schedule
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -30,6 +32,8 @@ type Schedule struct {
 	instanceID string
 	logger     log.Logger
 
+	defaultPrevRunCreatedAt time.Time // default timestamp of previous run for the schedule if none exists, time.Now if not set
+
 	mu                sync.Mutex // protects schedInterval and intervalStartedAt
 	schedInterval     time.Duration
 	intervalStartedAt time.Time // start time of the most recent run of the scheduled jobs
@@ -44,7 +48,8 @@ type Schedule struct {
 
 	altLockName string
 
-	jobs []Job
+	jobs   []Job
+	errors fleet.CronScheduleErrors
 
 	statsStore CronStatsStore
 
@@ -77,7 +82,7 @@ type CronStatsStore interface {
 	// InsertCronStats inserts cron stats for the named cron schedule
 	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record
-	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus) error
+	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
 }
 
 // Option allows configuring a Schedule.
@@ -129,6 +134,17 @@ func WithRunOnce(once bool) Option {
 	}
 }
 
+// WithDefaultPrevRunCreatedAt sets the default time to use for the previous
+// run of the schedule if it never ran yet. If not specified, the current time
+// is used. This affects when the schedule starts running after Fleet is
+// started, e.g. if the schedule has an interval of 1h and has no previous run
+// recorded, by default its first run after Fleet starts will be in 1h.
+func WithDefaultPrevRunCreatedAt(tm time.Time) Option {
+	return func(s *Schedule) {
+		s.defaultPrevRunCreatedAt = tm
+	}
+}
+
 // New creates and returns a Schedule.
 // Jobs are added with the WithJob Option.
 //
@@ -164,6 +180,7 @@ func New(
 		sch.logger = log.NewNopLogger()
 	}
 	sch.logger = log.With(sch.logger, "instanceID", instanceID)
+	sch.errors = make(fleet.CronScheduleErrors)
 	return sch
 }
 
@@ -177,10 +194,14 @@ func (s *Schedule) Start() {
 		ctxerr.Handle(s.ctx, err)
 	}
 
-	// if there is no previous run, set the start time to the current time.
+	// if there is no previous run, set the start time to the specified default
+	// time, falling back to current time.
 	startedAt := prevScheduledRun.CreatedAt
 	if startedAt.IsZero() {
-		startedAt = time.Now()
+		startedAt = s.defaultPrevRunCreatedAt
+		if startedAt.IsZero() {
+			startedAt = time.Now()
+		}
 	} else if s.runOnce && prevScheduledRun.Status == fleet.CronStatsStatusCompleted {
 		// If job is set to run once, and it already ran, then nothing to do
 		return
@@ -440,9 +461,12 @@ func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
 
 // runAllJobs runs all jobs in the schedule.
 func (s *Schedule) runAllJobs() {
+	// Clear errors from the schedule before each run.
+	s.errors = make(fleet.CronScheduleErrors)
 	for _, job := range s.jobs {
 		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 		if err := runJob(s.ctx, job.Fn); err != nil {
+			s.errors[job.ID] = err
 			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
 			ctxerr.Handle(s.ctx, err)
 		}
@@ -452,8 +476,10 @@ func (s *Schedule) runAllJobs() {
 // runJob executes the job function with panic recovery.
 func runJob(ctx context.Context, fn JobFn) (err error) {
 	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
+		if os.Getenv("TEST_CRON_NO_RECOVER") != "1" { // for detecting panics in tests
+			if r := recover(); r != nil {
+				err = fmt.Errorf("%v\n%s", r, string(debug.Stack()))
+			}
 		}
 	}()
 
@@ -597,7 +623,7 @@ func (s *Schedule) insertStats(statsType fleet.CronStatsType, status fleet.CronS
 }
 
 func (s *Schedule) updateStats(id int, status fleet.CronStatsStatus) error {
-	return s.statsStore.UpdateCronStats(s.ctx, id, status)
+	return s.statsStore.UpdateCronStats(s.ctx, id, status, &s.errors)
 }
 
 func (s *Schedule) getLockName() string {

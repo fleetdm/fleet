@@ -41,7 +41,7 @@ func Columns() []table.ColumnDefinition {
 	}
 }
 
-var permRegexp = regexp.MustCompile("[-+]*\\d+")
+var permRegexp = regexp.MustCompile(`[-+]*\d+`)
 
 // Generate is called to return the results for the table at query time.
 //

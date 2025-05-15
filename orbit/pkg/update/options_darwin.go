@@ -6,8 +6,8 @@ import (
 
 var defaultOptions = Options{
 	RootDirectory:     "/opt/orbit",
-	ServerURL:         defaultURL,
-	RootKeys:          defaultRootKeys,
+	ServerURL:         DefaultURL,
+	RootKeys:          defaultRootMetadata,
 	LocalStore:        client.MemoryLocalStore(),
 	InsecureTransport: false,
 	Targets:           DarwinTargets,

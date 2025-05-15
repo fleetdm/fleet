@@ -1,20 +1,22 @@
-# Seamless MDM migrations to Fleet
+# Seamless macOS MDM migration
 
-![Seamless MDM migrations to Fleet](../website/assets/images/articles/seamless-mdm-migration-1600x900@2x.png)
+> NOTE: Please contact Fleet here https://fleetdm.com/contact or reach out to the Fleet Customer Success team if you are a current Fleet customer for consultation when considering this migration path. We'd love to help!
+
+![Seamless macOS MDM migrations to Fleet](../website/assets/images/articles/seamless-mdm-migration-1600x900@2x.png)
 
 Migrating macOS devices between Mobile Device Management (MDM) solutions is often fraught with challenges, including potential gaps in device management, user disruption, and compliance issues. Traditional MDM migrations typically require end-user interaction and leave devices unmanaged for a period, leading to problems like Wi-Fi disconnections due to certificate profile removal and incomplete migrations. These challenges can force organizations to stay with outdated MDM solutions that no longer meet their needs. But there’s a better way.
 
 Seamless MDM migrations are now possible, allowing organizations to transition their macOS devices to Fleet without any downtime or end-user involvement. By leveraging Fleet, you can ensure that your devices remain fully managed and compliant throughout the migration process. This means no more gaps in management, no user disruptions, and a smoother path to a more modern and effective MDM solution.
 
-This guide will walk you through the entire process of migrating your MDM deployment to Fleet. You’ll start by understanding the specific requirements for a seamless migration, followed by configuring Fleet with the necessary certificates and database records. The guide will then take you through the process of installing Fleet’s agent (`fleetd`) on your devices, updating DNS records to redirect devices to the Fleet server, and finally, decommissioning your old MDM server.
+This guide will walk you through the entire process of migrating your MDM deployment to Fleet. You’ll start by understanding the specific requirements for a seamless migration, followed by configuring Fleet with the necessary certificates and database records. The guide will then take you through the process of installing Fleet’s agent (`fleetd`) on your devices, updating domain (DNS) records to redirect devices to the Fleet server, and finally, decommissioning your old MDM server.
 
 Throughout the guide, you’ll find practical advice and best practices to ensure a smooth transition with minimal risk. By the end, you’ll be equipped with the knowledge and tools to execute a seamless MDM migration to Fleet, ensuring that your organization’s devices are securely managed without the typical headaches associated with a traditional MDM switch.
 
 ## Requirements
 
-Note: Deployments that do not meet these seamless migration requirements can still migrate with the [standard MDM migration process](https://fleetdm.com/docs/using-fleet/mdm-migration-guide).
+> Deployments that do not meet these seamless migration requirements can still migrate with the [standard MDM migration process](https://fleetdm.com/docs/using-fleet/mdm-migration-guide).
 
-* Customer controls the DNS used in the MDM server enrollment (eg. devices are enrolled to `*.customerowneddomain.com`, not `*.mdmvendor.com`).
+* Customer owns the domain (DNS) used in the MDM enrollment profile (e.g. devices are enrolled to `*.customerowneddomain.com`, not `*.mdmvendor.com`).
 * Customer has access to the Apple Push Notification Service (APNS) certificate/key and SCEP certificate/key, or access to the MDM server database to extract these values.
 
 These requirements are easily met in self-hosted open-source MDM solutions and may be met with commercial solutions when the customer is self-hosting or otherwise controls the DNS.
@@ -31,7 +33,7 @@ Apple allows changing most values in profiles delivered by MDM, but the `ServerU
 2. Import database records letting Fleet know about the devices to be migrated.
 3. Configure controls (profiles, updates, etc.) in Fleet.
 4. Install `fleetd` on the devices (through the existing MDM).
-5. Update DNS records to point devices to the Fleet server.
+5. Update domain (DNS) records to point devices to the Fleet server.
 6. Decommission the old server.
 
 It is recommended to follow the entire process on a staging/test MDM instance and devices, then repeat for the production instance and devices.

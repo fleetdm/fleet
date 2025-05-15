@@ -1,0 +1,134 @@
+name: "${TEST_TEAM_NAME}"
+team_settings:
+  secrets:
+    - secret: "SampleSecret123-team"
+    - secret: "ABC-team"
+  webhook_settings:
+    host_status_webhook:
+      days_count: 14
+      destination_url: https://example.com/host_status_webhook
+      enable_host_status_webhook: true
+      host_percentage: 25
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+  integrations:
+    google_calendar:
+      enable_calendar_events: true
+      webhook_url: https://example.com/google_calendar_webhook
+agent_options:
+  command_line_flags:
+    distributed_denylist_duration: 0
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/v1/osquery/log
+      pack_delimiter: /
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./lib/macos-password.mobileconfig
+  windows_settings:
+    custom_settings:
+      - path: ./lib/windows-screenlock.xml
+  scripts:
+    - path: ./lib/collect-fleetd-logs.sh
+  enable_disk_encryption: true
+  macos_migration:
+    enable: false
+    mode: ""
+    webhook_url: ""
+  macos_setup:
+    bootstrap_package: null
+    enable_end_user_authentication: false
+    macos_setup_assistant: null
+  macos_updates:
+    deadline: null
+    minimum_version: null
+  windows_enabled_and_configured: true
+  windows_updates:
+    deadline_days: null
+    grace_period_days: null
+queries:
+  - name: Scheduled query stats
+    description: Collect osquery performance stats directly from osquery
+    query: SELECT *,
+      (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+      FROM osquery_schedule;
+    interval: 0
+    platform: darwin,linux,windows
+    min_osquery_version: all
+    observer_can_run: false
+    automations_enabled: false
+    logging: snapshot
+  - name: orbit_info
+    query: SELECT * from orbit_info;
+    interval: 0
+    platform: darwin,linux,windows
+    min_osquery_version: all
+    observer_can_run: false
+    automations_enabled: true
+    logging: snapshot
+  - name: osquery_info
+    query: SELECT * from osquery_info;
+    interval: 604800 # 1 week
+    platform: darwin,linux,windows,chrome
+    min_osquery_version: all
+    observer_can_run: false
+    automations_enabled: true
+    logging: snapshot
+policies:
+  - name: 😊 Failing policy
+    platform: linux
+    description: This policy should always fail.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+    calendar_events_enabled: true
+    labels_exclude_any:
+      - a
+  - name: Passing policy
+    platform: linux,windows,darwin,chrome
+    description: This policy should always pass.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1;
+    labels_include_any:
+      - b
+  - name: No root logins (macOS, Linux)
+    platform: linux,darwin
+    query: SELECT 1 WHERE NOT EXISTS (SELECT * FROM last
+      WHERE username = "root"
+      AND time > (( SELECT unix_time FROM time ) - 3600 ))
+    critical: true
+  - name: 🔥 Failing policy
+    platform: linux
+    description: This policy should always fail.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+  - name: 😊😊 Failing policy
+    platform: linux
+    description: This policy should always fail.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      install_script:
+        path: lib/install_ruby.sh
+      pre_install_query:
+        path: lib/query_ruby.yml
+      post_install_script:
+        path: lib/post_install_ruby.sh
+      uninstall_script:
+        path: lib/uninstall_ruby.sh
+    - url: ${SOFTWARE_INSTALLER_URL}/other.deb
+      self_service: true

@@ -1,28 +1,53 @@
 <div id="articles" v-cloak>
   <div style="max-width: 1200px;" class="container-fluid mx-auto" purpose="page-container">
-    <div v-if="category !== 'guides'">
-    <div purpose="categories-and-search" class="d-flex flex-lg-row flex-column justify-content-lg-between justify-content-md-center justify-content-start" v-if="isArticlesLandingPage">
-      <div purpose="categories" class="d-flex flex-lg-row flex-column justify-content-start">
-        <div purpose="category-filter" :class="[ filter === 'all' ? 'selected' : '']" @click="filterBy('all')">All</div>
-        <div purpose="category-filter" :class="[ filter === 'engineering' ? 'selected' : '']" @click="filterBy('engineering')">Engineering</div>
-        <div purpose="category-filter" :class="[ filter === 'security' ? 'selected' : '']" @click="filterBy('security')">Security</div>
-        <div purpose="category-filter" :class="[ filter === 'announcements' ? 'selected' : '']" @click="filterBy('announcements')">Announcements</div>
-        <div purpose="category-filter" :class="[ filter === 'guides' ? 'selected' : '']" @click="filterBy('guides')">Guides</div>
-        <div purpose="category-filter" :class="[ filter === 'success stories' ? 'selected' : '']" @click="filterBy('success stories')">Success stories</div>
-        <div purpose="category-filter" :class="[ filter === 'podcasts' ? 'selected' : '']" @click="filterBy('podcasts')">Podcasts</div>
-        <div purpose="category-filter" :class="[ filter === 'releases' ? 'selected' : '']" @click="filterBy('releases')">Releases</div>
+      <div purpose="category-title">
+        <div class="d-flex flex-md-row flex-column justify-content-between align-items-md-end">
+          <div class="d-flex flex-column justify-content-between align-self-start float-left">
+            <h1>{{articleCategory}}</h1>
+            <p>{{categoryDescription}}</p>
+          </div>
+          <div purpose="search-and-releases-button" class="d-flex flex-md-row flex-column">
+            <div class="d-flex flex-column align-self-md-end" v-if="category === 'releases'">
+              <a purpose="changelog-button" href="https://github.com/fleetdm/fleet/releases" target="_blank" no-icon><img alt="GitHub logo" src="/images/logo-github-dark-24x24@2x.png"/>View changelog</a>
+            </div>
+            <div purpose="search" id="docsearch-query" v-if="['articles', 'announcements', 'guides', 'releases'].includes(category)">
+              <div purpose="disabled-search" class="d-flex w-100">
+                <div class="input-group">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text border-0 bg-transparent pl-3" >
+                      <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                    </span>
+                  </div>
+                  <div class="form-control border-0 ">
+                  <input class="docsearch-input pr-1"
+                    placeholder="Search" aria-label="Search"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+    <div purpose="article-rows" v-if="['guides', 'announcements', 'releases', 'articles'].includes(category)">
+      <a :href="article.url" purpose="article-row" class="d-flex flex-lg-row flex-row justify-content-between" v-for="article in articles">
+        <div purpose="article-name-and-description" class="d-flex flex-column">
+          <div class="d-flex flex-column">
+            <p purpose="article-name">{{article.meta.articleTitle}}</p>
+          </div>
+          <div purpose="article-description" v-if="article.meta.description"><p>{{article.meta.description}}</p></div>
+          <div purpose="publish-date"><js-timestamp format="billing" :at="article.meta.publishedOn"></js-timestamp></div>
+        </div>
+        <div class="d-flex flex-column justify-content-center">
+          <svg purpose="animated-arrow" style="stroke: #192147;" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+            <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+            <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </a>
     </div>
-    <div purpose="category-title" v-else>
-      <h1>{{articleCategory}}</h1>
-      <div class="d-flex flex-sm-row flex-column justify-content-between">
-
-        <p>{{categoryDescription}}</p>
-        <a purpose="rss-button" class="px-0 px-sm-2 pt-sm-1" @click="clickCopyRssLink(category)" target="_blank"><span>Subscribe</span></a>
-      </div>
-    </div>
-    <div purpose="articles" class="card-deck d-flex justify-content-center">
-      <div purpose="article-card" class="card" v-for="article in selectedArticles">
+    <div purpose="articles" class="card-deck d-flex justify-content-center" v-else>
+      <div purpose="article-card" class="card" v-for="article in articles">
         <a purpose="article-card-link" :href="article.url">
           <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/blog-fleet-logo-white-background-800x450@2x.png']" alt="Article hero image">
         </a>
@@ -42,46 +67,6 @@
       <div purpose="article-card" class="card invisible mb-0 d-none d-sm-flex">
       </div>
     </div>
-  </div>
-  <div purpose="guides-category-page" v-else>
-    <div purpose="category-title">
-      <div class="d-flex flex-md-row flex-column justify-content-between align-items-md-center">
-        <div class="d-flex flex-column justify-content-between">
-          <h1>Guides</h1>
-          <p>Learn more about how to use Fleet to accomplish your goals.</p>
-        </div>
-        <div purpose="search" id="docsearch-query">
-          <div purpose="disabled-search" class="d-flex w-100">
-            <div class="input-group">
-              <div class="input-group-prepend">
-                <span class="input-group-text border-0 bg-transparent pl-3" >
-                  <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
-                </span>
-              </div>
-              <div class="form-control border-0 ">
-              <input class="docsearch-input pr-1"
-                placeholder="Search" aria-label="Search"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div purpose="guides" class="card-columns">
-      <div purpose="guide-card" class="card" v-for="article in selectedArticles">
-        <a :href="article.url">
-        <div purpose="article-card-body" class="card-body d-flex flex-column">
-          <div purpose="article-title"><h5>{{article.meta.articleTitle}}</h5></div>
-          <p class="small" v-if="article.meta.description">{{article.meta.description}}</p>
-          <div purpose="article-details" class="d-flex mt-auto flex-row align-items-center">
-            <js-timestamp :at="article.meta.publishedOn" format="timeago" always-show-year="true"></js-timestamp>
-          </div>
-        </div>
-        </a>
-      </div>
-    </div>
-  </div>
   </div>
 
 </div>

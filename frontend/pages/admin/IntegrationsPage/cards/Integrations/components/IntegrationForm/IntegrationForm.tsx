@@ -16,6 +16,7 @@ import validUrl from "components/forms/validators/valid_url";
 
 import Spinner from "components/Spinner";
 import { COLORS } from "styles/var/colors";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "integration-form";
 
@@ -37,6 +38,7 @@ interface IIntegrationFormProps {
   integrationEditingType?: IIntegrationType;
   destination?: string;
   testingConnection?: boolean;
+  gitOpsModeEnabled?: boolean;
 }
 
 interface IFormField {
@@ -59,6 +61,7 @@ const IntegrationForm = ({
   integrationEditingType,
   destination,
   testingConnection,
+  gitOpsModeEnabled,
 }: IIntegrationFormProps): JSX.Element => {
   const { jira: jiraIntegrations, zendesk: zendeskIntegrations } = integrations;
   const [formData, setFormData] = useState<IIntegrationFormData>({
@@ -191,6 +194,7 @@ const IntegrationForm = ({
             value={url}
             error={urlError}
             onBlur={validateForm}
+            disabled={gitOpsModeEnabled}
           />
           {integrationDestination === "jira" ? (
             <InputField
@@ -200,6 +204,7 @@ const IntegrationForm = ({
               placeholder="name@example.com"
               parseTarget
               value={username}
+              disabled={gitOpsModeEnabled}
             />
           ) : (
             <InputField
@@ -209,6 +214,7 @@ const IntegrationForm = ({
               placeholder="name@example.com"
               parseTarget
               value={email}
+              disabled={gitOpsModeEnabled}
             />
           )}
           <InputField
@@ -217,6 +223,7 @@ const IntegrationForm = ({
             label="API token"
             parseTarget
             value={apiToken}
+            disabled={gitOpsModeEnabled}
           />
           {integrationDestination === "jira" ? (
             <InputField
@@ -226,6 +233,7 @@ const IntegrationForm = ({
               placeholder="JRAEXAMPLE"
               parseTarget
               value={projectKey}
+              disabled={gitOpsModeEnabled}
               tooltip={
                 <>
                   To find the Jira project key, head to your project in <br />
@@ -245,6 +253,7 @@ const IntegrationForm = ({
               type="number"
               parseTarget
               value={groupId === 0 ? null : groupId}
+              disabled={gitOpsModeEnabled}
               tooltip={
                 <>
                   To find the Zendesk group ID, select{" "}
@@ -259,28 +268,10 @@ const IntegrationForm = ({
             />
           )}
           <div className="modal-cta-wrap">
-            <div
-              data-tip
-              data-for="add-integration-button"
-              data-tip-disable={
-                !(integrationDestination === "jira"
-                  ? formData.url === "" ||
-                    formData.url.slice(0, 8) !== "https://" ||
-                    formData.username === "" ||
-                    formData.apiToken === "" ||
-                    formData.projectKey === ""
-                  : formData.url === "" ||
-                    formData.url.slice(0, 8) !== "https://" ||
-                    formData.email === "" ||
-                    formData.apiToken === "" ||
-                    formData.groupId === 0)
-              }
-              className="tooltip"
-            >
-              <Button
-                type="submit"
-                variant="brand"
-                disabled={
+            <GitOpsModeTooltipWrapper
+              tipOffset={8}
+              renderChildren={(disableChildren) => {
+                const formInvalid =
                   integrationDestination === "jira"
                     ? formData.url === "" ||
                       formData.url.slice(0, 8) !== "https://" ||
@@ -291,24 +282,39 @@ const IntegrationForm = ({
                       formData.url.slice(0, 8) !== "https://" ||
                       formData.email === "" ||
                       formData.apiToken === "" ||
-                      formData.groupId === 0
-                }
-              >
-                Save
-              </Button>
-            </div>
-            <ReactTooltip
-              className={`add-integration-tooltip`}
-              place="bottom"
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id="add-integration-button"
-              data-html
-            >
-              <>
-                Complete all fields to save <br /> the integration.
-              </>
-            </ReactTooltip>
+                      formData.groupId === 0;
+                // TODO - refactor below to use TooltipWrapper
+                return (
+                  <>
+                    <div
+                      data-tip
+                      data-for="add-integration-button"
+                      data-tip-disable={!formInvalid || disableChildren}
+                      className="tooltip"
+                    >
+                      <Button
+                        type="submit"
+                        disabled={formInvalid || disableChildren}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                    <ReactTooltip
+                      className="add-integration-tooltip"
+                      place="bottom"
+                      effect="solid"
+                      backgroundColor={COLORS["tooltip-bg"]}
+                      id="add-integration-button"
+                      data-html
+                    >
+                      <>
+                        Complete all fields to save <br /> the integration.
+                      </>
+                    </ReactTooltip>
+                  </>
+                );
+              }}
+            />
             <Button onClick={onCancel} variant="inverse">
               Cancel
             </Button>

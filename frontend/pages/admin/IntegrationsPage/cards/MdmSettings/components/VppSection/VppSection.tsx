@@ -1,20 +1,14 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import mdmAppleAPI, { IGetVppInfoResponse } from "services/entities/mdm_apple";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionCard from "../SectionCard";
 
 const baseClass = "vpp-section";
 
@@ -29,65 +23,49 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
     router.push(PATHS.ADMIN_INTEGRATIONS_VPP_SETUP);
   };
 
-  const appleMdmDiabledContent = (
-    <div className={`${baseClass}__mdm-disabled-content`}>
-      <div>
-        <h3>Volume Purchasing Program (VPP)</h3>
-        <p>
-          To enable Volume Purchasing Program (VPP), first turn on Apple (macOS,
-          iOS, iPadOS) MDM.
-        </p>
-      </div>
-    </div>
+  const appleMdmDisabledCard = (
+    <SectionCard header="Volume Purchasing Program (VPP)">
+      To enable Volume Purchasing Program (VPP), first turn on Apple (macOS,
+      iOS, iPadOS) MDM.
+    </SectionCard>
   );
 
-  const isVppOnContent = (
-    <div className={`${baseClass}__vpp-on-content`}>
-      <p>
-        <span>
-          <Icon name="success" />
-          Volume Purchasing Program (VPP) is enabled.
-        </span>
-      </p>
-      <Button onClick={navigateToVppSetup} variant="text-icon">
-        <Icon name="pencil" />
-        Edit
-      </Button>
-    </div>
+  const isVppOnCard = (
+    <SectionCard
+      iconName="success"
+      cta={
+        <Button onClick={navigateToVppSetup} variant="text-icon">
+          <Icon name="pencil" />
+          Edit
+        </Button>
+      }
+    >
+      Volume Purchasing Program (VPP) is enabled.
+    </SectionCard>
   );
 
-  const isVppOffContent = (
-    <div className={`${baseClass}__vpp-off-content`}>
-      <div>
-        <h3>Volume Purchasing Program (VPP)</h3>
-        <p>
-          Add a VPP connection to install Apple App Store apps purchased through
-          Apple Business Manager.
-        </p>
-      </div>
-      <Button
-        className={`${baseClass}__add-vpp-button`}
-        onClick={navigateToVppSetup}
-        variant="brand"
-      >
-        Add VPP
-      </Button>
-    </div>
+  const isVppOffCard = (
+    <SectionCard
+      header="Volume Purchasing Program (VPP)"
+      cta={
+        <Button
+          className={`${baseClass}__add-vpp-button`}
+          onClick={navigateToVppSetup}
+        >
+          Add VPP
+        </Button>
+      }
+    >
+      Add a VPP connection to install Apple App Store apps purchased through
+      Apple Business Manager.
+    </SectionCard>
   );
 
-  const renderCardContent = () => {
-    if (!isAppleMdmOn) {
-      return appleMdmDiabledContent;
-    }
+  if (!isAppleMdmOn) {
+    return appleMdmDisabledCard;
+  }
 
-    return isVppOn ? isVppOnContent : isVppOffContent;
-  };
-
-  return (
-    <Card className={`${baseClass}__card`} color="gray">
-      {renderCardContent()}
-    </Card>
-  );
+  return isVppOn ? isVppOnCard : isVppOffCard;
 };
 
 interface IVppSectionProps {

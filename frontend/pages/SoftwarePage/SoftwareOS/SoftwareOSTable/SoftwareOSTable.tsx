@@ -13,13 +13,17 @@ import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import { IOSVersionsResponse } from "services/entities/operating_systems";
 
 import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
+import { SelectedPlatform } from "interfaces/platform";
 
 const baseClass = "software-os-table";
 
@@ -39,8 +43,46 @@ interface ISoftwareOSTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  resetPageIndex: boolean;
+  platform?: SelectedPlatform;
 }
+
+const PLATFORM_FILTER_OPTIONS = [
+  {
+    disabled: false,
+    label: "All platforms",
+    value: "all",
+  },
+  {
+    disabled: false,
+    label: "macOS",
+    value: "darwin",
+  },
+  {
+    disabled: false,
+    label: "Windows",
+    value: "windows",
+  },
+  {
+    disabled: false,
+    label: "Linux",
+    value: "linux",
+  },
+  {
+    disabled: false,
+    label: "ChromeOS",
+    value: "chrome",
+  },
+  {
+    disabled: false,
+    label: "iOS",
+    value: "ios",
+  },
+  {
+    disabled: false,
+    label: "iPadOS",
+    value: "ipados",
+  },
+];
 
 const SoftwareOSTable = ({
   router,
@@ -52,7 +94,7 @@ const SoftwareOSTable = ({
   currentPage,
   teamId,
   isLoading,
-  resetPageIndex,
+  platform,
 }: ISoftwareOSTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -64,13 +106,15 @@ const SoftwareOSTable = ({
             return val !== orderKey;
           case "pageIndex":
             return val !== currentPage;
+          case "platform":
+            return val !== platform;
           default:
             return false;
         }
       });
       return changedEntry?.[0] ?? "";
     },
-    [currentPage, orderDirection, orderKey]
+    [platform, currentPage, orderDirection, orderKey]
   );
 
   const generateNewQueryParams = useCallback(
@@ -80,9 +124,10 @@ const SoftwareOSTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        platform,
       };
     },
-    [teamId]
+    [teamId, platform]
   );
 
   const onQueryChange = useCallback(
@@ -90,9 +135,8 @@ const SoftwareOSTable = ({
       // we want to determine which query param has changed in order to
       // reset the page index to 0 if any other param has changed.
       const changedParam = determineQueryParamChange(newTableQuery);
-
       // if nothing has changed, don't update the route. this can happen when
-      // this handler is called on the inital render.
+      // this handler is called on the initial render.
       if (changedParam === "") return;
 
       const newRoute = getNextLocationPath({
@@ -116,17 +160,19 @@ const SoftwareOSTable = ({
   }, [data, router, teamId]);
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = {
-      os_version_id: row.original.os_version_id,
-      team_id: teamId,
-    };
-
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsBySoftwareParams
-    )}`;
+    const path = getPathWithQueryParams(
+      PATHS.SOFTWARE_OS_DETAILS(Number(row.original.os_version_id)),
+      { team_id: teamId }
+    );
 
     router.push(path);
   };
+
+  // Determines if a user should be able to filter the table
+  const hasData = data?.os_versions && data?.os_versions.length > 0;
+  const hasPlatformFilter = platform !== "all";
+
+  const showFilterHeaders = isSoftwareEnabled && (hasData || hasPlatformFilter);
 
   const renderSoftwareCount = () => {
     if (!data) return null;
@@ -134,7 +180,7 @@ const SoftwareOSTable = ({
     return (
       <>
         <TableCount name="items" count={data?.count} />
-        {data?.os_versions && data?.counts_updated_at && (
+        {showFilterHeaders && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
             customTooltipText={
@@ -163,6 +209,36 @@ const SoftwareOSTable = ({
     );
   };
 
+  const handlePlatformFilterDropdownChange = (
+    platformSelected: SingleValue<CustomOptionType>
+  ) => {
+    router?.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.SOFTWARE_OS,
+        queryParams: {
+          team_id: teamId,
+          order_direction: orderDirection,
+          order_key: orderKey,
+          page: 0,
+          platform: platformSelected?.value,
+        },
+      })
+    );
+  };
+
+  const renderPlatformDropdown = () => {
+    return (
+      <DropdownWrapper
+        name="os-platform-dropdown"
+        value={platform || "all"}
+        className={`${baseClass}__platform-dropdown`}
+        options={PLATFORM_FILTER_OPTIONS}
+        onChange={handlePlatformFilterDropdownChange}
+        variant="table-filter"
+      />
+    );
+  };
+
   return (
     <div className={baseClass}>
       <TableContainer
@@ -179,20 +255,19 @@ const SoftwareOSTable = ({
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        pageIndex={currentPage}
         manualSortBy
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
+        customControl={showFilterHeaders ? renderPlatformDropdown : undefined}
         disableNextPage={!data?.meta.has_next_results}
         searchable={false}
         onQueryChange={onQueryChange}
-        stackControls
         renderCount={renderSoftwareCount}
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import React from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import FleetAce from "components/FleetAce";
+import SQLEditor from "components/SQLEditor";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
 
@@ -43,7 +43,7 @@ const AdvancedOptionsModal = ({
           {preInstallQuery && (
             <div className={`${baseClass}__input-field`}>
               <span>Pre-install condition:</span>
-              <FleetAce
+              <SQLEditor
                 readOnly
                 value={preInstallQuery}
                 label="Query"
@@ -79,9 +79,7 @@ const AdvancedOptionsModal = ({
           )}
         </div>
         <div className="modal-cta-wrap">
-          <Button variant="brand" onClick={onExit}>
-            Done
-          </Button>
+          <Button onClick={onExit}>Done</Button>
         </div>
       </>
     </Modal>

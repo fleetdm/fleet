@@ -23,7 +23,7 @@ if [[ -d "$TUF_PATH" ]]; then
     exit 0
 fi
 
-SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows}
+SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows windows-arm64}
 
 echo "Generating packages for $SYSTEMS"
 
@@ -31,7 +31,7 @@ NUDGE_VERSION=stable
 ESCROW_BUDDY_PKG_VERSION=1.0.0
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.12.2
+    OSQUERY_VERSION=5.16.0
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -45,6 +45,9 @@ for system in $SYSTEMS; do
     osqueryd_system="$system"
     if [[ $system == "windows" ]]; then
         osqueryd="$osqueryd.exe"
+    elif [[ $system == "windows-arm64" ]]; then
+        osqueryd="$osqueryd.exe"
+        osqueryd_system="windows-arm64"
     elif [[ $system == "macos" ]]; then
         osqueryd="$osqueryd.app.tar.gz"
         osqueryd_system="macos-app"
@@ -57,7 +60,7 @@ for system in $SYSTEMS; do
     else
         osqueryd_path="$TUF_PATH/tmp/$osqueryd"
     fi
-    curl https://tuf.fleetctl.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
+    curl https://updates.fleetdm.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
 
     major=$(echo "$OSQUERY_VERSION" | cut -d "." -f 1)
     min=$(echo "$OSQUERY_VERSION" | cut -d "." -f 2)
@@ -77,12 +80,19 @@ for system in $SYSTEMS; do
     if [[ $system == "linux" ]]; then
         goarch_value="amd64"
     fi
+    if [[ $system == "windows" ]]; then
+        goarch_value="amd64"
+    fi
+    if [[ $system == "windows-arm64" ]]; then
+        goose_value="windows"
+        goarch_value="arm64"
+    fi
     if [[ $system == "linux-arm64" ]]; then
         goose_value="linux"
         goarch_value="arm64"
     fi
     orbit_target=orbit-$system
-    if [[ $system == "windows" ]]; then
+    if [[ $system == "windows" ]] || [[ $system == "windows-arm64" ]]; then
         orbit_target="${orbit_target}.exe"
     fi
 
@@ -144,7 +154,7 @@ for system in $SYSTEMS; do
 
     # Add Nudge application on macos (if enabled).
     if [[ $system == "macos" && -n "$NUDGE" ]]; then
-        curl https://tuf.fleetctl.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
+        curl https://updates.fleetdm.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
         ./build/fleetctl updates add \
             --path $TUF_PATH \
             --target nudge.app.tar.gz \
@@ -156,7 +166,7 @@ for system in $SYSTEMS; do
 
     # Add swiftDialog on macos (if enabled).
     if [[ $system == "macos" && -n "$SWIFT_DIALOG" ]]; then
-        curl https://tuf.fleetctl.com/targets/swiftDialog/macos/stable/swiftDialog.app.tar.gz --output swiftDialog.app.tar.gz
+        curl https://updates.fleetdm.com/targets/swiftDialog/macos/stable/swiftDialog.app.tar.gz --output swiftDialog.app.tar.gz
 
         ./build/fleetctl updates add \
             --path $TUF_PATH \
@@ -189,6 +199,19 @@ for system in $SYSTEMS; do
         --path $TUF_PATH \
         --target fleet-desktop.exe \
         --platform windows \
+        --name desktop \
+        --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm fleet-desktop.exe
+    fi
+
+    # Add Fleet Desktop application on windows-arm64 (if enabled).
+    if [[ $system == "windows-arm64" && -n "$FLEET_DESKTOP" ]]; then
+        FLEET_DESKTOP_VERSION=42.0.0 \
+        make desktop-windows-arm64
+        ./build/fleetctl updates add \
+        --path $TUF_PATH \
+        --target fleet-desktop.exe \
+        --platform windows-arm64 \
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
         rm fleet-desktop.exe

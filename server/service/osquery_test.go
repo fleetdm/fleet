@@ -12,7 +12,6 @@ import (
 	"os"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -33,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/log"
@@ -68,7 +68,7 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		if teamID == nil {
 			return nil, nil
 		}
@@ -180,7 +180,7 @@ func TestGetClientConfig(t *testing.T) {
 	// Check scheduled queries are loaded properly
 	conf, err = svc.GetClientConfig(ctx3)
 	require.NoError(t, err)
-	assert.JSONEq(t, `{ 
+	assert.JSONEq(t, `{
 		"pack_by_label": {
 			"queries":{
 				"time":{"query":"select * from time","interval":30,"removed":false}
@@ -209,7 +209,7 @@ func TestGetClientConfig(t *testing.T) {
 					"version": ""
 				}
 			}
-		} 
+		}
 	}`,
 		string(conf["packs"].(json.RawMessage)),
 	)
@@ -564,6 +564,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			}, nil
 		case teamID == nil && (name == "time" || name == "system_info" || name == "encrypted" || name == "hosts"):
 			return &fleet.Query{
+				ID:                 uint(name[0]),
 				Name:               name,
 				AutomationsEnabled: true,
 			}, nil
@@ -581,6 +582,13 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		case teamID == nil && name == "query_should_be_saved_and_submitted":
 			return &fleet.Query{
 				ID:                 123,
+				Name:               name,
+				AutomationsEnabled: true,
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
+		case teamID == nil && name == "All USB devices":
+			return &fleet.Query{
+				ID:                 777,
 				Name:               name,
 				AutomationsEnabled: true,
 				Logging:            fleet.LoggingSnapshot,
@@ -618,6 +626,19 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		if len(rows) == 0 {
 			return nil
 		}
+		if rows[0].QueryID == 777 {
+			require.Len(t, rows, 3)
+
+			for i := 0; i < 3; i++ {
+				require.NotZero(t, rows[i].LastFetched)
+				require.Equal(t, uint(999), rows[i].HostID)
+				require.Equal(t, uint(777), rows[i].QueryID)
+			}
+
+			require.JSONEq(t, `{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`, string(*rows[0].Data))
+			require.JSONEq(t, `{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`, string(*rows[1].Data))
+			require.JSONEq(t, `{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8008","protocol":"","removable":"0","serial":"1","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"}`, string(*rows[2].Data))
+		}
 		switch {
 		case rows[0].QueryID == 4242:
 			t.Fatal("should not happen, as query 4242 is a team query and host is global")
@@ -648,20 +669,20 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
 
 	validLogResults := []string{
-		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":1475258115,"decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
+		`{"action":"added","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"decorations":{"host_uuid":"some_uuid","username":"zwass"},"hostIdentifier":"some_uuid","name":"pack/Global/system_info","query_id":115,"unixTime":1475258115}`,
 
 		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":1475270355,"decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
 		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:14 2016 UTC","unixTime":1475270354,"decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
 
 		// These results belong to the same query but have 1 second difference.
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:50 2017 UTC","unixTime":1484078930,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","unixTime":1484078932,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/Global/time","query_id":116,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078931}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:50 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/Global/time","query_id":116,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078930}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/Global/time","query_id":116,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078932}`,
 
-		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/team-1/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":1511049728,"epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
+		`{"calendarTime":"Sun Nov 19 00:02:08 2017 UTC","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"},"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"epoch":"0","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","name":"pack\/team-1/hosts","query_id":4242,"unixTime":1511049728}`,
 
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_should_be_saved_and_submitted","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack_Global_query_should_be_saved_and_submitted_with_custom_pack_delimiter","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","unixTime":1484078932,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/Global/query_should_be_saved_and_submitted","query_id":123,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078931}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack_Global_query_should_be_saved_and_submitted_with_custom_pack_delimiter","query_id":1234,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078932}`,
 
 		// Fleet doesn't know of this query, so this result should be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
@@ -677,7 +698,13 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/PackName","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
 		// Query results of a query that belongs to a different team than the host's team (can happen when host is transferred from one team to another or no team).
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-1/Foobar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/team-1/Foobar","query_id":4242,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078931}`,
+
+		// Query results in event format (this is received for scheduled query results when the host is configured with `--logger_snapshot_event_type=true`).
+		// The "event format" contains one result for each row returned by the query and the columns in the "columns" key.
+		`{"action":"snapshot","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","columns":{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"counter":0,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"epoch":0,"hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","name":"pack/Global/All USB devices","numerics":false,"query_id":777,"unixTime":1738153974}`,
+		`{"action":"snapshot","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"counter":0,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"epoch":0,"hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","name":"pack/Global/All USB devices","numerics":false,"query_id":777,"unixTime":1738153974}`,
+		`{"action":"snapshot","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8008","protocol":"","removable":"0","serial":"1","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"counter":0,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"epoch":0,"hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","name":"pack/Global/All USB devices","numerics":false,"query_id":777,"unixTime":1738153974}`,
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(validLogResults, ","))
 
@@ -714,7 +741,6 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	}
 	err = serv.SubmitResultLogs(ctx, validAndInvalidResults)
 	require.NoError(t, err)
-
 	assert.Equal(t, validResults, testLogger.logs)
 
 	//
@@ -940,7 +966,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	// Expect an error when unable to write to logging destination.
 	err = svc.SubmitResultLogs(ctx, results)
 	require.Error(t, err)
-	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*osqueryError).Status())
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*endpoint_utils.OsqueryError).Status())
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -1054,14 +1080,18 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles":     {},
-		hostDetailQueryPrefix + "mdm":                        {},
-		hostDetailQueryPrefix + "munki_info":                 {},
-		hostDetailQueryPrefix + "windows_update_history":     {},
-		hostDetailQueryPrefix + "kubequery_info":             {},
-		hostDetailQueryPrefix + "orbit_info":                 {},
-		hostDetailQueryPrefix + "software_vscode_extensions": {},
-		hostDetailQueryPrefix + "software_macos_firefox":     {},
+		hostDetailQueryPrefix + "google_chrome_profiles":                  {},
+		hostDetailQueryPrefix + "mdm":                                     {},
+		hostDetailQueryPrefix + "munki_info":                              {},
+		hostDetailQueryPrefix + "windows_update_history":                  {},
+		hostDetailQueryPrefix + "kubequery_info":                          {},
+		hostDetailQueryPrefix + "orbit_info":                              {},
+		hostDetailQueryPrefix + "software_vscode_extensions":              {},
+		hostDetailQueryPrefix + "software_python_packages":                {},
+		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
+		hostDetailQueryPrefix + "software_macos_firefox":                  {},
+		hostDetailQueryPrefix + "battery":                                 {},
+		hostDetailQueryPrefix + "software_macos_codesign":                 {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1164,8 +1194,12 @@ func TestHostDetailQueries(t *testing.T) {
 	host.RefetchCriticalQueriesUntil = ptr.Time(mockClock.Now().Add(1 * time.Minute))
 	queries, discovery, err = svc.detailQueriesForHost(ctx, &host)
 	require.NoError(t, err)
-	require.Equal(t, len(criticalDetailQueries), len(queries), distQueriesMapKeys(queries))
+	// host is darwin so it gets only the darwin critical query
+	require.Equal(t, 1, len(queries), distQueriesMapKeys(queries))
 	for name := range criticalDetailQueries {
+		if strings.HasSuffix(name, "_windows") {
+			continue
+		}
 		assert.Contains(t, queries, hostDetailQueryPrefix+name)
 	}
 	verifyDiscovery(t, queries, discovery)
@@ -1600,7 +1634,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
       "cpu_subtype": "Intel x86-64h Haswell",
       "cpu_type": "x86_64h",
       "hardware_model": "MacBookPro11,4",
-      "hardware_serial": "NEW_HW_SERIAL",
+      "hardware_serial": "NEW_HW_SRL",
       "hardware_vendor": "Apple Inc.",
       "hardware_version": "1.0",
       "hostname": "computer.local",
@@ -1667,7 +1701,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
-	assert.Equal(t, "NEW_HW_SERIAL", gotHost.HardwareSerial)
+	assert.Equal(t, "NEW_HW_SRL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -1714,7 +1748,7 @@ func TestDetailQueries(t *testing.T) {
 	host := &fleet.Host{
 		ID:             1,
 		Platform:       "linux",
-		HardwareSerial: "HW_SERIAL",
+		HardwareSerial: "HW_SRL",
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1978,7 +2012,7 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
 	// The hardware serial should not have updated because return value was -1. See: https://github.com/fleetdm/fleet/issues/19789
-	assert.Equal(t, "HW_SERIAL", gotHost.HardwareSerial)
+	assert.Equal(t, "HW_SRL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -2232,11 +2266,11 @@ func TestDistributedQueryResults(t *testing.T) {
 
 	lq.On("QueriesForHost", uint(1)).Return(
 		map[string]string{
-			strconv.Itoa(int(campaign.ID)): "select * from time",
+			fmt.Sprint(campaign.ID): "select * from time",
 		},
 		nil,
 	)
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
 
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
@@ -2462,7 +2496,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(errors.New("failed"))
+	lq.On("StopQuery", fmt.Sprint(campaign.ID)).Return(errors.New("failed"))
 
 	host := fleet.Host{ID: 1}
 
@@ -2499,7 +2533,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 	ds.SaveDistributedQueryCampaignFunc = func(ctx context.Context, campaign *fleet.DistributedQueryCampaign) error {
 		return nil
 	}
-	lq.On("StopQuery", strconv.Itoa(int(campaign.ID))).Return(nil)
+	lq.On("StopQuery", fmt.Sprint(campaign.ID)).Return(nil)
 
 	host := fleet.Host{ID: 1}
 
@@ -2525,7 +2559,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(errors.New("fail"))
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(errors.New("fail"))
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -2556,7 +2590,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	campaign := &fleet.DistributedQueryCampaign{ID: 42}
 	host := fleet.Host{ID: 1}
 
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", fmt.Sprint(campaign.ID), host.ID).Return(nil)
 
 	go func() {
 		ch, err := rs.ReadChannel(context.Background(), *campaign)
@@ -2575,15 +2609,15 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		return nil, nil
 	}
 
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-		return nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, nil, nil
 	}
 
 	testCases := []struct {
@@ -2740,7 +2774,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
-	require.True(t, err.(*osqueryError).NodeInvalid())
+	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
@@ -2758,7 +2792,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.Error(t, err)
-	require.True(t, err.(*osqueryError).NodeInvalid())
+	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 
 	// return other error
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2767,7 +2801,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NotNil(t, err)
-	require.False(t, err.(*osqueryError).NodeInvalid())
+	require.False(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 }
 
 func TestGetHostIdentifier(t *testing.T) {
@@ -3677,6 +3711,25 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"installed_path":    "/some/override/path",
 	}
 
+	pythonPackageOne := map[string]string{
+		"name":           "cryptography",
+		"version":        "41.0.7",
+		"extension_id":   "",
+		"browser":        "",
+		"source":         "python_packages",
+		"vendor":         "",
+		"installed_path": "/usr/lib/python3/dist-packages",
+	}
+	pythonPackageTwo := map[string]string{
+		"name":           "pip",
+		"version":        "25.0.1",
+		"extension_id":   "",
+		"browser":        "",
+		"source":         "python_packages",
+		"vendor":         "",
+		"installed_path": "/Users/fleetdm/.pyenv/versions/3.13.1/lib/python3.13/site-packages",
+	}
+
 	for _, tc := range []struct {
 		name       string
 		host       *fleet.Host
@@ -3687,6 +3740,50 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 
 		resultsOut fleet.OsqueryDistributedQueryResults
 	}{
+		{
+			name: "python packages using original query in extras adds results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":           fleet.StatusOK,
+				hostDetailQueryPrefix + "software_python_packages": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_python_packages": []map[string]string{
+					pythonPackageOne,
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					pythonPackageOne,
+				},
+			},
+		},
+		{
+			name: "python packages using user query in extras adds results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":                          fleet.StatusOK,
+				hostDetailQueryPrefix + "software_python_packages_with_users_dir": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_python_packages_with_users_dir": []map[string]string{
+					pythonPackageTwo,
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					pythonPackageTwo,
+				},
+			},
+		},
 		{
 			name: "software query works and there are vs code extensions in extra",
 
@@ -3964,7 +4061,58 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
-			name: "non-ubuntu installed python packages are NOT filtered out",
+			name: "debian dpkg installed python packages are filtered out",
+			host: &fleet.Host{ID: 1, Platform: "debian"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "22.4.0-4",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "Twisted", // duplicate of python3-twisted
+						"version": "22.4.0-4",
+						"source":  "python_packages",
+					},
+					// known issue below: names don't match so we don't deduplicate
+					{
+						"name":    "python3-attr", // osquery source column is python-attrs
+						"version": "22.2.0-1",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "Attrs",
+						"version": "22.2.0",
+						"source":  "python_packages",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_linux": []map[string]string{
+					{
+						"name":    "python3-twisted",
+						"version": "22.4.0-4",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-attr",
+						"version": "22.2.0-1",
+						"source":  "deb_packages",
+					},
+					{
+						"name":    "python3-attrs",
+						"version": "22.2.0",
+						"source":  "python_packages",
+					},
+				},
+			},
+		},
+		{
+			name: "non-ubuntu/debian installed python packages are NOT filtered out",
 			host: &fleet.Host{ID: 1, Platform: "rhel"},
 			statusesIn: map[string]fleet.OsqueryStatus{
 				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,

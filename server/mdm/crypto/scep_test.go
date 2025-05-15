@@ -15,12 +15,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSCEPVerifierVerifyEmptyCerts(t *testing.T) {
 	v := &SCEPVerifier{}
-	err := v.Verify(nil)
+	err := v.Verify(context.Background(), nil)
 	require.ErrorContains(t, err, "no certificate provided")
 }
 
@@ -76,7 +77,8 @@ func TestVerify(t *testing.T) {
 
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+				_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				if tt.rootCert == nil {
 					return nil, errors.New("test error")
 				}
@@ -86,7 +88,7 @@ func TestVerify(t *testing.T) {
 				}, nil
 			}
 
-			err := verifier.Verify(tt.certToVerify)
+			err := verifier.Verify(context.Background(), tt.certToVerify)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 			} else {

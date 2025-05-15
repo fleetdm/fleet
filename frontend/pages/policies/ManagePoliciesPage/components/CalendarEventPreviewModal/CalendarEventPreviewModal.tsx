@@ -1,17 +1,19 @@
 import React, { useContext } from "react";
 
+import { TRANSPARENCY_LINK } from "utilities/constants";
+
 import { AppContext } from "context/app";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
-import { IPolicy } from "interfaces/policy";
+import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "calendar-event-preview-modal";
 
 interface ICalendarEventPreviewModalProps {
   onCancel: () => void;
-  policy?: IPolicy;
+  policy?: IFormPolicy;
 }
 
 const CalendarEventPreviewModal = ({
@@ -70,15 +72,44 @@ const CalendarEventPreviewModal = ({
               <br /> <br />
               <strong>Why it matters</strong>
               <br />
-              {showGenericPreview
-                ? `${orgName} needs to make sure your device meets the organization's requirements.`
-                : policy.description}
+              <div className={`${baseClass}__preview-info__text__user-text`}>
+                {showGenericPreview
+                  ? `${orgName} needs to make sure your device meets the organization's requirements.`
+                  : policy.description}
+              </div>
               <br /> <br />
-              <strong>What we&apos;ll do</strong>
+              <strong>Maintenance required</strong>
               <br />
-              {showGenericPreview
-                ? "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
-                : policy.resolution}
+              <div className={`${baseClass}__preview-info__text__user-text`}>
+                {showGenericPreview ? (
+                  <ul>
+                    <li>
+                      Click the{" "}
+                      <a
+                        href={TRANSPARENCY_LINK}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Fleet
+                      </a>{" "}
+                      icon in your computer&apos;s menu and select{" "}
+                      <b>My device</b>
+                    </li>
+                    <li>
+                      Navigate to the <b>Policies</b> tab
+                    </li>
+                    <li>
+                      Follow instructions to resolve any policies marked{" "}
+                      {`"No"`}
+                    </li>
+                    <li>
+                      Click <b>Refetch</b>
+                    </li>
+                  </ul>
+                ) : (
+                  policy.resolution
+                )}
+              </div>
             </div>
           </div>
           <div className={`${baseClass}__preview-invitee`}>
@@ -99,16 +130,14 @@ const CalendarEventPreviewModal = ({
           ) : (
             <>
               <strong>Why it matters</strong> and{" "}
-              <strong>What we&apos;ll do</strong> are populated by the
+              <strong>Maintenance required</strong> are populated by the
               policy&apos;s <strong>Description</strong> and{" "}
               <strong>Resolution</strong> respectively.
             </>
           )}
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     </Modal>

@@ -1,4 +1,17 @@
 .software-os-table {
+  &__platform-dropdown {
+    width: 200px;
+
+    .Select-menu-outer {
+      width: 160px;
+      max-height: min-content;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
+  }
+
   .hosts-cell__wrapper {
     display: flex;
     align-items: center;
@@ -31,12 +44,6 @@
                 // Tooltip does not get cut off
                 .children-wrapper {
                   overflow: initial;
-                }
-
-                // ellipsis for software name
-                .software-name {
-                  overflow: hidden;
-                  text-overflow: ellipsis;
                 }
               }
               .link-cell {

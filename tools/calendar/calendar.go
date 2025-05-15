@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	calendartest "github.com/fleetdm/fleet/v4/ee/server/calendar/load_test"
-	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"net/http"
 	"os"
 	"time"
+
+	calendartest "github.com/fleetdm/fleet/v4/ee/server/calendar/load_test"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
@@ -35,5 +36,8 @@ func main() {
 	}
 
 	// Start the HTTP server
-	log.Fatal(server.ListenAndServe())
+	err = server.ListenAndServe()
+	if err != nil {
+		log.Print(err)
+	}
 }

@@ -24,10 +24,11 @@ import (
 func main() {
 	// Input flags
 	flagVersion := flag.String("version", "0.0.1", "Version string")
-	flagCreateResource := flag.Bool("resource", false, "This is a bool flag to just create the resource.syso file and not build the binary")
+	flagCreateResource := flag.Bool("resource", false, "This is a bool flag to just create the resource_windows.syso file and not build the binary")
 	flagIcon := flag.String("icon", "windows_app.ico", "Path to the icon file to embed on the binary")
 	flagOutputBinary := flag.String("output", "output.exe", "Path to the output binary")
 	flagCmdDir := flag.String("input", "", "Path to the directory containing the utility to build")
+	flagArch := flag.String("arch", "amd64", "Target platform architecture (amd64,arm64)")
 
 	flag.Usage = func() {
 		zlog.Fatal().Msgf("Usage: %s -version <version> -input <dir_path> -output <output_binary>\n", os.Args[0])
@@ -42,7 +43,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// now we need to create the 'resource.syso' metadata file which contains versioninfo data
+	// now we need to create the 'resource_windows.syso' metadata file which contains versioninfo data
 
 	// lets start with sanitizing the version data
 	vParts, err := packaging.SanitizeVersion(*flagVersion)
@@ -52,7 +53,7 @@ func main() {
 	}
 
 	// then we need to create the manifest.xml file
-	manifestPath, err := writeManifestXML(vParts, *flagCmdDir)
+	manifestPath, err := writeManifestXML(vParts, *flagCmdDir, *flagArch)
 	if err != nil {
 		zlog.Fatal().Err(err).Msg("creating manifest.xml")
 		os.Exit(1)
@@ -66,16 +67,16 @@ func main() {
 	vi, err := createVersionInfo(vParts, targetIconPath, manifestPath)
 	if err != nil {
 		zlog.Fatal().Err(err).Msg("parsing versioninfo")
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic // ignore exitAfterDefer
 	}
 
-	// and finally we can write the 'resource.syso' file
+	// and finally we can write the 'resource_windows.syso' file
 	vi.Build()
 	vi.Walk()
 
-	// resource.syso is the resource file that is going to be picked up by golang compiler
-	outPath := filepath.Join(*flagCmdDir, "resource.syso")
-	if err := vi.WriteSyso(outPath, "amd64"); err != nil {
+	// resource_windows.syso is the resource file that is going to be picked up by golang compiler
+	outPath := filepath.Join(*flagCmdDir, "resource_windows.syso")
+	if err := vi.WriteSyso(outPath, *flagArch); err != nil {
 		zlog.Fatal().Err(err).Msg("creating syso file")
 		os.Exit(1)
 	}
@@ -87,7 +88,7 @@ func main() {
 
 		defer os.Remove(outPath)
 		// now we can build the binary
-		if err := buildTargetBinary(*flagCmdDir, *flagVersion, *flagOutputBinary); err != nil {
+		if err := buildTargetBinary(*flagCmdDir, *flagVersion, *flagOutputBinary, *flagArch); err != nil {
 			zlog.Fatal().Err(err).Msg("error building binary")
 			os.Exit(1)
 		}
@@ -96,7 +97,7 @@ func main() {
 	}
 }
 
-// createVersionInfo returns a VersionInfo struct pointer to be used to generate the 'resource.syso'
+// createVersionInfo returns a VersionInfo struct pointer to be used to generate the 'resource_windows.syso'
 // metadata file (see writeResourceSyso).
 func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*goversioninfo.VersionInfo, error) {
 	vIntParts := make([]int, 0, len(vParts))
@@ -168,15 +169,17 @@ func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*
 	return &result, nil
 }
 
-// writeManifestXML creates the manifest.xml file used when generating the 'resource.syso' metadata
+// writeManifestXML creates the manifest.xml file used when generating the 'resource_windows.syso' metadata
 // (see writeResourceSyso). Returns the path of the newly created file.
-func writeManifestXML(vParts []string, orbitPath string) (string, error) {
+func writeManifestXML(vParts []string, orbitPath, arch string) (string, error) {
 	filePath := filepath.Join(orbitPath, "manifest.xml")
 
 	tmplOpts := struct {
 		Version string
+		Arch    string
 	}{
 		Version: strings.Join(vParts, "."),
+		Arch:    arch,
 	}
 
 	var contents bytes.Buffer
@@ -193,7 +196,7 @@ func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 }
 
 // Build the target binary for Windows
-func buildTargetBinary(cmdDir string, version string, binaryPath string) error {
+func buildTargetBinary(cmdDir string, version string, binaryPath string, arch string) error {
 	var buildExec *exec.Cmd
 
 	// convert relative to full output path
@@ -211,7 +214,7 @@ func buildTargetBinary(cmdDir string, version string, binaryPath string) error {
 		linkFlags := fmt.Sprintf("-X=github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=%s", version)
 		buildExec = exec.Command("go", "build", "-ldflags", linkFlags, "-o", outputBinary)
 	}
-	buildExec.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64")
+	buildExec.Env = append(os.Environ(), "GOOS=windows", fmt.Sprintf("GOARCH=%s", arch))
 	buildExec.Stderr = os.Stderr
 	buildExec.Stdout = os.Stdout
 	buildExec.Dir = cmdDir

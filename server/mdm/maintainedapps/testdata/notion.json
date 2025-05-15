@@ -1,0 +1,109 @@
+{
+	"token": "notion",
+	"full_token": "notion",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Notion"
+	],
+	"desc": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing.",
+	"homepage": "https://www.notion.so/",
+	"url": "https://desktop-release.notion-static.com/Notion-3.14.0-arm64.dmg",
+	"url_specs": {
+		"verified": "desktop-release.notion-static.com/"
+	},
+	"version": "3.14.0",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "281b681315f22fdb7919dabb7da40bec606cf0553e8d3dc3b95b1e280e22c048",
+	"artifacts": [
+		{
+			"app": [
+				"Notion.app"
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Application Support/Caches/notion-updater",
+						"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/notion.id.sfl*",
+						"~/Library/Application Support/Notion",
+						"~/Library/Caches/notion.id*",
+						"~/Library/Logs/Notion",
+						"~/Library/Preferences/ByHost/notion.id.*",
+						"~/Library/Preferences/notion.id.*",
+						"~/Library/Saved Application State/notion.id.savedState",
+						"~/Library/WebKit/notion.id"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"10.15"
+			]
+		}
+	},
+	"conflicts_with": null,
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/n/notion.rb",
+	"ruby_source_checksum": {
+		"sha256": "d3819cf16d3d149e8c5da4d324ce3a61ba11cd5f31034c11f568fa9ec3b48bc1"
+	},
+	"variations": {
+		"sequoia": {
+			"url": "https://desktop-release.notion-static.com/Notion-3.14.0.dmg",
+			"sha256": "5d7b762f522754b74c78bd0f0ebf292e6750224ee7bc4a3837156bdb5722ab11"
+		},
+		"sonoma": {
+			"url": "https://desktop-release.notion-static.com/Notion-3.14.0.dmg",
+			"sha256": "5d7b762f522754b74c78bd0f0ebf292e6750224ee7bc4a3837156bdb5722ab11"
+		},
+		"ventura": {
+			"url": "https://desktop-release.notion-static.com/Notion-3.14.0.dmg",
+			"sha256": "5d7b762f522754b74c78bd0f0ebf292e6750224ee7bc4a3837156bdb5722ab11"
+		},
+		"monterey": {
+			"url": "https://desktop-release.notion-static.com/Notion-3.14.0.dmg",
+			"sha256": "5d7b762f522754b74c78bd0f0ebf292e6750224ee7bc4a3837156bdb5722ab11"
+		},
+		"big_sur": {
+			"url": "https://desktop-release.notion-static.com/Notion-3.14.0.dmg",
+			"sha256": "5d7b762f522754b74c78bd0f0ebf292e6750224ee7bc4a3837156bdb5722ab11"
+		},
+		"catalina": {
+			"url": "https://desktop-release.notion-static.com/Notion-3.14.0.dmg",
+			"sha256": "5d7b762f522754b74c78bd0f0ebf292e6750224ee7bc4a3837156bdb5722ab11"
+		}
+	},
+	"analytics": {
+		"install": {
+			"30d": {
+				"notion": 4752
+			},
+			"90d": {
+				"notion": 13516
+			},
+			"365d": {
+				"notion": 52768
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

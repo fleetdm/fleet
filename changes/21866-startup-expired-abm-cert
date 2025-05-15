@@ -1,2 +1,0 @@
-- Fixed issue where Fleet server could start when expired ABM cerfificate was provided as server
-  config options.

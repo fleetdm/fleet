@@ -6,13 +6,41 @@
   padding-left: 2px;
 }
 
-.site-nav-list {
+.site-nav-left {
   list-style: none;
   height: 50px;
   width: 671px;
   margin: 0;
   padding: 0;
   display: flex;
+}
+
+.site-nav-right {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: $pad-large;
+}
+
+.gitops-mode-indicator {
+  .component__tooltip-wrapper {
+    &__element {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+      color: $core-white;
+      font-weight: $regular;
+      font-size: $xxx-small;
+      cursor: default;
+    }
+    &__tip-text {
+      text-align: center;
+      color: $core-white;
+      font-size: $xx-small;
+      cursor: default;
+    }
+  }
 }
 
 .site-nav-item {
@@ -23,7 +51,7 @@
   align-items: center;
   justify-content: center;
 
-  &:hover {
+  &:not(.dup-org-logo):hover {
     background-color: $site-nav-on-hover;
   }
 
@@ -75,6 +103,11 @@
     // Prevents user menu from overlapping with nav bar buttons
     @media (max-width: 825px) {
       padding: 15px 18px;
+    }
+
+    &:focus-visible {
+      outline-offset: -3px; // Cleaner when tabbing
+      border-radius: $border-radius-medium;
     }
   }
 

@@ -29,3 +29,15 @@ if [ -f /usr/lib/systemd/system/systemd-user-sessions.service ]; then
     systemctl daemon-reload
     /usr/lib/systemd/systemd-user-sessions start
 fi
+
+# TODO this should be re-checked and possibly removed in the future.
+#
+# When we lock a machine using /etc/nologin, GDM seems to get stuck in
+# a state where the screen stays black. This didn't used to be the
+# case on Ubuntu 22.04. This bug doesn't affect other login managers
+# such as lightdm.
+#
+# Because of a bug, likely in GDM on Ubuntu after 22.04, we have to reboot the
+# machine to get the login screen back. Note this bug does not occur
+# in Fedora
+reboot

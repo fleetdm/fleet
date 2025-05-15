@@ -2,11 +2,12 @@
 package csrverifier
 
 import (
+	"context"
 	"crypto/x509"
 	"errors"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
+	"github.com/smallstep/scep"
 )
 
 // CSRVerifier verifies the raw decrypted CSR.
@@ -15,8 +16,8 @@ type CSRVerifier interface {
 }
 
 // Middleware wraps next in a CSRSigner that runs verifier
-func Middleware(verifier CSRVerifier, next scepserver.CSRSigner) scepserver.CSRSignerFunc {
-	return func(m *scep.CSRReqMessage) (*x509.Certificate, error) {
+func Middleware(verifier CSRVerifier, next scepserver.CSRSignerContext) scepserver.CSRSignerContextFunc {
+	return func(ctx context.Context, m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		ok, err := verifier.Verify(m.RawDecrypted)
 		if err != nil {
 			return nil, err
@@ -24,6 +25,6 @@ func Middleware(verifier CSRVerifier, next scepserver.CSRSigner) scepserver.CSRS
 		if !ok {
 			return nil, errors.New("CSR verify failed")
 		}
-		return next.SignCSR(m)
+		return next.SignCSRContext(ctx, m)
 	}
 }

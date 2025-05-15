@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "1.100.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Visual Studio Code' AND publisher = 'Microsoft Corporation';"
+      },
+      "installer_url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/19e0f9e681ecb8e5c09d8784acaa601316ca4571/VSCodeSetup-x64-1.100.0.exe",
+      "install_script_ref": "49122823",
+      "uninstall_script_ref": "e09509e2",
+      "sha256": "706a0a535436ce3f9a9bf565b81a92202edb0f2dea7ac9ae8f7fde5f2f8761af",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "49122823": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Add argument to install silently\n# Argument to make install silent depends on installer,\n# each installer might use different argument (usually it's \"/S\" or \"/s\")\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/VERYSILENT /NORESTART /MERGETASKS=!runcode\"\n  PassThru = $true\n  Wait = $true\n}\n    \n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "e09509e2": "\n$machineKey = `\n 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\{EA457B21-F73E-494C-ACAB-524FDE069978}_is1'\n$uninstallArgs = \"/VERYSILENT\"\n$exitCode = 0\n\ntry {\n\n    $key = Get-ItemProperty -Path $machineKey -ErrorAction Stop\n\n    # Get the uninstall command. Some uninstallers do not include\n    # 'QuietUninstallString' and require a flag to run silently.\n    $uninstallCommand = if ($key.QuietUninstallString) {\n        $key.QuietUninstallString\n    } else {\n        $key.UninstallString\n    }\n\n    # The uninstall command may contain command and args, like:\n    # \"C:\\Program Files\\Software\\uninstall.exe\" --uninstall --silent\n    # Split the command and args\n    $splitArgs = $uninstallCommand.Split('\"')\n    if ($splitArgs.Length -gt 1) {\n        if ($splitArgs.Length -eq 3) {\n            $uninstallArgs = \"$( $splitArgs[2] ) $uninstallArgs\".Trim()\n        } elseif ($splitArgs.Length -gt 3) {\n            Throw `\n                \"Uninstall command contains multiple quoted strings. \" +\n                    \"Please update the uninstall script.`n\" +\n                    \"Uninstall command: $uninstallCommand\"\n        }\n        $uninstallCommand = $splitArgs[1]\n    }\n    Write-Host \"Uninstall command: $uninstallCommand\"\n    Write-Host \"Uninstall args: $uninstallArgs\"\n\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        PassThru = $true\n        Wait = $true\n    }\n    if ($uninstallArgs -ne '') {\n        $processOptions.ArgumentList = \"$uninstallArgs\"\n    }\n\n    # Start process and track exit code\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    # Kill Brave process\n    Stop-Process -Name \"brave\" -Force -ErrorAction SilentlyContinue\n\n    # Prints the exit code\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    $exitCode = 1\n}\n\nExit $exitCode\n"
+  }
+}

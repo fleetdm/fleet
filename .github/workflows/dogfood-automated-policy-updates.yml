@@ -1,0 +1,45 @@
+name: "Automated policy updates for dogfood"
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Run every 6 hours
+  workflow_dispatch:     # Allow manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  update-policies:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@cb605e52c26070c328afc4562f0b4ada7618a84e # v2.10.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+
+      - name: Run macOS version update script
+        run: |
+          chmod +x ./.github/scripts/dogfood-policy-updater-latest-macos.sh
+          ./.github/scripts/dogfood-policy-updater-latest-macos.sh
+        env:
+          DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
+          DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}
+          DOGFOOD_AUTOMATION_USER_EMAIL: ${{ secrets.DOGFOOD_AUTOMATION_USER_EMAIL }}
+
+      - name: Run 1Password macOS version update script
+        run: |
+          chmod +x ./.github/scripts/dogfood-policy-updater-latest-1password-macos.sh
+          ./.github/scripts/dogfood-policy-updater-latest-1password-macos.sh
+        env:
+          DOGFOOD_AUTOMATION_TOKEN: ${{ secrets.DOGFOOD_AUTOMATION_TOKEN }}
+          DOGFOOD_AUTOMATION_USER_NAME: ${{ secrets.DOGFOOD_AUTOMATION_USER_NAME }}
+          DOGFOOD_AUTOMATION_USER_EMAIL: ${{ secrets.DOGFOOD_AUTOMATION_USER_EMAIL }}

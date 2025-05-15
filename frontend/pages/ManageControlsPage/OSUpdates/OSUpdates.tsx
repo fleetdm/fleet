@@ -6,7 +6,7 @@ import { AppContext } from "context/app";
 
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
-import { ApplePlatform } from "interfaces/platform";
+import { ApplePlatform, isAndroid } from "interfaces/platform";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
@@ -15,18 +15,20 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 
 import EndUserOSRequirementPreview from "./components/EndUserOSRequirementPreview";
-import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
+import TurnOnMdmMessage from "../../../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
 
 export type OSUpdatesSupportedPlatform = ApplePlatform | "windows";
 
+export type OSUpdatesTargetPlatform = OSUpdatesSupportedPlatform | "android"; // used for displaying "coming soon" messaging
+
 const baseClass = "os-updates";
 
-const getSelectedPlatform = (
+const getDefaultSelectedPlatform = (
   appConfig: IConfig | null
-): OSUpdatesSupportedPlatform => {
+): OSUpdatesTargetPlatform => {
   // We dont have the data ready yet so we default to mac.
   // This is usually when the users first comes to this page.
   if (appConfig === null) return "darwin";
@@ -34,7 +36,7 @@ const getSelectedPlatform = (
   // if the mac mdm is enable and configured we check the app config to see if
   // the mdm for mac is enabled. If it is, it does not matter if windows is
   // enabled and configured and we will always return "mac".
-  return appConfig.mdm.enabled_and_configured ? "darwin" : "windows";
+  return appConfig.mdm.enabled_and_configured ? "darwin" : "windows"; // TODO(android): adjust this when android is supported
 };
 
 interface IOSUpdates {
@@ -49,7 +51,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   const [
     selectedPlatformTab,
     setSelectedPlatformTab,
-  ] = useState<OSUpdatesSupportedPlatform | null>(null);
+  ] = useState<OSUpdatesTargetPlatform | null>(null);
 
   const {
     isError: isErrorConfig,
@@ -102,7 +104,8 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
 
   // If the user has not selected a platform yet, we default to the platform that
   // is enabled and configured.
-  const selectedPlatform = selectedPlatformTab || getSelectedPlatform(config);
+  const selectedPlatform =
+    selectedPlatformTab || getDefaultSelectedPlatform(config);
 
   return (
     <div className={baseClass}>
@@ -131,9 +134,11 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
             refetchTeamConfig={refetchTeamConfig}
           />
         </div>
-        <div className={`${baseClass}__nudge-preview`}>
-          <EndUserOSRequirementPreview platform={selectedPlatform} />
-        </div>
+        {!isAndroid(selectedPlatform) && (
+          <div className={`${baseClass}__nudge-preview`}>
+            <EndUserOSRequirementPreview platform={selectedPlatform} />
+          </div>
+        )}
       </div>
     </div>
   );

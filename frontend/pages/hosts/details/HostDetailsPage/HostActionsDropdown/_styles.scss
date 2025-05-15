@@ -5,6 +5,7 @@
     width: 55px;
   }
   .Select > .Select-menu-outer {
-    left: -120px;
+    right: 0;
+    min-width: max-content;
   }
 }

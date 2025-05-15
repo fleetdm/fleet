@@ -3,6 +3,9 @@
 #
 # It fetches the targets: orbit, osquery and fleet-desktop from the default
 # (Fleet's) TUF server, https://tuf.fleetctl.com.
+#
+# Docker and colima are extremely unreliable on macOS Github runners
+# thus this workflow is not testing MSI package generation on macOS.
 name: Test packaging
 
 on:
@@ -11,11 +14,20 @@ on:
       - main
       - patch-*
       - prepare-*
+    paths:
+      - 'cmd/fleetctl/**.go'
+      - 'pkg/**.go'
+      - 'server/context/**.go'
+      - 'orbit/**.go'
+      - 'ee/fleetctl/**.go'
+      - 'tools/fleetctl-docker/**'
+      - 'tools/wix-docker/**'
+      - 'tools/bomutils-docker/**'
+      - '.github/workflows/test-packaging.yml'
   pull_request:
     paths:
       - 'cmd/fleetctl/**.go'
       - 'pkg/**.go'
-      - 'server/service/**.go'
       - 'server/context/**.go'
       - 'orbit/**.go'
       - 'ee/fleetctl/**.go'
@@ -43,11 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # note: in order to test both the wix and the docker flow for msi
-        # packages, this worker needs to run on an x86_64 architecture.
-        # `macos-latest` uses arm64 by default now, so please be careful when
-        # updating this version.
-        os: [ubuntu-latest, macos-13]
+        os: [ubuntu-latest, macos-15]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -56,31 +64,17 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Run Colima
-        if: startsWith(matrix.os, 'macos')
-        timeout-minutes: 15
-        # notes:
-        # - docker to install the docker CLI and interact with the Colima
-        #   container runtime
-        # - colima is pre-installed in macos-12 runners, but not in macos-13 or
-        #   macos-14 runners
-        run: |
-          brew install docker
-          # The runners come with an old version of python@3.12 that fails to upgrade
-          # when python gets pulled in as a dep through the chain
-          # colima -> lima -> qemu -> glibc -> python@3.12
-          # Force upgrade it for now, remove once the problem is fixed
-          brew install --overwrite python@3.12
-          brew install colima
-          colima start --mount $TMPDIR:w
-
       - name: Pull fleetdm/wix
+        if: ${{ !startsWith(matrix.os, 'macos') }}
         # Run in background while other steps complete to speed up the workflow
-        run: docker pull fleetdm/wix:latest
+        run: |
+          docker pull fleetdm/wix:latest &
 
       - name: Pull fleetdm/bomutils
+        if: ${{ !startsWith(matrix.os, 'macos') }}
         # Run in background while other steps complete to speed up the workflow
-        run: docker pull fleetdm/bomutils:latest
+        run: |
+          docker pull fleetdm/bomutils:latest &
 
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
@@ -93,16 +87,12 @@ jobs:
       - name: Install wine and wix
         if: startsWith(matrix.os, 'macos')
         run: |
-          ./scripts/macos-install-wine.sh -n
+          ./it-and-security/lib/macos/scripts/install-wine.sh -n
           wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
           mkdir wix
           unzip wix.zip -d wix
           rm -f wix.zip
           echo wix installed at $(pwd)/wix
-
-        # It seems faster not to cache Go dependencies
-      - name: Install Go Dependencies
-        run: make deps-go
 
       - name: Build fleetctl
         run: make fleetctl
@@ -120,9 +110,11 @@ jobs:
         run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
       - name: Build MSI
+        if: ${{ !startsWith(matrix.os, 'macos') }}
         run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
 
       - name: Build MSI with Fleet Desktop
+        if: ${{ !startsWith(matrix.os, 'macos') }}
         run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
       - name: Build PKG
@@ -131,6 +123,6 @@ jobs:
       - name: Build PKG with Fleet Desktop
         run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
-      - name: Build MSI (using local Wix)
+      - name: Build MSI on macOS (using local Wix)
         if: startsWith(matrix.os, 'macos')
         run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir ./wix

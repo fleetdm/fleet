@@ -1,0 +1,35 @@
+# Automatic Installation for Fleet-Maintained Apps
+
+Fleet can now help simplify software deployment for IT admins with automatic installation of
+Fleet-maintained apps. This update eliminates the need for manual installation on individual hosts,
+saving time and effort when deploying new software across your organization. Here's how it works:
+
+1. **Select the App:** Navigate to the **Software** page and click the "Add software". Then choose
+   the **Fleet-maintained** section and select the desired Fleet-maintained app (e.g., Notion).
+2. **Choose Installation Method:** You'll now see a new option: an **Install** section with "Manual" and "Automatic" options. Selecting "Automatic" will create a policy to automatically install the app on hosts that don't currently have it.
+3. **Add Software:** Click "Add Software" to initiate the automatic installation process.
+
+## Key Benefits
+
+* **Simplified Deployment:** Deploy apps to multiple hosts with a single click, eliminating manual installation on each machine.
+* **Automated Policy Creation:** The system automatically creates the necessary policy to manage the installations, removing the need for manual policy creation.
+* **Automatic Reinstallation:** If a user uninstalls the app, the policy will automatically reinstall it on the next policy run, ensuring consistent deployment.
+* **Clear Visibility:** A badge on the app listing indicates which apps are configured for automatic installation. The app's details page also clearly states its automatic installation status and provides a link to the associated policy.
+
+## How to Manage Automatic Installations
+
+* **View Policies:** Clicking on the automatic installation indicator on the app details page will
+  take you to the relevant policy's details view. You can also find the policy listed on the **Policies** page under the relevant team.
+* **Monitor Installation Status:** Fleet provides real-time feedback on the installation process.
+  You can monitor the installation status on the **Host Details** page under the "Activity" section, which shows queued installations and
+  any potential failures.
+* **Prevent Accidental Deletion:** If you attempt to delete an app that has an automatic
+  installation policy associated with it, the system will prevent the deletion until the policy is
+  removed. This prevents accidental disruption of app deployments.
+
+## Important Considerations
+
+**GitOps Compatibility:** Currently, Fleet-maintained apps are not fully compatible with GitOps. This means these automatically generated policies will be affected by GitOps runs. We are working on improving GitOps support for Fleet-maintained apps in future releases. For now, using uploaded packages and VPP is the recommended approach for GitOps workflows.
+
+This new feature simplifies app deployment, saving you time and ensuring consistent application
+availability across your organization. We encourage you to try it out and reach out to us with any feedback.

@@ -91,7 +91,7 @@ func (f *firehoseLogWriter) validateStream() error {
 		return fmt.Errorf("describe stream %s: %w", f.stream, err)
 	}
 
-	if (*(*out.DeliveryStreamDescription).DeliveryStreamStatus) != firehose.DeliveryStreamStatusActive {
+	if (*out.DeliveryStreamDescription.DeliveryStreamStatus) != firehose.DeliveryStreamStatusActive {
 		return fmt.Errorf("delivery stream %s not active", f.stream)
 	}
 

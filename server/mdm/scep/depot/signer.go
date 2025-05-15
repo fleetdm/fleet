@@ -3,21 +3,20 @@ package depot
 import (
 	"crypto/rand"
 	"crypto/x509"
-	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
+	"github.com/smallstep/scep"
 )
 
 // Signer signs x509 certificates and stores them in a Depot
 type Signer struct {
 	depot            Depot
-	mu               sync.Mutex
 	caPass           string
 	allowRenewalDays int
 	validityDays     int
 	serverAttrs      bool
+	signatureAlgo    x509.SignatureAlgorithm
 }
 
 // Option customizes Signer
@@ -29,11 +28,21 @@ func NewSigner(depot Depot, opts ...Option) *Signer {
 		depot:            depot,
 		allowRenewalDays: 14,
 		validityDays:     365,
+		signatureAlgo:    0,
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
 	return s
+}
+
+// WithSignatureAlgorithm sets the signature algorithm to be used to sign certificates.
+// When set to a non-zero value, this would take preference over the default behaviour of
+// matching the signing algorithm from the x509 CSR.
+func WithSignatureAlgorithm(a x509.SignatureAlgorithm) Option {
+	return func(s *Signer) {
+		s.signatureAlgo = a
+	}
 }
 
 // WithCAPass specifies the password to use with an encrypted CA key
@@ -70,12 +79,14 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		return nil, err
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	serial, err := s.depot.Serial()
 	if err != nil {
 		return nil, err
+	}
+
+	var signatureAlgo x509.SignatureAlgorithm
+	if s.signatureAlgo != 0 {
+		signatureAlgo = s.signatureAlgo
 	}
 
 	// create cert template
@@ -89,7 +100,7 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 		ExtKeyUsage: []x509.ExtKeyUsage{
 			x509.ExtKeyUsageClientAuth,
 		},
-		SignatureAlgorithm: m.CSR.SignatureAlgorithm,
+		SignatureAlgorithm: signatureAlgo,
 		DNSNames:           m.CSR.DNSNames,
 		EmailAddresses:     m.CSR.EmailAddresses,
 		IPAddresses:        m.CSR.IPAddresses,

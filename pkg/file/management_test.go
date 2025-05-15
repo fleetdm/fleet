@@ -11,9 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	update = flag.Bool("update", false, "update the golden files of this test")
-)
+var update = flag.Bool("update", false, "update the golden files of this test")
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -41,10 +39,15 @@ func TestGetInstallAndRemoveScript(t *testing.T) {
 			"remove":    "./scripts/remove_deb.sh",
 			"uninstall": "./scripts/uninstall_deb.sh",
 		},
+		"rpm": {
+			"install":   "./scripts/install_rpm.sh",
+			"remove":    "./scripts/remove_rpm.sh",
+			"uninstall": "./scripts/uninstall_rpm.sh",
+		},
 		"exe": {
-			"install":   "./scripts/install_exe.ps1",
+			"install":   "",
 			"remove":    "./scripts/remove_exe.ps1",
-			"uninstall": "./scripts/uninstall_exe.ps1",
+			"uninstall": "",
 		},
 	}
 
@@ -62,9 +65,14 @@ func TestGetInstallAndRemoveScript(t *testing.T) {
 
 func assertGoldenMatches(t *testing.T, goldenFile string, actual string, update bool) {
 	t.Helper()
+	if goldenFile == "" {
+		require.Empty(t, actual)
+		return
+	}
+
 	goldenPath := filepath.Join("testdata", goldenFile+".golden")
 
-	f, err := os.OpenFile(goldenPath, os.O_RDWR|os.O_CREATE, 0644)
+	f, err := os.OpenFile(goldenPath, os.O_RDWR|os.O_CREATE, 0o644)
 	require.NoError(t, err)
 	defer f.Close()
 

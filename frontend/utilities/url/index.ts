@@ -14,6 +14,8 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
+/** updated value for query params. TODO: update using this value across the codebase */
+type QueryParams2<T> = { [s in keyof T]: QueryValues };
 type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
 
@@ -44,6 +46,8 @@ interface IMutuallyExclusiveHostParams {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
+  configProfileStatus?: string;
+  configProfileUUID?: string;
 }
 
 export const parseQueryValueToNumberOrUndefined = (
@@ -90,8 +94,9 @@ const filterEmptyParams = (queryParams: QueryParams) => {
  * creates a query string from a query params object. If a value is undefined, null,
  * or an empty string on the queryParams object, that key-value pair will be
  * excluded from the query string.
+ * TODO: For UI elements, replace all instances of buildQueryStringFromParams with getPathWithQueryParams
  */
-export const buildQueryStringFromParams = (queryParams: QueryParams) => {
+export const buildQueryStringFromParams = <T>(queryParams: QueryParams2<T>) => {
   const filteredParams = filterEmptyParams(queryParams);
 
   let queryString = "";
@@ -103,6 +108,24 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
     ).join("&");
   }
   return queryString;
+};
+
+/**
+ * creates a path string from the root path and optional query params
+ * @param endpoint
+ * @param queryParams
+ * @returns string
+ */
+export const getPathWithQueryParams = <T>(
+  endpoint: string,
+  queryParams?: QueryParams2<T>
+) => {
+  if (!queryParams) {
+    return endpoint;
+  }
+
+  const queryString = buildQueryStringFromParams(queryParams);
+  return queryString ? `${endpoint}?${queryString}` : endpoint;
 };
 
 export const reconcileSoftwareParams = ({
@@ -195,6 +218,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
   vulnerability,
   diskEncryptionStatus,
   bootstrapPackageStatus,
+  configProfileStatus,
+  configProfileUUID,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -249,6 +274,11 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     case !!bootstrapPackageStatus:
       return { bootstrap_package: bootstrapPackageStatus };
+    case !!configProfileUUID:
+      return {
+        profile_status: configProfileStatus,
+        profile_uuid: configProfileUUID,
+      };
     default:
       return {};
   }

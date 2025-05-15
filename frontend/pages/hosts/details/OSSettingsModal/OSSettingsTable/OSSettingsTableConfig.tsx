@@ -9,12 +9,16 @@ import {
   IHostMdmProfile,
   MdmDDMProfileStatus,
   MdmProfileStatus,
+  isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
-import { generateWinDiskEncryptionProfile } from "../../helpers";
+import {
+  generateLinuxDiskEncryptionSetting,
+  generateWinDiskEncryptionSetting,
+} from "../../helpers";
 import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
 export const isMdmProfileStatus = (
@@ -69,6 +73,7 @@ const generateTableConfig = (
             status={cellProps.row.original.status}
             operationType={cellProps.row.original.operation_type}
             profileName={cellProps.row.original.name}
+            hostPlatform={cellProps.row.original.platform}
           />
         );
       },
@@ -77,14 +82,23 @@ const generateTableConfig = (
       Header: "Error",
       disableSortBy: true,
       accessor: "detail",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <OSSettingsErrorCell
-          canResendProfiles={canResendProfiles}
-          hostId={hostId}
-          profile={cellProps.row.original}
-          onProfileResent={onProfileResent}
-        />
-      ),
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { name, platform, status } = cellProps.row.original;
+        const isFailedWindowsDiskEncryption =
+          platform === "windows" &&
+          name === "Disk encryption" &&
+          status === "failed";
+        return (
+          <OSSettingsErrorCell
+            canResendProfiles={
+              canResendProfiles && !isFailedWindowsDiskEncryption
+            }
+            hostId={hostId}
+            profile={cellProps.row.original}
+            onProfileResent={onProfileResent}
+          />
+        );
+      },
     },
   ];
 };
@@ -101,7 +115,33 @@ const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
     isWindowsDiskEncryptionStatus(os_settings.disk_encryption.status)
   ) {
     rows.push(
-      generateWinDiskEncryptionProfile(
+      generateWinDiskEncryptionSetting(
+        os_settings.disk_encryption.status,
+        os_settings.disk_encryption.detail
+      )
+    );
+  }
+
+  if (rows.length === 0 && !profiles) {
+    return null;
+  }
+
+  return rows;
+};
+
+const makeLinuxRows = ({ profiles, os_settings }: IHostMdmData) => {
+  const rows: IHostMdmProfileWithAddedStatus[] = [];
+
+  if (profiles) {
+    rows.push(...profiles);
+  }
+
+  if (
+    os_settings?.disk_encryption?.status &&
+    isLinuxDiskEncryptionStatus(os_settings.disk_encryption.status)
+  ) {
+    rows.push(
+      generateLinuxDiskEncryptionSetting(
         os_settings.disk_encryption.status,
         os_settings.disk_encryption.detail
       )
@@ -127,7 +167,7 @@ const makeDarwinRows = ({ profiles, macos_settings }: IHostMdmData) => {
       // it would be better to match on the identifier but it is not
       // currently available in the API response
       if (p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME) {
-        return { ...p, status: "action_required" || p.status };
+        return { ...p, status: "action_required" };
       }
       return p;
     });
@@ -145,6 +185,10 @@ export const generateTableData = (
       return makeWindowsRows(hostMDMData);
     case "darwin":
       return makeDarwinRows(hostMDMData);
+    case "ubuntu":
+      return makeLinuxRows(hostMDMData);
+    case "rhel":
+      return makeLinuxRows(hostMDMData);
     case "ios":
       return hostMDMData.profiles;
     case "ipados":

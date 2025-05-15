@@ -15,7 +15,7 @@ func TestUp_20240710155623(t *testing.T) {
 	newHost := func(platform, lastEnrolledAt string, hostDisk bool) uint {
 		id := fmt.Sprintf("%d", i)
 		i++
-		hostID := uint(execNoErrLastID(t, db,
+		hostID := uint(execNoErrLastID(t, db, //nolint:gosec // dismiss G115
 			`INSERT INTO hosts (osquery_host_id, node_key, uuid, platform, last_enrolled_at) VALUES (?, ?, ?, ?, ?);`,
 			id, id, id, platform, lastEnrolledAt,
 		))

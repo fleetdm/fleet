@@ -22,8 +22,6 @@
     }
   }
 
-
-  &__turn-on-mdm-message,
   &__add-vpp-message {
     margin: 0 auto;
     text-align: center;
@@ -33,13 +31,13 @@
     align-items: center;
     justify-content: center;
 
-    >h2 {
+    > h2 {
       margin-bottom: $pad-small;
       font-size: $small;
       font-weight: $bold;
     }
 
-    >p {
+    > p {
       margin: 0 0 $pad-medium;
     }
   }

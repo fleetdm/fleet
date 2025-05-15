@@ -1,0 +1,201 @@
+{
+	"token": "teamviewer",
+	"full_token": "teamviewer",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"TeamViewer"
+	],
+	"desc": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration.",
+	"homepage": "https://www.teamviewer.com/",
+	"url": "https://dl.teamviewer.com/download/version_15x/update/15.57.5/TeamViewer.pkg",
+	"url_specs": {},
+	"version": "15.57.5",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "5f53e81921bf7b15e8605ad3cfa39c4769303bbb06d57dc50a683be0d5889e1f",
+	"artifacts": [
+		{
+			"uninstall": [
+				{
+					"launchctl": [
+						"com.teamviewer.desktop",
+						"com.teamviewer.Helper",
+						"com.teamviewer.service",
+						"com.teamviewer.teamviewer",
+						"com.teamviewer.teamviewer_desktop",
+						"com.teamviewer.teamviewer_service",
+						"com.teamviewer.UninstallerHelper",
+						"com.teamviewer.UninstallerWatcher"
+					],
+					"quit": [
+						"com.teamviewer.TeamViewer",
+						"com.teamviewer.TeamViewerUninstaller"
+					],
+					"pkgutil": [
+						"com.teamviewer.AuthorizationPlugin",
+						"com.teamviewer.remoteaudiodriver",
+						"com.teamviewer.teamviewer.*",
+						"TeamViewerUninstaller"
+					],
+					"delete": [
+						"/Applications/TeamViewer.app",
+						"/Library/Preferences/com.teamviewer*"
+					]
+				}
+			]
+		},
+		{
+			"pkg": [
+				"TeamViewer.pkg"
+			]
+		},
+		{
+			"postflight": null
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Application Support/TeamViewer",
+						"~/Library/Caches/com.teamviewer.TeamViewer",
+						"~/Library/Caches/TeamViewer",
+						"~/Library/Cookies/com.teamviewer.TeamViewer.binarycookies",
+						"~/Library/Logs/TeamViewer",
+						"~/Library/Preferences/com.teamviewer*",
+						"~/Library/Saved Application State/com.teamviewer.TeamViewer.savedState"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"10.11"
+			]
+		}
+	},
+	"conflicts_with": {
+		"cask": [
+			"teamviewer-host"
+		]
+	},
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/t/teamviewer.rb",
+	"ruby_source_checksum": {
+		"sha256": "86b4666b24b1645a599ce70f9a6841a4ec81ea5792655b08d362f9f474beebc8"
+	},
+	"variations": {
+		"catalina": {
+			"url": "https://dl.teamviewer.com/download/version_15x/update/15.42.4/TeamViewer.pkg",
+			"version": "15.42.4",
+			"sha256": "3357bc366cd0295dd100b790d6af6216d349d34451ea18ba08692a51eadd6cf7",
+			"artifacts": [
+				{
+					"uninstall": [
+						{
+							"launchctl": [
+								"com.teamviewer.desktop",
+								"com.teamviewer.Helper",
+								"com.teamviewer.service",
+								"com.teamviewer.teamviewer",
+								"com.teamviewer.teamviewer_desktop",
+								"com.teamviewer.teamviewer_service",
+								"com.teamviewer.UninstallerHelper",
+								"com.teamviewer.UninstallerWatcher"
+							],
+							"quit": [
+								"com.teamviewer.TeamViewer",
+								"com.teamviewer.TeamViewerUninstaller"
+							],
+							"pkgutil": [
+								"com.teamviewer.AuthorizationPlugin",
+								"com.teamviewer.remoteaudiodriver",
+								"com.teamviewer.teamviewer.*",
+								"TeamViewerUninstaller"
+							],
+							"delete": [
+								"/Applications/TeamViewer.app",
+								"/Library/Preferences/com.teamviewer*"
+							]
+						}
+					]
+				},
+				{
+					"installer": [
+						{
+							"manual": "TeamViewer.pkg"
+						}
+					]
+				},
+				{
+					"postflight": null
+				},
+				{
+					"zap": [
+						{
+							"trash": [
+								"~/Library/Application Support/TeamViewer",
+								"~/Library/Caches/com.teamviewer.TeamViewer",
+								"~/Library/Caches/TeamViewer",
+								"~/Library/Cookies/com.teamviewer.TeamViewer.binarycookies",
+								"~/Library/Logs/TeamViewer",
+								"~/Library/Preferences/com.teamviewer*",
+								"~/Library/Saved Application State/com.teamviewer.TeamViewer.savedState"
+							]
+						}
+					]
+				}
+			],
+			"caveats": "WARNING: teamviewer has a bug in Catalina where it doesn't deal well with being uninstalled by other utilities.\nThe recommended way to remove it is by running their uninstaller under:\n\n   Preferences → Advanced\n"
+		},
+		"mojave": {
+			"url": "https://dl.teamviewer.com/download/version_15x/update/15.42.4/TeamViewer.pkg",
+			"version": "15.42.4",
+			"sha256": "3357bc366cd0295dd100b790d6af6216d349d34451ea18ba08692a51eadd6cf7"
+		},
+		"high_sierra": {
+			"url": "https://dl.teamviewer.com/download/version_15x/update/15.2.2756/TeamViewer.pkg",
+			"version": "15.2.2756",
+			"sha256": "fe7daf80f9aee056f97d11183941470fa1c5823101a0951990340b6264a2651a"
+		},
+		"sierra": {
+			"url": "https://dl.teamviewer.com/download/version_15x/update/15.2.2756/TeamViewer.pkg",
+			"version": "15.2.2756",
+			"sha256": "fe7daf80f9aee056f97d11183941470fa1c5823101a0951990340b6264a2651a"
+		},
+		"el_capitan": {
+			"url": "https://dl.teamviewer.com/download/version_15x/update/15.2.2756/TeamViewer.pkg",
+			"version": "15.2.2756",
+			"sha256": "fe7daf80f9aee056f97d11183941470fa1c5823101a0951990340b6264a2651a"
+		}
+	},
+	"analytics": {
+		"install": {
+			"30d": {
+				"teamviewer": 1271
+			},
+			"90d": {
+				"teamviewer": 3644
+			},
+			"365d": {
+				"teamviewer": 18205
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

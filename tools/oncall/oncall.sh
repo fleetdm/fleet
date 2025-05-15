@@ -50,9 +50,9 @@ prs() {
 	members="$(curl -s -u "${username}:${token}" https://api.github.com/orgs/fleetdm/members?per_page=100 | jq -r 'map(.login)' | jq '. += ["app/dependabot"]')"
 
 	# defaults to listing open prs
-	gh pr list --repo fleetdm/fleet --json id,title,author,url,createdAt |
+	gh pr list --limit 1000 --repo fleetdm/fleet --json id,title,author,url,createdAt,isDraft |
 		jq -r --argjson members "$members" \
-			'map(select(.author.login as $in | $members | index($in) | not)) | sort_by(.createdAt) | reverse'
+			'map(select((.author.login as $login | ($members | index($login)) == null) and .isDraft == false)) | sort_by(.createdAt) | reverse'
 }
 
 # main script

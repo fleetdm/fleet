@@ -1,0 +1,44 @@
+.run-script-details-modal {
+  box-sizing: border-box;
+  width: 811px;
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+    // For scrollable modal
+    max-height: 705px; /* Adjust as needed */
+    overflow-y: auto;
+  }
+
+  &__script-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__status-message {
+    p {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+      margin: 0;
+
+      .component__tooltip-wrapper {
+        margin-left: -$pad-xsmall;
+        margin-right: -$pad-xsmall;
+        margin-top: -1px;
+      }
+    }
+  }
+
+  &__script-result {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xlarge;
+  }
+
+  &__output-tooltip {
+    width: 300px;
+  }
+}

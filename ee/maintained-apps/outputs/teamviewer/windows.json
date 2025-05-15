@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "15.65.6",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'TeamViewer' AND publisher = 'TeamViewer';"
+      },
+      "installer_url": "https://download.teamviewer.com/download/version_15x/TeamViewer_Setup_x64_15.65.6.exe",
+      "install_script_ref": "45f422bf",
+      "uninstall_script_ref": "390c83e7",
+      "sha256": "99846cb4b108028390ef39001ef22cfd98308805afae41d26e540e4cbe528535",
+      "default_categories": [
+        "Communication"
+      ]
+    }
+  ],
+  "refs": {
+    "390c83e7": "# Define acceptable/expected exit codes\n$ExpectedExitCodes = @(0)\n\n# Uninstall Registry Key\n$machineKey = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\TeamViewer'\n\n# Additional uninstall args\n$uninstallArgs = \"/S\"\n\n# Initialize exit code\n$exitCode = 0\n\ntry {\n    $key = Get-ItemProperty -Path $machineKey -ErrorAction Stop\n\n    # Get the uninstall command. Some uninstallers do not include 'QuietUninstallString'\n    $uninstallCommand = if ($key.QuietUninstallString) {\n        $key.QuietUninstallString\n    } else {\n        $key.UninstallString\n    }\n\n    # The uninstall command may contain command and args, like:\n    # \"C:\\Program Files\\Software\\uninstall.exe\" --uninstall --silent\n    # Split the command and args\n    $splitArgs = $uninstallCommand.Split('\"')\n    if ($splitArgs.Length -gt 1) {\n        if ($splitArgs.Length -eq 3) {\n            $uninstallArgs = \"$( $splitArgs[2] ) $uninstallArgs\".Trim()\n        } elseif ($splitArgs.Length -gt 3) {\n            Throw \"Uninstall command contains multiple quoted strings. Please update the uninstall script.`nUninstall command: $uninstallCommand\"\n        }\n        $uninstallCommand = $splitArgs[1]\n    }\n\n    Write-Host \"Uninstall command: $uninstallCommand\"\n    Write-Host \"Uninstall args: $uninstallArgs\"\n\n    $processOptions = @{\n        FilePath = $uninstallCommand\n        PassThru = $true\n        Wait     = $true\n    }\n    if ($uninstallArgs -ne '') {\n        $processOptions.ArgumentList = \"$uninstallArgs\"\n    }\n\n    # Start uninstall process\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n    Write-Host \"Uninstall exit code: $exitCode\"\n\n} catch {\n    Write-Host \"Error: $_\"\n    $exitCode = 1\n}\n\n# Treat acceptable exit codes as success\nif ($ExpectedExitCodes -contains $exitCode) {\n    Exit 0\n} else {\n    Exit $exitCode\n}\n",
+    "45f422bf": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n\n# Add argument to install silently\n# Argument to make install silent depends on installer,\n# each installer might use different argument (usually it's \"/S\" or \"/s\")\n$processOptions = @{\n  FilePath = \"$exeFilePath\"\n  ArgumentList = \"/S\"\n  PassThru = $true\n  Wait = $true\n}\n    \n# Start process and track exit code\n$process = Start-Process @processOptions\n$exitCode = $process.ExitCode\n\n# Prints the exit code\nWrite-Host \"Install exit code: $exitCode\"\nExit $exitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

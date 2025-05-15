@@ -521,14 +521,33 @@ This activity contains the following fields:
 }
 ```
 
+## fleet_enrolled
+
+Generated when a host is enrolled to Fleet (Fleet's agent fleetd is installed).
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": "123",
+	"host_serial": "B04FL3ALPT21",
+	"host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+}
+```
+
 ## mdm_enrolled
 
 Generated when a host is enrolled in Fleet's MDM.
 
 This activity contains the following fields:
-- "host_serial": Serial number of the host.
+- "host_serial": Serial number of the host (Apple enrollments only, always empty for Microsoft).
 - "host_display_name": Display name of the host.
-- "installed_from_dep": Whether the host was enrolled via DEP.
+- "installed_from_dep": Whether the host was enrolled via DEP (Apple enrollments only, always false for Microsoft).
 - "mdm_platform": Used to distinguish between Apple and Microsoft enrollments. Can be "apple", "microsoft" or not present. If missing, this value is treated as "apple" for backwards compatibility.
 
 #### Example
@@ -658,7 +677,7 @@ This activity contains the following fields:
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro",
+  "host_display_name": "Anna's MacBook Pro"
 }
 ```
 
@@ -793,6 +812,18 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_gitops_mode
+
+Generated when a user enables GitOps mode.
+
+This activity does not contain any detail fields.
+
+## disabled_gitops_mode
+
+Generated when a user disables GitOps mode.
+
+This activity does not contain any detail fields.
+
 ## added_bootstrap_package
 
 Generated when a user adds a new bootstrap package to a team (or no team).
@@ -877,6 +908,30 @@ Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 
+## enabled_android_mdm
+
+Generated when a user turns on MDM features for all Android hosts.
+
+This activity does not contain any detail fields.
+
+## disabled_android_mdm
+
+Generated when a user turns off MDM features for all Android hosts.
+
+This activity does not contain any detail fields.
+
+## enabled_windows_mdm_migration
+
+Generated when a user enables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
+
+This activity does not contain any detail fields.
+
+## disabled_windows_mdm_migration
+
+Generated when a user disables automatic MDM migration for Windows hosts, if Windows MDM is turned on.
+
+This activity does not contain any detail fields.
+
 ## ran_script
 
 Generated when a script is sent to be run for a host.
@@ -887,6 +942,8 @@ This activity contains the following fields:
 - "script_execution_id": Execution ID of the script run.
 - "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
+- "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the script run. Null if no associated policy.
 
 #### Example
 
@@ -896,7 +953,9 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "async": false
+  "async": false,
+  "policy_id": 123,
+  "policy_name": "Ensure photon torpedoes are primed"
 }
 ```
 
@@ -1126,7 +1185,7 @@ This activity contains the following fields:
 
 ## resent_configuration_profile
 
-Generated when a user resends an MDM configuration profile to a host.
+Generated when a user resends a configuration profile to a host.
 
 This activity contains the following fields:
 - "host_id": The ID of the host.
@@ -1143,9 +1202,26 @@ This activity contains the following fields:
 }
 ```
 
+## resent_configuration_profile_batch
+
+Generated when a user resends a configuration profile to a batch of hosts.
+
+This activity contains the following fields:
+- "profile_name": The name of the configuration profile.
+- "host_count": Number of hosts in the batch.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "host_count": 3
+}
+```
+
 ## installed_software
 
-Generated when a software is installed on a host.
+Generated when a Fleet-maintained app or custom package is installed on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1155,6 +1231,9 @@ This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
 - "status": Status of the software installation.
+- "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
+
 
 #### Example
 
@@ -1166,13 +1245,15 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
-  "status": "pending"
+  "status": "pending",
+  "policy_id": 1337,
+  "policy_name": "Ensure 1Password is installed and up to date"
 }
 ```
 
 ## uninstalled_software
 
-Generated when a software is uninstalled on a host.
+Generated when a Fleet-maintained app or custom package is uninstalled on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1195,7 +1276,7 @@ This activity contains the following fields:
 
 ## added_software
 
-Generated when a software installer is uploaded to Fleet.
+Generated when a Fleet-maintained app or custom package is added to Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the software.
@@ -1203,6 +1284,9 @@ This activity contains the following fields:
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
 - "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
 
 #### Example
 
@@ -1212,13 +1296,24 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "software_title_id": 2234,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
 ## edited_software
 
-Generated when a software installer is updated in Fleet.
+Generated when a Fleet-maintained app or custom package is edited in Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the software.
@@ -1226,6 +1321,9 @@ This activity contains the following fields:
 - "team_name": Name of the team on which this software was updated. `null` if it was updated on no team.
 - "team_id": The ID of the team on which this software was updated. `null` if it was updated on no team.
 - "self_service": Whether the software is available for installation by the end user.
+- "software_title_id": ID of the added software title.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
 
 #### Example
 
@@ -1235,13 +1333,24 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "software_title_id": 2234,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
 ## deleted_software
 
-Generated when a software installer is deleted from Fleet.
+Generated when a Fleet maintained app or custom package is deleted from Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the software.
@@ -1249,6 +1358,8 @@ This activity contains the following fields:
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team.
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
 - "self_service": Whether the software was available for installation by the end user.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
 
 #### Example
 
@@ -1258,7 +1369,17 @@ This activity contains the following fields:
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
   "team_id": 123,
-  "self_service": true
+  "self_service": true,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
@@ -1298,22 +1419,36 @@ Generated when an App Store app is added to Fleet.
 
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
+- "software_title_id": ID of the added software title.
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
 - "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
 
 #### Example
 
 ```json
 {
   "software_title": "Logic Pro",
+  "software_title_id": 123,
   "app_store_id": "1234567",
   "platform": "darwin",
   "self_service": false,
   "team_name": "Workstations",
-  "team_id": 1
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
@@ -1327,6 +1462,8 @@ This activity contains the following fields:
 - "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
 - "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array
 
 #### Example
 
@@ -1336,7 +1473,17 @@ This activity contains the following fields:
   "app_store_id": "1234567",
   "platform": "darwin",
   "team_name": "Workstations",
-  "team_id": 1
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
 }
 ```
 
@@ -1345,12 +1492,15 @@ This activity contains the following fields:
 Generated when an App Store app is installed on a device.
 
 This activity contains the following fields:
-- host_id: ID of the host on which the app was installed.
-- self_service: App installation was initiated by device owner.
-- host_display_name: Display name of the host.
-- software_title: Name of the App Store app.
-- app_store_id: ID of the app on the Apple App Store.
-- command_uuid: UUID of the MDM command used to install the app.
+- "host_id": ID of the host on which the app was installed.
+- "self_service": App installation was initiated by device owner.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "status": Status of the App Store app installation.
+- "command_uuid": UUID of the MDM command used to install the app.
+- "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
+- "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 
 #### Example
 
@@ -1361,7 +1511,274 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
-  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+  "policy_id": 123,
+  "policy_name": "[Install Software] Logic Pro"
+}
+```
+
+## edited_app_store_app
+
+Generated when an App Store app is updated in Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "software_title_id": ID of the updated app's software title.
+- "app_store_id": ID of the app on the Apple App Store.
+- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "self_service": App installation can be initiated by device owner.
+- "team_name": Name of the team on which this App Store app was updated, or `null` if it was updated on no team.
+- "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
+- "labels_include_any": Target hosts that have any label in the array.
+- "labels_exclude_any": Target hosts that don't have any label in the array.
+
+#### Example
+
+```json
+{
+  "software_title": "Logic Pro",
+  "software_title_id": 123,
+  "app_store_id": "1234567",
+  "platform": "darwin",
+  "self_service": true,
+  "team_name": "Workstations",
+  "team_id": 1,
+  "labels_include_any": [
+    {
+      "name": "Engineering",
+      "id": 12
+    },
+    {
+      "name": "Product",
+      "id": 17
+    }
+  ]
+}
+```
+
+## added_ndes_scep_proxy
+
+Generated when NDES SCEP proxy is configured in Fleet.
+
+This activity does not contain any detail fields.
+
+## deleted_ndes_scep_proxy
+
+Generated when NDES SCEP proxy configuration is deleted in Fleet.
+
+This activity does not contain any detail fields.
+
+## edited_ndes_scep_proxy
+
+Generated when NDES SCEP proxy configuration is edited in Fleet.
+
+This activity does not contain any detail fields.
+
+## added_custom_scep_proxy
+
+Generated when SCEP certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SCEP_WIFI"
+}
+```
+
+## deleted_custom_scep_proxy
+
+Generated when SCEP certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SCEP_WIFI"
+}
+```
+
+## edited_custom_scep_proxy
+
+Generated when SCEP certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SCEP_WIFI"
+}
+```
+
+## added_digicert
+
+Generated when DigiCert certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "DIGICERT_WIFI"
+}
+```
+
+## deleted_digicert
+
+Generated when DigiCert certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "DIGICERT_WIFI"
+}
+```
+
+## edited_digicert
+
+Generated when DigiCert certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "DIGICERT_WIFI"
+}
+```
+
+## enabled_activity_automations
+
+Generated when activity automations are enabled
+
+This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to.
+
+#### Example
+
+```json
+{
+	"webhook_url": "https://example.com/notify"
+}
+```
+
+## edited_activity_automations
+
+Generated when activity automations are edited while enabled
+
+This activity contains the following field:
+- "webhook_url": the URL to broadcast activities to, post-edit.
+
+#### Example
+
+```json
+{
+	"webhook_url": "https://example.com/notify"
+}
+```
+
+## disabled_activity_automations
+
+Generated when activity automations are disabled
+
+This activity does not contain any detail fields.
+
+## canceled_run_script
+
+Generated when upcoming activity `ran_script` is canceled.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "script_name": Name of the script (empty if it was an anonymous script).
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh"
+}
+```
+
+## canceled_install_software
+
+Generated when upcoming activity `installed_software` is canceled.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}
+```
+
+## canceled_uninstall_software
+
+Generated when upcoming activity `uninstalled_software` is canceled.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}
+```
+
+## canceled_install_app_store_app
+
+Generated when upcoming activity `installed_app_store_app` is canceled.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 12334
 }
 ```
 

@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -102,7 +103,7 @@ type baseDialog struct {
 }
 
 func newBaseDialog(path string) *baseDialog {
-	return &baseDialog{path: path, interruptCh: make(chan struct{})}
+	return &baseDialog{path: path, interruptCh: make(chan struct{}, 1)}
 }
 
 func (b *baseDialog) CanRun() bool {
@@ -257,13 +258,19 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 		icon = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
 	}
 
+	iconSize, err := swiftdialog.GetIconSize(icon)
+	if err != nil {
+		log.Error().Err(err).Msg("mdm migrator: getting icon size")
+		iconSize = swiftdialog.DefaultIconSize
+	}
+
 	flags = append([]string{
 		// disable the built-in title so we have full control over the
 		// content
 		"--title", "none",
 		// top icon
 		"--icon", icon,
-		"--iconsize", "80",
+		"--iconsize", fmt.Sprintf("%d", iconSize),
 		"--centreicon",
 		// modal content
 		"--message", message,
@@ -276,7 +283,7 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 
 func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma, isManual bool) (chan swiftDialogExitCode, chan error) {
 	var body string
-	switch true {
+	switch {
 	case preSonoma:
 		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-pre-sonoma-unenroll-1024x500.png)")
 	case isManual:
@@ -322,27 +329,26 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment(isADEMigration bool) error 
 	}
 	checkStatusFn := m.testEnrollmentCheckStatusFn
 	if checkStatusFn == nil {
-		checkStatusFn = func() (bool, string, error) {
-			return profiles.IsEnrolledInMDM()
-		}
+		checkStatusFn = profiles.IsEnrolledInMDM
 	}
 	return retry.Do(func() error {
 		var unenrolled bool
 
 		if isADEMigration {
 			fileExists, fileErr := checkFileFn()
-			if fileErr != nil {
+			switch {
+			case fileErr != nil:
 				log.Error().Err(fileErr).Msg("checking for existence of cloudConfigProfileInstalled in migration modal")
-			} else if fileExists {
+			case fileExists:
 				log.Info().Msg("checking for existence of cloudConfigProfileInstalled in migration modal: found")
-			} else {
+			default:
 				log.Info().Msg("checking for existence of cloudConfigProfileInstalled in migration modal: not found")
 				unenrolled = true
 			}
 		}
 
 		statusEnrolled, serverURL, statusErr := checkStatusFn()
-		if statusErr != nil {
+		if statusErr != nil { //nolint:gocritic // ignore ifElseChain
 			log.Error().Err(statusErr).Msgf("checking profiles status in migration modal")
 		} else if statusEnrolled {
 			log.Info().Msgf("checking profiles status in migration modal: enrolled to %s", serverURL)

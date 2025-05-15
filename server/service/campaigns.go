@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -29,9 +28,9 @@ type createDistributedQueryCampaignResponse struct {
 	Err      error                           `json:"error,omitempty"`
 }
 
-func (r createDistributedQueryCampaignResponse) error() error { return r.Err }
+func (r createDistributedQueryCampaignResponse) Error() error { return r.Err }
 
-func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createDistributedQueryCampaignEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createDistributedQueryCampaignRequest)
 	campaign, err := svc.NewDistributedQueryCampaign(ctx, req.QuerySQL, req.QueryID, req.Selected)
 	if err != nil {
@@ -162,7 +161,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
 	}
 
-	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
+	err = svc.liveQueryStore.RunQuery(fmt.Sprint(campaign.ID), queryString, hostIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}
@@ -186,7 +185,8 @@ type distributedQueryCampaignTargetsByIdentifiers struct {
 	Hosts []string `json:"hosts"`
 }
 
-func createDistributedQueryCampaignByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createDistributedQueryCampaignByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer,
+	error) {
 	req := request.(*createDistributedQueryCampaignByIdentifierRequest)
 	campaign, err := svc.NewDistributedQueryCampaignByIdentifiers(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 	if err != nil {
@@ -207,9 +207,21 @@ func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context
 		return nil, ctxerr.Wrap(ctx, err, "finding host IDs")
 	}
 
+	if err := svc.authz.Authorize(ctx, &fleet.Label{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 	labelMap, err := svc.ds.LabelIDsByName(ctx, labels)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
+	}
+
+	// DetectMissingLabels will return the list of labels that are not found in the database
+	// These labels are considered invalid
+	invalidLabels := fleet.DetectMissingLabels(labelMap, labels)
+	if len(invalidLabels) > 0 {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("%s %s.", fleet.InvalidLabelSpecifiedErrMsg, strings.Join(invalidLabels, ", ")),
+		}, "invalid labels")
 	}
 
 	var labelIDs []uint

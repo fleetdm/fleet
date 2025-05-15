@@ -98,7 +98,7 @@ func (k *kinesisLogWriter) validateStream() error {
 		return fmt.Errorf("describe stream %s: %w", k.stream, err)
 	}
 
-	if (*(*out.StreamDescription).StreamStatus) != kinesis.StreamStatusActive {
+	if (*out.StreamDescription.StreamStatus) != kinesis.StreamStatusActive {
 		return fmt.Errorf("stream %s not active", k.stream)
 	}
 

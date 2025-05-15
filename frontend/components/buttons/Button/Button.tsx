@@ -5,25 +5,17 @@ import Spinner from "components/Spinner";
 const baseClass = "button";
 
 export type ButtonVariant =
-  | "brand"
+  | "default"
   | "success"
   | "alert"
-  | "blue-green"
-  | "grey"
-  | "warning"
-  | "link"
-  | "label"
+  | "pill"
   | "text-link" // Underlines on hover
   | "text-icon"
   | "icon" // Buttons without text
-  | "small-icon" // Buttons without text
   | "inverse"
   | "inverse-alert"
-  | "block"
-  | "unstyled"
+  | "unstyled" // Avoid as much as possible (used in registration breadcrumbs, 404/500, an old button dropdown)
   | "unstyled-modal-query"
-  | "contextual-nav-item"
-  | "small-text-icon"
   | "oversized";
 
 export interface IButtonProps {
@@ -31,15 +23,23 @@ export interface IButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  size?: string;
   tabIndex?: number;
   type?: "button" | "submit" | "reset";
+  /** Text shown on tooltip when hovering over a button */
   title?: string;
+  /** Default: "default" */
   variant?: ButtonVariant;
   onClick?:
     | ((value?: any) => void)
-    | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
+    | ((
+        evt:
+          | React.MouseEvent<HTMLButtonElement>
+          | React.KeyboardEvent<HTMLButtonElement>
+      ) => void);
   isLoading?: boolean;
+  customOnKeyDown?: (e: React.KeyboardEvent) => void;
+  /** Required for buttons that contain SVG icons using`stroke` instead of`fill` for proper hover styling */
+  iconStroke?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -51,7 +51,6 @@ interface Inputs {
 
 class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
-    size: "",
     type: "button",
     variant: "default",
   };
@@ -75,32 +74,43 @@ class Button extends React.Component<IButtonProps, IButtonState> {
 
   inputs: Inputs = {};
 
-  handleClick = (evt: React.MouseEvent<HTMLButtonElement>): boolean => {
+  handleClick = (evt: React.MouseEvent<HTMLButtonElement>): void => {
     const { disabled, onClick } = this.props;
 
     if (disabled) {
-      return false;
+      return;
     }
 
     if (onClick) {
       onClick(evt);
     }
+  };
 
-    return false;
+  handleKeyDown = (evt: React.KeyboardEvent<HTMLButtonElement>): void => {
+    const { disabled, onClick } = this.props;
+
+    if (disabled || evt.key !== "Enter") {
+      return;
+    }
+
+    if (onClick) {
+      onClick(evt as any);
+    }
   };
 
   render(): JSX.Element {
-    const { handleClick, setRef } = this;
+    const { handleClick, handleKeyDown, setRef } = this;
     const {
       children,
       className,
       disabled,
-      size,
       tabIndex,
       type,
       title,
       variant,
       isLoading,
+      customOnKeyDown,
+      iconStroke,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -108,20 +118,21 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       className,
       {
         [`${baseClass}--disabled`]: disabled,
-        [`${baseClass}--${size}`]: size !== undefined,
+        [`${baseClass}--icon-stroke`]: iconStroke,
       }
     );
     const onWhite =
       variant === "text-link" ||
       variant === "inverse" ||
       variant === "text-icon" ||
-      variant === "label";
+      variant === "pill";
 
     return (
       <button
         className={fullClassName}
         disabled={disabled}
         onClick={handleClick}
+        onKeyDown={customOnKeyDown || handleKeyDown}
         tabIndex={tabIndex}
         type={type}
         title={title}

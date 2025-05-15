@@ -2,11 +2,19 @@
 
 This guide explains how to upgrade your Fleet instance to the latest version in order to get the latest features and bug fixes. For initial installation instructions, see [Installing Fleet](https://fleetdm.com/docs/deploy/deploy-fleet-on-centos#installing-fleet).
 
-There are three steps to perform a typical Fleet upgrade:
+There are four steps to perform a typical Fleet upgrade:
 
-1. [Installing the latest version](#install-the-latest-version-of-fleet)
-2. [Preparing the database](#prepare-the-database)
-3. [Serving the new Fleet instance](#serve-the-new-version)
+1. [Bringing Fleet offline](#bring_fleet_offline)
+2. [Installing the latest version](#install-the-latest-version-of-fleet)
+3. [Preparing the database](#prepare-the-database)
+4. [Serving the new Fleet instance](#serve-the-new-version)
+
+## Bring Fleet offline
+
+In order to avoid any errors while preparing the database for the new version of Fleet, all Fleet instances need to be shut down during the migration process. During a typical upgrade, you can expect 5-10 minutes
+of downtime. 
+
+> Your hosts will buffer any logs generated during this time and send those buffered logs once the server is brought online again. 
 
 ## Install the latest version of Fleet
 
@@ -41,8 +49,6 @@ It is always advised to [back up the database](https://dev.mysql.com/doc/refman/
 
 Database migrations in Fleet are intended to be run while the server is offline. Osquery is designed to be resilient to short downtime from the server, so no data will be lost from `osqueryd` clients in this process. Even on large Fleet installations, downtime during migrations is usually only seconds to minutes.
 
-> First, take the existing servers offline.
-
 Run database migrations:
 
 ```sh
@@ -56,6 +62,19 @@ Once Fleet has been replaced with the newest version and the database migrations
 ```sh
 fleet serve
 ```
+
+## AWS with Terraform
+
+If you are using Fleet's Terraform modules to manage your Fleet deployment to AWS, update the version in `main.tf`:
+
+```tf
+  fleet_config = {
+    image = "fleetdm/fleet:<version>" 
+    [...]
+  }
+```
+
+Run `terraform apply` to apply the changes.
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to upgrade your Fleet instance to the latest version.">

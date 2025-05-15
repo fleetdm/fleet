@@ -9,6 +9,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -43,8 +44,17 @@ func TestInviteNewUserMock(t *testing.T) {
 		Email: ptr.String("user@acme.co"),
 	}
 
+	payload.SSOEnabled = ptr.Bool(true)
+	payload.MFAEnabled = ptr.Bool(true)
+	_, err := svc.InviteNewUser(test.UserContext(context.Background(), test.UserAdmin), payload)
+	require.Error(t, err)
+
+	payload.SSOEnabled = nil
+	_, err = svc.InviteNewUser(test.UserContext(context.Background(), test.UserAdmin), payload)
+	require.ErrorContains(t, err, "license")
+
 	// happy path
-	invite, err := svc.InviteNewUser(test.UserContext(context.Background(), test.UserAdmin), payload)
+	invite, err := svc.InviteNewUser(license.NewContext(test.UserContext(context.Background(), test.UserAdmin), &fleet.LicenseInfo{Tier: fleet.TierPremium}), payload)
 	require.Nil(t, err)
 	assert.Equal(t, test.UserAdmin.ID, invite.InvitedBy)
 	assert.True(t, ms.NewInviteFuncInvoked)
@@ -67,6 +77,7 @@ func TestUpdateInvite(t *testing.T) {
 			ID:         1,
 			Name:       "John Appleseed",
 			Email:      "john_appleseed@example.com",
+			SSOEnabled: true,
 			GlobalRole: null.NewString("observer", true),
 		}, nil
 	}
@@ -96,6 +107,20 @@ func TestUpdateInvite(t *testing.T) {
 	_, err := svc.UpdateInvite(ctx, 1, payload)
 	require.NoError(t, err)
 	require.True(t, ms.InviteFuncInvoked)
+
+	payload = fleet.InvitePayload{MFAEnabled: ptr.Bool(true)}
+	_, err = svc.UpdateInvite(ctx, 1, payload)
+	require.Error(t, err)
+
+	payload = fleet.InvitePayload{MFAEnabled: ptr.Bool(true), SSOEnabled: ptr.Bool(false)}
+	_, err = svc.UpdateInvite(ctx, 1, payload)
+	require.ErrorContains(t, err, "license")
+
+	ms.UpdateInviteFuncInvoked = false
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	_, err = svc.UpdateInvite(ctx, 1, payload)
+	require.NoError(t, err)
+	require.True(t, ms.UpdateInviteFuncInvoked)
 }
 
 func TestVerifyInvite(t *testing.T) {

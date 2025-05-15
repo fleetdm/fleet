@@ -11,6 +11,7 @@ import {
 
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import { SelectedPlatform } from "interfaces/platform";
 
 import SoftwareOSTable from "./SoftwareOSTable";
 
@@ -24,7 +25,7 @@ interface ISoftwareOSProps {
   orderKey: string;
   currentPage: number;
   teamId?: number;
-  resetPageIndex: boolean;
+  platform: SelectedPlatform;
 }
 
 const SoftwareOS = ({
@@ -35,13 +36,14 @@ const SoftwareOS = ({
   orderKey,
   currentPage,
   teamId,
-  resetPageIndex,
+  platform,
 }: ISoftwareOSProps) => {
   const queryParams = {
     page: currentPage,
     per_page: perPage,
     order_direction: orderDirection,
     order_key: orderKey,
+    platform: platform === "all" ? undefined : platform,
     teamId,
   };
 
@@ -69,7 +71,7 @@ const SoftwareOS = ({
   }
 
   if (isError) {
-    return <TableDataError className={`${baseClass}__table-error`} />;
+    return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (
@@ -84,7 +86,7 @@ const SoftwareOS = ({
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isFetching}
-        resetPageIndex={resetPageIndex}
+        platform={platform}
       />
     </div>
   );

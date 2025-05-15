@@ -15,7 +15,7 @@ module.exports.routes = {
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
   'GET /profiles': { action: 'profiles/view-profiles' },
   'GET /scripts': { action: 'scripts/view-scripts' },
-
+  'GET /software': { action: 'software/view-software' },
   'GET /email/confirm':      { action: 'entrance/confirm-email' },
   'GET /email/confirmed':    { action: 'entrance/view-confirmed-email' },
 
@@ -62,4 +62,11 @@ module.exports.routes = {
   'GET /download-script':                                { action: 'scripts/download-script' },
   'POST /api/v1/upload-script':                          { action: 'scripts/upload-script' },
   'POST /api/v1/edit-script':                            { action: 'scripts/edit-script' },
+  'GET /api/v1/get-software':                            { action: 'get-software' },
+  'GET /download-software':                              { action: 'software/download-software' },
+  'POST /api/v1/software/delete-software':               { action: 'software/delete-software' },
+  'POST /api/v1/software/edit-software':                 { action: 'software/edit-software' },
+  'POST /api/v1/software/upload-software':               { action: 'software/upload-software' },
+  'GET /api/v1/get-labels':                              { action: 'get-labels' },
+  'GET  /entrance/signup-sso-user-or-redirect':    { action: 'entrance/signup-sso-user-or-redirect' },
 };

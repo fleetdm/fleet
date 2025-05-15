@@ -2,63 +2,66 @@ import React from "react";
 
 import InfoBanner from "components/InfoBanner";
 import Button from "components/buttons/Button";
-import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import { MacDiskEncryptionActionRequired } from "interfaces/host";
+import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
+import CustomLink from "components/CustomLink";
+import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
+import { Link } from "react-router";
 
 const baseClass = "device-user-banners";
 
-interface IDeviceUserBannersProps {
-  hostPlatform: string;
-  mdmEnrollmentStatus: MdmEnrollmentStatus | null;
+interface IDeviceUserBannersProps extends IHostBannersBaseProps {
   mdmEnabledAndConfigured: boolean;
-  mdmConnectedToFleet: boolean;
-  diskEncryptionStatus: DiskEncryptionStatus | null;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
   onTurnOnMdm: () => void;
+  onTriggerEscrowLinuxKey: () => void;
 }
 
 const DeviceUserBanners = ({
   hostPlatform,
+  hostOsVersion,
   mdmEnrollmentStatus,
   mdmEnabledAndConfigured,
-  mdmConnectedToFleet,
-  diskEncryptionStatus,
+  connectedToFleetMdm,
+  macDiskEncryptionStatus,
   diskEncryptionActionRequired,
   onTurnOnMdm,
+  diskEncryptionOSSetting,
+  diskIsEncrypted,
+  diskEncryptionKeyAvailable,
+  onTriggerEscrowLinuxKey,
 }: IDeviceUserBannersProps) => {
   const isMdmUnenrolled =
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
 
-  const diskEncryptionBannersEnabled =
-    mdmEnabledAndConfigured && mdmConnectedToFleet;
+  const mdmEnabledAndConnected = mdmEnabledAndConfigured && connectedToFleetMdm;
 
-  const showTurnOnMdmBanner =
+  const showTurnOnAppleMdmBanner =
     hostPlatform === "darwin" && isMdmUnenrolled && mdmEnabledAndConfigured;
 
-  const showDiskEncryptionKeyResetRequired =
-    diskEncryptionBannersEnabled &&
-    diskEncryptionStatus === "action_required" &&
+  const showMacDiskEncryptionKeyResetRequired =
+    mdmEnabledAndConnected &&
+    macDiskEncryptionStatus === "action_required" &&
     diskEncryptionActionRequired === "rotate_key";
 
   const turnOnMdmButton = (
-    <Button variant="unstyled" onClick={onTurnOnMdm}>
-      <b>Turn on MDM</b>
+    <Button variant="text-link" onClick={onTurnOnMdm}>
+      Turn on MDM
     </Button>
   );
 
   const renderBanner = () => {
-    if (showTurnOnMdmBanner) {
+    if (showTurnOnAppleMdmBanner) {
       return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>
           Mobile device management (MDM) is off. MDM allows your organization to
-          enforce settings, OS updates, disk encryption, and more. This lets
-          your organization keep your device up to date so you don&apos;t have
-          to.
+          change settings and install software. This lets your organization keep
+          your device up to date so you don&apos;t have to.
         </InfoBanner>
       );
     }
 
-    if (showDiskEncryptionKeyResetRequired) {
+    if (showMacDiskEncryptionKeyResetRequired) {
       return (
         <InfoBanner color="yellow">
           Disk encryption: Log out of your device or restart it to safeguard
@@ -66,6 +69,59 @@ const DeviceUserBanners = ({
           <strong>Refetch</strong> to clear this banner.
         </InfoBanner>
       );
+    }
+
+    // setting applies to a supported Linux host
+    if (
+      hostPlatform &&
+      isDiskEncryptionSupportedLinuxPlatform(
+        hostPlatform,
+        hostOsVersion ?? ""
+      ) &&
+      diskEncryptionOSSetting?.status
+    ) {
+      // host not in compliance with setting
+      if (!diskIsEncrypted) {
+        // banner 1
+        return (
+          <InfoBanner
+            cta={
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/encrypt-linux-device"
+                text="Guide"
+                variant="banner-link"
+              />
+            }
+            color="yellow"
+          >
+            Disk encryption: Follow the instructions in the guide to encrypt
+            your device. This lets your organization help you unlock your device
+            if you forget your password.
+          </InfoBanner>
+        );
+      }
+      // host disk is encrypted, so in compliance with the setting
+      if (!diskEncryptionKeyAvailable) {
+        // key is not escrowed: banner 3
+        return (
+          <InfoBanner
+            cta={
+              <Button
+                variant="text-link"
+                onClick={onTriggerEscrowLinuxKey}
+                className="create-key-button"
+              >
+                Create key
+              </Button>
+            }
+            color="yellow"
+          >
+            Disk encryption: Create a new disk encryption key. This lets your
+            organization help you unlock your device if you forget your
+            passphrase.
+          </InfoBanner>
+        );
+      }
     }
 
     return null;

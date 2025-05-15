@@ -13,9 +13,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in `#help-design`.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in `#help-design`.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/67) for this department, including pending tasks and the status of new requests.
 
 
 ## Responsibilities
@@ -23,38 +23,71 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Product Design department is responsible for reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team. Product Design prioritizes and shapes all changes involving functionality or usage, including the UI, REST API, command line, and webhooks. 
 
 
+### Unpacking the why
+
+The Head of Product Design and a former IT admin review the new customer/prospect/community requests in the "Inbox" column the [drafting board](https://github.com/orgs/fleetdm/projects/67) to synthesize why users are making the request (i.e. what problem are they trying to solve).
+
+If a customer/prospect request is missing a Gong snippet or requires additional information to understand the "why", the Head of Product Design will @ mention the relevant Customer Success Manager (CSM), assign them, and move the request to the [🏹 #g-customer-success](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board) board.
+
+
+### Unpacking the how
+
+3 weeks before end of each quarter, The Head of Product Design starts a daily 1h meeting with the CEO. The Head of Product Design brings an objective for the next quarter and the appropriate subject matter expert to understand what users will expect. This helps Product Designers at Fleet understand how Fleet will design a particular feature. 
+
+As soon as we've addressed the next quarter's objectives, the Head of Product Design cancels the daily meeting. 
+
+
+### Triage new bugs
+
+Product Designers are responsible for triaging all new reproduced bugs.
+
+Learn more [here](https://fleetdm.com/handbook/company/product-groups#in-product-drafting). 
+
+
 ### Drafting
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-- Take the top user story that is assigned to you in the "Ready" column of the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board) and move it to "In progress."
+1. Take the top user story that is assigned to you in the "Ready" column of the [drafting board](https://github.com/orgs/fleetdm/projects/67) and move it to "In progress."
   
-- Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project).
+2. Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
+   -  **Cover**: This page has a component with issue number, issue name, and status fields. There are three statuses: "Work In Progress (WIP)," "Approved," and "Released" (the drafting board is still the source of truth).
+   -  **Ready**: Use this page to communicate design reviews and development.
+   -  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
 
-- The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
-  -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
-  -  **Ready.** Use this page to communicate designs reviews and development.
-  -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
+3. Add page names (e.g. "Host details" page) to the user story's title and/or description to help contributors find Figma wireframes for the area of the UI you're making changes to.
 
-- If the story requires API or YAML file changes, open a pull request to the reference docs release branch (e.g. `docs-v4.58.0`) with the proposed design. Mark the PR ready for review as soon as it's ready for feedback from the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
+4. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
+   - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
+   - Add a link to the issue in the PR description.
+   - Attach the `~api-or-yaml-design` label.
+   - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
+   - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
 
-- Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
+5. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
-- Draft changes to the Fleet product that solve the problem specified in the story. Constantly place yourself in the shoes of a user while drafting changes. Place these drafts in the appropriate Figma file in Fleet product project.
+6. Draft changes to the Fleet product that solve the problem specified in the story.
+   - Constantly place yourself in the shoes of a user while drafting changes.
+   - Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
+   - Engage engineering to gain insight into technical costs and feasibility.
 
-- Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
+> When significant input from engineering is necessary, notify the EM so that they can create a timebox issue and decide if planned work can be deprioritized.
 
-- To help contributors find Figma wireframes for the area of the UI you're making changes to, add page names (ex. Host details page) to the user story's title and/or description.
+Additionally:
 
-- Be intentional about changes to design components (e.g. button border-radius or modal width) because these are expensive. They'll require code changes and QA in multiple parts of the product. Propose changes to a design component as part of an already-prioritized user story instead of [making a new request](#making-a-request) in 🎁🗣 Feature Fest.
-
-- Reach out to sales, customer success, and demand for a business perspective.
-
-- Engage engineering to gain insight into technical costs and feasibility.
+- To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](#making-a-request) and attach the `:improve design system` label.
 
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
 
->**Questions, missing information, and notes:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but it is not easy to search for outstanding concerns and is therefore not preferred. Also, commenting in Figma, sends all contributors email notifications.
+- Each [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) stops drafting once they reach engineering capacity for the upcoming engineering sprint. This way, we avoid creating a backlog which causes us to spend time updating soon-to-be stale designs. It's up to the product group's Product Designer to stop drafting and shift their focus to the following tasks:
+  - Wireframing for air guitars. This way, we can see further ahead and make better design and engineering decisions.
+  - Dogfooding: pick up any issues in the "New requests" or "Ready" column on the 🍽️ Dogfood board
+  - Run back through the test plan for unestimated user stories and make sure they're as good as we think they are
+  - Go through the Fleet UI and look for bad/inconsistent text
+  - Go through the reference docs and look for issues (inconsistent naming/formatting, broken links, etc.)
+  - File stories and draft changes for making form fields in the Fleet UI consistent (fixing conventions, moving out the tooltips, etc.)
+
+>**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but we use GitHub issues so that all questions/conversation live in one place.
 >
 >For external contributors: please consider opening an issue with reference screenshots if you have a Figma related question you need to resolve.
 
@@ -75,8 +108,9 @@ The EM is responsible for moving the user story to the "Specified" and "Estimate
 
 Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
 
-Once a bug is approved in design review, The Product Designer is responsible for moving the bug to the appropriate release board.
+If the story is tied to a customer feature request, the Head of Product Design (HPD) is responsible for adding the feature request issue to the [🏹 #g-customer-success board](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board). This way the Customer Success Manager (CSM) can review the wireframes and provide feedback on whether the proposed changes solve the customer's problem. If the changes don't, it's up to the HPD to decide whether to bring the user story back for more drafting or file a follow up user story (iteration).
 
+Sometimes, a Product Designer from one product group will draft a user story or bug that is implemented by a different product group. This happens when the original product group is constrained by design or engineering capacity. If this happens, it's up to the original Product Designer to update the "Product Designer" mentioned in the user story or bug and ramp up the new Product Designer so they are prepared to answers questions.
 
 ### Revise a draft currently in development
 
@@ -90,25 +124,16 @@ You'll know it's time for expedited drafting when:
 - A user story on the drafting board won't reach "Ready for spec" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
 
 What happens during expedited drafting?
-1. If the story has a requester, notify the requester. The customer DRI should confirm that the updated scope still meets the requester's need.
-2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
-3. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in the `#g-mdm` or `#g-endpoint-ops` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
+1. If the story has a requester, notify the [customer support DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). The customer support DRI should confirm that the updated scope still meets the requester's need.
+2. If the user story wasn't "Ready for spec" by the last estimation session, the product group's engineering manager (EM), [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) (release DRI), and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` Slack channel. Decision to allow the user story to make it into the sprint is up to the release DRI.
+3. If the user story is already in the sprint, the EM, QA, release DRI, and Head of Product Design are notified in the `#g-mdm`, `#g-orchestration`, `#g-software` channel. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
 4. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
 5. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 
 
 ### Write a user story
 
-Product Managers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
-
-
-### Draft a user story
-
-Product Designers [draft user stories](https://fleetdm.com/handbook/company/product-groups#drafting) that have been prioritized by PMs. If the estimated user stories for a product group exceed [that group's capacity](https://fleetdm.com/handbook/company/product-groups#current-product-groups), all new design work for that group is paused, and the designer will contribute in other ways (documentation & handbook work, Figma maintenance, QA, etc.) until the PM deprioritizes estimated stories to make room, or until the next sprint begins. (If the designer has existing work-in-progress, they will continue to review and iterate on those designs and see the stories through to estimation.)
-
-If an issue's title or user story summary (_"as a…I want to…so that"_) does not match the intended change being discussed, the designer will move the issue to the "Needs clarity" column of the drafting board and assign the group product manager.  The group product manager will revisit ASAP and edit the issue title and user story summary, then reassign the designer and move the issue back to the "Prioritized" column.
-
-Engineering Managers estimate user stories.  They are responsible for delivering planned work in the current sprint (0-3 weeks) while quickly getting user stories estimated for the next sprint (3-6 weeks).  Only work that is slated to be released into the hands of users within ≤six weeks will be estimated. Estimation is run by each group's Engineering Manager and occurs on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board).
+Product Managers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://github.com/orgs/fleetdm/projects/67). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
 
 ### Consider a feature eligible to be flagged
@@ -125,15 +150,30 @@ At Fleet, features are placed behind feature flags if the changes could affect F
 > Fleet's feature flag guidelines is borrowed from GitLab's ["When to use feature flags" section](https://about.gitlab.com/handbook/product-development-flow/feature-flag-lifecycle/#when-to-use-feature-flags) of their handbook. Check out [GitLab's "Feature flags only when needed" video](https://www.youtube.com/watch?v=DQaGqyolOd8) for an explanation of the costs of introducing feature flags.
 
 
-### View Fleet usage statistics
+### Prepare reference docs for release
 
-In order to understand the usage of the Fleet product, we [collect statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) from installations where this functionality is enabled.
+Every change to how Fleet is used is reflected live on the website in reference documentation **at release day** (REST API, config surface, tables, and other already-existing docs under /docs/using-fleet).
 
-Fleeties can view these statistics in the Google spreadsheet [Fleet
-usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit#gid=0)
-available in Google Drive.
+To make sure this happens, first, the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) @ mentions the [API design DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) in a message in [#help-engineering Slack channel](https://fleetdm.slack.com/archives/C019WG4GH0A) when we cut the release candidate (RC). 
 
-Some of the data is forwarded to [Datadog](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleeties.
+Next, the API design DRI reviews all user stories and bugs with the release milestone to check that all reference doc PRs are merged into the reference docs release branch. To see which stories were pushed to the next release, and thus which reference doc changes need to be removed from the branch, the API design DRI filters issues by the `~pushed` label and the next release's milestone.
+
+To signal that the reference docs branch is ready for release, the API design DRI opens a PR to `main`, adds the DRI for what goes in a release as the reviewer, and adds the release milestone.
+
+> Anytime there is a missing or incorrect configuration option or REST API endpoint in the docs, it is treated as a released bug to be filed and fixed ASAP.
+
+### Interview a Product Designer candidate
+
+Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications).
+
+1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30 minute introduction call.
+2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
+2. **Deliver design challenge**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and ask them to complete and send their project back within 5 business days.
+5. **Schedule design challenge interview**: Send the candidate a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate. An additional Product Designer can optionally join if available.
+6. **Schedule EM interview**: Send the candidate a calendly link for 30m talk with the Engineering Manager (EM) of the [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) the candidate will be working with.
+7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
+
+If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
 
 ## Rituals
@@ -149,10 +189,6 @@ Please see [handbook/product-design#rituals](https://fleetdm.com/handbook/produc
 ##### New CIS benchmarks
 Please see [handbook/product#submit-a-new-cis-benchmark-set-for-certification](https://fleetdm.com/handbook/product#submit-a-new-cis-benchmark-set-for-certification)
 
-##### Usage statistics
-Please see [handbook/product#view-fleet-usage-statistics](https://fleetdm.com/handbook/product#view-fleet-usage-statistics)
-
-Please see [handbook/product#create-a-new-figma-file](https://fleetdm.com/handbook/product#create-a-new-figma-file) for **below**
 ##### Create a new file
 ##### Wireframing
 Please see [handbook/product#create-a-new-figma-file](https://fleetdm.com/handbook/product#create-a-new-figma-file) for **above**

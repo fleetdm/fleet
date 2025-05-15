@@ -1,0 +1,11 @@
+{
+  "name": "Google Chrome",
+  "slug": "google-chrome/windows",
+  "package_identifier": "Google.Chrome",
+  "unique_identifier": "Google Chrome",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "default_categories": ["Browsers"]
+}

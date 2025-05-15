@@ -36,7 +36,7 @@ const RenewCertModal = ({
 
   const onRenewClick = useCallback(async () => {
     if (!certFile) {
-      // this shouldn'r happen, but just in case
+      // this shouldn't happen, but just in case
       renderFlash("error", "Please provide a certificate file.");
       return;
     }
@@ -125,7 +125,6 @@ const RenewCertModal = ({
             className={`${baseClass}__submit-button ${
               isUploading ? `uploading` : ""
             }`}
-            variant="brand"
             disabled={!certFile || isUploading}
             isLoading={isUploading}
             type="button"

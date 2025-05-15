@@ -20,6 +20,7 @@ const PolicyDetailsModal = ({
     <Modal
       title={`${policy?.name || "Policy name"}`}
       onExit={onCancel}
+      onEnter={onCancel}
       className={baseClass}
     >
       <div className={`${baseClass}__body`}>
@@ -33,9 +34,7 @@ const PolicyDetailsModal = ({
           </div>
         )}
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </div>
     </Modal>

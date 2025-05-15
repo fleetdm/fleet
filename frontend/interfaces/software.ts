@@ -3,7 +3,9 @@ import PropTypes from "prop-types";
 
 import { IconNames } from "components/icons";
 
+import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
 import vulnerabilityInterface from "./vulnerability";
+import { ILabelSoftwareTitle } from "./label";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -34,7 +36,7 @@ export interface ISoftware {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
-  source: string; // "apps" | "ipados_apps" | "ios_apps" | "programs" | ?
+  source: string; // "apps" | "ipados_apps" | "ios_apps" | "programs" | "rpm_packages" | "deb_packages" | ?
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
@@ -55,22 +57,52 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
+export interface ISoftwareInstallPolicy {
+  id: number;
+  name: string;
+}
+
+export type SoftwareCategory =
+  | "Browsers"
+  | "Communication"
+  | "Developer tools"
+  | "Productivity";
+
+export interface ISoftwarePackageStatus {
+  installed: number;
+  pending_install: number;
+  failed_install: number;
+  pending_uninstall: number;
+  failed_uninstall: number;
+}
+
+export interface ISoftwareAppStoreAppStatus {
+  installed: number;
+  pending: number;
+  failed: number;
+}
+
 export interface ISoftwarePackage {
   name: string;
+  last_install: string | null;
+  last_uninstall: string | null;
+  package_url: string;
   version: string;
   uploaded_at: string;
   install_script: string;
+  uninstall_script: string;
   pre_install_query?: string;
   post_install_script?: string;
+  automatic_install?: boolean; // POST only
   self_service: boolean;
   icon_url: string | null;
-  status: {
-    installed: number;
-    pending_install: number;
-    failed_install: number;
-    pending_uninstall: number;
-    failed_uninstall: number;
-  };
+  status: ISoftwarePackageStatus;
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  install_during_setup?: boolean;
+  labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_exclude_any: ILabelSoftwareTitle[] | null;
+  categories?: SoftwareCategory[];
+  fleet_maintained_app_id?: number | null;
 }
 
 export const isSoftwarePackage = (
@@ -82,25 +114,39 @@ export interface IAppStoreApp {
   name: string;
   app_store_id: number;
   latest_version: string;
+  created_at: string;
   icon_url: string;
   self_service: boolean;
-  status: {
-    installed: number;
-    pending: number;
-    failed: number;
-  };
+  platform: typeof HOST_APPLE_PLATFORMS[number];
+  status: ISoftwareAppStoreAppStatus;
+  install_during_setup?: boolean;
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  automatic_install?: boolean;
+  last_install?: {
+    install_uuid: string;
+    command_uuid: string;
+    installed_at: string;
+  } | null;
+  last_uninstall?: {
+    script_execution_id: string;
+    uninstalled_at: string;
+  } | null;
+  version?: string;
+  labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_exclude_any: ILabelSoftwareTitle[] | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface ISoftwareTitle {
   id: number;
   name: string;
   versions_count: number;
-  source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
+  source: SoftwareSource;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
-  browser?: string;
+  browser?: BrowserType;
 }
 
 export interface ISoftwareTitleDetails {
@@ -108,12 +154,12 @@ export interface ISoftwareTitleDetails {
   name: string;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
-  source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
+  source: SoftwareSource;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
-  versions_updated_at?: string;
+  counts_updated_at?: string;
   bundle_identifier?: string;
-  browser?: string;
+  browser?: BrowserType;
   versions_count?: number;
 }
 
@@ -134,8 +180,8 @@ export interface ISoftwareVersion {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
-  source: string; // "apps" | "ipados_apps" | "ios_apps" | ?
-  browser: string; // e.g., "chrome"
+  source: SoftwareSource;
+  browser: BrowserType;
   release: string; // TODO: on software/verions/:id?
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
@@ -144,7 +190,7 @@ export interface ISoftwareVersion {
   hosts_count?: number;
 }
 
-export const SOURCE_TYPE_CONVERSION: Record<string, string> = {
+export const SOURCE_TYPE_CONVERSION = {
   apt_sources: "Package (APT)",
   deb_packages: "Package (deb)",
   portage_packages: "Package (Portage)",
@@ -153,6 +199,7 @@ export const SOURCE_TYPE_CONVERSION: Record<string, string> = {
   npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
+  tgz_packages: "Package (tar)",
   apps: "Application (macOS)",
   ios_apps: "Application (iOS)",
   ipados_apps: "Application (iPadOS)",
@@ -167,7 +214,36 @@ export const SOURCE_TYPE_CONVERSION: Record<string, string> = {
   vscode_extensions: "IDE extension (VS Code)",
 } as const;
 
-const BROWSER_TYPE_CONVERSION: Record<string, string> = {
+export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
+
+/** Map installable software source to platform  */
+export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
+  apt_sources: "linux",
+  deb_packages: "linux",
+  portage_packages: "linux",
+  rpm_packages: "linux",
+  yum_sources: "linux",
+  tgz_packages: "linux",
+  npm_packages: null,
+  atom_packages: null,
+  python_packages: null,
+  apps: "darwin",
+  ios_apps: "ios",
+  ipados_apps: "ipados",
+  chrome_extensions: null,
+  firefox_addons: null,
+  safari_extensions: null,
+  homebrew_packages: "darwin",
+  programs: "windows",
+  ie_extensions: null,
+  chocolatey_packages: "windows",
+  pkg_packages: "darwin",
+  vscode_extensions: null,
+} as const;
+
+export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
+
+const BROWSER_TYPE_CONVERSION = {
   chrome: "Chrome",
   chromium: "Chromium",
   opera: "Opera",
@@ -177,14 +253,16 @@ const BROWSER_TYPE_CONVERSION: Record<string, string> = {
   edge_beta: "Edge Beta",
 } as const;
 
+export type BrowserType = keyof typeof BROWSER_TYPE_CONVERSION;
+
 export const formatSoftwareType = ({
   source,
   browser,
 }: {
-  source: string;
-  browser?: string;
+  source: SoftwareSource;
+  browser?: BrowserType;
 }) => {
-  let type = SOURCE_TYPE_CONVERSION[source] || "Unknown";
+  let type: string = SOURCE_TYPE_CONVERSION[source] || "Unknown";
   if (browser) {
     type = `Browser plugin (${
       BROWSER_TYPE_CONVERSION[browser] || startCase(browser)
@@ -270,7 +348,7 @@ export interface ISoftwareInstallResults {
 
 // ISoftwareInstallerType defines the supported installer types for
 // software uploaded by the IT admin.
-export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "exe";
+export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "rpm" | "exe";
 
 export interface ISoftwareLastInstall {
   install_uuid: string;
@@ -292,9 +370,10 @@ export interface ISoftwareInstallVersion {
 export interface IHostSoftwarePackage {
   name: string;
   self_service: boolean;
-  icon_url: string;
+  icon_url: string | null;
   version: string;
   last_install: ISoftwareLastInstall | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface IHostAppStoreApp {
@@ -303,6 +382,7 @@ export interface IHostAppStoreApp {
   icon_url: string;
   version: string;
   last_install: IAppLastInstall | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface IHostSoftware {
@@ -310,7 +390,7 @@ export interface IHostSoftware {
   name: string;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
-  source: string;
+  source: SoftwareSource;
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
@@ -389,3 +469,36 @@ export const hasHostSoftwareAppLastInstall = (
 
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
+
+export interface IFleetMaintainedApp {
+  id: number;
+  name: string;
+  version: string;
+  platform: FleetMaintainedAppPlatform;
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
+}
+
+export type FleetMaintainedAppPlatform = Extract<
+  Platform,
+  "darwin" | "windows"
+>;
+
+export interface ICombinedFMA {
+  name: string;
+  macos: Omit<IFleetMaintainedApp, "name"> | null;
+  windows: Omit<IFleetMaintainedApp, "name"> | null;
+}
+export interface IFleetMaintainedAppDetails {
+  id: number;
+  name: string;
+  version: string;
+  platform: FleetMaintainedAppPlatform;
+  pre_install_script: string;
+  install_script: string;
+  post_install_script: string;
+  uninstall_script: string;
+  url: string;
+  slug: string;
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
+  categories: SoftwareCategory[];
+}

@@ -18,7 +18,7 @@ parasails.registerPage('start', {
       'what-does-your-team-manage-eo-it': {},
       'what-does-your-team-manage-vm': {},
       'what-do-you-manage-mdm': {},
-      'cross-platform-mdm': {stepCompleted: true},
+      'message-about-cross-platform-mdm': {stepCompleted: true},
       'is-it-any-good': {stepCompleted: true},
       'what-did-you-think': {},
       'deploy-fleet-in-your-environment': {stepCompleted: true},
@@ -97,7 +97,7 @@ parasails.registerPage('start', {
       this.psychologicalStage = this.me.psychologicalStage;
     }
     if(window.location.hash) {
-      if(typeof analytics !== 'undefined') {
+      if(window.analytics !== undefined) {
         if(window.location.hash === '#signup') {
           analytics.identify(this.me.id, {
             email: this.me.emailAddress,
@@ -198,10 +198,10 @@ parasails.registerPage('start', {
           } else if(primaryBuyingSituation === 'vm') {
             this.currentStep = 'what-does-your-team-manage-vm';
           } else if(primaryBuyingSituation === 'mdm') {
-            this.currentStep = 'cross-platform-mdm';
+            this.currentStep = 'message-about-cross-platform-mdm';
           }
           break;
-        case 'cross-platform-mdm':
+        case 'message-about-cross-platform-mdm':
           this.currentStep = 'what-do-you-manage-mdm';
           break;
         case 'lets-talk-to-your-team':
@@ -268,15 +268,13 @@ parasails.registerPage('start', {
           break;
         case 'how-many-hosts':
           if(this.formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-recently-deployed' || this.formData['have-you-ever-used-fleet'].fleetUseStatus === 'yes-deployed') {
-            if(this.formData['how-many-hosts'].numberOfHosts === '1-100' ||
-              this.formData['how-many-hosts'].numberOfHosts === '100-700') {
+            if(['1-100','100-700','100-300'].includes(this.formData['how-many-hosts'].numberOfHosts)) {
               nextStepInForm = 'will-you-be-self-hosting';
             } else {
               nextStepInForm = 'lets-talk-to-your-team';
             }
           } else {
-            if(this.formData['how-many-hosts'].numberOfHosts === '1-100' ||
-              this.formData['how-many-hosts'].numberOfHosts === '100-700') {
+            if(['1-100','100-700','100-300'].includes(this.formData['how-many-hosts'].numberOfHosts)) {
               nextStepInForm = 'managed-cloud-for-growing-deployments';
             } else {
               nextStepInForm = 'lets-talk-to-your-team';
@@ -300,9 +298,9 @@ parasails.registerPage('start', {
           nextStepInForm = 'is-it-any-good';
           break;
         case 'what-do-you-manage-mdm':
-          nextStepInForm = 'cross-platform-mdm';
+          nextStepInForm = 'message-about-cross-platform-mdm';
           break;
-        case 'cross-platform-mdm':
+        case 'message-about-cross-platform-mdm':
           nextStepInForm = 'is-it-any-good';
           break;
         case 'is-it-any-good':

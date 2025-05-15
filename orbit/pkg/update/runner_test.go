@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -34,19 +35,26 @@ func TestNewRunner(t *testing.T) {
 
 	runnerOpts := RunnerOptions{
 		CheckInterval: 1 * time.Second,
-		Targets:       []string{"osqueryd"},
+		Targets:       []string{constant.OsqueryTUFTargetName},
 	}
+
 	// NewRunner should not fail if targets do not exist locally.
 	r, err := NewRunner(u, runnerOpts)
 	require.NoError(t, err)
-	execPath, err := u.ExecutableLocalPath("osqueryd")
-	require.NoError(t, err)
+
+	// ExecutableLocalPath fails if the target does not exist in the expected path.
+	execPath, err := u.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+	require.Error(t, err)
 	require.NoFileExists(t, execPath)
 
 	// r.UpdateAction should download osqueryd.
 	didUpdate, err := r.UpdateAction()
 	require.NoError(t, err)
 	require.True(t, didUpdate)
+
+	// ExecutableLocalPath should now succeed.
+	execPath, err = u.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+	require.NoError(t, err)
 	require.FileExists(t, execPath)
 
 	// Create another Runner but with the target already existing.
@@ -106,7 +114,7 @@ func TestGetVersion(t *testing.T) {
 				require.NoError(t, err)
 				_, err = file.WriteString(tc.cmd)
 				require.NoError(t, err)
-				err = file.Chmod(0755)
+				err = file.Chmod(0o755)
 				require.NoError(t, err)
 				_ = file.Close()
 
@@ -137,8 +145,9 @@ func TestGetVersion(t *testing.T) {
 	}
 }
 
-func TestCompareVersion(t *testing.T) {
+func TestGetAndCompareVersion(t *testing.T) {
 	if runtime.GOOS == "windows" {
+		// windows filesystem writes require different cmd syntax
 		t.Skip("Skipping test on Windows")
 	}
 	t.Parallel()
@@ -194,15 +203,16 @@ func TestCompareVersion(t *testing.T) {
 				require.NoError(t, err)
 				_, err = file.WriteString(tc.cmd)
 				require.NoError(t, err)
-				err = file.Chmod(0755)
+				err = file.Chmod(0o755)
 				require.NoError(t, err)
 				_ = file.Close()
 
 				// "text file busy" is a Go issue when executing file just written: https://github.com/golang/go/issues/22315
 				var result *int
+				var newVersion string
 				retries := 0
 				for {
-					result, err = compareVersion(file.Name(), tc.oldVersion, "target")
+					newVersion, err = GetVersion(file.Name())
 					if err != nil {
 						t.Log(err)
 						if strings.Contains(err.Error(), "text file busy") {
@@ -219,6 +229,7 @@ func TestCompareVersion(t *testing.T) {
 						break
 					}
 				}
+				result = compareVersion(newVersion, tc.oldVersion, "target")
 				assert.Equal(t, tc.expected, result)
 			},
 		)

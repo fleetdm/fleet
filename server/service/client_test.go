@@ -1,12 +1,16 @@
 package service
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -137,8 +141,16 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
 				got := extractAppCfgMacOSCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
+				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				require.True(t, ok)
+				mdm["macos_settings"] = fleet.MacOSSettings{CustomSettings: c.want}
+				got = extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}
@@ -271,8 +283,18 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
 				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
+				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				require.True(t, ok)
+				windowsSettings := fleet.WindowsSettings{}
+				windowsSettings.CustomSettings = optjson.SetSlice(c.want)
+				mdm["windows_settings"] = windowsSettings
+				got = extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}
@@ -741,6 +763,45 @@ func TestGetProfilesContents(t *testing.T) {
 				require.Len(t, profileContents, len(tt.want))
 				require.ElementsMatch(t, tt.want, profileContents)
 			}
+		})
+	}
+}
+
+func TestGitOpsErrors(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	client, err := NewClient("https://foo.bar", true, "", "")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		rawJSON string
+		wantErr string
+	}{
+		{
+			name:    "invalid integrations value",
+			rawJSON: `{ "integrations": false }`,
+			wantErr: "org_settings.integrations",
+		},
+		{
+			name:    "invalid ndes_scep_proxy value",
+			rawJSON: `{ "integrations": { "ndes_scep_proxy": [] } }`,
+			wantErr: "org_settings.integrations.ndes_scep_proxy",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &spec.GitOps{}
+			config.OrgSettings = make(map[string]interface{})
+			// Signal that we don't want to send any labels.
+			// This avoids this test attempting to make a request to the GetLabels endpoint.
+			config.Labels = make([]*fleet.LabelSpec, 0)
+			err = json.Unmarshal([]byte(tt.rawJSON), &config.OrgSettings)
+			require.NoError(t, err)
+			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
+			_, _, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil)
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }

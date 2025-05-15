@@ -61,6 +61,7 @@ export interface ITeam extends ITeamSummary {
       enable_end_user_authentication: boolean;
       macos_setup_assistant: string | null;
       enable_release_device_manually: boolean | null;
+      manual_agent_install: boolean | null;
     };
     windows_updates: {
       deadline_days: number | null;
@@ -132,7 +133,7 @@ export const APP_CONTEXT_ALL_TEAMS_SUMMARY: ITeamSummary = {
 
 export const API_NO_TEAM_ID = 0;
 export const APP_CONTEXT_NO_TEAM_ID = 0;
-export const APP_CONTEX_NO_TEAM_SUMMARY: ITeamSummary = {
+export const APP_CONTEXT_NO_TEAM_SUMMARY: ITeamSummary = {
   id: APP_CONTEXT_NO_TEAM_ID,
   name: "No team",
 } as const;

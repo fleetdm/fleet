@@ -16,6 +16,7 @@ import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import AddVppModal from "./components/AddVppModal";
 import RenewVppModal from "./components/RenewVppModal";
@@ -24,30 +25,6 @@ import VppTable from "./components/VppTable";
 import EditTeamsVppModal from "./components/EditTeamsVppModal";
 
 const baseClass = "vpp-page";
-
-interface ITurnOnMdmMessageProps {
-  router: InjectedRouter;
-}
-
-const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
-  return (
-    <div className={`${baseClass}__turn-on-mdm-message`}>
-      <h2>Turn on Apple MDM</h2>
-      <p>
-        To install Apple App Store apps purchased through Apple Business
-        Manager, first turn on Apple MDM.
-      </p>
-      <Button
-        variant="brand"
-        onClick={() => {
-          router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-        }}
-      >
-        Turn on
-      </Button>
-    </div>
-  );
-};
 
 interface IAddVppMessageProps {
   onAddVpp: () => void;
@@ -60,9 +37,7 @@ const AddVppMessage = ({ onAddVpp }: IAddVppMessageProps) => {
       <p>
         Install Apple App Store apps purchased through Apple Business Manager.
       </p>
-      <Button variant="brand" onClick={onAddVpp}>
-        Add VPP
-      </Button>
+      <Button onClick={onAddVpp}>Add VPP</Button>
     </div>
   );
 };
@@ -163,7 +138,14 @@ const VppPage = ({ router }: IVppPageProps) => {
     }
 
     if (!config?.mdm.enabled_and_configured) {
-      return <TurnOnMdmMessage router={router} />;
+      return (
+        <TurnOnMdmMessage
+          router={router}
+          header="Turn on Apple MDM"
+          info=" To install Apple App Store apps purchased through Apple Business
+        Manager, first turn on Apple MDM."
+        />
+      );
     }
 
     if (isLoading) {
@@ -172,11 +154,7 @@ const VppPage = ({ router }: IVppPageProps) => {
 
     // TODO: error UI
     if (showDataError) {
-      return (
-        <div>
-          <DataError />
-        </div>
-      );
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (vppTokens?.length === 0) {
@@ -217,9 +195,7 @@ const VppPage = ({ router }: IVppPageProps) => {
             {isPremiumTier &&
               vppTokens?.length !== 0 &&
               !!config?.mdm.enabled_and_configured && (
-                <Button variant="brand" onClick={onAddVpp}>
-                  Add VPP
-                </Button>
+                <Button onClick={onAddVpp}>Add VPP</Button>
               )}
           </div>
           <>{renderContent()}</>

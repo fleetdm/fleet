@@ -1,0 +1,12 @@
+<Replace>
+  <!-- Disable OneDrive -->     
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>

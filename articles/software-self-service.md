@@ -10,7 +10,7 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 
 > Software packages can be added to a specific team or to the "No team" category. The "No team" category is the default assignment for hosts that are not part of any specific team.
 
-## Step-by-Step Instructions
+## Step-by-step instructions
 
 ### Adding a self-service software package
 
@@ -18,11 +18,12 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 2. **Select a team**: Click the dropdown in the upper left corner of the page and click on the team to which you want to add the software package.
 3. **Open the “Add software” modal**: Click the “Add software” button in the upper right corner of the page.
 4. **Select a software package to upload**: Click “Choose file” in the “Add software” modal and select a software package from your computer.
-5. **Advanced options**: If desired, click “Advanced options” to add a pre-install condition or post-install script to your software package.
+5. **Select the hosts that you want to target**: Select "All hosts" if you want the software to be available to all your hosts. Select "Custom" to scope the software to specific groups of hosts based on label membership. You can select "Include any", which will scope the software to hosts that have any of the labels you select, or "Exclude any", which will scope the software to hosts that do _not_ have the selected labels.
+6. **Advanced options**: If desired, click “Advanced options” to add a pre-install condition or post-install script to your software package.
     * **Pre-install condition**: This is an osquery query that results in true. For example, you might require a specific software title to exist before installing additional extensions.
     * **Post-install script**: This might be used to apply a license key, perform configuration tasks, or execute cleanup tasks after the software installation.
-6. **Make the software package self-service**: Check the “Self-service” checkbox to mark the software package as self-service.
-7. **Finish the upload**: Click the “Add software” button to finish the upload process.
+7. **Make the software package self-service**: Check the “Self-service” checkbox to mark the software package as self-service.
+8. **Finish the upload**: Click the “Add software” button to finish the upload process.
 
 ### Editing a self-service software package
 

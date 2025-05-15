@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -30,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,6 +45,9 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		MDM: config.MDMConfig{
 			AppleSCEPCertBytes: eeservice.TestCert,
 			AppleSCEPKeyBytes:  eeservice.TestKey,
+		},
+		Server: config.ServerConfig{
+			PrivateKey: "foo",
 		},
 	}
 	depStorage := &nanodep_mock.Storage{}
@@ -83,10 +88,11 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		ds,
 		nil,
-		nil,
 		&fleet.NoOpGeoIP{},
 		nil,
 		depStorage,
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -202,7 +208,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			return nil, errors.New("not implemented")
 		}
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
 			return nil, errors.New("not implemented")
 		}
 		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
@@ -230,11 +236,13 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
 		}
-		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 		require.NoError(t, err)
 		certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
 		require.NoError(t, err)
-		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
 				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
@@ -294,7 +302,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 					return nil, errors.New("team name already exists")
 				}
 			}
-			id := uint(len(teamStore) + 1)
+			id := uint(len(teamStore) + 1) //nolint:gosec // dismiss G115
 			_, ok := teamStore[id]
 			require.False(t, ok) // sanity check
 			team.ID = id
@@ -317,7 +325,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			teamStore[tm.ID] = team
 			return team, nil
 		}
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, lastTeamID, *profile.TeamID)
 			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profile.Identifier)
 			return &profile, nil
@@ -439,7 +447,8 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		// a custom setup assistant
 		setupAsstByTeam[0] = nil
 
-		preassignGrousWithFoo := append(preassignGroups, "foo")
+		preassignGrousWithFoo := preassignGroups
+		preassignGrousWithFoo = append(preassignGrousWithFoo, "foo")
 		team, err = svc.GetOrCreatePreassignTeam(ctx, preassignGrousWithFoo)
 		require.NoError(t, err)
 		require.Equal(t, uint(4), team.ID)
@@ -502,7 +511,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 					return nil, errors.New("team name already exists")
 				}
 			}
-			id := uint(len(teamStore) + 1)
+			id := uint(len(teamStore) + 1) //nolint:gosec // dismiss G115
 			_, ok := teamStore[id]
 			require.False(t, ok) // sanity check
 			require.Equal(t, "new team", team.Name)
@@ -540,7 +549,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 					return nil, errors.New("team name already exists")
 				}
 			}
-			id := uint(len(teamStore) + 1)
+			id := uint(len(teamStore) + 1) //nolint:gosec // dismiss G115
 			_, ok := teamStore[id]
 			require.False(t, ok)                                                           // sanity check
 			require.Equal(t, "new team spec", team.Name)                                   // set

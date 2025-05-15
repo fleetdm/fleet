@@ -1,0 +1,5 @@
+// Required specificity to override text-cell
+.data-table-block .data-table tbody td .installer-action-cell {
+  display: flex;
+  justify-content: center;
+}

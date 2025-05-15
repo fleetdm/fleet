@@ -34,5 +34,3 @@ columns:
     platforms:
       - linux
       - darwin
-notes: |-
-  - This table should be used sparingly as it uses an Apple API which occasionally corrupts the underlying certificate. Learn more [here](https://github.com/fleetdm/fleet/issues/13065#issuecomment-1658849614).

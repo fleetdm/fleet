@@ -1,0 +1,23 @@
+.tab-text {
+  display: flex;
+  flex-direction: row;
+  gap: $pad-small;
+  align-items: center;
+  height: 21px;
+
+  &__count {
+    display: flex;
+    padding: 1px 12px;
+    justify-content: center;
+    align-items: center;
+    background-color: $core-vibrant-blue;
+    border-radius: 29px;
+    color: $core-white;
+    font-weight: $bold;
+    font-size: $xx-small;
+
+    &--error {
+      background-color: $core-vibrant-red;
+    }
+  }
+}

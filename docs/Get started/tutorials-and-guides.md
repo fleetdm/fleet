@@ -2,26 +2,54 @@
 
 A collection of guides to help you with Fleet.
 
-- [How to install osquery and enroll macOS devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet)  
-- [How to install osquery and enroll Linux devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-linux-devices-into-fleet)  
-- [How to install osquery and enroll Windows devices into Fleet](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet)  
-- [Sysadmin diaries: restoring fleetd](https://fleetdm.com/guides/sysadmin-diaries-restoring-fleetd)  
-- [How to uninstall osquery](https://fleetdm.com/guides/how-to-uninstall-osquery)  
-- [Sysadmin diaries: device enrollment](https://fleetdm.com/guides/sysadmin-diaries-device-enrollment)  
-- [Sysadmin diaries: passcode profiles](https://fleetdm.com/guides/sysadmin-diaries-passcode-profiles)  
-- [Sysadmin diaries: lost device](https://fleetdm.com/guides/sysadmin-diaries-lost-device)  
-- [Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup)  
-- [Using GitHub Actions to apply configuration profiles with Fleet](https://fleetdm.com/guides/using-github-actions-to-apply-configuration-profiles-with-fleet)  
-- [Managing labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet)  
-- [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies)  
-- [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies)  
-- [Sysadmin diaries: exporting policies](https://fleetdm.com/guides/sysadmin-diaries-exporting-policies)  
-- [Locate device assets in the event of an emergency](https://fleetdm.com/guides/locate-assets-with-osquery)  
-- [Osquery: Consider joining against the users table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)  
-- [Using Fleet and Okta Workflows to generate a daily OS report](https://fleetdm.com/guides/using-fleet-and-okta-workflows-to-generate-a-daily-os-report)  
-- [How to configure logging destinations](https://fleetdm.com/guides/how-to-configure-logging-destinations)  
-- [Import and export queries in Fleet](https://fleetdm.com/guides/import-and-export-queries-in-fleet)  
-- [Certificates in fleetd](https://fleetdm.com/guides/certificates-in-fleetd)
+## Get set up
+
+<!--Deploying Fleet-->
+[MDM migration](https://fleetdm.com/guides/mdm-migration)
+
+[Deploy Fleet](https://fleetdm.com/docs/deploy)
+
+[macOS MDM setup](https://fleetdm.com/guides/macos-mdm-setup)
+
+[Windows MDM setup](https://fleetdm.com/guides/windows-mdm-setup)
+
+[Enroll hosts](https://fleetdm.com/guides/enroll-hosts)
+
+## Further learning
+<!--Highest level organizational unit-->
+[Teams](https://fleetdm.com/guides/teams)
+
+[Enroll BYOD iOS/iPadOS hosts](https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts)
+
+[Queries](https://fleetdm.com/guides/queries)
+
+[Labels](https://fleetdm.com/guides/managing-labels-in-fleet)
+
+[Policies](https://fleetdm.com/securing/what-are-fleet-policies)
+
+<!--Controls-->
+
+[Enforce disk encryption](https://fleetdm.com/guides/enforce-disk-encryption)
+
+[Automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script)
+
+<!--Installing software-->
+[Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
+
+[Deploy software](https://fleetdm.com/guides/deploy-software-packages)
+
+[Automatically install software](https://fleetdm.com/guides/automatic-software-install-in-fleet)
+
+[Install App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet)
+<!--Admin-->
+[Fleetctl](https://fleetdm.com/guides/fleetctl)
+
+[Fleetd updates](https://fleetdm.com/guides/fleetd-updates)
+
+[How to uninstall Fleet's agent (fleetd)](https://fleetdm.com/guides/how-to-uninstall-fleetd)
+
+[How to configure logging destinations](https://fleetdm.com/guides/how-to-configure-logging-destinations)  
+
 
 <a style="text-decoration: none;" href="https://fleetdm.com/guides"><animated-arrow-button>See all guides</animated-arrow-button></a>
 

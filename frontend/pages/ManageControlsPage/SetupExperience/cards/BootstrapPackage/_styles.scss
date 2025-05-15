@@ -1,15 +1,7 @@
 .bootstrap-package {
-  &__content {
-    max-width: $break-xxl;
-    margin: 0 auto;
+  &__uploader-container {
     display: flex;
-    justify-content: space-between;
-    gap: $pad-xxlarge;
-  }
-
-  @media (max-width: $break-md) {
-    &__content {
-      flex-direction: column;
-    }
+    flex-direction: column;
+    gap: $pad-large;
   }
 }

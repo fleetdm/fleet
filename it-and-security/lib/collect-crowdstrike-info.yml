@@ -1,8 +1,0 @@
-- name: Get Crowdstrike Falcon network content filter status
-  description: "Collects crowdstrike information"
-  query: |
-    /* Load up the plist */ WITH extensions_plist AS (SELECT *, rowid FROM plist WHERE path = '/Library/Preferences/com.apple.networkextension.plist') /* Find the first "Enabled" key after the key indicating the crowdstrike app */ SELECT value AS enabled FROM extensions_plist WHERE subkey = 'Enabled' AND rowid > (SELECT rowid FROM extensions_plist WHERE value = 'com.crowdstrike.falcon.App') LIMIT 1;
-  interval: 300 # 5 minutes
-  observer_can_run: true
-  automations_enabled: false
-  platform: darwin,linux,windows

@@ -1,0 +1,122 @@
+{
+	"token": "visual-studio-code",
+	"full_token": "visual-studio-code",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Microsoft Visual Studio Code",
+		"VS Code"
+	],
+	"desc": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor.",
+	"homepage": "https://code.visualstudio.com/",
+	"url": "https://update.code.visualstudio.com/1.93.0/darwin-arm64/stable",
+	"url_specs": {},
+	"version": "1.93.0",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "79a69b0e02f8dc79106276600b437ff3f831925d1f4d6665cf972ef45dc158f6",
+	"artifacts": [
+		{
+			"uninstall": [
+				{
+					"launchctl": "com.microsoft.VSCode.ShipIt",
+					"quit": "com.microsoft.VSCode"
+				}
+			]
+		},
+		{
+			"app": [
+				"Visual Studio Code.app"
+			]
+		},
+		{
+			"binary": [
+				"$APPDIR/Visual Studio Code.app/Contents/Resources/app/bin/code"
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/.vscode",
+						"~/Library/Application Support/Code",
+						"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.microsoft.vscode.sfl*",
+						"~/Library/Caches/com.microsoft.VSCode",
+						"~/Library/Caches/com.microsoft.VSCode.ShipIt",
+						"~/Library/HTTPStorages/com.microsoft.VSCode",
+						"~/Library/Preferences/ByHost/com.microsoft.VSCode.ShipIt.*.plist",
+						"~/Library/Preferences/com.microsoft.VSCode.helper.plist",
+						"~/Library/Preferences/com.microsoft.VSCode.plist",
+						"~/Library/Saved Application State/com.microsoft.VSCode.savedState"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {
+		"macos": {
+			">=": [
+				"10.15"
+			]
+		}
+	},
+	"conflicts_with": null,
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/v/visual-studio-code.rb",
+	"ruby_source_checksum": {
+		"sha256": "fead740931be479fa70f4e3a8f707d096891a6c9c3c4bd1a2213b10b6fb7d684"
+	},
+	"variations": {
+		"sequoia": {
+			"url": "https://update.code.visualstudio.com/1.93.0/darwin/stable",
+			"sha256": "321f2a51afe42498cd141124dda8f43be2d46821e035b0286a3d0605a519bea3"
+		},
+		"sonoma": {
+			"url": "https://update.code.visualstudio.com/1.93.0/darwin/stable",
+			"sha256": "321f2a51afe42498cd141124dda8f43be2d46821e035b0286a3d0605a519bea3"
+		},
+		"ventura": {
+			"url": "https://update.code.visualstudio.com/1.93.0/darwin/stable",
+			"sha256": "321f2a51afe42498cd141124dda8f43be2d46821e035b0286a3d0605a519bea3"
+		},
+		"monterey": {
+			"url": "https://update.code.visualstudio.com/1.93.0/darwin/stable",
+			"sha256": "321f2a51afe42498cd141124dda8f43be2d46821e035b0286a3d0605a519bea3"
+		},
+		"big_sur": {
+			"url": "https://update.code.visualstudio.com/1.93.0/darwin/stable",
+			"sha256": "321f2a51afe42498cd141124dda8f43be2d46821e035b0286a3d0605a519bea3"
+		},
+		"catalina": {
+			"url": "https://update.code.visualstudio.com/1.93.0/darwin/stable",
+			"sha256": "321f2a51afe42498cd141124dda8f43be2d46821e035b0286a3d0605a519bea3"
+		}
+	},
+	"analytics": {
+		"install": {
+			"30d": {
+				"visual-studio-code": 26798
+			},
+			"90d": {
+				"visual-studio-code": 79608
+			},
+			"365d": {
+				"visual-studio-code": 321611
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

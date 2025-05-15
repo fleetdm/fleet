@@ -1,0 +1,114 @@
+{
+	"token": "figma",
+	"full_token": "figma",
+	"old_tokens": [],
+	"tap": "homebrew/cask",
+	"name": [
+		"Figma"
+	],
+	"desc": "Figma is a collaborative design tool for teams to create, prototype, and share designs in real time.",
+	"homepage": "https://www.figma.com/",
+	"url": "https://desktop.figma.com/mac-arm/Figma-124.3.2.zip",
+	"url_specs": {},
+	"version": "124.3.2",
+	"installed": null,
+	"installed_time": null,
+	"bundle_version": null,
+	"bundle_short_version": null,
+	"outdated": false,
+	"sha256": "65fa321f505faf7eb55cb639c5104a502e65cd015437c02551d3c492a62a444e",
+	"artifacts": [
+		{
+			"app": [
+				"Figma.app"
+			]
+		},
+		{
+			"zap": [
+				{
+					"trash": [
+						"~/Library/Application Support/Figma",
+						"~/Library/Application Support/figma-desktop",
+						"~/Library/Caches/com.figma.agent",
+						"~/Library/Caches/com.figma.Desktop",
+						"~/Library/Preferences/com.figma.Desktop.plist",
+						"~/Library/Saved Application State/com.figma.Desktop.savedState"
+					]
+				}
+			]
+		}
+	],
+	"caveats": null,
+	"depends_on": {},
+	"conflicts_with": null,
+	"container": null,
+	"auto_updates": true,
+	"deprecated": false,
+	"deprecation_date": null,
+	"deprecation_reason": null,
+	"disabled": false,
+	"disable_date": null,
+	"disable_reason": null,
+	"tap_git_head": "5e76d542a4e6e78701fdfae86e263074eab2a3e7",
+	"languages": [],
+	"ruby_source_path": "Casks/f/figma.rb",
+	"ruby_source_checksum": {
+		"sha256": "ee6620d8218afa5f7a5ba44f4a2a73232a90d2cf6b7d1be7f2dbed4afbc7571e"
+	},
+	"variations": {
+		"sequoia": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		},
+		"sonoma": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		},
+		"ventura": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		},
+		"monterey": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		},
+		"big_sur": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		},
+		"catalina": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		},
+		"mojave": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		},
+		"high_sierra": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		},
+		"sierra": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		},
+		"el_capitan": {
+			"url": "https://desktop.figma.com/mac/Figma-124.3.2.zip",
+			"sha256": "a847964fe508bcf9b193fc00eaafb54d2d21f0f2bcd047418e046b7ec3d5ce5f"
+		}
+	},
+	"analytics": {
+		"install": {
+			"30d": {
+				"figma": 2271
+			},
+			"90d": {
+				"figma": 7022
+			},
+			"365d": {
+				"figma": 27805
+			}
+		}
+	},
+	"generated_date": "2024-09-09"
+}

@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,14 +30,19 @@ type AppleMDMTask string
 const (
 	AppleMDMPostDEPEnrollmentTask    AppleMDMTask = "post_dep_enrollment"
 	AppleMDMPostManualEnrollmentTask AppleMDMTask = "post_manual_enrollment"
+	// PostDEPReleaseDevice is not enqueued anymore for macOS but remains for
+	// backward compatibility (processing existing jobs after a fleet upgrade)
+	// and for ios/ipados. Macs are now released via the swift dialog UI of the
+	// setup experience flow.
 	AppleMDMPostDEPReleaseDeviceTask AppleMDMTask = "post_dep_release_device"
 )
 
 // AppleMDM is the job processor for the apple_mdm job.
 type AppleMDM struct {
-	Datastore fleet.Datastore
-	Log       kitlog.Logger
-	Commander *apple_mdm.MDMAppleCommander
+	Datastore             fleet.Datastore
+	Log                   kitlog.Logger
+	Commander             *apple_mdm.MDMAppleCommander
+	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 }
 
 // Name returns the name of the job.
@@ -46,12 +52,13 @@ func (a *AppleMDM) Name() string {
 
 // appleMDMArgs is the payload for the Apple MDM job.
 type appleMDMArgs struct {
-	Task               AppleMDMTask `json:"task"`
-	HostUUID           string       `json:"host_uuid"`
-	TeamID             *uint        `json:"team_id,omitempty"`
-	EnrollReference    string       `json:"enroll_reference,omitempty"`
-	EnrollmentCommands []string     `json:"enrollment_commands,omitempty"`
-	Platform           string       `json:"platform,omitempty"`
+	Task                   AppleMDMTask `json:"task"`
+	HostUUID               string       `json:"host_uuid"`
+	TeamID                 *uint        `json:"team_id,omitempty"`
+	EnrollReference        string       `json:"enroll_reference,omitempty"`
+	EnrollmentCommands     []string     `json:"enrollment_commands,omitempty"`
+	Platform               string       `json:"platform,omitempty"`
+	UseWorkerDeviceRelease bool         `json:"use_worker_device_release,omitempty"`
 }
 
 // Run executes the apple_mdm job.
@@ -104,14 +111,34 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 }
 
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
-	var awaitCmdUUIDs []string
+	var (
+		awaitCmdUUIDs []string
+		appCfg        *fleet.AppConfig
+		team          *fleet.Team
+		err           error
+	)
 
 	if isMacOS(args.Platform) {
-		fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+		var manualAgentInstall bool
+		if args.TeamID == nil {
+			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+				return err
+			}
+			manualAgentInstall = appCfg.MDM.MacOSSetup.ManualAgentInstall.Value
+		} else {
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
+			}
+			manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
 		}
-		awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
+
+		if !manualAgentInstall {
+			fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+			}
+			awaitCmdUUIDs = append(awaitCmdUUIDs, fleetdCmdUUID)
+		}
 
 		bootstrapCmdUUID, err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID)
 		if err != nil {
@@ -124,9 +151,8 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.Log("info", "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
-		appCfg, err := a.Datastore.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting app config")
+		if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+			return err
 		}
 
 		acct, err := a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
@@ -136,21 +162,24 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 		ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
 		if args.TeamID != nil {
-			team, err := a.Datastore.Team(ctx, *args.TeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "fetch team to send AccountConfiguration")
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
 			}
 			ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
 
 		if ssoEnabled {
+			fullName, err := a.getIdPDisplayName(ctx, acct, args)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting idp account display name")
+			}
 			a.Log.Log("info", "setting username and fullname", "host_uuid", args.HostUUID)
 			cmdUUID := uuid.New().String()
 			if err := a.Commander.AccountConfiguration(
 				ctx,
 				[]string{args.HostUUID},
 				cmdUUID,
-				acct.Fullname,
+				fullName,
 				acct.Username,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
@@ -159,35 +188,88 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 	}
 
-	var manualRelease bool
-	if args.TeamID == nil {
-		ac, err := a.Datastore.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+	// proceed to release the device if it is not a macos, as those are released
+	// via the setup experience flow, or if we were told to use the worker based
+	// release.
+	if !isMacOS(args.Platform) || args.UseWorkerDeviceRelease {
+		var manualRelease bool
+		if args.TeamID == nil {
+			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+				return err
+			}
+			manualRelease = appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
+		} else {
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
+			}
+			manualRelease = team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 		}
-		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
-	} else {
-		tm, err := a.Datastore.Team(ctx, *args.TeamID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
-		}
-		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
-	}
 
-	if !manualRelease {
-		// send all command uuids for the commands sent here during post-DEP
-		// enrollment and enqueue a job to look for the status of those commands to
-		// be final and same for MDM profiles of that host; it means the DEP
-		// enrollment process is done and the device can be released.
-		if err := QueueAppleMDMJob(ctx, a.Datastore, a.Log, AppleMDMPostDEPReleaseDeviceTask,
-			args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, awaitCmdUUIDs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
+		if !manualRelease {
+			// send all command uuids for the commands sent here during post-DEP
+			// enrollment and enqueue a job to look for the status of those commands to
+			// be final and same for MDM profiles of that host; it means the DEP
+			// enrollment process is done and the device can be released.
+			if err := QueueAppleMDMJob(ctx, a.Datastore, a.Log, AppleMDMPostDEPReleaseDeviceTask,
+				args.HostUUID, args.Platform, args.TeamID, args.EnrollReference, false, awaitCmdUUIDs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "queue Apple Post-DEP release device job")
+			}
 		}
 	}
 
 	return nil
 }
 
+// getTeamConfig gets team config from DB if not provided.
+func (a *AppleMDM) getTeamConfig(ctx context.Context, team *fleet.Team, teamID uint) (*fleet.Team, error) {
+	if team == nil {
+		var err error
+		team, err = a.Datastore.Team(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "fetch team to send AccountConfiguration")
+		}
+	}
+	return team, nil
+}
+
+// getAppConfig gets app config from DB if not provided.
+func (a *AppleMDM) getAppConfig(ctx context.Context, appConfig *fleet.AppConfig) (*fleet.AppConfig, error) {
+	if appConfig == nil {
+		var err error
+		appConfig, err = a.Datastore.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+	}
+	return appConfig, nil
+}
+
+func (a *AppleMDM) getIdPDisplayName(ctx context.Context, acct *fleet.MDMIdPAccount, args appleMDMArgs) (string, error) {
+	if acct.Fullname != "" && !strings.Contains(acct.Fullname, "@") {
+		return acct.Fullname, nil
+	}
+
+	// If full name is empty or appears to be an email, see if it exists via SCIM integration
+	scimUser, err := a.Datastore.ScimUserByUserNameOrEmail(ctx, acct.Username, acct.Email)
+	switch {
+	case err != nil && !fleet.IsNotFound(err):
+		return "", ctxerr.Wrap(ctx, err, "getting scim user details for enroll reference %s and host_uuid %s", acct.UUID, args.HostUUID)
+	case scimUser == nil:
+		return acct.Fullname, nil
+	}
+	if scimUser.DisplayName() == "" {
+		return acct.Fullname, nil
+	}
+	return scimUser.DisplayName(), nil
+}
+
+// This job is deprecated for macos because releasing devices is now done via
+// the orbit endpoint /setup_experience/status that is polled by a swift dialog
+// UI window during the setup process (unless there are no setup experience
+// items, in which case this worker job is used), and automatically releases
+// the device once all pending setup tasks are done. However, it must remain
+// implemented for iOS and iPadOS and in case there are such jobs to process
+// after a Fleet migration to a new version.
 func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArgs) error {
 	// Edge cases:
 	//   - if the device goes offline for a long time, should we go ahead and
@@ -306,14 +388,19 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 		return "", err
 	}
 
-	appCfg, err := a.Datastore.AppConfig(ctx)
-	if err != nil {
-		return "", err
-	}
+	// Get CloudFront CDN signed URL if configured
+	url := a.getSignedURL(ctx, meta)
 
-	url, err := meta.URL(appCfg.ServerSettings.ServerURL)
-	if err != nil {
-		return "", err
+	if url == "" {
+		appCfg, err := a.Datastore.AppConfig(ctx)
+		if err != nil {
+			return "", err
+		}
+
+		url, err = meta.URL(appCfg.MDMUrl())
+		if err != nil {
+			return "", err
+		}
 	}
 
 	manifest := appmanifest.NewFromSha(meta.Sha256, url)
@@ -330,6 +417,34 @@ func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string,
 	return cmdUUID, nil
 }
 
+func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstrapPackage) string {
+	var url string
+	if a.BootstrapPackageStore != nil {
+		pkgID := hex.EncodeToString(meta.Sha256)
+		signedURL, err := a.BootstrapPackageStore.Sign(ctx, pkgID)
+		switch {
+		case errors.Is(err, fleet.ErrNotConfigured):
+			// no CDN configured, fall back to the MDM URL
+		case err != nil:
+			// log the error but continue with the MDM URL
+			level.Error(a.Log).Log("msg", "failed to sign bootstrap package URL", "err", err)
+		default:
+			exists, err := a.BootstrapPackageStore.Exists(ctx, pkgID)
+			switch {
+			case err != nil:
+				// log the error but continue with the MDM URL
+				level.Error(a.Log).Log("msg", "failed to check if bootstrap package exists", "err", err)
+			case !exists:
+				// log the error but continue with the MDM URL
+				level.Error(a.Log).Log("msg", "bootstrap package does not exist in package store", "pkg_id", pkgID)
+			default:
+				url = signedURL
+			}
+		}
+	}
+	return url
+}
+
 // QueueAppleMDMJob queues a apple_mdm job for one of the supported tasks, to
 // be processed asynchronously via the worker.
 func QueueAppleMDMJob(
@@ -341,6 +456,7 @@ func QueueAppleMDMJob(
 	platform string,
 	teamID *uint,
 	enrollReference string,
+	useWorkerDeviceRelease bool,
 	enrollmentCommandUUIDs ...string,
 ) error {
 	attrs := []interface{}{
@@ -359,12 +475,13 @@ func QueueAppleMDMJob(
 	level.Info(logger).Log(attrs...)
 
 	args := &appleMDMArgs{
-		Task:               task,
-		HostUUID:           hostUUID,
-		TeamID:             teamID,
-		EnrollReference:    enrollReference,
-		EnrollmentCommands: enrollmentCommandUUIDs,
-		Platform:           platform,
+		Task:                   task,
+		HostUUID:               hostUUID,
+		TeamID:                 teamID,
+		EnrollReference:        enrollReference,
+		EnrollmentCommands:     enrollmentCommandUUIDs,
+		Platform:               platform,
+		UseWorkerDeviceRelease: useWorkerDeviceRelease,
 	}
 
 	// the release device task is always added with a delay

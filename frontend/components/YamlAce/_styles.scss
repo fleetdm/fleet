@@ -5,6 +5,9 @@
         border: 1px solid $ui-error;
       }
     }
+    &--disabled {
+      @include disabled;
+    }
   }
 
   // Added to remove the "popping" effect when the editor first loads.

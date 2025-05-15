@@ -139,6 +139,12 @@ type MDMAppleVolumePurchasingProgramInfo struct {
 
 // MDM is part of AppConfig and defines the mdm settings.
 type MDM struct {
+	// AppleServerURL is an alternate URL to be used in MDM configuration profiles to differentiate MDM
+	// requests from fleetd requests on customer networks.  AppleServerURL DNS should resolve to the
+	// same IP as the Fleet Server URL.
+	// If not set, the server will use Fleet server URL (recommended).
+	AppleServerURL string `json:"apple_server_url"`
+
 	// Deprecated: use AppleBussinessManager instead
 	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
 
@@ -183,10 +189,11 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings         MacOSSettings            `json:"macos_settings"`
-	MacOSSetup            MacOSSetup               `json:"macos_setup"`
-	MacOSMigration        MacOSMigration           `json:"macos_migration"`
-	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
+	MacOSSettings           MacOSSettings            `json:"macos_settings"`
+	MacOSSetup              MacOSSetup               `json:"macos_setup"`
+	MacOSMigration          MacOSMigration           `json:"macos_migration"`
+	WindowsMigrationEnabled bool                     `json:"windows_migration_enabled"`
+	EndUserAuthentication   MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -200,10 +207,25 @@ type MDM struct {
 
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
+	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
+	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+type UIGitOpsModeConfig struct {
+	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
+	RepositoryURL     string `json:"repository_url"`
+}
+
+func (c *AppConfig) MDMUrl() string {
+	if c.MDM.AppleServerURL == "" {
+		return c.ServerSettings.ServerURL
+	}
+	return c.MDM.AppleServerURL
 }
 
 // AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
@@ -328,12 +350,23 @@ type MacOSSettings struct {
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
+func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return s.CustomSettings
+}
+
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
 	}
 }
+
+type WithMDMProfileSpecs interface {
+	GetMDMProfileSpecs() []MDMProfileSpec
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = MacOSSettings{}
 
 // FromMap sets the macOS settings from the provided map, which is the map type
 // from the ApplyTeams spec struct. It returns a map of fields that were set in
@@ -372,6 +405,7 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 					spec.Labels = extractLabelField(m, "labels")
 					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
 					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
+					spec.LabelsIncludeAny = extractLabelField(m, "labels_include_any")
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
@@ -407,10 +441,50 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage            optjson.String `json:"bootstrap_package"`
-	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
-	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
-	EnableReleaseDeviceManually optjson.Bool   `json:"enable_release_device_manually"`
+	BootstrapPackage            optjson.String                     `json:"bootstrap_package"`
+	EnableEndUserAuthentication bool                               `json:"enable_end_user_authentication"`
+	MacOSSetupAssistant         optjson.String                     `json:"macos_setup_assistant"`
+	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
+	Script                      optjson.String                     `json:"script"`
+	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
+}
+
+func (mos *MacOSSetup) SetDefaultsIfNeeded() {
+	if mos == nil {
+		return
+	}
+	if !mos.BootstrapPackage.Valid {
+		mos.BootstrapPackage = optjson.SetString("")
+	}
+	if !mos.MacOSSetupAssistant.Valid {
+		mos.MacOSSetupAssistant = optjson.SetString("")
+	}
+	if !mos.EnableReleaseDeviceManually.Valid {
+		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !mos.Script.Valid {
+		mos.Script = optjson.SetString("")
+	}
+	if !mos.Software.Valid {
+		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
+	}
+	if !mos.ManualAgentInstall.Valid {
+		mos.ManualAgentInstall = optjson.SetBool(false)
+	}
+}
+
+func NewMacOSSetupWithDefaults() *MacOSSetup {
+	mos := &MacOSSetup{}
+	mos.SetDefaultsIfNeeded()
+	return mos
+}
+
+// MacOSSetupSoftware represents a VPP app or a software package to install
+// during the setup experience of a macOS device.
+type MacOSSetupSoftware struct {
+	AppStoreID  string `json:"app_store_id"`
+	PackagePath string `json:"package_path"`
 }
 
 // MacOSMigration contains settings related to the MDM migration work flow.
@@ -490,11 +564,15 @@ type AppConfig struct {
 
 	MDM MDM `json:"mdm"`
 
+	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
+
 	// Scripts is a slice of script file paths.
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for scripts is in MySQL.)
 	Scripts optjson.Slice[string] `json:"scripts"`
+
+	YaraRules []YaraRule `json:"yara_rules,omitempty"`
 
 	// when true, strictDecoding causes the UnmarshalJSON method to return an
 	// error if there are unknown fields in the raw JSON.
@@ -520,6 +598,9 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
+	if c.Integrations.NDESSCEPProxy.Valid {
+		c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
+	}
 }
 
 // Clone implements cloner.
@@ -533,8 +614,7 @@ func (c *AppConfig) Copy() *AppConfig {
 		return nil
 	}
 
-	var clone AppConfig
-	clone = *c
+	clone := *c
 
 	// OrgInfo: nothing needs cloning
 	// FleetDesktopSettings: nothing needs cloning
@@ -545,8 +625,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.SMTPSettings != nil {
-		var smtpSettings SMTPSettings
-		smtpSettings = *c.SMTPSettings
+		smtpSettings := *c.SMTPSettings
 		clone.SMTPSettings = &smtpSettings
 	}
 
@@ -574,8 +653,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.SSOSettings != nil {
-		var ssoSettings SSOSettings
-		ssoSettings = *c.SSOSettings
+		ssoSettings := *c.SSOSettings
 		clone.SSOSettings = &ssoSettings
 	}
 
@@ -609,6 +687,16 @@ func (c *AppConfig) Copy() *AppConfig {
 			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
+	if len(c.Integrations.DigiCert.Value) > 0 {
+		digicert := make([]DigiCertIntegration, len(c.Integrations.DigiCert.Value))
+		copy(digicert, c.Integrations.DigiCert.Value)
+		clone.Integrations.DigiCert = optjson.SetSlice(digicert)
+	}
+	if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
+		customSCEP := make([]CustomSCEPProxyIntegration, len(c.Integrations.CustomSCEPProxy.Value))
+		copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
+		clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
+	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
@@ -637,9 +725,7 @@ func (c *AppConfig) Copy() *AppConfig {
 
 	if c.MDM.AppleBusinessManager.Set {
 		abm := make([]MDMAppleABMAssignmentInfo, len(c.MDM.AppleBusinessManager.Value))
-		for i, s := range c.MDM.AppleBusinessManager.Value {
-			abm[i] = s
-		}
+		copy(abm, c.MDM.AppleBusinessManager.Value)
 		clone.MDM.AppleBusinessManager = optjson.SetSlice(abm)
 
 	}
@@ -652,6 +738,23 @@ func (c *AppConfig) Copy() *AppConfig {
 			copy(vpp[i].Teams, s.Teams)
 		}
 		clone.MDM.VolumePurchasingProgram = optjson.SetSlice(vpp)
+	}
+
+	if c.MDM.MacOSSetup.Software.Set {
+		sw := make([]*MacOSSetupSoftware, len(c.MDM.MacOSSetup.Software.Value))
+		for i, s := range c.MDM.MacOSSetup.Software.Value {
+			s := *s
+			sw[i] = &s
+		}
+		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
+	}
+
+	// UIGitOpsMode: nothing needs cloning
+
+	if c.YaraRules != nil {
+		rules := make([]YaraRule, len(c.YaraRules))
+		copy(rules, c.YaraRules)
+		clone.YaraRules = rules
 	}
 
 	return &clone
@@ -997,8 +1100,7 @@ func (f *Features) Copy() *Features {
 	// EnableHostUsers and EnableSoftwareInventory don't have fields that require
 	// cloning (all fields are basic value types, no pointers/slices/maps).
 
-	var clone Features
-	clone = *f
+	clone := *f
 
 	if f.AdditionalQueries != nil {
 		aq := make(json.RawMessage, len(*f.AdditionalQueries))
@@ -1021,12 +1123,15 @@ func (f *Features) Copy() *Features {
 
 // FleetDesktopSettings contains settings used to configure Fleet Desktop.
 type FleetDesktopSettings struct {
-	// TransparencyURL is the URL used for the “Transparency” link in the Fleet Desktop menu.
+	// TransparencyURL is the URL used for the “About Fleet” link in the Fleet Desktop menu.
 	TransparencyURL string `json:"transparency_url"`
 }
 
-// DefaultTransparencyURL is the default URL used for the “Transparency” link in the Fleet Desktop menu.
+// DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
 const DefaultTransparencyURL = "https://fleetdm.com/transparency"
+
+// SecureframeTransparencyURL is the URL used for the "About Fleet" link in Fleet Desktop when the Secureframe partnership config value is enabled
+const SecureframeTransparencyURL = "https://fleetdm.com/better?utm_content=secureframe"
 
 type OrderDirection int
 
@@ -1087,6 +1192,9 @@ type ListQueryOptions struct {
 	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
 	// is set.
 	MergeInherited bool
+	// Return queries that are scheduled to run on this platform. One of "macos",
+	// "windows", or "linux"
+	Platform *string
 }
 
 type ListActivitiesOptions struct {
@@ -1105,6 +1213,9 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+	// NoCache indicates that cached_mysql calls should be bypassed on the server.
+	// This is needed where related data was just updated and we need that latest data from the DB.
+	NoCache bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1137,6 +1248,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	if o.DryRun {
 		query.Set("dry_run", "true")
 	}
+	if o.NoCache {
+		query.Set("no_cache", "true")
+	}
 	return query.Encode()
 }
 
@@ -1150,6 +1264,13 @@ type EnrollSecret struct {
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
 	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
+}
+
+func (e *EnrollSecret) GetTeamID() *uint {
+	if e == nil {
+		return nil
+	}
+	return e.TeamID
 }
 
 func (e *EnrollSecret) AuthzType() string {
@@ -1197,6 +1318,11 @@ const (
 	// when the license is expired, like disabling certain features
 	TierTrial = "trial"
 )
+
+// Partnerships contains specialized configuration options for Fleet partners.
+type Partnerships struct {
+	EnablePrimo bool `json:"enable_primo,omitempty"`
+}
 
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
@@ -1279,6 +1405,10 @@ type FilesystemConfig struct {
 	config.FilesystemConfig
 }
 
+type WebhookConfig struct {
+	config.WebhookConfig
+}
+
 type PubSubConfig struct {
 	config.PubSubConfig
 }
@@ -1348,4 +1478,20 @@ type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+}
+
+func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return ws.CustomSettings.Value
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = WindowsSettings{}
+
+type YaraRuleSpec struct {
+	Path string `json:"path"`
+}
+
+type YaraRule struct {
+	Name     string `json:"name"`
+	Contents string `json:"contents"`
 }

@@ -6,6 +6,7 @@ import Icon from "components/Icon/Icon";
 const baseClass = "modal";
 
 type ModalWidth = "medium" | "large" | "xlarge" | "auto";
+//                  650px    800px      850px      auto
 
 export interface IModalProps {
   title: string | JSX.Element;
@@ -31,6 +32,11 @@ export interface IModalProps {
    * @default false
    */
   isContentDisabled?: boolean;
+  /** `disableClosingModal` can be set to disable the users ability to manually
+   * close the modal.
+   * @default false
+   * */
+  disableClosingModal?: boolean;
   className?: string;
 }
 
@@ -43,6 +49,7 @@ const Modal = ({
   isHidden = false,
   isLoading = false,
   isContentDisabled = false,
+  disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
   useEffect(() => {
@@ -52,12 +59,16 @@ const Modal = ({
       }
     };
 
-    document.addEventListener("keydown", closeWithEscapeKey);
+    if (!disableClosingModal) {
+      document.addEventListener("keydown", closeWithEscapeKey);
+    }
 
     return () => {
-      document.removeEventListener("keydown", closeWithEscapeKey);
+      if (!disableClosingModal) {
+        document.removeEventListener("keydown", closeWithEscapeKey);
+      }
     };
-  }, []);
+  }, [disableClosingModal, onExit]);
 
   useEffect(() => {
     if (onEnter) {
@@ -98,16 +109,20 @@ const Modal = ({
 
   return (
     <div className={backgroundClasses}>
-      <div className={modalContainerClasses}>
+      <div
+        className={modalContainerClasses}
+        tabIndex={-1} // Make focusable
+      >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
-          <div className={`${baseClass}__ex`}>
-            <Button className="button button--unstyled" onClick={onExit}>
-              <Icon name="close" color="core-fleet-black" size="medium" />
-            </Button>
-          </div>
+          {!disableClosingModal && (
+            <div className={`${baseClass}__ex`}>
+              <Button variant="icon" onClick={onExit} iconStroke>
+                <Icon name="close" color="core-fleet-black" size="medium" />
+              </Button>
+            </div>
+          )}
         </div>
-
         <div className={contentWrapperClasses}>
           {isContentDisabled && (
             <div className={`${baseClass}__disabled-overlay`} />

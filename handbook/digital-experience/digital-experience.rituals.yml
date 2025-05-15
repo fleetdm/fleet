@@ -1,14 +1,28 @@
 # https://github.com/fleetdm/fleet/pull/13084
 - 
-  task: "Complete Digital Experience KPIs"
+  task: "Complete Digital Experience KPIs and send weekly update"
   startedOn: "2024-08-30" 
   frequency: "Weekly"
   description: "Complete Digital Experience KPIs for this week"
-  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=DB1"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
+  dri: "SFriendLee"
+- 
+  task: "Confirm consultant hours"
+  startedOn: "2024-09-30" 
+  frequency: "Weekly"
+  description: "Perform step three in “Inform managers about hours worked” responsibility"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#inform-managers-about-hours-worked"
   dri: "SFriendLee"
   autoIssue:   
     labels: [ "#g-digital-experience" ]
     repo: "fleet"
+-
+  task: "Confirm closed lost is happening within 30 days"
+  startedOn: "2025-01-25"
+  frequency: "Weekly"
+  description: "Check Salesforce for opportunities 30 days or older and escalate to sales manager who will follow up with prospect and return the deal to marketing via resting and changing the owner"
+  moreInfoUrl: "https://fleetdm.com/handbook/sales#review-salesforce-opportunities"
+  dri: "Sampfluger88"
 - 
   task: "Prep 1:1s for OKR planning"
   startedOn: "2024-09-09" 
@@ -77,9 +91,6 @@
   description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/digital-experiencemunication)"
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "sampfluger88" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-digital-experience" ] # label to be applied to issue
-    repo: "confidential" # The GitHub repo that issues will be created in
 -
   task: "Process the CEO's inbox"
   startedOn: "2023-07-29"
@@ -102,25 +113,12 @@
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-calendar"
   dri: "SFriendLee"
 -
-  task: "Send weekly update"
-  startedOn: "2023-09-15"
-  frequency: "Weekly"
-  description: "Send weekly update"
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
-  dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
--
   task: "Process and backup E-group agenda"
   startedOn: "2023-09-20"
   frequency: "Weekly"
   description: "Process and backup E-group agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-sid-agenda"
   dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
 -
   task: "Process and backup Sid agenda"
   startedOn: "2023-09-25"
@@ -128,9 +126,6 @@
   description: "Process and backup Sid agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-e-group-agenda"
   dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
 -
   task: "Share recording of all hands meeting"
   startedOn: "2023-07-01"
@@ -183,7 +178,7 @@
   frequency: "Monthly"
   description: "Via hand or automation, send a monthly update email to all investors that hold 4% equity or greater in Fleet who have opted in to receive emails on the company's progress." 
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#communicate-fleets-potential-energy-to-stakeholders"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
@@ -200,10 +195,13 @@
 -
   task: "Recognize and benchmark workiversaries"
   startedOn: "2024-07-15"
-  frequency: "Bimonthly"
+  frequency: "Monthly"
   description: "Identify workiversaries coming up in the next two months and follow the steps to ensure they're recognized and benchmarked"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#recognize-employee-workiversaries"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
 -
   task: "Quarterly grants"
   startedOn: "2024-02-01"
@@ -218,3 +216,30 @@
   description: "Log into the \"Integrations admin\" account in Salesforce and change the password to prevent a password change being required by Salesforce."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#change-the-integrations-admin-salesforce-account-password"
   dri: "eashaw"
+-
+  task: "Check GitHub/GitLab terms"
+  startedOn: "2023-10-24"
+  frequency: "Annually"
+  description: "Check GitHub's terms to make sure the “inbound=outbound” clause is unchanged."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-github-terms"
+  dri: "hollidayn"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
+-
+  task: "Check that there is sufficient availability for scheduling demos via fleetdm.com/contact"
+  startedOn: "2024-10-25"
+  frequency: "Weekly"
+  description: "Check out the meeting booking flow that you get when you schedule a demo from Fleet's contact form, and make sure there is plenty of availability for the rest of the day in US PT thru ET, with significant spots open in the morning (US time) for folks in EMEA and at least one or two spots open in the evening (US time) for folks in APAC / Hawaii."
+  moreInfoUrl: ""
+  dri: "onasismunro"
+-
+  task: "Connect with active community members"
+  startedOn: "2025-04-25"
+  frequency: "Weekly"
+  description: "Connect with active community members"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#connect-with-active-community-members"
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"

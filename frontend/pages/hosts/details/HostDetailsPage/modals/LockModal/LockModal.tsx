@@ -34,7 +34,7 @@ const LockModal = ({
     try {
       await hostAPI.lockHost(id);
       onSuccess();
-      renderFlash("success", "Host is locking!");
+      renderFlash("success", "Locking host or will lock when it comes online.");
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }
@@ -68,7 +68,6 @@ const LockModal = ({
           <Button
             type="button"
             onClick={onLock}
-            variant="brand"
             className="delete-loading"
             disabled={!lockChecked}
             isLoading={isLocking}

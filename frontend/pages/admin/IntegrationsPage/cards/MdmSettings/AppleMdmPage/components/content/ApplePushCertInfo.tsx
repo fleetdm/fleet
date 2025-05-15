@@ -5,6 +5,7 @@ import { IMdmApple } from "interfaces/mdm";
 import { readableDate } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IApplePushCertInfoProps {
   baseClass: string;
@@ -46,7 +47,7 @@ const ApplePushCertInfo = ({
         <Button variant="inverse" onClick={onClickTurnOff}>
           Turn off MDM
         </Button>
-        <Button className="save-loading" variant="brand" onClick={onClickRenew}>
+        <Button className="save-loading" onClick={onClickRenew}>
           Renew certificate
         </Button>
       </div>
