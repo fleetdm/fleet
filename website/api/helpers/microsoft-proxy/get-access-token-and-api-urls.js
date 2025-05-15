@@ -31,8 +31,8 @@ module.exports = {
       return new Error(`No matching tenant record could be found with the specified ID. (${complianceTenantRecordId}`);
     }
 
-    // Get an access token for this tenant
-    let accessTokenResponse = await sails.helpers.http.sendHttpRequest.with({
+    // Get a graph access token for this tenant
+    let graphAccessTokenResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'POST',
       url: `https://login.microsoftonline.com/${informationAboutThisTenant.entraTenantId}/oauth2/v2.0/token`,
       enctype: 'application/x-www-form-urlencoded',
@@ -43,22 +43,34 @@ module.exports = {
         grant_type: 'client_credentials'// eslint-disable-line camelcase
       }
     });
+    // Get a management API access token for this tenant
+    let manageAccessTokenResponse = await sails.helpers.http.sendHttpRequest.with({
+      method: 'POST',
+      url: `https://login.microsoftonline.com/${informationAboutThisTenant.entraTenantId}/oauth2/v2.0/token`,
+      enctype: 'application/x-www-form-urlencoded',
+      body: {
+        client_id: sails.config.custom.compliancePartnerClientId,// eslint-disable-line camelcase
+        scope: 'https://api.manage.microsoft.com//.default',
+        client_secret: sails.config.custom.compliancePartnerClientSecret,// eslint-disable-line camelcase
+        grant_type: 'client_credentials'// eslint-disable-line camelcase
+      }
+    });
 
     // Parse the json response body to get the access token.
-    let accessToken;
+    let graphAccessToken;
+    let manageApiAccessToken;
     try {
-      accessToken = JSON.parse(accessTokenResponse.body).access_token;
+      graphAccessToken = JSON.parse(graphAccessTokenResponse.body).access_token;
+      manageApiAccessToken = JSON.parse(manageAccessTokenResponse.body).access_token;
     } catch(err){
       throw new Error(`When sending a request to get an access token for a Microsoft compliance tenant, an error occured. full error: ${require('util').inspect(err)}`);
     }
 
-    // (2025-04-01) TODO: test the code below once the test tenant has been configured to be able to use the Fleet compliance partner application.
-
     // [?]: https://learn.microsoft.com/en-us/graph/api/resources/serviceprincipal
     let servicePrincipalResponse = await sails.helpers.http.get.with({
-      url: `https://graph.microsoft.com/v1.0/servicePrincipals?$filter=${encodeURIComponent(`appId eq '${sails.config.custom.compliancePartnerClientId}'`)}`,
+      url: `https://graph.microsoft.com/v1.0/servicePrincipals?$filter=${encodeURIComponent(`appId eq '0000000a-0000-0000-c000-000000000000'`)}`,
       headers: {
-        'Authorization': `Bearer ${accessToken}`
+        'Authorization': `Bearer ${graphAccessToken}`
       }
     });
 
@@ -66,20 +78,23 @@ module.exports = {
 
     // [?]: https://learn.microsoft.com/en-us/graph/api/group-list-endpoints
     let servicePrincipalEndpointResponse = await sails.helpers.http.get.with({
-      url: `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalObjectId}/endpoints`,
+      url: `https://graph.microsoft.com/v1.0/servicePrincipals/${servicePrincipalObjectId}/endPoints`,
       headers: {
-        'Authorization': `Bearer ${accessToken}`
+        'Authorization': `Bearer ${graphAccessToken}`
       },
     });
+
     let endpointsInResponse = servicePrincipalEndpointResponse.value;
+
     // TODO: throw errors if these endpoints are missing.
     let tenantDataSyncUrl = _.find(endpointsInResponse, {providerName: 'PartnerTenantDataSyncService'}).uri;
-    let partnerCompliancePoliciesUrl = _.find(endpointsInResponse, {providerName: 'PartnerCompliancePolicies'}).uri;
+    let deviceDataSyncUrl = _.find(endpointsInResponse, {providerName: 'PartnerDeviceDataSyncService'}).uri;
 
     return {
-      accessToken,
+      manageApiAccessToken,
+      graphAccessToken,
       tenantDataSyncUrl,
-      partnerCompliancePoliciesUrl,
+      deviceDataSyncUrl,
     };
   }
 
