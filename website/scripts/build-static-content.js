@@ -1317,15 +1317,15 @@ module.exports = {
           .intercept('doesNotExist', ()=>{
             return new Error(`Could not build app library configuration from the ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
           });
-          let expectedAppIconFilename = path.join(topLvlRepoPath, 'website/assets/images/', `app-icon-${appInformation.identifier}-60x60@2x.png`);
+          let expectedAppIconFilename = `app-icon-${appInformation.identifier}-60x60@2x.png`;
 
           // FUTURE: copy the app icons from where they are stored in the repo (when they are stored in the repo).
-          let iconImageExistsForThisApp = await sails.helpers.fs.exists(expectedAppIconFilename);
-          if(!iconImageExistsForThisApp){
-            throw new Error(`Could not build app library configuration config from the ee/maintained-apps folder. An app icon is missing for ${app.name} (${app.platform}) when it was expected to be found at ${path.join(topLvlRepoPath, 'website/assets/images/', `app-icon-${appInformation.identifier}-60x60@2x.png`)}. To resolve, make sure an app icon exists in the expected location and try running this script again.`);
-            // FUTURE: can we use a generic fallback icon?
-          } else {
+          let iconImageExistsForThisApp = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', expectedAppIconFilename));
+          if(iconImageExistsForThisApp){
             appInformation.iconFilename = expectedAppIconFilename;
+          } else {
+            // If no icon for this software exists in the website/assets/images folder, use a fallback icon.
+            appInformation.iconFilename = `app-icon-fallback-60x60@2x.png`;
           }
           // Get the latest version of the app from the versions array.
           let latestVersionOfThisApp = detailedInformationAboutThisApp.versions[0];

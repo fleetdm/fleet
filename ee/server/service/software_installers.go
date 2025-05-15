@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -23,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
@@ -305,6 +307,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 	payload.ValidatedLabels = validatedLabels
 
+	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
 	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
@@ -1243,8 +1246,10 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		// if error is because the host does not exist, check first if the user
 		// had access to install/uninstall software (to prevent leaking valid host ids).
 		if fleet.IsNotFound(err) {
-			if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
-				return err
+			if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+				if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
+					return err
+				}
 			}
 		}
 		svc.authz.SkipAuthorization(ctx)
@@ -1265,8 +1270,10 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	}
 
 	// authorize with the host's team
-	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
-		return err
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+			return err
+		}
 	}
 
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
@@ -1559,6 +1566,13 @@ func (svc *Service) BatchSetSoftwareInstallers(
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
+		if payload.Slug != nil && *payload.Slug != "" {
+			err := svc.softwareInstallerPayloadFromSlug(ctx, payload, teamID)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting fleet maintained software installer payload from slug")
+			}
+		}
+
 		if payload.URL == "" && payload.SHA256 == "" {
 			return "", fleet.NewInvalidArgumentError(
 				"software",
@@ -1621,6 +1635,34 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	return requestUUID, nil
 }
 
+func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
+	slug := payload.Slug
+	if slug == nil || *slug == "" {
+		return nil
+	}
+
+	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
+	if err != nil {
+		return err
+	}
+	_, err = maintained_apps.Hydrate(ctx, app)
+	if err != nil {
+		return err
+	}
+
+	payload.URL = app.InstallerURL
+	payload.SHA256 = app.SHA256
+	payload.InstallScript = app.InstallScript
+	payload.UninstallScript = app.UninstallScript
+	payload.FleetMaintained = true
+	payload.MaintainedApp = app
+	if len(payload.Categories) == 0 {
+		payload.Categories = app.Categories
+	}
+
+	return nil
+}
+
 const (
 	batchSetProcessing   = "processing"
 	batchSetCompleted    = "completed"
@@ -1658,7 +1700,7 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}(time.Now())
 
-	downloadURLFn := func(ctx context.Context, url string) (http.Header, *fleet.TempFileReader, error) {
+	downloadURLFn := func(ctx context.Context, url string) (*http.Response, *fleet.TempFileReader, error) {
 		client := fleethttp.NewClient()
 		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
 
@@ -1710,7 +1752,7 @@ func (svc *Service) softwareBatchUpload(
 			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
 		}
 
-		return resp.Header, tfr, nil
+		return resp, tfr, nil
 	}
 
 	var g errgroup.Group
@@ -1743,6 +1785,7 @@ func (svc *Service) softwareBatchUpload(
 				Categories:         p.Categories,
 			}
 
+			p.Categories = server.RemoveDuplicatesFromSlice(p.Categories)
 			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, p.Categories)
 			if err != nil {
 				return err
@@ -1846,27 +1889,47 @@ func (svc *Service) softwareBatchUpload(
 				}
 
 				var filename string
-				headers, tfr, err := downloadURLFn(ctx, p.URL)
+				resp, tfr, err := downloadURLFn(ctx, p.URL)
 				if err != nil {
 					return err
 				}
 
 				installer.InstallerFile = tfr
-
-				// set the filename before adding metadata, as it is used as fallback
-				cdh, ok := headers["Content-Disposition"]
-				if ok && len(cdh) > 0 {
-					_, params, err := mime.ParseMediaType(cdh[0])
-					if err == nil {
-						filename = params["filename"]
-					}
-				}
-
+				filename = maintained_apps.FilenameFromResponse(resp)
 				installer.Filename = filename
 			}
 
+			if p.Slug != nil && *p.Slug != "" {
+				// Fleet maintained software hydration
+				// This code should be extracted for common use from here and AddFleetMaintainedApp in maintained_apps.go
+				// It's the same code and would be nice to get some reuse
+				appName := p.MaintainedApp.UniqueIdentifier
+				if p.MaintainedApp.Platform == "darwin" || appName == "" {
+					appName = p.MaintainedApp.Name
+				}
+				if installer.Filename == "" {
+					parsedURL, err := url.Parse(installer.URL)
+					if err != nil {
+						return fmt.Errorf("Error with maintained app, parsing URL: %v\n", err)
+					}
+					installer.Filename = path.Base(parsedURL.Path)
+				}
+				extension := strings.TrimLeft(filepath.Ext(installer.Filename), ".")
+				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
+				installer.Title = appName
+				installer.Version = p.MaintainedApp.Version
+				installer.Platform = p.MaintainedApp.Platform
+				installer.Source = p.MaintainedApp.Source()
+				installer.Extension = extension
+				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
+				installer.StorageID = p.MaintainedApp.SHA256
+				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
+				installer.AutomaticInstall = p.AutomaticInstall != nil && *p.AutomaticInstall
+				installer.AutomaticInstallQuery = p.MaintainedApp.AutomaticInstallQuery
+			}
+
 			var ext string
-			if installer.InstallerFile != nil {
+			if installer.FleetMaintainedAppID == nil && installer.InstallerFile != nil {
 				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer, true)
 				if err != nil {
 					_ = installer.InstallerFile.Close() // closing the temp file here since it will not be available after the goroutine completes

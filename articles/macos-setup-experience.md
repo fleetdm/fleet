@@ -44,6 +44,8 @@ Fleet supports installing a bootstrap package on macOS hosts that automatically 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
+The bootstrap package, Fleet's agent (fleetd), and [custom OS settings (configuration profiles)](https://fleetdm.com/guides/custom-os-settings) are also delivered during [MDM migration](https://fleetdm.com/guides/mdm-migration). Only fleetd and configuration profiles are delivered when an enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`.
+
 The following are examples of what some organizations deploy using a bootstrap package:
 
 * Munki client to install and keep software up to date on your Macs
@@ -64,6 +66,8 @@ To add a bootstrap package to Fleet, we will do the following steps:
 Whether you have to download or generate a package depends on what you want to deploy using your bootstrap package:
 
 * A single client or agent, like Munki or Puppet, can usually be downloaded from the tool's GitHub repository or website. For example, you can download Munki, the Munki client on their [releases page on GitHub](https://github.com/munki/munki/releases).
+
+  > Packages deployed via bootstrap need to be signed. The packages on the official Munki release page above are not signed. You will either need to sign the   package yourself (see Step 2 below) or use an already signed release from [MacAdmins Open Source](https://github.com/macadmins/munki-builds/releases).
 
 * To deploy custom scripts, you need to generate a package. The [munkipkg tool](https://github.com/munki/munki-pkg) is a popular tool for generating packages.
 

@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
@@ -11836,6 +11837,54 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
 	require.Equal(t, 0, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 0)
+
+	//////////////////////////
+	// Do a request with a fleet maintained app
+	//////////////////////////
+	maintained1, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "1Password",
+		Slug:             "1password/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.1password.1password",
+	})
+	require.NoError(t, err)
+
+	// basic fleet maintained app
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{Slug: &maintained1.Slug},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.NotNil(t, packages[0].URL)
+	require.Nil(t, packages[0].TeamID)
+
+	// with a team
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, tm.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.NotNil(t, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, tm.ID, *packages[0].TeamID)
+
+	// with a label
+	softwareToInstall = []*fleet.SoftwareInstallerPayload{
+		{Slug: &maintained1.Slug, LabelsIncludeAny: []string{lblA.Name}},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.NotNil(t, packages[0].URL)
+	require.Nil(t, packages[0].TeamID)
+	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *packages[0].TitleID, false)
+	require.NoError(t, err)
+	require.Empty(t, meta.LabelsExcludeAny)
+	require.Len(t, meta.LabelsIncludeAny, 1)
+	require.Equal(t, lblA.ID, meta.LabelsIncludeAny[0].LabelID)
+	require.Equal(t, lblA.Name, meta.LabelsIncludeAny[0].LabelName)
 }
 
 func waitBatchSetSoftwareInstallersCompleted(t *testing.T, s *integrationEnterpriseTestSuite, teamName string, requestUUID string) []fleet.SoftwarePackageResponse {
@@ -12915,6 +12964,43 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
 	require.True(t, details.SelfService)
 	require.EqualValues(t, fleet.SoftwareInstalled, details.Status)
+
+	// Do uninstall on host
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%d", token, titleIDSS), nil, http.StatusAccepted)
+	var getHostSoftwareResp getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 2)
+	assert.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+	assert.Equal(t, fleet.SoftwareUninstallPending, *getHostSoftwareResp.Software[0].Status)
+	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastUninstall)
+	uninstallExecutionID := getHostSoftwareResp.Software[0].SoftwarePackage.LastUninstall.ExecutionID
+
+	// Uninstall should show up as a pending activity
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), listUpcomingAct.Activities[0].Type)
+	uninstallDetails := make(map[string]interface{}, 5)
+	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &uninstallDetails))
+	assert.EqualValues(t, fleet.SoftwareUninstallPending, uninstallDetails["status"])
+	assert.Nil(t, listUpcomingAct.Activities[0].ActorID)
+	assert.False(t, listUpcomingAct.Activities[0].FleetInitiated)
+
+	// Host sends successful uninstall result
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host1.OrbitNodeKey,
+			uninstallExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// Check activity feed
+	var activitiesResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
+		"order_direction", "desc")
+	require.NotEmpty(t, activitiesResp.Activities)
+	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
+	uninstallDetails = make(map[string]interface{}, 5)
+	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &uninstallDetails))
+	assert.Equal(t, "uninstalled", uninstallDetails["status"])
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
@@ -17550,7 +17636,7 @@ done
 	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
 }
 
-func (s *integrationEnterpriseTestSuite) TestBatchSoftwareCategories() {
+func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategories() {
 	t := s.T()
 
 	ctx := context.Background()
@@ -17563,7 +17649,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareCategories() {
 	require.NoError(t, err)
 
 	token := "good_token"
-	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
+	host := createOrbitEnrolledHost(t, "darwin", "host1", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &team1.ID, HostIDs: []uint{host.ID}}, http.StatusOK, &addHostsToTeamResponse{})
@@ -17571,11 +17657,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareCategories() {
 	// create an HTTP server to host the software installer
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/ruby.deb":
-			file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+		case "/dummy_installer.pkg":
+			file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
 			require.NoError(t, err)
 			defer file.Close()
-			w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+			w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
 			_, err = io.Copy(w, file)
 			require.NoError(t, err)
 
@@ -17588,10 +17674,19 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareCategories() {
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
+	maintained1, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "1Password",
+		Slug:             "1password/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.1password.1password",
+	})
+	require.NoError(t, err)
+
 	// do a request with an invalid category
-	rubyURL := srv.URL + "/ruby.deb"
+	pkgURL := srv.URL + "/dummy_installer.pkg"
 	softwareToInstall := []*fleet.SoftwareInstallerPayload{
-		{URL: rubyURL, SHA256: "foobar", Categories: []string{"Not Found"}, SelfService: true},
+		{URL: pkgURL, Categories: []string{"Not Found"}, SelfService: true},
+		{Slug: &maintained1.Slug, SelfService: true},
 	}
 	var batchResponse batchSetSoftwareInstallersResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
@@ -17599,56 +17694,71 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareCategories() {
 	require.Equal(t, "some or all of the categories provided don't exist", errMsg)
 
 	testCases := []struct {
-		desc       string
-		categories []string
+		desc                 string
+		categories           []string
+		fmaDefaultCategories []string
 	}{
+		{
+			desc:       "duplicate categories provided",
+			categories: []string{"Developer tools", "Browsers", "Browsers"},
+		},
 		{
 			desc:       "valid categories 1",
 			categories: []string{"Developer tools", "Browsers"},
 		},
 		{
 			desc:       "valid categories 2",
-			categories: []string{"Developer tools", "Browsers"},
+			categories: []string{"Communication", "Productivity"},
 		},
 		{
-			desc: "empty categories",
+			desc:                 "empty categories",
+			fmaDefaultCategories: []string{"Productivity"},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			softwareToInstall[0].URL = rubyURL
-			softwareToInstall[0].SHA256 = ""
 			softwareToInstall[0].Categories = tc.categories
+			softwareToInstall[1].Categories = tc.categories
+			// remove duplicates if any
+			tc.categories = server.RemoveDuplicatesFromSlice(tc.categories)
 			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
 			packages := waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
-			require.Len(t, packages, 1)
-			require.NotNil(t, packages[0].TitleID)
-			require.Equal(t, rubyURL, packages[0].URL)
-			require.NotNil(t, packages[0].TeamID)
-			require.Equal(t, team1.ID, *packages[0].TeamID)
+			require.Len(t, packages, 2)
+			for _, p := range packages {
+				require.NotNil(t, p.TitleID)
+				require.NotNil(t, p.TeamID)
+				require.Equal(t, team1.ID, *p.TeamID)
 
-			// check that categories come back on individual title fetch
-			stResp := getSoftwareTitleResponse{}
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *packages[0].TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
-			require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
-			require.Equal(t, "ruby", stResp.SoftwareTitle.Name)
-			require.Equal(t, rubyURL, stResp.SoftwareTitle.SoftwarePackage.URL)
-			require.ElementsMatch(t, tc.categories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+				// check that categories come back on individual title fetch
+				stResp := getSoftwareTitleResponse{}
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *p.TitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team1.ID))
+				require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
+				if stResp.SoftwareTitle.SoftwarePackage.FleetMaintainedAppID != nil && len(tc.categories) == 0 {
+					// if no categories are set on an FMA in GitOps, we set categories to
+					// default values
+					require.ElementsMatch(t, tc.fmaDefaultCategories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+					continue
+				}
+				require.ElementsMatch(t, tc.categories, stResp.SoftwareTitle.SoftwarePackage.Categories)
+
+			}
 
 			// check that the categories come back on the My device page
 			res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
 			getDeviceSw := getDeviceSoftwareResponse{}
 			err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 			require.NoError(t, err)
-			require.Len(t, getDeviceSw.Software, 1)
-			require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
-			require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
-			require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
-			require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
-			require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
-			require.Equal(t, stResp.SoftwareTitle.SoftwarePackage.Name, getDeviceSw.Software[0].SoftwarePackage.Name)
-			require.Equal(t, stResp.SoftwareTitle.SoftwarePackage.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
-			require.ElementsMatch(t, tc.categories, getDeviceSw.Software[0].SoftwarePackage.Categories)
+			require.Len(t, getDeviceSw.Software, 2)
+			for _, s := range getDeviceSw.Software {
+				if s.Name == maintained1.Name && len(tc.categories) == 0 {
+					// if no categories are set on an FMA in GitOps, we set categories to
+					// default values
+					require.ElementsMatch(t, tc.fmaDefaultCategories, s.SoftwarePackage.Categories)
+					continue
+				}
+
+				require.ElementsMatch(t, tc.categories, s.SoftwarePackage.Categories)
+			}
 		})
 	}
 }

@@ -175,6 +175,7 @@ func (e MDMEULA) AuthzType() string {
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
 type ExpectedMDMProfile struct {
+	ProfileUUID string `db:"profile_uuid"`
 	// Identifier is the unique identifier used by macOS profiles
 	Identifier string `db:"identifier"`
 	// Name is the unique name used by Windows profiles
@@ -993,4 +994,14 @@ type MDMProfileIdentifierFleetVariables struct {
 // batch-redelivery of an MDM profile.
 type BatchResendMDMProfileFilters struct {
 	ProfileStatus MDMDeliveryStatus
+}
+
+// MDMConfigProfileStatus represents the number of hosts in each status for a
+// given configuration profile. See MDMProfilesSummary for more information on
+// each status, this struct is the same except for a single profile.
+type MDMConfigProfileStatus struct {
+	Verified  uint `json:"verified" db:"verified"`
+	Verifying uint `json:"verifying" db:"verifying"`
+	Pending   uint `json:"pending" db:"pending"`
+	Failed    uint `json:"failed" db:"failed"`
 }

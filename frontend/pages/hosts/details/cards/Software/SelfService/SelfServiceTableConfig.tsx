@@ -1,4 +1,10 @@
-import React, { useRef, useEffect, useCallback, useContext } from "react";
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useContext,
+} from "react";
 import { CellProps, Column } from "react-table";
 
 import {
@@ -19,6 +25,7 @@ import { dateAgo } from "utilities/date_format";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import Spinner from "components/Spinner";
 import Icon from "components/Icon";
+import { IconNames } from "components/icons";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -35,18 +42,15 @@ type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 
 const baseClass = "self-service-table";
 
-const STATUS_CONFIG: Record<
-  Exclude<
-    SoftwareInstallStatus,
-    "pending_uninstall" | "failed_uninstall" | "uninstalled"
-  >,
-  IStatusDisplayConfig
-> = {
+const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: ({ lastInstalledAt = "" }) =>
-      `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
+    tooltip: ({ lastInstalledAt = null }) => {
+      return `Software was installed${
+        lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""
+      }.`;
+    },
   },
   pending_install: {
     iconName: "pending-outline",
@@ -56,11 +60,36 @@ const STATUS_CONFIG: Record<
   failed_install: {
     iconName: "error",
     displayText: "Failed",
-    tooltip: ({ lastInstalledAt = "" }) => (
+    tooltip: ({ lastInstalledAt = null }) => (
       <>
         Software failed to install
         {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
         <b>Retry</b> to install again, or contact your IT department.
+      </>
+    ),
+  },
+  uninstalled: {
+    iconName: "success",
+    displayText: "Uninstalled",
+    tooltip: ({ lastInstalledAt = null }) => {
+      return `Software uninstalled${
+        lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""
+      }.`;
+    },
+  },
+  pending_uninstall: {
+    iconName: "pending-outline",
+    displayText: "Uninstalling...",
+    tooltip: () => "Fleet is uninstalling software.",
+  },
+  failed_uninstall: {
+    iconName: "error",
+    displayText: "Failed (uninstall)",
+    tooltip: ({ lastInstalledAt = null }) => (
+      <>
+        Software failed to uninstall
+        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
+        <b>Retry</b> to uninstall again, or contact your IT department.
       </>
     ),
   },
@@ -137,60 +166,117 @@ const InstallerStatus = ({
   );
 };
 
-interface IInstallerStatusActionProps {
+interface IInstallerStatusActionsProps {
   deviceToken: string;
   software: IHostSoftware;
-  onInstall: () => void;
+  onInstallOrUninstall: () => void;
+  onClickUninstallAction: (software: IHostSoftware) => void;
+}
+
+interface DisplayActionItems {
+  install: {
+    text: string;
+    icon: IconNames;
+  };
+  uninstall: {
+    text: string;
+    icon: IconNames;
+  };
 }
 
 const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
   switch (status) {
-    case null:
-      return "Install";
     case "failed_install":
       return "Retry";
     case "installed":
+    case "uninstalled":
+    case "pending_uninstall":
       return "Reinstall";
     default:
-      return "";
+      // including null
+      return "Install";
   }
 };
 
 const getInstallButtonIcon = (status: SoftwareInstallStatus | null) => {
   switch (status) {
-    case null:
-      return "install";
     case "failed_install":
-      return "refresh";
     case "installed":
+    case "uninstalled":
+    case "pending_uninstall":
+    case "failed_uninstall":
       return "refresh";
     default:
-      return undefined;
+      // including null
+      return "install";
+  }
+};
+
+const getUninstallButtonText = (status: SoftwareInstallStatus | null) => {
+  switch (status) {
+    case "failed_uninstall":
+      return "Retry uninstall";
+    default:
+      // including null, "installed", "pending_install", "pending_uninstalled", "failed_install"
+      return "Uninstall";
+  }
+};
+
+const getUninstallButtonIcon = (status: SoftwareInstallStatus | null) => {
+  switch (status) {
+    case "failed_uninstall":
+      return "refresh";
+    default:
+      // including null, "installed", "pending_install", "pending_uninstalled", "failed_install"
+      return "trash";
   }
 };
 
 const InstallerStatusAction = ({
   deviceToken,
   software: { id, status, software_package, app_store_app },
-  onInstall,
-}: IInstallerStatusActionProps) => {
+  onInstallOrUninstall,
+  onClickUninstallAction,
+}: IInstallerStatusActionsProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
-  // TODO: update this if/when we support self-service app store apps
-  const last_install =
-    software_package?.last_install ?? app_store_app?.last_install ?? null;
+  // displayActionItems is used to track the display text and icons of the install and uninstall button
+  const [
+    displayActionItems,
+    setDisplayActionItems,
+  ] = useState<DisplayActionItems>({
+    install: {
+      text: getInstallButtonText(status),
+      icon: getInstallButtonIcon(status),
+    },
+    uninstall: {
+      text: getUninstallButtonText(status),
+      icon: getUninstallButtonIcon(status),
+    },
+  });
 
-  // localStatus is used to track the status of the any user-initiated install action
-  const [localStatus, setLocalStatus] = React.useState<
-    SoftwareInstallStatus | undefined
-  >(undefined);
+  useEffect(() => {
+    // We update the text/icon only when we see a change to a non-pending status
+    // Pending statuses keep the original text shown (e.g. "Retry" text on failed
+    // install shouldn't change to "Install" text because it was clicked and went
+    // pending. Once the status is no longer pending, like 'installed' the
+    // text will update to "Reinstall")
+    if (status !== "pending_install" && status !== "pending_uninstall") {
+      setDisplayActionItems({
+        install: {
+          text: getInstallButtonText(status),
+          icon: getInstallButtonIcon(status),
+        },
+        uninstall: {
+          text: getUninstallButtonText(status),
+          icon: getUninstallButtonIcon(status),
+        },
+      });
+    }
+  }, [status]);
 
-  const installButtonText = getInstallButtonText(status);
-  const installButtonIcon = getInstallButtonIcon(status);
-
-  // if the localStatus is "failed", we don't want our tooltip to include the old installed_at date so we
-  // set this to null, which tells the tooltip to omit the parenthetical date
-  const lastInstall = localStatus === "failed_install" ? null : last_install;
+  const isAppStoreApp = !!app_store_app;
+  const canUninstallSoftware = !isAppStoreApp && !!software_package;
 
   const isMountedRef = useRef(false);
   useEffect(() => {
@@ -200,45 +286,60 @@ const InstallerStatusAction = ({
     };
   }, []);
 
-  const onClick = useCallback(async () => {
-    setLocalStatus("pending_install");
+  const onClickInstallAction = useCallback(async () => {
     try {
       await deviceApi.installSelfServiceSoftware(deviceToken, id);
       if (isMountedRef.current) {
-        onInstall();
+        onInstallOrUninstall();
       }
     } catch (error) {
       renderFlash("error", "Couldn't install. Please try again.");
-      if (isMountedRef.current) {
-        setLocalStatus("failed_install");
-      }
     }
-  }, [deviceToken, id, onInstall, renderFlash]);
+  }, [deviceToken, id, onInstallOrUninstall, renderFlash]);
 
   return (
-    <div className={`${baseClass}__item-status-action`}>
+    <div className={`${baseClass}__item-actions`}>
       <div className={`${baseClass}__item-action`}>
-        {installButtonText ? (
+        <Button
+          variant="text-icon"
+          type="button"
+          className={`${baseClass}__item-action-button`}
+          onClick={onClickInstallAction}
+          disabled={
+            status === "pending_install" || status === "pending_uninstall"
+          }
+        >
+          <Icon
+            name={displayActionItems.install.icon}
+            color="core-fleet-blue"
+            size="small"
+          />
+
+          <span data-testid={`${baseClass}__install-button--test`}>
+            {displayActionItems.install.text}
+          </span>
+        </Button>
+      </div>
+      <div className={`${baseClass}__item-action`}>
+        {canUninstallSoftware && (
           <Button
             variant="text-icon"
             type="button"
             className={`${baseClass}__item-action-button`}
-            onClick={onClick}
-            disabled={localStatus === "pending_install"}
+            onClick={onClickUninstallAction}
+            disabled={
+              status === "pending_install" || status === "pending_uninstall"
+            }
           >
-            {installButtonIcon && (
-              <Icon
-                name={installButtonIcon}
-                color="core-fleet-blue"
-                size="small"
-              />
-            )}
-            <span data-testid={`${baseClass}__action-button--test`}>
-              {installButtonText}
+            <Icon
+              name={displayActionItems.uninstall.icon}
+              color="core-fleet-blue"
+              size="small"
+            />
+            <span data-testid={`${baseClass}__uninstall-button--test`}>
+              {displayActionItems.uninstall.text}
             </span>
           </Button>
-        ) : (
-          DEFAULT_EMPTY_CELL_VALUE
         )}
       </div>
     </div>
@@ -255,6 +356,7 @@ interface ISelfServiceTableHeaders {
   deviceToken: string;
   onInstall: () => void;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
+  onClickUninstallAction: (software: IHostSoftware) => void;
 }
 
 // NOTE: cellProps come from react-table
@@ -263,6 +365,7 @@ export const generateSoftwareTableHeaders = ({
   deviceToken,
   onInstall,
   onShowInstallerDetails,
+  onClickUninstallAction,
 }: ISelfServiceTableHeaders): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -300,7 +403,9 @@ export const generateSoftwareTableHeaders = ({
         <InstallerStatus
           status={cellProps.row.original.status}
           last_install={
-            cellProps.row.original.software_package?.last_install || null
+            cellProps.row.original.software_package?.last_install ||
+            cellProps.row.original.app_store_app?.last_install ||
+            null
           }
           onShowInstallerDetails={onShowInstallerDetails}
         />
@@ -315,7 +420,10 @@ export const generateSoftwareTableHeaders = ({
           <InstallerStatusAction
             deviceToken={deviceToken}
             software={cellProps.row.original}
-            onInstall={onInstall}
+            onInstallOrUninstall={onInstall}
+            onClickUninstallAction={() =>
+              onClickUninstallAction(cellProps.row.original)
+            }
           />
         );
       },

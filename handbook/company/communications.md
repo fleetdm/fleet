@@ -677,7 +677,7 @@ When attending a conference or traveling for Fleet, keep the following in mind:
 - **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/digital-experience#contact-us) by providing the following information:
   - The start and end dates for your trip.
   - The [price of your flight](https://fleetdm.com/handbook/company/communications#flights)
-  - The [price of your hotel or Airbnb](https://fletdm.com/handbook/comopany/communications#lodging) per night
+  - The [price of your hotel or Airbnb](https://fleetdm.com/handbook/company/communications#lodging) per night
   - The price of the admission fees (if attending a conference)
 
 

@@ -24,6 +24,7 @@ import { AppContext } from "context/app";
 import Card from "components/Card/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner";
 import SoftwareFiltersModal from "pages/SoftwarePage/components/modals/SoftwareFiltersModal";
 
@@ -381,7 +382,12 @@ const HostSoftware = ({
     }
     return (
       <>
-        {isError && <DataError verticalPaddingSize="pad-xxxlarge" />}
+        {isError &&
+          (isMyDevicePage ? (
+            <DeviceUserError />
+          ) : (
+            <DataError verticalPaddingSize="pad-xxxlarge" />
+          ))}
         {!isError && (
           <HostSoftwareTable
             isLoading={
