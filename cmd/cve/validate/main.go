@@ -57,7 +57,7 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 
 	// check CVSS score extraction; confirm that secondary CVSS scores are extracted when primary isn't set
 	if vulns["CVE-2025-3196"].CVSSv3BaseScore() != 5.3 { // CVSSv4 score and CVSSv3 score are different
-		panic(errors.New("cvss v3 spot-check failed for Open Asset Import Library on CVE-2025-3196"))
+		panic(errors.New("cvss v3 spot-check failed for CVE-2025-3196"))
 	}
 
 	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2024.json.gz"))
@@ -76,13 +76,13 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 	}
 
 	if vulns["CVE-2024-54559"].CVSSv3BaseScore() != 5.5 { // secondary source CVSS score
-		panic(errors.New("cvss v3 spot-check failed for macOS on CVE-2024-54559"))
+		panic(errors.New("cvss v3 spot-check failed for CVE-2024-54559"))
 	}
 	if vulns["CVE-2024-0450"].CVSSv3BaseScore() != 6.2 { // secondary source CVSS score
-		panic(errors.New("cvss v3 spot-check failed for CPython on CVE-2024-0450"))
+		panic(errors.New("cvss v3 spot-check failed for CVE-2024-0450"))
 	}
 	if vulns["CVE-2024-0540"].CVSSv3BaseScore() != 9.8 { // primary source CVSS score
-		panic(errors.New("cvss v3 spot-check failed for Tenda on CVE-2024-0540"))
+		panic(errors.New("cvss v3 spot-check failed for CVE-2024-0540"))
 	}
 }
 
