@@ -3,7 +3,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { pick, findIndex } from "lodash";
+import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
 
@@ -75,7 +75,7 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceItem/SelfServiceItem";
+import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceTableConfig";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";
@@ -229,7 +229,7 @@ const DeviceUserPage = ({
   const {
     data: dupResponse,
     isLoading: isLoadingHost,
-    error: loadingDeviceUserError,
+    error: isDeviceUserError,
     refetch: refetchHostDetails,
   } = useQuery<IDeviceUserResponse, Error>(
     ["host", deviceAuthToken],
@@ -709,7 +709,7 @@ const DeviceUserPage = ({
           </ul>
         </div>
       </nav>
-      {loadingDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
+      {isDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
     </div>
   );
 };

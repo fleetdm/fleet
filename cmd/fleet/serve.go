@@ -343,6 +343,7 @@ the way that the Fleet server works.
 					MaxAge:               config.Filesystem.MaxAge,
 					MaxBackups:           config.Filesystem.MaxBackups,
 				},
+				Webhook: logging.WebhookConfig{},
 				Firehose: logging.FirehoseConfig{
 					Region:           config.Firehose.Region,
 					EndpointURL:      config.Firehose.EndpointURL,
@@ -379,6 +380,7 @@ the way that the Fleet server works.
 			// Set specific configuration to osqueryd status logs.
 			loggingConfig.Plugin = config.Osquery.StatusLogPlugin
 			loggingConfig.Filesystem.LogFile = config.Filesystem.StatusLogFile
+			loggingConfig.Webhook.URL = config.Webhook.StatusURL
 			loggingConfig.Firehose.StreamName = config.Firehose.StatusStream
 			loggingConfig.Kinesis.StreamName = config.Kinesis.StatusStream
 			loggingConfig.Lambda.Function = config.Lambda.StatusFunction
@@ -394,6 +396,7 @@ the way that the Fleet server works.
 			// Set specific configuration to osqueryd result logs.
 			loggingConfig.Plugin = config.Osquery.ResultLogPlugin
 			loggingConfig.Filesystem.LogFile = config.Filesystem.ResultLogFile
+			loggingConfig.Webhook.URL = config.Webhook.ResultURL
 			loggingConfig.Firehose.StreamName = config.Firehose.ResultStream
 			loggingConfig.Kinesis.StreamName = config.Kinesis.ResultStream
 			loggingConfig.Lambda.Function = config.Lambda.ResultFunction

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -431,7 +432,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		// TODO what happens if mode is not set?s
 	}
 
-	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, profileVars)
+	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, slices.Collect(maps.Keys(profileVars)))
 	if err != nil {
 		var existsErr endpoint_utils.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -665,21 +666,29 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 
 	var foundCAs []string
 	for _, ca := range customSCEPVars.CAs() {
-		// Check for exact match on challenge and URL
+		// Although this is a loop, we know that we can only have 1 set of SCEP vars because Apple only allows 1 SCEP payload in a profile.
+		// Check for the exact match on challenge and URL
 		challengePrefix := "FLEET_VAR_" + fleet.FleetVarCustomSCEPChallengePrefix
-		urlPrefix := "FLEET_VAR_" + fleet.FleetVarCustomSCEPProxyURLPrefix
-		if scepPayloadContent.Challenge == "$"+challengePrefix+ca || scepPayloadContent.Challenge == "${"+challengePrefix+ca+"}" {
-			if scepPayloadContent.URL == "$"+urlPrefix+ca || scepPayloadContent.URL == "${"+urlPrefix+ca+"}" {
-				foundCAs = append(foundCAs, ca)
-				break
+		if scepPayloadContent.Challenge != "$"+challengePrefix+ca && scepPayloadContent.Challenge != "${"+challengePrefix+ca+"}" {
+			payloadChallenge := scepPayloadContent.Challenge
+			if len(payloadChallenge) > maxValueCharsInError {
+				payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 			}
-			scepURL := scepPayloadContent.URL
-			if len(scepURL) > maxValueCharsInError {
-				scepURL = scepURL[:maxValueCharsInError] + "..."
-			}
-			return &fleet.BadRequestError{Message: "CA name mismatch between $" + challengePrefix + ca + " and " +
-				scepURL + " in SCEP payload."}
+			return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
+				fleet.FleetVarCustomSCEPChallengePrefix + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
+				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
 		}
+		urlPrefix := "FLEET_VAR_" + fleet.FleetVarCustomSCEPProxyURLPrefix
+		if scepPayloadContent.URL != "$"+urlPrefix+ca && scepPayloadContent.URL != "${"+urlPrefix+ca+"}" {
+			payloadURL := scepPayloadContent.URL
+			if len(payloadURL) > maxValueCharsInError {
+				payloadURL = payloadURL[:maxValueCharsInError] + "..."
+			}
+			return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
+				fleet.FleetVarCustomSCEPProxyURLPrefix + ca + "\" must be in the SCEP certificate's \"URL\" field.",
+				InternalErr: fmt.Errorf("URL: %s", payloadURL)}
+		}
+		foundCAs = append(foundCAs, ca)
 	}
 	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) {
 		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must be in the SCEP certificate's common name (CN)."}
@@ -793,7 +802,7 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + fleet.FleetVarSCEPRenewalID + " must be in the SCEP certificate's common name (CN)."}
 	}
 
-	// Check for exact match on challenge and URL
+	// Check for the exact match on challenge and URL
 	challenge := "FLEET_VAR_" + fleet.FleetVarNDESSCEPChallenge
 	if scepPayloadContent.Challenge != "$"+challenge && scepPayloadContent.Challenge != "${"+challenge+"}" {
 		payloadChallenge := scepPayloadContent.Challenge
@@ -801,7 +810,8 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 			payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 		}
 		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPChallenge + "\" must exactly match SCEP payload's 'Challenge' field. Got: " + payloadChallenge}
+			fleet.FleetVarNDESSCEPChallenge + "\" must be in the SCEP certificate's \"Challenge\" field.",
+			InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
 	}
 	ndesURL := "FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL
 	if scepPayloadContent.URL != "$"+ndesURL && scepPayloadContent.URL != "${"+ndesURL+"}" {
@@ -810,7 +820,8 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 			payloadURL = payloadURL[:maxValueCharsInError] + "..."
 		}
 		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPProxyURL + "\" must exactly match SCEP payload's 'URL' field. Got: " + payloadURL}
+			fleet.FleetVarNDESSCEPProxyURL + "\" must be in the SCEP certificate's \"URL\" field.",
+			InternalErr: fmt.Errorf("URL: %s", payloadURL)}
 	}
 	return nil
 }

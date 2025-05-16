@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -75,12 +76,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			Platform:         fleet.IOSPlatform,
 			LabelsExcludeAny: payload.LabelsExcludeAny,
 			LabelsIncludeAny: payload.LabelsIncludeAny,
+			Categories:       payload.Categories,
 		}, {
 			AppStoreID:       payload.AppStoreID,
 			SelfService:      false,
 			Platform:         fleet.IPadOSPlatform,
 			LabelsExcludeAny: payload.LabelsExcludeAny,
 			LabelsIncludeAny: payload.LabelsIncludeAny,
+			Categories:       payload.Categories,
 		}, {
 			AppStoreID:         payload.AppStoreID,
 			SelfService:        payload.SelfService,
@@ -88,6 +91,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			InstallDuringSetup: payload.InstallDuringSetup,
 			LabelsExcludeAny:   payload.LabelsExcludeAny,
 			LabelsIncludeAny:   payload.LabelsIncludeAny,
+			Categories:         payload.Categories,
 		}}...)
 	}
 
@@ -117,6 +121,20 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "validating software labels for batch adding vpp app")
 			}
+
+			payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+			}
+
+			if len(catIDs) != len(payload.Categories) {
+				return nil, &fleet.BadRequestError{
+					Message:     "some or all of the categories provided don't exist",
+					InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+				}
+			}
+
 			vppAppTeams = append(vppAppTeams, fleet.VPPAppTeam{
 				VPPAppID: fleet.VPPAppID{
 					AdamID:   payload.AppStoreID,
@@ -125,6 +143,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				SelfService:        payload.SelfService,
 				InstallDuringSetup: payload.InstallDuringSetup,
 				ValidatedLabels:    validatedLabels,
+				CategoryIDs:        catIDs,
 			})
 		}
 
@@ -388,6 +407,21 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	appID.ValidatedLabels = validatedLabels
+
+	appID.Categories = server.RemoveDuplicatesFromSlice(appID.Categories)
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, appID.Categories)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(appID.Categories) {
+		return &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", appID.Categories),
+		}
+	}
+	appID.CategoryIDs = catIDs
+
 	app := &fleet.VPPApp{
 		VPPAppTeam:       appID,
 		BundleIdentifier: assetMD.BundleID,
@@ -430,9 +464,23 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
 			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]fleet.VPPAppTeam, 1)
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels, AppTeamID: id.AppTeamID}
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{
+				SelfService:        id.SelfService,
+				InstallDuringSetup: id.InstallDuringSetup,
+				ValidatedLabels:    id.ValidatedLabels,
+				AppTeamID:          id.AppTeamID,
+				Categories:         id.Categories,
+				CategoryIDs:        id.CategoryIDs,
+			}
 		} else {
-			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{SelfService: id.SelfService, InstallDuringSetup: id.InstallDuringSetup, ValidatedLabels: id.ValidatedLabels, AppTeamID: id.AppTeamID}
+			adamIDMap[id.AdamID][id.Platform] = fleet.VPPAppTeam{
+				SelfService:        id.SelfService,
+				InstallDuringSetup: id.InstallDuringSetup,
+				ValidatedLabels:    id.ValidatedLabels,
+				AppTeamID:          id.AppTeamID,
+				Categories:         id.Categories,
+				CategoryIDs:        id.CategoryIDs,
+			}
 		}
 	}
 
@@ -459,6 +507,8 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 						InstallDuringSetup: props.InstallDuringSetup,
 						ValidatedLabels:    props.ValidatedLabels,
 						AppTeamID:          props.AppTeamID,
+						Categories:         props.Categories,
+						CategoryIDs:        props.CategoryIDs,
 					},
 					BundleIdentifier: metadata.BundleID,
 					IconURL:          metadata.ArtworkURL,
@@ -475,7 +525,7 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.V
 	return apps, nil
 }
 
-func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*fleet.VPPAppStoreApp, error) {
+func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*fleet.VPPAppStoreApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -524,6 +574,21 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if meta.IconURL != nil {
 		appToWrite.IconURL = *meta.IconURL
 	}
+
+	categories = server.RemoveDuplicatesFromSlice(categories)
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, categories)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(categories) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", categories),
+		}
+	}
+
+	appToWrite.CategoryIDs = catIDs
 
 	// check if labels have changed
 	var existingLabels fleet.LabelIdentsWithScope

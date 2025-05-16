@@ -1,14 +1,17 @@
 {
   "versions": [
     {
-      "version": "1.99.3",
+      "version": "1.100.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.VSCode';"
       },
-      "installer_url": "https://update.code.visualstudio.com/1.99.3/darwin-arm64/stable",
+      "installer_url": "https://update.code.visualstudio.com/1.100.0/darwin-arm64/stable",
       "install_script_ref": "6478c56c",
       "uninstall_script_ref": "391941e2",
-      "sha256": "caa36137ea1b46c594cea880d0836345d79e7de4f8b3826f184ed297fed78128"
+      "sha256": "5360a85a55b2e38a414d5f66d3f2a6d705a8e9f52b40aed824299f0ee1110d45",
+      "default_categories": [
+        "Developer tools"
+      ]
     }
   ],
   "refs": {
