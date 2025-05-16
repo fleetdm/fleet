@@ -76,7 +76,7 @@ module.exports = {
         Os: os,
         OsVersion: osVersion,
         EasIds: [],// This field is required but can be sent as an empty array.
-        complianceStatus: compliant,
+        State: 0,
       },
       {
         EntityType: 4, // EntityType 4 = compliance data
@@ -84,7 +84,7 @@ module.exports = {
         DeviceId: deviceId,
         UserId: userId,
         LastUpdateTime: new Date(lastCheckInTime).toISOString(),
-        complianceStatus: compliant,
+        complianceStatus: 'compliant',
       }
     ];
 
