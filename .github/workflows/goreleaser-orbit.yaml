@@ -78,7 +78,7 @@ jobs:
           path: dist/orbit-macos_darwin_all/orbit
 
   goreleaser-linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
       id-token: write

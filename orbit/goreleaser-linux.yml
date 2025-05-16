@@ -22,6 +22,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
+      - -extldflags "-static"
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version={{.Version}}
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
@@ -33,7 +34,7 @@ archives:
     name_template: orbit_{{.Version}}_{{.Os}}
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 
 snapshot:
   version_template: "{{ .Tag }}-untagged"
