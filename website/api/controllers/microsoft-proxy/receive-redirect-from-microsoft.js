@@ -30,7 +30,8 @@ module.exports = {
   exits: {
     success: { description: 'The admin consent status of compliance tenant was successfully updated.', responseType: 'redirect'},
     redirect: { responseType: 'redirect' },
-    adminDidNotConsent: { description: 'An entra admin did not grant permissions to the Fleet compliance partner application for entra', responseType: 'ok'}
+    adminDidNotConsent: { description: 'An entra admin did not grant permissions to the Fleet compliance partner application for entra', responseType: 'ok'},
+    noMatchingTenant: { description: 'This request did not match any existing Microsoft compliance tenant', responseType: 'notFound'}
   },
 
 
@@ -44,7 +45,7 @@ module.exports = {
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: tenant, stateTokenForAdminConsent: state});
     // If no tenant was found that matches the provided tenant id and state, return a not found response.
     if(!informationAboutThisTenant) {
-      return this.res.notFound();
+      throw 'noMatchingTenant';
     } else {
       let fleetInstanceUrlToRedirectTo = informationAboutThisTenant.fleetInstanceUrl + '/settings/integrations/conditional-access';
 
