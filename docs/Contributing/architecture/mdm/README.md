@@ -4,7 +4,7 @@ This directory contains documentation about Fleet's Mobile Device Management (MD
 
 ## Overview
 
-Fleet's MDM architecture is designed to manage devices across different platforms, including Apple (macOS, iOS) and Windows. This documentation provides insights into the design decisions, system components, and interactions specific to the MDM functionality.
+Fleet's MDM architecture is designed to manage devices across different platforms, including Apple (macOS, iOS, iPadOS), Windows, and Android. This documentation provides insights into the design decisions, system components, and interactions specific to the MDM functionality.
 
 ## Contents
 

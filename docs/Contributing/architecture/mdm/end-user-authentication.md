@@ -29,7 +29,7 @@ The End User Authentication architecture integrates with identity providers (IdP
 1. New device starts the enrollment process and is prompted to login to the IDP.
 2. Fleet captures the username and stores it to register after enrollment.
 3. Device enrolls with the MDM server.
-4. Optionally MDM server retrieves user information from the identity provider.
+4. Optionally MDM server maps user information to SCIM data already sent by IdP.
 5. MDM server associates the user with the device.
 
 ## Identity Provider Integration
@@ -37,7 +37,6 @@ The End User Authentication architecture integrates with identity providers (IdP
 Fleet integrates with various identity providers to authenticate users:
 
 - **SAML**: For integration with SAML-based identity providers such as Okta and Azure AD.
-- **OAuth/OIDC**: For integration with OAuth/OIDC-based identity providers such as Google Workspace.
 
 ## User-Device Association
 
