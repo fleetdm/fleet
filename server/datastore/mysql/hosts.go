@@ -3882,8 +3882,8 @@ WHERE %s`
 		for _, e := range user.Emails {
 			if e.Primary != nil && *e.Primary {
 				primaryEmail = e.Email
+				break
 			}
-			break
 		}
 		if primaryEmail != "" {
 			if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(selectFmt, `mia.email = ?`), primaryEmail); err != nil {
