@@ -105,6 +105,6 @@ After testing make sure to change the Image URL back to `docker.io/fleetdm/fleet
 
 12. Add and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
 
-13. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
+13. If the tests fail, the PD sets the PR to draft, files a bug that links to the PR, and updates the [testing spreadsheet](https://docs.google.com/spreadsheets/d/1H-At5fczHwV2Shm_vZMh0zuWowV7AD7yzHgA0RVN7nQ/edit?gid=0#gid=0).
     
 14. If the test is successful, the PD approves and merges the PR.
