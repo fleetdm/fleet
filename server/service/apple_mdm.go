@@ -3,8 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/md5" // nolint:gosec // used for declarative management token
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"encoding/xml"
@@ -18,6 +20,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -674,9 +677,11 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 			if len(payloadChallenge) > maxValueCharsInError {
 				payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 			}
-			return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-				fleet.FleetVarCustomSCEPChallengePrefix + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
-				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					fleet.FleetVarCustomSCEPChallengePrefix + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
+				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge),
+			}
 		}
 		urlPrefix := "FLEET_VAR_" + fleet.FleetVarCustomSCEPProxyURLPrefix
 		if scepPayloadContent.URL != "$"+urlPrefix+ca && scepPayloadContent.URL != "${"+urlPrefix+ca+"}" {
@@ -684,9 +689,11 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 			if len(payloadURL) > maxValueCharsInError {
 				payloadURL = payloadURL[:maxValueCharsInError] + "..."
 			}
-			return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-				fleet.FleetVarCustomSCEPProxyURLPrefix + ca + "\" must be in the SCEP certificate's \"URL\" field.",
-				InternalErr: fmt.Errorf("URL: %s", payloadURL)}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					fleet.FleetVarCustomSCEPProxyURLPrefix + ca + "\" must be in the SCEP certificate's \"URL\" field.",
+				InternalErr: fmt.Errorf("URL: %s", payloadURL),
+			}
 		}
 		foundCAs = append(foundCAs, ca)
 	}
@@ -809,9 +816,11 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		if len(payloadChallenge) > maxValueCharsInError {
 			payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
 		}
-		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPChallenge + "\" must be in the SCEP certificate's \"Challenge\" field.",
-			InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge)}
+		return &fleet.BadRequestError{
+			Message: "Variable \"$FLEET_VAR_" +
+				fleet.FleetVarNDESSCEPChallenge + "\" must be in the SCEP certificate's \"Challenge\" field.",
+			InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge),
+		}
 	}
 	ndesURL := "FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL
 	if scepPayloadContent.URL != "$"+ndesURL && scepPayloadContent.URL != "${"+ndesURL+"}" {
@@ -819,9 +828,11 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 		if len(payloadURL) > maxValueCharsInError {
 			payloadURL = payloadURL[:maxValueCharsInError] + "..."
 		}
-		return &fleet.BadRequestError{Message: "Variable \"$FLEET_VAR_" +
-			fleet.FleetVarNDESSCEPProxyURL + "\" must be in the SCEP certificate's \"URL\" field.",
-			InternalErr: fmt.Errorf("URL: %s", payloadURL)}
+		return &fleet.BadRequestError{
+			Message: "Variable \"$FLEET_VAR_" +
+				fleet.FleetVarNDESSCEPProxyURL + "\" must be in the SCEP certificate's \"URL\" field.",
+			InternalErr: fmt.Errorf("URL: %s", payloadURL),
+		}
 	}
 	return nil
 }
@@ -1987,12 +1998,6 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	}
 
 	switch h.Platform {
-	case "ios":
-		fallthrough
-	case "ipados":
-		return &fleet.BadRequestError{
-			Message: fleet.CantTurnOffMDMForIOSOrIPadOSMessage,
-		}
 	case "windows":
 		return &fleet.BadRequestError{
 			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
@@ -3786,6 +3791,26 @@ func ReconcileAppleDeclarations(
 		return ctxerr.Wrap(ctx, err, "updating host declaration state")
 	}
 
+	// Find any hosts that requested a resync. This is used to cover special cases where we're not
+	// 100% certain of the declarations on the device.
+	resyncHosts, err := ds.MDMAppleHostDeclarationsGetAndClearResync(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting and clearing resync hosts")
+	}
+	if len(resyncHosts) > 0 {
+		changedHosts = append(changedHosts, resyncHosts...)
+		// Deduplicate changedHosts
+		uniqueHosts := make(map[string]struct{})
+		deduplicatedHosts := make([]string, 0, len(changedHosts))
+		for _, id := range changedHosts {
+			if _, exists := uniqueHosts[id]; !exists {
+				uniqueHosts[id] = struct{}{}
+				deduplicatedHosts = append(deduplicatedHosts, id)
+			}
+		}
+		changedHosts = deduplicatedHosts
+	}
+
 	if len(changedHosts) == 0 {
 		level.Info(logger).Log("msg", "no hosts with changed declarations")
 		return nil
@@ -4182,8 +4207,25 @@ func preprocessProfileContents(
 			continue
 		}
 
+		var variablesUpdatedAt *time.Time
+
 		// Do common validation that applies to all hosts in the target
 		valid := true
+		// Check if there are any CA variables first so that if a non-CA variable causes
+		// preprocessing to fail, we still set the variablesUpdatedAt timestamp so that
+		// validation works as expected
+		// In the future we should expand variablesUpdatedAt logic to include non-CA variables as
+		// well
+		for fleetVar := range fleetVars {
+			if fleetVar == fleet.FleetVarNDESSCEPChallenge || fleetVar == fleet.FleetVarNDESSCEPProxyURL || fleetVar == fleet.FleetVarSCEPRenewalID ||
+				strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertPasswordPrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarDigiCertDataPrefix) ||
+				strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPChallengePrefix) || strings.HasPrefix(fleetVar, fleet.FleetVarCustomSCEPProxyURLPrefix) {
+				// Give a few minutes leeway to account for clock skew
+				variablesUpdatedAt = ptr.Time(time.Now().UTC().Add(-3 * time.Minute))
+				break
+			}
+		}
+
 		for fleetVar := range fleetVars {
 			switch {
 			case fleetVar == fleet.FleetVarNDESSCEPChallenge || fleetVar == fleet.FleetVarNDESSCEPProxyURL:
@@ -4244,7 +4286,7 @@ func preprocessProfileContents(
 				// Otherwise, error out since this variable is unknown
 				detail := fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
 					fleetVar)
-				_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail)
+				_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail, variablesUpdatedAt)
 				if err != nil {
 					return err
 				}
@@ -4277,9 +4319,9 @@ func preprocessProfileContents(
 				continue
 			}
 			profile.CommandUUID = tempCmdUUID
+			profile.VariablesUpdatedAt = variablesUpdatedAt
 
 			hostContents := contentsStr
-
 			failed := false
 		fleetVarLoop:
 			for fleetVar := range fleetVars {
@@ -4322,11 +4364,12 @@ func preprocessProfileContents(
 							detail = fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarNDESSCEPChallenge, err.Error())
 						}
 						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:   target.cmdUUID,
-							HostUUID:      hostUUID,
-							Status:        &fleet.MDMDeliveryFailed,
-							Detail:        detail,
-							OperationType: fleet.MDMOperationTypeInstall,
+							CommandUUID:        target.cmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             detail,
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
 						})
 						if err != nil {
 							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for NDES SCEP challenge")
@@ -4487,11 +4530,12 @@ func preprocessProfileContents(
 					if err != nil {
 						detail := fmt.Sprintf("Couldn't get certificate from DigiCert for %s. %s", caCopy.Name, err)
 						err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-							CommandUUID:   target.cmdUUID,
-							HostUUID:      hostUUID,
-							Status:        &fleet.MDMDeliveryFailed,
-							Detail:        detail,
-							OperationType: fleet.MDMOperationTypeInstall,
+							CommandUUID:        target.cmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             detail,
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
 						})
 						if err != nil {
 							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for DigiCert")
@@ -4813,7 +4857,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.")
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
 	if _, ok := digiCertCAs[caName]; ok {
 		return true, nil
@@ -4831,7 +4875,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	}
 	if !configured || digiCertCA == nil {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName))
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
 	}
 
 	// Get the API token
@@ -4839,7 +4883,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	switch {
 	case fleet.IsNotFound(err):
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			fmt.Sprintf("DigiCert CA '%s' is missing API token. Please configure in Settings > Integrations > Certificates.", caName))
+			fmt.Sprintf("DigiCert CA '%s' is missing API token. Please configure in Settings > Integrations > Certificates.", caName), ptr.Time(time.Now().UTC()))
 	case err != nil:
 		return false, ctxerr.Wrap(ctx, err, "getting CA config asset")
 	}
@@ -4869,7 +4913,6 @@ func (n *ndesVarsFound) Found() bool {
 
 func (n *ndesVarsFound) RenewalOnly() bool {
 	return n != nil && !n.urlFound && !n.challengeFound && n.renewalIdFound
-
 }
 
 func (n *ndesVarsFound) ErrorMessage() string {
@@ -4910,11 +4953,11 @@ func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, profUUID string, target *cmdTarget,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.")
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
 	if !appConfig.Integrations.NDESSCEPProxy.Valid {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.")
+			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.", ptr.Time(time.Now().UTC()))
 	}
 	return appConfig.Integrations.NDESSCEPProxy.Valid, nil
 }
@@ -5023,7 +5066,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 	customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.")
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
 	if _, ok := customSCEPCAs[caName]; ok {
 		return true, nil
@@ -5041,7 +5084,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 	}
 	if !configured || scepCA == nil {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName))
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
 	}
 
 	// Get the challenge
@@ -5049,7 +5092,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 	switch {
 	case fleet.IsNotFound(err):
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
-			fmt.Sprintf("Custom SCEP CA '%s' is missing a challenge. Please configure in Settings > Integrations > Certificates.", caName))
+			fmt.Sprintf("Custom SCEP CA '%s' is missing a challenge. Please configure in Settings > Integrations > Certificates.", caName), ptr.Time(time.Now().UTC()))
 	case err != nil:
 		return false, ctxerr.Wrap(ctx, err, "getting custom SCEP CA config asset")
 	}
@@ -5066,6 +5109,7 @@ func markProfilesFailed(
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	profUUID string,
 	detail string,
+	variablesUpdatedAt *time.Time,
 ) (bool, error) {
 	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
 	for _, hostUUID := range target.hostUUIDs {
@@ -5075,6 +5119,7 @@ func markProfilesFailed(
 		}
 		profile.Status = &fleet.MDMDeliveryFailed
 		profile.Detail = detail
+		profile.VariablesUpdatedAt = variablesUpdatedAt
 		profilesToUpdate = append(profilesToUpdate, profile)
 	}
 	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
@@ -5412,6 +5457,7 @@ func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string
 	return b, nil
 }
 
+// handleDeclarationItems retrieves the declaration items to send back to the client to update
 func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostUUID string) ([]byte, error) {
 	di, err := svc.ds.MDMAppleDDMDeclarationItems(ctx, hostUUID)
 	if err != nil {
@@ -5420,18 +5466,65 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 
 	activations := []fleet.MDMAppleDDMManifest{}
 	configurations := []fleet.MDMAppleDDMManifest{}
+	var removeDeclarationUUIDsToUpdateToPending []string
 	for _, d := range di {
-		configurations = append(configurations, fleet.MDMAppleDDMManifest(d))
+		if d.OperationType == nil {
+			continue
+		}
+		if *d.OperationType != string(fleet.MDMOperationTypeInstall) {
+			if d.Status == nil && *d.OperationType == string(fleet.MDMOperationTypeRemove) {
+				removeDeclarationUUIDsToUpdateToPending = append(removeDeclarationUUIDsToUpdateToPending, d.DeclarationUUID)
+			}
+			continue
+		}
+		configurations = append(configurations, fleet.MDMAppleDDMManifest{
+			Identifier:  d.Identifier,
+			ServerToken: d.ServerToken,
+		})
 		activations = append(activations, fleet.MDMAppleDDMManifest{
 			Identifier:  fmt.Sprintf("%s.activation", d.Identifier),
 			ServerToken: d.ServerToken,
 		})
 	}
 
-	// TODO: Look for ways to optimize the declaration item query so that we don't have to get the declarations token separately.
-	dTok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting declarations token")
+	// Calculate token based on count and concatenated tokens for install items
+	var count int
+	type tokenSorting struct {
+		token           string
+		uploadedAt      time.Time
+		declarationUUID string
+	}
+	var tokens []tokenSorting
+	for _, d := range di {
+		if d.OperationType != nil && *d.OperationType == string(fleet.MDMOperationTypeInstall) {
+			// Extract d.ServerToken and order by d.UploadedAt descending and then by d.DeclarationUUID ascending
+			sorting := tokenSorting{
+				token:           d.ServerToken,
+				uploadedAt:      d.UploadedAt,
+				declarationUUID: d.DeclarationUUID,
+			}
+			tokens = append(tokens, sorting)
+			count++
+		}
+	}
+
+	sort.SliceStable(tokens, func(i, j int) bool {
+		if tokens[i].uploadedAt.Equal(tokens[j].uploadedAt) {
+			return tokens[i].declarationUUID < tokens[j].declarationUUID
+		}
+		return tokens[i].uploadedAt.After(tokens[j].uploadedAt)
+	})
+	var tokenBuilder strings.Builder
+	for _, t := range tokens {
+		tokenBuilder.WriteString(t.token)
+	}
+
+	var token string
+	if count > 0 {
+		// Generate MD5 hash token. It must match the token generated by MDMAppleDDMDeclarationsToken
+		hasher := md5.New() // nolint:gosec // used for declarative management token
+		hasher.Write([]byte(fmt.Sprintf("%d%s", count, tokenBuilder.String())))
+		token = hex.EncodeToString(hasher.Sum(nil))
 	}
 
 	b, err := json.Marshal(fleet.MDMAppleDDMDeclarationItemsResponse{
@@ -5441,10 +5534,20 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			Assets:         []fleet.MDMAppleDDMManifest{},
 			Management:     []fleet.MDMAppleDDMManifest{},
 		},
-		DeclarationsToken: dTok.DeclarationsToken,
+		DeclarationsToken: token,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshaling synchronization tokens")
+	}
+
+	// If any "remove" declarations have a NULL status, update them to a "pending" status
+	// so they can be cleared when the host sends back a status report.
+	// Otherwise they may get stuck in "pending" -- host already cleared them, but Fleet doesn't think so.
+	if len(removeDeclarationUUIDsToUpdateToPending) > 0 {
+		err = svc.ds.MDMAppleSetRemoveDeclarationsAsPending(ctx, hostUUID, removeDeclarationUUIDsToUpdateToPending)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "updating remove declarations to pending")
+		}
 	}
 
 	return b, nil

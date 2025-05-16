@@ -45,7 +45,6 @@ class InputField extends Component {
     /** Use in conjunction with type "password" and enableCopy to see eye icon to view */
     enableShowSecret: PropTypes.bool,
     enableCopy: PropTypes.bool,
-    copyButtonPosition: PropTypes.oneOf(["inside", "outside"]),
     ignore1password: PropTypes.bool,
   };
 
@@ -66,7 +65,6 @@ class InputField extends Component {
     helpText: "",
     enableCopy: false,
     enableShowSecret: false,
-    copyButtonPosition: "outside",
     ignore1password: false,
   };
 
@@ -124,7 +122,7 @@ class InputField extends Component {
   };
 
   renderCopyButton = () => {
-    const { value, copyButtonPosition } = this.props;
+    const { value } = this.props;
 
     const copyValue = (e) => {
       e.preventDefault();
@@ -136,28 +134,11 @@ class InputField extends Component {
       });
     };
 
-    const copyButtonValue =
-      copyButtonPosition === "outside" ? (
-        <>
-          <Icon name="copy" />
-          <span>Copy</span>
-        </>
-      ) : (
-        <Icon name="copy" />
-      );
-
-    const wrapperClasses = classnames(
-      `${baseClass}__copy-wrapper`,
-      copyButtonPosition === "outside"
-        ? `${baseClass}__copy-wrapper-outside`
-        : `${baseClass}__copy-wrapper-inside`
-    );
+    const copyButtonValue = <Icon name="copy" />;
+    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
 
     const copiedConfirmationClasses = classnames(
-      `${baseClass}__copied-confirmation`,
-      copyButtonPosition === "outside"
-        ? `${baseClass}__copied-confirmation-outside`
-        : `${baseClass}__copied-confirmation-inside`
+      `${baseClass}__copied-confirmation`
     );
 
     return (
@@ -165,11 +146,7 @@ class InputField extends Component {
         {this.state.copied && (
           <span className={copiedConfirmationClasses}>Copied!</span>
         )}
-        <Button
-          variant={copyButtonPosition === "outside" ? "text-icon" : "icon"}
-          onClick={copyValue}
-          iconStroke
-        >
+        <Button variant={"icon"} onClick={copyValue} iconStroke>
           {copyButtonValue}
         </Button>
         {this.props.enableShowSecret && this.renderShowSecretButton()}
@@ -195,7 +172,6 @@ class InputField extends Component {
       ignore1password,
       enableCopy,
       enableShowSecret,
-      copyButtonPosition,
     } = this.props;
 
     const { onInputChange } = this;
@@ -228,8 +204,6 @@ class InputField extends Component {
 
     const inputContainerClasses = classnames(`${baseClass}__input-container`, {
       "copy-enabled": enableCopy,
-      "copy-outside": enableCopy && copyButtonPosition === "outside",
-      "copy-inside": enableCopy && copyButtonPosition === "inside",
     });
 
     if (type === "textarea") {

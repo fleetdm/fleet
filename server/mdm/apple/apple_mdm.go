@@ -52,6 +52,8 @@ const (
 
 	// SCEPProxyPath is the HTTP path that serves the SCEP proxy service. The path is followed by identifier.
 	SCEPProxyPath = "/mdm/scep/proxy/"
+
+	DEPSyncLimit = 200
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
@@ -515,6 +517,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 				}
 				return err
 			}),
+			depsync.WithLimit(DEPSyncLimit),
 		)
 
 		if err := syncer.Run(ctx); err != nil {
@@ -578,7 +581,7 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	for _, device := range resp.Devices {
-		level.Debug(d.logger).Log(
+		level.Debug(d.logger).Log( // Keeping this at Debug level since this could generate a lot of log traffic (one per device)
 			"msg", "device",
 			"serial_number", device.SerialNumber,
 			"device_assigned_by", device.DeviceAssignedBy,
@@ -626,8 +629,13 @@ func (d *DEPService) processDeviceResponse(
 		}
 	}
 
+	// Devices just added to an MDM server must have their profile updated.
+	// In our testing, added devices with a profile_uuid (which were removed and then re-added, for example)
+	// may not be able to download the profile and enroll in MDM.
+	needProfileAssign := make(map[string]struct{})
 	for _, addedDevice := range addedDevices {
 		addedDevicesSlice = append(addedDevicesSlice, addedDevice)
+		needProfileAssign[addedDevice.SerialNumber] = struct{}{}
 	}
 	for _, modifiedDevice := range modifiedDevices {
 		modifiedSerials = append(modifiedSerials, modifiedDevice.SerialNumber)
@@ -693,7 +701,7 @@ func (d *DEPService) processDeviceResponse(
 		level.Debug(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
 	}
 
-	level.Debug(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
+	level.Info(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
 		strings.Join(deletedSerials, ", "), "to_modify", strings.Join(modifiedSerials, ", "))
 
 	// at this point, the hosts rows are created for the devices, with the
@@ -766,8 +774,9 @@ func (d *DEPService) processDeviceResponse(
 	for profUUID, devices := range profileToDevices {
 		var serials []string
 		for _, device := range devices {
-			_, ok := existingDeletedSerials[device.SerialNumber]
-			if device.ProfileUUID == profUUID && !ok {
+			_, deleted := existingDeletedSerials[device.SerialNumber]
+			_, needsProfile := needProfileAssign[device.SerialNumber]
+			if device.ProfileUUID == profUUID && !deleted && !needsProfile {
 				skippedSerials = append(skippedSerials, device.SerialNumber)
 				continue
 			}
@@ -787,10 +796,11 @@ func (d *DEPService) processDeviceResponse(
 		if len(skipSerials) > 0 {
 			// NOTE: the `dep_cooldown` job of the `integrations`` cron picks up the assignments
 			// after the cooldown period is over
-			level.Debug(logger).Log("msg", "process device response: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+			level.Info(logger).Log("msg", "process device response: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s",
+				skipSerials))
 		}
 		if len(assignSerials) == 0 {
-			level.Debug(logger).Log("msg", "process device response: no devices to assign profile")
+			level.Info(logger).Log("msg", "process device response: no devices to assign profile")
 			continue
 		}
 
@@ -821,7 +831,8 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	if len(skippedSerials) > 0 {
-		level.Debug(kitlog.With(d.logger)).Log("msg", "found devices that already have the right profile, skipping assignment", "serials", fmt.Sprintf("%s", skippedSerials))
+		level.Info(kitlog.With(d.logger)).Log("msg", "found devices that already have the right profile, skipping assignment", "serials",
+			fmt.Sprintf("%s", skippedSerials))
 	}
 
 	return nil

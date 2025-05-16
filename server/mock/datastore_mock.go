@@ -944,9 +944,13 @@ type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier st
 
 type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]string, error)
 
+type MDMAppleHostDeclarationsGetAndClearResyncFunc func(ctx context.Context) (hostUUIDs []string, err error)
+
 type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
 
 type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
+
+type MDMAppleSetRemoveDeclarationsAsPendingFunc func(ctx context.Context, hostUUID string, declarationUUIDs []string) error
 
 type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error)
 
@@ -1049,6 +1053,8 @@ type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet
 type ResendHostMDMProfileFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
 type BatchResendMDMProfileToHostsFunc func(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error)
+
+type GetMDMConfigProfileStatusFunc func(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error)
 
 type GetHostMDMProfileInstallStatusFunc func(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error)
 
@@ -2580,7 +2586,7 @@ type DataStore struct {
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
 
-	GetNanoMDMEnrollmentTimesFunc 	  GetNanoMDMEnrollmentTimesFunc
+	GetNanoMDMEnrollmentTimesFunc        GetNanoMDMEnrollmentTimesFunc
 	GetNanoMDMEnrollmentTimesFuncInvoked bool
 
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
@@ -2730,11 +2736,17 @@ type DataStore struct {
 	MDMAppleBatchSetHostDeclarationStateFunc        MDMAppleBatchSetHostDeclarationStateFunc
 	MDMAppleBatchSetHostDeclarationStateFuncInvoked bool
 
+	MDMAppleHostDeclarationsGetAndClearResyncFunc        MDMAppleHostDeclarationsGetAndClearResyncFunc
+	MDMAppleHostDeclarationsGetAndClearResyncFuncInvoked bool
+
 	MDMAppleStoreDDMStatusReportFunc        MDMAppleStoreDDMStatusReportFunc
 	MDMAppleStoreDDMStatusReportFuncInvoked bool
 
 	MDMAppleSetPendingDeclarationsAsFunc        MDMAppleSetPendingDeclarationsAsFunc
 	MDMAppleSetPendingDeclarationsAsFuncInvoked bool
+
+	MDMAppleSetRemoveDeclarationsAsPendingFunc        MDMAppleSetRemoveDeclarationsAsPendingFunc
+	MDMAppleSetRemoveDeclarationsAsPendingFuncInvoked bool
 
 	GetMDMAppleOSUpdatesSettingsByHostSerialFunc        GetMDMAppleOSUpdatesSettingsByHostSerialFunc
 	GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked bool
@@ -2888,6 +2900,9 @@ type DataStore struct {
 
 	BatchResendMDMProfileToHostsFunc        BatchResendMDMProfileToHostsFunc
 	BatchResendMDMProfileToHostsFuncInvoked bool
+
+	GetMDMConfigProfileStatusFunc        GetMDMConfigProfileStatusFunc
+	GetMDMConfigProfileStatusFuncInvoked bool
 
 	GetHostMDMProfileInstallStatusFunc        GetHostMDMProfileInstallStatusFunc
 	GetHostMDMProfileInstallStatusFuncInvoked bool
@@ -6563,6 +6578,13 @@ func (s *DataStore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([
 	return s.MDMAppleBatchSetHostDeclarationStateFunc(ctx)
 }
 
+func (s *DataStore) MDMAppleHostDeclarationsGetAndClearResync(ctx context.Context) (hostUUIDs []string, err error) {
+	s.mu.Lock()
+	s.MDMAppleHostDeclarationsGetAndClearResyncFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleHostDeclarationsGetAndClearResyncFunc(ctx)
+}
+
 func (s *DataStore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
 	s.mu.Lock()
 	s.MDMAppleStoreDDMStatusReportFuncInvoked = true
@@ -6575,6 +6597,13 @@ func (s *DataStore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUU
 	s.MDMAppleSetPendingDeclarationsAsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleSetPendingDeclarationsAsFunc(ctx, hostUUID, status, detail)
+}
+
+func (s *DataStore) MDMAppleSetRemoveDeclarationsAsPending(ctx context.Context, hostUUID string, declarationUUIDs []string) error {
+	s.mu.Lock()
+	s.MDMAppleSetRemoveDeclarationsAsPendingFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleSetRemoveDeclarationsAsPendingFunc(ctx, hostUUID, declarationUUIDs)
 }
 
 func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error) {
@@ -6932,6 +6961,13 @@ func (s *DataStore) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 	s.BatchResendMDMProfileToHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchResendMDMProfileToHostsFunc(ctx, profileUUID, filters)
+}
+
+func (s *DataStore) GetMDMConfigProfileStatus(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error) {
+	s.mu.Lock()
+	s.GetMDMConfigProfileStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMConfigProfileStatusFunc(ctx, profileUUID)
 }
 
 func (s *DataStore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profileUUID string) (fleet.MDMDeliveryStatus, error) {

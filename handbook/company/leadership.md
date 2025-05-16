@@ -255,7 +255,6 @@ A completed open position entry should look something like this:
 > _**Note:**_ The "living" URL where the new page will eventually exist on fleetdm.com won't ACTUALLY exist until your pull request is merged. A link will be added in the ["Open positions" section](https://fleetdm.com/handbook/company#open-positions) of the company handbook page.
 
 3. **Link to pull request in "Fleeties:"** Include a link to your GitHub pull request in the "Job description" column for the new row you just added in "Fleeties".
-
 4. **Get it approved and merged:**  When you submit your proposed job description, the CEO will be automatically tagged for review and get a notification.  He will consider where this role fits into Fleet's strategy and decide whether Fleet will open this position at this time.  He will review the data carefully to try and catch any simple mistakes, then tentatively budget cash and equity compensation and document this compensation research.  He will set a tentative start date (which also indicates this position is no longer just "proposed"; it's now part of the hiring plan.)  Then the CEO will start a `#hiring-xxxxx-YYYY` Slack channel, at-mentioning the original proposer and letting them know their position is approved.  (Unless it isn't.)
 
 - _**Why bother with approvals?**  We avoid canceling or significantly changing a role after opening it.  It hurts candidates too much.  Instead, get the position approved first, before you start recruiting and interviewing.  This gives you a sounding board and avoids misunderstandings._
@@ -264,7 +263,6 @@ A completed open position entry should look something like this:
 ### Approving a new position
 
 When review is requested on a proposal to open a new position, the Apprentice to the CEO will complete the following steps when reviewing the pull request:
-
 1. **Consider role and reporting structure:** Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next month.
 2. **Read job description:** Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. **Budget compensation:** Ballpark and document compensation research for the role based on 
@@ -311,9 +309,7 @@ This section is about the hiring process a new core team member, or fleetie.
 Here are the steps hiring managers follow to get an offer out to a candidate:
 
 1. **Create a copy of the "Why hire?"**: Create a copy of the ["Why hire?" template](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/copy?) and complete all TODOs on the "🧑‍🚀 Candidate details" tab.
-
 2. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in the "Why hire?" template.  Be respectful and keep these calls very short.
-
 3. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
    - Start date
 
@@ -323,9 +319,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
    - Preferred pronoun _("them", "her", or "him")_
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - Location of candidate
-
 4. **Compile feedback**: Include feedback from interviews, and challenge submissions, links to any supporting documents that were impactful in your final decision-making, and any other notes you can think of offhand as tabs in the document. Share the "Why hire?" document with the [CEO and Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
-
 5. **Request a CEO interview:** Copy the template below, paste it in the hiring Slack channel for the position, and complete all "TODOs" before sending.
 
      ```
@@ -334,7 +328,7 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
     - Single doc URL: TODO
      ```
      
-5. **Confirm intent to offer:** Share the single document (the "interview packet") with the Head of Digital Experience via Google Drive.
+6. **Confirm intent to offer:** Share the single document (the "interview packet") with the Head of Digital Experience via Google Drive.
    - At-mention the Head of Digital Experience in the hiring channel for the open position and confirm that you would like to make an offer to a particular candidate. Be sure to include the single document URL in your message.
 
 
@@ -342,21 +336,17 @@ Here are the steps hiring managers follow to get an offer out to a candidate:
 
 After receiving the interview packet, the Head of Digital Experience uses the following steps to make an offer:
 
-<!-- For future use: some ready-to-go language around rebencharking compensation for cost of living: https://github.com/fleetdm/fleet/pulls/13499 -->
-
-1. **Review the candidate's row in the ["🧑‍🚀 Fleeties" spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to be sure there are no dangling TODOs. Read the column headers and precisely follow the instructions about how to format the data. Verify the new team member's row in "🧑‍🚀 Fleeties" includes: 
+1. **Review the candidate's row in the ["🧑‍🚀 Fleeties" spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to be sure there are no dangling TODOs**. Read the column headers and precisely follow the instructions about how to format the data. Verify the new team member's row in "🧑‍🚀 Fleeties" includes: 
   - **Start date** _(The new fleetie's first day, YYYY-MM-DD)_
   - **LinkedIn** _(If available)_
   - **GitHub username** _(If available)_
   - **Location** _(Derive this from LinkedIn if possible)_
   - Add the new team member's GitHub username _(Username of 2FA-enabled GitHub account)_
-
 2. Review the [¶¶ 🥧 Equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) to be sure the candidate's compensation and all included notes are correct. 
   - **OTE**: _("On-target earnings", i.e. anticipated total annual cash compensation)_
   - **Equity**: _(Stock options)_
   - **Notes**: _(Track base salary here, as well as a very short explanation of commission or bonus structure.)_
   - **Personal email**: _(Use the personal email they're replying from, e.g. `@gmail.com`)_
-
 3. **Prepare the "exit scenarios" spreadsheet**: 🌐 Head of Digital Experience [copies the "Exit scenarios (template)"](https://docs.google.com/spreadsheets/d/1k2TzsFYR0QxlD-KGPxuhuvvlJMrCvLPo2z8s8oGChT0/copy) for the candidate, and renames the copy to e.g. "Exit scenarios for Jane Doe".
    - _Edit the candidate's copy of the exit scenarios spreadsheet_ to reflect the number of shares in ["🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0), and the spreadsheet will update automatically to reflect their approximate ownership percentage.
 
@@ -364,40 +354,23 @@ After receiving the interview packet, the Head of Digital Experience uses the fo
 
     - Move the candidate's exit scenarios sheet to the top level of the ["¶¶ People operations" folder](https://drive.google.com/drive/folders/1NKZ0UTmLbOPOeAA-iaEote3_diqu8Cbw?usp=drive_link) in Google Drive.
     - Share "Editor" access of the candidate's exit scenarios spreadsheet with them via their personal email. **BE SURE UNCHECK THE "Notify people" box. 
-
 4. **Prepare offer**: 🌐 Head of Digital Experience [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Highlight the number of shares with a link to the candidate's custom "exit scenarios" spreadsheet.
    - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team).
-
 5. **Draft email**: 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
-   - Cc: Head of Digital Experience
+   - Cc: Head of Digital Experience, CTO (if product design or engineering role), VP of Customers (if sales role)
    - Subject: "Full time?"
    - Body: _Copy the offer email verbatim from the Google doc into Gmail as the body of the message, formatting and all, then:_
      - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_
      - _Click the surrounding areas to ensure no "ghost links" are left from previous edits... which has happened before._
      - _Re-read the offer email one last time, and especially double-check that the salary, number of shares, and start date match the numbers that are currently in the equity plan._
-
 6. **Send offer**: 🐈‍⬛ CEO reviews and sends the offer to the candidate:
    - _Grant the candidate "edit" access_ to their "exit scenarios" spreadsheet.
    - _Send_ the email.
-
 7. **Process the offer response**: The Head of Digital Experience will process the offer response by either creating a new ["Teammate pre-onboarding" issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=pre-onboarding.md&title=Pre-onboarding%3A+______________________) and following the steps if the offer is accepted or notifying the stakeholders that the offer was not accepted and we should continue the search. 
-
-8. **If the offer is accepted**: The Head of Digital Experience will:
-  - Review the [¶¶ 🥧 Equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) to be sure the new team member's compensation and all included notes are correct.
-  - _Send a reply_ (ccing DigExp team) welcoming the team member to Fleet and letting them know to expect a separate email with next steps for getting the team member's laptop, Yubikeys, and agreement going ASAP so they can start on time.  For example:
-
-     ```
-     \o/  It's official!
-     
-     Be on the lookout for an email in a separate thread with next steps for quickly signing the paperwork and getting your company laptop and hardware 2FA keys (Yubikeys), which we recommend setting up ASAP. 
-     
-     Thanks, and welcome to the team!
-     Sam
-     
-     ```
+8. **If the offer is accepted**: The Head of Digital Experience will review the [¶¶ 🥧 Equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) to be sure the new team member's compensation and all included notes are correct.
 
 
 ### After an offer is accepted
@@ -429,6 +402,7 @@ As a CEO shadow, you will be attending both internal and external meetings regar
 ### Prepare for the program
 
 CEO shadows join all meetings on the [CEO's calendar](https://calendar.google.com/calendar/embed?src=mike%40fleetdm.com&ctz=America%2FChicago) that **do not have** "[no shadows]" appended to the calendar event title. Before beginning your time as a [CEO shadow](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program):
+
 1. Make sure you've read through the [CEO flaws](https://fleetdm.com/handbook/company/leadership#ceo-flaws) to better understand how to communicate with him.
 2. Update your Zoom display name to be "CEO shadow | [your name]" (e.g. "CEO shadow | Jayne Doo").
 3. Know which meetings you're expected to join. **You won't be listed as an attendee on any of the CEO's calendar events** to avoid confusion when scheduling meetings with external participants. You're intentionally marked out of office to avoid scheduling conflicts.
@@ -446,6 +420,7 @@ Fleet asks US-based hourly contributors to track hours in Gusto, and contributor
 ## Communicating departures
 
 Although it's sad to see someone go, Fleet understands that not everything is meant to be forever [like open-source is](https://fleetdm.com/handbook/company/why-this-way#why-open-source). There are a few steps that the company needs to take to facilitate a departure. 
+
 1. **Departing team member's manager:** Create a private "#YYYY-offboarding-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Head of Digital Experience. Document any context about the departure via "FYI:" in the ["¶ 🗣 E-Group weekly" (confidential Google Doc)](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit). 
 3. **Digital Experience**: The Head of Digital Experience will coordinate the team member's last day, offboarding, and exit meeting, then create and begin completing [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md), to include coordinating team member's last day, offboarding, and exit meeting. At the appropriate time, The Head of Digital Experience will post in #g-e to inform the E-group of the team member's departure, asking E-group members to inform any other managers on their teams.
 4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
@@ -454,6 +429,7 @@ Although it's sad to see someone go, Fleet understands that not everything is me
 ## Request a role change for a Fleetie
 
 From time to time, someone's job title changes. The hiring manager can use the following steps to change someone's position:
+
 1. Create Slack channel: Create a private "#YYYY-change-title-for-xxxxxx" Slack channel (replace "xxxxxx" with the Fleetie's name and YYYY with current year) for discussion and invite the CEO and Head of Digital Experience.
 2. At-mention the Head of Digital Experience in the new channel with any context regarding the title change. Share any related documents with the Head of Digital Experience and the CEO.
 3. After getting approval from the [Head of People](https://fleetdm.com/handbook/digital-experience#team), the Digital Experience team will take the necessary steps to [change the fleetie's job title](https://fleetdm.com/handbook/digital-experience#change-a-fleeties-role).
@@ -465,12 +441,12 @@ From time to time, someone's job title changes. The hiring manager can use the f
 
 When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.
 
-1. Deliver negative feedback privately whenever possible, and be constructive not punitive. Celebrate positive feedback publicly.
+1. Deliver negative feedback privately whenever possible, and be constructive, not punitive. Celebrate positive feedback publicly.
 2. Performance management is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
 3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.
 
 
-## Plan a Fleetie get together
+## Plan a Fleetie get-together
 
 When several Fleeties are in the same geographic location, Fleet will sponsor a one-time or recurring in-person Fleetie get together. It is up to the Fleeties in each area to organize and plan their own events. The cost should not exceed $25 per attendee, and does not require pre-approval unless the cost exceeds your Brex limit.
 
@@ -486,7 +462,7 @@ Our goal is for each team at Fleet to conduct an offsite once per year. Team off
 
 The DRI for your department will review the proposed budget with the e-group and provide approval or request revisions. 
 
-> Look for central locations near major international airports to minimize travel. Avoid high cost areas during peak travel times to minimize cost.
+> Look for central locations near major international airports to minimize travel. Avoid high-cost areas during peak travel times to minimize cost.
 
 
 ## Plan a team offsite

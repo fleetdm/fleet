@@ -1246,8 +1246,10 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		// if error is because the host does not exist, check first if the user
 		// had access to install/uninstall software (to prevent leaking valid host ids).
 		if fleet.IsNotFound(err) {
-			if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
-				return err
+			if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+				if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
+					return err
+				}
 			}
 		}
 		svc.authz.SkipAuthorization(ctx)
@@ -1268,8 +1270,10 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	}
 
 	// authorize with the host's team
-	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
-		return err
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+			return err
+		}
 	}
 
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
@@ -1813,6 +1817,7 @@ func (svc *Service) softwareBatchUpload(
 			case ok:
 				// Perfect match: existing installer on the same team
 				installer.StorageID = p.SHA256
+
 				if foundInstaller.Extension == "exe" || foundInstaller.Extension == "tar.gz" {
 					if p.InstallScript == "" {
 						return fmt.Errorf("Couldn't edit. Install script is required for .%s packages.", foundInstaller.Extension)
@@ -1878,8 +1883,16 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			var installerBytesExist bool
+			if p.SHA256 != "" {
+				installerBytesExist, err = svc.softwareInstallStore.Exists(ctx, installer.StorageID)
+				if err != nil {
+					return err
+				}
+			}
+
 			// no accessible matching installer was found, so attempt to download it from URL.
-			if installer.StorageID == "" {
+			if installer.StorageID == "" || !installerBytesExist {
 				if p.SHA256 != "" && p.URL == "" {
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}

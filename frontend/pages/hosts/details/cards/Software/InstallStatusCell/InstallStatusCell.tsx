@@ -46,7 +46,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
         </>
       ) : (
         <>
-          Software is installed (install
+          Software was installed (install
           <br />
           script finished with exit code 0).
         </>
@@ -101,13 +101,14 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: ({ softwareName, isAppStoreApp }) =>
       isAppStoreApp ? (
         <>
-          App Store app can be installed on the host. Select{" "}
-          <b>Actions {">"} Install</b> to install.
+          App Store app can be installed on the host. <br />
+          Select <b>Actions {">"} Install</b> to install.
         </>
       ) : (
         <>
           {softwareName ? <b>{softwareName}</b> : "Software"} can be installed
-          on the host. Select <b>Actions &gt; Install</b> to install.
+          on the host.
+          <br /> Select <b>Actions &gt; Install</b> to install.
         </>
       ),
   },
@@ -117,7 +118,9 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: ({ softwareName }) => (
       <>
         {softwareName ? <b>{softwareName}</b> : "Software"} can be installed on
-        the host. {SELF_SERVICE_TOOLTIP}
+        the host.
+        <br />
+        {SELF_SERVICE_TOOLTIP}
       </>
     ),
   },
