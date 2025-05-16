@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -2808,6 +2809,77 @@ func TestGitOpsTeamWebhooks(t *testing.T) {
 	// Check that the team's host status webhook settings are enabled and set to the new values.
 	require.True(t, team.Config.WebhookSettings.HostStatusWebhook.Enable)
 	require.Equal(t, "http://coolwebhook.biz", team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+}
+
+func TestGitOpsFeatures(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{
+		Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+			AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"query_a": "SELECT 1", "query_b": "SELECT 2"}`)),
+			DetailQueryOverrides: map[string]*string{
+				"detail_query_a": ptr.String("SELECT a"),
+				"detail_query_b": nil,
+			},
+		},
+	}
+
+	globalFileUpdatedFeatures, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileUpdatedFeatures.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    enable_host_users: false
+    enable_software_inventory: true
+    detail_query_overrides:
+      detail_query_a: "SELECT it_works"
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets: [{"secret":"globalSecret"}]
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with updated feature settings.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileUpdatedFeatures.Name()})
+	require.NoError(t, err)
+	require.False(t, appConfig.Features.EnableHostUsers)
+	require.True(t, appConfig.Features.EnableSoftwareInventory)
+	require.Nil(t, appConfig.Features.AdditionalQueries)
+	require.Equal(t, 1, len(appConfig.Features.DetailQueryOverrides))
+	require.Equal(t, "SELECT it_works", *appConfig.Features.DetailQueryOverrides["detail_query_a"])
+
+	// Do a GitOps run with no feature settings.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	require.False(t, appConfig.Features.EnableHostUsers)
+	require.False(t, appConfig.Features.EnableSoftwareInventory)
+	require.Nil(t, appConfig.Features.AdditionalQueries)
+	require.Nil(t, appConfig.Features.DetailQueryOverrides)
 }
 
 func TestGitOpsSSOSettings(t *testing.T) {
