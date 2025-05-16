@@ -123,7 +123,7 @@ WHERE
 
 			for _, h := range hostIDRecordList {
 				hostSoftwareInsertParams = append(hostSoftwareInsertParams, h.HostID, selectedID)
-				hostSoftwareInsertQuery += fmt.Sprintf("(?,?),")
+				hostSoftwareInsertQuery += "(?,?),"
 
 				if len(hostSoftwareInsertParams) >= 20_000 { // update up to 10k hosts at a time
 					_, err = tx.Exec(strings.TrimSuffix(hostSoftwareInsertQuery, ","), hostSoftwareInsertParams...)
