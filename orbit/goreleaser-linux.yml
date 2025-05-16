@@ -23,7 +23,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -extldflags "-static"
+      - -linkmode external -extldflags "-static"
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version={{.Version}}
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
