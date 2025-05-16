@@ -38,7 +38,7 @@ To have `generate-gitops` output sensitive info in plaintext in your files, you 
 The `generate-gitops` tool includes a few other options to make migrating to GitOps easier:
 
 - `--print` : Print the configuration to `stdout` rather than to files.
-- `--team` : (Premium only) Only output the configuration files of the team with the specified name. Global or "no team" configuration may be output using `--team global` or `--team no-team`.
+- `--team` : (Premium only) Only output the configuration files of the team with the specified name. Global or "no team" configuration may be output using `--team global` or `--team no-team`. (This option can be useful for testing out GitOps with a "canary" team before rolling it out to your entire organization.)
 - `--key` : Display the value of a specific, dot-delimited key, e.g. `agent_options.config.decorators`. Searches for the given key in the global configuration by default; use in conjunction with `--team` to output config from a specific team.
 
 See `fleetctl generate-gitops --help` for all options.
