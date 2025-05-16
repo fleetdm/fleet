@@ -29,6 +29,7 @@ import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/moda
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
+import ViewYamlModal from "../ViewYamlModal";
 
 import {
   APP_STORE_APP_ACTION_OPTIONS,
@@ -95,6 +96,8 @@ interface IActionsDropdownProps {
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   onEditSoftwareClick: () => void;
+  gitOpsModeEnabled?: boolean;
+  repoURL?: string;
 }
 
 const SoftwareActionButtons = ({
@@ -102,11 +105,9 @@ const SoftwareActionButtons = ({
   onDownloadClick,
   onDeleteClick,
   onEditSoftwareClick,
+  gitOpsModeEnabled,
+  repoURL,
 }: IActionsDropdownProps) => {
-  const config = useContext(AppContext).config;
-  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
-    config?.gitops || {};
-
   let options =
     installerType === "package"
       ? [...SOFTWARE_PACKAGE_ACTION_OPTIONS]
@@ -131,7 +132,12 @@ const SoftwareActionButtons = ({
       </>
     );
     options = options.map((option) => {
-      if (option.value === "edit" || option.value === "delete") {
+      // edit is disabled in gitOpsMode for VPP only
+      // delete is disabled in gitOpsMode for all installers (FMA, VPP, & custom packages)
+      if (
+        (option.value === "edit" && installerType === "vpp") ||
+        option.value === "delete"
+      ) {
         return {
           ...option,
           disabled: true,
@@ -168,7 +174,11 @@ const SoftwareActionButtons = ({
 
         // If there's a tooltip, wrap the button
         return option.tooltipContent ? (
-          <TooltipWrapper key={option.value} tipContent={option.tooltipContent}>
+          <TooltipWrapper
+            key={option.value}
+            tipContent={option.tooltipContent}
+            underline={false}
+          >
             {ButtonContent}
           </TooltipWrapper>
         ) : (
@@ -219,6 +229,7 @@ const SoftwareInstallerCard = ({
   const isFleetMaintainedApp =
     "fleet_maintained_app_id" in softwareInstaller &&
     !!softwareInstaller.fleet_maintained_app_id;
+  const isCustomPackage = installerType === "package" && !isFleetMaintainedApp;
   const sha256 =
     "hash_sha256" in softwareInstaller
       ? softwareInstaller.hash_sha256
@@ -233,12 +244,17 @@ const SoftwareInstallerCard = ({
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    config,
   } = useContext(AppContext);
+
+  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
+    config?.gitops || {};
 
   const { renderFlash } = useContext(NotificationContext);
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showViewYamlModal, setShowViewYamlModal] = useState(false);
 
   const onEditSoftwareClick = () => {
     setShowEditSoftwareModal(true);
@@ -246,6 +262,10 @@ const SoftwareInstallerCard = ({
 
   const onDeleteClick = () => {
     setShowDeleteModal(true);
+  };
+
+  const onToggleViewYaml = () => {
+    setShowViewYamlModal(!showViewYamlModal);
   };
 
   const onDeleteSuccess = useCallback(() => {
@@ -354,9 +374,16 @@ const SoftwareInstallerCard = ({
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
               onEditSoftwareClick={onEditSoftwareClick}
+              gitOpsModeEnabled={gitOpsModeEnabled}
+              repoURL={repoURL}
             />
           )}
         </div>
+        {gitOpsModeEnabled && isCustomPackage && (
+          <div className={`${baseClass}__yaml-button-wrapper`}>
+            <Button onClick={onToggleViewYaml}>View YAML</Button>
+          </div>
+        )}
       </div>
       <div className={`${baseClass}__installer-status-table`}>
         <InstallerStatusTable
@@ -392,6 +419,12 @@ const SoftwareInstallerCard = ({
           teamId={teamId}
           onExit={() => setShowDeleteModal(false)}
           onSuccess={onDeleteSuccess}
+        />
+      )}
+      {showViewYamlModal && isCustomPackage && (
+        <ViewYamlModal
+          softwarePackage={softwareInstaller as ISoftwarePackage}
+          onExit={onToggleViewYaml}
         />
       )}
     </Card>

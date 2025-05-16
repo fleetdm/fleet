@@ -84,6 +84,7 @@ const Editor = ({
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
+    [`${baseClass}__wrapper--copy-enabled`]: enableCopy,
   });
 
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
@@ -168,6 +169,7 @@ const Editor = ({
 
   return (
     <div className={classNames}>
+      {renderCopyButton()}
       {renderLabel()}
       {enableCopy && renderCopyButton()}
       <AceEditor

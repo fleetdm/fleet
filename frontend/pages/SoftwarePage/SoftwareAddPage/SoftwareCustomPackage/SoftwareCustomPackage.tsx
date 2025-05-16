@@ -141,6 +141,16 @@ const SoftwareCustomPackage = ({
           newQueryParams
         )
       );
+
+      renderFlash(
+        "success",
+        <>
+          <b>{formData.software?.name}</b> successfully added.
+          {formData.selfService
+            ? " The end user can install from Fleet Desktop."
+            : ""}
+        </>
+      );
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     }
@@ -166,8 +176,6 @@ const SoftwareCustomPackage = ({
           onCancel={onCancel}
           onSubmit={onSubmit}
           onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
-          // TODO - unnecessary if all uses of `PackageForm` are gitops compatible - TBD by product
-          gitopsCompatible
         />
         {uploadDetails && (
           <FileProgressModal
