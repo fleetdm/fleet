@@ -34,7 +34,7 @@ module.exports = {
       type: 'string',
       required: true,
     },
-    userId: {
+    userPrincipalName: {
       type: 'string',
       required: true,
     },
@@ -54,12 +54,43 @@ module.exports = {
   },
 
 
-  fn: async function ({entraTenantId, fleetServerSecret, deviceId, deviceName, os, osVersion, userId, compliant, lastCheckInTime}) {
+  fn: async function ({entraTenantId, fleetServerSecret, deviceId, deviceName, os, osVersion, userPrincipalName, compliant, lastCheckInTime}) {
 
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
       return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
+    }
+
+    if(sails.config.custom.sendMockProxyResponsesForDevelopment) {
+      sails.log(`Sending mock success response without communicating with the Microsoft API because 'sails.config.custom.sendMockProxyResponsesForDevelopment' is set to true`);
+      sails.log(`(Would have sent a compliance status update to microsoft for a host.)`);
+
+      return {
+        message_id: sails.helpers.strings.random.with({len:15}),// eslint-disable-line camelcase
+      };
+    }
+
+    let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
+      complianceTenantRecordId: informationAboutThisTenant.id
+    });
+    let graphAccessToken = tokenAndApiUrls.graphAccessToken;
+    let accessToken = tokenAndApiUrls.manageApiAccessToken;
+    let deviceDataSyncUrl = tokenAndApiUrls.deviceDataSyncUrl;
+
+    // [?]: https://learn.microsoft.com/en-us/graph/api/resources/users
+    // Get the GUID for this user using the UserPrincipalName
+    let informationAboutThisUser = await sails.helpers.http.get.with({
+      url: `https://graph.microsoft.com/v1.0/users('${userPrincipalName}')`,
+      headers: {
+        'Authorization': `Bearer ${graphAccessToken}`
+      }
+    }).intercept((err)=>{
+      return new Error({error: `An error occurred when getting a user ID from a user principal name (${userPrincipalName}) for a complaince status update. Full error: ${require('util').inspect(err, {depth: 3})}`});
+    });
+
+    if(!informationAboutThisUser.id) {
+      return new Error({error: `An error occurred when getting information about a user (${userPrincipalName}). The response from the Microsoft graph API did not include an ID.`});
     }
 
     // Build the complaince report for this device:
@@ -70,7 +101,7 @@ module.exports = {
         DeviceManagementState: 'managed',
         DeviceId: deviceId,
         DeviceName: deviceName,
-        UserId: userId,
+        UserId: informationAboutThisUser.id,
         LastCheckInTime: new Date(lastCheckInTime).toISOString(),
         LastUpdateTime: new Date(lastCheckInTime).toISOString(),
         Os: os,
@@ -82,31 +113,16 @@ module.exports = {
         EntityType: 4, // EntityType 4 = compliance data
         TenantId: informationAboutThisTenant.entraTenantId,
         DeviceId: deviceId,
-        UserId: userId,
+        UserId: informationAboutThisUser.id,
         LastUpdateTime: new Date(lastCheckInTime).toISOString(),
         complianceStatus: 'compliant',
       }
     ];
 
-    if(sails.config.custom.sendMockProxyResponsesForDevelopment) {
-      sails.log(`Sending mock success response without communicating with the Microsoft API because 'sails.config.custom.sendMockProxyResponsesForDevelopment' is set to true`);
-      sails.log(`(Would have sent a compliance status update to microsoft for a host.)`);
-      sails.log(`Compliance update content: ${require('util').inspect(complianceUpdateContent, {depth: 3})}`);
-
-
-      return {
-        message_id: sails.helpers.strings.random.with({len:15}),// eslint-disable-line camelcase
-      };
-    }
-
-    let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
-      complianceTenantRecordId: informationAboutThisTenant.id
-    });
-
-    let accessToken = tokenAndApiUrls.manageApiAccessToken;
-    let deviceDataSyncUrl = tokenAndApiUrls.deviceDataSyncUrl;
+    // Generate a UUID for this compliance update.
     let messageId = sails.helpers.strings.uuid();
-    let complianceUpdateResponse = await sails.helpers.http.sendHttpRequest.with({
+
+    await sails.helpers.http.sendHttpRequest.with({
       method: 'PUT',
       url: `${deviceDataSyncUrl}/DataUploadMessages(guid'${encodeURIComponent(messageId)}')?api-version=1.2`,
       headers: {
