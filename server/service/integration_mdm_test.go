@@ -5733,26 +5733,38 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	assert.Equal(t, displayName, fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	assert.Equal(t, "sso_user_no_displayname", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
-	// Report host details for the device. At this point, we did not fully link the SCIM data with the user yet.
+	// Report host details for the device. At this point, we should have fully linked the SCIM data with the user.
 	var hostResp getHostResponse
+	checkEndUser := func() {
+		require.Len(t, hostResp.Host.EndUsers, 1)
+		endUser := hostResp.Host.EndUsers[0]
+		assert.Equal(t, "some_other_username", endUser.IdpUserName)
+		assert.NotNil(t, endUser.IdpInfoUpdatedAt)
+		assert.Equal(t, "external_id", endUser.IdpID)
+		assert.Equal(t, displayName, endUser.IdpFullName)
+		assert.Empty(t, endUser.IdpGroups)
+		assert.Empty(t, endUser.OtherEmails)
+	}
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	assert.Len(t, hostResp.Host.EndUsers, 1)
-	assert.Equal(t, "", hostResp.Host.EndUsers[0].IdpFullName)                                    // full name is not recorded for mdm flow until scim sync
-	assert.Equal(t, "sso_user_no_displayname@example.com", hostResp.Host.EndUsers[0].IdpUserName) // email is the same as the one used to enroll
+	checkEndUser()
 
 	hostID := hostResp.Host.ID
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
 	assert.Len(t, hostResp.Host.EndUsers, 1)
-	assert.Equal(t, "", hostResp.Host.EndUsers[0].IdpFullName)                                    // full name is not recorded for mdm flow until scim sync
-	assert.Equal(t, "sso_user_no_displayname@example.com", hostResp.Host.EndUsers[0].IdpUserName) // email is the same as the one used to enroll
+	checkEndUser()
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+	checkEndUser()
 
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 
 	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features)
 
-	// simulate osquery reporting mdm information
+	// simulate osquery reporting mdm information, doesn't change anything
 	rows := []map[string]string{
 		{
 			"enrolled":           "true",
@@ -5772,16 +5784,6 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
-	checkEndUser := func() {
-		require.Len(t, hostResp.Host.EndUsers, 1)
-		endUser := hostResp.Host.EndUsers[0]
-		assert.Equal(t, "some_other_username", endUser.IdpUserName)
-		assert.NotNil(t, endUser.IdpInfoUpdatedAt)
-		assert.Equal(t, "external_id", endUser.IdpID)
-		assert.Equal(t, displayName, endUser.IdpFullName)
-		assert.Empty(t, endUser.IdpGroups)
-		assert.Empty(t, endUser.OtherEmails)
-	}
 	checkEndUser()
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)

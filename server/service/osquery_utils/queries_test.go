@@ -2006,11 +2006,3 @@ func TestGenerateSQLForAllExists(t *testing.T) {
 	sql = generateSQLForAllExists(query1, query2)
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
 }
-
-type nfe struct{}
-
-func (e nfe) Error() string {
-	return "foobar"
-}
-
-func (e nfe) IsNotFound() bool { return true }
