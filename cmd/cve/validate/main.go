@@ -78,6 +78,9 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 	if vulns["CVE-2024-54559"].CVSSv3BaseScore() != 5.5 { // secondary source CVSS score
 		panic(errors.New("cvss v3 spot-check failed for macOS on CVE-2024-54559"))
 	}
+	if vulns["CVE-2024-0450"].CVSSv3BaseScore() != 6.2 { // secondary source CVSS score
+		panic(errors.New("cvss v3 spot-check failed for Tenda on CVE-2024-0540"))
+	}
 	if vulns["CVE-2024-0540"].CVSSv3BaseScore() != 9.8 { // primary source CVSS score
 		panic(errors.New("cvss v3 spot-check failed for Tenda on CVE-2024-0540"))
 	}
