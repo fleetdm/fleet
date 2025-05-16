@@ -8,7 +8,7 @@ How to remove fleetd from your device:
 - To run the script on macOS, open the **Terminal** app.
 - Navigate to the script's directory by running this command: `cd /path/to/your/script`
 - Make the script executable: `chmod +x uninstall-fleetd-macos.sh`
-- Run it: `./uninstall-fleetd-macos.sh`
+- Run it: `sudo ./uninstall-fleetd-macos.sh`
 
 How to uninstall fleetd from a host via Fleet (remotely):
 
