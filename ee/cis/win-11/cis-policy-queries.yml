@@ -5722,6 +5722,35 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure Windows protected print' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether Windows protected print is enabled on the system.
+    Windows protected print uses the modern print platform and Windows protected print
+    mode. Modern print is designed to work only with Mopria-certified printers. Mopria is a
+    collection of printer manufacturers and software vendors that define standards for IPP
+    printing and eSCL scanning.
+
+    The recommended state for this setting is: Enabled.
+
+    Note: Windows protected print will not prohibit administrators or users from installing
+    third-party print drivers through an installation package provided by the print device
+    manufacturer.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled.
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure Windows protected print'
+    Note: This Group Policy path is provided by the Group Policy template
+    Printing.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\WPP\WindowsProtectedPrintGroupPolicyState' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Limits print driver installation to Administrators' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -6582,6 +6611,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Block NetBIOS-based discovery for domain controller location' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Domain Controller (DC) location algorithm uses NetBIOS-based discovery for the Domain Controller's location.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Net Logon\DC Locator DNS Records\Block NetBIOS-based discovery for domain controller location'
+    Note: This Group Policy path is provided by the Group Policy template
+    'Netlogon.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Netlogon\Parameters\BlockNetbiosDiscovery' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow Clipboard synchronization across devices' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -6781,6 +6830,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure SAM change password RPC methods policy' is set to 'Enabled: Block all change password RPC methods'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines which RPC methods can be used to change passwords stored in the Security Account Manager (SAM).
+    The recommended state for this setting is: 'Enabled: Block all change password RPC methods'.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Block all change password RPC methods':
+    'Computer Configuration\Policies\Administrative Templates\System\Security Account Manager\Configure SAM change password RPC methods policy'
+    Note: This Group Policy path is provided by the Group Policy template 'SAM.admx/adml'
+    that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\SAM\SamrChangeUserPasswordApiPolicy' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Restrict Unauthenticated RPC clients' is set to 'Enabled: Authenticated'
   platforms: win11
   platform: windows
@@ -6895,6 +6964,28 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure the behavior of the sudo command' is set to 'Enabled: Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures the use of the sudo.exe command line tool. The sudo
+    feature in Windows allows users to run elevated commands (as an administrator)
+    directly from an unelevated console session.
+    The recommended state for this setting is: Enabled: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Configure the behavior of the sudo command'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'Sudo.admx' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Sudo\Enabled' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
