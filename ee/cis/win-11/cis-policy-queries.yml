@@ -9085,6 +9085,70 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure Brute-Force Protection aggressiveness' is set to 'Enabled: Medium' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures whether Brute-Force Protection in Microsoft Defender Antivirus is enabled.
+    Brute-force protection can detect and block attempts to forcibly sign in to a system.
+    The recommended state for this setting is: Enabled: Medium. Configuring this setting to High also conforms to the benchmark.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Medium' or higher:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Remediation\Behavioral Network Blocks\Brute-Force Protection\Configure Brute-Force Protection aggressiveness'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Remediation\Behavioral Network Blocks\Brute Force Protection\BruteForceProtectionAggressiveness' AND data IN (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Remote Encryption Protection Mode' is set to 'Enabled: Audit' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures the Brute-Force Protection feature in Microsoft Defender Antivirus.
+    Brute-Force Protection can detect and block attempts to forcibly initiate sign-ins and sessions.
+    The recommended state for this setting is: 'Enabled: Audit'. Configuring this setting to Block also conforms to the benchmark.
+    Note: Configuring the value to either Default or Off does not conform to this benchmark.
+    Note 2: This setting's name is duplicated in the 'Remote Encryption Protection' section, but they configure two different behaviors.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Audit' or higher:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Remediation\Behavioral Network Blocks\Brute-Force Protection\Configure Remote Encryption Protection Mode'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Remediation\Behavioral Network Blocks\Brute Force Protection\BruteForceProtectionConfiguredState' AND data IN (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure how aggressively Remote Encryption Protection blocks threats' is set to 'Enabled: Medium' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures how aggressively Remote Encryption Prevention Protection blocks malicious IP addresses.
+    The recommended state for this setting is: 'Enabled: Medium' or higher. Configuring this setting to High also conforms to the benchmark
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Medium' or higher:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Remediation\Behavioral Network Blocks\Remote Encryption Protection\Configure how aggressively Remote Encryption Protection blocks threats'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Remediation\Behavioral Network Blocks\Remote Encryption Protection\RemoteEncryptionProtectionAggressiveness' AND data IN (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Configure Watson events' is set to 'Disabled'
   platforms: win11
   platform: windows
