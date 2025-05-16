@@ -88,13 +88,13 @@ module.exports = {
 
     let tenantDataSyncService = _.find(endpointsInResponse, {providerName: 'PartnerTenantDataSyncService'});
     if(!tenantDataSyncService) {
-      throw new Error(`When sending a request to get the PartnerTenantDataSyncService service principal of a Microsoft compliance tenant, no PartnerTenantDataSyncService service principal was found.`)
+      throw new Error(`When sending a request to get the PartnerTenantDataSyncService service principal of a Microsoft compliance tenant, no PartnerTenantDataSyncService service principal was found.`);
     }
     let tenantDataSyncUrl = tenantDataSyncService.uri;
 
     let deviceDataSyncService = _.find(endpointsInResponse, {providerName: 'PartnerDeviceDataSyncService'});
     if(!deviceDataSyncService) {
-      throw new Error(`When sending a request to get the PartnerDeviceDataSyncService service principal of a Microsoft compliance tenant, no PartnerDeviceDataSyncService service principal was found.`)
+      throw new Error(`When sending a request to get the PartnerDeviceDataSyncService service principal of a Microsoft compliance tenant, no PartnerDeviceDataSyncService service principal was found.`);
     }
     let deviceDataSyncUrl = deviceDataSyncService.uri;
 
