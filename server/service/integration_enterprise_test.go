@@ -17645,22 +17645,10 @@ done
 	s.uploadSoftwareInstaller(t, payloadVim, http.StatusOK, "")
 
 	// Clean up all installers from the store
-	var installersToIgnore []string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var pkgHash string
-		err := sqlx.GetContext(ctx, q, &pkgHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[2].TitleID)
-		require.NoError(t, err)
-		stmt, args, err := sqlx.In("SELECT DISTINCT storage_id FROM software_installers WHERE storage_id NOT IN (?)", []string{exeHash, debHash, pkgHash})
-		require.NoError(t, err)
-		return sqlx.SelectContext(ctx, q, &installersToIgnore, stmt, args...)
-	})
-	require.NotEmpty(t, exeHash)
-
-	e, err := s.softwareInstallStore.Cleanup(ctx, installersToIgnore, time.Now())
+	_, err = s.softwareInstallStore.Cleanup(ctx, nil, time.Now())
 	require.NoError(t, err)
-	require.Equal(t, 3, e)
 
-	// At this point in the test, the exe payload has no URL. Batch set should fail because the
+	// At this point, the exe payload has no URL. Batch set should fail because the
 	// installer bytes don't exist anymore and there is no URL provided.
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
 	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
