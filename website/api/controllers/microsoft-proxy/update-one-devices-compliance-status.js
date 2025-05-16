@@ -108,7 +108,7 @@ module.exports = {
 
     let complianceUpdateResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'PUT',
-      url: `${deviceDataSyncUrl}/DataUploadMessages(guid'${sails.helpers.strings.uuid()}')?api-version=1.2`,
+      url: `${deviceDataSyncUrl}/DataUploadMessages(guid'${encodeURIComponent(sails.helpers.strings.uuid())}')?api-version=1.2`,
       headers: {
         'Authorization': `Bearer ${accessToken}`
       },
