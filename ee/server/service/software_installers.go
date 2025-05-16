@@ -1813,6 +1813,7 @@ func (svc *Service) softwareBatchUpload(
 			case ok:
 				// Perfect match: existing installer on the same team
 				installer.StorageID = p.SHA256
+
 				if foundInstaller.Extension == "exe" || foundInstaller.Extension == "tar.gz" {
 					if p.InstallScript == "" {
 						return fmt.Errorf("Couldn't edit. Install script is required for .%s packages.", foundInstaller.Extension)
@@ -1878,8 +1879,16 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			var installerBytesExist bool
+			if p.SHA256 != "" {
+				installerBytesExist, err = svc.softwareInstallStore.Exists(ctx, installer.StorageID)
+				if err != nil {
+					return err
+				}
+			}
+
 			// no accessible matching installer was found, so attempt to download it from URL.
-			if installer.StorageID == "" {
+			if installer.StorageID == "" || !installerBytesExist {
 				if p.SHA256 != "" && p.URL == "" {
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}
