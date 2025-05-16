@@ -106,9 +106,7 @@ module.exports = {
     let accessToken = tokenAndApiUrls.manageApiAccessToken;
     let deviceDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
 
-
-
-    let complianceUpdateResponse = await sails.helpers.http.sendHtttpRequest.with({
+    let complianceUpdateResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'PUT',
       url: `${deviceDataSyncUrl}/DataUploadMessages(guid'${sails.helpers.strings.uuid()}')?api-version=1.0`,
       headers: {
