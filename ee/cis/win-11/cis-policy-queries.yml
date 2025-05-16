@@ -6990,6 +6990,71 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'Turn off API Sampling' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines if API data sampling is sent to Microsoft. API sampling
+    monitors the sampled collection of APIs used during system runtime to help diagnose
+    compatibility problems in Windows.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\App and Device Inventory\Turn off API Sampling'
+    Note: This Group Policy path is provided by the Group Policy template
+    'AppDeviceInventory.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat\DisableAPISamping' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Application Footprint' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines if Application Footprint data is sent to Microsoft.
+    Application Footprint monitors a sampled collection of registry and file activity to help
+    diagnose compatibility problems.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\App and Device Inventory\Turn off Application Footprint'
+    Note: This Group Policy path is provided by the Group Policy template
+    'AppDeviceInventory.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat\DisableApplicationFootprint' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Install Tracing' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines if Install Tracing data is sent to Microsoft. Install Tracing
+    tracks application installs to help diagnose compatibility problems.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\App and Device Inventory\Turn off Install Tracing'
+    Note: This Group Policy path is provided by the Group Policy template
+    'AppDeviceInventory.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat\DisableInstallTracing' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Allow a Windows app to share application data between users' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -7006,6 +7071,27 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Not allow per-user unsigned packages to install by default (requires explicitly allow per install)' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This setting manages a user's ability to install unsigned Windows App packages.
+    The recommended state for this setting is: Enabled.
+    Note: Unsigned Windows App packages will require an explicit allow per install if this setting is disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\App Package Deployment\Not allow per-user unsigned packages to install by default (requires explicitly allow per install)'
+    Note: This Group Policy path is provided by the Group Policy template
+    'AppxPackageManager.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Appx\DisablePerUserUnsignedPackagesByDefault' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -8545,6 +8631,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Do not apply the Mark of the Web tag to files copied from insecure sources' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether files that are sourced from insecure locations are tagged with Mark of the Web (MOTW).
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\File Explorer\Do not apply the Mark of the Web tag to files copied from insecure sources'
+    Note: This Group Policy path is provided by the Group Policy template
+    'Explorer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer\DisableMotWOnInsecurePathCopy' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Turn off account-based insights, recent, favorite, and recommended files in File Explorer' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -8653,6 +8759,28 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable EDR in block mode' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether Microsoft Defender Antivirus Endpoint Detection and Response (EDR) is enabled in block mode (passive remediation).
+    The recommended state for this setting is: Enabled.
+    Note: EDR in block mode is only available in Microsoft Defender for Endpoint Plan 2.
+    Note 2: This setting is available with Microsoft Defender Antivirus platform release v4.18.2202.X and newer.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Features\Enable EDR in block mode'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Features\PassiveRemediation' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -8836,6 +8964,46 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Convert warn verdict to block' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether Microsoft Defender Antivirus network protection will display a warning, or block network traffic.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Network Inspection System\Convert warn verdict to block'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsDefender\NIS\EnableConvertWarnToBlock' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure real-time protection and Security Intelligence Updates during OOBE' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures whether Real-time Protection and Security Intelligence Updates are enabled during the Out of Box experience (OOBE).
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Real-Time Protection\Configure real-time protection and Security Intelligence Updates during OOBE'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection\OobeEnableRtpAndSigUpdate' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Scan all downloaded files and attachments' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -8991,6 +9159,26 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Control whether exclusions are visible to local users' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether Microsoft Defender Antivirus exclusions are visible to local users on the system.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Control whether exclusions are visible to local users'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsDefender\HideExclusionsFromLocalUsers' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -9243,7 +9431,7 @@ spec:
     Note: This Group Policy path is provided by the Group Policy template
     'InetRes.admx/adml' that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
   query: |
-   SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\InternetExplorer\\Feeds\\AllowBasicAuthInClear' AND data = 0);
+   SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Internet Explorer\\Feeds\\AllowBasicAuthInClear' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
@@ -10414,6 +10602,51 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Enable App Installer Local Archive Malware Scan Override' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls the ability to override malware scans when the following conditions are true:
+      1. installing an archive file
+      2. using a local manifest
+      3. via command line arguments
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable App Installer Local Archive Malware Scan Override'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DesktopAppInstaller.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppInstaller\EnableLocalArchiveMalwareScanOverride' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable App Installer Microsoft Store Source Certificate Validation Bypass' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether Windows Package Manager validates the Microsoft
+    Store certificate hash to match a known Microsoft Store certificate when it initiates a
+    connection to the Microsoft Store source.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Enable App Installer Microsoft Store Source Certificate Validation Bypass'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DesktopAppInstaller.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppInstaller\EnableBypassCertificatePinningForMicrosoftStore' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Enable App Installer ms-appinstaller protocol' is set to 'Disabled' 
   platforms: win11
   platform: windows
@@ -10428,6 +10661,27 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
   contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable Windows Package Manager command line interfaces' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether a user can perform actions using the Windows Package Manager through a command line interface (Windows CLI or PowerShell).
+    The recommended state for this setting is: Disabled.
+    Note: This policy does not override the Enable App Installer policy, which is set to Disabled in the L2 profile of the CIS Windows Operating System Benchmarks.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable Windows Package Manager command line interfaces'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DesktopAppInstaller.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppInstaller\EnableWindowsPackageManagerCommandLineInterfaces' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
 ---
 apiVersion: v1
 kind: policy
