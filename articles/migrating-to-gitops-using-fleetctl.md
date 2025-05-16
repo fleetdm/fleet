@@ -38,13 +38,13 @@ To have `generate-gitops` output sensitive info in plaintext in your files, you 
 The `generate-gitops` tool includes a few other options to make migrating to GitOps easier:
 
 - `--print` : Print the configuration to `stdout` rather than to files.
-- `--team` : (Premium only) Only output the configuration files of the team with the specified name. Global or "no team" configuration may be output using `--team global` or `--team no-team`. (This option can be useful for testing out GitOps with a "canary" team before rolling it out to your entire organization.)
+- `--team` : **Available in Fleet Premium.** Only output the configuration files of the team with the specified name. Global or "no team" configuration may be output using `--team global` or `--team no-team`. (This option can be useful for testing out GitOps with a "canary" team before rolling it out to your entire organization.)
 - `--key` : Display the value of a specific, dot-delimited key, e.g. `agent_options.config.decorators`. Searches for the given key in the global configuration by default; use in conjunction with `--team` to output config from a specific team.
 
 See `fleetctl generate-gitops --help` for all options.
 
 ## Known issues
 
-- GitOps cannot currently sync Fleet Maintained App installers. If your current configuration includes FMA-based installers, the migration tool will output a placeholder for them which will cause GitOps to fail (ensuring that your current configuration is not overwritten)
+- GitOps cannot currently sync Fleet-maintained app installers. If your current configuration includes FMA-based installers, the migration tool will output a placeholder for them which will cause GitOps to fail (ensuring that your current configuration is not overwritten).
 - The migration tool does not output YARA rules at this time. If you have previously used GitOps to apply YARA rules, you will need to manually add them to any output from the tool to ensure that your existing rules are maintained.
 - The migration tool does not output the `macos_settings` key configuration at this time. If you have customized configuration for Mac hosts such as a bootstrap package or script, the tool will output a placeholder for you to replace with the correct details. See [the GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#macos-setup) for more information on `macos_settings`.
