@@ -1196,21 +1196,20 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupScriptWithFleetSecr
 	user := s.createGitOpsUser(t)
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 
+	const secretName = "MY_SECRET"
+	const secretValue = "my-secret-value"
+
 	// Set the required environment variables
 	t.Setenv("FLEET_URL", s.Server.URL)
-	t.Setenv("FLEET_SECRET_MY_SECRET", "my-secret-value")
+	t.Setenv("FLEET_SECRET_"+secretName, secretValue)
 
 	// Create a script file that uses the fleet secret
 	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
 	require.NoError(t, err)
-	_, err = scriptFile.WriteString(`echo "Using secret: $FLEET_SECRET_MY_SECRET"`)
+	_, err = scriptFile.WriteString(`echo "Using secret: $FLEET_SECRET_` + secretName)
 	require.NoError(t, err)
 	err = scriptFile.Close()
 	require.NoError(t, err)
-
-	scriptContents, err := os.ReadFile(scriptFile.Name())
-	require.NoError(t, err)
-	fmt.Println("Script file contents:", string(scriptContents))
 
 	// Create a no-team file with the script
 	const noTeamTemplate = `name: No team
@@ -1230,10 +1229,6 @@ software:
 	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 	require.NoError(t, err)
 
-	contents, err := os.ReadFile(noTeamFilePath)
-	require.NoError(t, err)
-	fmt.Println("noTeamFile contents:", string(contents))
-
 	// Create a global file
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -1251,14 +1246,17 @@ queries:
 `)
 	require.NoError(t, err)
 
-	t.Setenv("FLEET_SECRET_MY_SECRET", "my-secret-value")
 	// Apply the configs
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
 
-	// Verify the script was saved with the secret
-	script, err := s.DS.GetSetupExperienceScript(ctx, nil)
+	// Verify the script was saved
+	_, err = s.DS.GetSetupExperienceScript(ctx, nil)
 	require.NoError(t, err)
-	fmt.Println("scriptContents", script.ScriptContents)
-	require.Contains(t, script.ScriptContents, "my-secret-value")
+
+	// Verify the secret was saved
+	secretVariables, err := s.DS.GetSecretVariables(ctx, []string{secretName})
+	require.NoError(t, err)
+	require.Equal(t, secretVariables[0].Name, secretName)
+	require.Equal(t, secretVariables[0].Value, secretValue)
 }

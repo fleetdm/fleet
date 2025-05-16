@@ -2097,14 +2097,15 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
-
-	if macosSetupScript != nil {
-		logFn("[+] applying macos setup experience script for 'No team'\n")
-		if err := c.uploadMacOSSetupScript(macosSetupScript.Filename, macosSetupScript.Content, nil); err != nil {
-			return nil, nil, fmt.Errorf("uploading setup experience script for No team: %w", err)
+	if !dryRun {
+		if macosSetupScript != nil {
+			logFn("[+] applying macos setup experience script for 'No team'\n")
+			if err := c.uploadMacOSSetupScript(macosSetupScript.Filename, macosSetupScript.Content, nil); err != nil {
+				return nil, nil, fmt.Errorf("uploading setup experience script for No team: %w", err)
+			}
+		} else if err := c.deleteMacOSSetupScript(nil); err != nil {
+			return nil, nil, fmt.Errorf("deleting setup experience script for No team: %w", err)
 		}
-	} else if err := c.deleteMacOSSetupScript(nil); err != nil {
-		return nil, nil, fmt.Errorf("deleting setup experience script for No team: %w", err)
 	}
 
 	logFn("[+] applying %d software packages for 'No team'\n", len(swPkgPayload))
