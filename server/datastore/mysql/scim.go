@@ -56,8 +56,7 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 			return ctxerr.Wrap(ctx, err, "insert scim user emails")
 		}
 
-		// TODO: Discuss with Victor. Are there other places where we need to do this (modify,
-		// replace, etc.)? Consider ways we could lift ancillary actions like this to the service layer,
+		// FIXME: Consider ways we could lift ancillary actions like this to the service layer,
 		// perhaps some `WithCallback` pattern to inject these into the SCIM handlers.
 		if err := maybeAssociateScimUserWithHostMDMIdP(ctx, tx, ds.logger, user); err != nil {
 			return ctxerr.Wrap(ctx, err, "associate scim user with host mdm idp")
@@ -161,7 +160,16 @@ func scimUserByUserNameOrEmail(ctx context.Context, q sqlx.QueryerContext, logge
 		return nil, notFound("scim user")
 	}
 
-	// Try to find the user by email
+	// Now, try to find the user by using the email as the userName
+	user, err := scimUserByUserName(ctx, q, email)
+	switch {
+	case err == nil:
+		return user, nil
+	case !fleet.IsNotFound(err):
+		return nil, ctxerr.Wrap(ctx, err, "select scim user by userName")
+	}
+
+	// Next, to find the user by email
 	const query = `
 		SELECT
 			scim_users.id, external_id, user_name, given_name, family_name, active, scim_users.updated_at
@@ -171,7 +179,7 @@ func scimUserByUserNameOrEmail(ctx context.Context, q sqlx.QueryerContext, logge
 	`
 
 	var users []fleet.ScimUser
-	err := sqlx.SelectContext(ctx, q, &users, query, email)
+	err = sqlx.SelectContext(ctx, q, &users, query, email)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select scim user by email")
 	}

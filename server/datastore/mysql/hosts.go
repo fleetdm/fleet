@@ -3844,49 +3844,64 @@ func maybeAssociateScimUserWithHostMDMIdP(
 	user *fleet.ScimUser,
 ) error {
 	if user == nil {
+		// Caller should ensure that user is not nil
 		return ctxerr.New(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: user is nil")
 	}
-	if len(user.Emails) == 0 {
-		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: user has no emails", "scim_user_id", user.ID)
-		return nil
-	}
-	var primaryEmail string
-	var otherEmails []string
-	for _, e := range user.Emails {
-		if e.Primary != nil && *e.Primary {
-			primaryEmail = e.Email
-		}
-		otherEmails = append(otherEmails, e.Email)
-	}
-	if primaryEmail == "" {
-		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: no primary email found for scim user, trying fallback", "scim_user_id", user.ID, "emails", fmt.Sprintf("%+v", otherEmails))
-		primaryEmail = user.Emails[0].Email
-	}
+
+	// Try to find a host id with an MDM IdP account that matches the SCIM user.
+	//
+	// For matching, we'll use the following order of precedence (which should follow
+	// the same the approach as scimUserByUserNameOrEmail):
+	// - mia.username = scim_user.username
+	// - mia.email = scim_user.username
+	// - mia.email = scim_user.primary_email (this last one we don't actually productize -- we don't tell customers to sync the email fields of their users)
 
 	var hostIDs []uint
-	err := sqlx.SelectContext(ctx, tx, &hostIDs, `
-SELECT 
-	h.id 
-FROM 
-	hosts h 
-JOIN 
-	host_mdm_idp_accounts hmia ON h.uuid = hmia.host_uuid
-JOIN 
-	mdm_idp_accounts mia ON hmia.account_uuid = mia.uuid
-WHERE
-	mia.email = ?`, primaryEmail) // TODO: check with victor on normalization?
+	selectFmt := `
+SELECT h.id 
+FROM hosts h 
+JOIN host_mdm_idp_accounts hmia ON h.uuid = hmia.host_uuid
+JOIN mdm_idp_accounts mia ON hmia.account_uuid = mia.uuid
+WHERE %s`
 
-	// NOTE: We don't have good unique constraints around host uuids so we'll play it safe and
-	// log if we find multiple host ids for a scim user. This is not expected behavior.
+	// First, try to match by SCIM username.
+	if user.UserName != "" {
+		if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(selectFmt, `mia.username = ?`), user.UserName); err != nil {
+			return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: match by username")
+		}
+		// If we didn't match MDM IpP username to SCIM username, try to match MDM IpP email to SCIM username
+		if len(hostIDs) == 0 {
+			if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(selectFmt, `mia.email = ?`), user.UserName); err != nil {
+				return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: match email by username")
+			}
+		}
+	}
+	// If we don't have any matches yet, try to match by SCIM primary email.
+	if len(hostIDs) == 0 && len(user.Emails) > 0 {
+		var primaryEmail string
+		for _, e := range user.Emails {
+			if e.Primary != nil && *e.Primary {
+				primaryEmail = e.Email
+			}
+			break
+		}
+		if primaryEmail != "" {
+			if err := sqlx.SelectContext(ctx, tx, &hostIDs, fmt.Sprintf(selectFmt, `mia.email = ?`), primaryEmail); err != nil {
+				return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: select host ids by primary email")
+			}
+		}
+	}
+
+	// NOTE: We don't have good unique constraints around hosts.uuid so we'll play it safe and
+	// log if we find multiple hosts for SCIM scim user (expected behavior is to find no more
+	// than one match).
 	var hid uint
 	switch {
-	case err != nil:
-		return err
 	case len(hostIDs) == 0:
-		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: no host ids found for scim user", "scim_user_id", user.ID, "email", primaryEmail)
+		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: no host ids found for scim user", "scim_user_id", user.ID)
 		return nil
 	case len(hostIDs) > 1:
-		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: multiple host ids found for scim user", "scim_user_id", user.ID, "email", primaryEmail, "host_ids", fmt.Sprintf("%+v", hostIDs))
+		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: multiple host ids found for scim user", "scim_user_id", user.ID, "host_ids", fmt.Sprintf("%+v", hostIDs))
 		// TODO: confirm desired behavior here, for now we'll just use the first one
 	}
 	hid = hostIDs[0]
@@ -3935,10 +3950,10 @@ func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID u
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
 	}
-	// TODO: do we want this to apply in the new SSO flow? we may need to split up this operation in
-	// some cases?
-	//
 	// resend profiles that depend on the user now associated with that host
+	//
+	// TODO: discuss with victor, do we need to split up this resend operation in some cases (e.g.,
+	// is it ok to trigger this during the initial DEP enrollment)?
 	return triggerResendProfilesForIDPUserAddedToHost(ctx, tx, hostID, scimUserID)
 }
 

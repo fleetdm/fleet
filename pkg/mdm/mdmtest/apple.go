@@ -1010,8 +1010,8 @@ func makeClientSCEPEndpoints(instance string) (*scepserver.Endpoints, error) {
 	}, nil
 }
 
-// EncodeDeviceInfo is a helper function to mock the x-aspen-deviceinfo header that is sent
-// by the device during the Apple MDM enrollment process.
+// EncodeDeviceInfo is a helper function to provide mock device info for the x-aspen-deviceinfo
+// header that is sent by the device during the Apple MDM enrollment process.
 func EncodeDeviceInfo(machineInfo fleet.MDMAppleMachineInfo) (string, error) {
 	body, err := plist.Marshal(machineInfo)
 	if err != nil {
