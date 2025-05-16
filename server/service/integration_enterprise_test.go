@@ -17382,14 +17382,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.True(t, hitDebURL)
 	hitDebURL = false
 
-	var installerHash string
+	var debHash string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+		return sqlx.GetContext(ctx, q, &debHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
 	})
-	require.NotEmpty(t, installerHash)
+	require.NotEmpty(t, debHash)
 
 	// add the hash to the payload
-	softwareToInstall[0].SHA256 = installerHash
+	softwareToInstall[0].SHA256 = debHash
 
 	// dry run shouldn't hit the download endpoint since we included the SHA
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name, "dry_run", "true")
@@ -17635,8 +17635,28 @@ done
 	require.Equal(t, file.GetInstallScript("pkg"), stResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
 
+	// Add another installer just to validate that only relevant installer bytes are removed
+	payloadVim := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "vim.deb",
+		SelfService:   true,
+		TeamID:        ptr.Uint(0),
+	}
+	s.uploadSoftwareInstaller(t, payloadVim, http.StatusOK, "")
+
 	// Clean up all installers from the store
-	e, err := s.softwareInstallStore.Cleanup(ctx, []string{}, time.Now())
+	var installersToIgnore []string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var pkgHash string
+		err := sqlx.GetContext(ctx, q, &pkgHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[2].TitleID)
+		require.NoError(t, err)
+		stmt, args, err := sqlx.In("SELECT DISTINCT storage_id FROM software_installers WHERE storage_id NOT IN (?)", []string{exeHash, debHash, pkgHash})
+		require.NoError(t, err)
+		return sqlx.SelectContext(ctx, q, &installersToIgnore, stmt, args...)
+	})
+	require.NotEmpty(t, exeHash)
+
+	e, err := s.softwareInstallStore.Cleanup(ctx, installersToIgnore, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 3, e)
 
