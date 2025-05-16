@@ -51,9 +51,9 @@ module.exports = {
     let accessToken = tokenAndApiUrls.manageApiAccessToken;
     let deviceDataSyncUrl = tokenAndApiUrls.deviceDataSyncUrl;
 
-    let complianceStatusResultResponse = await sails.helpers.http.sendHtttpRequest.with({
+    let complianceStatusResultResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'GET',
-      url: `${deviceDataSyncUrl}/(DataUploadMessages(guid'${encodeURIComponent(messageId)}')}?api-version=1.2`,
+      url: `${deviceDataSyncUrl}/DataUploadMessages(guid'${encodeURIComponent(messageId)}')?api-version=1.2`,
       headers: {
         'Authorization': `Bearer ${accessToken}`
       }
@@ -63,7 +63,7 @@ module.exports = {
 
     let parsedComplianceUpdateResponse;
     try {
-      parsedComplianceUpdateResponse = JSON.parse(complianceStatusResultResponse);
+      parsedComplianceUpdateResponse = JSON.parse(complianceStatusResultResponse.body);
     } catch(err){
       throw new Error(`When parsing the JSON response body of a Microsoft compliance partner update status, an error occured. full error: ${require('util').inspect(err)}`);
     }

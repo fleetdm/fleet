@@ -105,31 +105,25 @@ module.exports = {
 
     let accessToken = tokenAndApiUrls.manageApiAccessToken;
     let deviceDataSyncUrl = tokenAndApiUrls.deviceDataSyncUrl;
-
+    let messageId = sails.helpers.strings.uuid();
     let complianceUpdateResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'PUT',
-      url: `${deviceDataSyncUrl}/DataUploadMessages(guid'${encodeURIComponent(sails.helpers.strings.uuid())}')?api-version=1.2`,
+      url: `${deviceDataSyncUrl}/DataUploadMessages(guid'${encodeURIComponent(messageId)}')?api-version=1.2`,
       headers: {
         'Authorization': `Bearer ${accessToken}`
       },
       body: {
         TenantId: informationAboutThisTenant.entraTenantId,
         UploadTime: new Date().toISOString(),
-        Content: complianceUpdateContent,
+        Content: JSON.stringify(complianceUpdateContent),
       }
     }).intercept((err)=>{
       return new Error({error: `An error occurred when sending a request to sync a device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
 
-    let parsedComplianceUpdateResponse;
-    try {
-      parsedComplianceUpdateResponse = JSON.parse(complianceUpdateResponse);
-    } catch(err){
-      throw new Error(`When parsing the JSON response body of a Microsoft compliance partner update, an error occured. full error: ${require('util').inspect(err)}`);
-    }
 
     return {
-      message_id: parsedComplianceUpdateResponse.MessageId,// eslint-disable-line camelcase
+      message_id: messageId,// eslint-disable-line camelcase
     };
   }
 
