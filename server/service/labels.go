@@ -72,7 +72,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	label.Name = p.Name
 
 	if p.Query != "" && (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
-		return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of either "query" or "hosts/hostIDs" can be included in the request.`)
+		return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of either "query" or "hosts/host_ids" can be included in the request.`)
 	}
 	label.Query = p.Query
 	if p.Query == "" {
@@ -176,16 +176,22 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 
 	hostIDs := payload.HostIDs
 	if len(payload.Hosts) > 0 {
+		// If hosts were provided, convert them to IDs.
 		hostIDs, err = svc.ds.HostIDsByIdentifier(ctx, filter, payload.Hosts)
 		if err != nil {
 			return nil, nil, err
 		}
+	} else if payload.Hosts != nil {
+		// If an empry list was provided, create an empty list of IDs
+		// so that we can remove all hosts from the label.
+		hostIDs = make([]uint, 0)
 	}
 
-	if len(hostIDs) > 0 {
-		if label.LabelMembershipType != fleet.LabelMembershipTypeManual {
-			return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
-		}
+	if len(hostIDs) > 0 && label.LabelMembershipType != fleet.LabelMembershipTypeManual {
+		return nil, nil, fleet.NewInvalidArgumentError("hosts", "cannot provide a list of hosts for a dynamic label")
+	}
+
+	if hostIDs != nil {
 		if _, _, err := svc.ds.UpdateLabelMembershipByHostIDs(ctx, label.ID, hostIDs, filter); err != nil {
 			return nil, nil, err
 		}
