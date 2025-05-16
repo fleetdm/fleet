@@ -766,13 +766,6 @@ func (svc *Service) disablePoliciesDuringSetupExperience(ctx context.Context, ho
 	if host.Platform != string(fleet.MacOSPlatform) {
 		return false, nil
 	}
-	connectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "check if host is connected to fleet mdm")
-	}
-	if !connectedToFleetMDM {
-		return false, nil
-	}
 	inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")

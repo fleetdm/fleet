@@ -1264,7 +1264,7 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 		return map[string]string{}, nil
 	}
 
-	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
 
@@ -1368,7 +1368,7 @@ func TestGetDistributedQueriesEmptyQuery(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{"empty_policy_query": ""}, nil
 	}
-	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
 
@@ -1412,7 +1412,7 @@ func TestLabelQueries(t *testing.T) {
 			EnableSoftwareInventory: true,
 		}}, nil
 	}
-	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -1581,7 +1581,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -1815,7 +1815,7 @@ func TestDetailQueries(t *testing.T) {
 		}
 		return host, nil
 	}
-	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
 
@@ -3144,7 +3144,7 @@ func TestPolicyQueries(t *testing.T) {
 			EnableSoftwareInventory: true,
 		}}, nil
 	}
-	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
 
@@ -3336,10 +3336,6 @@ func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
 		}}, nil
 	}
 
-	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
-		return true, nil
-	}
-
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
 		return true, nil
 	}
@@ -3418,7 +3414,7 @@ func TestPolicyWebhooks(t *testing.T) {
 		host = gotHost
 		return nil
 	}
-	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -3701,7 +3697,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
 
