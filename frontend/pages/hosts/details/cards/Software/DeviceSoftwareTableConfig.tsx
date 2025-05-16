@@ -15,7 +15,6 @@ import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/Vulnerabil
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import TooltipWrapper from "components/TooltipWrapper";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
