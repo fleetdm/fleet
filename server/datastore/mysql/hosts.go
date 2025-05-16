@@ -3837,66 +3837,65 @@ func (ds *Datastore) UpdateMDMData(
 	return nil
 }
 
-func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
+func maybeAssociateScimUserWithHostMDMIdP(
 	ctx context.Context,
-	hostID uint,
-	fleetEnrollmentRef string,
+	tx sqlx.ExtContext,
+	logger log.Logger,
+	user *fleet.ScimUser,
 ) error {
-	// TODO: After the refactor, I don't think we need this except for edge cases where hosts with legacy
-	// enroll ref never reported detail query results (i.e. host has no host_emails.source =
-	// 'mdm_idp_accounts') so maybe we can get rid of this function entirely?
-	//
-	// If we don't make a change here, hosts that reenroll from a team with SSO on to off will have the old IdP
-	// account re-associated on the first detail query report after. At a minimum, we should
-	// limit this to only set the email if SSO is enabled on the host's current team.
-
-	if fleetEnrollmentRef == "" {
-		return ctxerr.Wrap(ctx, errors.New("fleetEnrollmentRef is required"), "update host_emails")
+	if user == nil {
+		return ctxerr.New(ctx, "maybeAssociateScimUserWithHostMDMIdPAccount: user is nil")
 	}
-
-	idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
-	if err != nil {
-		return err
-	}
-
-	// Check if a row already exists with the correct email, host_id, and source.
-	// This is an optimization to reduce load on the DB writer instance.
-	var emailExists uint
-	err = sqlx.GetContext(
-		ctx,
-		ds.reader(ctx),
-		&emailExists,
-		`SELECT COUNT(*) FROM host_emails WHERE email = ? AND host_id = ? AND source = ?`,
-		idp.Email, hostID, fleet.DeviceMappingMDMIdpAccounts,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "check existing host_email")
-	}
-	if emailExists == 0 {
-		err = ds.updateOrInsert(
-			ctx,
-			`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
-			`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
-			idp.Email, hostID, fleet.DeviceMappingMDMIdpAccounts,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Check if a SCIM user association already exists for this host.
-	var exists uint
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &exists, `SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "check host_scim_user existence")
-	}
-	if exists > 0 {
-		// We do not replace/delete the association since the IdP SCIM username/email may have changed after the initial association was made.
-		// If the SCIM user is deleted, this association will be deleted via CASCADE.
+	if len(user.Emails) == 0 {
+		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: user has no emails", "scim_user_id", user.ID)
 		return nil
 	}
+	var primaryEmail string
+	var otherEmails []string
+	for _, e := range user.Emails {
+		if e.Primary != nil && *e.Primary {
+			primaryEmail = e.Email
+		}
+		otherEmails = append(otherEmails, e.Email)
+	}
+	if primaryEmail == "" {
+		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: no primary email found for scim user, trying fallback", "scim_user_id", user.ID, "emails", fmt.Sprintf("%+v", otherEmails))
+		primaryEmail = user.Emails[0].Email
+	}
 
-	return maybeAssociateHostMDMIdPWithScimUser(ctx, ds.writer(ctx), ds.logger, hostID, idp)
+	var hostIDs []uint
+	err := sqlx.SelectContext(ctx, tx, &hostIDs, `
+SELECT 
+	h.id 
+FROM 
+	hosts h 
+JOIN 
+	host_mdm_idp_accounts hmia ON h.uuid = hmia.host_uuid
+JOIN 
+	mdm_idp_accounts mia ON hmia.account_uuid = mia.uuid
+WHERE
+	mia.email = ?`, primaryEmail) // TODO: check with victor on normalization?
+
+	// NOTE: We don't have good unique constraints around host uuids so we'll play it safe and
+	// log if we find multiple host ids for a scim user. This is not expected behavior.
+	var hid uint
+	switch {
+	case err != nil:
+		return err
+	case len(hostIDs) == 0:
+		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: no host ids found for scim user", "scim_user_id", user.ID, "email", primaryEmail)
+		return nil
+	case len(hostIDs) > 1:
+		level.Info(logger).Log("msg", "maybeAssociateScimUserWithHostMDMIdPAccount: multiple host ids found for scim user", "scim_user_id", user.ID, "email", primaryEmail, "host_ids", fmt.Sprintf("%+v", hostIDs))
+		// TODO: confirm desired behavior here, for now we'll just use the first one
+	}
+	hid = hostIDs[0]
+
+	if err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host with scim user")
+	}
+
+	return nil
 }
 
 func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint, idp *fleet.MDMIdPAccount) error {

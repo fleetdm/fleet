@@ -52,7 +52,17 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 		user.ID = uint(id) // nolint:gosec // dismiss G115
 		userID = user.ID
 
-		return insertEmails(ctx, tx, user)
+		if err := insertEmails(ctx, tx, user); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert scim user emails")
+		}
+
+		// TODO: Discuss with Victor. Are there other places where we need to do this (modify,
+		// replace, etc.)? Consider ways we could lift ancillary actions like this to the service layer,
+		// perhaps some `WithCallback` pattern to inject these into the SCIM handlers.
+		if err := maybeAssociateScimUserWithHostMDMIdP(ctx, tx, ds.logger, user); err != nil {
+			return ctxerr.Wrap(ctx, err, "associate scim user with host mdm idp")
+		}
+		return nil
 	})
 	return userID, err
 }
