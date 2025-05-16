@@ -2,7 +2,7 @@
 
 ## Summary
 
-GitOps is a way to manage Kubernetes clusters and applications using Git as the source of truth for declarative infrastructure and deployment configurations. This approach ensures consistency, auditability, and enables scalable management across environments.
+GitOps is a way to manage the Fleet server using Git as the source of truth for declarative infrastructure and deployment configurations. This approach ensures consistency, auditability, and enables scalable management across environments.
 
 ## Goals
 
