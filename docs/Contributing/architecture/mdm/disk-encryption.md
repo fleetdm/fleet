@@ -40,7 +40,7 @@ For macOS, disk encryption involves a two-step process:
 If we're not able to decrypt the key for a host, the key needs to be rotated. Rotation happens silently by:
 
 1. The server sends a notification to orbit, notifying that the key couldn't be decrypted.
-2. orbit installs an authorization plugin named [Escrow Buddy](https://github.com/macadmins/escrow-buddy) that performs the key rotation the next time the user logs in.
+2. orbit enables an authorization plugin named [Escrow Buddy](https://github.com/macadmins/escrow-buddy) that performs the key rotation the next time the user logs in.
 3. Fleet retrieves and tries to validate the key again.
 
 ### BitLocker (Windows)
