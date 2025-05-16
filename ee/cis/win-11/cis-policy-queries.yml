@@ -5112,6 +5112,220 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Audit client does not support encryption' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Server Message Block (SMB) server will log events when the SMB client doesn't support encryption.
+    Enabling this will create event log entries in
+    'Applications and Services Logs\Microsoft\Windows\SMBClient\Audit', with Event ID 31998.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit client does not support encryption'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditClientDoesNotSupportEncryption' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit client does not support signing' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Server Message Block (SMB) server will log events when the SMB client doesn't support signing.
+    Enabling this will create event log entries in 'Applications and Services Logs\Microsoft\Windows\SMBClient\Audit', with Event ID 31999.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit client does not support signing'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditClientDoesNotSupportSigning' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit insecure guest logon' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy determines whether the Server Message Block (SMB) server will log events when the client is logged on as guest account.
+    Enabling this will create event log entries in 'Applications and Service Logs\Microsoft\Windows\SMBServer\Security', with Event IDs 3023, 31017, 31018, and 31022.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit insecure guest logon'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditInsecureGuestLogon' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable authentication rate limiter' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings configures the Server Message Block (SMB) server authentication rate limiter.
+    The authentication rate limiter is a feature of SMB that is designed to address brute force attacks.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Enable authentication rate limiter'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\EnableAuthRateLimiter' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable remote mailslots' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls whether the SMB server will use remote mailslots over the
+    computer browser service. The remote mailslots protocol is an old, simple, unreliable,
+    and insecure inter-process communication method.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Enable remote mailslots'
+    Note: A reboot is required after the setting is applied.
+    Note 2: This Group Policy path may not exist by default. It is provided by the Group
+    Policy template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Bowser\EnableMailslots' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Mandate the minimum version of SMB' is set to 'Enabled: 3.1.1'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls the minimum version of Server Message Block (SMB) protocol that can be used on the system.
+    The recommended state for this setting is: Enabled: 3.1.1.
+    Note: This group policy setting does not prevent the use of SMBv1 if it is installed and
+    enabled on the system. If the following recommendations are configured as prescribed
+    in this benchmark, SMBv1 will be disabled on the system: 'Configure SMB v1 client driver' and 'Configure SMB v1 server.'
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 3.1.1':
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Mandate the minimum version of SMB'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template LanmanServer.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\MinSmb2Dialect' AND data = 785);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Set authentication rate limiter delay (milliseconds)' is set to 'Enabled: 2000' or more
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings configures the SMB server invalid authentication delay value in milliseconds.
+    The recommended state for this setting is: 'Enabled: 2000' or more.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 2000' or more:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Set authentication rate limiter delay (milliseconds)'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\InvalidAuthenticationDelayTimeInMs' AND data >= 2000);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit insecure guest logon' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy determines whether the Server Message Block (SMB) client will log events when the client is logged on as guest account.
+    Enabling this will create event log entries in 'Applications and Service Logs\Microsoft\Windows\SMBClient\Security', with Event IDs 3023, 31017, 31018, and 31022.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit insecure guest logon'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template LanmanWorkstation.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditInsecureGuestLogon' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit server does not support encryption' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Server Message Block (SMB) client will log events when the SMB server doesn't support encryption.
+    Enabling this will create event log entries in 'Applications and Services Logs\Microsoft\Windows\SMBServer\Audit', with Event ID 3021.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit server does not support encryption'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template LanmanWorkstation.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditServerDoesNotSupportEncryption' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit server does not support signing' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Server Message Block (SMB) client will log events when the SMB server doesn't support signing.
+    Enabling this will create event log entries in 'Applications and Services Logs\Microsoft\Windows\SMBServer\Audit', with Event ID 3022.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit server does not support signing'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanWorkstation.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditServerDoesNotSupportSigning' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes'
   platforms: win11
   platform: windows
