@@ -592,6 +592,18 @@ CREATE TABLE `host_mdm_commands` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `host_mdm_idp_accounts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `account_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_mdm_idp_accounts` (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_mdm_managed_certificates` (
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -973,6 +985,30 @@ CREATE TABLE `labels` (
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `labels` VALUES (1,'2024-04-03 00:00:00','2024-04-03 00:00:00','macOS 14+ (Sonoma+)','macOS hosts with version 14 and above','select 1 from os_version where platform = \'darwin\' and major >= 14;','darwin',1,0,NULL),(2,'2024-06-28 00:00:00','2024-06-28 00:00:00','iOS','All iOS hosts','','ios',1,1,NULL),(3,'2024-06-28 00:00:00','2024-06-28 00:00:00','iPadOS','All iPadOS hosts','','ipados',1,1,NULL),(4,'2024-09-27 00:00:00','2024-09-27 00:00:00','Fedora Linux','All Fedora hosts','select 1 from os_version where name = \'Fedora Linux\';','rhel',1,0,NULL),(5,'2025-02-25 00:00:00','2025-02-25 00:00:00','Android','All Android hosts','','android',1,1,NULL);
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `legacy_host_mdm_enroll_refs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `enroll_ref` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_legacy_enroll_refs_host_uuid` (`host_uuid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `legacy_host_mdm_idp_accounts` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `account_uuid` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `host_id` int unsigned DEFAULT NULL,
+  `email_id` int unsigned DEFAULT NULL,
+  `email_created_at` datetime DEFAULT NULL,
+  `email_updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `locks` (
