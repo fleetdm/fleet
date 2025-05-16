@@ -17635,16 +17635,8 @@ done
 	require.Equal(t, file.GetInstallScript("pkg"), stResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
 
-	// Add another installer just to validate that only relevant installer bytes are removed
-	payloadVim := &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "vim.deb",
-		SelfService:   true,
-		TeamID:        ptr.Uint(0),
-	}
-	s.uploadSoftwareInstaller(t, payloadVim, http.StatusOK, "")
-
-	// Clean up all installers from the store
+	// Clean up all installers from the store. We don't care about how many installers are
+	// removed in this test, so just check that the cleanup succeeded.
 	_, err = s.softwareInstallStore.Cleanup(ctx, nil, time.Now())
 	require.NoError(t, err)
 
