@@ -104,6 +104,9 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - name: Install musl tools
+        run: sudo apt update && sudo apt install -y musl-tools
+
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux.yml # v2.4.4
 

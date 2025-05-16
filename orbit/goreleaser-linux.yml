@@ -15,6 +15,7 @@ builds:
       # able to use the cgo versions of the networking libraries (see
       # https://github.com/fleetdm/fleet/issues/8992)
       - CGO_ENABLED=1
+      - CC=musl-gcc
     goos:
       - linux
     goarch:
