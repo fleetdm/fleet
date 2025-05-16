@@ -8,7 +8,7 @@ Disk Encryption in Fleet's MDM allows for securing device data by encrypting the
 
 ## Architecture Overview
 
-The Disk Encryption architecture leverages platform-specific encryption technologies (FileVault for macOS, BitLocker for Windows) to encrypt device storage and securely manage recovery keys.
+The Disk Encryption architecture leverages platform-specific encryption technologies (FileVault for macOS, BitLocker for Windows, LUKS via LVM for Linux) to encrypt device storage and securely manage recovery keys.
 
 ## Key Components
 

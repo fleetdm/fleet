@@ -14,7 +14,6 @@ The End User Authentication architecture integrates with identity providers (IdP
 
 - **Identity Provider Integration**: Integration with external identity providers such as Okta, Azure AD, and Google Workspace.
 - **User-Device Association**: Mapping between users and their devices.
-- **User-Based Policies**: Policies that are applied based on the user's identity.
 - **Authentication Flow**: The process by which users authenticate and are associated with their devices.
 
 ## Architecture Diagram
@@ -25,18 +24,13 @@ The End User Authentication architecture integrates with identity providers (IdP
 
 ## Authentication Flows
 
-### User-Initiated Authentication
-
-1. User accesses the Fleet Desktop application or web portal.
-2. User is redirected to the identity provider for authentication.
-3. After successful authentication, the user is redirected back to Fleet with an authentication token.
-4. Fleet associates the user with the device.
-
 ### Automated Authentication
 
-1. Device enrolls with the MDM server.
-2. MDM server retrieves user information from the identity provider.
-3. MDM server associates the user with the device.
+1. New device starts the enrollment process and is prompted to login to the IDP.
+2. Fleet captures the username and stores it to register after enrollment.
+3. Device enrolls with the MDM server.
+4. Optionally MDM server retrieves user information from the identity provider.
+5. MDM server associates the user with the device.
 
 ## Identity Provider Integration
 
@@ -44,15 +38,13 @@ Fleet integrates with various identity providers to authenticate users:
 
 - **SAML**: For integration with SAML-based identity providers such as Okta and Azure AD.
 - **OAuth/OIDC**: For integration with OAuth/OIDC-based identity providers such as Google Workspace.
-- **LDAP**: For integration with LDAP-based identity providers such as Active Directory.
 
 ## User-Device Association
 
 User-device association is stored in the Fleet database and is used to apply user-specific policies and configurations to devices. The association can be established through:
 
-- **User Authentication**: When a user authenticates on a device.
 - **Directory Integration**: When user information is retrieved from a directory service.
-- **Manual Assignment**: When an administrator manually assigns a user to a device.
+- **Automated Authentication**: When a user enrolls in MDM after authenticating with an IDP.
 
 ## Related Resources
 

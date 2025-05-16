@@ -43,7 +43,7 @@ We keep a record of all devices ingested via the ADE sync in the `host_dep_assig
 On every run, we pull the list of added/modified/deleted devices and:
 
 1. If the host was added/modified, we:
-   - Create/match a row in the `hosts` table for the new host. This allows IT admin to move the host between teams before it turns on MDM or has `fleetd` installed.
+   - Create/match a row in the `hosts` table for the new host. This allows IT admin to view the host by serial in team lists before it turns on MDM or has `fleetd` installed.
    - Assign the corresponding JSON profile to each host using ABM's APIs.
 2. If the host was deleted, we soft delete the `host_dep_assignments` entry.
 
