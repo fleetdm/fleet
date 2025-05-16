@@ -104,7 +104,7 @@ module.exports = {
     });
 
     let accessToken = tokenAndApiUrls.manageApiAccessToken;
-    let deviceDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
+    let deviceDataSyncUrl = tokenAndApiUrls.deviceDataSyncUrl;
 
     let complianceUpdateResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'PUT',

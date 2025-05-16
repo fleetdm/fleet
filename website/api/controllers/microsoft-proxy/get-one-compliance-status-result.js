@@ -49,7 +49,7 @@ module.exports = {
     });
 
     let accessToken = tokenAndApiUrls.manageApiAccessToken;
-    let deviceDataSyncUrl = tokenAndApiUrls.tenantDataSyncUrl;
+    let deviceDataSyncUrl = tokenAndApiUrls.deviceDataSyncUrl;
 
     let complianceStatusResultResponse = await sails.helpers.http.sendHtttpRequest.with({
       method: 'GET',
