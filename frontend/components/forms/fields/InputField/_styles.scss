@@ -110,6 +110,10 @@
 
   &__input-container.copy-enabled {
     position: relative;
+
+    .input-field {
+      padding-right: 35px; // horizontal scroll of long inputs will not be hidden by copy button
+    }
   }
 
   &__copied-confirmation {

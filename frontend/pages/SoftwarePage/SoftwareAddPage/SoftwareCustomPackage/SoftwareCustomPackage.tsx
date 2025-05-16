@@ -119,25 +119,25 @@ const SoftwareCustomPackage = ({
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      await softwareAPI.addSoftwarePackage({
-        data: formData,
-        teamId: currentTeamId,
-        onUploadProgress: (progressEvent) => {
-          const progress = progressEvent.progress || 0;
-          // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the
-          // progress bar at 97% until the server response is received
-          setUploadProgress(Math.max(progress - 0.03, 0.01));
-        },
-      });
+      const softwarePackageTitleId: number = await softwareAPI
+        .addSoftwarePackage({
+          data: formData,
+          teamId: currentTeamId,
+          onUploadProgress: (progressEvent) => {
+            const progress = progressEvent.progress || 0;
+            // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the
+            // progress bar at 97% until the server response is received
+            setUploadProgress(Math.max(progress - 0.03, 0.01));
+          },
+        })
+        .then((data) => data.software_package.title_id);
 
       const newQueryParams: QueryParams = { team_id: currentTeamId };
-      if (formData.selfService) {
-        newQueryParams.self_service = true;
-      } else {
-        newQueryParams.available_for_install = true;
-      }
       router.push(
-        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, newQueryParams)
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwarePackageTitleId.toString()),
+          newQueryParams
+        )
       );
 
       renderFlash(
@@ -174,8 +174,6 @@ const SoftwareCustomPackage = ({
           onCancel={onCancel}
           onSubmit={onSubmit}
           onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
-          // TODO - unnecessary if all uses of `PackageForm` are gitops compatible - TBD by product
-          gitopsCompatible
         />
         {uploadDetails && (
           <FileProgressModal

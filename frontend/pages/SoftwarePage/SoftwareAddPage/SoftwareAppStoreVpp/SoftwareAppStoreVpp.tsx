@@ -23,7 +23,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Button from "components/buttons/Button";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
-import { getPathWithQueryParams } from "utilities/url";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import SoftwareVppForm from "../../components/forms/SoftwareVppForm";
 import { getErrorMessage, teamHasVPPToken } from "./helpers";
 import { ISoftwareVppFormData } from "../../components/forms/SoftwareVppForm/SoftwareVppForm";
@@ -167,7 +167,10 @@ const SoftwareAppStoreVpp = ({
     setIsLoading(true);
 
     try {
-      await mdmAppleAPI.addVppApp(currentTeamId, formData);
+      const softwareVppTitleId: number = await mdmAppleAPI
+        .addVppApp(currentTeamId, formData)
+        .then((data) => data.software_title_id);
+
       renderFlash(
         "success",
         <>
@@ -176,7 +179,13 @@ const SoftwareAppStoreVpp = ({
         { persistOnPageChange: true }
       );
 
-      goBackToSoftwareTitles(true);
+      const newQueryParams: QueryParams = { team_id: currentTeamId };
+      router.push(
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwareVppTitleId.toString()),
+          newQueryParams
+        )
+      );
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     }

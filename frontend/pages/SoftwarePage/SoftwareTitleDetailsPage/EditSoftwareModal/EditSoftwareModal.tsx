@@ -298,7 +298,6 @@ const EditSoftwareModal = ({
           defaultUninstallScript={softwarePackage.uninstall_script}
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
-          gitopsCompatible
         />
       );
     }

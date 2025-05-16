@@ -198,22 +198,22 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
-    let titleId: number | undefined;
     try {
-      const res = await softwareAPI.addFleetMaintainedApp(
-        parseInt(teamId, 10),
-        {
+      const softwareFmaTitleId: number = await softwareAPI
+        .addFleetMaintainedApp(parseInt(teamId, 10), {
           ...formData,
           appId,
-        }
-      );
-      titleId = res.software_title_id;
+        })
+        .then((data) => data.software_title_id);
 
       router.push(
-        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-          team_id: teamId,
-          available_for_install: true,
-        })
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
+          {
+            team_id: teamId,
+            available_for_install: true,
+          }
+        )
       );
 
       renderFlash(
