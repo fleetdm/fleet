@@ -115,7 +115,7 @@ module.exports = {
         DeviceId: deviceId,
         UserId: informationAboutThisUser.id,
         LastUpdateTime: new Date(lastCheckInTime).toISOString(),
-        complianceStatus: 'compliant',
+        complianceStatus: compliant ? 'compliant' : 'notCompliant',
       }
     ];
 
