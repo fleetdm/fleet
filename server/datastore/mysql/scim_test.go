@@ -2144,30 +2144,90 @@ type hostProfileStatus struct {
 }
 
 func assertHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string, wantProfiles ...hostProfileStatus) {
+	withOpProfiles := make([]hostProfileOpStatus, 0, len(wantProfiles))
+	for _, p := range wantProfiles {
+		withOpProfiles = append(withOpProfiles, hostProfileOpStatus{
+			ProfileUUID: p.ProfileUUID,
+			Status:      p.Status,
+			OpType:      fleet.MDMOperationTypeInstall,
+		})
+	}
+	assertHostProfileOpStatus(t, ds, hostUUID, withOpProfiles...)
+}
+
+type hostProfileOpStatus struct {
+	ProfileUUID string
+	Status      fleet.MDMDeliveryStatus
+	OpType      fleet.MDMOperationType
+}
+
+func assertHostProfileOpStatus(t *testing.T, ds *Datastore, hostUUID string, wantProfiles ...hostProfileOpStatus) {
 	ctx := t.Context()
-	profs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
+	winProfs, err := ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
 	require.NoError(t, err)
+	appleProfs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
+	require.NoError(t, err)
+
+	type commonHostProf struct {
+		Status      fleet.MDMDeliveryStatus
+		Type        fleet.MDMOperationType
+		ProfileUUID string
+	}
+	profs := make([]commonHostProf, 0, len(appleProfs)+len(winProfs))
+	for _, wp := range winProfs {
+		var status fleet.MDMDeliveryStatus
+		if wp.Status == nil {
+			status = fleet.MDMDeliveryPending
+		} else {
+			status = *wp.Status
+		}
+		profs = append(profs, commonHostProf{
+			ProfileUUID: wp.ProfileUUID,
+			Status:      status,
+			Type:        wp.OperationType,
+		})
+	}
+	for _, ap := range appleProfs {
+		var status fleet.MDMDeliveryStatus
+		if ap.Status == nil {
+			status = fleet.MDMDeliveryPending
+		} else {
+			status = *ap.Status
+		}
+		profs = append(profs, commonHostProf{
+			ProfileUUID: ap.ProfileUUID,
+			Status:      status,
+			Type:        ap.OperationType,
+		})
+	}
+
 	require.Len(t, profs, len(wantProfiles))
 
 	// index the status of the actual profiles for quick lookup
 	profStatus := make(map[string]fleet.MDMDeliveryStatus, len(profs))
+	profOpType := make(map[string]fleet.MDMOperationType, len(profs))
 	for _, prof := range profs {
-		if prof.Status == nil {
-			profStatus[prof.ProfileUUID] = fleet.MDMDeliveryPending
-		} else {
-			profStatus[prof.ProfileUUID] = *prof.Status
-		}
+		profStatus[prof.ProfileUUID] = prof.Status
+		profOpType[prof.ProfileUUID] = prof.Type
 	}
 	for _, want := range wantProfiles {
 		status, ok := profStatus[want.ProfileUUID]
 		require.True(t, ok, "profile %s not found in host %s", want.ProfileUUID, hostUUID)
 		assert.Equal(t, want.Status, status, "profile %s", want.ProfileUUID)
+		assert.Equal(t, want.OpType, profOpType[want.ProfileUUID], "profile %s", want.ProfileUUID)
 	}
 }
 
 // helper function to force-set a host profile status
 func forceSetAppleHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string, profile *fleet.MDMAppleConfigProfile, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
 	ctx := t.Context()
+
+	// empty status string means set to NULL
+	var actualStatus *fleet.MDMDeliveryStatus
+	if status != "" {
+		actualStatus = &status
+	}
+
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
 				(profile_identifier, host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
@@ -2177,7 +2237,7 @@ func forceSetAppleHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string
 				status = VALUES(status),
 				operation_type = VALUES(operation_type)
 			`,
-			profile.Identifier, hostUUID, status, operation, uuid.NewString(), profile.Name, profile.Mobileconfig, profile.ProfileUUID)
+			profile.Identifier, hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.Mobileconfig, profile.ProfileUUID)
 		return err
 	})
 }
@@ -2241,6 +2301,13 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 
 func forceSetWindowsHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string, profile *fleet.MDMWindowsConfigProfile, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
 	ctx := t.Context()
+
+	// empty status string means set to NULL
+	var actualStatus *fleet.MDMDeliveryStatus
+	if status != "" {
+		actualStatus = &status
+	}
+
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
 				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
@@ -2250,13 +2317,20 @@ func forceSetWindowsHostProfileStatus(t *testing.T, ds *Datastore, hostUUID stri
 				status = VALUES(status),
 				operation_type = VALUES(operation_type)
 			`,
-			hostUUID, status, operation, uuid.NewString(), profile.Name, profile.SyncML, profile.ProfileUUID)
+			hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.SyncML, profile.ProfileUUID)
 		return err
 	})
 }
 
 func forceSetAppleHostDeclarationStatus(t *testing.T, ds *Datastore, hostUUID string, profile *fleet.MDMAppleDeclaration, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
 	ctx := t.Context()
+
+	// empty status string means set to NULL
+	var actualStatus *fleet.MDMDeliveryStatus
+	if status != "" {
+		actualStatus = &status
+	}
+
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
 				(declaration_identifier, host_uuid, status, operation_type, token, declaration_name, declaration_uuid)
@@ -2266,7 +2340,7 @@ func forceSetAppleHostDeclarationStatus(t *testing.T, ds *Datastore, hostUUID st
 				status = VALUES(status),
 				operation_type = VALUES(operation_type)
 			`,
-			profile.Identifier, hostUUID, status, operation, uuid.NewString(), profile.Name, profile.DeclarationUUID)
+			profile.Identifier, hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.DeclarationUUID)
 		return err
 	})
 }

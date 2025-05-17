@@ -1229,11 +1229,6 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// cannot use the profile ID as it is now deleted
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{profileUUID}, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	}
-
 	var (
 		actTeamID   *uint
 		actTeamName *string
@@ -1311,12 +1306,8 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, declUUID); err != nil {
+	if err := svc.ds.DeleteMDMAppleDeclaration(ctx, declUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
-	}
-
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
 	var (

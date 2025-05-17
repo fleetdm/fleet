@@ -784,6 +784,8 @@ type DeleteMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, pro
 
 type DeleteMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
+type DeleteMDMAppleDeclarationFunc func(ctx context.Context, declUUID string) error
+
 type DeleteMDMAppleDeclarationByNameFunc func(ctx context.Context, teamID *uint, name string) error
 
 type BulkDeleteMDMAppleHostsConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error
@@ -2495,6 +2497,9 @@ type DataStore struct {
 
 	DeleteMDMAppleConfigProfileFunc        DeleteMDMAppleConfigProfileFunc
 	DeleteMDMAppleConfigProfileFuncInvoked bool
+
+	DeleteMDMAppleDeclarationFunc        DeleteMDMAppleDeclarationFunc
+	DeleteMDMAppleDeclarationFuncInvoked bool
 
 	DeleteMDMAppleDeclarationByNameFunc        DeleteMDMAppleDeclarationByNameFunc
 	DeleteMDMAppleDeclarationByNameFuncInvoked bool
@@ -6016,6 +6021,13 @@ func (s *DataStore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 	s.DeleteMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteMDMAppleConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error {
+	s.mu.Lock()
+	s.DeleteMDMAppleDeclarationFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAppleDeclarationFunc(ctx, declUUID)
 }
 
 func (s *DataStore) DeleteMDMAppleDeclarationByName(ctx context.Context, teamID *uint, name string) error {

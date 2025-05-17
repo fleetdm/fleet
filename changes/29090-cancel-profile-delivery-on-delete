@@ -1,0 +1,1 @@
+* Added immediate cancelation of profile delivery when a profile is deleted; if it had already been installed then its removal will be pending.
