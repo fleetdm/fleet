@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"math/big"
 	"os/exec"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,7 +38,7 @@ const (
 	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
 
-var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
+var errKeySlotNotFound = errors.New("key slot not found")
 
 func isInstalled(toolName string) bool {
 	path, err := exec.LookPath(toolName)
@@ -49,29 +48,47 @@ func isInstalled(toolName string) bool {
 	return path != ""
 }
 
+// checkInstalled checks that all listed tools are installed before calling fn
+// otherwise errors out.
+func checkInstalled(tools []string, fn func() error) error {
+	for _, tool := range tools {
+		if !isInstalled(tool) {
+			return fmt.Errorf("%s is not installed", tool)
+		}
+	}
+	return fn()
+}
+
+func withRootDevicePath(fn func(string) error) error {
+	devicePath, err := lvm.FindRootDisk()
+	if err != nil {
+		return fmt.Errorf("failed to find LUKS Root Partition: %w", err)
+	}
+	return fn(devicePath)
+}
+
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx := context.Background()
 
-	if !oc.Notifications.RunDiskEncryptionEscrow {
-		return nil
+	if oc.Notifications.RunDiskEncryptionEscrow {
+		return checkInstalled([]string{"cryptsetup"}, func() error {
+			return withRootDevicePath(func(devicePath string) error {
+				return lr.newUserKeyWorkflow(ctx, devicePath)
+			})
+		})
 	}
+	return nil
+}
 
-	if !isInstalled("cryptsetup") {
-		return errors.New("cryptsetup is not installed")
-	}
-
-	switch {
-	case isInstalled("zenity"):
-		lr.notifier = zenity.New()
-	case isInstalled("kdialog"):
-		lr.notifier = kdialog.New()
-	default:
-		return errors.New("No supported dialog tool found")
-	}
-
-	devicePath, err := lvm.FindRootDisk()
-	if err != nil {
-		return fmt.Errorf("Failed to find LUKS Root Partition: %w", err)
+// newUserKeyWorkflow the goal of this workflow is to POST a
+// new user encryption key to Fleet server. To achieve this we:
+// 1. Challenge the user to produce their user key by prompting them for their passphrase.
+// 2. If they pass the challenge, we generate a new random user key.
+// 3. We send the newly created key (along with other bits) via the wire so that it
+// can be escrowed by Fleet server.
+func (lr *LuksRunner) newUserKeyWorkflow(ctx context.Context, devicePath string) error {
+	if err := lr.initDialog(); err != nil {
+		return err
 	}
 
 	var response LuksResponse
@@ -89,7 +106,7 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	response.KeySlot = keyslot
 
 	if keyslot != nil {
-		salt, err := getSaltforKeySlot(ctx, devicePath, *keyslot)
+		salt, err := getSaltForKeySlot(ctx, devicePath, *keyslot)
 		if err != nil {
 			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
 				log.Error().Err(err).Msgf("failed to remove key slot %d", *keyslot)
@@ -127,6 +144,22 @@ func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 		log.Info().Err(err).Msg("failed to show success escrow key dialog")
 	}
 
+	return nil
+}
+
+func (lr *LuksRunner) initDialog() error {
+	if lr.notifier != nil {
+		return nil
+	}
+
+	switch {
+	case isInstalled("zenity"):
+		lr.notifier = zenity.New()
+	case isInstalled("kdialog"):
+		lr.notifier = kdialog.New()
+	default:
+		return errors.New("No supported dialog tool found")
+	}
 	return nil
 }
 
@@ -216,7 +249,7 @@ func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luksdevice.
 }
 
 func getNextAvailableKeySlot(ctx context.Context, devicePath string) (uint, error) {
-	dump, err := getLuksDump(ctx, devicePath)
+	dump, err := GetLuksDump(ctx, devicePath)
 	if err != nil {
 		return 0, fmt.Errorf("get next available key slot: %w", err)
 	}
@@ -323,19 +356,7 @@ func (lr *LuksRunner) infoPrompt(title, text string) error {
 	return nil
 }
 
-type LuksDump struct {
-	Keyslots map[string]Keyslot `json:"keyslots"`
-}
-
-type Keyslot struct {
-	KDF KDF `json:"kdf"`
-}
-
-type KDF struct {
-	Salt string `json:"salt"`
-}
-
-func getLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
+func GetLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	var jsonFlag string
 	var jsonNeedsExtraction bool
 
@@ -372,15 +393,15 @@ func getLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	return &dump, nil
 }
 
-func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
-	dump, err := getLuksDump(ctx, devicePath)
+func getSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
+	dump, err := GetLuksDump(ctx, devicePath)
 	if err != nil {
 		return "", fmt.Errorf("getting salt for key slot: %w", err)
 	}
 
 	slot, ok := dump.Keyslots[fmt.Sprintf("%d", keySlot)]
 	if !ok {
-		return "", errors.New("key slot not found")
+		return "", errKeySlotNotFound
 	}
 
 	return slot.KDF.Salt, nil
