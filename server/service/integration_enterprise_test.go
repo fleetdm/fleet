@@ -12484,7 +12484,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	// Upload another package for another platform
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
 		Filename: "dummy_installer.pkg",
-		Title:    "DummyApp.app",
+		Title:    "DummyApp",
 		TeamID:   teamID,
 	}
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
@@ -13546,7 +13546,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
-		{Name: "DummyApp.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+		{Name: "DummyApp", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -13577,7 +13577,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -13591,8 +13591,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
-		{Name: "DummyApp.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
-		{Name: "AppDummy.app", Version: "2.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+		{Name: "DummyApp", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+		{Name: "AppDummy", Version: "2.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -13613,7 +13613,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -13645,7 +13645,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.Equal(t, "NoVersion.app", resp.SoftwareTitles[0].Name)
+	require.Equal(t, "NoVersion", resp.SoftwareTitles[0].Name)
 	require.Equal(t, "", resp.SoftwareTitles[0].SoftwarePackage.Version)
 }
 
@@ -13759,7 +13759,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
 		// note: the source is not "apps"
-		{Name: "DummyApp.app", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -13780,7 +13780,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -13805,7 +13805,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -13845,7 +13845,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
 		// note: the source is not "apps"
-		{Name: "DummyApp.app", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -13870,7 +13870,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.ElementsMatch(
 		t,
-		[]string{"DummyApp.app"},
+		[]string{"DummyApp"},
 		[]string{resp.SoftwareTitles[0].Name},
 	)
 
@@ -13888,7 +13888,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -14787,7 +14787,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"query", "DummyApp.app",
+		"query", "DummyApp",
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
@@ -14938,7 +14938,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Populate software for host1Team1 (to have a software title
 	// that doesn't have an associated installer)
 	software := []fleet.Software{
-		{Name: "Foobar.app", Version: "0.0.1", Source: "apps"},
+		{Name: "Foobar", Version: "0.0.1", Source: "apps"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host1Team1.ID, software)
 	require.NoError(t, err)
@@ -14951,7 +14951,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"query", "Foobar.app",
+		"query", "Foobar",
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
@@ -15383,7 +15383,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"status": "installed",
 		"policy_id": %d,
 		"policy_name": "%s"
-	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp.app", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
+	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
 
 	// host2Team1 posts the installation result for ruby.deb.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
@@ -16315,7 +16315,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 	require.NoError(t, err)
 
 	software := []fleet.Software{
-		{Name: "DummyApp.app", Version: "0.0.2", Source: "apps"},
+		{Name: "DummyApp", Version: "0.0.2", Source: "apps"},
 	}
 	// we must ingest the title with an empty bundle identifier for this
 	// test to be valid
