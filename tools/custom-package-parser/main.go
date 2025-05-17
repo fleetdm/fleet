@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -19,15 +20,16 @@ func main() {
 	path := flag.String("path", "", "File path of the custom package (or a directory of packages)")
 	flag.Parse()
 
-	if *url != "" && *path != "" {
+	switch {
+	case *url != "" && *path != "":
 		log.Fatalf("-url and -path are mutually exclusive")
-	} else if *url != "" {
+	case *url != "":
 		metadata, err := processPackageFromUrl(*url)
 		if err != nil {
 			log.Fatal(err)
 		}
 		output(metadata)
-	} else if *path != "" {
+	case *path != "":
 		pathInfo, err := os.Stat(*path)
 		if err != nil {
 			log.Fatal(err)
@@ -57,12 +59,13 @@ func main() {
 			}
 			output(metadata)
 		}
-	} else {
+	default:
 		flag.Usage()
 	}
 }
 
 func output(metadata *file.InstallerMetadata) {
+	slices.Sort(metadata.PackageIDs)
 	fmt.Printf(
 		"- Name: '%s'\n- Bundle Identifier: '%s'\n- Package IDs: '%s'\n- Version: %s\n\n",
 		metadata.Name, metadata.BundleIdentifier, strings.Join(metadata.PackageIDs, ","), metadata.Version,

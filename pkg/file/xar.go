@@ -369,9 +369,7 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 	var potentialBundles []distributionBundle
 	for _, pkg := range d.PkgRefs {
 		for _, versions := range pkg.BundleVersions {
-			for _, bundle := range versions.Bundles {
-				potentialBundles = append(potentialBundles, bundle)
-			}
+			potentialBundles = append(potentialBundles, versions.Bundles...)
 		}
 	}
 
