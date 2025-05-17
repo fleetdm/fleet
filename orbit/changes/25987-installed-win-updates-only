@@ -1,1 +1,0 @@
-- Updated the 'windows_updates' Orbit table so that results are only returned iff there are non-installed windows updates.
