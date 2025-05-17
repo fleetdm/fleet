@@ -77,7 +77,7 @@ OPTIONS:
 
 ## Authentication
 
-This section walks you through authentication, assuming you already have a running Fleet instance. To learn how to set up new Fleet instance, check out the [Deploy](https://fleetdm.com/docs/deploy/introduction) section or [Building Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md) docs. 
+This section walks you through authentication, assuming you already have a running Fleet instance. To learn how to set up new Fleet instance, check out the [Deploy](https://fleetdm.com/docs/deploy/introduction) section or [Building Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/getting-started/building-fleet.md) docs. 
 
 ### Login
 
