@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -362,20 +363,36 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 		packageIDs = append(packageIDs, id)
 	}
 
-out:
 	// look in all the bundle versions for one that has a `path` attribute
 	// that is not nested, this is generally the case for packages that distribute
 	// `.app` files, which are ultimately picked up as an installed app by osquery
+	var potentialBundles []distributionBundle
 	for _, pkg := range d.PkgRefs {
 		for _, versions := range pkg.BundleVersions {
 			for _, bundle := range versions.Bundles {
-				if base, isValid := isValidAppFilePath(bundle.Path); isValid {
-					identifier = bundle.ID
-					name = base
-					appVersion = bundle.CFBundleShortVersionString
-					break out
-				}
+				potentialBundles = append(potentialBundles, bundle)
 			}
+		}
+	}
+
+	// Prefer paths that refer to Applications for name, bundle ID, etc.
+	slices.SortFunc(potentialBundles, func(a distributionBundle, b distributionBundle) int {
+		if strings.HasPrefix(a.Path, "Applications/") && !strings.HasPrefix(b.Path, "Applications/") {
+			return -1
+		}
+		if strings.HasPrefix(b.Path, "Applications/") && !strings.HasPrefix(a.Path, "Applications/") {
+			return 1
+		}
+		return 0
+	})
+
+out:
+	for _, bundle := range potentialBundles {
+		if base, isValid := isValidAppFilePath(bundle.Path); isValid {
+			identifier = bundle.ID
+			name = base
+			appVersion = bundle.CFBundleShortVersionString
+			break out
 		}
 	}
 
