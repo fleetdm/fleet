@@ -4183,7 +4183,7 @@ func (s *integrationTestSuite) TestLabels() {
 	// create a label with both a query and hosts, error
 	res := s.Do("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1", Hosts: []string{manualHosts[0].UUID}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of either "query" or "hosts" can be included in the request.`)
+	require.Contains(t, errMsg, `Only one of either "query" or "hosts/host_ids" can be included in the request.`)
 
 	// create invalid label, conflicts with builtin name
 	for n := range builtinsMap {
@@ -4313,6 +4313,19 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 	assert.ElementsMatch(t, []uint{manualHosts[0].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 1, modResp.Label.HostCount)
+	assert.Equal(t, newName, modResp.Label.Name)
+	manualLbl2.Name = newName
+
+	// modify manual label 2 adding some hosts by ID
+	modResp = modifyLabelResponse{}
+	newName = "modified_manual_label2"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+		&fleet.ModifyLabelPayload{Name: &newName, HostIDs: []uint{manualHosts[1].ID, manualHosts[2].ID}}, http.StatusOK, &modResp)
+	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.ElementsMatch(t, []uint{manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
+	assert.EqualValues(t, 2, modResp.Label.HostCount)
 	assert.Equal(t, newName, modResp.Label.Name)
 	manualLbl2.Name = newName
 
