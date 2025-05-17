@@ -203,12 +203,12 @@ If code changes are found for any `fleetd` components, create a new release QA i
 
 ### Indicate your product group is release-ready
 
-Once a product group completes its QA process during the release candidate period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
+Once a product group completes its QA process during the release candidate period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
 
 
 ### Prepare Fleet release
 
-Documentation on completing the Fleet release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md).
+Documentation on completing the Fleet release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md).
 
 
 ### Prepare fleetd agent release
@@ -354,8 +354,59 @@ To aid in this process, we have the Stress Test Go Test action (aka the RandoKil
 - Create a branch whose name ends with `-randokiller` (for example `sgress454/enqueue-mdm-command-randokiller`).
 - Modify the [.github/workflows/config/randokiller.json](https://github.com/fleetdm/fleet/blob/main/.github/workflows/config/randokiller.json) file to your specifications (choosing the packages and tests to run, the mysql matrix, and the number of runs to do).
 - Push up the branch with whatever logs/changes you need to help diagnose or fix the flaky test.
-- Monitor the [Stress Test Go Test](https://github.com/fleetdm/fleet/actions/workflows/randokiller-go.yml) workflow for your branch.  
+- Monitor the [Stress Test Go Test](https://github.com/fleetdm/fleet/actions/workflows/randokiller-go.yml) workflow for your branch.
 - Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
+
+
+### Create and use Architectural Decision Records (ADRs)
+
+Architectural Decision Records (ADRs) document important architectural decisions made along with their context and consequences. They help teams understand why certain technical decisions were made, provide historical context, and ensure knowledge is preserved as the team evolves.
+
+**When to create an ADR:**
+
+Create an ADR when making a significant architectural decision that:
+
+- Has a substantial impact on the system architecture
+- Affects multiple components or product groups
+- Introduces new technologies or frameworks
+- Changes established patterns or approaches
+- Requires trade-offs that should be documented
+- Would benefit future contributors by explaining the reasoning
+
+Examples include choosing a new technology, changing authentication mechanisms, changing a dependency, or establishing a new pattern for handling specific types of data or workflows.
+
+**How to create an ADR:**
+
+1. Navigate to the `docs/Contributing/adr/` directory in the Fleet repository
+2. Copy the `template.md` file to a new file named `NNNN-descriptive-title.md` where:
+   - `NNNN` is the next number in sequence (e.g., `0001`, `0002`)
+   - `descriptive-title` is a brief, hyphenated description of the decision
+3. Fill in the template with your decision details:
+   - **Title**: A descriptive title that summarizes the decision
+   - **Status**: Start with "Proposed" and update as appropriate (Accepted, Rejected, Deprecated, or Superseded)
+   - **Context**: Explain the problem and background that led to this decision
+   - **Decision**: Clearly state the decision that was made
+   - **Consequences**: Describe the resulting context after applying the decision, including both positive and negative consequences
+   - **References**: Include links to related documents or resources
+4. Submit a pull request with your new ADR
+5. Update the ADR's status after review and discussion
+
+**Updating existing ADRs:**
+
+If a decision is superseded by a new decision:
+
+1. Create a new ADR that references the old one
+2. Update the status of the old ADR to "Superseded by [link to new ADR]"
+
+**ADR review process:**
+
+ADRs should be reviewed by:
+
+- The engineering team members most affected by the decision
+- At least one engineering manager
+- The CTO for significant architectural changes
+
+The goal of the review is to ensure the decision is well-documented, the context is clear, and the consequences are thoroughly considered.
 
 
 ### Request product group transfer
