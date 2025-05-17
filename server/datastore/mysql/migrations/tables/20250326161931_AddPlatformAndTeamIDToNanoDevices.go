@@ -34,10 +34,10 @@ SELECT
 	d.authenticate
 FROM
 	nano_devices d
-	JOIN nano_enrollments e ON d.id = e.device_id COLLATE utf8mb4_unicode_ci
-	LEFT OUTER JOIN hosts h ON h.uuid COLLATE utf8mb4_unicode_ci = d.id COLLATE utf8mb4_unicode_ci
+	JOIN nano_enrollments e ON d.id = e.device_id
+	LEFT OUTER JOIN hosts h ON h.uuid = d.id COLLATE utf8mb4_unicode_ci
 WHERE
-	e.type = _utf8mb4'Device' COLLATE utf8mb4_unicode_ci AND
+	e.type = 'Device' AND
 	e.enabled = 1 AND
 	h.id IS NULL
 `
