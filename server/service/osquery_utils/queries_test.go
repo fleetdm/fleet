@@ -592,6 +592,15 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						MacOSSetup: fleet.MacOSSetup{
+							EnableEndUserAuthentication: true,
+						},
+					},
+				}, nil
+			}
 			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
 				require.Equal(t, isServer, c.wantParams[0])
 				require.Equal(t, enrolled, c.wantParams[1])
@@ -601,29 +610,16 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.Equal(t, fleetEnrollmentRef, c.enrollRef)
 				return nil
 			}
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-				return nil
-			}
-
-			if c.name == "with invalid enrollment reference" {
-				ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-					return &nfe{}
-				}
-			}
 
 			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{c.got})
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
 				require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
-
 			} else {
 				require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 				require.NoError(t, err)
-				ds.SetOrUpdateMDMDataFuncInvoked = false
-				if c.name != "with invalid enrollment reference" {
-					require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
-				}
 			}
+			ds.SetOrUpdateMDMDataFuncInvoked = false
 		})
 	}
 }
@@ -644,55 +640,45 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 	}
 
 	type testCase struct {
-		name                 string
-		mdmData              []map[string]string
-		wantServerURL        string
-		wantEnrollRef        string
-		wantHostEmailsCalled bool
+		name          string
+		mdmData       []map[string]string
+		wantServerURL string
+		wantEnrollRef string
 	}
 
 	for _, tc := range []testCase{
 		{
-			name:                 "Fleet enroll_reference",
-			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "test-reference",
-			wantHostEmailsCalled: true,
+			name:          "Fleet enroll_reference",
+			mdmData:       generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "test-reference",
 		},
 		{
-			name:                 "Fleet no enroll_reference",
-			mdmData:              generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "",
-			wantHostEmailsCalled: false,
+			name:          "Fleet no enroll_reference",
+			mdmData:       generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "",
 		},
 		{
-			name:                 "Fleet enrollment_reference",
-			mdmData:              generateRows("https://test.example.com?enrollment_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "test-reference",
-			wantHostEmailsCalled: true,
+			name:          "Fleet enrollment_reference",
+			mdmData:       generateRows("https://test.example.com?enrollment_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "test-reference",
 		},
 		{
-			name:                 "Fleet enroll_reference with other query params",
-			mdmData:              generateRows("https://test.example.com?token=abcdefg&enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "test-reference",
-			wantHostEmailsCalled: true,
+			name:          "Fleet enroll_reference with other query params",
+			mdmData:       generateRows("https://test.example.com?token=abcdefg&enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "test-reference",
 		},
 		{
-			name:                 "non-Fleet enroll_reference",
-			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", "com.unknown.mdm"),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "",
-			wantHostEmailsCalled: false,
+			name:          "non-Fleet enroll_reference",
+			mdmData:       generateRows("https://test.example.com?enroll_reference=test-reference", "com.unknown.mdm"),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
-				return nil
-			}
 			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
 				require.False(t, isServer)
 				require.True(t, enrolled)
@@ -711,15 +697,60 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 
 				return nil
 			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						MacOSSetup: fleet.MacOSSetup{
+							EnableEndUserAuthentication: true,
+						},
+					},
+				}, nil
+			}
 
 			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, tc.mdmData)
 			require.NoError(t, err)
 			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 			ds.SetOrUpdateMDMDataFuncInvoked = false
-			require.Equal(t, tc.wantHostEmailsCalled, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = false
 		})
 	}
+
+	t.Run("end user authentication disabled", func(t *testing.T) {
+		// Test that email isn't set when end user authentication is disabled
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					MacOSSetup: fleet.MacOSSetup{
+						EnableEndUserAuthentication: false,
+					},
+				},
+			}, nil
+		}
+		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			require.False(t, isServer)
+			require.True(t, enrolled)
+			require.True(t, installedFromDep)
+			require.Equal(t, "https://test.example.com", serverURL)
+			require.Equal(t, "test-reference", fleetEnrollmentRef)
+			require.Equal(t, fleet.WellKnownMDMFleet, name)
+
+			return nil
+		}
+
+		t.Run("no team", func(t *testing.T) {
+			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier))
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+
+		t.Run("team", func(t *testing.T) {
+			host.TeamID = ptr.Uint(1)
+			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier))
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+	})
 }
 
 func TestDirectIngestMDMWindows(t *testing.T) {
@@ -941,15 +972,11 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 				require.Empty(t, fleetEnrollmentRef)
 				return nil
 			}
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-				return nil
-			}
 		})
 		err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
 		require.NoError(t, err)
 		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 		ds.SetOrUpdateMDMDataFuncInvoked = false
-		require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
 	}
 }
 
@@ -1979,11 +2006,3 @@ func TestGenerateSQLForAllExists(t *testing.T) {
 	sql = generateSQLForAllExists(query1, query2)
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
 }
-
-type nfe struct{}
-
-func (e nfe) Error() string {
-	return "foobar"
-}
-
-func (e nfe) IsNotFound() bool { return true }

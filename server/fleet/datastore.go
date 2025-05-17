@@ -937,9 +937,6 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
 	// UpdateMDMData updates the `enrolled` field of the host with the given ID.
 	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
-	// SetOrUpdateHostEmailsFromMdmIdpAccounts sets or updates the host emails associated with the provided
-	// host based on the MDM IdP account information associated with the provided fleet enrollment reference.
-	SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
@@ -1203,7 +1200,7 @@ type Datastore interface {
 
 	// MDMResetEnrollment resets all tables with enrollment-related
 	// information if a matching row for the host exists.
-	MDMResetEnrollment(ctx context.Context, hostUUID string) error
+	MDMResetEnrollment(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
 
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
@@ -1530,6 +1527,12 @@ type Datastore interface {
 	// device IDs (host UUIDs) of iPhone and iPad that are enrolled in Fleet MDM
 	// but deleted from Fleet.
 	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error)
+
+	// ReconcileMDMAppleEnrollRef returns the legacy enrollment reference for a
+	// device with the given host UUID.
+	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (string, error)
+	// GetMDMIdPAccountByHostUUID returns the MDM IdP account that associated with the given host UUID.
+	GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*MDMIdPAccount, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM

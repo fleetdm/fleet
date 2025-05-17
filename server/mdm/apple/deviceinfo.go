@@ -37,6 +37,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/rootcert"
@@ -132,7 +133,13 @@ outer:
 func ParseDeviceinfo(b64 string, verify bool) (*fleet.MDMAppleMachineInfo, error) {
 	buf, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
-		return nil, fmt.Errorf("could not decode base64: %w", err)
+		if strings.Contains(err.Error(), "illegal base64 data") {
+			// try with url encoding
+			buf, err = base64.URLEncoding.DecodeString(b64)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("could not decode base64: %w", err)
+		}
 	}
 
 	p7, err := pkcs7.Parse(buf)
