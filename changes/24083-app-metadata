@@ -1,0 +1,1 @@
+* Revised PKG custom package parsing to pick the correct app name and bundle ID in some cases where multiple apps are in the same package.
