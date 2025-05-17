@@ -183,14 +183,14 @@ type Service interface {
 	// don't want to allow IdP initiated authentications)
 	InitiateMDMAppleSSO(ctx context.Context) (string, error)
 
-	// InitSSOCallback handles the IDP response and ensures the credentials
-	// are valid
-	InitSSOCallback(ctx context.Context, auth Auth) (string, error)
+	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
+	// The relayStateToken is used to identify the SSO session and samlResponse is the raw SAMLResponse.
+	InitSSOCallback(ctx context.Context, relayStateToken string, samlResponse []byte) (auth Auth, redirectURL string, err error)
 
-	// InitiateMDMAppleSSOCallback handles the IDP response and ensures the
-	// credentials are valid, then responds with an URL to the Fleet UI to
+	// MDMAppleSSOCallback handles the IdP SAMLResponse and ensures the
+	// credentials are valid, then responds with a URL to the Fleet UI to
 	// handle next steps based on the query parameters provided.
-	InitiateMDMAppleSSOCallback(ctx context.Context, auth Auth) string
+	MDMAppleSSOCallback(ctx context.Context, relayStateToken string, samlResponse []byte) string
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
