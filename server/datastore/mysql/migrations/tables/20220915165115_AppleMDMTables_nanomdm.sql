@@ -86,7 +86,7 @@ ALTER TABLE nano_users ADD CONSTRAINT idx_unique_id UNIQUE (id);
  */
 CREATE TABLE nano_enrollments (
     -- The enrollment ID of this enrollment
-    id        VARCHAR(255) NOT NULL,
+    id        VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
     -- The "device" enrollment ID of this enrollment. This will be
     -- the same as the `id` field in the case of a "device" enrollment,
     -- or will be the "parent" enrollment for a "user" enrollment.
