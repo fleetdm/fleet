@@ -386,13 +386,12 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 		return 0
 	})
 
-out:
 	for _, bundle := range potentialBundles {
 		if base, isValid := isValidAppFilePath(bundle.Path); isValid {
 			identifier = bundle.ID
 			name = base
 			appVersion = bundle.CFBundleShortVersionString
-			break out
+			break
 		}
 	}
 
