@@ -7,7 +7,7 @@ MDM commands can be sent to macOS, iOS / iPadOS and Windows hosts managed in Fle
 3. Execute the MDM command by using the `fleetctl` command line interface (CLI) or by sending the payload in a Fleet API call.
 4. If needed, verify the MDM command result with an additional `fleetctl` command or API call.
 
-### Step 1: Create an MDM payload
+### Step 1: Create an MDM command payload
 
 An MDM command payload can be created in mulitple ways.
 
