@@ -270,6 +270,10 @@ func (a *testAuth) AssertionAttributes() []fleet.SAMLAttribute {
 	return a.assertionAttributes
 }
 
+func (a *testAuth) RawResponse() []byte {
+	return nil
+}
+
 func TestGetSSOUser(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
