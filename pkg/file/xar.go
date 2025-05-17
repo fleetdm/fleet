@@ -408,6 +408,14 @@ out:
 		}
 	}
 
+	// if the identifier is still empty, try to use the product id, and make sure it's in the package IDs list
+	if identifier == "" && d.Product.ID != "" {
+		identifier = d.Product.ID
+		if !slices.Contains(packageIDs, identifier) {
+			packageIDs = append(packageIDs, identifier)
+		}
+	}
+
 	// Try to get the identifier based on the choices list, if we have one. Some .pkgs have multiple
 	// sub-pkgs inside, so the choices list helps us be a bit smarter.
 	if identifier == "" && len(d.ChoicesOutline.Lines) > 0 {
@@ -452,11 +460,6 @@ out:
 		}
 	}
 
-	// if the identifier is still empty, try to use the product id
-	if identifier == "" && d.Product.ID != "" {
-		identifier = d.Product.ID
-	}
-
 	// if package IDs are still empty, use the identifier as the package ID
 	if len(packageIDs) == 0 && identifier != "" {
 		packageIDs = append(packageIDs, identifier)
@@ -468,9 +471,11 @@ out:
 		name = d.Title
 	}
 
-	if _, ok := knownBadNames[name]; name == "" || ok {
-		name = identifier
+	if _, ok := knownBadNames[name]; ok {
+		name = ""
+	}
 
+	if name == "" {
 		// Try to find a <choice> tag that matches the bundle ID for this app. It might have the app
 		// name, so if we find it we can use that.
 		for _, c := range d.Choices {
@@ -478,6 +483,18 @@ out:
 				name = c.Title
 			}
 		}
+	}
+
+	if name == "" { // Fall back to any bundle ID in packages for name matching vs. choices
+		for _, c := range d.Choices {
+			if slices.Contains(packageIDs, c.PkgRef.ID) && c.Title != "" {
+				name = c.Title
+			}
+		}
+	}
+
+	if name == "" { // fall back to bundle ID
+		name = identifier
 	}
 
 	// for the version, try to use the top-level product version, if not,
