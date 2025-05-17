@@ -1,9 +1,10 @@
-import React, { useState, useRef, useLayoutEffect } from "react";
+import React, { useRef } from "react";
 import { uniqueId } from "lodash";
 import classnames from "classnames";
 
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 
 interface ITooltipTruncatedTextCellProps {
   value: React.ReactNode;
@@ -30,22 +31,15 @@ const TooltipTruncatedText = ({
 
   // Tooltip visibility logic: Enable only when text is truncated
   const ref = useRef<HTMLInputElement>(null);
-  const [tooltipDisabled, setTooltipDisabled] = useState(true);
-
-  useLayoutEffect(() => {
-    if (ref?.current !== null) {
-      const scrollWidth = ref.current.scrollWidth;
-      const offsetWidth = ref.current.offsetWidth;
-      setTooltipDisabled(scrollWidth <= offsetWidth);
-    }
-  }, [ref]);
-  // End
+  const isTruncated = useCheckTruncatedElement(ref);
 
   const tooltipId = uniqueId();
   return (
-    <div ref={ref} className={classNames}>
+    <div className={classNames}>
       <div className="tooltip-truncated" data-tip data-for={tooltipId}>
-        <span className={tooltipDisabled ? "" : "truncated"}>{value}</span>
+        <div ref={ref} className={isTruncated ? "truncated" : undefined}>
+          {value}
+        </div>
       </div>
       <ReactTooltip
         place="top"
@@ -56,7 +50,7 @@ const TooltipTruncatedText = ({
         className="truncated-tooltip" // responsive widths
         clickable
         delayHide={200} // need delay set to hover using clickable
-        disable={tooltipDisabled}
+        disable={!isTruncated}
       >
         <>
           {tooltip ?? value}
