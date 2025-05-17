@@ -117,10 +117,29 @@ WHERE
 			return fmt.Errorf("getting host software record to update for old software IDs %v: %w", idsToMerge, err)
 		}
 
-		for _, h := range hostIDRecordList {
-			_, err = tx.Exec(`INSERT INTO host_software (host_id, software_id) VALUES (?, ?)`, h.HostID, selectedID)
-			if err != nil {
-				return fmt.Errorf("updating host_software.software_id for old software IDs %v: %w", idsToMerge, err)
+		if len(hostIDRecordList) > 0 { // batch host software inserts for query efficiency
+			hostSoftwareInsertQuery := `INSERT INTO host_software (host_id, software_id) VALUES `
+			var hostSoftwareInsertParams []any
+
+			for _, h := range hostIDRecordList {
+				hostSoftwareInsertParams = append(hostSoftwareInsertParams, h.HostID, selectedID)
+				hostSoftwareInsertQuery += "(?,?),"
+
+				if len(hostSoftwareInsertParams) >= 20_000 { // update up to 10k hosts at a time
+					_, err = tx.Exec(strings.TrimSuffix(hostSoftwareInsertQuery, ","), hostSoftwareInsertParams...)
+					if err != nil {
+						return fmt.Errorf("updating host_software.software_id for old software IDs %v: %w", idsToMerge, err)
+					}
+					hostSoftwareInsertQuery = `INSERT INTO host_software (host_id, software_id) VALUES `
+					hostSoftwareInsertParams = []any{}
+				}
+			}
+
+			if len(hostSoftwareInsertParams) > 0 { // flush last batch
+				_, err = tx.Exec(strings.TrimSuffix(hostSoftwareInsertQuery, ","), hostSoftwareInsertParams...)
+				if err != nil {
+					return fmt.Errorf("updating host_software.software_id for old software IDs %v: %w", idsToMerge, err)
+				}
 			}
 		}
 
