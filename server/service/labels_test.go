@@ -18,10 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLabelsAuth(t *testing.T) {
-	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
-
+func setupMockStore(ds *mock.Store) {
 	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 		return lbl, nil
 	}
@@ -52,6 +49,12 @@ func TestLabelsAuth(t *testing.T) {
 	ds.GetLabelSpecFunc = func(ctx context.Context, name string) (*fleet.LabelSpec, error) {
 		return &fleet.LabelSpec{}, nil
 	}
+}
+
+func TestLabelsAuth(t *testing.T) {
+	ds := new(mock.Store)
+	setupMockStore(ds)
+	svc, ctx := newTestService(t, ds, nil, nil)
 
 	testCases := []struct {
 		name            string
@@ -128,6 +131,118 @@ func TestLabelsAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailWrite, err)
 		})
 	}
+}
+
+func TestLabelsTeamAuth(t *testing.T) {
+	ds := new(mock.Store)
+	setupMockStore(ds)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	globalAdminCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	teamAdmin1Ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 2, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}})
+	teamAdmin2Ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 3, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}})
+
+	// Create a label using a global admin.
+	globalLabel, _, err := svc.NewLabel(globalAdminCtx, fleet.LabelPayload{Name: t.Name() + "globalAdmin", Query: `SELECT 1`})
+	globalLabel.ID = 1
+
+	// Create a label using team admin #1
+	teamAdmin1Label, _, err := svc.NewLabel(teamAdmin1Ctx, fleet.LabelPayload{Name: t.Name() + "teamAdmin1", Query: `SELECT 1`})
+	teamAdmin1Label.ID = 2
+
+	// Create a label using team admin #2
+	teamAdmin2Label, _, err := svc.NewLabel(teamAdmin2Ctx, fleet.LabelPayload{Name: t.Name() + "teamAdmin2", Query: `SELECT 1`})
+	teamAdmin2Label.ID = 3
+
+	ds.LabelFunc = func(ctx context.Context, id uint, filter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+		switch id {
+		case 1:
+			return globalLabel, nil, nil
+		case 2:
+			return teamAdmin1Label, nil, nil
+		case 3:
+			return teamAdmin2Label, nil, nil
+		}
+		return &fleet.Label{}, nil, nil
+	}
+
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		name := names[0]
+		labels := make(map[string]*fleet.Label, 1)
+		switch name {
+		case t.Name() + "globalAdmin":
+			labels[name] = globalLabel
+		case t.Name() + "teamAdmin1":
+			labels[name] = teamAdmin1Label
+		case t.Name() + "teamAdmin2":
+			labels[name] = teamAdmin2Label
+		}
+		return labels, nil
+	}
+
+	var permissionsError *fleet.PermissionError
+
+	// Team admin #1 should be able to modify their own label
+	_, _, err = svc.ModifyLabel(teamAdmin1Ctx, teamAdmin1Label.ID, fleet.ModifyLabelPayload{})
+	require.Nil(t, err)
+
+	// Team admin #1 should be able to delete their own label
+	err = svc.DeleteLabel(teamAdmin1Ctx, teamAdmin1Label.Name)
+	require.Nil(t, err)
+
+	// Team admin #1 should be able to delete their own label by ID
+	err = svc.DeleteLabelByID(teamAdmin1Ctx, teamAdmin1Label.ID)
+	require.Nil(t, err)
+
+	// Team admin #1 should not be able to modify global admin's label
+	_, _, err = svc.ModifyLabel(teamAdmin1Ctx, globalLabel.ID, fleet.ModifyLabelPayload{})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permissionsError)
+
+	// Team admin #1 should not be able to delete global admin's label
+	err = svc.DeleteLabel(teamAdmin1Ctx, globalLabel.Name)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permissionsError)
+
+	// Team admin #1 should not be able to delete global admin's label by ID
+	err = svc.DeleteLabelByID(teamAdmin1Ctx, globalLabel.ID)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permissionsError)
+
+	// Team admin #1 should not be able to modify team admin #2's label
+	_, _, err = svc.ModifyLabel(teamAdmin1Ctx, teamAdmin2Label.ID, fleet.ModifyLabelPayload{})
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permissionsError)
+
+	// Team admin #1 should not be able to delete team admin #2's label
+	err = svc.DeleteLabel(teamAdmin1Ctx, teamAdmin2Label.Name)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permissionsError)
+
+	// Team admin #1 should not be able to delete team admin #2's label by ID
+	err = svc.DeleteLabelByID(teamAdmin1Ctx, teamAdmin2Label.ID)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &permissionsError)
+
+	// Global admin should be able to modify team admin #2's label
+	_, _, err = svc.ModifyLabel(globalAdminCtx, teamAdmin2Label.ID, fleet.ModifyLabelPayload{})
+	require.Nil(t, err)
+
+	// Global admin should be able to delete team admin #2's label
+	err = svc.DeleteLabel(globalAdminCtx, teamAdmin2Label.Name)
+	require.Nil(t, err)
+
+	// Global admin should be able to delete team admin #2's label by ID
+	err = svc.DeleteLabelByID(globalAdminCtx, teamAdmin2Label.ID)
+	require.Nil(t, err)
+
+	// Global admin should be able to modify their own label
+	err = svc.DeleteLabel(globalAdminCtx, globalLabel.Name)
+	require.Nil(t, err)
+
+	// Global admin should be able to delete their own label
+	err = svc.DeleteLabelByID(globalAdminCtx, globalLabel.ID)
+	require.Nil(t, err)
 }
 
 func TestLabelsWithDS(t *testing.T) {
