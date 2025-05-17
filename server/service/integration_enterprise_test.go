@@ -6601,7 +6601,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
 		ScriptID: script.ID,
 		HostIDs:  []uint{host1.ID, host2.ID, host3Team1.ID},
-	}, http.StatusBadRequest, &batchRes)
+	}, http.StatusUnprocessableEntity, &batchRes)
 	require.Empty(t, batchRes.BatchExecutionID)
 
 	// Bad script ID
