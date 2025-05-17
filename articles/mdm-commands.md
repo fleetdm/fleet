@@ -190,7 +190,7 @@ You can view a list of the 1,000 most recent MDM commands executed in Fleet by r
 
 `fleetctl get mdm-commands`
 
-The output will be sorted by "most recent first", with timestamp, targeted hostname, command type, execution status and command ID.
+The output will be sorted by "most recent first", will include timestamp, targeted hostname, command type, execution status and command ID.
 
 The command ID can be used to view MDM command results as documented in Step 4.
 
