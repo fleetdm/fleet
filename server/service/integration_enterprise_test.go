@@ -17132,7 +17132,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	require.Len(t, ts.InheritedPolicies, 0)
 
 	// Delete and try again with automatic policy turned on.
-	pkgTitleID := getSoftwareTitleID(t, s.ds, "DummyApp.app", "apps")
+	pkgTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", pkgTitleID), nil, http.StatusNoContent,
 		"team_id", fmt.Sprintf("%d", team1.ID))
 
@@ -17145,20 +17145,20 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	}
 	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
 
-	pkgTitleID = getSoftwareTitleID(t, s.ds, "DummyApp.app", "apps")
+	pkgTitleID = getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
 	respTitle := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d?team_id=%d", pkgTitleID, team1.ID), listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
 	require.NotNil(t, respTitle.SoftwareTitle)
 	require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
 	require.Len(t, respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
-	require.Equal(t, "[Install software] DummyApp.app (pkg)", respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name)
+	require.Equal(t, "[Install software] DummyApp (pkg)", respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name)
 
 	// Check a policy was created on team1.
 	ts = listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
 	require.Len(t, ts.InheritedPolicies, 0)
-	require.Equal(t, "[Install software] DummyApp.app (pkg)", ts.Policies[0].Name)
+	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
 
 	// Upload dummy_installer.pkg to team2 with automatic policy.
 	pkgPayload = &fleet.UploadSoftwareInstallerPayload{
@@ -17174,7 +17174,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team2.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
 	require.Len(t, ts.InheritedPolicies, 0)
-	require.Equal(t, "[Install software] DummyApp.app (pkg)", ts.Policies[0].Name)
+	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
 
 	// Upload ruby.deb to team1 with automatic policy.
 	payloadRubyDEB := &fleet.UploadSoftwareInstallerPayload{
@@ -17561,7 +17561,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.NotNil(t, pkgTitleID)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
 	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, "DummyApp.app", stResp.SoftwareTitle.Name)
+	require.Equal(t, "DummyApp", stResp.SoftwareTitle.Name)
 	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
 	require.Equal(t, softwareToInstall[2].InstallScript, stResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Equal(t, softwareToInstall[2].UninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
@@ -17630,7 +17630,7 @@ done
 	require.NotNil(t, pkgTitleID)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
 	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, "DummyApp.app", stResp.SoftwareTitle.Name)
+	require.Equal(t, "DummyApp", stResp.SoftwareTitle.Name)
 	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
 	require.Equal(t, file.GetInstallScript("pkg"), stResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
