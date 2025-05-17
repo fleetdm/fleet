@@ -12,10 +12,5 @@ The following are quick links to infrastructure-related README files in both pub
 ### Best practices for containers
 Follow the industry best practices when designing and deploying infrastructure. For containerized infrastructure, Google has created a [reference document](https://cloud.google.com/architecture/best-practices-for-operating-containers) as an ideal reference for these practices.
 
-
-
-
-
-
 <meta name="pageOrderInSection" value="1700">
 <meta name="description" value="Infrastructure info.">

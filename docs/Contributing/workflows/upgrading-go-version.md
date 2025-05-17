@@ -30,7 +30,7 @@ Do a search for go.mod files to find others that may need updating!
 
 The golangci-lint linter used in the [golangci-lint](https://github.com/fleetdm/fleet/actions/workflows/golangci-lint.yml) Github action needs to support the new version of Go.  The linter typically keeps up with Go versions so that the latest version of golangci-lint should support the latest version of Go, but it's worth checking the [changelog](https://github.com/golangci/golangci-lint/blob/main/CHANGELOG.md) to see if it's time for an upgrade. If so, get the commit SHA of the version you'd like to use by finding [its tag on Github](https://github.com/golangci/golangci-lint/tags), clicking on the commit link under the tag name, and copying the full SHA from the URL.  Update the current `go install github.com/golangci/golangci-lint/cmd/golangci-lint` line in the .yml file with the new SHA, and update the comment to indicate the new version. 
 
-Update the instructions in the [Testing and local development doc](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#test-suite) to reflect the new version of golangci-lint.
+Update the instructions in the [Testing and local development doc](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/getting-started/testing-and-local-development.md#test-suite) to reflect the new version of golangci-lint.
 
 ### Docker files
 
