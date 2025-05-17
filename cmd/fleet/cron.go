@@ -1120,7 +1120,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	}
 
 	// If the license is Premium, we should always send usage statisics.
-	if !ac.ServerSettings.EnableAnalytics && !license.IsPremium(ctx) {
+	if !ac.ServerSettings.EnableAnalytics && license.IsAllowDisableTelemetry(ctx) {
 		return nil
 	}
 

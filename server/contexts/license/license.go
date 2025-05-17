@@ -33,3 +33,10 @@ func IsPremium(ctx context.Context) bool {
 	}
 	return false
 }
+
+func IsAllowDisableTelemetry(ctx context.Context) bool {
+	if lic, ok := FromContext(ctx); ok {
+		return lic.IsAllowDisableTelemetry()
+	}
+	return false
+}

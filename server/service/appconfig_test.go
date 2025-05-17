@@ -1448,15 +1448,16 @@ func TestModifyEnableAnalytics(t *testing.T) {
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
 	testCases := []struct {
-		name             string
-		expectedEnabled  bool
-		newEnabled       bool
-		initialEnabled   bool
-		licenseTier      string
-		initialURL       string
-		newURL           string
-		expectedURL      string
-		shouldFailModify bool
+		name                  string
+		expectedEnabled       bool
+		newEnabled            bool
+		initialEnabled        bool
+		licenseTier           string
+		allowDisableTelemetry bool
+		initialURL            string
+		newURL                string
+		expectedURL           string
+		shouldFailModify      bool
 	}{
 		{
 			name:            "fleet free",
@@ -1472,11 +1473,19 @@ func TestModifyEnableAnalytics(t *testing.T) {
 			newEnabled:      false,
 			licenseTier:     fleet.TierPremium,
 		},
+		{
+			name:                  "fleet premium with allow disable telemetry",
+			expectedEnabled:       false,
+			initialEnabled:        true,
+			newEnabled:            false,
+			licenseTier:           fleet.TierPremium,
+			allowDisableTelemetry: true,
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier, AllowDisableTelemetry: tt.allowDisableTelemetry}})
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
