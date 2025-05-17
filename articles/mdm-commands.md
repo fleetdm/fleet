@@ -128,7 +128,7 @@ To deliver the MDM command payload with `fleetctl`, use something like the follo
 
 For targeting multiple hosts, the `--hosts` option can be populated with comma-separated values.
 
-To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. E.g., to encode the `.plist` in Terminal:
+To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. This is true for Apple and Windows MDM command payloads. E.g., to encode the `.plist` in Terminal:
 
 ```
 % echo '<?xml version="1.0" encoding="UTF-8"?>
