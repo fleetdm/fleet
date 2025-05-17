@@ -1,0 +1,2 @@
+- Ensure consistent failing policies and total issues counts on the host details page by
+  re-calculating these counts every time the API receives a request for that host.
