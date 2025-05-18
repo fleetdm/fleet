@@ -176,11 +176,13 @@ If you generated the `CommandUUID`, add that value in the `--id` field. If you d
 
 To verify the MDM command result with the Fleet API, use a command that conforms to the `curl` example below:
 
+```
 % /usr/bin/curl -LSs \
 --request GET \
 --header 'Accept: application/json' \
 --header "Authorization: Bearer $fleet_key" \
 "$fleet_url/api/v1/fleet/commands/results?command_uuid=16F4301E-7A88-42AD-8523-A2F73F9D38FA"
+```
 
 > The `?command_uuid=` parameter appended to the URL is populated with the same `CommandUUID` string that was used to populate the `CommandUUID` key / value in the base64-encoded `.plist` in Step 1.
 
