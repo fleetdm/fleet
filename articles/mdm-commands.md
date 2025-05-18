@@ -196,11 +196,13 @@ The command ID can be used to view MDM command results as documented in Step 4.
 
 You can also get this list of MDM commands from the Fleet API with:
 
+```
 % /usr/bin/curl -LSs \
 --request GET \
 --header 'Accept: application/json' \
 --header "Authorization: Bearer $fleet_key" \
 "$fleet_url/api/v1/fleet/commands/results"
+```
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
