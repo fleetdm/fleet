@@ -390,7 +390,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/refetch", refetchHostEndpoint, refetchHostRequest{})
 	// Deprecated: Emails are now included in host details endpoint: /api/_version_/fleet/hosts/{id}
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", listHostDeviceMappingEndpoint, listHostDeviceMappingRequest{})
-	// Deprecated: Because the corresponding GET endpoint is deprecated. /api/fleet/orbit/device_mapping can be used instead.
+	// Deprecated: Because the corresponding GET endpoint is deprecated.
+	// /api/fleet/orbit/device_mapping can be used instead.
+	// FIXME(sarah): Is this really deprecated? The orbit-authenticated endpoint is not a substitute
+	// for the user-authenticated endpoint?
 	ue.PUT("/api/_version_/fleet/hosts/{id:[0-9]+}/device_mapping", putHostDeviceMappingEndpoint, putHostDeviceMappingRequest{})
 	ue.GET("/api/_version_/fleet/hosts/report", hostsReportEndpoint, hostsReportRequest{})
 	ue.GET("/api/_version_/fleet/os_versions", osVersionsEndpoint, osVersionsRequest{})
@@ -1225,6 +1228,7 @@ func registerMDM(
 func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/mdm/sso" {
+			// TODO: redirects for non-SSO config web url?
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -1239,6 +1243,9 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 				next.ServeHTTP(w, r)
 				return
 			}
+
+			// TODO: skip os version check if deviceinfo query param is present? or find another way
+			// to avoid polling the DB and Apple endpoint twice for each enrollment.
 
 			sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(r.Context(), parsed)
 			if err != nil {
@@ -1257,6 +1264,34 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger kitlog.Logger, next h
 				}
 				return
 			}
+
+			// TODO: Do non-Apple devices ever use this route? If so, we probably need to change the
+			// approach below so we don't endlessly redirect non-Apple clients to the same URL.
+
+			// if we get here, the minimum os version is satisfied, so we continue with SSO flow
+			q := r.URL.Query()
+			v, ok := q["deviceinfo"]
+			if !ok || len(v) == 0 {
+				// If the deviceinfo query param is empty, we add the deviceinfo to the URL and
+				// redirect.
+				//
+				// Note: We'll apply this redirect only if query params are empty because want to
+				// redirect to the same URL with added query params after parsing the x-apple-aspen-deviceinfo
+				// header. Whenever we see a request with any query params already present, we'll
+				// skip this step and just continue to the next handler.
+				newURL := *r.URL
+				q.Set("deviceinfo", di)
+				newURL.RawQuery = q.Encode()
+				level.Info(logger).Log("msg", "handling mdm sso: redirect with deviceinfo", "host_uuid", parsed.UDID, "serial", parsed.Serial)
+				http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
+				return
+			}
+			if len(v) > 0 && v[0] != di {
+				// something is wrong, the device info in the query params does not match
+				// the one in the header, so we just log the error and continue to next
+				level.Error(logger).Log("msg", "device info in query params does not match header", "header", di, "query", v[0])
+			}
+			level.Info(logger).Log("msg", "handling mdm sso: proceed to next", "host_uuid", parsed.UDID, "serial", parsed.Serial)
 		}
 
 		next.ServeHTTP(w, r)
