@@ -332,14 +332,25 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		lifecycleErrs := []error{}
+		serialsWithErrs := []string{}
 		for _, host := range hosts {
 			if fleet.MDMSupported(host.Platform) {
-				err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+				if err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 					Action:   mdmlifecycle.HostActionDelete,
 					Host:     host,
 					Platform: host.Platform,
-				})
-				return err
+				}); err != nil {
+					lifecycleErrs = append(lifecycleErrs, err)
+					serialsWithErrs = append(serialsWithErrs, host.HardwareSerial)
+				}
+			}
+		}
+		if len(lifecycleErrs) > 0 {
+			msg := fmt.Sprintf("failed to restore pending host records for one or more MDM devices: %+v", serialsWithErrs)
+			return &fleet.BadRequestError{
+				Message:     msg,
+				InternalErr: ctxerr.Wrap(ctx, errors.Join(lifecycleErrs...), msg),
 			}
 		}
 
