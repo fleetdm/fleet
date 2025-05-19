@@ -43,7 +43,9 @@ const SoftwareCustomPackage = ({
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, config } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
   const [
@@ -134,6 +136,7 @@ const SoftwareCustomPackage = ({
 
       const newQueryParams: QueryParams = {
         team_id: currentTeamId,
+        gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
       };
       router.push(
         getPathWithQueryParams(

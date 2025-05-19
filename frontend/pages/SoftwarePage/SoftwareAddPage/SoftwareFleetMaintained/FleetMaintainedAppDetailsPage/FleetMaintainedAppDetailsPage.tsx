@@ -212,10 +212,6 @@ const FleetMaintainedAppDetailsPage = ({
           PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
           {
             team_id: teamId,
-<<<<<<< HEAD
-=======
-            available_for_install: true,
->>>>>>> 6915493199 (Fleet UI: gitops custom packages)
           }
         )
       );

@@ -1,128 +1,203 @@
 import { render, screen } from "@testing-library/react";
-import { ISoftwarePackage } from "interfaces/software";
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
-import { createPackageYaml, renderYamlHelperText } from "./helpers";
+import { noop } from "lodash";
+
+import {
+  hyphenatedSoftwareTitle,
+  createPackageYaml,
+  renderYamlHelperText,
+} from "./helpers";
+
+describe("hyphenatedSoftwareTitle", () => {
+  it("converts spaces to hyphens and lowercases", () => {
+    expect(hyphenatedSoftwareTitle("My Cool App")).toBe("my-cool-app");
+  });
+
+  it("trims leading and trailing spaces", () => {
+    expect(hyphenatedSoftwareTitle("   Leading and trailing   ")).toBe(
+      "leading-and-trailing"
+    );
+  });
+
+  it("collapses multiple spaces into one hyphen", () => {
+    expect(hyphenatedSoftwareTitle("Multiple    spaces here")).toBe(
+      "multiple-spaces-here"
+    );
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(hyphenatedSoftwareTitle("")).toBe("");
+  });
+
+  it("handles already hyphenated and lowercase input", () => {
+    expect(hyphenatedSoftwareTitle("already-hyphenated-title")).toBe(
+      "already-hyphenated-title"
+    );
+  });
+
+  it("handles single word", () => {
+    expect(hyphenatedSoftwareTitle("Word")).toBe("word");
+  });
+
+  it("handles all uppercase", () => {
+    expect(hyphenatedSoftwareTitle("ALL UPPERCASE")).toBe("all-uppercase");
+  });
+
+  it("handles mixed case and spaces", () => {
+    expect(hyphenatedSoftwareTitle("  MixED CaSe   App ")).toBe(
+      "mixed-case-app"
+    );
+  });
+});
 
 describe("createPackageYaml", () => {
+  const {
+    name,
+    version,
+    url,
+    hash_sha256: sha256,
+    pre_install_query: preInstallQuery,
+    install_script: installScript,
+    post_install_script: postInstallScript,
+    uninstall_script: uninstallScript,
+  } = createMockSoftwarePackage();
+
   it("generates YAML with all fields present", () => {
     const yaml = createPackageYaml({
-      softwareTitle: "Google Chrome",
-      packageName: "googlechrome.pkg",
-      version: "136.0.1",
-      url: "https://dl.google.com/chrome.pkg",
-      sha256: "abc123",
-      includePreInstallQuery: true,
-      includeInstallScript: true,
-      includePostInstallScript: true,
-      includeUninstallScript: true,
+      softwareTitle: "Falcon Sensor Test Package",
+      packageName: name,
+      version,
+      url,
+      sha256,
+      preInstallQuery,
+      installScript,
+      postInstallScript,
+      uninstallScript,
     });
 
-    expect(yaml).toBe(`# Google Chrome (googlechrome.pkg) version 136.0.1
-url: https://dl.google.com/chrome.pkg
-hash_sha256: abc123
+    expect(yaml)
+      .toBe(`# Falcon Sensor Test Package (TestPackage-1.2.3.pkg) version 1.2.3
+url: https://fakeurl.testpackageurlforfalconapp.fake/test/package
+hash_sha256: abcd1234
 pre_install_query:
-  path: ../queries/pre-install-query-google-chrome.yml
+  path: ../queries/pre-install-query-falcon-sensor-test-package.yml
 install_script:
-  path: ../scripts/install-google-chrome.sh
+  path: ../scripts/install-falcon-sensor-test-package.sh
 post_install_script:
-  path: ../scripts/post-install-google-chrome.sh
+  path: ../scripts/post-install-falcon-sensor-test-package.sh
 uninstall_script:
-  path: ../scripts/uninstall-google-chrome.sh`);
+  path: ../scripts/uninstall-falcon-sensor-test-package.sh`);
   });
 
   it("omits optional fields when not provided", () => {
     const yaml = createPackageYaml({
-      softwareTitle: "Slack",
-      packageName: "slack.pkg",
-      version: "5.0.0",
-      // url and sha256 not provided
-      includePreInstallQuery: false,
-      includeInstallScript: false,
-      includePostInstallScript: false,
-      includeUninstallScript: false,
+      softwareTitle: "Falcon Sensor Test Package",
+      packageName: name,
+      version,
+      url: undefined,
+      sha256: undefined,
+      preInstallQuery: undefined,
+      installScript: undefined,
+      postInstallScript: undefined,
+      uninstallScript: undefined,
     });
 
-    expect(yaml).toBe(`# Slack (slack.pkg) version 5.0.0`);
+    expect(yaml).toBe(
+      "# Falcon Sensor Test Package (TestPackage-1.2.3.pkg) version 1.2.3"
+    );
   });
 
   it("handles some scripts/queries provided", () => {
     const yaml = createPackageYaml({
-      softwareTitle: "Firefox",
-      packageName: "firefox.pkg",
-      version: "120.0",
-      includePreInstallQuery: true,
-      includeInstallScript: false,
-      includePostInstallScript: true,
-      includeUninstallScript: false,
+      softwareTitle: "Falcon Sensor Test Package",
+      packageName: name,
+      version,
+      url: undefined,
+      sha256: undefined,
+      preInstallQuery,
+      installScript: undefined,
+      postInstallScript,
+      uninstallScript: undefined,
     });
 
-    expect(yaml).toBe(`# Firefox (firefox.pkg) version 120.0
+    expect(yaml)
+      .toBe(`# Falcon Sensor Test Package (TestPackage-1.2.3.pkg) version 1.2.3
 pre_install_query:
-  path: ../queries/pre-install-query-firefox.yml
+  path: ../queries/pre-install-query-falcon-sensor-test-package.yml
 post_install_script:
-  path: ../scripts/post-install-firefox.sh`);
+  path: ../scripts/post-install-falcon-sensor-test-package.sh`);
   });
 
   it("hyphenates name correctly for file paths", () => {
     const yaml = createPackageYaml({
-      softwareTitle: "My Cool App",
-      packageName: "mycoolapp.pkg",
-      version: "1.2.3",
-      includeInstallScript: true,
+      softwareTitle: "Falcon Sensor Test Package",
+      packageName: name,
+      version,
+      url: undefined,
+      sha256: undefined,
+      preInstallQuery: undefined,
+      installScript,
+      postInstallScript: undefined,
+      uninstallScript: undefined,
     });
 
-    expect(yaml).toBe(`# My Cool App (mycoolapp.pkg) version 1.2.3
+    expect(yaml)
+      .toBe(`# Falcon Sensor Test Package (TestPackage-1.2.3.pkg) version 1.2.3
 install_script:
-  path: ../scripts/install-my-cool-app.sh`);
+  path: ../scripts/install-falcon-sensor-test-package.sh`);
   });
 
   it("does not include hash_sha256 if sha256 is null or empty", () => {
     const yamlNull = createPackageYaml({
       softwareTitle: "Null Hash",
-      packageName: "nullhash.pkg",
-      version: "0.0.1",
+      packageName: name,
+      version,
+      url: undefined,
       sha256: null,
-      includeInstallScript: true,
+      preInstallQuery: undefined,
+      installScript,
+      postInstallScript: undefined,
+      uninstallScript: undefined,
     });
 
     const yamlEmpty = createPackageYaml({
       softwareTitle: "Empty Hash",
-      packageName: "emptyhash.pkg",
-      version: "0.0.2",
+      packageName: name,
+      version,
+      url: undefined,
       sha256: "",
-      includeInstallScript: true,
+      preInstallQuery: undefined,
+      installScript,
+      postInstallScript: undefined,
+      uninstallScript: undefined,
     });
 
-    expect(yamlNull).toBe(`# Null Hash (nullhash.pkg) version 0.0.1
+    expect(yamlNull).toBe(`# Null Hash (TestPackage-1.2.3.pkg) version 1.2.3
 install_script:
   path: ../scripts/install-null-hash.sh`);
-    expect(yamlEmpty).toBe(`# Empty Hash (emptyhash.pkg) version 0.0.2
+    expect(yamlEmpty).toBe(`# Empty Hash (TestPackage-1.2.3.pkg) version 1.2.3
 install_script:
   path: ../scripts/install-empty-hash.sh`);
   });
 });
 
 describe("renderYamlHelperText", () => {
+  const {
+    pre_install_query: preInstallQuery,
+    install_script: installScript,
+    post_install_script: postInstallScript,
+    uninstall_script: uninstallScript,
+  } = createMockSoftwarePackage();
+
   it("renders nothing if no scripts/queries are present", () => {
-    // Explicitly override all to undefined or empty to simulate 'no items'
-    const pkg: ISoftwarePackage = createMockSoftwarePackage({
-      install_script: undefined,
-      uninstall_script: undefined,
-      pre_install_query: undefined,
-      post_install_script: undefined,
-    });
-    const { container } = render(renderYamlHelperText(pkg));
+    // Empty to simulate 'no items'
+    const { container } = render(renderYamlHelperText({}));
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders correctly with one item", () => {
     // Only install_script present
-    const pkg: ISoftwarePackage = createMockSoftwarePackage({
-      uninstall_script: undefined,
-      pre_install_query: undefined,
-      post_install_script: undefined,
-    });
-    render(renderYamlHelperText(pkg));
+    render(renderYamlHelperText({ installScript, onClickInstallScript: noop }));
     expect(
       screen.getByRole("button", { name: "install script" })
     ).toBeInTheDocument();
@@ -135,13 +210,14 @@ describe("renderYamlHelperText", () => {
   });
 
   it("renders correctly with two items", () => {
-    // install_script and uninstall_script present
-    const pkg: ISoftwarePackage = createMockSoftwarePackage({
-      pre_install_query: undefined,
-      post_install_script: undefined,
-    });
-
-    const { container } = render(renderYamlHelperText(pkg));
+    const { container } = render(
+      renderYamlHelperText({
+        installScript,
+        uninstallScript,
+        onClickInstallScript: noop,
+        onClickUninstallScript: noop,
+      })
+    );
     expect(
       screen.getByRole("button", { name: "install script" })
     ).toBeInTheDocument();
@@ -167,9 +243,18 @@ describe("renderYamlHelperText", () => {
 
   it("renders correctly with all items", () => {
     // All present (default)
-    const pkg: ISoftwarePackage = createMockSoftwarePackage();
-
-    const { container } = render(renderYamlHelperText(pkg));
+    const { container } = render(
+      renderYamlHelperText({
+        preInstallQuery,
+        installScript,
+        uninstallScript,
+        postInstallScript,
+        onClickPreInstallQuery: noop,
+        onClickInstallScript: noop,
+        onClickUninstallScript: noop,
+        onClickPostInstallScript: noop,
+      })
+    );
     expect(
       screen.getByRole("button", { name: "pre-install query" })
     ).toBeInTheDocument();
@@ -201,11 +286,17 @@ describe("renderYamlHelperText", () => {
 
   it("renders comma correctly for three items (with Oxford comma)", () => {
     // pre_install_query, install_script, uninstall_script present
-    const pkg: ISoftwarePackage = createMockSoftwarePackage({
-      post_install_script: undefined,
-    });
+    const { container } = render(
+      renderYamlHelperText({
+        preInstallQuery,
+        installScript,
+        uninstallScript,
+        onClickPreInstallQuery: noop,
+        onClickInstallScript: noop,
+        onClickUninstallScript: noop,
+      })
+    );
 
-    const { container } = render(renderYamlHelperText(pkg));
     expect(
       screen.getByRole("button", { name: "pre-install query" })
     ).toBeInTheDocument();

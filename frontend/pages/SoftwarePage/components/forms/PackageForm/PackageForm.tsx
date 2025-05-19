@@ -295,7 +295,7 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
-          gitopsCompatible={gitopsCompatible}
+          gitopsCompatible={false}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
         <div

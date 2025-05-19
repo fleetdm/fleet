@@ -1,5 +1,7 @@
 import React, { useContext, useState, useEffect } from "react";
+import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import paths from "router/paths";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
@@ -16,6 +18,7 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
@@ -47,6 +50,8 @@ interface IEditSoftwareModalProps {
   refetchSoftwareTitle: () => void;
   onExit: () => void;
   installerType: "package" | "vpp";
+  router: InjectedRouter;
+  gitOpsModeEnabled?: boolean;
 }
 
 const EditSoftwareModal = ({
@@ -56,6 +61,8 @@ const EditSoftwareModal = ({
   onExit,
   refetchSoftwareTitle,
   installerType,
+  router,
+  gitOpsModeEnabled = false,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -189,8 +196,24 @@ const EditSoftwareModal = ({
             : ""}
         </>
       );
+      if ("title_id" in software && software.title_id && gitOpsModeEnabled) {
+        // No longer refetch as we open YAML modal if editing with gitOpsModeEnabled
+        const newQueryParams: QueryParams = {
+          team_id: teamId,
+          gitops_yaml: "true",
+        };
+        // Should have title_id so can return to the same page
+        // TODO: Make it so YAML reopens! It's pushing to the same URL so it might need a refresh.
+        router.push(
+          getPathWithQueryParams(
+            paths.SOFTWARE_TITLE_DETAILS(software.title_id.toString()),
+            newQueryParams
+          )
+        );
+      } else {
+        refetchSoftwareTitle();
+      }
       onExit();
-      refetchSoftwareTitle();
     } catch (e) {
       renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
     }

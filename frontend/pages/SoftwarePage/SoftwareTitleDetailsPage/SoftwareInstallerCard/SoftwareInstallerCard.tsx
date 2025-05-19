@@ -1,6 +1,7 @@
 /** software/titles/:id > Second section */
 
 import React, { useCallback, useContext, useState } from "react";
+import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -190,6 +191,7 @@ const SoftwareActionButtons = ({
 };
 
 interface ISoftwareInstallerCardProps {
+  softwareTitleName: string;
   name: string;
   version: string | null;
   addedTimestamp: string;
@@ -205,12 +207,15 @@ interface ISoftwareInstallerCardProps {
   onDelete: () => void;
   refetchSoftwareTitle: () => void;
   isLoading: boolean;
+  router: InjectedRouter;
+  gitOpsYamlParam?: boolean;
 }
 
 // NOTE: This component is dependent on having either a software package
 // (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwareInstallerCard = ({
+  softwareTitleName,
   name,
   version,
   addedTimestamp,
@@ -222,6 +227,8 @@ const SoftwareInstallerCard = ({
   onDelete,
   refetchSoftwareTitle,
   isLoading,
+  router,
+  gitOpsYamlParam = false,
 }: ISoftwareInstallerCardProps) => {
   const installerType = isSoftwarePackage(softwareInstaller)
     ? "package"
@@ -254,7 +261,7 @@ const SoftwareInstallerCard = ({
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showViewYamlModal, setShowViewYamlModal] = useState(false);
+  const [showViewYamlModal, setShowViewYamlModal] = useState(gitOpsYamlParam);
 
   const onEditSoftwareClick = () => {
     setShowEditSoftwareModal(true);
@@ -404,6 +411,8 @@ const SoftwareInstallerCard = ({
       )}
       {showEditSoftwareModal && (
         <EditSoftwareModal
+          router={router}
+          gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
           teamId={teamId}
           software={softwareInstaller}
@@ -423,6 +432,7 @@ const SoftwareInstallerCard = ({
       )}
       {showViewYamlModal && isCustomPackage && (
         <ViewYamlModal
+          softwareTitleName={softwareTitleName}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
         />

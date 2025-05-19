@@ -1,56 +1,84 @@
-import React from "react";
+import React, { MouseEvent } from "react";
 
 import Button from "components/buttons/Button";
 
-import { ISoftwarePackage } from "interfaces/software";
+interface RenderYamlHelperText {
+  installScript?: string;
+  uninstallScript?: string;
+  preInstallQuery?: string;
+  postInstallScript?: string;
+  onClickPreInstallQuery?: (evt: MouseEvent) => void;
+  onClickInstallScript?: (evt: MouseEvent) => void;
+  onClickPostInstallScript?: (evt: MouseEvent) => void;
+  onClickUninstallScript?: (evt: MouseEvent) => void;
+}
 
-export const renderYamlHelperText = (
-  softwarePackage: ISoftwarePackage
-): JSX.Element | null => {
+export const renderYamlHelperText = ({
+  preInstallQuery,
+  installScript,
+  postInstallScript,
+  uninstallScript,
+  onClickPreInstallQuery,
+  onClickInstallScript,
+  onClickPostInstallScript,
+  onClickUninstallScript,
+}: RenderYamlHelperText): JSX.Element => {
   const items: { key: string; element: JSX.Element }[] = [];
 
-  if (softwarePackage.pre_install_query) {
+  if (preInstallQuery) {
     items.push({
       key: "pre-install-query",
       element: (
-        <Button key="pre" variant="text-link">
+        <Button key="pre" variant="text-link" onClick={onClickPreInstallQuery}>
           pre-install query
         </Button>
       ),
     });
   }
-  if (softwarePackage.install_script) {
+  if (installScript) {
     items.push({
       key: "install-script",
       element: (
-        <Button key="install" variant="text-link">
+        <Button
+          key="install"
+          variant="text-link"
+          onClick={onClickInstallScript}
+        >
           install script
         </Button>
       ),
     });
   }
-  if (softwarePackage.uninstall_script) {
+  if (uninstallScript) {
     items.push({
       key: "uninstall-script",
       element: (
-        <Button key="uninstall" variant="text-link">
+        <Button
+          key="uninstall"
+          variant="text-link"
+          onClick={onClickUninstallScript}
+        >
           uninstall script
         </Button>
       ),
     });
   }
-  if (softwarePackage.post_install_script) {
+  if (postInstallScript) {
     items.push({
       key: "post-install-script",
       element: (
-        <Button key="post" variant="text-link">
+        <Button
+          key="post"
+          variant="text-link"
+          onClick={onClickPostInstallScript}
+        >
           post-install script
         </Button>
       ),
     });
   }
 
-  if (items.length === 0) return null;
+  if (items.length === 0) return <></>;
 
   // Helper to join items with commas and Oxford comma before "and"
   const joinWithCommasAnd = (
@@ -82,16 +110,21 @@ export const renderYamlHelperText = (
   );
 };
 
+/** Hyphenate the name for file paths */
+export const hyphenatedSoftwareTitle = (softwareTitle: string): string => {
+  return softwareTitle.trim().toLowerCase().replace(/\s+/g, "-");
+};
+
 interface CreatePackageYamlParams {
   softwareTitle: string;
   packageName: string;
   version: string;
   url?: string;
   sha256?: string | null;
-  includePreInstallQuery?: boolean;
-  includeInstallScript?: boolean;
-  includePostInstallScript?: boolean;
-  includeUninstallScript?: boolean;
+  preInstallQuery?: string;
+  installScript?: string;
+  postInstallScript?: string;
+  uninstallScript?: string;
 }
 
 export const createPackageYaml = ({
@@ -100,17 +133,11 @@ export const createPackageYaml = ({
   version,
   url,
   sha256,
-  includePreInstallQuery,
-  includeInstallScript,
-  includePostInstallScript,
-  includeUninstallScript,
+  preInstallQuery,
+  installScript,
+  postInstallScript,
+  uninstallScript,
 }: CreatePackageYamlParams): string => {
-  // Hyphenate the name for file paths
-  const hyphenatedSoftwareTitle = softwareTitle
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-");
-
   let yaml = `# ${softwareTitle} (${packageName}) version ${version}
 `;
 
@@ -124,27 +151,29 @@ export const createPackageYaml = ({
 `;
   }
 
-  if (includePreInstallQuery) {
+  const hyphenatedSWTitle = hyphenatedSoftwareTitle(softwareTitle);
+
+  if (preInstallQuery) {
     yaml += `pre_install_query:
-  path: ../queries/pre-install-query-${hyphenatedSoftwareTitle}.yml
+  path: ../queries/pre-install-query-${hyphenatedSWTitle}.yml
 `;
   }
 
-  if (includeInstallScript) {
+  if (installScript) {
     yaml += `install_script:
-  path: ../scripts/install-${hyphenatedSoftwareTitle}.sh
+  path: ../scripts/install-${hyphenatedSWTitle}.sh
 `;
   }
 
-  if (includePostInstallScript) {
+  if (postInstallScript) {
     yaml += `post_install_script:
-  path: ../scripts/post-install-${hyphenatedSoftwareTitle}.sh
+  path: ../scripts/post-install-${hyphenatedSWTitle}.sh
 `;
   }
 
-  if (includeUninstallScript) {
+  if (uninstallScript) {
     yaml += `uninstall_script:
-  path: ../scripts/uninstall-${hyphenatedSoftwareTitle}.sh
+  path: ../scripts/uninstall-${hyphenatedSWTitle}.sh
 `;
   }
 
