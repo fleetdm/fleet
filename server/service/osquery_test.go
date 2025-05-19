@@ -4266,6 +4266,54 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "macos codesign query with cdhash_sha256",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos_codesign": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+						"cdhash_sha256":   "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+						"cdhash_sha256":   "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+		},
+		{
+			name: "macos codesign query with no cdhash_sha256 column",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos_codesign": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+					},
+				},
+			},
+		},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
