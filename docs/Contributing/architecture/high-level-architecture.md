@@ -5,7 +5,32 @@
 
 ## Overview
 
-Add text
+Fleet's architecture follows a client-server model designed for scalability, security, and flexibility. The system consists of several key components that work together to provide device management, orchestration, and software management capabilities.
+
+At a high level, Fleet consists of:
+
+1. **Fleet Server**: The central component that handles API requests, manages the database, processes queries, and coordinates communication between all parts of the system. It provides both REST and GraphQL APIs for clients to interact with.
+
+2. **Agent (fleetd)**: A lightweight agent installed on managed devices that includes:
+   - **orbit**: The core agent component that manages communication with the Fleet server
+   - **osqueryd**: The osquery daemon that executes queries and returns results
+   - **Fleet Desktop**: An optional component that provides a local UI for end users
+
+3. **Clients**: Various ways to interact with Fleet:
+   - **Web UI**: A React-based frontend for administrators
+   - **fleetctl CLI**: Command-line interface for automation and scripting
+   - **Raw API**: Direct API access for custom integrations
+
+4. **Storage**:
+   - **MySQL**: Primary database for storing configuration, device information, and query results
+   - **Redis**: Used for caching and managing live query results
+
+5. **External Services**:
+   - **TUF Server**: Provides secure updates for the agent components
+   - **Telemetry**: Optional monitoring via Prometheus, OpenTelemetry, or Elastic APM
+   - **External Logging**: Optional integration with external logging systems
+
+The diagrams below illustrate how these components interact and the data flow for different operations like live queries, scheduled queries, and vulnerability management.
 
 ## Main System Components
 
