@@ -2898,6 +2898,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                 ua.execution_id AS last_install_install_uuid,
                 ua.created_at AS last_install_installed_at,
                 vaua.adam_id AS vpp_app_adam_id,
+				vat.self_service AS vpp_app_self_service,
                 'pending_install' AS status
             FROM
                 upcoming_activities ua
@@ -2928,6 +2929,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                 hvsi.command_uuid AS last_install_install_uuid,
                 hvsi.created_at AS last_install_installed_at,
                 hvsi.adam_id AS vpp_app_adam_id,
+				vat.self_service AS vpp_app_self_service,
 				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
                 %s
             FROM
