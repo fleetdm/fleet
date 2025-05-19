@@ -98,11 +98,12 @@ type setComplianceStatusRequest struct {
 	DeviceID          string `json:"deviceId"`
 	UserPrincipalName string `json:"userPrincipalName"`
 
-	DeviceName      string `json:"deviceName"`
-	OS              string `json:"os"`
-	OSVersion       string `json:"osVersion"`
-	Compliant       bool   `json:"compliant"`
-	LastCheckInTime int    `json:"lastCheckInTime"`
+	DeviceManagementState bool   `json:"deviceManagementState"`
+	DeviceName            string `json:"deviceName"`
+	OS                    string `json:"os"`
+	OSVersion             string `json:"osVersion"`
+	Compliant             bool   `json:"compliant"`
+	LastCheckInTime       int    `json:"lastCheckInTime"`
 }
 type SetComplianceStatusResponse struct {
 	MessageID string `json:"message_id"`
@@ -113,6 +114,7 @@ func (p *Proxy) SetComplianceStatus(
 	tenantID string, secret string,
 	deviceID string,
 	userPrincipalName string,
+	mdmEnrolled bool,
 	deviceName, osName, osVersion string,
 	compliant bool,
 	lastCheckInTime time.Time,
@@ -127,11 +129,12 @@ func (p *Proxy) SetComplianceStatus(
 			DeviceID:          deviceID,
 			UserPrincipalName: userPrincipalName,
 
-			DeviceName:      deviceName,
-			OS:              osName,
-			OSVersion:       osVersion,
-			Compliant:       compliant,
-			LastCheckInTime: int(lastCheckInTime.Unix()),
+			DeviceManagementState: mdmEnrolled,
+			DeviceName:            deviceName,
+			OS:                    osName,
+			OSVersion:             osVersion,
+			Compliant:             compliant,
+			LastCheckInTime:       int(lastCheckInTime.Unix()),
 		},
 		&setComplianceStatusResponse,
 	); err != nil {

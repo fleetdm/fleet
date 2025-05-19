@@ -2359,6 +2359,7 @@ func (svc *Service) setHostConditionalAccess(
 		hostConditionalAccessStatus.DeviceID,
 		hostConditionalAccessStatus.UserPrincipalName,
 
+		hostConditionalAccessStatus.MDMEnrolled,
 		hostConditionalAccessStatus.DisplayName,
 		"macOS",
 		hostConditionalAccessStatus.OSVersion,

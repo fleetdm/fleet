@@ -82,10 +82,12 @@ func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID
 		&hostConditionalAccessStatus,
 		`SELECT
 			mcphs.host_id, mcphs.device_id, mcphs.user_principal_name, mcphs.compliant, mcphs.created_at, mcphs.updated_at,
+			COALESCE(hmdm.enrolled, 0) AS mdm_enrolled,
 			h.os_version, hdn.display_name
 		FROM microsoft_compliance_partner_host_statuses mcphs
 		JOIN host_display_names hdn ON hdn.host_id=mcphs.host_id
 		JOIN hosts h ON h.id=mcphs.host_id
+		LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id
 		WHERE mcphs.host_id = ?`,
 		hostID,
 	); err != nil {

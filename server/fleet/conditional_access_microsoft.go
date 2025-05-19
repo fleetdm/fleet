@@ -18,6 +18,7 @@ type HostConditionalAccessStatus struct {
 
 	Compliant *bool `db:"compliant"`
 
+	MDMEnrolled bool   `db:"mdm_enrolled"`
 	DisplayName string `db:"display_name"`
 	OSVersion   string `db:"os_version"`
 
