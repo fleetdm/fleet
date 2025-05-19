@@ -236,22 +236,34 @@ func TestGetExclusionZones(t *testing.T) {
 				[2]int{93, 155}:  "  resolution: There is no resolution for this policy.\n  query:",
 				[2]int{268, 328}: "  description: This policy should always pass.\n  resolution:",
 				[2]int{315, 678}: "  resolution: |\n    Automated method:\n    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n  query:",
+				[2]int{147, 212}: "  query: SELECT 1 FROM osquery_info WHERE start_time < 0;\n- name:",
+				[2]int{670, 696}: "  query: SELECT 1;\n- name:",
+				[2]int{752, 903}: "  query: SELECT 1 WHERE NOT EXISTS (SELECT * FROM last\n    WHERE username = \"root\"\n    AND time > (( SELECT unix_time FROM time ) - 3600 ))\n  critical:",
 			},
 		},
 		{
 			[]string{"testdata", "global_config_no_paths.yml"},
 			map[[2]int]string{
-				[2]int{866, 949}:   "    description: Collect osquery performance stats directly from osquery\n    query:", //
-				[2]int{1754, 1818}: "    description: This policy should always fail.\n    resolution:",                    //
-				[2]int{1803, 1869}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				[2]int{1986, 2050}: "    description: This policy should always pass.\n    resolution:",                    //
-				[2]int{2035, 2101}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				[2]int{2394, 2458}: "    description: This policy should always fail.\n    resolution:",                    //
-				[2]int{2443, 2509}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				[2]int{2613, 2677}: "    description: This policy should always fail.\n    resolution:",                    //
+				[2]int{1803, 1869}: "    resolution: There is no resolution for this policy.\n    query:",
+				[2]int{2035, 2101}: "    resolution: There is no resolution for this policy.\n    query:",
+				[2]int{2443, 2509}: "    resolution: There is no resolution for this policy.\n    query:",
 				[2]int{2662, 3035}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
-				[2]int{6102, 6149}: "    description: A cool global label\n    query:", //
-				[2]int{6246, 6292}: "    description: A fly global label\n    hosts:",  //
+				[2]int{866, 949}:   "    description: Collect osquery performance stats directly from osquery\n    query:",
+				[2]int{1754, 1818}: "    description: This policy should always fail.\n    resolution:",
+				[2]int{1986, 2050}: "    description: This policy should always pass.\n    resolution:",
+				[2]int{2394, 2458}: "    description: This policy should always fail.\n    resolution:",
+				[2]int{2613, 2677}: "    description: This policy should always fail.\n    resolution:",
+				[2]int{6140, 6187}: "    description: A cool global label\n    query:",
+				[2]int{6284, 6330}: "    description: A fly global label\n    hosts:",
+				[2]int{939, 1085}:  "    query: SELECT *,\n      (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter\n      FROM osquery_schedule;\n    interval:",
+				[2]int{1254, 1304}: "    query: SELECT * from orbit_info;\n    interval:",
+				[2]int{1474, 1526}: "    query: SELECT * from osquery_info;\n    interval:",
+				[2]int{1859, 1928}: "    query: SELECT 1 FROM osquery_info WHERE start_time < 0;\n  - name:",
+				[2]int{2091, 2121}: "    query: SELECT 1;\n  - name:",
+				[2]int{2179, 2338}: "    query: SELECT 1 WHERE NOT EXISTS (SELECT * FROM last\n      WHERE username = \"root\"\n      AND time > (( SELECT unix_time FROM time ) - 3600 ))\n    critical:",
+				[2]int{2499, 2568}: "    query: SELECT 1 FROM osquery_info WHERE start_time < 0;\n  - name:",
+				[2]int{3025, 3098}: "    query: SELECT 1 WHERE '$interlocked' = '$interlocked';\nagent_options:",
+				[2]int{6177, 6241}: "    query: SELECT 1 FROM osquery_info\n    label_membership_type:",
 			},
 		},
 	}
@@ -265,8 +277,8 @@ func TestGetExclusionZones(t *testing.T) {
 
 			contents := string(fContents)
 			actual := getExclusionZones(contents)
-			require.Equal(t, len(tC.expected), len(actual))
 
+			require.Equal(t, len(tC.expected), len(actual), actual)
 			for pos, text := range tC.expected {
 				require.Contains(t, actual, pos)
 				require.Equal(t, contents[pos[0]:pos[1]], text, pos)
