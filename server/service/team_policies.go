@@ -526,6 +526,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.CalendarEventsEnabled != nil {
 		policy.CalendarEventsEnabled = *p.CalendarEventsEnabled
 	}
+	if p.ConditionalAccessEnabled != nil {
+		policy.ConditionalAccessEnabled = *p.ConditionalAccessEnabled
+	}
 	if removeStats {
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
