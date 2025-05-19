@@ -2839,6 +2839,8 @@ org_settings:
   features:
     enable_host_users: false
     enable_software_inventory: true
+    additional_queries:
+      query_a: "SELECT 1"
     detail_query_overrides:
       detail_query_a: "SELECT it_works"
   server_settings:
@@ -2868,7 +2870,13 @@ software:
 	require.NoError(t, err)
 	require.False(t, appConfig.Features.EnableHostUsers)
 	require.True(t, appConfig.Features.EnableSoftwareInventory)
-	require.Nil(t, appConfig.Features.AdditionalQueries)
+
+	// Parse the additional queries into a map.
+	var additionalQueries map[string]string
+	err = json.Unmarshal(*appConfig.Features.AdditionalQueries, &additionalQueries)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(additionalQueries))
+	require.Equal(t, "SELECT 1", additionalQueries["query_a"])
 	require.Equal(t, 1, len(appConfig.Features.DetailQueryOverrides))
 	require.Equal(t, "SELECT it_works", *appConfig.Features.DetailQueryOverrides["detail_query_a"])
 
