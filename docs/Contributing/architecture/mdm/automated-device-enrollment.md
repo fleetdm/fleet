@@ -1,4 +1,4 @@
-# Automated device enrollment architecture
+# Automated Device Enrollment architecture
 
 This document provides an overview of Fleet's Automated Device Enrollment (ADE) architecture for MDM.
 

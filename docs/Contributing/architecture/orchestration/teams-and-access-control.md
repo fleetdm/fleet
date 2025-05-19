@@ -17,7 +17,7 @@ The Teams and Access Control architecture enables the organization of devices an
 - **Access Control**: The mechanism for controlling user access to resources.
 - **Resource Ownership**: The association of resources with teams.
 
-## Role-based access control
+## Role-Based Access Control (RBAC)
 
 Fleet uses role-based access control (RBAC) to manage user access to resources. Roles define what actions users can perform on resources. See our [RBAC guide](https://fleetdm.com/guides/role-based-access) for details.
 

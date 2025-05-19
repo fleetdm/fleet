@@ -30,6 +30,6 @@ If you're new to Fleet, we recommend starting with the [Getting Started](getting
 
 Once you're set up, you can explore the [Guides](guides/README.md) section to learn how to contribute to specific areas of the project.
 
-## Architectural decision records (ADRs)
+## Architectural Decision Records (ADRs)
 
 We use [Architectural Decision Records](adr/README.md) to document significant architectural decisions. If you're making a significant architectural change, please create an ADR to document your decision.

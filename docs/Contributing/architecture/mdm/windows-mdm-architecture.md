@@ -36,7 +36,7 @@ Windows MDM is based on the OMA Device Management (OMA-DM) protocol and uses Syn
 1. Device is joined to Azure AD.
 2. Device automatically enrolls with the MDM server.
 
-## Configuration service providers (CSPs)
+## Configuration Service Providers (CSPs)
 
 Windows MDM uses Configuration Service Providers (CSPs) to configure and manage devices. CSPs are the interface through which the MDM server can access and modify device settings.
 

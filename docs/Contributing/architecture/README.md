@@ -15,6 +15,6 @@ Each product group has its own architecture documentation:
 - [Orchestration Architecture](orchestration/README.md) - Architecture documentation for Orchestration
 - [Software Architecture](software/README.md) - Architecture documentation for Software
 
-## Architectural decision records
+## Architectural Decision Records
 
 For significant architectural decisions, we use [Architectural Decision Records (ADRs)](../adr/README.md) to document the context, decision, and consequences.

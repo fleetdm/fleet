@@ -1,4 +1,4 @@
-# Architectural decision records (ADRs)
+# Architectural Decision Records (ADRs)
 
 This directory contains Architectural Decision Records (ADRs) for Fleet.
 
