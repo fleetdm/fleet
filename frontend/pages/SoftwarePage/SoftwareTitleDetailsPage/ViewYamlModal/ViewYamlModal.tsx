@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
 
+import { AppContext } from "context/app";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { ISoftwarePackage } from "interfaces/software";
 
@@ -10,67 +11,34 @@ import CustomLink from "components/CustomLink";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Editor from "components/Editor";
+import { createPackageYaml, renderYamlHelperText } from "./helpers";
 
 const baseClass = "view-yaml-modal";
 
 interface IViewYamlModalProps {
+  softwareTitle: string;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
 }
 
-const ViewYamlModal = ({ softwarePackage, onExit }: IViewYamlModalProps) => {
-  const renderHelpText = (): JSX.Element | undefined => {
-    // Build the list of available items as buttons
-    const items: JSX.Element[] = [];
-
-    if (softwarePackage.pre_install_query) {
-      items.push(
-        <Button key="pre" variant="text-link">
-          pre-install query
-        </Button>
-      );
-    }
-    if (softwarePackage.install_script) {
-      items.push(
-        <Button key="install" variant="text-link">
-          install script
-        </Button>
-      );
-    }
-    if (softwarePackage.uninstall_script) {
-      items.push(
-        <Button key="uninstall" variant="text-link">
-          uninstall script
-        </Button>
-      );
-    }
-    if (softwarePackage.post_install_script) {
-      items.push(
-        <Button key="post" variant="text-link">
-          post-install script
-        </Button>
-      );
-    }
-
-    if (items.length === 0) return <></>;
-
-    // Helper to join items with commas and "and"
-    const joinWithCommasAnd = (elements: JSX.Element[]) => {
-      return elements.map((el, idx) => {
-        if (idx === 0) return el;
-        if (idx === elements.length - 1) return <> and {el}</>;
-        return <>, {el}</>;
-      });
-    };
-
-    return (
-      <>
-        Next, download your {joinWithCommasAnd(items)} and add{" "}
-        {items.length === 1 ? "it" : "them"} to your repository (see above for{" "}
-        {items.length === 1 ? "path" : "paths"}).
-      </>
-    );
-  };
+const ViewYamlModal = ({
+  softwareTitle,
+  softwarePackage,
+  onExit,
+}: IViewYamlModalProps) => {
+  const { config } = useContext(AppContext);
+  const repositoryUrl = config?.gitops?.repository_url;
+  const packageYaml = createPackageYaml({
+    softwareTitle,
+    packageName: softwarePackage.name,
+    version: softwarePackage.version,
+    url: softwarePackage.url,
+    sha256: softwarePackage.hash_sha256,
+    includePreInstallQuery: !!softwarePackage.pre_install_query,
+    includeInstallScript: !!softwarePackage.install_script,
+    includePostInstallScript: !!softwarePackage.post_install_script,
+    includeUninstallScript: !!softwarePackage.uninstall_script,
+  });
 
   return (
     <Modal className={baseClass} title="YAML" onExit={onExit}>
@@ -88,26 +56,28 @@ const ViewYamlModal = ({ softwarePackage, onExit }: IViewYamlModalProps) => {
             />
           </p>
         </InfoBanner>
-        <p>
-          First, create the YAML file below and save it to your{" "}
-          <CustomLink
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/yaml-software`} // TODO: Waiting on confirmation of link
-            text="repository"
-            newTab
-          />
-          .
-        </p>
+        {repositoryUrl && (
+          <p>
+            First, create the YAML file below and save it to your{" "}
+            <CustomLink url={repositoryUrl} text="repository" newTab />.
+          </p>
+        )}
         <p>Make sure you reference the package YAML from your team YAML.</p>
-        <InputField
-          enableCopy
-          readOnly
-          inputWrapperClass
-          name="filename"
-          label="Filename"
-          value={softwarePackage.name}
-        />
-        <Editor label="Contents" helpText={renderHelpText()} />
-
+        <div className={`${baseClass}__form-fields`}>
+          <InputField
+            enableCopy
+            readOnly
+            inputWrapperClass
+            name="filename"
+            label="Filename"
+            value={softwarePackage.name}
+          />
+          <Editor
+            label="Contents"
+            helpText={renderYamlHelperText(softwarePackage)}
+            value={packageYaml}
+          />
+        </div>
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Done</Button>
         </div>

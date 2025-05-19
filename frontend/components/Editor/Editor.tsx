@@ -169,7 +169,6 @@ const Editor = ({
 
   return (
     <div className={classNames}>
-      {renderCopyButton()}
       {renderLabel()}
       {enableCopy && renderCopyButton()}
       <AceEditor
