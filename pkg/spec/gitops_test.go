@@ -1193,3 +1193,18 @@ func TestInvalidSoftwareInstallerHash(t *testing.T) {
 	_, err := GitOpsFromFile("testdata/team_config_invalid_sha.yml", "./testdata", appConfig, nopLogf)
 	assert.ErrorContains(t, err, "must be a valid lower-case hex-encoded (64-character) SHA-256 hash value")
 }
+
+func TestCanParseCISPolicies(t *testing.T) {
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	r, err := GitOpsFromFile(
+		filepath.Join("testdata", "cis_policies.yml"),
+		filepath.Join(".", "testdata"),
+		appConfig,
+		nopLogf)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, r.Policies)
+}

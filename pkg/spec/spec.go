@@ -283,11 +283,11 @@ func getExclusionZones(s string) [][2]int {
 	toExclude := []string{
 		"resolution",
 		"description",
-		"query",
+		//"query",
 	}
 	patterns := make([]*regexp.Regexp, 0, len(toExclude))
 	for _, e := range toExclude {
-		pattern := fmt.Sprintf(`(?m)^\s*(?:%s:)(.|[\r\n])*?%s`, e, nextSection)
+		pattern := fmt.Sprintf(`(?m)^\s+(?:%s:)(.|[\r\n])*?%s`, e, nextSection)
 		patterns = append(patterns, regexp.MustCompile(pattern))
 	}
 

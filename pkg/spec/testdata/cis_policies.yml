@@ -1,0 +1,12 @@
+org_settings:
+  server_settings:
+    server_url: http://localhost.com
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: SomeSecretSauce
+agent_options:
+queries:
+policies:
+  - path: '../../../ee/cis/macos-13/cis-policy-queries.yml'
+  - path: '../../../ee/cis/win-10/cis-policy-queries.yml'

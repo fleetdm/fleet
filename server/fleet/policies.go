@@ -2,6 +2,8 @@ package fleet
 
 import (
 	"errors"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"slices"
 	"strings"
 	"time"
 
@@ -395,6 +397,19 @@ func (p PolicySpec) Verify() error {
 		return err
 	}
 	return nil
+}
+
+func (p PolicySpec) Copy() PolicySpec {
+	dup := p
+	if p.SoftwareTitleID != nil {
+		dup.SoftwareTitleID = ptr.Uint(*p.SoftwareTitleID)
+	}
+	if p.ScriptID != nil {
+		dup.ScriptID = ptr.Uint(*p.ScriptID)
+	}
+	dup.LabelsIncludeAny = slices.Clone(p.LabelsIncludeAny)
+	dup.LabelsExcludeAny = slices.Clone(p.LabelsExcludeAny)
+	return dup
 }
 
 // FirstDuplicatePolicySpecName returns first duplicate name of policies (in a team) or empty string if no duplicates found

@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -730,10 +731,19 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				)
 			} else {
 				var pathPolicies []*Policy
-				if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
-					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies file %s: %v", *item.Path, err))
-					continue
+
+				// Try to parse the artifact as a 'metadata' file (see spec.Metadata)
+				// the only use case for this ATM is when running gitops against
+				// CIS files ...
+				if bytes.Contains(fileBytes, []byte("---")) {
+					pathPolicies = parseAsPolicyMetadata(fileBytes)
+				} else {
+					if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
+						multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies file %s: %v", *item.Path, err))
+						continue
+					}
 				}
+
 				for _, pp := range pathPolicies {
 					pp := pp
 					if pp != nil {
@@ -753,6 +763,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 							result.Policies = append(result.Policies, &pp.GitOpsPolicySpec)
 						}
 					}
+				}
+
+				if len(pathPolicies) == 0 {
+					multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policies file %s: no policies found", *item.Path))
 				}
 			}
 		}
@@ -785,6 +799,27 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate policy names: %v", duplicates))
 	}
 	return multiError
+}
+
+func parseAsPolicyMetadata(fileBytes []byte) []*Policy {
+	var result []*Policy
+
+	grp, err := GroupFromBytes(fileBytes)
+	if err != nil || grp == nil {
+		return result
+	}
+
+	for _, p := range grp.Policies {
+		if p == nil {
+			continue
+		}
+		result = append(result, &Policy{
+			GitOpsPolicySpec: GitOpsPolicySpec{
+				PolicySpec: p.Copy(),
+			},
+		})
+	}
+	return result
 }
 
 func parsePolicyRunScript(baseDir string, teamName *string, policy *Policy, scripts []BaseItem) error {
