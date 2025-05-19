@@ -14,7 +14,7 @@ func Up_20250501162727(tx *sql.Tx) error {
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     		name VARCHAR(63) NOT NULL,
 			UNIQUE KEY idx_software_categories_name (name)
-			)`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	if err != nil {
 		return fmt.Errorf("failed to create software_categories table: %w", err)
 	}

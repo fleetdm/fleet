@@ -151,7 +151,7 @@ CREATE TABLE nano_commands (
     CHECK (command_uuid != ''),
     CHECK (request_type != ''),
     CHECK (SUBSTRING(command FROM 1 FOR 5) = '<?xml')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 /* Results are enrollment responses to device commands.
@@ -268,7 +268,7 @@ CREATE TABLE nano_push_certs (
 
     CHECK (SUBSTRING(cert_pem FROM 1 FOR 27) = '-----BEGIN CERTIFICATE-----'),
     CHECK (SUBSTRING(key_pem  FROM 1 FOR  5) = '-----')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE nano_cert_auth_associations (
