@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "4.11.1",
+      "version": "4.10.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';"
       },
