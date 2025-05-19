@@ -891,8 +891,7 @@ module.exports.routes = {
   'GET /learn-more-about/connect-idp': '/guides/foreign-vitals-map-idp-users-to-hosts',
   'GET /learn-more-about/troubleshoot-idp-connection': '/guides/foreign-vitals-map-idp-users-to-hosts#verify-connection',
   'GET /learn-more-about/unsigning-configuration-profiles': 'https://fleetdm.com/guides/custom-os-settings#enforce-os-settings',
-  // FUTURE: update the temporary redirect below to go to the documentation for connecting Android enterprise
-  'GET /learn-more-about/how-to-connect-android-enterprise': (req,res)=> { return res.redirect(302, '/contact');},
+  'GET /learn-more-about/how-to-connect-android-enterprise': '/guides/android-mdm-setup',
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
 
