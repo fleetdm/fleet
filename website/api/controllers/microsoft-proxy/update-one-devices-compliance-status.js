@@ -21,6 +21,11 @@ module.exports = {
       description: 'The devices ID in entra',
       required: true,
     },
+    deviceManagementState: {
+      type: 'boolean',
+      description: 'Whether or not this device is enrolled in an MDM.',
+      required: true,
+    },
     deviceName: {
       type: 'string',
       description: 'The device\'s  display name in Fleet.',
@@ -54,7 +59,7 @@ module.exports = {
   },
 
 
-  fn: async function ({entraTenantId, fleetServerSecret, deviceId, deviceName, os, osVersion, userPrincipalName, compliant, lastCheckInTime}) {
+  fn: async function ({entraTenantId, fleetServerSecret, deviceId, deviceManagementState, deviceName, os, osVersion, userPrincipalName, compliant, lastCheckInTime}) {
 
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
@@ -98,7 +103,7 @@ module.exports = {
       {
         EntityType: 1, // EntityType 1 = Device inventory data.
         TenantId: informationAboutThisTenant.entraTenantId,
-        DeviceManagementState: 'managed',
+        DeviceManagementState: deviceManagementState ? 'managed' : 'notManaged',
         DeviceId: deviceId,
         DeviceName: deviceName,
         UserId: informationAboutThisUser.id,
