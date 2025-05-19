@@ -1255,6 +1255,7 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByOS(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByVulnerability(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByProfileStatus(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams, _ = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt.ListOptions)
 
@@ -1689,6 +1690,31 @@ func filterHostsByVulnerability(sqlstmt string, opt fleet.HostListOptions, param
 			WHERE osv.cve = ?)`
 
 		params = append(params, opt.VulnerabilityFilter, opt.VulnerabilityFilter)
+	}
+
+	return sqlstmt, params
+}
+
+func filterHostsByProfileStatus(sqlstmt string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.ProfileUUIDFilter != nil && opt.ProfileStatusFilter != nil {
+		sqlstmt += ` AND EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_apple_profiles hmap
+		WHERE
+			hmap.host_uuid = h.uuid
+			AND hmap.profile_uuid = ?
+			AND hmap.status = ?)
+		OR(
+			SELECT
+				1 FROM host_mdm_windows_profiles hwap
+			WHERE
+				hwap.host_uuid = h.uuid
+				AND hwap.profile_uuid = ?
+				AND hwap.status = ?)`
+
+		params = append(params, opt.ProfileUUIDFilter, opt.ProfileStatusFilter, opt.ProfileUUIDFilter, opt.ProfileStatusFilter)
 	}
 
 	return sqlstmt, params

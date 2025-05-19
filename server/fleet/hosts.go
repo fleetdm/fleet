@@ -221,6 +221,11 @@ type HostListOptions struct {
 	// ConnectedToFleetFilter filters hosts that have an active MDM
 	// connection with this Fleet instance.
 	ConnectedToFleetFilter *bool
+
+	// ProfileUUID is the UUID of the MDM configuration profile and filters hosts by that profile.
+	ProfileUUIDFilter *string
+	// ProfileStatus is the status of the MDM configuration profile and filters hosts by that status.
+	ProfileStatusFilter *OSSettingsStatus
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -249,7 +254,9 @@ func (h HostListOptions) Empty() bool {
 		h.MunkiIssueIDFilter == nil &&
 		h.LowDiskSpaceFilter == nil &&
 		h.OSSettingsFilter == "" &&
-		h.OSSettingsDiskEncryptionFilter == ""
+		h.OSSettingsDiskEncryptionFilter == "" &&
+		h.ProfileUUIDFilter == nil &&
+		h.ProfileStatusFilter == nil
 }
 
 type HostUser struct {
