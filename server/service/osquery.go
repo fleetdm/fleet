@@ -762,10 +762,29 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
+func (svc *Service) disablePoliciesDuringSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
+	if host.Platform != string(fleet.MacOSPlatform) {
+		return false, nil
+	}
+	inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+	}
+	return inSetupExperience, nil
+}
+
 // policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
 // It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
 // assigned to such host.
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (policyQueries map[string]string, noPoliciesForHost bool, err error) {
+	disablePolicies, err := svc.disablePoliciesDuringSetupExperience(ctx, host)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+	}
+	if disablePolicies {
+		level.Debug(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
+		return nil, false, nil
+	}
 	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
 	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, false, nil

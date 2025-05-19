@@ -30,6 +30,9 @@ import hostCountAPI, {
   IHostsCountQueryKey,
   IHostsCountResponse,
 } from "services/entities/host_count";
+import configProfileAPI, {
+  IGetConfigProfileResponse,
+} from "services/entities/config_profiles";
 
 import {
   getOSVersions,
@@ -281,6 +284,8 @@ const ManageHostsPage = ({
     queryParams?.[PARAMS.DISK_ENCRYPTION];
   const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
     queryParams?.bootstrap_package;
+  const configProfileStatus = queryParams?.profile_status;
+  const configProfileUUID = queryParams?.profile_uuid;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -368,6 +373,19 @@ const ManageHostsPage = ({
     }
   );
 
+  const {
+    data: configProfile,
+    isLoading: isLoadingConfigProfile,
+    error: errorConfigProfile,
+  } = useQuery<IGetConfigProfileResponse, Error>(
+    ["config-profile", configProfileUUID],
+    () => configProfileAPI.getConfigProfile(configProfileUUID),
+    {
+      enabled: isRouteOk && !!configProfileUUID,
+      // select: (data) => data.policy,
+    }
+  );
+
   const { data: osVersions } = useQuery<
     IOSVersionsResponse,
     Error,
@@ -422,6 +440,8 @@ const ManageHostsPage = ({
         diskEncryptionStatus,
         bootstrapPackageStatus,
         macSettingsStatus,
+        configProfileStatus,
+        configProfileUUID,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -463,6 +483,8 @@ const ManageHostsPage = ({
         diskEncryptionStatus,
         bootstrapPackageStatus,
         macSettingsStatus,
+        configProfileStatus,
+        configProfileUUID,
       },
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),
@@ -502,7 +524,8 @@ const ManageHostsPage = ({
     refetchHostsCountAPI();
   };
 
-  const hasErrors = !!errorHosts || !!errorHostsCount || !!errorPolicy;
+  const hasErrors =
+    !!errorHosts || !!errorHostsCount || !!errorPolicy || !!errorConfigProfile;
 
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
@@ -757,6 +780,22 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleConfigProfileStatusChange = (newStatus: string) => {
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: {
+          ...queryParams,
+          profile_status: newStatus,
+          profile_uuid: configProfileUUID,
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       const path = PATHS.HOST_DETAILS(row.original.id);
@@ -894,6 +933,9 @@ const ManageHostsPage = ({
         newQueryParams[PARAMS.DISK_ENCRYPTION] = diskEncryptionStatus;
       } else if (bootstrapPackageStatus && isPremiumTier) {
         newQueryParams.bootstrap_package = bootstrapPackageStatus;
+      } else if (configProfileStatus && configProfileUUID) {
+        newQueryParams.profile_status = configProfileStatus;
+        newQueryParams.profile_uuid = configProfileUUID;
       }
 
       router.replace(
@@ -918,7 +960,6 @@ const ManageHostsPage = ({
       softwareId,
       softwareVersionId,
       softwareTitleId,
-      softwareStatus,
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
@@ -928,13 +969,16 @@ const ManageHostsPage = ({
       osVersionId,
       osName,
       osVersion,
-      router,
-      routeTemplate,
-      routeParams,
+      vulnerability,
       osSettingsStatus,
       diskEncryptionStatus,
       bootstrapPackageStatus,
-      vulnerability,
+      configProfileStatus,
+      configProfileUUID,
+      router,
+      routeTemplate,
+      routeParams,
+      softwareStatus,
     ]
   );
 
@@ -1610,7 +1654,12 @@ const ManageHostsPage = ({
         resultsTitle="hosts"
         columnConfigs={tableColumns}
         data={hostsData?.hosts || []}
-        isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
+        isLoading={
+          isLoadingHosts ||
+          isLoadingHostsCount ||
+          isLoadingPolicy ||
+          isLoadingConfigProfile
+        }
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
@@ -1746,6 +1795,9 @@ const ManageHostsPage = ({
               diskEncryptionStatus,
               bootstrapPackageStatus,
               vulnerability,
+              configProfileStatus,
+              configProfileUUID,
+              configProfile,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}
@@ -1763,6 +1815,7 @@ const ManageHostsPage = ({
             onChangeSoftwareInstallStatusFilter={
               handleSoftwareInstallStatusChange
             }
+            onChangeConfigProfileStatusFilter={handleConfigProfileStatusChange}
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
           />
