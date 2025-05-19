@@ -756,26 +756,7 @@ func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.
 		return false
 	}
 
-	if !conditionalAccessConfigured || !conditionalAccessEnabledForTeam {
-		return false
-	}
-
-	switch _, err := svc.ds.LoadHostConditionalAccessStatus(ctx, host.ID); {
-	case err == nil:
-		// Nothing to do. Device already has an entry.
-		return false
-	case fleet.IsNotFound(err):
-		// Host doesn't have Entra's DeviceID thus we need to send the device
-		// the detail query to ingest it.
-		return true
-	default:
-		level.Error(svc.logger).Log(
-			"msg", "load host conditional access status, skipping ingestion",
-			"host_id", host.ID,
-			"err", err,
-		)
-		return false
-	}
+	return conditionalAccessConfigured && conditionalAccessEnabledForTeam
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
@@ -2374,12 +2355,15 @@ func (svc *Service) setHostConditionalAccess(
 	response, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(ctx,
 		integration.TenantID,
 		integration.ProxyServerSecret,
+
 		hostConditionalAccessStatus.DeviceID,
+		hostConditionalAccessStatus.UserPrincipalName,
+
 		hostConditionalAccessStatus.DisplayName,
 		"macOS",
 		hostConditionalAccessStatus.OSVersion,
 		compliant,
-		time.Now(),
+		time.Now().UTC(),
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to set compliance status")

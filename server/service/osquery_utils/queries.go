@@ -839,12 +839,10 @@ var windowsUpdateHistory = DetailQuery{
 	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
-// TODO(lucas): The table will be implemented
-// in https://github.com/fleetdm/fleet/issues/28621.
 var entraIDDetails = DetailQuery{
-	Query:            `SELECT device_id FROM entra_id_details;`,
+	Query: `SELECT * FROM (SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' LIMIT 1)
+		CROSS JOIN (SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1);`,
 	Platforms:        []string{"darwin"},
-	Discovery:        discoveryTable("entra_id_details"),
 	DirectIngestFunc: directIngestEntraIDDetails,
 }
 
@@ -1505,11 +1503,17 @@ func directIngestEntraIDDetails(
 		return nil
 	}
 	row := rows[0]
+
 	deviceID := row["device_id"]
 	if deviceID == "" {
 		return ctxerr.New(ctx, "empty Entra ID device_id")
 	}
-	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID); err != nil {
+	userPrincipalName := row["user_principal_name"]
+	if userPrincipalName == "" {
+		return ctxerr.New(ctx, "empty Entra ID user_principal_name")
+	}
+
+	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
 	}
 	return nil

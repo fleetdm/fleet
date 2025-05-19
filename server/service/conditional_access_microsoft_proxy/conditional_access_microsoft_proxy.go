@@ -92,13 +92,15 @@ func (p *Proxy) Delete(ctx context.Context, tenantID string, secret string) (*De
 }
 
 type setComplianceStatusRequest struct {
-	TenantID        string `json:"entraTenantId"`
-	Secret          string `json:"fleetServerSecret"`
-	DeviceID        string `json:"deviceId"`
+	TenantID string `json:"entraTenantId"`
+	Secret   string `json:"fleetServerSecret"`
+
+	DeviceID          string `json:"deviceId"`
+	UserPrincipalName string `json:"userPrincipalName"`
+
 	DeviceName      string `json:"deviceName"`
 	OS              string `json:"os"`
 	OSVersion       string `json:"osVersion"`
-	UserID          string `json:"userId"`
 	Compliant       bool   `json:"compliant"`
 	LastCheckInTime int    `json:"lastCheckInTime"`
 }
@@ -109,7 +111,9 @@ type SetComplianceStatusResponse struct {
 func (p *Proxy) SetComplianceStatus(
 	ctx context.Context,
 	tenantID string, secret string,
-	deviceID, deviceName, osName, osVersion string,
+	deviceID string,
+	userPrincipalName string,
+	deviceName, osName, osVersion string,
 	compliant bool,
 	lastCheckInTime time.Time,
 ) (*SetComplianceStatusResponse, error) {
@@ -117,18 +121,17 @@ func (p *Proxy) SetComplianceStatus(
 	if err := p.post(
 		"/api/v1/microsoft-compliance-partner/device",
 		setComplianceStatusRequest{
-			TenantID:        tenantID,
-			Secret:          secret,
-			DeviceID:        deviceID,
+			TenantID: tenantID,
+			Secret:   secret,
+
+			DeviceID:          deviceID,
+			UserPrincipalName: userPrincipalName,
+
 			DeviceName:      deviceName,
 			OS:              osName,
 			OSVersion:       osVersion,
 			Compliant:       compliant,
 			LastCheckInTime: int(lastCheckInTime.Unix()),
-
-			// TODO(lucas): We currently don't know how to get this.
-			// We will find out when integrating with the test tenant.
-			UserID: "TODO",
 		},
 		&setComplianceStatusResponse,
 	); err != nil {
@@ -137,7 +140,7 @@ func (p *Proxy) SetComplianceStatus(
 	return &setComplianceStatusResponse, nil
 }
 
-const MessageStatusCompleted = "completed"
+const MessageStatusCompleted = "Completed"
 
 type GetMessageStatusResponse struct {
 	MessageID string  `json:"message_id"`

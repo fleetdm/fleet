@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -80,7 +81,7 @@ func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID
 		ds.reader(ctx),
 		&hostConditionalAccessStatus,
 		`SELECT
-			mcphs.host_id, mcphs.device_id, mcphs.compliant, mcphs.created_at, mcphs.updated_at,
+			mcphs.host_id, mcphs.device_id, mcphs.user_principal_name, mcphs.compliant, mcphs.created_at, mcphs.updated_at,
 			h.os_version, hdn.display_name
 		FROM microsoft_compliance_partner_host_statuses mcphs
 		JOIN host_display_names hdn ON hdn.host_id=mcphs.host_id
@@ -92,13 +93,19 @@ func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID
 			return nil, ctxerr.Wrap(ctx, notFound("HostConditionalAccessStatus").WithID(hostID))
 		}
 	}
+	hostConditionalAccessStatus.OSVersion = strings.TrimPrefix(hostConditionalAccessStatus.OSVersion, "macOS ")
 	return &hostConditionalAccessStatus, nil
 }
 
-func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string) error {
+func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO microsoft_compliance_partner_host_statuses (host_id, device_id) VALUES (?, ?)`,
-		hostID, deviceID,
+		`INSERT INTO microsoft_compliance_partner_host_statuses
+		(host_id, device_id, user_principal_name)
+		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+		device_id = VALUES(device_id),
+		user_principal_name = VALUES(user_principal_name)`,
+		hostID, deviceID, userPrincipalName,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create host conditional access status")
 	}

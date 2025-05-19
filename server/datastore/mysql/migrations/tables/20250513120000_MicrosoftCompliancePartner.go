@@ -33,6 +33,8 @@ func Up_20250513120000(tx *sql.Tx) error {
 		host_id INT UNSIGNED NOT NULL PRIMARY KEY,
 
 		device_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+		user_principal_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+
 		compliant BOOLEAN NULL,
 
 		created_at DATETIME(6) NULL DEFAULT NOW(6),

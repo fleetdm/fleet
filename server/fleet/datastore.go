@@ -2110,7 +2110,7 @@ type Datastore interface {
 	ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context) error
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 	LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*HostConditionalAccessStatus, error)
-	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string) error
+	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, compliant bool) error
 }
 

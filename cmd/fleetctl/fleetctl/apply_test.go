@@ -4112,3 +4112,15 @@ func TestApplyFileExtensionValidation(t *testing.T) {
 		})
 	}
 }
+
+type notFoundError struct{}
+
+var _ fleet.NotFoundError = (*notFoundError)(nil)
+
+func (e *notFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e *notFoundError) Error() string {
+	return ""
+}

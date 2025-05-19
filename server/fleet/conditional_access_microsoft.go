@@ -11,9 +11,12 @@ func (c *ConditionalAccessMicrosoftIntegration) AuthzType() string {
 }
 
 type HostConditionalAccessStatus struct {
-	HostID    uint   `db:"host_id"`
-	DeviceID  string `db:"device_id"`
-	Compliant *bool  `db:"compliant"`
+	HostID uint `db:"host_id"`
+
+	DeviceID          string `db:"device_id"`
+	UserPrincipalName string `db:"user_principal_name"`
+
+	Compliant *bool `db:"compliant"`
 
 	DisplayName string `db:"display_name"`
 	OSVersion   string `db:"os_version"`
