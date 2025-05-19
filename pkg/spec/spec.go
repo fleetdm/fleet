@@ -271,23 +271,31 @@ func escapeString(s string, preventEscapingPrefix string) string {
 	})
 }
 
+const (
+	exclusionStart    = `^(?:\s*[- ])?\s+(?:%s:)`
+	exclusionContents = `(.|[\r\n])*?`
+	exclusionEnd      = `(?:^(?:\s*[- ])?\s*\w+:|\z)`
+)
+
 // getExclusionZones returns which positions inside 's' should be
 // excluded from variable interpolation.
 func getExclusionZones(s string) [][2]int {
-	nextSection := `(?:^(?:\s*[- ])?\s*\w+:|\z)`
 	// We need a different pattern per section because
-	// the delimiting end pattern ('nextSection') includes the next
+	// the delimiting end pattern ('exclusionEnd') includes the next
 	// section token, meaning the matching logic won't work in case
 	// we have a 'resolution:' followed by a 'description:' or
 	// vice versa, and we try using something like (?:resolution:|description:)
-	toExclude := []string{
+	sectionsToExclude := []string{
 		"resolution",
 		"description",
-		//"query",
 	}
-	patterns := make([]*regexp.Regexp, 0, len(toExclude))
-	for _, e := range toExclude {
-		pattern := fmt.Sprintf(`(?m)^\s+(?:%s:)(.|[\r\n])*?%s`, e, nextSection)
+	patterns := make([]*regexp.Regexp, 0, len(sectionsToExclude))
+	for _, e := range sectionsToExclude {
+		pattern := fmt.Sprintf(`(?m)%s%s%s`,
+			fmt.Sprintf(exclusionStart, e),
+			exclusionContents,
+			exclusionEnd,
+		)
 		patterns = append(patterns, regexp.MustCompile(pattern))
 	}
 
