@@ -1,4 +1,4 @@
-# Apple MDM Architecture
+# Apple MDM architecture
 
 This document provides an overview of Fleet's Apple Mobile Device Management (MDM) architecture.
 

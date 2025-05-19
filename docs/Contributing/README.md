@@ -2,7 +2,7 @@
 
 Welcome to the Fleet contributor documentation! This documentation is designed to help you contribute to the Fleet project.
 
-## Documentation Structure
+## Documentation structure
 
 The documentation is organized into the following sections:
 
@@ -16,7 +16,7 @@ The documentation is organized into the following sections:
 - [Research](research/) - Research documents for product groups
 - [Responsibilities](responsibilities/) - Responsibility documents for product groups
 
-## Product Groups
+## Product groups
 
 Fleet is organized into three main product groups:
 
@@ -30,6 +30,6 @@ If you're new to Fleet, we recommend starting with the [Getting Started](getting
 
 Once you're set up, you can explore the [Guides](guides/README.md) section to learn how to contribute to specific areas of the project.
 
-## Architectural Decision Records (ADRs)
+## Architectural decision records (ADRs)
 
 We use [Architectural Decision Records](adr/README.md) to document significant architectural decisions. If you're making a significant architectural change, please create an ADR to document your decision.
