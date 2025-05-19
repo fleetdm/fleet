@@ -11,8 +11,6 @@
 * Improved support for wide aspect ratio icons in the MDM setup experience and migration dialogs for
   Apple devices.
 
-* Changed orbit to unconditionally install Escrow Buddy and Swift Dialog on macOS hosts.
-
 * When fleetd on a Windows host installs an update it detects from TUF, also update the corresponding `DisplayVersion` in the Registry.
 
 * Added automatic extraction of .tar.gz/.tgz archives prior to running the associated install script.
