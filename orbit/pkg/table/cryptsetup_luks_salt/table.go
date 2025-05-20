@@ -61,7 +61,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}
 
 	if result != nil {
-		rows := make([]map[string]string, len(result.Keyslots))
+		rows := make([]map[string]string, 0, len(result.Keyslots))
 		for keySlot, entries := range result.Keyslots {
 			rows = append(rows, map[string]string{
 				"device":   criteria.device,
