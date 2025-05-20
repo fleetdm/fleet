@@ -158,6 +158,7 @@ const SoftwareTitleDetailsPage = ({
         isSelfService={isSelfService}
         softwareId={softwareId}
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        teamIdForapi={teamIdForApi}
         onDelete={onDeleteInstaller}
         refetchSoftwareTitle={refetchSoftwareTitle}
         isLoading={isSoftwareTitleLoading}

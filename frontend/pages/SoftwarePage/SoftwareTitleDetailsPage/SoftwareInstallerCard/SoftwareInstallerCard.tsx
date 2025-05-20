@@ -11,6 +11,7 @@ import {
   isSoftwarePackage,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
+import PATHS from "router/paths";
 
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
@@ -21,6 +22,7 @@ import Icon from "components/Icon";
 import Tag from "components/Tag";
 import Button from "components/buttons/Button";
 
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -203,6 +205,7 @@ interface ISoftwareInstallerCardProps {
   isSelfService: boolean;
   softwareId: number;
   teamId: number;
+  teamIdForApi?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
   onDelete: () => void;
   refetchSoftwareTitle: () => void;
@@ -224,6 +227,7 @@ const SoftwareInstallerCard = ({
   softwareInstaller,
   softwareId,
   teamId,
+  teamIdForApi,
   onDelete,
   refetchSoftwareTitle,
   isLoading,
@@ -261,7 +265,6 @@ const SoftwareInstallerCard = ({
 
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showViewYamlModal, setShowViewYamlModal] = useState(gitOpsYamlParam);
 
   const onEditSoftwareClick = () => {
     setShowEditSoftwareModal(true);
@@ -271,8 +274,20 @@ const SoftwareInstallerCard = ({
     setShowDeleteModal(true);
   };
 
+  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened
+  // as it automatically opens from adding/editing flow of custom software in gitOps mode
   const onToggleViewYaml = () => {
-    setShowViewYamlModal(!showViewYamlModal);
+    const newQueryParams: QueryParams = {
+      team_id: teamId,
+      gitops_yaml: !gitOpsYamlParam ? "true" : undefined,
+    };
+
+    router.push(
+      getPathWithQueryParams(
+        PATHS.SOFTWARE_TITLE_DETAILS(softwareId.toString()),
+        newQueryParams
+      )
+    );
   };
 
   const onDeleteSuccess = useCallback(() => {
@@ -430,7 +445,7 @@ const SoftwareInstallerCard = ({
           onSuccess={onDeleteSuccess}
         />
       )}
-      {showViewYamlModal && isCustomPackage && (
+      {gitOpsYamlParam && isCustomPackage && (
         <ViewYamlModal
           softwareTitleName={softwareTitleName}
           softwarePackage={softwareInstaller as ISoftwarePackage}

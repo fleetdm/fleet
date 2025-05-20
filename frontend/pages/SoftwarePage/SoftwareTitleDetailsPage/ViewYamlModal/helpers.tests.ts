@@ -203,7 +203,9 @@ describe("renderYamlHelperText", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes("add it to your repository (see above for path).")
+        content.includes(
+          "add it to your repository (please use the above path)."
+        )
       )
     ).toBeInTheDocument();
     expect(screen.queryByText("and")).not.toBeInTheDocument();
@@ -236,7 +238,9 @@ describe("renderYamlHelperText", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes("add them to your repository (see above for paths).")
+        content.includes(
+          "add them to your repository (please use the above paths)."
+        )
       )
     ).toBeInTheDocument();
   });
@@ -279,7 +283,9 @@ describe("renderYamlHelperText", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes("add them to your repository (see above for paths).")
+        content.includes(
+          "add them to your repository (please use the above paths)."
+        )
       )
     ).toBeInTheDocument();
   });
@@ -318,7 +324,9 @@ describe("renderYamlHelperText", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes("add them to your repository (see above for paths).")
+        content.includes(
+          "add them to your repository (please use the above paths)."
+        )
       )
     ).toBeInTheDocument();
   });

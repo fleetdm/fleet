@@ -187,15 +187,6 @@ const EditSoftwareModal = ({
         },
       });
 
-      renderFlash(
-        "success",
-        <>
-          Successfully edited <b>{formData.software?.name}</b>.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
-      );
       if ("title_id" in software && software.title_id && gitOpsModeEnabled) {
         // No longer refetch as we open YAML modal if editing with gitOpsModeEnabled
         const newQueryParams: QueryParams = {
@@ -211,6 +202,15 @@ const EditSoftwareModal = ({
           )
         );
       } else {
+        renderFlash(
+          "success",
+          <>
+            Successfully edited <b>{formData.software?.name}</b>.
+            {formData.selfService
+              ? " The end user can install from Fleet Desktop."
+              : ""}
+          </>
+        );
         refetchSoftwareTitle();
       }
       onExit();

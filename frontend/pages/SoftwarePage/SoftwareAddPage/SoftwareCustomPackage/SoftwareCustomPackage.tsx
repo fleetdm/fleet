@@ -134,6 +134,18 @@ const SoftwareCustomPackage = ({
         },
       });
 
+      if (!gitOpsModeEnabled) {
+        renderFlash(
+          "success",
+          <>
+            <b>{formData.software?.name}</b> successfully added.
+            {formData.selfService
+              ? " The end user can install from Fleet Desktop."
+              : ""}
+          </>
+        );
+      }
+
       const newQueryParams: QueryParams = {
         team_id: currentTeamId,
         gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
@@ -143,16 +155,6 @@ const SoftwareCustomPackage = ({
           PATHS.SOFTWARE_TITLE_DETAILS(softwarePackageTitleId.toString()),
           newQueryParams
         )
-      );
-
-      renderFlash(
-        "success",
-        <>
-          <b>{formData.software?.name}</b> successfully added.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
       );
     } catch (e) {
       renderFlash("error", getErrorMessage(e));

@@ -104,8 +104,8 @@ export const renderYamlHelperText = ({
   return (
     <>
       Next, download your {joinWithCommasAnd(items)} and add{" "}
-      {items.length === 1 ? "it" : "them"} to your repository (see above for{" "}
-      {items.length === 1 ? "path" : "paths"}).
+      {items.length === 1 ? "it" : "them"} to your repository (please use the
+      above {items.length === 1 ? "path" : "paths"}).
     </>
   );
 };
