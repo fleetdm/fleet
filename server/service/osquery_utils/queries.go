@@ -2182,7 +2182,7 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 			}
 		}
 		if !entryFound {
-			level.Debug(logger).Log(
+			level.Info(logger).Log(
 				"component", "service",
 				"method", "IngestFunc",
 				"host", host.ID,
