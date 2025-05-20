@@ -162,6 +162,9 @@ module "main" {
       bucket_prefix = "${local.customer}-software-installers-"
       create_kms_key = true
       kms_alias      = "${local.customer}-software-installers"
+      tags = {
+        backup = "true"
+      }
     }
     # sidecars = [
     #   {
