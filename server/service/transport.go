@@ -459,9 +459,9 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid profile_status: %s", profileStatus)))
 		}
 	} else if profileUUID != "" && profileStatus == "" {
-		return hopt, ctxerr.Wrap(r.Context(), badRequest("profile_status is required when profile_uuid is specified"))
+		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_status (it must be present when profile_uuid is specified)"))
 	} else if profileUUID == "" && profileStatus != "" {
-		return hopt, ctxerr.Wrap(r.Context(), badRequest("profile_uuid is required when profile_status is specified"))
+		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_uuid (it must be present when profile_status is specified)"))
 	}
 
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
