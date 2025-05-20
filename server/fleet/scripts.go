@@ -571,8 +571,8 @@ var (
 )
 
 type BatchExecutionSummary struct {
-	BatchScriptExecutionID string `json:"script_id" db:"batch_execution_id"`
-	ScriptID               uint   `json:"batch_execution_id" db:"script_id"`
+	BatchScriptExecutionID string `json:"batch_execution_id" db:"batch_execution_id"`
+	ScriptID               uint   `json:"script_id" db:"script_id"`
 	ScriptName             string `json:"script_name" db:"script_name"`
 	TeamID                 *uint  `json:"team_id" db:"team_id"`
 	NumTargeted            uint   `json:"targeted" db:"num_targeted"`

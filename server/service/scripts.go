@@ -946,6 +946,15 @@ type batchSetScriptsResponse struct {
 	Err     error                  `json:"error,omitempty"`
 }
 
+type batchScriptExecutionSummaryRequest struct {
+	BatchExecutionID string `url:"batch_execution_id"`
+}
+
+type batchScriptExecutionSummaryResponse struct {
+	fleet.BatchExecutionSummary
+	Err error `json:"error,omitempty"`
+}
+
 func (r batchSetScriptsResponse) Error() error { return r.Err }
 
 func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -1030,6 +1039,30 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for edited scripts")
 	}
 	return scriptResponses, nil
+}
+
+func (r batchScriptExecutionSummaryResponse) Error() error { return r.Err }
+
+func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptExecutionSummaryRequest)
+	summary, err := svc.BatchScriptExecutionSummary(ctx, req.BatchExecutionID)
+	if err != nil {
+		return batchScriptExecutionSummaryResponse{Err: err}, nil
+	}
+	return batchScriptExecutionSummaryResponse{BatchExecutionSummary: *summary}, nil
+}
+
+func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionSummary, error) {
+	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return summary, nil
 }
 
 func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {
