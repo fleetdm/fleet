@@ -5174,27 +5174,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Audit insecure guest logon' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy determines whether the Server Message Block (SMB) server will log events when the client is logged on as guest account.
-    Enabling this will create event log entries in 'Applications and Service Logs\Microsoft\Windows\SMBServer\Security', with Event IDs 3023, 31017, 31018, and 31022.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit insecure guest logon'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
-    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditInsecureGuestLogon' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Enable authentication rate limiter' is set to 'Enabled'
   platforms: win11
   platform: windows
