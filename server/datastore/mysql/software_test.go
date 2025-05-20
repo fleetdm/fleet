@@ -7086,7 +7086,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 
 	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
 
-	vppApp := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	vppApp := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
 	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
 	require.NoError(t, err)
 	vppAppTeamID := vppApp.VPPAppTeam.AppTeamID
@@ -7133,7 +7133,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 		},
 		vppApp.Name: {
 			AppStoreID:  vppApp.AdamID,
-			SelfService: ptr.Bool(false),
+			SelfService: ptr.Bool(true),
 			Platform:    "darwin",
 		},
 	}
@@ -7259,6 +7259,18 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
+	fourthHost := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, fourthHost, false)
+	require.NoError(t, ds.AddLabelsToHost(ctx, fourthHost.ID, []uint{label1.ID}))
+	fourthHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, fourthHost)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, fourthHost.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
 	// Assign the label to the VPP app. Now we should have an empty list
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
@@ -7266,13 +7278,33 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	}, softwareTypeVPP)
 	require.NoError(t, err)
 
+	// intall vpp app on fourth host
+	forthHostVpp1CmdUUID := createVPPAppInstallRequest(t, ds, fourthHost, vppApp.AdamID, user1)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), fourthHost.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, fourthHost, forthHostVpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	// but inventory has not been updated yet so no software/host software records exist
+	software, _, err = ds.ListHostSoftware(
+		ctx,
+		fourthHost,
+		fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 10},
+			IncludeAvailableForInstall: true,
+			SelfServiceOnly:            true,
+			IsMDMEnrolled:              true,
+		},
+	)
+	require.NoError(t, err)
+	// installer one is not self service, vpp app is but out of scope due to label
+	checkSoftware(software, installer1.Filename, vppApp.Name)
+
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software, installer1.Filename, vppApp.Name)
 
 	hostsNotInScope, err = ds.GetExcludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
-	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}, thirdHost.ID: {}}, hostsNotInScope)
+	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}, thirdHost.ID: {}, fourthHost.ID: {}}, hostsNotInScope)
 
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
