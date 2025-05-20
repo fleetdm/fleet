@@ -764,10 +764,6 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 						}
 					}
 				}
-
-				if len(pathPolicies) == 0 {
-					multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policies file %s: no policies found", *item.Path))
-				}
 			}
 		}
 	}
