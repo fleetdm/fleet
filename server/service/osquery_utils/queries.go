@@ -1751,19 +1751,6 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 			// We should clean this up at some point, but for now we'll just check both.
 			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
 		}
-		if fleetEnrollRef != "" {
-			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-				if !fleet.IsNotFound(err) {
-					return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
-				}
-
-				level.Warn(logger).Log(
-					"component", "service",
-					"method", "directIngestMDMMac",
-					"msg", err.Error(),
-				)
-			}
-		}
 	}
 
 	// strip any query parameters from the URL
@@ -2058,7 +2045,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
-//go:generate go run gen_queries_doc.go "../../../docs/Contributing/Understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,

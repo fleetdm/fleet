@@ -3,10 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -31,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
@@ -1564,24 +1560,28 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// run with devices that already have valid and invalid profiles
 	// assigned, we shouldn't re-assign the valid ones.
 	devices = []godep.Device{
-		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID},     // matches existing profile
+		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID},     // matches existing profile, but will be assigned since it is "added"
 		{SerialNumber: uuid.NewString(), Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: defaultProfileUUID}, // matches existing profile
 		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: "bar"},                  // doesn't match an existing profile
 		{SerialNumber: uuid.NewString(), Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: "foo"},              // doesn't match an existing profile
-		{SerialNumber: addedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID},          // matches existing profile
+		{SerialNumber: addedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID},          // matches existing profile, but will be assigned since it is "added"
 		{SerialNumber: serial, Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: defaultProfileUUID},           // matches existing profile
 	}
 	expectAssignProfileResponseNotAccessible = ""
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
 	require.NotEmpty(t, profileAssignmentReqs)
-	require.Len(t, profileAssignmentReqs[0].Devices, 2)
-	require.ElementsMatch(t, []string{devices[2].SerialNumber, devices[3].SerialNumber}, profileAssignmentReqs[0].Devices)
+	require.Len(t, profileAssignmentReqs, 2)
+	require.Len(t, profileAssignmentReqs[0].Devices, 1) // The first device response only returns the first device
+	assert.ElementsMatch(t, []string{devices[0].SerialNumber}, profileAssignmentReqs[0].Devices)
 	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
+	require.Len(t, profileAssignmentReqs[1].Devices, 4) // All of them
+	assert.ElementsMatch(t, []string{devices[0].SerialNumber, devices[2].SerialNumber, devices[3].SerialNumber, devices[4].SerialNumber}, profileAssignmentReqs[1].Devices)
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[1].Devices, profileAssignmentReqs[1].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 
 	// run with only a device that already has the right profile, no errors and no assignments
 	devices = []godep.Device{
-		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID}, // matches existing profile
+		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "modified", ProfileUUID: defaultProfileUUID}, // matches existing profile
 	}
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
@@ -2046,7 +2046,7 @@ func (s *integrationMDMTestSuite) createTeamDeviceForSetupExperienceWithProfileS
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
 		InstallScript: "install",
 		Filename:      "dummy_installer.pkg",
-		Title:         "DummyApp.app",
+		Title:         "DummyApp",
 		TeamID:        &tm.ID,
 	}
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
@@ -2232,7 +2232,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 1)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -2296,7 +2296,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
 	// Software is now running, script is still pending
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -2324,7 +2324,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 1)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 
 	// no MDM command got enqueued due to the /status call (device not released yet)
@@ -2335,7 +2335,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	// Software is installed, now we should run the script
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -2406,7 +2406,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	// release of the device, as all setup experience steps are now complete.
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -2566,7 +2566,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptFo
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 1)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -2873,8 +2873,14 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 2)
+	bySerial := make(map[string]*fleet.Host, len(devices))
+	for _, h := range listHostsRes.Hosts {
+		bySerial[h.HardwareSerial] = h.Host
+	}
 
 	// create a team and add the second device to it
+	teamHost := bySerial[devices[1].SerialNumber]
+	require.NotNil(t, teamHost)
 	team := &fleet.Team{
 		Name:        t.Name() + "team1",
 		Description: "desc team1",
@@ -2883,45 +2889,32 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
-	for _, h := range listHostsRes.Hosts {
-		if h.HardwareSerial == devices[1].SerialNumber {
-			err := s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{h.ID})
-			require.NoError(t, err)
-			break
-		}
-	}
-
-	// this helper function mocks the x-aspen-deviceinfo header that is sent by the device during
-	// the enrollment
-	encodeDeviceInfo := func(machineInfo fleet.MDMAppleMachineInfo) string {
-		body, err := plist.Marshal(machineInfo)
-		require.NoError(t, err)
-
-		// body is expected to be a PKCS7 signed message, although we don't currently verify the signature
-		signedData, err := pkcs7.NewSignedData(body)
-		require.NoError(t, err)
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
-		require.NoError(t, err)
-		crtBytes, err := depot.NewCACert().SelfSign(rand.Reader, key.Public(), key)
-		require.NoError(t, err)
-		crt, err := x509.ParseCertificate(crtBytes)
-		require.NoError(t, err)
-		require.NoError(t, signedData.AddSigner(crt, key, pkcs7.SignerInfoConfig{}))
-		sig, err := signedData.Finish()
-		require.NoError(t, err)
-
-		return base64.StdEncoding.EncodeToString(sig)
-	}
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{teamHost.ID}))
 
 	// this helper function calls the /enroll endpoint with the supplied machineInfo (from the test
 	// case) and checks for the expected response
-	checkMDMEnrollEndpoint := func(machineInfo *fleet.MDMAppleMachineInfo, expectEnrollInfo *mdmtest.AppleEnrollInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails) error {
-		request, err := http.NewRequest("GET", s.server.URL+apple_mdm.EnrollPath+"?token="+loadEnrollmentProfileDEPToken(t, s.ds), nil)
+	checkMDMEnrollEndpoint := func(t *testing.T, machineInfo *fleet.MDMAppleMachineInfo, expectEnrollInfo *mdmtest.AppleEnrollInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails, expectErr string, ssoDisabled bool) error {
+		var di string
+		if machineInfo != nil {
+			encoded, err := mdmtest.EncodeDeviceInfo(*machineInfo)
+			require.NoError(t, err)
+			di = encoded
+		}
+
+		path := s.server.URL + apple_mdm.EnrollPath + "?token=" + loadEnrollmentProfileDEPToken(t, s.ds)
+		if !ssoDisabled && di != "" {
+			// if SSO is enabled, we expect the deviceinfo in the URL
+			path += "&deviceinfo=" + di
+		}
+
+		request, err := http.NewRequest("GET", path, nil)
 		if err != nil {
 			return fmt.Errorf("create request: %w", err)
 		}
-		if machineInfo != nil {
-			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
+
+		if ssoDisabled && di != "" {
+			// if SSO is disabled, we expect the deviceinfo in the header
+			request.Header.Set("x-apple-aspen-deviceinfo", di)
 		}
 
 		// nolint:gosec // this client is used for testing only
@@ -2933,6 +2926,17 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			return fmt.Errorf("send request: %w", err)
 		}
 		defer response.Body.Close()
+
+		if expectErr != "" {
+			assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			require.Contains(t, string(body), expectErr)
+
+			return nil
+		}
 
 		switch {
 		case expectEnrollInfo != nil:
@@ -2976,6 +2980,18 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 			return nil
 
+		case machineInfo == nil:
+			// we always expect a 400 error from this endpoint if deviceinfo is missing, at this
+			// stage it should either be in the URL (if SSO is enabled) or in the header
+			// (if SSO is disabled)
+			require.Equal(t, http.StatusBadRequest, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			require.Contains(t, string(body), "missing deviceinfo")
+			return nil
+
 		default:
 			return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
 		}
@@ -2983,13 +2999,15 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 	// this helper function calls the /mdm/sso endpoint with the supplied machineInfo (from the test
 	// case) and checks for the expected response
-	checkMDMSSOEndpoint := func(machineInfo *fleet.MDMAppleMachineInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails) error {
+	checkMDMSSOEndpoint := func(t *testing.T, machineInfo *fleet.MDMAppleMachineInfo, expectSoftwareUpdate *fleet.MDMAppleSoftwareUpdateRequiredDetails, expectErr string) error {
 		request, err := http.NewRequest("GET", s.server.URL+"/mdm/sso", nil)
 		if err != nil {
 			return fmt.Errorf("create request: %w", err)
 		}
 		if machineInfo != nil {
-			request.Header.Set("x-apple-aspen-deviceinfo", encodeDeviceInfo(*machineInfo))
+			di, err := mdmtest.EncodeDeviceInfo(*machineInfo)
+			require.NoError(t, err)
+			request.Header.Set("x-apple-aspen-deviceinfo", di)
 		}
 
 		// nolint:gosec // this client is used for testing only
@@ -3001,6 +3019,17 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			return fmt.Errorf("send request: %w", err)
 		}
 		defer response.Body.Close()
+
+		if expectErr != "" {
+			assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			assert.Contains(t, string(body), expectErr)
+
+			return nil
+		}
 
 		switch {
 		case expectSoftwareUpdate != nil:
@@ -3015,6 +3044,13 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			require.Equal(t, fleet.MDMAppleSoftwareUpdateRequiredCode, sur.Code)
 			require.Equal(t, *expectSoftwareUpdate, sur.Details)
 
+			return nil
+
+		case machineInfo == nil:
+			// if deviceinfo is missing, the request still procceds to the frontend sso app, but
+			// it will will eventually fail when the frontend attempts the sso callback without the
+			// required deviceinfo
+			require.Equal(t, http.StatusOK, response.StatusCode)
 			return nil
 
 		case response.StatusCode == http.StatusOK:
@@ -3146,7 +3182,6 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			name:           "no machine info",
 			machineInfo:    nil,
 			updateRequired: nil,
-			err:            "", // no error, allow enrollment to proceed without software update
 		},
 		{
 			name: "cannot parse OS version",
@@ -3168,27 +3203,22 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		t.Run("sso disabled", func(t *testing.T) {
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
-					var mi fleet.MDMAppleMachineInfo
+					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						mi = *tc.machineInfo
+						miCopy := *tc.machineInfo
+						mi = &miCopy
 						mi.Serial = devices[0].SerialNumber
+						mi.UDID = uuid.New().String()
 					}
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
-					if tc.updateRequired == nil && tc.err == "" {
+					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
 							SCEPChallenge: scepChallenge,
 							SCEPURL:       scepURL,
 							MDMURL:        mdmURL,
 						}
 					}
-
-					err := checkMDMEnrollEndpoint(&mi, expectEnrollInfo, tc.updateRequired)
-					if tc.err != "" {
-						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.err)
-					} else {
-						require.NoError(t, err)
-					}
+					require.NoError(t, checkMDMEnrollEndpoint(t, mi, expectEnrollInfo, tc.updateRequired, tc.err, true))
 				})
 			}
 		})
@@ -3198,19 +3228,14 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
-					var mi fleet.MDMAppleMachineInfo
+					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						mi = *tc.machineInfo
+						miCopy := *tc.machineInfo
+						mi = &miCopy
 						mi.Serial = devices[0].SerialNumber
+						mi.UDID = uuid.New().String()
 					}
-
-					err := checkMDMSSOEndpoint(&mi, tc.updateRequired)
-					if tc.err != "" {
-						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.err)
-					} else {
-						require.NoError(t, err)
-					}
+					require.NoError(t, checkMDMSSOEndpoint(t, mi, tc.updateRequired, tc.err))
 				})
 			}
 		})
@@ -3222,11 +3247,17 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		t.Run("sso disabled", func(t *testing.T) {
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
+					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						tc.machineInfo.Serial = devices[1].SerialNumber
+						miCopy := *tc.machineInfo
+						mi = &miCopy
+						mi.Serial = devices[0].SerialNumber
+						mi.UDID = uuid.New().String()
 					}
+					require.NoError(t, checkMDMSSOEndpoint(t, mi, tc.updateRequired, tc.err))
+
 					var expectEnrollInfo *mdmtest.AppleEnrollInfo
-					if tc.updateRequired == nil && tc.err == "" {
+					if mi != nil && tc.updateRequired == nil && tc.err == "" {
 						expectEnrollInfo = &mdmtest.AppleEnrollInfo{
 							SCEPChallenge: "scepcha/><llenge",
 							SCEPURL:       s.server.URL + "/mdm/apple/scep",
@@ -3234,13 +3265,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 						}
 					}
 
-					err := checkMDMEnrollEndpoint(tc.machineInfo, expectEnrollInfo, tc.updateRequired)
-					if tc.err != "" {
-						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.err)
-					} else {
-						require.NoError(t, err)
-					}
+					require.NoError(t, checkMDMEnrollEndpoint(t, mi, expectEnrollInfo, tc.updateRequired, tc.err, true))
 				})
 			}
 		})
@@ -3250,17 +3275,14 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
+					var mi *fleet.MDMAppleMachineInfo
 					if tc.machineInfo != nil {
-						tc.machineInfo.Serial = devices[0].SerialNumber
+						miCopy := *tc.machineInfo
+						mi = &miCopy
+						mi.Serial = devices[0].SerialNumber
+						mi.UDID = uuid.New().String()
 					}
-
-					err := checkMDMSSOEndpoint(tc.machineInfo, tc.updateRequired)
-					if tc.err != "" {
-						require.Error(t, err)
-						require.Contains(t, err.Error(), tc.err)
-					} else {
-						require.NoError(t, err)
-					}
+					require.NoError(t, checkMDMSSOEndpoint(t, mi, tc.updateRequired, tc.err))
 				})
 			}
 		})
@@ -3305,7 +3327,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 
 	// Add the VPP app to setup experience
 	vppTitleID := getSoftwareTitleID(t, s.ds, "App 5", "apps")
-	installerTitleID := getSoftwareTitleID(t, s.ds, "DummyApp.app", "apps")
+	installerTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
 	var swInstallResp putSetupExperienceSoftwareResponse
 	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team.ID, TitleIDs: []uint{vppTitleID, installerTitleID}}, http.StatusOK, &swInstallResp)
 
@@ -3400,7 +3422,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 2)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -3448,7 +3470,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 2)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
@@ -3462,7 +3484,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 2)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 
 	// App 5 has no licenses available, so we should get a status failed here and setup experience
@@ -3473,7 +3495,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	// Software installations are done, now we should run the script
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -3504,7 +3526,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	// release of the device, as all setup experience steps are now complete.
 	statusResp = getOrbitSetupExperienceStatusResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -3593,7 +3615,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 1)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -3640,7 +3662,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 1)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
@@ -3684,7 +3706,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Script.Status)
 	require.Len(t, statusResp.Results.Software, 1)
-	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, "DummyApp", statusResp.Results.Software[0].Name)
 	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
 	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
 	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)

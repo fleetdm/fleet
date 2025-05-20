@@ -1,12 +1,13 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useRef } from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
-import Button from "components/buttons/Button";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { COLORS } from "styles/var/colors";
 
+import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
-import { COLORS } from "styles/var/colors";
 
 interface IFilterPillProps {
   label: string;
@@ -30,6 +31,9 @@ const FilterPill = ({
     tooltip: tooltipDescription !== undefined && tooltipDescription !== "",
   });
 
+  const pillText = useRef(null);
+  const isTuncated = useCheckTruncatedElement(pillText);
+
   return (
     <div
       className={baseClasses}
@@ -43,6 +47,8 @@ const FilterPill = ({
             <span
               data-tip={tooltipDescription}
               data-for={`filter-pill-tooltip-${label}`}
+              className={`${baseClass}__tooltip-text`}
+              ref={pillText}
             >
               {label}
             </span>
@@ -59,11 +65,12 @@ const FilterPill = ({
         {tooltipDescription && (
           <ReactTooltip
             role="tooltip"
-            place="bottom"
+            place="top"
             effect="solid"
             backgroundColor={COLORS["tooltip-bg"]}
             id={`filter-pill-tooltip-${label}`}
             data-html
+            disable={!isTuncated}
           >
             <span>{tooltipDescription}</span>
           </ReactTooltip>

@@ -862,7 +862,12 @@ func (h *Host) FleetPlatform() string {
 
 // SupportsOsquery returns whether the device runs osquery.
 func (h *Host) SupportsOsquery() bool {
-	return h.Platform != "ios" && h.Platform != "ipados" && h.Platform != "android"
+	return PlatformSupportsOsquery(h.Platform)
+}
+
+// PlatformSupportsOsquery returns whether osquery is supported on this platform.
+func PlatformSupportsOsquery(platform string) bool {
+	return platform != "ios" && platform != "ipados" && platform != "android"
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.

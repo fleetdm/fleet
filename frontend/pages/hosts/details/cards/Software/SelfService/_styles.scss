@@ -33,8 +33,22 @@
       gap: $pad-small;
     }
 
+    .self-service-table__status-content {
+      min-width: 100px; // No table layout shift when changed to pending status
+    }
+
     .self-service-table__item-status-button {
       height: auto;
+    }
+
+    .self-service-table__item-actions {
+      display: flex;
+      flex-direction: row;
+      gap: $pad-large;
+    }
+
+    .self-service-table__item-action {
+      min-width: 82px; // Second action buttons align between rows
     }
   }
 

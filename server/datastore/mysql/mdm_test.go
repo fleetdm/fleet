@@ -5417,9 +5417,12 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 	// Setup funcs
 
 	// ===================================================
-	// MacOS
+	// MacOS base tests
 	// ===================================================
-	setup1 := func() (uint, uint) {
+	baseEarliestInstallDate := time.Now().UTC().Add(-24 * time.Hour).Truncate(time.Second)
+	overrideEarliestInstallDate := time.Now().UTC().Add(-6 * time.Hour).Truncate(time.Second)
+
+	macosBasicTeamProfNoLabelsSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test",
 			OsqueryHostID: ptr.String("osquery-macos"),
@@ -5453,10 +5456,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 2)
 
-		return team.ID, host.ID
+		return team.ID, host
 	}
 
-	setup2 := func() (uint, uint) {
+	macosLabeledTeamProfSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test-2",
 			OsqueryHostID: ptr.String("osquery-macos-2"),
@@ -5532,10 +5535,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team.ID, host.ID
+		return team.ID, host
 	}
 
-	setup3 := func() (uint, uint) {
+	macosLabeledTeamProfWithAdditionalLabeledProfSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test-3",
 			OsqueryHostID: ptr.String("osquery-macos-3"),
@@ -5628,10 +5631,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team.ID, host.ID
+		return team.ID, host
 	}
 
-	setup4 := func() (uint, uint) {
+	macosProfWithBrokenLabelSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test-4",
 			OsqueryHostID: ptr.String("osquery-macos-4"),
@@ -5711,14 +5714,14 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		err = ds.DeleteLabel(ctx, testLabel4.Name)
 		require.NoError(t, err)
 
-		return team.ID, host.ID
+		return team.ID, host
 	}
 
 	// ===================================================
 	// Windows
 	// ===================================================
 
-	setup5 := func() (uint, uint) {
+	windowsBasicTeamProfNoLabelsSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "windows-test",
 			OsqueryHostID: ptr.String("osquery-windows"),
@@ -5752,10 +5755,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 2)
 
-		return team.ID, host.ID
+		return team.ID, host
 	}
 
-	setup6 := func() (uint, uint) {
+	windowsLabeledTeamProfSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "windows-test-2",
 			OsqueryHostID: ptr.String("osquery-windows-2"),
@@ -5831,10 +5834,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team.ID, host.ID
+		return team.ID, host
 	}
 
-	setup7 := func() (uint, uint) {
+	windowsLabeledTeamProfWithAdditionalLabeledProfSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "windows-test-3",
 			OsqueryHostID: ptr.String("osquery-windows-3"),
@@ -5927,10 +5930,10 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team.ID, host.ID
+		return team.ID, host
 	}
 
-	setup8 := func() (uint, uint) {
+	windowsProfWithBrokenLabelSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "windows-test-4",
 			OsqueryHostID: ptr.String("osquery-windows-4"),
@@ -6010,19 +6013,110 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		err = ds.DeleteLabel(ctx, label.Name)
 		require.NoError(t, err)
 
-		return team.ID, host.ID
+		return team.ID, host
+	}
+
+	// ===================================================
+	// MacOS earliest install date override tests
+	// ===================================================
+	macosInstallDateOverrideSetup := func() (uint, *fleet.Host) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-9",
+			OsqueryHostID: ptr.String("osquery-macos-9"),
+			NodeKey:       ptr.String("node-key-macos-9"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 9"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team 1
+		profiles := []*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "T9.1", "T9.1", "d"),
+			configProfileForTest(t, "T9.2", "T9.2", "e"),
+			configProfileForTest(t, "T9.3", "T9.3", "f"),
+		}
+
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		require.NoError(t, err)
+		assert.True(t, updates.AppleConfigProfile)
+		assert.False(t, updates.WindowsConfigProfile)
+		assert.False(t, updates.AppleDeclaration)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		// We cannot control the generated profile UUIDs here so we need to map them back to the
+		// created profiles for test correctness
+		for i := 0; i < len(profs); i++ {
+			for j := 0; j < len(profiles); j++ {
+				if profs[i].Identifier == profiles[j].Identifier {
+					profiles[j].ProfileUUID = profs[i].ProfileUUID
+					break
+				}
+			}
+		}
+
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE profile_uuid IN (?, ?, ?)",
+					baseEarliestInstallDate,
+					profiles[0].ProfileUUID,
+					profiles[1].ProfileUUID,
+					profiles[2].ProfileUUID,
+				)
+				return err
+			},
+		)
+
+		// Note what we're doing here is overriding install date for the first profile, creating an
+		// HMAP entry that doesn't override it for the second, then the third has no corresponding
+		// HMAP entry at all(which also means no override).
+		err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:        profiles[0].ProfileUUID,
+				ProfileIdentifier:  profiles[0].Identifier,
+				ProfileName:        profiles[0].Name,
+				HostUUID:           host.UUID,
+				CommandUUID:        uuid.NewString(),
+				VariablesUpdatedAt: &overrideEarliestInstallDate,
+				Status:             &fleet.MDMDeliveryVerified,
+				OperationType:      fleet.MDMOperationTypeInstall,
+			},
+			{
+				ProfileUUID:       profiles[1].ProfileUUID,
+				ProfileIdentifier: profiles[1].Identifier,
+				ProfileName:       profiles[1].Name,
+				HostUUID:          host.UUID,
+				CommandUUID:       uuid.NewString(),
+				Status:            &fleet.MDMDeliveryVerified,
+				OperationType:     fleet.MDMOperationTypeInstall,
+			},
+		})
+		require.NoError(t, err)
+		return team.ID, host
 	}
 
 	tests := []struct {
 		name        string
-		setupFunc   func() (uint, uint)
+		setupFunc   func() (uint, *fleet.Host)
 		wantMac     map[string]*fleet.ExpectedMDMProfile
 		wantWindows map[string]*fleet.ExpectedMDMProfile
 		os          string
 	}{
 		{
 			name:      "macos basic team profiles no labels",
-			setupFunc: setup1,
+			setupFunc: macosBasicTeamProfNoLabelsSetup,
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
 				"T1.1": {Identifier: "T1.1"},
 				"T1.2": {Identifier: "T1.2"},
@@ -6030,7 +6124,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		},
 		{
 			name:      "macos labeled team profile",
-			setupFunc: setup2,
+			setupFunc: macosLabeledTeamProfSetup,
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
 				"T2.1":         {Identifier: "T2.1"},
 				"T2.2":         {Identifier: "T2.2"},
@@ -6039,7 +6133,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		},
 		{
 			name:      "macos labeled team profile with additional labeled profile",
-			setupFunc: setup3,
+			setupFunc: macosLabeledTeamProfWithAdditionalLabeledProfSetup,
 			// Our expected profiles should not include the labeled profile, because it
 			// maps to a label that is not applied to the host.
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
@@ -6049,7 +6143,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		},
 		{
 			name:      "macos profile with broken label",
-			setupFunc: setup4,
+			setupFunc: macosProfWithBrokenLabelSetup,
 			// Our expected profiles should not include the labeled profile, because it is broken
 			// (the label was deleted)
 			wantMac: map[string]*fleet.ExpectedMDMProfile{
@@ -6059,7 +6153,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		},
 		{
 			name:      "windows basic team profiles no labels",
-			setupFunc: setup5,
+			setupFunc: windowsBasicTeamProfNoLabelsSetup,
 			wantWindows: map[string]*fleet.ExpectedMDMProfile{
 				"T5.1": {Name: "T5.1"},
 				"T5.2": {Name: "T5.2"},
@@ -6067,7 +6161,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		},
 		{
 			name:      "windows labeled team profile",
-			setupFunc: setup6,
+			setupFunc: windowsLabeledTeamProfSetup,
 			wantWindows: map[string]*fleet.ExpectedMDMProfile{
 				"T6.1":         {Name: "T6.1"},
 				"T6.2":         {Name: "T6.2"},
@@ -6076,7 +6170,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		},
 		{
 			name:      "windows labeled team profile with additional labeled profile",
-			setupFunc: setup7,
+			setupFunc: windowsLabeledTeamProfWithAdditionalLabeledProfSetup,
 			// Our expected profiles should not include the labeled profile, because it
 			// maps to a label that is not applied to the host.
 			wantWindows: map[string]*fleet.ExpectedMDMProfile{
@@ -6086,7 +6180,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		},
 		{
 			name:      "windows profile with broken label",
-			setupFunc: setup8,
+			setupFunc: windowsProfWithBrokenLabelSetup,
 			// Our expected profiles should not include the labeled profile, because it is broken
 			// (the label was deleted)
 			wantWindows: map[string]*fleet.ExpectedMDMProfile{
@@ -6094,25 +6188,40 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 				"T8.2": {Name: "T8.2"},
 			},
 		},
+		{
+			name:      "macos basic team profiles no labels, install date overridden on first",
+			setupFunc: macosInstallDateOverrideSetup,
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T9.1": {Identifier: "T9.1", EarliestInstallDate: overrideEarliestInstallDate},
+				"T9.2": {Identifier: "T9.2", EarliestInstallDate: baseEarliestInstallDate},
+				"T9.3": {Identifier: "T9.3", EarliestInstallDate: baseEarliestInstallDate},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			teamID, hostID := tt.setupFunc()
+			teamID, host := tt.setupFunc()
+			timeZero := time.Time{}
 			if len(tt.wantMac) > 0 {
-				got, err := ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, hostID)
+				got, err := ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host)
 				require.NoError(t, err)
 				for k, v := range tt.wantMac {
 					require.Contains(t, got, k)
 					require.Equal(t, v.Identifier, got[k].Identifier)
+					// Only check earliest install date if we are overriding it in the test setup
+					if v.EarliestInstallDate != timeZero {
+						require.Equal(t, v.EarliestInstallDate, got[k].EarliestInstallDate)
+					}
 				}
 			}
 
 			if len(tt.wantWindows) > 0 {
-				got, err := ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, hostID)
+				got, err := ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
 				require.NoError(t, err)
 				for k, v := range tt.wantWindows {
 					require.Contains(t, got, k)
 					require.Equal(t, v.Name, got[k].Name)
+					// windows does not currently use or care about earliest install date
 				}
 			}
 		})

@@ -481,6 +481,15 @@
   },
   {
     "software": {
+      "name": ["docker.docker"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["oracle.mysql-shell-for-vs-code"],
       "source": ["vscode_extensions"]
     },

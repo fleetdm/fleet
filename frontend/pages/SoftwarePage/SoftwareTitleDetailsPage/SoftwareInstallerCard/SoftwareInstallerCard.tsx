@@ -58,7 +58,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
     iconName: "success",
     tooltip: (
       <>
-        Software is installed on these hosts (install script finished
+        Software was installed on these hosts (install script finished
         <br />
         with exit code 0). Currently, if the software is uninstalled, the
         <br />
@@ -219,6 +219,10 @@ const SoftwareInstallerCard = ({
   const isFleetMaintainedApp =
     "fleet_maintained_app_id" in softwareInstaller &&
     !!softwareInstaller.fleet_maintained_app_id;
+  const sha256 =
+    "hash_sha256" in softwareInstaller
+      ? softwareInstaller.hash_sha256
+      : undefined;
 
   const {
     automatic_install_policies: automaticInstallPolicies,
@@ -312,6 +316,7 @@ const SoftwareInstallerCard = ({
             installerType={installerType}
             versionInfo={versionInfo}
             addedTimestamp={addedTimestamp}
+            sha256={sha256}
             isFma={isFleetMaintainedApp}
           />
           <div className={`${baseClass}__tags-wrapper`}>

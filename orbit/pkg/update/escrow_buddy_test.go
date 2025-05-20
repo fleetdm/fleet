@@ -47,14 +47,14 @@ func (s *escrowBuddyTestSuite) TestEscrowBuddyRotatesKey() {
 		return nil
 	}
 
-	// there's an error when the remote repo doesn't have the target yet even though config is not set
+	// no new target added if the notification is not set
 	err := r.Run(cfg)
-	require.ErrorContains(t, err, "tuf: file not found")
+	require.NoError(t, err)
 	targets := runner.updater.opt.Targets
 	require.Len(t, targets, 0)
 	require.Empty(t, cmdCalls)
 
-	// there's an error when the remote repo doesn't have the target yet and the config is set
+	// there's an error when the remote repo doesn't have the target yet
 	cfg.Notifications.RotateDiskEncryptionKey = true
 	err = r.Run(cfg)
 	require.ErrorContains(t, err, "tuf: file not found")
@@ -86,4 +86,5 @@ func (s *escrowBuddyTestSuite) TestEscrowBuddyRotatesKey() {
 	require.Len(t, cmdCalls, 1)
 	require.Equal(t, cmdCalls[0]["cmd"], "sh")
 	require.Equal(t, cmdCalls[0]["args"], []string{"-c", "defaults write /Library/Preferences/com.netflix.Escrow-Buddy.plist GenerateNewKey -bool false"})
+
 }

@@ -41,6 +41,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
   DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
+  DEVICE_SOFTWARE_UNINSTALL: (token: string, softwareTitleId: number) =>
+    `/${API_VERSION}/fleet/device/${token}/software/uninstall/${softwareTitleId}`,
   DEVICE_VPP_COMMAND_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/commands/${uuid}/results`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
@@ -140,11 +142,15 @@ export default {
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
-  MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
+  MDM_APPLE_ENROLLMENT_PROFILE: (
+    token: string,
+    ref?: string,
+    deviceinfo?: string
+  ) => {
     const query = new URLSearchParams({ token });
-    if (ref) {
-      query.append("enrollment_reference", ref);
-    }
+    ref && query.append("enrollment_reference", ref);
+    deviceinfo && query.append("deviceinfo", deviceinfo);
+
     return `/api/mdm/apple/enroll?${query}`;
   },
   MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
@@ -272,6 +278,8 @@ export default {
   SCIM_DETAILS: `/${API_VERSION}/fleet/scim/details`,
 
   // configuration profile endpoints
+  CONFIG_PROFILE: (uuid: string) =>
+    `/${API_VERSION}/fleet/configuration_profiles/${uuid}`,
   CONFIG_PROFILE_STATUS: (uuid: string) =>
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/batch/resend`,
