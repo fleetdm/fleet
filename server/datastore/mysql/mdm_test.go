@@ -1077,8 +1077,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// to understand what the expected assertion 500 lines in is supposed to be. Please avoid
 	// adding to it.
 
-	// TODO(mna): fix this test (expecations have changed now that batch-set cancels immediately for deletions)
-
 	hostIDsFromHosts := func(hosts ...*fleet.Host) []uint {
 		ids := make([]uint, len(hosts))
 		for i, h := range hosts {

@@ -404,19 +404,6 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 	// in the nano queue if the status is Pending (that is, not NULL, but no sign
 	// that the host received it yet).
 
-	// TODO(mna): There is an edge case where the status is Pending (not NULL,
-	// meaning that the Install command was queued by the reconcile cron job),
-	// but the command is not acknowledged yet. In this case, the host may have
-	// received the command already but has yet to acknowledge it. If it does
-	// eventually acknowledge it, it means the profile was delivered and we need
-	// to issue a RemoveProfile command. We will handle this edge case in a
-	// subsequent PR (for sub-task:
-	// https://github.com/fleetdm/fleet/issues/29092).
-	// (I'm not sure we have anything to do, because we will set the status
-	// immediately to Remove (pending), and on the next reconcile cron job, it
-	// should enqueue a remove anyway, but to be tested - I'm a bit worried that
-	// the remove profile command could fail if the install never got through?).
-
 	if len(profileUUIDs) == 0 {
 		return nil
 	}
@@ -459,22 +446,23 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 		return ctxerr.Wrap(ctx, err, "deactivating nano_enrollment_queue for commands that were pending send to host")
 	}
 
-	// we set the ignore_error flag if status was "pending" because the profile
-	// may _not_ have been delivered, so if the remove command fails, we don't
-	// want to show it.
+	// we set the ignore_error flag if install status was "pending" or "failed"
+	// because the profile may _not_ have been delivered, so if the remove
+	// command fails, we don't want to show it.
 	const updStmt = `
 	UPDATE
 		host_mdm_apple_profiles
 	SET
 		operation_type = ?,
-		ignore_error = IF(status = ?, 1, 0),
+		ignore_error = IF(status IN (?), 1, 0),
 		status = NULL
 	WHERE
 		profile_uuid IN (?) AND
 		status IS NOT NULL AND
 		operation_type = ?`
 
-	stmt, args, err = sqlx.In(updStmt, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending, profileUUIDs, fleet.MDMOperationTypeInstall)
+	stmt, args, err = sqlx.In(updStmt, fleet.MDMOperationTypeRemove,
+		[]fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed}, profileUUIDs, fleet.MDMOperationTypeInstall)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building in statement")
 	}

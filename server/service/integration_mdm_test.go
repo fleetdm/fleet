@@ -5822,12 +5822,6 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
-	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 	mysql.DumpTable(t, q, "mdm_apple_configuration_profiles", "team_id", "identifier", "name")
-	// 	mysql.DumpTable(t, q, "host_mdm_apple_profiles", "host_uuid", "status", "operation_type", "profile_name")
-	// 	return nil
-	// })
-
 	// one will be failed (no IdP groups), and the other will succeed and be sent to the host
 	// ask for commands and verify that we get InstallProfile for the username N1 profile
 	var installProfCmd *mdm.Command
@@ -14161,19 +14155,9 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 2)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm_apple_profiles", "host_uuid", "profile_uuid", "operation_type", "status", "profile_name", "ignore_error")
-		return nil
-	})
-
 	s.awaitTriggerProfileSchedule(t)
 	p = s.assertConfigProfilesByIdentifier(nil, "I3", true)
 	require.Contains(t, string(p.Mobileconfig), "com.fleetdm.pkcs12")
-
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm_apple_profiles", "host_uuid", "profile_uuid", "operation_type", "status", "profile_name", "ignore_error")
-		return nil
-	})
 
 	getHostResp := getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
@@ -14238,21 +14222,10 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 2)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm_apple_profiles", "host_uuid", "profile_uuid", "operation_type", "status", "profile_name", "ignore_error")
-		return nil
-	})
-
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 	p = s.assertConfigProfilesByIdentifier(nil, "I4", true)
 	require.Contains(t, string(p.Mobileconfig), "com.fleetdm.pkcs12")
-
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_mdm_apple_profiles", "host_uuid", "profile_uuid", "operation_type", "status", "profile_name", "ignore_error")
-		return nil
-	})
-	fmt.Println(">>>> here it has N3 as install failed --> remove pending, should we not send a remove for failed intalls? There may have been a previous sucessful install thoug...")
 
 	// Check that status is pending (and not failed)
 	getHostResp = getDeviceHostResponse{}
@@ -14276,6 +14249,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	require.NotNil(t, cmd, "Expecting removal of failed N3 install")
 	require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
 
+	// second command is the InstallProfile of N4
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 	require.NotNil(t, cmd, "Expecting PKCS12 certificate")
