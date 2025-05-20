@@ -10,7 +10,7 @@ TODO: Link out to reference docs for all options
 
 ## App Store (VPP) apps
 
-TODO: Link to GitOps reference docs for all options
+To configure App Store (VPP) apps, see the [Software section](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#software) of Fleet's best practice [GitOps documentation](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#gitops).
 
 ## Custom packages
 
