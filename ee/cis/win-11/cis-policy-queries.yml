@@ -1968,7 +1968,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Negotiate sealing' or higher:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: LDAP client encryption requirements'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\LDAP\\LDAPClientConfidentiality' AND data IN (1, 2));
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LDAP\LDAPClientConfidentiality' AND data IN (1, 2));
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
@@ -2989,7 +2989,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to: Disabled.
     'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\WinHTTP Web Proxy Auto-Discovery Service'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WinHttpAutoProxySvc\\Start' AND data = 4);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WinHttpAutoProxySvc\Start' AND data = 4);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
 ---
@@ -5085,7 +5085,7 @@ spec:
     Note: This Group Policy path is provided by the Group Policy template
     'DnsClient.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\DisableIPv6DefaultDnsServers' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\DisableIPv6DefaultDnsServers' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
 ---
@@ -5375,7 +5375,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\KeepAliveTime' AND data = 300000);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\KeepAliveTime' AND data = 300000);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_group_policy_template_required
   contributors: rachelelysia
@@ -5508,7 +5508,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Configure Windows Defender SmartScreen'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\EnabledV9' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\MicrosoftEdge\PhishingFilter\EnabledV9' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
@@ -5545,7 +5545,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\Printers\Allow Print Spooler to accept client connections'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows NT\\Printers\RegisterSpoolerRemoteRpcEndPoint' AND data = 2);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\RegisterSpoolerRemoteRpcEndPoint' AND data = 2);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
@@ -5563,7 +5563,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Show warning and elevation prompt':
     'Computer Configuration\Policies\Administrative Templates\Printers\Point and Print Restrictions: When installing drivers for a new connection'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows NT\\Printers\PointAndPrint\\NoWarningNoElevationOnInstall' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\PointAndPrint\NoWarningNoElevationOnInstall' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
@@ -5581,7 +5581,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Show warning and elevation prompt':
     'Computer Configuration\Policies\Administrative Templates\Printers\Point and Print Restrictions: When updating drivers for an existing connection'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows NT\\Printers\PointAndPrint\\UpdatePromptSettings' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\PointAndPrint\UpdatePromptSettings' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
@@ -5603,7 +5603,7 @@ spec:
     Note: This Group Policy path is provided by the Group Policy template
     'DnsClient.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\EnableMDNS' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMDNS' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
@@ -5620,7 +5620,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Disable NetBIOS name resolution on public networks':
     'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Configure NetBIOS settings'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\EnableNetbios' AND (data = 0));
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableNetbios' AND (data = 0));
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: DefensiveDepth
@@ -8420,7 +8420,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled.
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Limit Dump Collection'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDumpCollection' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection\LimitDumpCollection' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
@@ -9574,7 +9574,7 @@ spec:
     Note: This Group Policy path is provided by the Group Policy template
     'InetRes.admx/adml' that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
   query: |
-   SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Internet Explorer\\Feeds\\AllowBasicAuthInClear' AND data = 0);
+   SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Feeds\AllowBasicAuthInClear' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
@@ -10297,7 +10297,7 @@ spec:
     Administrative Templates, named Enable MPR notifications for the system. It was
     renamed starting with the Windows 11 Release 24H2 Administrative Templates.
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\EnableMPR' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableMPR' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 
