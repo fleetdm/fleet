@@ -858,8 +858,19 @@ Please also see [privacy](https://fleetdm.com/legal/privacy)
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Does Fleet possess an APEC PRP certification issued by a certification body (or Accountability Agent)? If not, is Fleet able to provide any evidence that the PRP requirements are being met as it relates to the Scoped Services provided to its customers? | Fleet has not undergone APEC PRP certification but has undergone an external security audit that included pen testing. For a complete list of subprocessors, please refer to our [trust page](https://trust.fleetdm.com/subprocessors). |
 
+## Use of AI
 
+| Question | Answer |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Do your systems or staff use artificial intelligence, machine learning, or automated decision making  (ChatGPT, Google Bard, etc.) to provide the in-scope services? | Yes. All AI functionality is opt-in. Fleet only uses AI in one place to help create descriptions of queries. |
 
+| Question | Answer |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Is client scoped data processed, aggregated, appended, profiled, or modeled using artificial intelligence, machine learning, or automated decision making (ChatGPT, Google Bard, etc.)? | No. |
+
+## Other questions
+
+Other commonly asked questions of Fleet can be found in our [SIG Lite](https://docs.google.com/spreadsheets/d/1XiGv_M6w2pcfe9zWp-Q9ssXi2A-vnTgs/edit?usp=sharing&ouid=113668214024041155485&rtpof=true&sd=true) or in [recently answered questionnaires]9https://drive.google.com/drive/folders/1lP_YX7lGWOofjOISdTd15gJax_pn0cjY?usp=drive_link).  Other information sometimes asked about includes [customer support SLAs](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas), [release testing](https://fleetdm.com/handbook/company/product-groups#release-testing). Technical information can often be found in [Fleet docs](https://fleetdm.com/docs/get-started/why-fleet), 
 
 ## Security policies
 
