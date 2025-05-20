@@ -2,20 +2,20 @@
 (MacOS)
 
 
-### Run fleet server (and the released Fleetd).
+### Run fleet server (and the released Fleetd)
 In order to run a local agent (Fleetd + osquery) the first step is to run the Fleet server locally.
 Follow this document which will run it together with the released agent.
 https://fleetdm.com/docs/contributing/building-fleet
 
 ### Modify the Fleetd code as needed
 
-### Build and run locally.
+### Build and run locally
 In order to use a local version we need to create a local TUF service that will point the installer to take the local Fleetd (instead of the official one).
 More details on TUF testing is here:
 https://github.com/fleetdm/fleet/tree/main/tools/tuf/test
 
 
-### MacOS - Prepare a script file with this content. Call it my_build.sh:
+### MacOS - Prepare a script file with this content. Call it my_build.sh
 ```sh
 SYSTEMS="macos" \
 PKG_FLEET_URL=https://localhost:8080 \

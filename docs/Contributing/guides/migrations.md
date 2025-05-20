@@ -4,7 +4,7 @@
 - [Populating the database with default data](#populating-the-database-with-default-data)
 
 
-## Adding/Updating tables
+## Adding/updating tables
 
 We manage database schemas by a series of migrations defined in go code. We use a customized version of the Goose migrations tool to handle these migrations.
 
