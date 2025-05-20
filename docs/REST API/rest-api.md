@@ -711,7 +711,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ### Generate certificate
 
-Generates a base64 encoded certificate (`.pem`) from the specified certificate authority (CA).
+Requests a base64 encoded certificate (`.pem`) from the specified certificate authority (CA).
 
 `POST /api/v1/fleet/certificates`
 
