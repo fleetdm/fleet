@@ -14,7 +14,13 @@ TODO: Link to GitOps reference docs for all options
 
 ## Custom packages
 
-TODO: Instructions on how to use UI in GitOps mode
+1. In GitOps mode, select a team and navigate to **Software > Add Software > Custom package**
+2. Choose a file to upload and select **Add software**
+3. A modal will appear with YAML instructions.
+    1. Create a YAML file with the suggested filename and populate it with the contents below.
+    2. Save this file to your repository.
+    3. Make sure that the package YAML is referenced from your team YAML.
+    4. Download the additional queries and scripts that are linked in the modal and add them to your repository. Make sure to use the paths listed in the contents area above.
 
 TOOD: Link to GitOps reference docs for all options
 
