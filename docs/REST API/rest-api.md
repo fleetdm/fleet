@@ -721,7 +721,7 @@ Requests a base64 encoded certificate (`.pem`) from the specified certificate au
 | -------- | ------- | ---- | ------------------------------------------- |
 | certificate_authority_name   | string | body | **Required.** The certificate authority (CA) name in Fleet. See your CAs [here](). |
 | csr       | string | body | **Required.** The signed certificate signing request (CSR). Noah: Does NDES and Custom SCEP need a CSR?        |
-| common_name   | integer | body | Certificates will have this CN in the subject. |
+| common_name   | string | body | Certificates will have this CN in the subject. |
 | user_principal_name   | string | body | Certificates will have this UPN. |
 | subject_alternative_name   | string | body | Certificates will have this SAN. |
 | uniform_resource_identifier  | string | body | Certificates will have this URI. |
