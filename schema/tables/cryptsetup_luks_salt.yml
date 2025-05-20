@@ -1,5 +1,5 @@
 name: cryptsetup_luks_salt
-description: Given an LUKS encrypted device path, returns the key slots and all Salts used on each key slot of the device.
+description: Given an LUKS encrypted device path, returns all the LUKS2 key slots and their respective salts.
 evented: false
 notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 platforms:
