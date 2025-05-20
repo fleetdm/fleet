@@ -1767,7 +1767,8 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 	}
 
 	if decoded.MachineInfo == nil && r.Header.Get("Content-Type") == "application/pkcs7-signature" {
-		// We limit the amount we read since this is untrusted HTTP input -- potential DoS attack from huge payloads.
+		defer r.Body.Close()
+		// We limit the amount we read since this is an untrusted HTTP request -- a potential DoS attack from huge payloads.
 		body, err := io.ReadAll(io.LimitReader(r.Body, limit10KiB))
 		if err != nil {
 			return nil, &fleet.BadRequestError{
