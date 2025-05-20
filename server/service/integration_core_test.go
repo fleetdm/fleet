@@ -2905,6 +2905,41 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	}
 }
 
+func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create host
+	hosts := s.createHosts(t, "linux")
+	host := hosts[0]
+
+	stalePolicyCount, staleIssuesCount, freshPolicyCount, freshIssueCount := uint64(50), uint64(500), uint64(0), uint64(0)
+	// create host_issues for it with stale data
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count) VALUES (?, ?, ?)`, host.ID, stalePolicyCount, staleIssuesCount)
+		return err
+	})
+
+	// hit endpoint: host issues should still be stale, since last updated was less than a minute ago
+	hostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+
+	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, stalePolicyCount)
+	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, staleIssuesCount)
+
+	// set updated_at to longer than minute ago
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_issues SET updated_at = ? WHERE host_id = ?`, time.Time{}, host.ID)
+		return err
+	})
+	// hit endpoint: should have been updated this time
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, freshPolicyCount)
+	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, freshIssueCount)
+}
+
 func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	t := s.T()
 
