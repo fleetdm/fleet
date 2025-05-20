@@ -123,6 +123,7 @@ module.exports = {
     if(intentSignal) {
       valuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
     }
+    if(jobTitle) {
       valuesToSet.Title = jobTitle;
     }
 
