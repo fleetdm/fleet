@@ -231,6 +231,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.DELETE("/api/_version_/fleet/sessions/{id:[0-9]+}", deleteSessionEndpoint, deleteSessionRequest{})
 
 	ue.GET("/api/_version_/fleet/config/certificate", getCertificateEndpoint, nil)
+	ue.POST("/api/_version_/fleet/certificate", certificateEndpoint, certificateRequest{})
 	ue.GET("/api/_version_/fleet/config", getAppConfigEndpoint, nil)
 	ue.PATCH("/api/_version_/fleet/config", modifyAppConfigEndpoint, modifyAppConfigRequest{})
 	ue.POST("/api/_version_/fleet/spec/enroll_secret", applyEnrollSecretSpecEndpoint, applyEnrollSecretSpecRequest{})
