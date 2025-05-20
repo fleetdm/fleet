@@ -2072,6 +2072,12 @@ var luksVerifyQuery = DetailQuery{
 			return emptyQuery
 		}
 
+		if _, err := ds.GetHostDiskEncryptionKey(ctx, host.ID); err != nil {
+			if fleet.IsNotFound(err) {
+				return emptyQuery
+			}
+		}
+
 		// Returns the key_slot and salt of the LUKS block device where '/' is mounted.
 		query := `
 		WITH RECURSIVE
