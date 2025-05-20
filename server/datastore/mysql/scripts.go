@@ -1742,8 +1742,7 @@ WHERE
 	stmtScriptDetails := `
 SELECT
 	script_id,
-	s.name as script_name,
-	execution_id as batch_execution_id
+	s.name as script_name
 FROM
 	batch_script_executions bse
 JOIN
