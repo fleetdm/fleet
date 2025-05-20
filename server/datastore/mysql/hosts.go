@@ -1697,24 +1697,43 @@ func filterHostsByVulnerability(sqlstmt string, opt fleet.HostListOptions, param
 
 func filterHostsByProfileStatus(sqlstmt string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	if opt.ProfileUUIDFilter != nil && opt.ProfileStatusFilter != nil {
-		sqlstmt += ` AND EXISTS (
+
+		switch {
+		case strings.HasPrefix(*opt.ProfileUUIDFilter, fleet.MDMAppleProfileUUIDPrefix):
+			sqlstmt += ` AND EXISTS (
 		SELECT
 			1
 		FROM
 			host_mdm_apple_profiles hmap
 		WHERE
 			hmap.host_uuid = h.uuid
-			AND hmap.profile_uuid = ?
-			AND hmap.status = ?)
-		OR(
-			SELECT
-				1 FROM host_mdm_windows_profiles hwap
-			WHERE
-				hwap.host_uuid = h.uuid
-				AND hwap.profile_uuid = ?
-				AND hwap.status = ?)`
+				AND hmap.profile_uuid = ?
+				AND hmap.status = ?)`
+		case strings.HasPrefix(*opt.ProfileUUIDFilter, fleet.MDMAppleDeclarationUUIDPrefix):
+			sqlstmt += ` AND EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_apple_declarations had
+		WHERE
+			had.host_uuid = h.uuid
+				AND had.declaration_uuid = ?
+				AND had.status = ?)`
+		case strings.HasPrefix(*opt.ProfileUUIDFilter, fleet.MDMWindowsProfileUUIDPrefix):
+			sqlstmt += ` AND EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_windows_profiles hwap
+		WHERE
+			hwap.host_uuid = h.uuid
+			AND hwap.profile_uuid = ?
+			AND hwap.status = ?)`
+		default:
+			return sqlstmt, params
+		}
 
-		params = append(params, opt.ProfileUUIDFilter, opt.ProfileStatusFilter, opt.ProfileUUIDFilter, opt.ProfileStatusFilter)
+		params = append(params, opt.ProfileUUIDFilter, opt.ProfileStatusFilter)
 	}
 
 	return sqlstmt, params
