@@ -1789,6 +1789,7 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 		Output:      "bar",
 		ExitCode:    1,
 	})
+	require.NoError(t, err)
 
 	// Get the summary again
 	summary, err = ds.BatchExecuteSummary(ctx, execID)
