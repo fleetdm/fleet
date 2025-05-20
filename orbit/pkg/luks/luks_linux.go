@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,7 +39,7 @@ const (
 	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
 )
 
-var errKeySlotNotFound = errors.New("key slot not found")
+var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
 
 func isInstalled(toolName string) bool {
 	path, err := exec.LookPath(toolName)
@@ -48,47 +49,29 @@ func isInstalled(toolName string) bool {
 	return path != ""
 }
 
-// checkInstalled checks that all listed tools are installed before calling fn
-// otherwise errors out.
-func checkInstalled(tools []string, fn func() error) error {
-	for _, tool := range tools {
-		if !isInstalled(tool) {
-			return fmt.Errorf("%s is not installed", tool)
-		}
-	}
-	return fn()
-}
-
-func withRootDevicePath(fn func(string) error) error {
-	devicePath, err := lvm.FindRootDisk()
-	if err != nil {
-		return fmt.Errorf("failed to find LUKS Root Partition: %w", err)
-	}
-	return fn(devicePath)
-}
-
 func (lr *LuksRunner) Run(oc *fleet.OrbitConfig) error {
 	ctx := context.Background()
 
-	if oc.Notifications.RunDiskEncryptionEscrow {
-		return checkInstalled([]string{"cryptsetup"}, func() error {
-			return withRootDevicePath(func(devicePath string) error {
-				return lr.newUserKeyWorkflow(ctx, devicePath)
-			})
-		})
+	if !oc.Notifications.RunDiskEncryptionEscrow {
+		return nil
 	}
-	return nil
-}
 
-// newUserKeyWorkflow the goal of this workflow is to POST a
-// new user encryption key to Fleet server. To achieve this we:
-// 1. Challenge the user to produce their user key by prompting them for their passphrase.
-// 2. If they pass the challenge, we generate a new random user key.
-// 3. We send the newly created key (along with other bits) via the wire so that it
-// can be escrowed by Fleet server.
-func (lr *LuksRunner) newUserKeyWorkflow(ctx context.Context, devicePath string) error {
-	if err := lr.initDialog(); err != nil {
-		return err
+	if !isInstalled("cryptsetup") {
+		return errors.New("cryptsetup is not installed")
+	}
+
+	switch {
+	case isInstalled("zenity"):
+		lr.notifier = zenity.New()
+	case isInstalled("kdialog"):
+		lr.notifier = kdialog.New()
+	default:
+		return errors.New("No supported dialog tool found")
+	}
+
+	devicePath, err := lvm.FindRootDisk()
+	if err != nil {
+		return fmt.Errorf("Failed to find LUKS Root Partition: %w", err)
 	}
 
 	var response LuksResponse
@@ -106,7 +89,7 @@ func (lr *LuksRunner) newUserKeyWorkflow(ctx context.Context, devicePath string)
 	response.KeySlot = keyslot
 
 	if keyslot != nil {
-		salt, err := getSaltForKeySlot(ctx, devicePath, *keyslot)
+		salt, err := getSaltforKeySlot(ctx, devicePath, *keyslot)
 		if err != nil {
 			if err := removeKeySlot(ctx, devicePath, *keyslot); err != nil {
 				log.Error().Err(err).Msgf("failed to remove key slot %d", *keyslot)
@@ -144,22 +127,6 @@ func (lr *LuksRunner) newUserKeyWorkflow(ctx context.Context, devicePath string)
 		log.Info().Err(err).Msg("failed to show success escrow key dialog")
 	}
 
-	return nil
-}
-
-func (lr *LuksRunner) initDialog() error {
-	if lr.notifier != nil {
-		return nil
-	}
-
-	switch {
-	case isInstalled("zenity"):
-		lr.notifier = zenity.New()
-	case isInstalled("kdialog"):
-		lr.notifier = kdialog.New()
-	default:
-		return errors.New("No supported dialog tool found")
-	}
 	return nil
 }
 
@@ -393,7 +360,7 @@ func GetLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	return &dump, nil
 }
 
-func getSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
+func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
 	dump, err := GetLuksDump(ctx, devicePath)
 	if err != nil {
 		return "", fmt.Errorf("getting salt for key slot: %w", err)
@@ -401,7 +368,7 @@ func getSaltForKeySlot(ctx context.Context, devicePath string, keySlot uint) (st
 
 	slot, ok := dump.Keyslots[fmt.Sprintf("%d", keySlot)]
 	if !ok {
-		return "", errKeySlotNotFound
+		return "", errors.New("key slot not found")
 	}
 
 	return slot.KDF.Salt, nil
