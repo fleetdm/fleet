@@ -445,6 +445,9 @@ type Service interface {
 	// ListHostCertificates lists the certificates installed on the specified host.
 	ListHostCertificates(ctx context.Context, hostID uint, opts ListOptions) ([]*HostCertificatePayload, *PaginationMetadata, error)
 
+	// RequestCertificate requests a certificate from the specified certificate authority
+	RequestCertificate(ctx context.Context, caName, csr, commonName, userPrincipalName, subjectAlternativeName, uniformResourceIdentifier, idpToken string) (string, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
 
