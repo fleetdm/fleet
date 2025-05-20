@@ -175,6 +175,7 @@ func TestHosts(t *testing.T) {
 		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
 		{"GetHostEmails", testGetHostEmails},
 		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
+		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3561,6 +3562,78 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 3)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 1)
+}
+
+func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// seed hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 6; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+		nanoEnrollAndSetHostMDMData(t, ds, h, false)
+	}
+
+	// set up data
+	noTeamProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("test-profile", "com.fleetdm.fleet.mdm.test", 0), nil)
+	require.NoError(t, err)
+
+	// verifying status
+	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
+	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
+	// host 0 needs to finish key rotation (action required), host 1 has finished key rotation but profile is verifying
+	createDiskEncryptionRecord(ctx, ds, t, hosts[1], "key-1", true, oneMinuteAfterThreshold)
+
+	verified := fleet.OSSettingsVerified
+	verifying := fleet.OSSettingsVerifying
+	pending := fleet.OSSettingsPending
+	failed := fleet.OSSettingsFailed
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &pending}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &failed}, 0)
+
+	// mark profile send as verified for host 0
+	upsertHostCPs([]*fleet.Host{hosts[0]}, []*fleet.MDMAppleConfigProfile{noTeamProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &pending}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &failed}, 0)
+
+	upsertHostCPs(
+		[]*fleet.Host{hosts[2]},
+		[]*fleet.MDMAppleConfigProfile{noTeamProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryPending, ctx, ds, t,
+	)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &pending}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &failed}, 0)
+
+	// failed status
+	upsertHostCPs([]*fleet.Host{hosts[3], hosts[4], hosts[5]}, []*fleet.MDMAppleConfigProfile{noTeamProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, ctx, ds, t)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &pending}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &failed}, 3)
+
+	//
 }
 
 func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
