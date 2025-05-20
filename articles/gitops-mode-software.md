@@ -15,7 +15,7 @@ TODO: Link to GitOps reference docs for all options
 ## Custom packages
 
 To use the Fleet UI to manage custom packages, first turn GitOps mode on in **Settings > Integration > Change management**
-1. Navigate to **Software > Add Software > Custom package**
+1. Navigate to **Software** and select a team. Then select **Add Software > Custom package**
 2. Select a team and choose a file to upload and select **Add software**
 3. A modal will appear with YAML instructions.
     1. Create a YAML file with the suggested filename and populate it with the contents below.
