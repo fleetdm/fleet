@@ -1,10 +1,16 @@
+import React, { ReactNode, useState } from "react";
+
 import classnames from "classnames";
-import TooltipWrapper from "components/TooltipWrapper";
-import React, { ReactNode } from "react";
 import AceEditor from "react-ace";
 import "ace-builds/src-noconflict/mode-sh";
 import "ace-builds/src-noconflict/mode-powershell";
 import { IAceEditor } from "react-ace/lib/types";
+
+import { stringToClipboard } from "utilities/copy_text";
+
+import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 const baseClass = "editor";
 
@@ -24,6 +30,10 @@ interface IEditorProps {
   /** Sets the default value of the input. Use this if you'd like the editor
    * to be an uncontrolled component */
   defaultValue?: string;
+  /** Enable copying the value of the editor.
+   * @default false
+   */
+  enableCopy?: boolean;
   /** Enabled wrapping lines.
    * @default false
    */
@@ -36,7 +46,7 @@ interface IEditorProps {
    */
   mode?: string;
   /** Include correct styles as a form field.
-   * @default false
+   * @default true
    */
   isFormField?: boolean;
   maxLines?: number;
@@ -61,10 +71,11 @@ const Editor = ({
   value,
   defaultValue,
   readOnly = false,
+  enableCopy = false,
   wrapEnabled = false,
   name = "editor",
   mode,
-  isFormField = false,
+  isFormField = true,
   maxLines = 20,
   className,
   onChange,
@@ -73,7 +84,40 @@ const Editor = ({
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
+    [`${baseClass}__wrapper--copy-enabled`]: enableCopy,
   });
+
+  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
+
+  const renderCopyButton = () => {
+    const copyValue = (e: React.MouseEvent) => {
+      e.preventDefault();
+      stringToClipboard(value).then(() => {
+        setShowCopiedMessage(true);
+        setTimeout(() => {
+          setShowCopiedMessage(false);
+        }, 2000);
+      });
+    };
+
+    const copyButtonValue = <Icon name="copy" />;
+    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
+
+    const copiedConfirmationClasses = classnames(
+      `${baseClass}__copied-confirmation`
+    );
+
+    return (
+      <div className={wrapperClasses}>
+        {showCopiedMessage && (
+          <span className={copiedConfirmationClasses}>Copied!</span>
+        )}
+        <Button variant={"icon"} onClick={copyValue} iconStroke>
+          {copyButtonValue}
+        </Button>
+      </div>
+    );
+  };
 
   const onLoadHandler = (editor: IAceEditor) => {
     // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
@@ -123,6 +167,7 @@ const Editor = ({
   return (
     <div className={classNames}>
       {renderLabel()}
+      {renderCopyButton()}
       <AceEditor
         mode={mode}
         wrapEnabled={wrapEnabled}
