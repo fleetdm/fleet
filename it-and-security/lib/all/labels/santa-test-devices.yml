@@ -1,6 +1,7 @@
 - name: Santa test devices
   description: Macs testing santa
   label_membership_type: manual
+  platform: darwin
   hosts:
     - "allens-macbook-pro.local"
     - "harrisons-macbook-pro.local"

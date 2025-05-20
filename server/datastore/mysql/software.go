@@ -2898,6 +2898,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                 ua.execution_id AS last_install_install_uuid,
                 ua.created_at AS last_install_installed_at,
                 vaua.adam_id AS vpp_app_adam_id,
+				vat.self_service AS vpp_app_self_service,
                 'pending_install' AS status
             FROM
                 upcoming_activities ua
@@ -2928,6 +2929,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                 hvsi.command_uuid AS last_install_install_uuid,
                 hvsi.created_at AS last_install_installed_at,
                 hvsi.adam_id AS vpp_app_adam_id,
+				vat.self_service AS vpp_app_self_service,
 				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
                 %s
             FROM
@@ -3504,7 +3506,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		installedInstallersSql := `
 			SELECT
 				software.title_id,
-				software_installers.id AS installer_id
+				software_installers.id AS installer_id,
+				software_installers.self_service AS package_self_service
 			FROM
 				host_software
 			INNER JOIN
@@ -3516,8 +3519,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			WHERE host_software.host_id = ?
 			`
 		type InstalledSoftwareTitle struct {
-			TitleID     uint `db:"title_id"`     // Represents the ID of the software title
-			InstallerID uint `db:"installer_id"` // Represents the ID of the software installer
+			TitleID     uint `db:"title_id"`
+			InstallerID uint `db:"installer_id"`
+			SelfService bool `db:"package_self_service"`
 		}
 		var installedSoftwareTitleIDs []InstalledSoftwareTitle
 		err = sqlx.SelectContext(ctx, ds.reader(ctx), &installedSoftwareTitleIDs, installedInstallersSql, namedArgs["host_compatible_platforms"], globalOrTeamID, host.ID)
@@ -3526,8 +3530,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 		for _, s := range installedSoftwareTitleIDs {
 			if software := bySoftwareTitleID[s.TitleID]; software != nil {
-				tempBySoftwareTitleID[s.TitleID] = software
 				software.InstallerID = &s.InstallerID
+				software.PackageSelfService = &s.SelfService
+				tempBySoftwareTitleID[s.TitleID] = software
 			}
 		}
 		if !opts.SelfServiceOnly || (opts.SelfServiceOnly && opts.IsMDMEnrolled) {
@@ -3676,6 +3681,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				if filteredBySoftwareTitleID[software.ID] == nil {
 					// remove the software title from bySoftwareTitleID
 					delete(bySoftwareTitleID, software.ID)
+				}
+			}
+		}
+		for vppAppAdamID, software := range byVPPAdamID {
+			if software.VPPAppSelfService != nil && *software.VPPAppSelfService {
+				if filteredByVPPAdamID[vppAppAdamID] == nil {
+					// remove the software title from byVPPAdamID
+					delete(byVPPAdamID, vppAppAdamID)
 				}
 			}
 		}

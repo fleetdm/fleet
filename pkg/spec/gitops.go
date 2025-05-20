@@ -489,6 +489,21 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		}
 	}
 
+	// Find the Fleet Secrets in the macos setup script file
+	if result.Controls.MacOSSetup != nil {
+		if result.Controls.MacOSSetup.Script.Set {
+			startupScriptPath := resolveApplyRelativePath(controlsDir, result.Controls.MacOSSetup.Script.Value)
+			fileBytes, err := os.ReadFile(startupScriptPath)
+			if err != nil {
+				return multierror.Append(multiError, fmt.Errorf("failed to read macos_setup script file %s: %v", startupScriptPath, err))
+			}
+			err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+		}
+	}
+
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
 		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.

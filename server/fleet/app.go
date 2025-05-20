@@ -1222,6 +1222,10 @@ type ApplySpecOptions struct {
 	// NoCache indicates that cached_mysql calls should be bypassed on the server.
 	// This is needed where related data was just updated and we need that latest data from the DB.
 	NoCache bool
+	// Indicate whether or not the spec should be applied in overwrite mode.
+	// This means that any missing fields in the spec will be set to their default values.
+	// GitOps uses this mode.
+	Overwrite bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1256,6 +1260,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	}
 	if o.NoCache {
 		query.Set("no_cache", "true")
+	}
+	if o.Overwrite {
+		query.Set("overwrite", "true")
 	}
 	return query.Encode()
 }
@@ -1300,7 +1307,7 @@ const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
 	// Maximum number of enroll secrets that can be set per team, or globally.
-	// Make sure to change the documentation in docs/Contributing/API-for-Contributors.md
+	// Make sure to change the documentation in docs/Contributing/reference/api-for-contributors.md
 	// if you change that value (look for the string `secrets`).
 	MaxEnrollSecretsCount = 50
 )

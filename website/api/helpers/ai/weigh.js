@@ -57,7 +57,7 @@ module.exports = {
 
     // TODO: Limit (round) the precision of decimal places for better userland experience.
 
-    let prompt = 'Given some data and a set of dimensions, score the data on a scale from 0 to 1 along each dimension, using a decimal precision of no more than one decimal place.';
+    let prompt = 'Given some data and a set of dimensions, score the data on a scale from 0 to 1 along each dimension, using a decimal precision of no more than one decimal place. Make sure to use the same variable names as the provided dimensions.';
 
     prompt += 'Data: ```\n';
     prompt += `${JSON.stringify(data)}\n`;

@@ -574,7 +574,7 @@ Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allo
 
 To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
 
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/File-carving.md).
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/file-carving.md).
 
 ### List carves
 
@@ -1977,7 +1977,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
-| additional_queries                | boolean | Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
+| additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
 
 <br/>
 
@@ -1988,7 +1988,10 @@ _Available in Fleet Premium._
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
-    "additional_queries": null
+    "additional_queries": {
+      "time": "SELECT * FROM time",
+      "macs": "SELECT mac FROM interface_details"
+    }
   }
 }
 ```

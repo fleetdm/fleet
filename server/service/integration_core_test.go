@@ -13259,3 +13259,84 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		})
 	}
 }
+
+func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
+	t := s.T()
+
+	// create a mac, linux and windows host
+	host1 := createOrbitEnrolledHost(t, "darwin", "host1", s.ds)
+	host2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
+	host3 := createOrbitEnrolledHost(t, "windows", "host3", s.ds)
+
+	// set a chrome profile for each host
+	for i, h := range []*fleet.Host{host1, host2, host3} {
+		distributedReq := submitDistributedQueryResultsRequestShim{
+			NodeKey: *h.NodeKey,
+			Results: map[string]json.RawMessage{
+				hostDetailQueryPrefix + "google_chrome_profiles": json.RawMessage(fmt.Sprintf(
+					`[{"email": "%s"}]`, fmt.Sprintf("user%d@example.com", i))),
+			},
+			Statuses: map[string]interface{}{
+				hostDistributedQueryPrefix + "google_chrome_profiles": 0,
+			},
+			Messages: map[string]string{},
+			Stats:    map[string]*fleet.Stats{},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	}
+
+	oldHosts := make([]fleet.Host, 3)
+	for i, h := range []*fleet.Host{host1, host2, host3} {
+		var hostResponse getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResponse)
+		require.False(t, hostResponse.Host.RefetchRequested)
+		require.Len(t, hostResponse.Host.EndUsers, 1)
+		require.Len(t, hostResponse.Host.EndUsers[0].OtherEmails, 1)
+		require.Equal(t, hostResponse.Host.EndUsers[0].OtherEmails[0].Source, "google_chrome_profiles")
+		oldHosts[i] = hostResponse.Host.Host
+	}
+
+	// do an orbit re-enrollment of the hosts, should set refetch requested
+	orbitKey := setOrbitEnrollment(t, host1, s.ds)
+	host1.OrbitNodeKey = &orbitKey
+	orbitKey = setOrbitEnrollment(t, host2, s.ds)
+	host2.OrbitNodeKey = &orbitKey
+	orbitKey = setOrbitEnrollment(t, host3, s.ds)
+	host3.OrbitNodeKey = &orbitKey
+
+	for i, h := range []*fleet.Host{host1, host2, host3} {
+		var hostResponse getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResponse)
+		require.True(t, hostResponse.Host.RefetchRequested)
+		require.Len(t, hostResponse.Host.EndUsers, 1)
+		require.Len(t, hostResponse.Host.EndUsers[0].OtherEmails, 1)
+		require.Equal(t, hostResponse.Host.EndUsers[0].OtherEmails[0].Source, "google_chrome_profiles")
+		require.Equal(t, oldHosts[i].ID, h.ID)
+	}
+
+	// send a response for the refetch request
+	for _, h := range []*fleet.Host{host1, host2, host3} {
+		distributedReq := submitDistributedQueryResultsRequestShim{
+			NodeKey: *h.NodeKey,
+			Results: map[string]json.RawMessage{
+				hostDetailQueryPrefix + "google_chrome_profiles": json.RawMessage(`[]`),
+			},
+			Statuses: map[string]interface{}{
+				hostDistributedQueryPrefix + "google_chrome_profiles": 0,
+			},
+			Messages: map[string]string{},
+			Stats:    map[string]*fleet.Stats{},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	}
+
+	for i, h := range []*fleet.Host{host1, host2, host3} {
+		var hostResponse getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResponse)
+		require.False(t, hostResponse.Host.RefetchRequested)
+		require.Len(t, hostResponse.Host.EndUsers, 0)
+		require.Equal(t, oldHosts[i].ID, h.ID)
+	}
+}

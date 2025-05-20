@@ -125,7 +125,7 @@ module.exports.custom = {
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
-    // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
+    // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     '/docs/get-started/faq': 'zayhanlon',
@@ -319,7 +319,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.17.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗

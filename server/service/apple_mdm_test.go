@@ -1162,7 +1162,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		return nil
 	}
 
-	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
 	}
@@ -1227,7 +1227,7 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		return nil
 	}
 
-	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 		require.Equal(t, uuid, hostUUID)
 		return nil
 	}
@@ -1274,7 +1274,9 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	) error {
 		return nil
 	}
-	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
+		require.Equal(t, uuid, hostUUID)
+		require.True(t, scepRenewalInProgress)
 		return nil
 	}
 	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host) error {
@@ -1295,7 +1297,7 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	require.False(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.False(t, ds.NewActivityFuncInvoked)
-	require.False(t, ds.MDMResetEnrollmentFuncInvoked)
+	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
 func TestMDMTokenUpdate(t *testing.T) {
@@ -1332,6 +1334,16 @@ func TestMDMTokenUpdate(t *testing.T) {
 			TeamID:             wantTeamID,
 			DEPAssignedToFleet: true,
 			Platform:           "darwin",
+		}, nil
+	}
+
+	ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.MDMIdPAccount{
+			UUID:     "some-uuid",
+			Username: "some-user",
+			Email:    "some-user@example.com",
+			Fullname: "Some User",
 		}, nil
 	}
 
@@ -2902,6 +2914,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "not configured")
+	assert.NotNil(t, updatedPayload.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// Unknown variable
@@ -2962,6 +2975,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
 	assert.Contains(t, updatedProfile.Detail, "update credentials")
+	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// Password cache full
@@ -2976,6 +2990,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
 	assert.Contains(t, updatedProfile.Detail, "cached passwords")
+	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// Insufficient permissions
@@ -2990,6 +3005,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
 	assert.Contains(t, updatedProfile.Detail, "does not have sufficient permissions")
+	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// Other NDES challenge error
@@ -3005,6 +3021,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
 	assert.NotContains(t, updatedProfile.Detail, "cached passwords")
 	assert.NotContains(t, updatedProfile.Detail, "update credentials")
+	assert.NotNil(t, updatedProfile.VariablesUpdatedAt)
 	assert.Empty(t, targets)
 
 	// NDES challenge
