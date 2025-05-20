@@ -707,7 +707,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Certificates
 
-- [Generate certificate](#request-certificate)
+- [Request certificate](#request-certificate)
 
 ### Generate certificate
 
