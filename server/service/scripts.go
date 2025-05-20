@@ -1115,6 +1115,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		ScriptName:       script.Name,
 		BatchExeuctionID: batchID,
 		HostCount:        uint(len(hostIDs)),
+		TeamID:           script.TeamID,
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
 	}

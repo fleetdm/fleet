@@ -571,10 +571,15 @@ var (
 )
 
 type BatchExecutionSummary struct {
-	ScriptID   uint                 `json:"script_id" db:"script_id"`
-	ScriptName string               `json:"script_name" db:"script_name"`
-	TeamID     *uint                `json:"team_id" db:"team_id"`
-	Hosts      []BatchExecutionHost `json:"hosts"`
+	BatchScriptExecutionID string `json:"script_id" db:"batch_execution_id"`
+	ScriptID               uint   `json:"batch_execution_id" db:"script_id"`
+	ScriptName             string `json:"script_name" db:"script_name"`
+	TeamID                 *uint  `json:"team_id" db:"team_id"`
+	NumTargeted            uint   `json:"targeted" db:"num_targeted"`
+	NumPending             uint   `json:"pending" db:"num_pending"`
+	NumRan                 uint   `json:"ran" db:"num_ran"`
+	NumErrored             uint   `json:"error" db:"num_errored"`
+	NumCanceled            uint   `json:"canceled" db:"num_canceled"`
 }
 
 type BatchExecutionHost struct {
