@@ -49,6 +49,7 @@ module.exports = {
     },
     lastCheckInTime: {
       type: 'number',
+      description: 'The device\'s last sync with Fleet in Unix seconds',
       required: true,
     },
   },
@@ -98,7 +99,9 @@ module.exports = {
       return new Error({error: `An error occurred when getting information about a user (${userPrincipalName}). The response from the Microsoft graph API did not include an ID.`});
     }
 
-    // Build the complaince report for this device:
+    let lastUpdateTime = new Date().toISOString();
+
+    // Build the compliance report for this device:
     let complianceUpdateContent = [
       {
         EntityType: 1, // EntityType 1 = Device inventory data.
@@ -107,8 +110,10 @@ module.exports = {
         DeviceId: deviceId,
         DeviceName: deviceName,
         UserId: informationAboutThisUser.id,
-        LastCheckInTime: new Date(lastCheckInTime).toISOString(),
-        LastUpdateTime: new Date(lastCheckInTime).toISOString(),
+        // LastCheckInTime is a global timestamp indicating the time of device sync with partner service.
+        LastCheckInTime: new Date(lastCheckInTime * 1000).toISOString(),
+        // LastUpdateTime is a global timestamp indicating the order of messages.
+        LastUpdateTime: lastUpdateTime,
         Os: os,
         OsVersion: osVersion,
         EasIds: [],// This field is required but can be sent as an empty array.
@@ -119,7 +124,8 @@ module.exports = {
         TenantId: informationAboutThisTenant.entraTenantId,
         DeviceId: deviceId,
         UserId: informationAboutThisUser.id,
-        LastUpdateTime: new Date(lastCheckInTime).toISOString(),
+        // LastUpdateTime is a global timestamp indicating the order of messages.
+        LastUpdateTime: lastUpdateTime,
         complianceStatus: compliant ? 'compliant' : 'notCompliant',
       }
     ];
