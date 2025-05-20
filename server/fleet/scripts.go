@@ -578,7 +578,7 @@ type BatchExecutionSummary struct {
 	NumTargeted            uint   `json:"targeted" db:"num_targeted"`
 	NumPending             uint   `json:"pending" db:"num_pending"`
 	NumRan                 uint   `json:"ran" db:"num_ran"`
-	NumErrored             uint   `json:"error" db:"num_errored"`
+	NumErrored             uint   `json:"errored" db:"num_errored"`
 	NumCanceled            uint   `json:"canceled" db:"num_canceled"`
 }
 
