@@ -6,7 +6,7 @@ When using a git repository to manage Fleet, you can optionally put the UI in [G
 
 ## Fleet-maintained apps
 
-TODO: Link out to reference docs for all options
+Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
 
 ## App Store (VPP) apps
 
