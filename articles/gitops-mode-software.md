@@ -23,7 +23,7 @@ To use the Fleet UI to manage custom packages, first turn GitOps mode on in **Se
     3. Make sure that the package YAML is referenced from your team YAML.
     4. Download the additional queries and scripts that are linked in the modal and add them to your repository. Make sure to use the paths listed in the contents area above.
 
-TOOD: Link to GitOps reference docs for all options
+To learn more about configuring software using GitOps, [click here](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#software).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
