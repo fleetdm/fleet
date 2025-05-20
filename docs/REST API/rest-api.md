@@ -2,6 +2,7 @@
 
 - [Authentication](#authentication)
 - [Activities](#activities)
+- [Certificates](#certificates) 
 - [Fleet configuration](#fleet-configuration)
 - [File carving](#file-carving)
 - [Hosts](#hosts)
@@ -704,9 +705,61 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 ```
 ---
 
+## Certificates
+
+- [Generate certificate](#request-certificate)
+
+### Generate certificate
+
+Generates a base64 encoded certificate (`.pem`) from the specified certificate authority (CA).
+
+`POST /api/v1/fleet/certificates/generate`
+
+#### Parameters
+
+| Name     | Type    | In   | Description                                 |
+| -------- | ------- | ---- | ------------------------------------------- |
+| certificate_authority_name   | string | body | **Required.** The certificate authority (CA) name in Fleet. See your CAs [here](). |
+| csr       | string | body | **Required.** The signed certificate signing request (CSR). Noah: Does NDES and Custom SCEP need a CSR?        |
+| common_name   | integer | body | Certificates will have this CN in the subject. |
+| user_principal_name   | string | body | Certificates will have this UPN. |
+| subject_alternative_name   | string | body | Certificates will have this SAN. |
+| uniform_resource_identifier  | string | body | Certificates will have this URI. |
+| idp_token | string | body | Active session token from your identity provider you configured for [end user authentication](#mdm-end-user-authentication). Required if you're enforcing end user authentication |
+
+#### Example
+
+`POST /api/v1/fleet/certificates/generate`
+
+##### Request
+
+```json
+{
+  "certificate_authority_name": "WIFI_CERTIFICATES",
+  "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJZtbxathh+RfK+Z613ar4E\nYSIem8yAvv2JZJtopjD3noy1yF+nGRyF/ocm+FhYvjR5u7teJXlcv24tAAHuWL4U\nuPIql0Slakjdsfl098salkj324lkjmtElWDi6XRjUIXEj1zyCnZTCxGmyHcYB/+f3fyv/\ngZ8SkPqocNOCpX6cSW8hxOlaF9aZUC+xMHRdjQgxQ79hleb5K/n2gCJjiW1sV0Es\nRg+MX0cbPCpahpzlvIAkzA7TTUTOd7ZN+V0GW0fH86uMstrqeW2QUuZmSDC9fNyj\nQhk6n5iURaHXdFjSmyrhW5AVvw1nIblHodhUtD6J+g9kjhBg1frss3ndQtnNrnMC\nAwEAAaCBlzCkldflkjc098dlkj2KoZIhvcNAQkOMYGGMIGDMIGABgNVHREEeTB3ggljaXNjby5j\nb22BEWthYW53YXJAY2lzY28uY29thjRJRDpGbGVldERNOkdVSUQ6Y2FkMTM4OTEt\nMzU3Ni00NzhmLTk1MzAtZmM1Y2VlZTEzZTkwoCEGCisGAQQBgjcUAgOgEwwRa2Fh\nbndhckBjaXNjby5jb20wDQYJKoZIhvcNAQELBQADggEBAH2U6Or14b4O22YjM22k\nXI9QDC5P+sDczcLjivv4MyXQL1ks8R6B1nXCrOmiLPPLaZ09f+UkeMnyuGAxW8Ce\n6LTKquwvlifZ+5TjyANz0I/d9ETLQF2MTphEZd4ySNLtq2RwYyDOBKaxMdW0sUsd\n6M3WyAuTBVgBkTVIqbMJBzFsgXSrr2a0LJEHszOO2BN3yT5muDQsKPJ1uXL7tNUv\n16pGaYpQZR8yGAmWyISHhAyLaJ1N1R8L77SLxdd/Sj7RunNNxqFqaEgIJMgsyu08\nGharLkQcIoW7qPHZuaLa54xMF/s/vfKH6rgGbbCAgw9kw8Klt+6H3OH1FSMeRfZ/\nDWs=\n-----END CERTIFICATE REQUEST-----",
+  "common_name": "NetworkAccess",
+  "user_principal_name": "username@example.com",
+  "subject_alternative_name": "example.com",
+  "uniform_resource_identifier": "username@example.com",
+  "idp_token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate": "TODO long string"
+}
+```
+
+---
+
 ## Fleet configuration
 
-- [Get certificate](#get-certificate)
+- [Get Fleet certificate](#get-fleet-certificate)
 - [Get configuration](#get-configuration)
 - [Modify configuration](#modify-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
@@ -717,7 +770,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 The Fleet server exposes API endpoints that handle the configuration of Fleet as well as endpoints that manage enroll secret operations. These endpoints require prior authentication, you so you'll need to log in before calling any of the endpoints documented below.
 
-### Get certificate
+### Get Fleet certificate
 
 Returns the Fleet certificate.
 
