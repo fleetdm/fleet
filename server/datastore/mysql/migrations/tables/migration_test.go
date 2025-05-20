@@ -90,7 +90,7 @@ func applyUpToPrev(t *testing.T) *sqlx.DB {
 	// Run migration tests up to 2 months old. Our releases are on a 3-week
 	// cadence so this safely catches every migration in the release with a bit
 	// of buffer in case of delayed releases.
-	const maxMigrationTestAge = 100000 * 24 * time.Hour
+	const maxMigrationTestAge = 60 * 24 * time.Hour
 
 	v := getMigrationVersion(t)
 	testDateTime, err := time.Parse("20060102150405", strconv.FormatInt(v, 10))
@@ -173,17 +173,7 @@ WHERE
 
 	var nonStandardCollations []collationData
 	err := db.Select(&nonStandardCollations, stmt, "utf8mb4", "utf8mb4_unicode_ci")
-	// err := db.Select(&nonStandardCollations, stmt)
 	require.NoError(t, err)
-
-	stmt2 := `SHOW CREATE TABLE hosts`
-	var data []struct {
-		CreateTable string `db:"Create Table"`
-		Table       string `db:"Table"`
-	}
-	err = db.Select(&data, stmt2)
-	require.NoError(t, err)
-	fmt.Printf("data: %v\n", data)
 
 	exceptions := []collationData{
 		{"utf8mb4_bin", "enroll_secrets", "secret", "utf8mb4"},
