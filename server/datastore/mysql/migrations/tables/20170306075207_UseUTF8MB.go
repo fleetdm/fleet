@@ -44,12 +44,12 @@ func changeCharacterSet(tx *sql.Tx, charset string) error {
 	}
 	rows.Close()
 
-	for _, name := range names {
-		_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s CONVERT TO CHARACTER SET %s", name, charset))
-		if err != nil {
-			return errors.Wrap(err, "alter table "+name)
-		}
-	}
+	// for _, name := range names {
+	// 	_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s CONVERT TO CHARACTER SET %s COLLATE utf8mb4_unicode_ci", name, charset))
+	// 	if err != nil {
+	// 		return errors.Wrap(err, "alter table "+name)
+	// 	}
+	// }
 	return nil
 }
 

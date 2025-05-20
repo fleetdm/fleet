@@ -90,7 +90,7 @@ func applyUpToPrev(t *testing.T) *sqlx.DB {
 	// Run migration tests up to 2 months old. Our releases are on a 3-week
 	// cadence so this safely catches every migration in the release with a bit
 	// of buffer in case of delayed releases.
-	const maxMigrationTestAge = 60 * 24 * time.Hour
+	const maxMigrationTestAge = 100000 * 24 * time.Hour
 
 	v := getMigrationVersion(t)
 	testDateTime, err := time.Parse("20060102150405", strconv.FormatInt(v, 10))
@@ -163,33 +163,6 @@ func checkCollation(t *testing.T, db *sqlx.DB) {
 		CharacterSetName string `db:"CHARACTER_SET_NAME"`
 	}
 
-	// var nonStandardCollations []struct {
-	// 	TableName      string `db:"TABLE_NAME"`
-	// 	TableSchema    string `db:"TABLE_SCHEMA"`
-	// 	TableCollation string `db:"TABLE_COLLATION"`
-	// }
-	// stmt := `
-	// SELECT
-	// 	table_name, table_schema
-	// FROM
-	// 	information_schema.columns
-	// WHERE
-	// 	table_schema = (SELECT database())
-	// 	AND collation_name != 'utf8mb4_unicode_ci'
-	// 	AND collation_name != 'utf8mb4_bin'
-	// `
-
-	// stmt := `
-	//   SELECT table_name, table_schema, table_collation
-	//           FROM information_schema.TABLES AS T, information_schema.COLLATION_CHARACTER_SET_APPLICABILITY AS C
-	//           WHERE C.collation_name = T.table_collation
-	//           AND T.table_schema = (SELECT database())
-	//           AND (C.CHARACTER_SET_NAME != ? OR C.COLLATION_NAME != ?)
-	// 	  -- exclude tables that have columns with specific collations
-	// 	  AND table_name NOT IN ('hosts', 'enroll_secrets')
-	// 	  -- AND table_name = 'software_categories'
-	// `
-
 	stmt := `
 SELECT
 	TABLE_NAME, COLLATION_NAME, COLUMN_NAME, CHARACTER_SET_NAME 
@@ -203,19 +176,14 @@ WHERE
 	// err := db.Select(&nonStandardCollations, stmt)
 	require.NoError(t, err)
 
-	// stmt2 := `SHOW CREATE TABLE software_categories`
-	// var data []struct {
-	// 	CreateTable string `db:"Create Table"`
-	// 	Table       string `db:"Table"`
-	// }
-	// err = db.Select(&data, stmt2)
-	// require.NoError(t, err)
-	// fmt.Printf("data: %v\n", data)
-
-	// utf8mb4_bin	enroll_secrets	secret
-	// utf8mb4_bin	hosts	node_key
-	// utf8mb4_bin	hosts	orbit_node_key
-	// utf8mb4_bin	teams	name_bin
+	stmt2 := `SHOW CREATE TABLE hosts`
+	var data []struct {
+		CreateTable string `db:"Create Table"`
+		Table       string `db:"Table"`
+	}
+	err = db.Select(&data, stmt2)
+	require.NoError(t, err)
+	fmt.Printf("data: %v\n", data)
 
 	exceptions := []collationData{
 		{"utf8mb4_bin", "enroll_secrets", "secret", "utf8mb4"},

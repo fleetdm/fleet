@@ -18,7 +18,7 @@ func Up_20161118212528(tx *sql.Tx) error {
 			"`deleted_at` timestamp NULL DEFAULT NULL," +
 			"`deleted` tinyint(1) NOT NULL DEFAULT FALSE," +
 			"`detail_update_time` timestamp NULL DEFAULT NULL," +
-			"`node_key` varchar(255) DEFAULT NULL," +
+			"`node_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL," +
 			"`host_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''," +
 			"`uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''," +
 			"`platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''," +
@@ -44,7 +44,7 @@ func Up_20161118212528(tx *sql.Tx) error {
 			"UNIQUE KEY `idx_host_unique_nodekey` (`node_key`)," +
 			"UNIQUE KEY `idx_osquery_host_id` (`osquery_host_id`)," +
 			"FULLTEXT KEY `hosts_search` (`host_name`)" +
-			") ENGINE=InnoDB;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }
