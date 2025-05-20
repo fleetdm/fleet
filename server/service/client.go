@@ -1858,7 +1858,7 @@ func (c *Client) DoGitOps(
 		} else {
 			_, ok = conditionalAccessEnabled.(bool)
 			if !ok {
-				return nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
+				return nil, nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
 			}
 		}
 
