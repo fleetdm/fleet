@@ -2168,13 +2168,13 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 			hostKeySlot, okKeySlot := row["key_slot"]
 
 			if !okSalt || !okKeySlot {
-				level.Debug(logger).Log(
+				level.Error(logger).Log(
 					"component", "service",
 					"method", "IngestFunc",
 					"host", host.ID,
 					"err", "luks_verify expected some salt and a key_slot",
 				)
-				return nil
+				continue
 			}
 			if hostSalt == storedSalt && hostKeySlot == storedKeySlot {
 				entryFound = true
