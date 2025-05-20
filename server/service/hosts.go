@@ -347,11 +347,8 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 			}
 		}
 		if len(lifecycleErrs) > 0 {
-			msg := fmt.Sprintf("failed to restore pending host records for one or more MDM devices: %+v", serialsWithErrs)
-			return &fleet.BadRequestError{
-				Message:     msg,
-				InternalErr: ctxerr.Wrap(ctx, errors.Join(lifecycleErrs...), msg),
-			}
+			msg := fmt.Sprintf("failed to recreate pending host records for one or more MDM devices: %+v", serialsWithErrs)
+			return ctxerr.Wrap(ctx, errors.Join(lifecycleErrs...), msg)
 		}
 
 		return nil

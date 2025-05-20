@@ -3729,8 +3729,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 
 func (s *integrationMDMTestSuite) TestDeleteMultipleHostsPendingDEP() {
 	t := s.T()
-
 	ctx := context.Background()
+
 	devices := []godep.Device{
 		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
 		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: "added"},
@@ -3739,6 +3739,7 @@ func (s *integrationMDMTestSuite) TestDeleteMultipleHostsPendingDEP() {
 	}
 	profileAssignmentReqs := []profileAssignmentReq{}
 
+	s.setSkipWorkerJobs(t)
 	s.enableABM(t.Name())
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
