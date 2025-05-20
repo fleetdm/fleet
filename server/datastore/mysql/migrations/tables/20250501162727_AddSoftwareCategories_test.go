@@ -19,8 +19,6 @@ func TestUp_20250501162727(t *testing.T) {
 	// Apply current migration.
 	applyNext(t, db)
 
-	checkCollation(t, db)
-
 	// Check that default values are there
 	var gotCategories []fleet.SoftwareCategory
 	err := db.Select(&gotCategories, "SELECT id, name FROM software_categories")

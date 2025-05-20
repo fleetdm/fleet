@@ -1348,7 +1348,7 @@ CREATE TABLE `nano_command_results` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `nano_commands` (
-  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `request_type` varchar(63) COLLATE utf8mb4_unicode_ci NOT NULL,
   `command` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp(6) NULL DEFAULT CURRENT_TIMESTAMP(6),

@@ -182,13 +182,7 @@ WHERE
 		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
 	}
 
-	tableNames := map[string]struct{}{}
-
-	for _, n := range nonStandardCollations {
-		tableNames[n.TableName] = struct{}{}
-	}
-
-	require.Equal(t, exceptions, nonStandardCollations, fmt.Sprintf("tableNames: %v\n", tableNames))
+	require.Equal(t, exceptions, nonStandardCollations)
 }
 
 func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {

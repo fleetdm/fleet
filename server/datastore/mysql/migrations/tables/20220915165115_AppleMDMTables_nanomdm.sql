@@ -138,7 +138,7 @@ CREATE TABLE nano_enrollments (
  * for more context.
  */
 CREATE TABLE nano_commands (
-    command_uuid VARCHAR(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    command_uuid VARCHAR(127) NOT NULL,
     request_type VARCHAR(63)  NOT NULL,
     -- Raw command Plist
     command      MEDIUMTEXT   NOT NULL,
