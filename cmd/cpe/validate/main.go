@@ -109,9 +109,14 @@ func checkSqliteDb(vulnPath string) {
 		panic(fmt.Sprintf("error creating new gzip reader: %v", err))
 	}
 	defer gzReader.Close()
-	_, err = io.Copy(sqliteFile, gzReader)
-	if err != nil {
-		panic(fmt.Sprintf("error unzipping sqlite file: %v", err))
+	for {
+		_, err := io.CopyN(sqliteFile, gzReader, 100*1024*1024)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			panic(fmt.Sprintf("error unzipping sqlite file: %v", err))
+		}
 	}
 	db, err := sqlx.Open("sqlite3", filepath.Join(vulnPath, "sqlite.db"))
 	if err != nil {
