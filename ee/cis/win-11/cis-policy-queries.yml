@@ -2336,6 +2336,25 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'GameInput Service (GameInputSvc)' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This service enables the use of keyboards, mice, gamepads, and other input devices to be used with the GameInput API.
+    The recommended state for this setting is: Disabled.
+    Note: GameInput service runs as LocalSystem in its own process of GameInputSvc.exe and doesn't share its process with other services.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to: Disabled.
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\GameInput Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\GameInputSvc\Start' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -5236,6 +5255,26 @@ spec:
     template LanmanServer.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\MinSmb2Dialect' AND data = 785);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Require Encryption' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the SMB client will require encryption.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Require Encryption'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanWorkstation.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\RequireEncryption' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
@@ -10472,6 +10511,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Allow mapping folders into Windows Sandbox' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether folders are allowed to be mapped into Windows Sandbox.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Sandbox\Allow mapping folders into Windows Sandbox'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsSandbox.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Installer\SafeForScripting' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow networking in Windows Sandbox' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -10810,6 +10869,27 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Restrict clipboard transfer from server to client' is set to 'Enabled: Disable clipboard transfers from server to client'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the clipboard can be used to transfer data from the Remote Desktop session to the client.
+    The recommended state for this setting is: Enabled: Disable clipboard transfers from server to client.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Disable clipboard transfers from server to client':
+    'Computer Configuration\Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Restrict clipboard transfer from server to client'
+    Note: This Group Policy path is provided by the Group Policy template
+    'TerminalServer.admx/adml' that is included with the Microsoft Windows 11 Release 23H2 v2.0 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\SCClipLevel' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow search highlights' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -11055,6 +11135,28 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Windows Copilot' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    DescriptinoThis policy setting configures the use of Windows Copilot. Windows Copilot is an
+    artificial intelligence (AI) assistant that's integrated in Microsoft Windows workstation
+    OSes, beginning with Windows 11 Release 23H2.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'User Configuration\Policies\Administrative Templates\Windows Components\Windows Copilot\Turn off Windows Copilot'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'WindowsCopilot.admx/adml' that is included with the Microsoft Windows 11 Release 23H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot\TurnOffWindowsCopilot' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
