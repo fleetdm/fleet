@@ -7099,6 +7099,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
           VALUES (?, uuid(), uuid())
 	`, host.ID)
 	require.NoError(t, err)
+	// Update the host_mdm_commands table
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_commands (host_id, command_type)
+          VALUES (?, 'REFETCH-DEVICE-')
+	`, host.ID)
+	require.NoError(t, err)
 
 	// Add a calendar event for the host.
 	_, err = ds.writer(context.Background()).Exec(`
