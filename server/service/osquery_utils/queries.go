@@ -2072,7 +2072,7 @@ var luksVerifyQuery = DetailQuery{
 			return emptyQuery
 		}
 
-		// Returns the key_slot and salt of the LUKS block device were '/' is mounted.
+		// Returns the key_slot and salt of the LUKS block device where '/' is mounted.
 		query := `
 		WITH RECURSIVE
 		devices AS (
