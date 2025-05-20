@@ -339,28 +339,29 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Conte
 	})
 }
 
+func (ds *Datastore) DeleteMDMAppleDeclaration(ctx context.Context, declUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := deleteMDMAppleDeclaration(ctx, tx, declUUID); err != nil {
+			return err
+		}
+
+		// cancel any pending host installs immediately for this declaration
+		if err := cancelAppleHostInstallsForDeletedMDMDeclarations(ctx, tx, []string{declUUID}); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
-	// TODO(roberto): this seems confusing to me, we should have a separate datastore method.
-	if strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
-		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			if err := deleteMDMAppleDeclaration(ctx, tx, profileUUID); err != nil {
-				return err
-			}
-
-			if err := deleteUnsentAppleHostMDMDeclaration(ctx, tx, profileUUID); err != nil {
-				return err
-			}
-
-			return nil
-		})
-		// return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
-	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := deleteMDMAppleConfigProfileByIDOrUUID(ctx, tx, 0, profileUUID); err != nil {
 			return err
 		}
 
-		if err := deleteUnsentAppleHostMDMProfile(ctx, tx, profileUUID); err != nil {
+		// cancel any pending host installs immediately for this profile
+		if err := cancelAppleHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID}); err != nil {
 			return err
 		}
 
@@ -394,19 +395,140 @@ func deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, tx sqlx.ExtConte
 	return nil
 }
 
-func deleteUnsentAppleHostMDMProfile(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
-	const stmt = `DELETE FROM host_mdm_apple_profiles WHERE profile_uuid = ? AND status IS NULL AND operation_type = ? AND command_uuid = ''`
-	if _, err := tx.ExecContext(ctx, stmt, uuid, fleet.MDMOperationTypeInstall); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host profile that has not been sent to host")
+func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+	// For Apple profiles, we can safely delete the rows for hosts where status
+	// is NULL and operation type is install, but if the status is not NULL, the
+	// install command _may_ have been sent to the host, we need to change the
+	// operation to remove and set the status to NULL. As a precaution to avoid
+	// sending the Install command if possible at all, we deactivate the command
+	// in the nano queue if the status is Pending (that is, not NULL, but no sign
+	// that the host received it yet).
+
+	// TODO(mna): There is an edge case where the status is Pending (not NULL,
+	// meaning that the Install command was queued by the reconcile cron job),
+	// but the command is not acknowledged yet. In this case, the host may have
+	// received the command already but has yet to acknowledge it. If it does
+	// eventually acknowledge it, it means the profile was delivered and we need
+	// to issue a RemoveProfile command. We will handle this edge case in a
+	// subsequent PR (for sub-task:
+	// https://github.com/fleetdm/fleet/issues/29092).
+	// (I'm not sure we have anything to do, because we will set the status
+	// immediately to Remove (pending), and on the next reconcile cron job, it
+	// should enqueue a remove anyway, but to be tested - I'm a bit worried that
+	// the remove profile command could fail if the install never got through?).
+
+	if len(profileUUIDs) == 0 {
+		return nil
+	}
+
+	const delStmt = `
+	DELETE FROM
+		host_mdm_apple_profiles
+	WHERE
+		profile_uuid IN (?) AND
+		status IS NULL AND
+		operation_type = ?`
+
+	stmt, args, err := sqlx.In(delStmt, profileUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_profiles that have not been sent to host")
+	}
+
+	const deactivateNanoStmt = `
+	UPDATE
+		nano_enrollment_queue
+		JOIN host_mdm_apple_profiles hmap 
+			ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND 
+				hmap.host_uuid = nano_enrollment_queue.id
+	SET 
+		nano_enrollment_queue.active = 0
+	WHERE
+		hmap.profile_uuid IN (?) AND
+		hmap.status = ? AND
+		hmap.operation_type = ?`
+
+	stmt, args, err = sqlx.In(deactivateNanoStmt, profileUUIDs, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deactivating nano_enrollment_queue for commands that were pending send to host")
+	}
+
+	const updStmt = `
+	UPDATE
+		host_mdm_apple_profiles
+	SET
+		status = NULL,
+		operation_type = ?
+	WHERE
+		profile_uuid IN (?) AND
+		status IS NOT NULL AND
+		operation_type = ?`
+
+	stmt, args, err = sqlx.In(updStmt, fleet.MDMOperationTypeRemove, profileUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host_mdm_apple_profiles to pending remove")
 	}
 
 	return nil
 }
 
-func deleteUnsentAppleHostMDMDeclaration(ctx context.Context, tx sqlx.ExtContext, uuid string) error {
-	const stmt = `DELETE FROM host_mdm_apple_declarations WHERE declaration_uuid = ? AND status IS NULL AND operation_type = ?`
-	if _, err := tx.ExecContext(ctx, stmt, uuid, fleet.MDMOperationTypeInstall); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting host declaration that has not been sent to host")
+func cancelAppleHostInstallsForDeletedMDMDeclarations(ctx context.Context, tx sqlx.ExtContext, declUUIDs []string) error {
+	// For Apple declarations, we can safely delete the rows for hosts where
+	// status is NULL and operation type is install, but if the status is not
+	// NULL, we need to change the operation to remove and set the status to NULL
+	// (i.e. Enforcing removal (pending)) so that on the next reconcile there is
+	// a DDM command issued to sync the host with the new declarative state
+	// (which will not include the deleted declaration(s) anymore).
+
+	if len(declUUIDs) == 0 {
+		return nil
+	}
+
+	const delStmt = `
+	DELETE FROM
+		host_mdm_apple_declarations
+	WHERE
+		declaration_uuid IN (?) AND
+		status IS NULL AND
+		operation_type = ?`
+
+	stmt, args, err := sqlx.In(delStmt, declUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_declarations that have not been sent to host")
+	}
+
+	const updStmt = `
+	UPDATE
+		host_mdm_apple_declarations
+	SET
+		status = NULL,
+		operation_type = ?
+	WHERE
+		declaration_uuid IN (?) AND
+		status IS NOT NULL AND
+		operation_type = ?`
+
+	stmt, args, err = sqlx.In(updStmt, fleet.MDMOperationTypeRemove, declUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building in statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host_mdm_apple_declarations that may have been sent to host")
 	}
 
 	return nil
@@ -6413,7 +6535,7 @@ func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID str
 	query := `
 	SELECT nd.authenticate_at, ne.last_seen_at
 	FROM nano_devices nd
-	  INNER JOIN nano_enrollments ne ON ne.id = nd.id 
+	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	WHERE ne.type = 'Device' AND nd.id = ?`
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
 

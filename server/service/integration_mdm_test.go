@@ -1213,7 +1213,7 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 }
 
 func createWindowsHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
-	host := createOrbitEnrolledHost(t, "windows", "h1", ds)
+	host := createOrbitEnrolledHost(t, "windows", uuid.NewString(), ds)
 	mdmDevice := enrollWindowsHostInMDM(t, host, ds, fleetServerURL)
 	return host, mdmDevice
 }
@@ -7668,7 +7668,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
 		Result:      getCommandFullResult(cmdOneUUID),
 		Payload:     commandOne.RawCommand,
-		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+		Hostname:    orbitHost.Hostname,
 	}, getMDMCmdResp.Results[0])
 
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdTwoUUID)
@@ -7682,7 +7682,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 		Result:      getCommandFullResult(cmdTwoUUID),
 		Payload:     commandTwo.RawCommand,
-		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+		Hostname:    orbitHost.Hostname,
 	}, getMDMCmdResp.Results[0])
 
 	s.DoJSON("GET", "/api/latest/fleet/commands/results", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdThreeUUID)
@@ -7695,7 +7695,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Status:      "200",
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 		Result:      getCommandFullResult(cmdThreeUUID),
-		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+		Hostname:    orbitHost.Hostname,
 		Payload:     commandThree.RawCommand,
 	}, getMDMCmdResp.Results[0])
 
@@ -7709,7 +7709,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Status:      "200",
 		RequestType: "./Vendor/MSFT/WiFi/Profile/MyNetwork/WlanXml",
 		Result:      getCommandFullResult(cmdFourUUID),
-		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+		Hostname:    orbitHost.Hostname,
 		Payload:     commandFour.RawCommand,
 	}, getMDMCmdResp.Results[0])
 }

@@ -4980,7 +4980,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, oldTok, toks.DeclarationsToken)
 	oldTok = toks.DeclarationsToken
 
-	err = ds.DeleteMDMAppleConfigProfile(ctx, decl.DeclarationUUID)
+	err = ds.DeleteMDMAppleDeclaration(ctx, decl.DeclarationUUID)
 	require.NoError(t, err)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
 	require.NoError(t, err)
