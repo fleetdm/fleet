@@ -3726,3 +3726,120 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
 	require.Len(t, cmds, 1)
 	require.Equal(t, "DeviceConfigured", cmds[0].Command.RequestType)
 }
+
+func (s *integrationMDMTestSuite) TestDeleteMultipleHostsPendingDEP() {
+	t := s.T()
+	ctx := context.Background()
+
+	devices := []godep.Device{
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: "added"},
+		{SerialNumber: uuid.New().String(), Model: "MacBook Mini", OS: "osx", OpType: "added"},
+	}
+	profileAssignmentReqs := []profileAssignmentReq{}
+
+	s.setSkipWorkerJobs(t)
+	s.enableABM(t.Name())
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			require.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			require.NoError(t, err)
+		case "/server/devices":
+			// This endpoint  is used to get an initial list of
+			// devices, return a single device
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices[:1]})
+			require.NoError(t, err)
+		case "/devices/sync":
+			// This endpoint is polled over time to sync devices from
+			// ABM, send a repeated serial and a new one
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
+			require.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var prof profileAssignmentReq
+			require.NoError(t, json.Unmarshal(b, &prof))
+			profileAssignmentReqs = append(profileAssignmentReqs, prof)
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	// query all hosts
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Empty(t, listHostsRes.Hosts) // no hosts yet
+
+	// trigger a profile sync
+	s.runDEPSchedule()
+
+	// all devices should be returned from the hosts endpoint
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, len(devices))
+
+	bySerial := make(map[string]*fleet.HostResponse, len(devices))
+	for _, host := range listHostsRes.Hosts {
+		bySerial[host.HardwareSerial] = &host
+	}
+
+	for _, device := range devices {
+		h, ok := bySerial[device.SerialNumber]
+		require.True(t, ok)
+		// entries for all hosts get created in the host_dep_assignments table
+		hdep, err := s.ds.GetHostDEPAssignment(ctx, h.ID)
+		require.NoError(t, err)
+		require.NotNil(t, hdep)
+		require.Nil(t, hdep.DeletedAt)
+	}
+
+	// to confirm that hosts actually get recreated, we'll manually set the hosts.created_at
+	// time to 48 hours in the past (hopefully this interval is adequate avoid any flakiness in
+	// timestamp comparisons)
+	target := listHostsRes.Hosts[3]
+	then := target.CreatedAt.Add(-48 * time.Hour)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET created_at = ? WHERE hardware_serial = ?`, then, target.HardwareSerial)
+		return err
+	})
+	hostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", target.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, then, hostResp.Host.CreatedAt)
+
+	// delete all hosts
+	deleteIds := []uint{}
+	for _, host := range listHostsRes.Hosts {
+		deleteIds = append(deleteIds, host.ID)
+	}
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: deleteIds}, http.StatusOK)
+
+	// all devices should be restored as pending DEP hosts
+	gotHosts := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &gotHosts)
+	require.Len(t, gotHosts.Hosts, len(listHostsRes.Hosts))
+	for _, host := range gotHosts.Hosts {
+		h, ok := bySerial[host.HardwareSerial]
+		require.True(t, ok)
+		require.Equal(t, h.ID, host.ID) // host restored with the same id
+
+		if host.HardwareSerial == target.HardwareSerial {
+			require.NotEqual(t, then, host.CreatedAt)
+		}
+
+	}
+}
