@@ -709,7 +709,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 - [Request certificate](#request-certificate)
 
-### Generate certificate
+### Request certificate
 
 Requests a base64 encoded certificate (`.pem`) from the specified certificate authority (CA).
 
