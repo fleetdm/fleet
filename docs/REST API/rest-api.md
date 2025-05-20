@@ -729,7 +729,7 @@ Requests a base64 encoded certificate (`.pem`) from the specified certificate au
 
 #### Example
 
-`POST /api/v1/fleet/certificates/generate`
+`POST /api/v1/fleet/certificates`
 
 ##### Request
 
