@@ -1,9 +1,11 @@
 package main
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/jmoiron/sqlx"
 )
 
 func main() {
@@ -21,6 +24,7 @@ func main() {
 	checkCPETranslations(vulnPath)
 	checkMacOfficeNotes(vulnPath)
 	checkMSRCVulnerabilities(vulnPath)
+	checkSqliteDb(vulnPath)
 }
 
 func checkCPETranslations(vulnPath string) {
@@ -43,13 +47,13 @@ func checkMacOfficeNotes(vulnPath string) {
 
 			payload, err := os.ReadFile(filePath)
 			if err != nil {
-				panic(fmt.Sprintf("failed to read MacOffice release notes file: %v", err))
+				panic(fmt.Sprintf("failed to read MacOffice release notes file %s: %v", file.Name(), err))
 			}
 			// Attempt to parse the file as a MacOffice release notes.
 			relNotes := macoffice.ReleaseNotes{}
 			err = json.Unmarshal(payload, &relNotes)
 			if err != nil {
-				panic(fmt.Sprintf("failed to parse MacOffice release notes: %v", err))
+				panic(fmt.Sprintf("failed to parse MacOffice release notes %s: %v", file.Name(), err))
 			}
 		}
 	}
@@ -67,8 +71,55 @@ func checkMSRCVulnerabilities(vulnPath string) {
 			// Attempt to parse the file as a MSRC feed.
 			_, err := parsed.UnmarshalBulletin(filePath)
 			if err != nil {
-				panic(fmt.Sprintf("failed to parse MSRC feed: %v", err))
+				panic(fmt.Sprintf("failed to parse MSRC feed %s: %v", file.Name(), err))
 			}
 		}
+	}
+}
+
+func checkSqliteDb(vulnPath string) {
+	// Iterate over each file in the vulnPath directory to find the sqlite.gz file
+	files, err := os.ReadDir(vulnPath)
+	if err != nil {
+		panic(fmt.Sprintf("failed to read directory: %v", err))
+	}
+	var sqliteFilename string
+	for _, file := range files {
+		if strings.HasSuffix(file.Name(), ".sqlite.gz") {
+			sqliteFilename = file.Name()
+			break
+		}
+	}
+	if sqliteFilename == "" {
+		panic(fmt.Sprintf("no sqlite.gz file found: %v", err))
+	}
+	// Unzip the sqlite.gz file and create a new sqlite.db file
+	gzFile, err := os.Open(filepath.Join(vulnPath, sqliteFilename))
+	if err != nil {
+		panic(fmt.Sprintf("error opening sqlite.gz file: %v", err))
+	}
+	defer gzFile.Close()
+	sqliteFile, err := os.Create(filepath.Join(vulnPath, "sqlite.db"))
+	if err != nil {
+		panic(fmt.Sprintf("error creating test sqlite.db file: %v", err))
+	}
+	defer sqliteFile.Close()
+	gzReader, err := gzip.NewReader(gzFile)
+	if err != nil {
+		panic(fmt.Sprintf("error creating new gzip reader: %v", err))
+	}
+	defer gzReader.Close()
+	_, err = io.Copy(sqliteFile, gzReader)
+	if err != nil {
+		panic(fmt.Sprintf("error unzipping sqlite file: %v", err))
+	}
+	db, err := sqlx.Open("sqlite3", filepath.Join(vulnPath, "sqlite.db"))
+	if err != nil {
+		panic(fmt.Sprintf("error opening sqlite db: %v", err))
+	}
+	// Check that the database is valid
+	_, err = db.Exec(`SELECT * FROM cpe_2 LIMIT 1`)
+	if err != nil {
+		panic(fmt.Sprintf("error executing query on sqlite db: %v", err))
 	}
 }
