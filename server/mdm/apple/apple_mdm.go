@@ -178,6 +178,7 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 	} else {
 		// Without configuration_web_url set, the host will send a POST request
 		// to `url` location to get the MDM profile.
+		// 2025-05-20 unofficial docs: https://github.com/4d-for-ios-sdk/Mobile-Device-Management-Protocol-Reference/blob/master/markdown/4-Profile_Management/4-Profile_Management.md#request-to-a-profile-url
 		jsonProf.URL = enrollURL
 	}
 
