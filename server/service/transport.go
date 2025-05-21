@@ -450,7 +450,8 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	profileUUID := r.URL.Query().Get("profile_uuid")
 	profileStatus := r.URL.Query().Get("profile_status")
-	if profileUUID != "" && profileStatus != "" {
+	switch {
+	case profileUUID != "" && profileStatus != "":
 		hopt.ProfileUUIDFilter = &profileUUID
 		if fleet.OSSettingsStatus(profileStatus).IsValid() {
 			psf := fleet.OSSettingsStatus(profileStatus)
@@ -458,9 +459,9 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		} else {
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid profile_status: %s", profileStatus)))
 		}
-	} else if profileUUID != "" && profileStatus == "" {
+	case profileUUID != "" && profileStatus == "":
 		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_status (it must be present when profile_uuid is specified)"))
-	} else if profileUUID == "" && profileStatus != "" {
+	case profileUUID == "" && profileStatus != "":
 		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_uuid (it must be present when profile_status is specified)"))
 	}
 
