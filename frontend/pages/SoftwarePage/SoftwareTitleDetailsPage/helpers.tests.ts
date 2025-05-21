@@ -28,7 +28,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           automatic_install_policies: [],
           last_install: null,
           last_uninstall: null,
-          package_url: "",
+          url: "",
         },
         app_store_app: null,
         source: "apps",
