@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import classnames from "classnames";
 
 import { IActivityDetails } from "interfaces/activity";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import paths from "router/paths";
 
@@ -106,8 +106,9 @@ incompatible or cancelled."
     }
 
     let scriptsPath = paths.CONTROLS_SCRIPTS;
-    // null team id from API = no team
-    if (statusData.team_id === null) {
+    if (statusData.team_id === API_NO_TEAM_ID) {
+      // as of this writing these are the same value, 0, but this explicitly delineates API-speak
+      // from UI-logic-speak
       scriptsPath += `/?team_id=${APP_CONTEXT_NO_TEAM_ID}`;
     } else if (statusData.team_id) {
       scriptsPath += `/?team_id=${statusData.team_id}`;
