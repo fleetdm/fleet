@@ -309,8 +309,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingScriptExecutionIDs = execIDs
 	}
 
-	shouldEscrowKey := host.IsLUKSSupported() && host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled
-	notifs.RunDiskEncryptionEscrow = shouldEscrowKey && svc.ds.IsHostPendingEscrow(ctx, host.ID)
+	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
+		host.DiskEncryptionEnabled != nil &&
+		*host.DiskEncryptionEnabled &&
+		svc.ds.IsHostPendingEscrow(ctx, host.ID)
 
 	// load the (active, ready to execute) pending software install executions for that host
 	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
