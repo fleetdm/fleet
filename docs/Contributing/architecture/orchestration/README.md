@@ -1,4 +1,4 @@
-# Orchestration Architecture
+# Orchestration architecture
 
 This directory contains documentation about Fleet's Orchestration architecture.
 
@@ -15,7 +15,7 @@ Fleet's Orchestration architecture is designed to manage and query devices at sc
 - [Host Vitals](host-vitals.md) - Architecture for host vitals
 - [Teams and Access Control](teams-and-access-control.md) - Architecture for teams and access control
 
-## Related Resources
+## Related resources
 
 - [Orchestration Product Group Documentation](../../product-groups/orchestration/) - Documentation for the Orchestration product group
 - [Orchestration Development Guides](../../guides/orchestration/) - Guides for Orchestration development

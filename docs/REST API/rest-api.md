@@ -1977,7 +1977,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
-| additional_queries                | boolean | Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
+| additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
 
 <br/>
 
@@ -1988,7 +1988,10 @@ _Available in Fleet Premium._
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
-    "additional_queries": null
+    "additional_queries": {
+      "time": "SELECT * FROM time",
+      "macs": "SELECT mac FROM interface_details"
+    }
   }
 }
 ```
@@ -2307,7 +2310,7 @@ the `software` table.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| software_status       | string | query | The status of the software install to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_status       | string | query | The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |

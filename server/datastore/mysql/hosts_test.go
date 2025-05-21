@@ -7099,6 +7099,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
           VALUES (?, uuid(), uuid())
 	`, host.ID)
 	require.NoError(t, err)
+	// Update the host_mdm_commands table
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_commands (host_id, command_type)
+          VALUES (?, 'REFETCH-DEVICE-')
+	`, host.ID)
+	require.NoError(t, err)
 
 	// Add a calendar event for the host.
 	_, err = ds.writer(context.Background()).Exec(`
@@ -7157,7 +7163,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// Create a SCIM user and link it to host
 	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user"})
 	require.NoError(t, err)
-	require.NoError(t, ds.associateHostWithScimUser(ctx, host.ID, scimUserID))
+	require.NoError(t, associateHostWithScimUser(ctx, ds.writer(ctx), host.ID, scimUserID))
 
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "script.sh",

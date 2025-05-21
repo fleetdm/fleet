@@ -1,14 +1,14 @@
-# Getting Started with Fleet Development
+# Getting started with Fleet development
 
 This directory contains documentation to help you get started with Fleet development.
 
-## Setting Up Your Development Environment
+## Setting up your development environment
 
 - [Building Fleet](building-fleet.md) - Instructions for building Fleet from source
 - [Testing and Local Development](testing-and-local-development.md) - Guide for testing and local development
 - [Run Locally Built Fleetd](run-locally-built-fleetd.md) - Guide for running a locally built fleetd
 
-## Next Steps
+## Next steps
 
 Once you have your development environment set up, you can explore the following resources:
 
@@ -17,7 +17,7 @@ Once you have your development environment set up, you can explore the following
 - [Workflows](../workflows/README.md) - Development workflows
 - [Reference](../reference/README.md) - API reference, configuration, etc.
 
-## Product Groups
+## Product groups
 
 Fleet is organized into three main product groups:
 

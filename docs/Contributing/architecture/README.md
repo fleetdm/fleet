@@ -7,7 +7,7 @@ This directory contains high-level architecture documentation for Fleet.
 - [High-Level Architecture](high-level-architecture.md) - Overview of Fleet's architecture
 - [Infrastructure](infrastructure.md) - Documentation on Fleet's infrastructure
 
-## Product Group Architecture
+## Product group architecture
 
 Each product group has its own architecture documentation:
 

@@ -702,7 +702,8 @@ type Service interface {
 
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
-	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
+	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID
+	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
 	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*VPPAppStoreApp, error)
 
 	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
@@ -832,6 +833,16 @@ type Service interface {
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
+
+	// ReconcileMDMAppleEnrollRef reconciles the enrollment reference for the
+	// specified device. It performs several related tasks:
+	//
+	// 1. Checks given the enroll reference against MDM IdP accounts and associates the matching IdP
+	// account uuid to the given device UUID, if applicable.
+	//
+	// 2. Checks if the given device UUID has a legacy enrollment reference and returns the legacy
+	// enrollment reference, if applicable.
+	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (string, error)
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
