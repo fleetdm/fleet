@@ -1073,6 +1073,9 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	// NOTE: this test is now a monster, it's pretty much impossible to change as it's too big
+	// to understand what the expected assertion 500 lines in is supposed to be. Please avoid
+	// adding to it.
 
 	hostIDsFromHosts := func(hosts ...*fleet.Host) []uint {
 		ids := make([]uint, len(hosts))
@@ -1964,12 +1967,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:      tm1Profiles[0].ProfileUUID,
-				Status:           &fleet.MDMDeliveryPending,
-				OperationType:    fleet.MDMOperationTypeRemove,
-				IdentifierOrName: tm1Profiles[0].Identifier,
-			},
-			{
 				ProfileUUID:      newTm1Profiles[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeInstall,
@@ -2305,7 +2302,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.AppleDeclaration) // host status for deleted declaration was already set on delete
 
 	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[0].UUID, nil))
 	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[1].UUID, nil))
@@ -2356,11 +2353,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -2490,11 +2482,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -2603,11 +2590,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -2744,11 +2726,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -2962,11 +2939,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -3135,11 +3107,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -3342,11 +3309,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -3568,11 +3530,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -3785,11 +3742,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -4005,11 +3957,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -4220,11 +4167,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -4431,11 +4373,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -4645,11 +4582,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -4858,11 +4790,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -5066,11 +4993,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -5270,11 +5192,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,

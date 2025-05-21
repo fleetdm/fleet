@@ -5823,12 +5823,6 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	}}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
-	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 	mysql.DumpTable(t, q, "mdm_apple_configuration_profiles", "team_id", "identifier", "name")
-	// 	mysql.DumpTable(t, q, "host_mdm_apple_profiles", "host_uuid", "status", "operation_type", "profile_name")
-	// 	return nil
-	// })
-
 	// one will be failed (no IdP groups), and the other will succeed and be sent to the host
 	// ask for commands and verify that we get InstallProfile for the username N1 profile
 	var installProfCmd *mdm.Command
@@ -14060,6 +14054,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 0)
+
 	// Receive enrollment profiles (we are not checking/testing these here)
 	for {
 		cmd, err := mdmDevice.Idle()
@@ -14262,12 +14257,22 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 
 	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
+	// first command is the RemoveProfile of N3 (which was install failed)
+	require.NotNil(t, cmd, "Expecting removal of failed N3 install")
+	require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+
+	// second command is the InstallProfile of N4
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
 	require.NotNil(t, cmd, "Expecting PKCS12 certificate")
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
 	fullCmd = micromdm.CommandPayload{}
 	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 	assert.Nil(t, cmd)
+
 	require.NotNil(t, fullCmd.Command)
 	require.NotNil(t, fullCmd.Command.InstallProfile)
 	rawProfile = fullCmd.Command.InstallProfile.Payload
