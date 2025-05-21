@@ -12953,19 +12953,25 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	// the other one set to empty.
 	swPaths := map[string]struct{}{}
 	for _, s := range software {
-		pathItems := [][2]string{{fmt.Sprintf("/some/path/%s", s.Name), ""}}
+		pathItems := [][3]string{{fmt.Sprintf("/some/path/%s", s.Name), "", ""}}
+		if s.Name == "Safari.app" {
+			pathItems = [][3]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "", "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"},
+			}
+		}
 		if s.Name == "Google Chrome.app" {
-			pathItems = [][2]string{
-				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV"},
-				{fmt.Sprintf("/some/other/path/%s", s.Name), ""},
+			pathItems = [][3]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", ""},
+				{fmt.Sprintf("/some/other/path/%s", s.Name), "", ""},
 			}
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
+			cdHash := pathItem[2]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
@@ -12990,6 +12996,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation, 1)
 	require.Equal(t, "/some/path/Safari.app", getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
+	require.Equal(t, "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb", *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].HashSha256)
 
 	require.Equal(t, "Google Chrome.app", getHostSoftwareResp.Software[1].Name)
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions, 1)
@@ -13005,6 +13012,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	})
 	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Equal(t, "", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].HashSha256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].HashSha256)
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
