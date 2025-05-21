@@ -23,7 +23,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Button from "components/buttons/Button";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
-import { getPathWithQueryParams, QueryParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import SoftwareVppForm from "../../components/forms/SoftwareVppForm";
 import { getErrorMessage, teamHasVPPToken } from "./helpers";
 import { ISoftwareVppFormData } from "../../components/forms/SoftwareVppForm/SoftwareVppForm";
