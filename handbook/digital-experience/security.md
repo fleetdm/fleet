@@ -1782,6 +1782,14 @@ Fleet makes every effort to assure all third-party organizations are compliant a
 > Fleet is committed to ethical business practices and compliance with the law.  All Fleeties are required to comply with the "Foreign Corrupt Practices Act" and anti-bribery laws and regulations in applicable jurisdictions including, but not limited to, the "UK Bribery Act 2010", "European Commission on Anti-Corruption" and others.  The policies set forth in [this document](https://docs.google.com/document/d/16iHhLhAV0GS2mBrDKIBaIRe_pmXJrA1y7-gTWNxSR6c/edit?usp=sharing) go over Fleet's anti-corruption policy in detail.
 
 
+### Anti-harassment policy
+
+> Fleet is committed to maintaing a harassment free workplace based on mutual respect and copmliance with the law.  All Fleeties are required to comply with the anti-harassment policy set forth [here](https://docs.google.com/document/d/1qalY5_OcnCbHOJYUOz8R5O92RLortYrKdxur6Ned7ac/edit?usp=sharing).
+
+### Investor policy
+
+> Fleet is committed to being open and transparent in communications and expectations with its investors and keeping the best interests of all stakeholders in mind while protecting confidential business information, complying with applicable laws, and practicing good ethics, in accordance with [these guidelines](https://docs.google.com/document/d/1cFB3b3XD9O6FAOeSy_F4L9ajrteJBhbkdelMUEbUXCo/edit?usp=sharing).
+
 ## Application security
 
 The Fleet community follows best practices when coding. Here are some of the ways we mitigate against the OWASP top 10 issues:
