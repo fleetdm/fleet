@@ -1862,7 +1862,7 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 			return secret, nil
 		}
 
-		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
+		gotQuery, _ := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
 		if tc.want != "" {
 			require.Contains(t, gotQuery, "SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input =")
 			re := regexp.MustCompile(`'<(.*?)>'`)
@@ -2075,6 +2075,16 @@ func TestGenerateSQLForAllExists(t *testing.T) {
 	query2 = "SELECT 1 WHERE baz = 'qu;x';;; "
 	sql = generateSQLForAllExists(query1, query2)
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
+}
+
+func TestLuksVerifyQueryDiscovery(t *testing.T) {
+	lsblkTbl := "SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'lsblk'"
+	cryptsetupLuksSaltTbl := "SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'cryptsetup_luks_salt'"
+
+	require.Equal(t,
+		fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) AND EXISTS (%s);", lsblkTbl, cryptsetupLuksSaltTbl),
+		luksVerifyQuery.Discovery,
+	)
 }
 
 func TestLuksVerifyQueryIngester(t *testing.T) {

@@ -2067,8 +2067,13 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 
 var luksVerifyQuery = DetailQuery{
 	Platforms: fleet.HostLinuxOSs,
+	Discovery: fmt.Sprintf(
+		`SELECT 1 WHERE EXISTS (%s) AND EXISTS (%s);`,
+		discoveryTable("lsblk"),
+		discoveryTable("cryptsetup_luks_salt"),
+	),
 	QueryFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
-		if !host.IsLUKSSupported() {
+		if host.OrbitNodeKey == nil || !host.IsLUKSSupported() {
 			return "", false
 		}
 
