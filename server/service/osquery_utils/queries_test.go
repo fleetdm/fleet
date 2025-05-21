@@ -10,6 +10,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"regexp"
 	"slices"
 	"sort"
@@ -2140,7 +2141,7 @@ func TestLuksVerifyQueryIngester(t *testing.T) {
 			setUp: func(t *testing.T, ds *mock.Store) {
 				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 					require.Equal(t, uint(1), hostID)
-					return nil, nfe{}
+					return nil, common_mysql.NotFound("HostDiskEncryptionKey")
 				}
 			},
 			expectations: func(t *testing.T, ds *mock.Store, err error) {
