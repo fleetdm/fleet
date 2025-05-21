@@ -167,7 +167,10 @@ const SoftwareAppStoreVpp = ({
     setIsLoading(true);
 
     try {
-      await mdmAppleAPI.addVppApp(currentTeamId, formData);
+      const {
+        software_title_id: softwareVppTitleId,
+      } = await mdmAppleAPI.addVppApp(currentTeamId, formData);
+
       renderFlash(
         "success",
         <>
@@ -176,7 +179,12 @@ const SoftwareAppStoreVpp = ({
         { persistOnPageChange: true }
       );
 
-      goBackToSoftwareTitles(true);
+      router.push(
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwareVppTitleId.toString()),
+          { team_id: currentTeamId }
+        )
+      );
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
     }

@@ -84,9 +84,10 @@ export interface ISoftwareAppStoreAppStatus {
 
 export interface ISoftwarePackage {
   name: string;
+  title_id: number;
   last_install: string | null;
   last_uninstall: string | null;
-  package_url: string;
+  url: string;
   version: string;
   uploaded_at: string;
   install_script: string;

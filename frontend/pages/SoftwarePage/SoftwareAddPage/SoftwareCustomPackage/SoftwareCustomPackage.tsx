@@ -119,7 +119,9 @@ const SoftwareCustomPackage = ({
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      await softwareAPI.addSoftwarePackage({
+      const {
+        software_package: { title_id: softwarePackageTitleId },
+      } = await softwareAPI.addSoftwarePackage({
         data: formData,
         teamId: currentTeamId,
         onUploadProgress: (progressEvent) => {
@@ -130,24 +132,14 @@ const SoftwareCustomPackage = ({
         },
       });
 
-      const newQueryParams: QueryParams = { team_id: currentTeamId };
-      if (formData.selfService) {
-        newQueryParams.self_service = true;
-      } else {
-        newQueryParams.available_for_install = true;
-      }
+      const newQueryParams: QueryParams = {
+        team_id: currentTeamId,
+      };
       router.push(
-        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, newQueryParams)
-      );
-
-      renderFlash(
-        "success",
-        <>
-          <b>{formData.software?.name}</b> successfully added.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwarePackageTitleId.toString()),
+          newQueryParams
+        )
       );
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
