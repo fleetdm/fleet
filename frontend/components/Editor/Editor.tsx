@@ -1,4 +1,4 @@
-import React, { ReactNode, useState } from "react";
+import React, { MouseEvent, ReactNode, useState, useCallback } from "react";
 
 import classnames from "classnames";
 import AceEditor from "react-ace";
@@ -84,13 +84,12 @@ const Editor = ({
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
-    [`${baseClass}__wrapper--copy-enabled`]: enableCopy,
   });
 
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
 
-  const renderCopyButton = () => {
-    const copyValue = (e: React.MouseEvent) => {
+  const onClickCopy = useCallback(
+    (e: MouseEvent) => {
       e.preventDefault();
       stringToClipboard(value).then(() => {
         setShowCopiedMessage(true);
@@ -98,8 +97,11 @@ const Editor = ({
           setShowCopiedMessage(false);
         }, 2000);
       });
-    };
+    },
+    [value]
+  );
 
+  const renderCopyButton = () => {
     const copyButtonValue = <Icon name="copy" />;
     const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
 
@@ -112,7 +114,7 @@ const Editor = ({
         {showCopiedMessage && (
           <span className={copiedConfirmationClasses}>Copied!</span>
         )}
-        <Button variant={"icon"} onClick={copyValue} iconStroke>
+        <Button variant={"icon"} onClick={onClickCopy} iconStroke>
           {copyButtonValue}
         </Button>
       </div>
@@ -167,7 +169,7 @@ const Editor = ({
   return (
     <div className={classNames}>
       {renderLabel()}
-      {renderCopyButton()}
+      {enableCopy && renderCopyButton()}
       <AceEditor
         mode={mode}
         wrapEnabled={wrapEnabled}
