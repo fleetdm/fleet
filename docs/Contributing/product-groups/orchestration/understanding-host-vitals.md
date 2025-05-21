@@ -229,6 +229,9 @@ WITH registry_keys AS (
 		    -- in order to account for hosts that might not have this
 		    -- key, and servers
                     WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+            -- if a system is co-managed there may be multiple MDM enrollments
+            -- so pick the most useful candidate which is the one with a server URL 
+					ORDER BY e.discovery_service_url NULLS LAST
                     LIMIT 1;
 ```
 
