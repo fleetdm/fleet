@@ -1214,7 +1214,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	//     (having big queries can cause performance issues or be denylisted).
 	"macos_codesign": {
 		Query: `
-		SELECT a.path, c.team_identifier
+		SELECT c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
 	`,
@@ -1222,21 +1222,35 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Platforms:   []string{"darwin"},
 		Discovery:   discoveryTable("codesign"),
 		SoftwareProcessResults: func(mainSoftwareResults, codesignResults []map[string]string) []map[string]string {
-			codesignInformation := make(map[string]string) // path -> team_identifier
+			type codesignResultRow struct {
+				teamIdentifier string
+				cdhashSHA256   string
+			}
+
+			codesignInformation := make(map[string]codesignResultRow) // path -> team_identifier
 			for _, codesignResult := range codesignResults {
-				codesignInformation[codesignResult["path"]] = codesignResult["team_identifier"]
+				var cdhashSha256 string
+				if hash, ok := codesignResult["cdhash_sha256"]; ok {
+					cdhashSha256 = hash
+				}
+
+				codesignInformation[codesignResult["path"]] = codesignResultRow{
+					teamIdentifier: codesignResult["team_identifier"],
+					cdhashSHA256:   cdhashSha256,
+				}
 			}
 			if len(codesignInformation) == 0 {
 				return mainSoftwareResults
 			}
 
 			for _, result := range mainSoftwareResults {
-				codesignInfo := codesignInformation[result["installed_path"]]
-				if codesignInfo == "" {
+				codesignInfo, ok := codesignInformation[result["installed_path"]]
+				if !ok {
 					// No codesign information for this application.
 					continue
 				}
-				result["team_identifier"] = codesignInfo
+				result["team_identifier"] = codesignInfo.teamIdentifier
+				result["cdhash_sha256"] = codesignInfo.cdhashSHA256
 			}
 
 			return mainSoftwareResults
@@ -1629,9 +1643,13 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 				return str
 			}
 			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
+			var cdhashSHA256 string
+			if hash, ok := row["cdhash_sha256"]; ok {
+				cdhashSHA256 = hash
+			}
 			key := fmt.Sprintf(
-				"%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			sPaths[key] = struct{}{}
 		}
@@ -1750,19 +1768,6 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 			// it seems to be working now because the values are matching where they need to match.
 			// We should clean this up at some point, but for now we'll just check both.
 			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
-		}
-		if fleetEnrollRef != "" {
-			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-				if !fleet.IsNotFound(err) {
-					return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
-				}
-
-				level.Warn(logger).Log(
-					"component", "service",
-					"method", "directIngestMDMMac",
-					"msg", err.Error(),
-				)
-			}
 		}
 	}
 
@@ -2058,7 +2063,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
-//go:generate go run gen_queries_doc.go "../../../docs/Contributing/Understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,
@@ -2273,5 +2278,5 @@ func directIngestHostCertificates(
 		return nil
 	}
 
-	return ds.UpdateHostCertificates(ctx, host.ID, certs)
+	return ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs)
 }

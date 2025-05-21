@@ -42,6 +42,8 @@ func TestScripts(t *testing.T) {
 		{"TestDeleteScriptsAssignedToPolicy", testDeleteScriptsAssignedToPolicy},
 		{"TestDeletePendingHostScriptExecutionsForPolicy", testDeletePendingHostScriptExecutionsForPolicy},
 		{"UpdateScriptContents", testUpdateScriptContents},
+		{"UpdateDeletingUpcomingScriptExecutions", testUpdateDeletingUpcomingScriptExecutions},
+		{"BatchExecute", testBatchExecute},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1673,4 +1675,193 @@ func testUpdateScriptContents(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "updated script", string(updatedContents))
 	require.NotEqual(t, oldScript.UpdatedAt, updatedScript.UpdatedAt)
+}
+
+func testUpdateDeletingUpcomingScriptExecutions(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "User", "user@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.1", "host1Key", "host1UUID", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2Key", "host2UUID", time.Now())
+
+	script1, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1",
+		ScriptContents: "contents1",
+	})
+	require.NoError(t, err)
+
+	script2, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script2",
+		ScriptContents: "contents2",
+	})
+	require.NoError(t, err)
+
+	script3, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script3",
+		ScriptContents: "contents3",
+	})
+	require.NoError(t, err)
+
+	// Queue script executions
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   host1.ID,
+		ScriptID: &script1.ID,
+		UserID:   &user.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   host1.ID,
+		ScriptID: &script2.ID,
+		UserID:   &user.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   host2.ID,
+		ScriptID: &script2.ID,
+		UserID:   &user.ID,
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:   host2.ID,
+		ScriptID: &script1.ID,
+		UserID:   &user.ID,
+	})
+	require.NoError(t, err)
+
+	upcoming1, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming1, 2)
+
+	upcoming2, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming2, 2)
+
+	// Updating the "pending/upcoming" script will cancel the activity and stop it from running
+	_, err = ds.UpdateScriptContents(ctx, script1.ID, "new contents1")
+	require.NoError(t, err)
+
+	upcoming1, err = ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming1, 1)
+	require.Equal(t, script2.ID, *upcoming1[0].ScriptID)
+
+	upcoming2, err = ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming2, 1)
+	require.Equal(t, script2.ID, *upcoming2[0].ScriptID)
+
+	// Updating a script with no upcoming activities shouldn't affect anything
+	_, err = ds.UpdateScriptContents(ctx, script3.ID, "new contents")
+	require.NoError(t, err)
+
+	upcoming1, err = ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming1, 1)
+	require.Equal(t, script2.ID, *upcoming1[0].ScriptID)
+
+	upcoming2, err = ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, upcoming2, 1)
+	require.Equal(t, script2.ID, *upcoming2[0].ScriptID)
+}
+
+func testBatchExecute(t *testing.T, ds *Datastore) {
+	assertGoodSummary := func(t *testing.T, host *fleet.Host, hostSummary fleet.BatchExecutionHost) {
+		assert.Equal(t, host.Hostname, hostSummary.HostDisplayName)
+		assert.Equal(t, host.ID, hostSummary.HostID)
+		assert.NotEmpty(t, hostSummary.ExecutionID)
+		assert.Empty(t, hostSummary.Error)
+	}
+	assertBadSummary := func(t *testing.T, host *fleet.Host, expectedErr string, hostSummary fleet.BatchExecutionHost) {
+		assert.Equal(t, host.Hostname, hostSummary.HostDisplayName)
+		assert.Equal(t, host.ID, hostSummary.HostID)
+		assert.Empty(t, hostSummary.ExecutionID)
+		assert.Equal(t, &expectedErr, hostSummary.Error)
+	}
+
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.1", "hostnoscripts", "hostnoscriptsuuid", time.Now())
+	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"))
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
+	hostTeam1 := test.NewHost(t, ds, "hostTeam1", "10.0.0.5", "hostTeam1key", "hostTeam1uuid", time.Now(), test.WithTeamID(team1.ID))
+
+	test.SetOrbitEnrollment(t, hostWindows, ds)
+	test.SetOrbitEnrollment(t, host1, ds)
+	test.SetOrbitEnrollment(t, host2, ds)
+	test.SetOrbitEnrollment(t, hostTeam1, ds)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	scriptTeam1, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script2.sh",
+		ScriptContents: "echo hello",
+		TeamID:         &team1.ID,
+	})
+	require.NoError(t, err)
+
+	/// No team script
+	// Hosts all have to be on the same team as the script
+	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostTeam1.ID})
+	require.Empty(t, execID)
+	require.ErrorContains(t, err, "same team")
+
+	// Actual good execution
+	execID, err = ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID})
+	require.NoError(t, err)
+
+	summary, err := ds.BatchExecuteSummary(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, script.ID, summary.ScriptID)
+	require.Equal(t, script.Name, summary.ScriptName)
+	require.Equal(t, script.TeamID, summary.TeamID)
+	require.Len(t, summary.Hosts, 4)
+
+	assertBadSummary(t, hostNoScripts, fleet.BatchExecuteIncompatibleFleetd, summary.Hosts[0])
+	assertBadSummary(t, hostWindows, fleet.BatchExecuteIncompatiblePlatform, summary.Hosts[1])
+	assertGoodSummary(t, host1, summary.Hosts[2])
+	assertGoodSummary(t, host2, summary.Hosts[3])
+
+	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, host1Upcoming, 1)
+	require.Equal(t, summary.Hosts[2].ExecutionID, &host1Upcoming[0].ExecutionID)
+	require.Equal(t, &summary.ScriptID, host1Upcoming[0].ScriptID)
+
+	/// Team 1 script
+	// Hosts all have to be on the same team as the script
+	execID, err = ds.BatchExecuteScript(ctx, &user.ID, scriptTeam1.ID, []uint{hostTeam1.ID, host1.ID})
+	require.Empty(t, execID)
+	require.ErrorContains(t, err, "same team")
+
+	// Actual good execution
+	execID, err = ds.BatchExecuteScript(ctx, &user.ID, scriptTeam1.ID, []uint{hostTeam1.ID})
+	require.NoError(t, err)
+
+	summary, err = ds.BatchExecuteSummary(ctx, execID)
+	require.NoError(t, err)
+	require.Equal(t, scriptTeam1.ID, summary.ScriptID)
+	require.Equal(t, scriptTeam1.Name, summary.ScriptName)
+	require.Equal(t, scriptTeam1.TeamID, summary.TeamID)
+	require.Len(t, summary.Hosts, 1)
+
+	assertGoodSummary(t, hostTeam1, summary.Hosts[0])
+
+	hostTeam1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, hostTeam1.ID, false, false)
+	require.NoError(t, err)
+	require.Len(t, hostTeam1Upcoming, 1)
+	require.Equal(t, summary.Hosts[0].ExecutionID, &hostTeam1Upcoming[0].ExecutionID)
+	require.Equal(t, &summary.ScriptID, hostTeam1Upcoming[0].ScriptID)
 }

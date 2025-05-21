@@ -87,7 +87,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Mobileconfig: dummyMC,
 				TeamID:       &team.ID,
 			}
-			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP)
+			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP, nil)
 			require.NoError(t, err)
 
 			wcp, err := ds.NewMDMWindowsConfigProfile(context.Background(), fleet.MDMWindowsConfigProfile{

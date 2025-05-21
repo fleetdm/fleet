@@ -1,0 +1,25 @@
+.software-details-summary {
+  display: flex;
+  gap: $pad-medium;
+
+  .software-icon {
+    width: 96px;
+    height: 96px;
+  }
+
+  &__info {
+    flex-grow: 1;
+    align-self: center;
+  }
+
+  h1 {
+    font-size: $pad-large;
+    font-weight: bold;
+    margin-bottom: $pad-medium;
+  }
+
+  &__description-list {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+}

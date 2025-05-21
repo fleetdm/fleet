@@ -52,13 +52,18 @@ func (a *AppleMDM) Name() string {
 
 // appleMDMArgs is the payload for the Apple MDM job.
 type appleMDMArgs struct {
-	Task                   AppleMDMTask `json:"task"`
-	HostUUID               string       `json:"host_uuid"`
-	TeamID                 *uint        `json:"team_id,omitempty"`
-	EnrollReference        string       `json:"enroll_reference,omitempty"`
-	EnrollmentCommands     []string     `json:"enrollment_commands,omitempty"`
-	Platform               string       `json:"platform,omitempty"`
-	UseWorkerDeviceRelease bool         `json:"use_worker_device_release,omitempty"`
+	Task     AppleMDMTask `json:"task"`
+	HostUUID string       `json:"host_uuid"`
+	TeamID   *uint        `json:"team_id,omitempty"`
+	// EnrollReference is the UUID of the MDM IdP account used to enroll the
+	// device. It is used to set the username and full name of the user
+	// associated with the device.
+	//
+	// FIXME: Rename this to IdPAccountUUID or something similar.
+	EnrollReference        string   `json:"enroll_reference,omitempty"`
+	EnrollmentCommands     []string `json:"enrollment_commands,omitempty"`
+	Platform               string   `json:"platform,omitempty"`
+	UseWorkerDeviceRelease bool     `json:"use_worker_device_release,omitempty"`
 }
 
 // Run executes the apple_mdm job.
@@ -245,17 +250,20 @@ func (a *AppleMDM) getAppConfig(ctx context.Context, appConfig *fleet.AppConfig)
 }
 
 func (a *AppleMDM) getIdPDisplayName(ctx context.Context, acct *fleet.MDMIdPAccount, args appleMDMArgs) (string, error) {
-	if acct.Fullname != "" {
+	if acct.Fullname != "" && !strings.Contains(acct.Fullname, "@") {
 		return acct.Fullname, nil
 	}
 
-	// If full name is empty, see if it exists via SCIM integration
+	// If full name is empty or appears to be an email, see if it exists via SCIM integration
 	scimUser, err := a.Datastore.ScimUserByUserNameOrEmail(ctx, acct.Username, acct.Email)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
 		return "", ctxerr.Wrap(ctx, err, "getting scim user details for enroll reference %s and host_uuid %s", acct.UUID, args.HostUUID)
 	case scimUser == nil:
-		return "", nil
+		return acct.Fullname, nil
+	}
+	if scimUser.DisplayName() == "" {
+		return acct.Fullname, nil
 	}
 	return scimUser.DisplayName(), nil
 }

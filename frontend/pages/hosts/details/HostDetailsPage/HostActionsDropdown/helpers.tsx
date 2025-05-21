@@ -7,6 +7,7 @@ import {
   isAppleDevice,
   isMobilePlatform,
   isAndroid,
+  isIPadOrIPhone,
 } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
@@ -89,7 +90,7 @@ const canTransferTeam = (config: IHostActionConfigOptions) => {
   return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 };
 
-const canEditMdm = (config: IHostActionConfigOptions) => {
+const canTurnOffMdm = (config: IHostActionConfigOptions) => {
   const {
     hostPlatform,
     isGlobalAdmin,
@@ -102,7 +103,7 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
   } = config;
   return (
     !isAndroid(hostPlatform) && // TODO(android): confirm can't turn off MDM for windows, iOS, iPadOS?
-    hostPlatform === "darwin" &&
+    isAppleDevice(hostPlatform) &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
     isConnectedToFleetMdm &&
@@ -257,7 +258,7 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "diskEncryption");
   }
 
-  if (!canEditMdm(config)) {
+  if (!canTurnOffMdm(config)) {
     options = options.filter((option) => option.value !== "mdmOff");
   }
 
@@ -339,7 +340,7 @@ const modifyOptions = (
 
   let optionsToDisable: IDropdownOption[] = [];
   if (
-    !isHostOnline ||
+    (!isIPadOrIPhone(hostPlatform) && !isHostOnline) ||
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
     hostMdmDeviceStatus === "locked" ||
     hostMdmDeviceStatus === "wiped"
@@ -386,7 +387,6 @@ const modifyOptions = (
  * many variations of the options that are shown/not shown or disabled/enabled
  * which are all controlled by the configurations options argument.
  */
-// eslint-disable-next-line import/prefer-default-export
 export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   // deep clone to always start with a fresh copy of the default options.
   let options: IDropdownOption[] = cloneDeep([...DEFAULT_OPTIONS]);

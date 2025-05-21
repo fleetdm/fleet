@@ -3,7 +3,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { pick, findIndex } from "lodash";
+import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
 
@@ -36,6 +36,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -74,6 +75,8 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
+import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceTableConfig";
+import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";
 
@@ -81,8 +84,8 @@ const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 
 const PREMIUM_TAB_PATHS = [
-  PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
+  PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
@@ -130,6 +133,9 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [selectedSelfServiceUuid, setSelectedSelfServiceUuid] = useState<
+    InstallOrCommandUuid | undefined
+  >(undefined);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
@@ -223,7 +229,7 @@ const DeviceUserPage = ({
   const {
     data: dupResponse,
     isLoading: isLoadingHost,
-    error: loadingDeviceUserError,
+    error: isDeviceUserError,
     refetch: refetchHostDetails,
   } = useQuery<IDeviceUserResponse, Error>(
     ["host", deviceAuthToken],
@@ -277,7 +283,7 @@ const DeviceUserPage = ({
             } else {
               renderFlash(
                 "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                "We're having trouble fetching fresh vitals for this host. Please try again later."
               );
               setShowRefetchSpinner(false);
             }
@@ -328,6 +334,13 @@ const DeviceUserPage = ({
   const toggleOSSettingsModal = useCallback(() => {
     setShowOSSettingsModal(!showOSSettingsModal);
   }, [showOSSettingsModal, setShowOSSettingsModal]);
+
+  const onShowInstallerDetails = useCallback(
+    (uuid?: InstallOrCommandUuid) => {
+      setSelectedSelfServiceUuid(uuid);
+    },
+    [setSelectedSelfServiceUuid]
+  );
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -402,8 +415,23 @@ const DeviceUserPage = ({
       tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
     }
 
-    const findSelectedTab = (pathname: string) =>
-      findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
+    const findSelectedTab = (pathname: string) => {
+      const cleanPath = pathname.split("?")[0];
+      // Filter tabPaths that are prefix of cleanPath
+      const matchingIndices = tabPaths
+        .map((tabPath, idx) => ({ tabPath, idx }))
+        .filter(({ tabPath }) => cleanPath.startsWith(tabPath));
+
+      if (matchingIndices.length === 0) {
+        return -1;
+      }
+
+      // Return the index of the longest matching prefix
+      return matchingIndices.reduce((best, current) =>
+        current.tabPath.length > best.tabPath.length ? current : best
+      ).idx;
+    };
+
     if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
       router.push(tabPaths[0]);
     }
@@ -487,6 +515,7 @@ const DeviceUserPage = ({
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       router={router}
+                      onShowInstallerDetails={onShowInstallerDetails}
                     />
                   </TabPanel>
                 )}
@@ -616,6 +645,30 @@ const DeviceUserPage = ({
             }}
           />
         )}
+        {selectedSelfServiceUuid &&
+          "install_uuid" in selectedSelfServiceUuid &&
+          !!host && (
+            <SoftwareInstallDetailsModal
+              details={{
+                host_display_name: host.display_name,
+                install_uuid: selectedSelfServiceUuid.install_uuid,
+              }}
+              onCancel={() => setSelectedSelfServiceUuid(undefined)}
+              deviceAuthToken={deviceAuthToken}
+            />
+          )}
+        {selectedSelfServiceUuid &&
+          "command_uuid" in selectedSelfServiceUuid &&
+          !!host && (
+            <AppInstallDetailsModal
+              details={{
+                host_display_name: host.display_name,
+                command_uuid: selectedSelfServiceUuid.command_uuid,
+              }}
+              onCancel={() => setSelectedSelfServiceUuid(undefined)}
+              deviceAuthToken={deviceAuthToken}
+            />
+          )}
         {selectedSoftwareDetails && !!host && (
           <SoftwareDetailsModal
             hostDisplayName={host.display_name}
@@ -656,7 +709,7 @@ const DeviceUserPage = ({
           </ul>
         </div>
       </nav>
-      {loadingDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
+      {isDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
     </div>
   );
 };

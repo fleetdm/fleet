@@ -1,6 +1,8 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
+import classnames from "classnames";
+
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { getPathWithQueryParams } from "utilities/url";
@@ -20,6 +22,52 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getErrorMessage } from "../ScriptUploader/helpers";
 
 const baseClass = "edit-script-modal";
+
+interface IWarningModal {
+  onExit: () => void;
+  onSave: () => void;
+  scriptName: string;
+  isSubmitting: boolean;
+}
+const WarningModal = ({
+  onExit,
+  onSave,
+  scriptName,
+  isSubmitting,
+}: IWarningModal) => {
+  return (
+    <Modal
+      className={`${baseClass}__warning`}
+      title="Save changes?"
+      onExit={onExit}
+    >
+      <>
+        <p>
+          The changes you are making will cancel any pending script runs for{" "}
+          <b>{scriptName}</b>.<br />
+          <br />
+          If this script is currently running on a host, it will complete, but
+          results won&apos;t appear in Fleet. <br />
+          <br />
+          You cannot undo this action.
+        </p>
+        <div className="modal-cta-wrap">
+          <Button
+            type="button"
+            onClick={onSave}
+            className="save-loading"
+            isLoading={isSubmitting}
+          >
+            Save
+          </Button>
+          <Button onClick={onExit} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </>
+    </Modal>
+  );
+};
 
 interface IEditScriptModal {
   onExit: () => void;
@@ -47,7 +95,10 @@ const EditScriptModal = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const [showConfirmChanges, setShowConfirmChanges] = useState(false);
+
   const {
+    data: curScriptContent,
     error: isSelectedScriptContentError,
     isLoading: isLoadingSelectedScriptContent,
   } = useQuery<ScriptContent, Error>(
@@ -55,8 +106,8 @@ const EditScriptModal = ({
     () => scriptAPI.downloadScript(scriptId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      onSuccess: (scriptContent) => {
-        setScriptFormData(scriptContent);
+      onSuccess: (curScriptContent_) => {
+        setScriptFormData(curScriptContent_);
       },
     }
   );
@@ -79,6 +130,12 @@ const EditScriptModal = ({
     if (err || isSubmitting) {
       return;
     }
+    // if contents have changed and not already showing the warning modal
+    if (curScriptContent !== scriptFormData && !showConfirmChanges) {
+      setShowConfirmChanges(true);
+      return;
+    }
+    // show warning modal and abort this call
     try {
       setIsSubmitting(true);
       await scriptAPI.updateScript(scriptId, scriptFormData, scriptName);
@@ -88,6 +145,7 @@ const EditScriptModal = ({
       renderFlash("error", getErrorMessage(e));
     } finally {
       setIsSubmitting(false);
+      setShowConfirmChanges(false);
     }
   };
 
@@ -114,7 +172,6 @@ const EditScriptModal = ({
           <Editor
             mode={mode}
             error={formError}
-            isFormField
             label="Script"
             onBlur={onBlur}
             onChange={onChange}
@@ -161,15 +218,28 @@ const EditScriptModal = ({
     );
   };
 
+  const classes = classnames(baseClass, {
+    [`${baseClass}__hide-main`]: !!showConfirmChanges,
+  });
   return (
-    <Modal
-      className={baseClass}
-      title={scriptName}
-      width="large"
-      onExit={onExit}
-    >
-      {renderContent()}
-    </Modal>
+    <>
+      <Modal
+        className={classes}
+        title={scriptName}
+        width="large"
+        onExit={onExit}
+      >
+        {renderContent()}
+      </Modal>
+      {!!showConfirmChanges && (
+        <WarningModal
+          onExit={() => setShowConfirmChanges(false)}
+          onSave={onSave}
+          scriptName={scriptName}
+          isSubmitting={isSubmitting}
+        />
+      )}
+    </>
   );
 };
 

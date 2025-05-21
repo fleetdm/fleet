@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState, useEffect } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -35,8 +35,8 @@ import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 
-import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
-import AddSoftwareModal from "./components/AddSoftwareModal";
+import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
+import AddSoftwareModal from "./components/modals/AddSoftwareModal";
 import {
   buildSoftwareFilterQueryParams,
   buildSoftwareVulnFiltersQueryParams,
@@ -44,7 +44,7 @@ import {
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
 } from "./SoftwareTitles/SoftwareTable/helpers";
-import SoftwareFiltersModal from "./components/SoftwareFiltersModal";
+import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -352,22 +352,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     [location, router]
   );
 
-  const renderTitle = () => {
-    return (
-      <>
-        {isFreeTier && <h1>Software</h1>}
-        {isPremiumTier && (
-          <TeamsHeader
-            isOnGlobalTeam={isOnGlobalTeam}
-            currentTeamId={currentTeamId}
-            userTeams={userTeams}
-            onTeamChange={onTeamChange}
-          />
-        )}
-      </>
-    );
-  };
-
   const renderPageActions = () => {
     const canManageAutomations = isGlobalAdmin && isPremiumTier;
 
@@ -480,7 +464,18 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
-              <div className={`${baseClass}__title`}>{renderTitle()}</div>
+              <div className={`${baseClass}__title`}>
+                {isPremiumTier && !globalConfig?.partnerships?.enable_primo ? (
+                  <TeamsHeader
+                    isOnGlobalTeam={isOnGlobalTeam}
+                    currentTeamId={currentTeamId}
+                    userTeams={userTeams}
+                    onTeamChange={onTeamChange}
+                  />
+                ) : (
+                  <h1>Software</h1>
+                )}
+              </div>
             </div>
           </div>
           {renderPageActions()}

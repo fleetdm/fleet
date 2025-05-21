@@ -113,7 +113,6 @@ export const WithCopyButton: Story = {
     label: "Input with Copy Button",
     value: "Click to copy this text",
     enableCopy: true,
-    copyButtonPosition: "outside",
   },
 };
 

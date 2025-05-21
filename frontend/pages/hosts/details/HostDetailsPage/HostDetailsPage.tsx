@@ -1160,7 +1160,12 @@ const HostDetailsPage = ({
           />
         )}
         {showUnenrollMdmModal && !!host && (
-          <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
+          <UnenrollMdmModal
+            hostId={host.id}
+            hostPlatform={host.platform}
+            hostName={host.display_name}
+            onClose={toggleUnenrollMdmModal}
+          />
         )}
         {showDiskEncryptionModal && host && (
           <DiskEncryptionKeyModal

@@ -32,10 +32,10 @@ import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
 
-import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
-import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
-import DetailsNoHosts from "../components/DetailsNoHosts";
-import { VulnsNotSupported } from "../components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
+import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
+import DetailsNoHosts from "../components/cards/DetailsNoHosts";
+import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 
 const baseClass = "software-os-details-page";
 
@@ -164,17 +164,23 @@ const SoftwareOSDetailsPage = ({
           />
         ) : (
           <>
-            <SoftwareDetailsSummary
-              title={osVersionDetails.name}
-              hosts={osVersionDetails.hosts_count}
-              countsUpdatedAt={counts_updated_at}
-              queryParams={{
-                os_name: osVersionDetails.name_only,
-                os_version: osVersionDetails.version,
-                team_id: teamIdForApi,
-              }}
-              name={osVersionDetails.platform}
-            />
+            <Card
+              borderRadiusSize="xxlarge"
+              includeShadow
+              className={`${baseClass}__summary-section`}
+            >
+              <SoftwareDetailsSummary
+                title={osVersionDetails.name}
+                hosts={osVersionDetails.hosts_count}
+                countsUpdatedAt={counts_updated_at}
+                queryParams={{
+                  os_name: osVersionDetails.name_only,
+                  os_version: osVersionDetails.version,
+                  team_id: teamIdForApi,
+                }}
+                name={osVersionDetails.platform}
+              />
+            </Card>
             <Card
               borderRadiusSize="xxlarge"
               includeShadow

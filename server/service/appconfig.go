@@ -52,9 +52,10 @@ type appConfigResponseFields struct {
 	// Email is returned when the email backend is something other than SMTP, for example SES
 	Email *fleet.EmailConfig `json:"email,omitempty"`
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
-	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
-	Err            error `json:"error,omitempty"`
-	AndroidEnabled bool  `json:"android_enabled,omitempty"`
+	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
+	Err            error               `json:"error,omitempty"`
+	AndroidEnabled bool                `json:"android_enabled,omitempty"`
+	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -130,6 +131,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return nil, err
 	}
+	partnerships, err := svc.PartnershipsConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
@@ -198,6 +203,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
 			AndroidEnabled:  os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
+			Partnerships:    partnerships,
 		},
 	}
 	return response, nil
@@ -229,16 +235,18 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 // //////////////////////////////////////////////////////////////////////////////
 
 type modifyAppConfigRequest struct {
-	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
-	DryRun bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Force     bool `json:"-" query:"force,optional"`     // if true, bypass strict incoming json validation
+	DryRun    bool `json:"-" query:"dry_run,optional"`   // if true, apply validation but do not save changes
+	Overwrite bool `json:"-" query:"overwrite,optional"` // if true, overwrite any existing settings with the incoming ones
 	json.RawMessage
 }
 
 func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyAppConfigRequest)
 	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
-		Force:  req.Force,
-		DryRun: req.DryRun,
+		Force:     req.Force,
+		DryRun:    req.DryRun,
+		Overwrite: req.Overwrite,
 	})
 	if err != nil {
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
@@ -343,6 +351,14 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if invalid.HasErrors() {
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
+	}
+
+	// If we're in overwrite mode, clear out any feautures that are not explicitly specified.
+	if applyOpts.Overwrite {
+		appConfig.Features = newAppConfig.Features
+		appConfig.SSOSettings = newAppConfig.SSOSettings
+		appConfig.SMTPSettings = newAppConfig.SMTPSettings
+		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
 	}
 
 	// We apply the config that is incoming to the old one
