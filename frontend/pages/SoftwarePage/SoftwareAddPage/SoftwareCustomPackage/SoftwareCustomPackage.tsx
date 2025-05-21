@@ -119,18 +119,18 @@ const SoftwareCustomPackage = ({
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      const softwarePackageTitleId: number = await softwareAPI
-        .addSoftwarePackage({
-          data: formData,
-          teamId: currentTeamId,
-          onUploadProgress: (progressEvent) => {
-            const progress = progressEvent.progress || 0;
-            // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the
-            // progress bar at 97% until the server response is received
-            setUploadProgress(Math.max(progress - 0.03, 0.01));
-          },
-        })
-        .then((data) => data.software_package.title_id);
+      const {
+        software_package: { title_id: softwarePackageTitleId },
+      } = await softwareAPI.addSoftwarePackage({
+        data: formData,
+        teamId: currentTeamId,
+        onUploadProgress: (progressEvent) => {
+          const progress = progressEvent.progress || 0;
+          // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the
+          // progress bar at 97% until the server response is received
+          setUploadProgress(Math.max(progress - 0.03, 0.01));
+        },
+      });
 
       const newQueryParams: QueryParams = {
         team_id: currentTeamId,

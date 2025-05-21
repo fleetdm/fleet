@@ -167,9 +167,9 @@ const SoftwareAppStoreVpp = ({
     setIsLoading(true);
 
     try {
-      const softwareVppTitleId: number = await mdmAppleAPI
-        .addVppApp(currentTeamId, formData)
-        .then((data) => data.software_title_id);
+      const {
+        software_title_id: softwareVppTitleId,
+      } = await mdmAppleAPI.addVppApp(currentTeamId, formData);
 
       renderFlash(
         "success",

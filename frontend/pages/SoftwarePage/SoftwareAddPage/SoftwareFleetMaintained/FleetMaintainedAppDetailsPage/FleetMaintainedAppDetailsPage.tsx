@@ -200,12 +200,12 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAddFleetAppSoftwareModal(true);
 
     try {
-      const softwareFmaTitleId: number = await softwareAPI
-        .addFleetMaintainedApp(parseInt(teamId, 10), {
-          ...formData,
-          appId,
-        })
-        .then((data) => data.software_title_id);
+      const {
+        software_title_id: softwareFmaTitleId,
+      } = await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
+        ...formData,
+        appId,
+      });
 
       router.push(
         getPathWithQueryParams(
