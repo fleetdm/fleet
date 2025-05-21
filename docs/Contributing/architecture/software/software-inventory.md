@@ -1,4 +1,4 @@
-# Software Inventory Architecture
+# Software inventory architecture
 
 This document provides an overview of Fleet's Software Inventory architecture.
 

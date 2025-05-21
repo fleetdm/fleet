@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -51,7 +52,16 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 		user.ID = uint(id) // nolint:gosec // dismiss G115
 		userID = user.ID
 
-		return insertEmails(ctx, tx, user)
+		if err := insertEmails(ctx, tx, user); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert scim user emails")
+		}
+
+		// FIXME: Consider ways we could lift ancillary actions like this to the service layer,
+		// perhaps some `WithCallback` pattern to inject these into the SCIM handlers.
+		if err := maybeAssociateScimUserWithHostMDMIdP(ctx, tx, ds.logger, user); err != nil {
+			return ctxerr.Wrap(ctx, err, "associate scim user with host mdm idp")
+		}
+		return nil
 	})
 	return userID, err
 }
@@ -92,6 +102,10 @@ func (ds *Datastore) ScimUserByID(ctx context.Context, id uint) (*fleet.ScimUser
 
 // ScimUserByUserName retrieves a SCIM user by username
 func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+	return scimUserByUserName(ctx, ds.reader(ctx), userName)
+}
+
+func scimUserByUserName(ctx context.Context, q sqlx.QueryerContext, userName string) (*fleet.ScimUser, error) {
 	const query = `
 		SELECT
 			id, external_id, user_name, given_name, family_name, active, updated_at
@@ -99,7 +113,7 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 		WHERE user_name = ?
 	`
 	user := &fleet.ScimUser{}
-	err := sqlx.GetContext(ctx, ds.reader(ctx), user, query, userName)
+	err := sqlx.GetContext(ctx, q, user, query, userName)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("scim user")
@@ -108,14 +122,14 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 	}
 
 	// Get the user's emails
-	emails, err := ds.getScimUserEmails(ctx, user.ID)
+	emails, err := getScimUserEmails(ctx, q, user.ID)
 	if err != nil {
 		return nil, err
 	}
 	user.Emails = emails
 
 	// Get the user's groups
-	groups, err := ds.getScimUserGroups(ctx, user.ID)
+	groups, err := getScimUserGroups(ctx, q, user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +142,13 @@ func (ds *Datastore) ScimUserByUserName(ctx context.Context, userName string) (*
 // If multiple users are found with the same email, we log an error and return nil.
 // Emails and groups are NOT populated in this method.
 func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName string, email string) (*fleet.ScimUser, error) {
+	return scimUserByUserNameOrEmail(ctx, ds.reader(ctx), ds.logger, userName, email)
+}
+
+func scimUserByUserNameOrEmail(ctx context.Context, q sqlx.QueryerContext, logger log.Logger, userName string, email string) (*fleet.ScimUser, error) {
 	// First, try to find the user by userName
 	if userName != "" {
-		user, err := ds.ScimUserByUserName(ctx, userName)
+		user, err := scimUserByUserName(ctx, q, userName)
 		switch {
 		case err == nil:
 			return user, nil
@@ -143,7 +161,7 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 	}
 
 	// Now, try to find the user by using the email as the userName
-	user, err := ds.ScimUserByUserName(ctx, email)
+	user, err := scimUserByUserName(ctx, q, email)
 	switch {
 	case err == nil:
 		return user, nil
@@ -161,7 +179,7 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 	`
 
 	var users []fleet.ScimUser
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &users, query, email)
+	err = sqlx.SelectContext(ctx, q, &users, query, email)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select scim user by email")
 	}
@@ -172,7 +190,7 @@ func (ds *Datastore) ScimUserByUserNameOrEmail(ctx context.Context, userName str
 
 	// If multiple users found, log a message and return nil
 	if len(users) > 1 {
-		level.Error(ds.logger).Log("msg", "Multiple SCIM users found with the same email", "email", email)
+		level.Error(logger).Log("msg", "Multiple SCIM users found with the same email", "email", email)
 		return nil, nil
 	}
 
@@ -528,6 +546,10 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 
 // getScimUserEmails retrieves all emails for a SCIM user
 func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]fleet.ScimUserEmail, error) {
+	return getScimUserEmails(ctx, ds.reader(ctx), userID)
+}
+
+func getScimUserEmails(ctx context.Context, q sqlx.QueryerContext, userID uint) ([]fleet.ScimUserEmail, error) {
 	const query = `
 		SELECT
 			scim_user_id, email, ` + "`primary`" + `, type
@@ -535,7 +557,7 @@ func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]flee
 		WHERE scim_user_id = ? ORDER BY email ASC
 	`
 	var emails []fleet.ScimUserEmail
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &emails, query, userID)
+	err := sqlx.SelectContext(ctx, q, &emails, query, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -547,6 +569,10 @@ func (ds *Datastore) getScimUserEmails(ctx context.Context, userID uint) ([]flee
 
 // getScimUserGroups retrieves all groups for a SCIM user
 func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]fleet.ScimUserGroup, error) {
+	return getScimUserGroups(ctx, ds.reader(ctx), userID)
+}
+
+func getScimUserGroups(ctx context.Context, q sqlx.QueryerContext, userID uint) ([]fleet.ScimUserGroup, error) {
 	const query = `
 		SELECT
 			sg.id, sg.display_name
@@ -555,7 +581,7 @@ func (ds *Datastore) getScimUserGroups(ctx context.Context, userID uint) ([]flee
 		WHERE sug.scim_user_id = ? ORDER BY sg.id ASC
 	`
 	var groups []fleet.ScimUserGroup
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &groups, query, userID)
+	err := sqlx.SelectContext(ctx, q, &groups, query, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil

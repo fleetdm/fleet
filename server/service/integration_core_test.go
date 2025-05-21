@@ -2905,6 +2905,41 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 	}
 }
 
+func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create host
+	hosts := s.createHosts(t, "linux")
+	host := hosts[0]
+
+	stalePolicyCount, staleIssuesCount, freshPolicyCount, freshIssueCount := uint64(50), uint64(500), uint64(0), uint64(0)
+	// create host_issues for it with stale data
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count) VALUES (?, ?, ?)`, host.ID, stalePolicyCount, staleIssuesCount)
+		return err
+	})
+
+	// hit endpoint: host issues should still be stale, since last updated was less than a minute ago
+	hostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+
+	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, stalePolicyCount)
+	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, staleIssuesCount)
+
+	// set updated_at to longer than minute ago
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_issues SET updated_at = ? WHERE host_id = ?`, time.Time{}, host.ID)
+		return err
+	})
+	// hit endpoint: should have been updated this time
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, freshPolicyCount)
+	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, freshIssueCount)
+}
+
 func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	t := s.T()
 
@@ -12918,19 +12953,25 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	// the other one set to empty.
 	swPaths := map[string]struct{}{}
 	for _, s := range software {
-		pathItems := [][2]string{{fmt.Sprintf("/some/path/%s", s.Name), ""}}
+		pathItems := [][3]string{{fmt.Sprintf("/some/path/%s", s.Name), "", ""}}
+		if s.Name == "Safari.app" {
+			pathItems = [][3]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "", "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"},
+			}
+		}
 		if s.Name == "Google Chrome.app" {
-			pathItems = [][2]string{
-				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV"},
-				{fmt.Sprintf("/some/other/path/%s", s.Name), ""},
+			pathItems = [][3]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", ""},
+				{fmt.Sprintf("/some/other/path/%s", s.Name), "", ""},
 			}
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
+			cdHash := pathItem[2]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
@@ -12955,6 +12996,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation, 1)
 	require.Equal(t, "/some/path/Safari.app", getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
+	require.Equal(t, "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb", *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].HashSha256)
 
 	require.Equal(t, "Google Chrome.app", getHostSoftwareResp.Software[1].Name)
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions, 1)
@@ -12970,6 +13012,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	})
 	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Equal(t, "", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].HashSha256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].HashSha256)
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
