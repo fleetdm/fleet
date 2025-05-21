@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 import classnames from "classnames";
 
 import { IActivityDetails } from "interfaces/activity";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 import paths from "router/paths";
 
@@ -24,7 +25,6 @@ import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 
 import ScriptBatchStatusTable from "../ScriptBatchStatusTable";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "script-batch-summary-modal";
 
