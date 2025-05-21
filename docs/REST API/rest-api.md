@@ -11174,7 +11174,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
-| macos_macos_manual_disk_encryption            | boolean | Specifies that you want escrow macOS keys outside of Fleet. If set to true, Fleet won’t enforce disk encryption or escrow keys for macOS hosts. To do this manually, add a [custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile). |
+| macos_manual_disk_encryption            | boolean | Specifies that you want escrow macOS keys outside of Fleet. If set to true, Fleet won’t enforce disk encryption or escrow keys for macOS hosts. To do this manually, add a [custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile). |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
 
 <br/>
