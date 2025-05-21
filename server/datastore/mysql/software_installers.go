@@ -966,7 +966,6 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
 		}
 
-		fmt.Printf("Here")
 		_, err = tx.ExecContext(ctx, `UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
 			  SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status IN ('pending_install', 'pending_uninstall')
 			UNION
@@ -977,7 +976,6 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return ctxerr.Wrap(ctx, err, "fail setup experience results dependant on deleted software install")
 		}
 
-		fmt.Printf("Here2")
 		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
 			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')`, installerID)
 		if err != nil {
