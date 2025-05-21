@@ -1968,7 +1968,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Negotiate sealing' or higher:
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: LDAP client encryption requirements'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LDAP\LDAPClientConfidentiality' AND data IN (1, 2));
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LDAP\ldapclientconfidentiality' AND data IN (1, 2));
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
