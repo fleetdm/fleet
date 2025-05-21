@@ -105,15 +105,6 @@ incompatible or cancelled."
       return null;
     }
 
-    let scriptsPath = paths.CONTROLS_SCRIPTS;
-    if (statusData.team_id === API_NO_TEAM_ID) {
-      // as of this writing these are the same value, 0, but this explicitly delineates API-speak
-      // from UI-logic-speak
-      scriptsPath += `/?team_id=${APP_CONTEXT_NO_TEAM_ID}`;
-    } else if (statusData.team_id) {
-      scriptsPath += `/?team_id=${statusData.team_id}`;
-    }
-    // statusData.team_id == 0 would represent all teams, and is not supported
     return (
       <Modal
         title="Cancel script"
@@ -130,7 +121,18 @@ incompatible or cancelled."
             <div className="modal-cta-wrap">
               <Button onClick={toggleCancelModal}>Done</Button>
               <Button
-                onClick={() => router.push(scriptsPath)}
+                onClick={() =>
+                  router.push(
+                    `${paths.CONTROLS_SCRIPTS}/?team_id=${
+                      // as of this writing, API_NO_TEAM_ID and APP_CONTEXT_NO_TEAM_ID are both 0.
+                      // It's still good to explicitly differentiate them like this since there are sometime
+                      // discrepancies between API and UI-logic team IDs
+                      statusData.team_id === API_NO_TEAM_ID
+                        ? APP_CONTEXT_NO_TEAM_ID
+                        : statusData.team_id
+                    }`
+                  )
+                }
                 variant="inverse"
               >
                 Go to scripts
