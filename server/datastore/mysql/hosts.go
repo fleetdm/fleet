@@ -546,6 +546,7 @@ var hostRefs = []string{
 	"android_devices",
 	"host_scim_user",
 	"batch_script_execution_host_results",
+	"host_mdm_commands",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -5492,6 +5493,24 @@ func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []s
 		return nil, ctxerr.Wrap(ctx, err, "get hostnames by identifiers")
 	}
 	return hostnames, nil
+}
+
+func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error) {
+	stmt := `
+		SELECT updated_at FROM host_issues WHERE host_id = ?
+	`
+	var out []time.Time
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &out, stmt, hostId); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "checking host_issues last updated")
+	}
+	if len(out) == 0 {
+		// okay
+		return time.Time{}, nil
+	}
+	if len(out) > 1 {
+		return time.Time{}, ctxerr.New(ctx, "Multiple host_issues rows found for this host_id")
+	}
+	return out[0], nil
 }
 
 func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {

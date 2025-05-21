@@ -142,6 +142,10 @@ func ParseDeviceinfo(b64 string, verify bool) (*fleet.MDMAppleMachineInfo, error
 		}
 	}
 
+	return ParseMachineInfoFromPKCS7(buf, verify)
+}
+
+func ParseMachineInfoFromPKCS7(buf []byte, verify bool) (*fleet.MDMAppleMachineInfo, error) {
 	p7, err := pkcs7.Parse(buf)
 	if err != nil {
 		return nil, fmt.Errorf("could not decode pkcs7: %w", err)

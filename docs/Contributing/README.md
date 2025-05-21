@@ -2,7 +2,7 @@
 
 Welcome to the Fleet contributor documentation! This documentation is designed to help you contribute to the Fleet project.
 
-## Documentation Structure
+## Documentation structure
 
 The documentation is organized into the following sections:
 
@@ -16,7 +16,7 @@ The documentation is organized into the following sections:
 - [Research](research/) - Research documents for product groups
 - [Responsibilities](responsibilities/) - Responsibility documents for product groups
 
-## Product Groups
+## Product groups
 
 Fleet is organized into three main product groups:
 
