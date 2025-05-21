@@ -5549,7 +5549,7 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
-| macos_macos_manual_disk_encryption  | boolean | Specifies that you want escrow macOS keys outside of Fleet. If set to true, Fleet won’t enforce disk encryption or escrow keys for macOS hosts. To do this manually, add a [custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile). |
+| macos_manual_disk_encryption  | boolean | Specifies that you want escrow macOS keys outside of Fleet. If set to true, Fleet won’t enforce disk encryption or escrow keys for macOS hosts. To do this manually, add a [custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile). |
 
 #### Example
 
