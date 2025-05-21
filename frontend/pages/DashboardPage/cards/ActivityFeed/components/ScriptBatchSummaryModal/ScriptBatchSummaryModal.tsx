@@ -24,6 +24,7 @@ import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 
 import ScriptBatchStatusTable from "../ScriptBatchStatusTable";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "script-batch-summary-modal";
 
@@ -103,6 +104,15 @@ incompatible or cancelled."
       // for the TS compiler
       return null;
     }
+
+    let scriptsPath = paths.CONTROLS_SCRIPTS;
+    // null team id from API = no team
+    if (statusData.team_id === null) {
+      scriptsPath += `/?team_id=${APP_CONTEXT_NO_TEAM_ID}`;
+    } else if (statusData.team_id) {
+      scriptsPath += `/?team_id=${statusData.team_id}`;
+    }
+    // statusData.team_id == 0 would represent all teams, and is not supported
     return (
       <Modal
         title="Cancel script"
@@ -119,11 +129,7 @@ incompatible or cancelled."
             <div className="modal-cta-wrap">
               <Button onClick={toggleCancelModal}>Done</Button>
               <Button
-                onClick={() =>
-                  router.push(
-                    `${paths.CONTROLS_SCRIPTS}/?team_id=${statusData.team_id}`
-                  )
-                }
+                onClick={() => router.push(scriptsPath)}
                 variant="inverse"
               >
                 Go to scripts
