@@ -1366,7 +1366,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 
 			require.Len(t, calledWith, 1)
-			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, data[1]["name"]))
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, fleet.SoftwareFieldSeparator, data[1]["name"]))
 
 			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
@@ -1417,6 +1417,76 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 			ds.UpdateHostSoftwareFuncInvoked = false
 		}
+	})
+
+	t.Run("cdhash_sha256", func(t *testing.T) {
+		data := []map[string]string{
+			{
+				"name":              "Software 1",
+				"version":           "12.5.0",
+				"source":            "apps",
+				"bundle_identifier": "com.bundle.com",
+				"vendor":            "EvilCorp",
+				"installed_path":    "/Applications/Software1.app",
+				"team_identifier":   "corp1",
+				"cdhash_sha256":     "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+			},
+			{
+				"name":              "Software 2",
+				"version":           "0.0.1",
+				"source":            "apps",
+				"bundle_identifier": "coms.widgets.com",
+				"vendor":            "widgets",
+				"team_identifier":   "corp2",
+				"installed_path":    "/Applications/Software2.app",
+			},
+		}
+		var dataAsSoftware []fleet.Software
+		for _, entry := range data {
+			software := fleet.Software{
+				Name:             entry["name"],
+				Version:          entry["version"],
+				Source:           entry["source"],
+				BundleIdentifier: entry["bundle_identifier"],
+				Vendor:           entry["vendor"],
+			}
+			dataAsSoftware = append(dataAsSoftware, software)
+		}
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			require.Len(t, sPaths, 2)
+			require.Contains(t, sPaths,
+				fmt.Sprintf(
+					"%s%s%s%s%s%s%s",
+					data[0]["installed_path"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["team_identifier"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["cdhash_sha256"],
+					fleet.SoftwareFieldSeparator,
+					dataAsSoftware[0].ToUniqueStr(),
+				),
+			)
+			require.Contains(t, sPaths,
+				fmt.Sprintf(
+					"%s%s%s%s%s%s",
+					data[1]["installed_path"],
+					fleet.SoftwareFieldSeparator,
+					data[1]["team_identifier"],
+					fleet.SoftwareFieldSeparator,
+					fleet.SoftwareFieldSeparator,
+					dataAsSoftware[1].ToUniqueStr(),
+				),
+			)
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.UpdateHostSoftwareInstalledPathsFuncInvoked)
+		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 	})
 }
 
