@@ -100,6 +100,9 @@ func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID
 }
 
 func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error {
+	// TODO(lucas): Update "compliant" if device_id or user_principal_name were changed.
+	// TODO(lucas): Related remove entry from microsoft_compliance_partner_host_statuses when deleting a host.
+	// TODO(lucas): Clear compliance status (to NULL) from microsoft_compliance_partner_host_statuses when transfering a host to another team.
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO microsoft_compliance_partner_host_statuses
 		(host_id, device_id, user_principal_name)
