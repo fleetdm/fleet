@@ -67,6 +67,7 @@ import sortUtils from "utilities/sort";
 import {
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
+  MAX_SCRIPT_BATCH_TARGETS,
   PolicyResponse,
 } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
@@ -1603,6 +1604,13 @@ const ManageHostsPage = ({
     } else if (runScriptBatchFilterNotSupported && isAllMatchingHostsSelected) {
       disableRunScriptBatchTooltipContent =
         "Choose different filters to run a script";
+    } else if (
+      // default to blocking until count API responds
+      !totalFilteredHostsCount ||
+      totalFilteredHostsCount > MAX_SCRIPT_BATCH_TARGETS
+    ) {
+      disableRunScriptBatchTooltipContent =
+        "Target at most 5,000 hosts to run a script";
     }
 
     const secondarySelectActions: IActionButtonProps[] = [

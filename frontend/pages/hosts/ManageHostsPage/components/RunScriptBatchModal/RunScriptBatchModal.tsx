@@ -6,6 +6,7 @@ import classnames from "classnames";
 import { NotificationContext } from "context/notification";
 
 import { IScript } from "interfaces/script";
+import { getErrorReason } from "interfaces/errors";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -86,11 +87,18 @@ const RunScriptBatchModal = ({
         renderFlash(
           "success",
           `Script is running on ${
-            runByFilters ? totalFilteredHostsCount : selectedHostIds.length
+            runByFilters
+              ? totalFilteredHostsCount.toLocaleString()
+              : selectedHostIds.length.toLocaleString()
           } hosts, or will run as each host comes online. See host details for individual results.`
         );
       } catch (error) {
-        renderFlash("error", "Could not run script.");
+        let errorMessage = "Could not run script.";
+        if (getErrorReason(error).includes("too many hosts")) {
+          errorMessage =
+            "Could not run script: too many hosts targeted. Please try again with fewer hosts.";
+        }
+        renderFlash("error", errorMessage);
         // can determine more specific error case with additional call to upcoming summary endpoint
       } finally {
         setIsUpdating(false);
@@ -124,7 +132,7 @@ const RunScriptBatchModal = ({
         <p>
           Will run on{" "}
           <b>
-            {targetCount} host{targetCount > 1 ? "s" : ""}
+            {targetCount.toLocaleString()} host{targetCount > 1 ? "s" : ""}
           </b>
           . You can see individual script results on the host details page.
         </p>
