@@ -2149,6 +2149,10 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 			if fleet.IsNotFound(err) {
 				return nil
 			}
+			level.Error(logger).Log(
+				"msg", "unexpected missing LUKS2 disk encryption key",
+				"err", err,
+			)
 			return err
 		}
 		if dek == nil || dek.Base64EncryptedSalt == "" || dek.KeySlot == nil {
