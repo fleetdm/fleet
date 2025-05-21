@@ -14,6 +14,7 @@ import (
 	constants "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -1779,6 +1780,10 @@ WHERE
 	// Fill out the script details
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &summary, stmtScriptDetails, executionID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting script information for bulk execution summary")
+	}
+
+	if summary.TeamID == nil {
+		summary.TeamID = ptr.Uint(0)
 	}
 
 	return &summary, nil
