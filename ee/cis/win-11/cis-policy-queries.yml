@@ -8491,7 +8491,6 @@ spec:
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\RunAsPPL' and data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: DefensiveDepth
 ---
 apiVersion: v1
 kind: policy
