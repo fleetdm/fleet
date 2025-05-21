@@ -60,7 +60,7 @@ module.exports = {
 
     invalidToken: {
       description: 'The IdP auth token is invalid',
-      statusCode: 404,
+      statusCode: 403,
     },
 
     invalidCsr: {
@@ -123,7 +123,6 @@ module.exports = {
     // Ensure username from IdP auth matches username in CSR. If they don't match, perhaps the user
     // is trying to get a certificate with another user's name?
     if (csrEmail !== introspectUsername) {
-      console.log('CSR Email does not match IdP username');
       throw 'invalidToken';
     }
 
@@ -142,6 +141,7 @@ module.exports = {
         if (err) {
           reject(err);
         } else {
+          response.body = '-----BEGIN CERTIFICATE-----\n' + response.body + '\n-----END CERTIFICATE-----';
           resolve(response);
         }
       });
