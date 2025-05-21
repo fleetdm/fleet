@@ -8994,7 +8994,7 @@ spec:
     Note: This Group Policy path is provided by the Group Policy template
     'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsDefender\NIS\EnableConvertWarnToBlock' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\NIS\EnableConvertWarnToBlock' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
 ---
@@ -9298,7 +9298,7 @@ spec:
     Note: This Group Policy path is provided by the Group Policy template
     'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsDefender\HideExclusionsFromLocalUsers' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\HideExclusionsFromLocalUsers' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
 ---
