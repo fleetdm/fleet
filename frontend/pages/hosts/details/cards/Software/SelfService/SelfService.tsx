@@ -108,7 +108,6 @@ const SoftwareSelfService = ({
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: isSoftwareEnabled,
     keepPreviousData: true,
-    staleTime: 7000,
     onSuccess: (response) => {
       setSelfServiceData(response);
     },
@@ -292,7 +291,7 @@ const SoftwareSelfService = ({
             ...category,
             value: String(category.id), // DropdownWrapper only accepts string
           }))}
-          value={String(queryParams.category_id) || ""}
+          value={String(queryParams.category_id || 0)}
           onChange={onCategoriesDropdownChange}
           name="categories-dropdown"
           className={`${baseClass}__categories-dropdown`}

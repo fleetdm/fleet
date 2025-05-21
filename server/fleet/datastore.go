@@ -937,9 +937,6 @@ type Datastore interface {
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
 	// UpdateMDMData updates the `enrolled` field of the host with the given ID.
 	UpdateMDMData(ctx context.Context, hostID uint, enrolled bool) error
-	// SetOrUpdateHostEmailsFromMdmIdpAccounts sets or updates the host emails associated with the provided
-	// host based on the MDM IdP account information associated with the provided fleet enrollment reference.
-	SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 	// GetHostEmails returns the emails associated with the provided host for a given source, such as "google_chrome_profiles"
 	GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error)
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
@@ -1082,7 +1079,7 @@ type Datastore interface {
 	// Apple MDM
 
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
-	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars map[string]struct{}) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, p MDMAppleConfigProfile, usesFleetVars []string) (*MDMAppleConfigProfile, error)
 
 	// BulkUpsertMDMAppleConfigProfiles inserts or updates a configuration
 	// profiles in bulk with the current payload.
@@ -1203,7 +1200,7 @@ type Datastore interface {
 
 	// MDMResetEnrollment resets all tables with enrollment-related
 	// information if a matching row for the host exists.
-	MDMResetEnrollment(ctx context.Context, hostUUID string) error
+	MDMResetEnrollment(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
 
 	// ListMDMAppleDEPSerialsInTeam returns a list of serial numbers of hosts
 	// that are enrolled or pending enrollment in Fleet's MDM via DEP for the
@@ -1220,6 +1217,10 @@ type Datastore interface {
 
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
+
+	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
+	// MDM protocol seen time for the host with the given UUID
+	GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
 
 	// IncreasePolicyAutomationIteration marks the policy to fire automation again.
 	IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error
@@ -1524,6 +1525,12 @@ type Datastore interface {
 	// but deleted from Fleet.
 	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.Context, limit int) ([]string, error)
 
+	// ReconcileMDMAppleEnrollRef returns the legacy enrollment reference for a
+	// device with the given host UUID.
+	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (string, error)
+	// GetMDMIdPAccountByHostUUID returns the MDM IdP account that associated with the given host UUID.
+	GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*MDMIdPAccount, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
@@ -1658,7 +1665,7 @@ type Datastore interface {
 	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
 	// no team in a single transaction.
 	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile,
-		macDeclarations []*MDMAppleDeclaration, profilesVariables map[string]map[string]struct{}) (updates MDMProfilesUpdates, err error)
+		macDeclarations []*MDMAppleDeclaration, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
@@ -1994,6 +2001,9 @@ type Datastore interface {
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
 	// if a team is specified.
 	GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*MaintainedApp, error)
+
+	// GetMaintainedAppBySlug gets a Fleet-maintained app by its slug
+	GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*MaintainedApp, error)
 
 	// UpsertMaintainedApp inserts or updates a maintained app using the updated
 	// metadata provided via app.

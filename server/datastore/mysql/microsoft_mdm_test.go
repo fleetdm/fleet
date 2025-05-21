@@ -44,6 +44,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestBatchSetMDMWindowsProfiles", testBatchSetMDMWindowsProfiles},
 		{"TestMDMWindowsProfileLabels", testMDMWindowsProfileLabels},
 		{"TestMDMWindowsSaveResponse", testSaveResponse},
+		{"TestSetMDMWindowsProfilesWithVariables", testSetMDMWindowsProfilesWithVariables},
 	}
 
 	for _, c := range cases {
@@ -2655,4 +2656,59 @@ func createEnrolledDevice(t *testing.T, ds *Datastore) *fleet.MDMWindowsEnrolled
 	err := ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
 	require.NoError(t, err)
 	return enrolledDevice
+}
+
+func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
+	// NOTE: as of this code being written, Fleet variables are not yet supported
+	// in Windows profiles, but the profile-variable batch-association function
+	// is already implemented as platform-independent (as it was not
+	// harder/longer to do this way). This just sanity-checks that the function
+	// works as expected for Windows.
+
+	ctx := context.Background()
+
+	checkProfileVariables := func(profUUID string, teamID uint, wantVars []string) {
+		var gotVars []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &gotVars, `
+				SELECT
+					fv.name
+				FROM
+					mdm_windows_configuration_profiles mwcp
+					INNER JOIN mdm_configuration_profile_variables mcpv ON mwcp.profile_uuid = mcpv.windows_profile_uuid
+					INNER JOIN fleet_variables fv ON mcpv.fleet_variable_id = fv.id
+				WHERE
+					mwcp.name = ? AND
+					mwcp.team_id = ?`, "name-"+profUUID, teamID) // test profiles are created with a name = "name-" + uuid
+		})
+		for i := range wantVars {
+			wantVars[i] = "FLEET_VAR_" + wantVars[i]
+		}
+		require.ElementsMatch(t, wantVars, gotVars)
+	}
+
+	globalProfiles := []string{
+		InsertWindowsProfileForTest(t, ds, 0),
+		InsertWindowsProfileForTest(t, ds, 0),
+	}
+
+	// both profiles have no variable
+	err := batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
+		{ProfileUUID: globalProfiles[0], FleetVariables: nil},
+		{ProfileUUID: globalProfiles[1], FleetVariables: nil},
+	}, "windows")
+	require.NoError(t, err)
+
+	checkProfileVariables(globalProfiles[0], 0, nil)
+	checkProfileVariables(globalProfiles[1], 0, nil)
+
+	// add some variables
+	err = batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
+		{ProfileUUID: globalProfiles[0], FleetVariables: []string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix + "ZZZ"}},
+		{ProfileUUID: globalProfiles[1], FleetVariables: []string{fleet.FleetVarHostEndUserIDPGroups}},
+	}, "windows")
+	require.NoError(t, err)
+
+	checkProfileVariables(globalProfiles[0], 0, []string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix})
+	checkProfileVariables(globalProfiles[1], 0, []string{fleet.FleetVarHostEndUserIDPGroups})
 }

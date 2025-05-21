@@ -670,8 +670,6 @@ type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool
 
 type UpdateMDMDataFunc func(ctx context.Context, hostID uint, enrolled bool) error
 
-type SetOrUpdateHostEmailsFromMdmIdpAccountsFunc func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
-
 type GetHostEmailsFunc func(ctx context.Context, hostUUID string, source string) ([]string, error)
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
@@ -768,7 +766,7 @@ type UpdateVulnerabilityHostCountsFunc func(ctx context.Context, maxRoutines int
 
 type IsCVEKnownToFleetFunc func(ctx context.Context, cve string) (bool, error)
 
-type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error)
+type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error)
 
 type BulkUpsertMDMAppleConfigProfilesFunc func(ctx context.Context, payload []*fleet.MDMAppleConfigProfile) error
 
@@ -834,7 +832,7 @@ type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host) error
 
 type RestoreMDMApplePendingDEPHostFunc func(ctx context.Context, host *fleet.Host) error
 
-type MDMResetEnrollmentFunc func(ctx context.Context, hostUUID string) error
+type MDMResetEnrollmentFunc func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error
 
 type ListMDMAppleDEPSerialsInTeamFunc func(ctx context.Context, teamID *uint) ([]string, error)
 
@@ -843,6 +841,8 @@ type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uin
 type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error)
 
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
+
+type GetNanoMDMEnrollmentTimesFunc func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
 
 type IncreasePolicyAutomationIterationFunc func(ctx context.Context, policyID uint) error
 
@@ -1010,6 +1010,10 @@ type GetMDMAppleEnrolledDeviceDeletedFromFleetFunc func(ctx context.Context, hos
 
 type ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc func(ctx context.Context, limit int) ([]string, error)
 
+type ReconcileMDMAppleEnrollRefFunc func(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error)
+
+type GetMDMIdPAccountByHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error)
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -1074,7 +1078,7 @@ type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindow
 
 type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
-type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables map[string]map[string]struct{}) (updates fleet.MDMProfilesUpdates, err error)
+type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
@@ -1255,6 +1259,8 @@ type ListAvailableFleetMaintainedAppsFunc func(ctx context.Context, teamID *uint
 type ClearRemovedFleetMaintainedAppsFunc func(ctx context.Context, slugsToKeep []string) error
 
 type GetMaintainedAppByIDFunc func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error)
+
+type GetMaintainedAppBySlugFunc func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error)
 
 type UpsertMaintainedAppFunc func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error)
 
@@ -2311,9 +2317,6 @@ type DataStore struct {
 	UpdateMDMDataFunc        UpdateMDMDataFunc
 	UpdateMDMDataFuncInvoked bool
 
-	SetOrUpdateHostEmailsFromMdmIdpAccountsFunc        SetOrUpdateHostEmailsFromMdmIdpAccountsFunc
-	SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked bool
-
 	GetHostEmailsFunc        GetHostEmailsFunc
 	GetHostEmailsFuncInvoked bool
 
@@ -2572,6 +2575,9 @@ type DataStore struct {
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
 
+	GetNanoMDMEnrollmentTimesFunc        GetNanoMDMEnrollmentTimesFunc
+	GetNanoMDMEnrollmentTimesFuncInvoked bool
+
 	IncreasePolicyAutomationIterationFunc        IncreasePolicyAutomationIterationFunc
 	IncreasePolicyAutomationIterationFuncInvoked bool
 
@@ -2820,6 +2826,12 @@ type DataStore struct {
 
 	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc        ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc
 	ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFuncInvoked bool
+
+	ReconcileMDMAppleEnrollRefFunc        ReconcileMDMAppleEnrollRefFunc
+	ReconcileMDMAppleEnrollRefFuncInvoked bool
+
+	GetMDMIdPAccountByHostUUIDFunc        GetMDMIdPAccountByHostUUIDFunc
+	GetMDMIdPAccountByHostUUIDFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -3190,6 +3202,9 @@ type DataStore struct {
 	GetMaintainedAppByIDFunc        GetMaintainedAppByIDFunc
 	GetMaintainedAppByIDFuncInvoked bool
 
+	GetMaintainedAppBySlugFunc        GetMaintainedAppBySlugFunc
+	GetMaintainedAppBySlugFuncInvoked bool
+
 	UpsertMaintainedAppFunc        UpsertMaintainedAppFunc
 	UpsertMaintainedAppFuncInvoked bool
 
@@ -3205,7 +3220,7 @@ type DataStore struct {
 	RenewMDMManagedCertificatesFunc        RenewMDMManagedCertificatesFunc
 	RenewMDMManagedCertificatesFuncInvoked bool
 
-	ListHostMDMManagedCertificatesFunc ListHostMDMManagedCertificatesFunc
+	ListHostMDMManagedCertificatesFunc        ListHostMDMManagedCertificatesFunc
 	ListHostMDMManagedCertificatesFuncInvoked bool
 
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
@@ -5584,13 +5599,6 @@ func (s *DataStore) UpdateMDMData(ctx context.Context, hostID uint, enrolled boo
 	return s.UpdateMDMDataFunc(ctx, hostID, enrolled)
 }
 
-func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-	s.mu.Lock()
-	s.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc(ctx, hostID, fleetEnrollmentRef)
-}
-
 func (s *DataStore) GetHostEmails(ctx context.Context, hostUUID string, source string) ([]string, error) {
 	s.mu.Lock()
 	s.GetHostEmailsFuncInvoked = true
@@ -5927,7 +5935,7 @@ func (s *DataStore) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 	return s.IsCVEKnownToFleetFunc(ctx, cve)
 }
 
-func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
+func (s *DataStore) NewMDMAppleConfigProfile(ctx context.Context, p fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
@@ -6158,11 +6166,11 @@ func (s *DataStore) RestoreMDMApplePendingDEPHost(ctx context.Context, host *fle
 	return s.RestoreMDMApplePendingDEPHostFunc(ctx, host)
 }
 
-func (s *DataStore) MDMResetEnrollment(ctx context.Context, hostUUID string) error {
+func (s *DataStore) MDMResetEnrollment(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 	s.mu.Lock()
 	s.MDMResetEnrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMResetEnrollmentFunc(ctx, hostUUID)
+	return s.MDMResetEnrollmentFunc(ctx, hostUUID, scepRenewalInProgress)
 }
 
 func (s *DataStore) ListMDMAppleDEPSerialsInTeam(ctx context.Context, teamID *uint) ([]string, error) {
@@ -6191,6 +6199,13 @@ func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet
 	s.GetNanoMDMEnrollmentFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetNanoMDMEnrollmentFunc(ctx, id)
+}
+
+func (s *DataStore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+	s.mu.Lock()
+	s.GetNanoMDMEnrollmentTimesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetNanoMDMEnrollmentTimesFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) IncreasePolicyAutomationIteration(ctx context.Context, policyID uint) error {
@@ -6774,6 +6789,20 @@ func (s *DataStore) ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx context.C
 	return s.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleetFunc(ctx, limit)
 }
 
+func (s *DataStore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
+	s.mu.Lock()
+	s.ReconcileMDMAppleEnrollRefFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReconcileMDMAppleEnrollRefFunc(ctx, enrollRef, machineInfo)
+}
+
+func (s *DataStore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+	s.mu.Lock()
+	s.GetMDMIdPAccountByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMIdPAccountByHostUUIDFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
 	s.mu.Lock()
 	s.WSTEPStoreCertificateFuncInvoked = true
@@ -6998,7 +7027,7 @@ func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp f
 	return s.SetOrUpdateMDMWindowsConfigProfileFunc(ctx, cp)
 }
 
-func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables map[string]map[string]struct{}) (updates fleet.MDMProfilesUpdates, err error) {
+func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error) {
 	s.mu.Lock()
 	s.BatchSetMDMProfilesFuncInvoked = true
 	s.mu.Unlock()
@@ -7633,6 +7662,13 @@ func (s *DataStore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID
 	s.GetMaintainedAppByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMaintainedAppByIDFunc(ctx, appID, teamID)
+}
+
+func (s *DataStore) GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+	s.mu.Lock()
+	s.GetMaintainedAppBySlugFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMaintainedAppBySlugFunc(ctx, slug, teamID)
 }
 
 func (s *DataStore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {

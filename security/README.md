@@ -43,7 +43,7 @@ Similarly, for `CVE-2024-8260` on package `github.com/open-policy-agent/opa` whi
 vexctl create --product="fleet,pkg:golang/github.com/open-policy-agent/opa" \
   --vuln="CVE-2024-8260" \
   --status="not_affected" \
-  --author="@luacsmrod" \
+  --author="@lucasmrod" \
   --justification="vulnerable_code_cannot_be_controlled_by_adversary" \
   --status-note="Fleet doesn't run on Windows, so it's not affected by this vulnerability." > security/vex/fleetctl/CVE-2024-8260.vex.json
 ```

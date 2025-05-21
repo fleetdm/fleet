@@ -95,7 +95,7 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
+		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -269,7 +269,7 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
+		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -501,7 +501,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		return []fleet.ScriptResponse{}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -719,7 +719,7 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		appliedMacProfiles = macProfiles
 		appliedWinProfiles = winProfiles
@@ -1006,7 +1006,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		appliedMacProfiles = macProfiles
 		appliedWinProfiles = winProfiles
@@ -1019,7 +1019,7 @@ func TestGitOpsFullTeam(t *testing.T) {
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
 	}
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
 		return &profile, nil
 	}
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -1047,6 +1047,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 	}
 	ds.DeleteMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
 	}
 
 	// Team
@@ -1403,7 +1406,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
+		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		assert.Empty(t, macProfiles)
 		assert.Empty(t, winProfiles)
@@ -1534,6 +1537,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
 		return vppToken, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
 	}
 
 	createFakeITunesAndVPPServices(t)
@@ -1746,7 +1752,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
+		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		assert.Empty(t, macProfiles)
 		assert.Empty(t, winProfiles)
@@ -2192,6 +2198,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
+	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(testing_utils.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
@@ -2430,6 +2439,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
+			}
 
 			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -2458,6 +2470,9 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	}
 	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 		return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
 	}
 
 	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_software_installer_valid_env_query.yml"})
@@ -2556,6 +2571,9 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 						Name: "b",
 					},
 				}, nil
+			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
 			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
@@ -2669,6 +2687,9 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 				return map[uint]*fleet.ExistingSoftwareInstaller{}, nil
 			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
+			}
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			globalFile := "./testdata/gitops/global_config_no_paths.yml"
@@ -2759,6 +2780,9 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 					},
 				}, nil
 			}
+			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+				return []uint{}, nil
+			}
 
 			found := make(map[string]uint)
 			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
@@ -2830,6 +2854,9 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 			return nil, sql.ErrNoRows
 		}
 		return token, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
 	}
 
 	buf, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_vpp.yml", "-f", "testdata/gitops/team_vpp_valid_app.yml"})
@@ -3190,7 +3217,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-		macDecls []*fleet.MDMAppleDeclaration, vars map[string]map[string]struct{},
+		macDecls []*fleet.MDMAppleDeclaration, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -3259,7 +3286,7 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	) error {
 		return nil
 	}
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, vars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
 		return nil, nil
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {

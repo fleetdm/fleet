@@ -36,7 +36,7 @@ import (
 // addHostMDMCommandsBatchSize is the number of host MDM commands to add in a single batch. This is a var so that it can be modified in tests.
 var addHostMDMCommandsBatchSize = 10000
 
-func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars map[string]struct{}) (*fleet.MDMAppleConfigProfile, error) {
+func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 	stmt := `
 INSERT INTO
@@ -107,7 +107,9 @@ INSERT INTO
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
-		if err := batchSetProfileVariableAssociationsDB(ctx, tx, map[string]map[string]struct{}{profUUID: usesFleetVars}, "darwin"); err != nil {
+		if err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+			{ProfileUUID: profUUID, FleetVariables: usesFleetVars},
+		}, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile variable associations")
 		}
 
@@ -1857,7 +1859,7 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMAppleConfigProfile,
-	profilesVariablesByIdentifier map[string]map[string]struct{},
+	profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updatedDB bool, err error) {
 	const loadExistingProfiles = `
 SELECT
@@ -2003,11 +2005,19 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrap(ctx, err, "load inserted/updated profiles")
 		}
 
+		lookupVariablesByIdentifier := make(map[string][]string, len(profilesVariablesByIdentifier))
+		for _, p := range profilesVariablesByIdentifier {
+			lookupVariablesByIdentifier[p.Identifier] = p.FleetVariables
+		}
+
 		// collect the profiles+variables that need to be upserted, keyed by
 		// profile UUID as needed by the batch-set profile variables function.
-		profilesVarsToUpsert := make(map[string]map[string]struct{}, len(insertedUpdatedProfs))
+		profilesVarsToUpsert := make([]fleet.MDMProfileUUIDFleetVariables, 0, len(insertedUpdatedProfs))
 		for _, p := range insertedUpdatedProfs {
-			profilesVarsToUpsert[p.ProfileUUID] = profilesVariablesByIdentifier[p.Identifier]
+			profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
+				ProfileUUID:    p.ProfileUUID,
+				FleetVariables: lookupVariablesByIdentifier[p.Identifier],
+			})
 		}
 
 		if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "darwin"); err != nil {
@@ -2917,7 +2927,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               command_uuid,
               checksum,
               secrets_updated_at,
-			  ignore_error
+			  ignore_error,
+			  variables_updated_at
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
@@ -2929,7 +2940,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               ignore_error = VALUES(ignore_error),
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
-              command_uuid = VALUES(command_uuid)`,
+              command_uuid = VALUES(command_uuid),
+			  variables_updated_at = VALUES(variables_updated_at)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
 
@@ -2946,10 +2958,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	}
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
-			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError,
+			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError, p.VariablesUpdatedAt,
 		}
 		return valuePart, args
 	}
@@ -3015,12 +3027,25 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 
 	// We need to run with retry due to potential deadlocks with BulkSetPendingMDMHostProfiles.
 	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
+
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, `
+		var err error
+		if profile.VariablesUpdatedAt != nil {
+			// Only update variable_updated_at if the caller supplied it. Not all callers care but
+			// we don't want to "lose" it since the install time should never need to be earlier
+			// than it currently is set to.
+			_, err = tx.ExecContext(ctx, `
+          UPDATE host_mdm_apple_profiles
+          SET status = ?, operation_type = ?, detail = ?, variables_updated_at = ?
+          WHERE host_uuid = ? AND command_uuid = ?
+        `, status, profile.OperationType, detail, profile.VariablesUpdatedAt, profile.HostUUID, profile.CommandUUID)
+		} else {
+			_, err = tx.ExecContext(ctx, `
           UPDATE host_mdm_apple_profiles
           SET status = ?, operation_type = ?, detail = ?
           WHERE host_uuid = ? AND command_uuid = ?
         `, status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID)
+		}
 		return err
 	})
 	return err
@@ -4303,19 +4328,59 @@ WHERE
 	return nil
 }
 
-func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var host fleet.Host
-		err := sqlx.GetContext(
-			ctx, tx, &host,
-			`SELECT id, platform, team_id FROM hosts WHERE uuid = ? LIMIT 1`, hostUUID,
+		var hosts []fleet.Host
+		err := sqlx.SelectContext(
+			ctx, tx, &hosts,
+			`SELECT id, platform, team_id FROM hosts WHERE uuid = ?`, hostUUID,
 		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting host info from UUID")
+		switch {
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "resetting mdm enrollment: getting host info from UUID")
+		case len(hosts) == 0:
+			return ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID), "resetting mdm enrollment: getting host info from UUID")
+		case len(hosts) > 1:
+			// This shouldn't happen, but if it does, we log the IDs of the hosts
+			// with the same UUID for debugging purposes.
+			ids := make([]uint, len(hosts))
+			for _, host := range hosts {
+				ids = append(ids, host.ID)
+			}
+			level.Info(ds.logger).Log("msg", "multiple hosts found with the same uuid", "host_uuid", "host_ids", fmt.Sprintf("%v", ids))
 		}
+		host := hosts[0]
 
 		if !fleet.MDMSupported(host.Platform) {
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
+		}
+
+		// Reconcile host_emails and host_scim_users sourced from mdm_idp_accounts.
+		//
+		// Note that we aren't deleting the mdm_idp_accounts themselves, just prior associations
+		// for the host. This ensures that hosts that reenroll their emails up-to-date.
+		switch host.Platform {
+		case "darwin", "ios", "ipados":
+			idp, err := reconcileHostEmailsFromMdmIdpAccountsDB(ctx, tx, ds.logger, host.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
+			}
+			// TODO: confirm approach with Victor
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_scim_user WHERE host_id = ?`, host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting host_scim_users")
+			}
+			if err := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, idp); err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
+			}
+		}
+
+		// TODO: Add test coverage for scepRenewalInProgress branching logic.
+		if scepRenewalInProgress {
+			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
+			// much more difficult to reason about the state of the host. We should try instead
+			// to centralize the flow control in the lifecycle methods.
+			level.Info(ds.logger).Log("host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
+			return nil
 		}
 
 		// Deleting profiles from this table will cause all profiles to
@@ -6195,4 +6260,248 @@ LIMIT ?
 		return nil, ctxerr.Wrap(ctx, err, "list mdm apple enrolled but deleted iDevices")
 	}
 	return res, nil
+}
+
+func (ds *Datastore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+	res := []struct {
+		LastMDMEnrollmentTime *time.Time `db:"authenticate_at"`
+		LastMDMSeenTime       *time.Time `db:"last_seen_at"`
+	}{}
+	// We are specifically only looking at the singular device enrollment row and not the
+	// potentially many user enrollment rows that will exist for a given device. The device
+	// enrollment row is the only one that gets regularly updated with the last seen time. Along
+	// those same lines authenticate_at gets updated only at the authenticate step during the
+	// enroll process and as such is a good indicator of the last enrollment or reenrollment.
+	query := `
+	SELECT nd.authenticate_at, ne.last_seen_at
+	FROM nano_devices nd
+	  INNER JOIN nano_enrollments ne ON ne.id = nd.id 
+	WHERE ne.type = 'Device' AND nd.id = ?`
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, query, hostUUID)
+
+	if err == sql.ErrNoRows || len(res) == 0 {
+		return nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
+	}
+	return res[0].LastMDMEnrollmentTime, res[0].LastMDMSeenTime, nil
+}
+
+func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
+	if machineInfo == nil {
+		level.Info(ds.logger).Log("msg", "reconcile mdm apple enroll ref: machine info is nil")
+		return "", ctxerr.New(ctx, "machine info is nil")
+	}
+
+	var result string
+	// TODO: maybe we don't need a transaction here?
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := associateHostMDMIdPAccountDB(ctx, tx, machineInfo.UDID, enrollRef); err != nil {
+			return ctxerr.Wrap(ctx, err, "associate host mdm idp account")
+		}
+		legacyRef, err := getMDMAppleLegacyEnrollRefDB(ctx, tx, ds.logger, machineInfo.UDID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get mdm apple legacy enroll ref")
+		}
+		result = legacyRef
+		return nil
+	})
+
+	// TODO: when should we delete from host_mdm_idp_accounts?
+
+	return result, err
+}
+
+func associateHostMDMIdPAccountDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, acctUUID string) error {
+	const stmt = `
+INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid)
+VALUES (?, ?)
+ON DUPLICATE KEY UPDATE
+	account_uuid = VALUES(account_uuid)`
+
+	_, err := tx.ExecContext(ctx, stmt, hostUUID, acctUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "associate host mdm idp account")
+	}
+	return nil
+}
+
+func getMDMAppleLegacyEnrollRefDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostUUID string) (string, error) {
+	const stmt = `SELECT enroll_ref FROM legacy_host_mdm_enroll_refs WHERE host_uuid = ?`
+
+	var enrollRefs []string
+	if err := sqlx.SelectContext(ctx, tx, &enrollRefs, stmt, hostUUID); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get mdm apple legacy enroll ref")
+	}
+
+	var result string
+	if len(enrollRefs) > 0 {
+		// if we have more than one ref, we'll just use the first one
+		result = enrollRefs[0]
+	}
+	if len(enrollRefs) > 1 {
+		// this should not happen, but if it does we want to know about it
+		level.Info(logger).Log("msg", "host uuid has multiple legacy enroll refs", "host_uuid", hostUUID, "enroll_refs", fmt.Sprintf("%+v", enrollRefs))
+	}
+
+	return result, nil
+}
+
+func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
+	idp, err := getMDMIdPAccountByHostID(ctx, tx, logger, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account email")
+	}
+
+	var hostEmails []fleet.HostDeviceMapping
+	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source = ?`
+	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host_emails")
+	}
+
+	// TODO: discuss email vs. username with Victor
+	var idpEmail, idpAccountUUID string
+	if idp != nil {
+		idpEmail = idp.Email
+		idpAccountUUID = idp.UUID
+	}
+
+	// if we don't have idp info, we can just delete any prior host mdm idp account emails
+	if idpEmail == "" {
+		if len(hostEmails) == 0 {
+			// nothing to do
+			level.Info(logger).Log("msg", "reconcile host emails: no mdm idp account and no host emails", "host_id", hostID, "account_uuid", idpAccountUUID)
+			return nil, nil
+		}
+		// delete any prior host mdm idp account emails
+		delStmt := "DELETE FROM host_emails WHERE host_id = ? AND source = ?"
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete host_emails")
+		}
+		return idp, nil
+	}
+
+	// analyze existing host emails to see if we have a match; we also want to handle potential
+	// duplicates because we don't have good constraints on the host_emails table
+	hits, misses := []fleet.HostDeviceMapping{}, []fleet.HostDeviceMapping{}
+	for _, he := range hostEmails {
+		if he.Email == idp.Email {
+			hits = append(hits, he)
+		} else {
+			misses = append(misses, he)
+		}
+	}
+
+	idsToDelete := []uint{}
+	if len(misses) > 0 {
+		// log the emails we'll be deleting
+		msg := "reconcile host emails: deleting emails"
+		for _, m := range misses {
+			idsToDelete = append(idsToDelete, m.ID)
+			msg += fmt.Sprintf(" %s", m.Email)
+		}
+		level.Info(logger).Log("msg", msg, "host_id", hostID)
+	}
+
+	var idToUpdate uint
+	if len(hits) > 0 {
+		// if we have more than one hit, we'll just update the first one
+		idToUpdate = hits[0].ID
+	}
+	if len(hits) > 1 {
+		// this should not happen, but if it does we want to know about it
+		level.Info(logger).Log("msg", "reconcile host emails: found duplicate mdm idp account host email", "host_id", hostID, "email", idp.Email, "account_uuid", idp.UUID)
+		for _, h := range hits[1:] {
+			idsToDelete = append(idsToDelete, h.ID) // we'll delete all but the first
+		}
+	}
+
+	if len(idsToDelete) > 0 {
+		// perform the delete
+		stmt, args, err := sqlx.In("DELETE FROM host_emails WHERE id IN (?)", idsToDelete)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "prepare delete host_emails arguments")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete host_emails")
+		}
+	}
+
+	if idToUpdate != 0 {
+		// perform the update
+		level.Info(logger).Log("msg", "reconcile host emails: update host mdm idp account email", "host_id", hostID, "email", idpEmail)
+		updateStmt := "UPDATE host_emails SET email = ? WHERE id = ?"
+		if _, err := tx.ExecContext(ctx, updateStmt, idpEmail, idToUpdate); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update host_emails")
+		}
+		return idp, nil
+	}
+
+	// insert new email
+	level.Info(logger).Log("msg", "reconcile host emails: insert host mdm idp account email", "host_id", hostID, "email", idpEmail, "account_uuid", idp.UUID)
+	insStmt := "INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)"
+	if _, err := tx.ExecContext(ctx, insStmt, idpEmail, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "insert host_emails")
+	}
+
+	return idp, nil
+}
+
+func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = (SELECT uuid FROM hosts WHERE id = ?)`
+	var dest []string
+	if err := sqlx.SelectContext(ctx, q, &dest, stmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host_mdm_idp_accounts")
+	}
+
+	var acctUUID string
+	switch {
+	case len(dest) == 0:
+		// TODO: consider falling back to the legacy enroll ref
+		level.Info(logger).Log("msg", "get host mdm idp accounts: no account found", "host_id", hostID)
+	default:
+		if len(dest) > 1 {
+			// this should not happen, but if it does we want to know about it
+			level.Info(logger).Log("msg", "get host mdm idp accounts: found multiple accounts", "host_id", hostID, "acct_uuids", fmt.Sprintf("%+v", dest))
+		}
+		acctUUID = dest[0]
+	}
+
+	var idp fleet.MDMIdPAccount
+	if acctUUID != "" {
+		stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
+		if err := sqlx.GetContext(ctx, q, &idp, stmt, acctUUID); err != nil {
+			if err == sql.ErrNoRows {
+				return nil, nil // TODO: maybe return a not found error?
+			}
+			return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account")
+		}
+	}
+
+	return &idp, nil
+}
+
+func (ds *Datastore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+	return getMDMIdPAccountByHostUUID(ctx, ds.reader(ctx), hostUUID)
+}
+
+func getMDMIdPAccountByHostUUID(ctx context.Context, q sqlx.QueryerContext, hostUUID string) (*fleet.MDMIdPAccount, error) {
+	stmt := `
+SELECT 
+	uuid, username, fullname, email 
+FROM 
+	mdm_idp_accounts 
+WHERE 
+	uuid = (SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = ?)`
+
+	var idp fleet.MDMIdPAccount
+	if err := sqlx.GetContext(ctx, q, &idp, stmt, hostUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // TODO: maybe return a not found error?
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account")
+	}
+
+	return &idp, nil
 }

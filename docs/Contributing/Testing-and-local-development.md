@@ -795,7 +795,7 @@ To fully test e2e during DEP enrollment however, you need:
 With an accessible Fleet server and IdP server, you can configure your env:
 
 - If you're going to use the SimpleSAML server that is automatically started in local development, edit [./tools/saml/config.php](https://github.com/fleetdm/fleet/blob/6cfef3d3478f02227677071fe3a62bada77c1139/tools/saml/config.php) and replace `https://localhost:8080` everywhere with the URL of your local tunnel.
-- After saving the file, restart the SimpleSAML service (eg: `docker-compose restart saml_idp`)
+- After saving the file, restart the SimpleSAML service (eg: `docker compose restart saml_idp`)
 - Finally, edit your app configuration:
 
 ```yaml

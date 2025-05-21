@@ -774,6 +774,9 @@ type HostDetail struct {
 	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
 	EndUsers          []HostEndUser          `json:"end_users,omitempty"`
+
+	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
+	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
 }
 
 type HostEndUser struct {

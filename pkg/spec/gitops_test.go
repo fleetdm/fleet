@@ -181,6 +181,17 @@ func TestValidGitOpsYaml(t *testing.T) {
 							assert.Empty(t, pkg.UninstallScript.Path)
 						}
 					}
+					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
+					for _, fma := range gitops.Software.FleetMaintainedApps {
+						switch fma.Slug {
+						case "slack/darwin":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+						case "box-drive/windows":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+						default:
+							assert.FailNow(t, "unexpected slug found in gitops file", "slug: %s", fma.Slug)
+						}
+					}
 				} else {
 					// Check org settings
 					serverSettings, ok := gitops.OrgSettings["server_settings"]
@@ -929,7 +940,7 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must include either a package path or app store app ID")
+	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id or a hash_sha256")
 
 	config = getTeamConfig([]string{"policies"})
 	config += `
