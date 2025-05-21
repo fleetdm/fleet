@@ -1,7 +1,6 @@
 package tables
 
 import (
-	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -9,11 +8,6 @@ import (
 )
 
 func TestUp_20250501162727(t *testing.T) {
-	require.NoError(t, os.Setenv("FLEET_TEST_DISABLE_COLLATION_UPDATES", "true"))
-	t.Cleanup(func() {
-		require.NoError(t, os.Unsetenv("FLEET_TEST_DISABLE_COLLATION_UPDATES"))
-	})
-
 	db := applyUpToPrev(t)
 
 	// Apply current migration.

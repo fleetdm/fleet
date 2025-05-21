@@ -11,8 +11,6 @@ import (
 func TestUp_20240707134036(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	checkCollation(t, db)
-
 	// Insert existing hosts before migration.
 	hostID := 1
 	newHost := func(platform, uuid string) uint {

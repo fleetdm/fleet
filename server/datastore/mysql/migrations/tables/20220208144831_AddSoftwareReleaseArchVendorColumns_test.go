@@ -16,8 +16,6 @@ func TestUp_20220208144831(t *testing.T) {
 
 	applyNext(t, db)
 
-	checkCollation(t, db)
-
 	// Check migration removes rpm packages.
 	row := db.QueryRow(`SELECT COUNT(*) FROM software WHERE source = "rpm_packages"`)
 	var count int

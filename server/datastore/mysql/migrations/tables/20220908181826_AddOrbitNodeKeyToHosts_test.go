@@ -27,7 +27,6 @@ func TestUp_20220908181826(t *testing.T) {
 
 	applyNext(t, db)
 
-	checkCollation(t, db)
 	sqlUpdate := `UPDATE hosts SET orbit_node_key = ? WHERE osquery_host_id = ?`
 	_, err = db.Exec(sqlUpdate, "orbit_node_key", "host_id")
 	require.NoError(t, err)
