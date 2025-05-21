@@ -158,7 +158,7 @@ resource "aws_backup_plan" "s3_backup_plan" {
 resource "aws_backup_selection" "s3_selection" {
   name         = "s3_backup_selection"
   iam_role_arn = resource.aws_iam_role.aws_backup.arn
-  plan_id      = resource.aws_backup_plan.snapshot_backup_plan.id
+  plan_id      = resource.aws_backup_plan.s3_backup_plan.id
   resources = [
     "arn:aws:s3:::*-software-installers-*"
   ]
