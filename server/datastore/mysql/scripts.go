@@ -660,6 +660,27 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 			return ctxerr.Wrapf(ctx, err, "cancel pending script executions")
 		}
 
+		// load hosts that will have their upcoming_activities deleted, if that
+		// activity is "activated", as that means we will have to call
+		// activateNextUpcomingActivity for those hosts.
+		loadAffectedHostsStmt := `
+			SELECT 
+				host_id
+			FROM
+				upcoming_activities ua
+				INNER JOIN script_upcoming_activities sua
+					ON ua.id = sua.upcoming_activity_id
+			WHERE sua.script_id = ? AND
+				ua.activity_type = 'script' AND
+				ua.activated_at IS NOT NULL AND
+				(ua.payload->'$.sync_request' = 0 OR
+					ua.created_at >= NOW() - INTERVAL ? SECOND)`
+		var affectedHosts []uint
+		if err := sqlx.SelectContext(ctx, tx, &affectedHosts, loadAffectedHostsStmt,
+			id, int(constants.MaxServerWaitTime.Seconds())); err != nil {
+			return ctxerr.Wrapf(ctx, err, "load affected hosts")
+		}
+
 		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
 			USING upcoming_activities
 				INNER JOIN script_upcoming_activities sua
@@ -688,6 +709,14 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 				}
 			}
 			return ctxerr.Wrap(ctx, err, "delete script")
+		}
+
+		// TODO: maybe process in batches outside the transaction to avoid a long
+		// transaction with risks of deadlocks if there are many affected hosts.
+		for _, hostID := range affectedHosts {
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
 		}
 
 		return nil
