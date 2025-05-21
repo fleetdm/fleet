@@ -1716,7 +1716,7 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, script.ID, summary.ScriptID)
 	require.Equal(t, script.Name, summary.ScriptName)
-	require.Equal(t, script.TeamID, summary.TeamID)
+	require.Equal(t, uint(0), *summary.TeamID)
 
 	// The summary should have two pending hosts and two errored ones, because
 	// the script is not compatible with the hostNoScripts and hostWindows.
