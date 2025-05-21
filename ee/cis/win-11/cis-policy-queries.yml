@@ -8456,12 +8456,39 @@ spec:
   platforms: win11
   platform: windows
   description: |
-    This policy setting controls whether the Local Security Authority Subservice Service (LSASS) runs in protected mode and also has the option to lock in protected mode with Unified Extensible Firmware Interface (UEFI). The Local Security Authority (LSA), which includes the LSASS process, validates users for local and remote sign-ins and enforces local security policies.
+    This policy setting controls whether the Local Security Authority Subservice Service
+    (LSASS) runs in protected mode and also has the option to lock in protected mode with
+    Unified Extensible Firmware Interface (UEFI). The Local Security Authority (LSA), which
+    includes the LSASS process, validates users for local and remote sign-ins and enforces
+    local security policies.
+    The recommended state for this setting is: Enabled: Enabled with UEFI Lock.
+    Note: This additional protection to prevent reading memory and code injection by non-
+    protected processes is supported by Windows 8.1 (or newer).
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled: Enabled with UEFI Lock:
     'Computer Configuration\Policies\Administrative Templates\System\Local Security Authority\Configures LSASS to run as a protected process'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template LocalSecurityAuthority.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v1.0 (or newer).
+    Note 2: In the Microsoft Windows 11 Release 23H2 Administrative Templates, the
+    registry location of 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa:RunAsPPL' was set
+    for Configures LSASS to run as a protected process. This same registry location and
+    value was also created if the setting Ensure 'LSA Protection' is set to 'Enabled' was also
+    applied. This appears to have been a mistake in the ADMX/ADML Templates for that release.
+    Starting with the Microsoft Windows 11 Release 24H2 Administrative Templates, the
+    setting Configures LSASS to run as a protected process has a new registry location of
+    'HKLM\Software\Policies\Microsoft\Windows\System'. In addition, the setting LSA
+    Protection will be displayed by GPME when this setting (Configures LSASS to run as a protected process) is configured.
+    If Configures LSASS to run as a protected process was configured using an older
+    version of the ADML/ADML templates, the new registry location will not auto-apply to
+    the system, and assessment scans using the latest benchmark might fail. To fix this
+    issue, the ADMX/ADML templates must be updated to the latest version, the setting
+    removed from the GPO, and then added back in.
+    If the Microsoft Windows 10 Benchmark is applied, LSA Protection is configured via a
+    separate recommendation for older versions of the Windows 10 Operating System
+    using the SecGuide.admx/adml templates. That configuration is checked for separately
+    from this recommendation.
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\Control\LSA\RunAsPPL' and data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\RunAsPPL' and data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: DefensiveDepth
