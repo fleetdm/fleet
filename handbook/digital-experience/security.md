@@ -860,9 +860,11 @@ Please also see [privacy](https://fleetdm.com/legal/privacy)
 
 ## Use of AI
 
-| Question | Answer |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Do your systems or staff use artificial intelligence, machine learning, or automated decision making  (ChatGPT, Google Bard, etc.) to provide the in-scope services? | Yes. All AI functionality is opt-in. Fleet only uses AI in one place to help create descriptions of queries. |
+| Question |
+| ----------- |
+| Do your systems or staff use artificial intelligence, machine learning, or automated decision making  (ChatGPT, Google Bard, etc.) to provide the in-scope services? 
+| Answer |
+| Yes. All AI functionality is opt-in. Fleet only uses AI in one place to help create descriptions of queries. |
 
 | Question | Answer |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
