@@ -1601,6 +1601,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Batch(
 				tea.Printf("Command payload: \n%s\n", m.table.SelectedRow()[len(m.table.Columns())-2]),
 			)
+		case "s":
+			os.WriteFile("output.xml", []byte(m.table.SelectedRow()[len(m.table.Columns())-1]), 0o644)
+			return m, tea.Batch(
+				tea.Println("Result saved to output.xml"),
+			)
 
 		}
 	}
