@@ -122,26 +122,28 @@
 
 
 - jobTitle: 🐋 Account Executive
-  department: Customers
+  department: Sales
   hiringManagerName: Alex Mitchell
   hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
   hiringManagerGithubUsername: alexmitchelliii
   responsibilities: |
-    - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate.
+     - 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales) and [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#go-to-market-groups) handbook pages.
+     - ⏫ Develop and own the relationships with Fleet's current and future customers, working closely with Customer Success to identify opportunities where Fleet can add value inside our current customer base.
+     - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate.
     - 📈 Use available data to identify opportunities and trends with individual prospects.
-    - 📣 Actively promote FleetDM product and services on social media.
-    - 🖥️ Actively present and demonstrate the value of FleetDM products and services and upgrades targeting customer expansion opportunities.
-    - ❔ Appropriately use and follow MEDDPPICC process to qualify and progress opportunities to best help prospects solve problems.
+    - 📣 Actively promote Fleet's product and services on social media.
+    - 🖥️ Present and demonstrate the value of Fleet's products, services, and upgrades to target customer expansion opportunities.
+    - ❔ Follow MEDDPPICC process to qualify and progress opportunities to best help prospects solve problems.
     - 🤔 Anticipate market trends and identify new opportunities for growth.
     - 🕴️ Utilize systems and tools such as salesforce to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
-    - 🚀 Work collaboratively with the product management, customer support, and engineering teams to facilitate feature development based on customer asks.
-    - 🧑‍💻 Collaborate with the marketing team to plan, execute and track impactful marketing campaigns, in order to meet and/or exceed quarterly pipeline and revenue targets.
+    - 🚀 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on customer asks.
+    - 🧑‍💻 Collaborate with the marketing team to help execute and track marketing campaigns, in order to achieve quarterly pipeline and revenue targets.
     - 🤝 Work with prospects to find win-win commercial agreements.
   experience: |
     - 🦉 5+ years experience selling to enterprise customers.
     - 📣 Have excellent communication and interpersonal skills.
     - 🧑‍💻 Love technology and can explain how things work in detail.
-    - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
+    - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
     - ⏩ Thrive in a complex, fast-paced, results driven environment with the ability to pivot to organizational changes easily.
     - 🤝 Decisive with the ability to shift gears between thinking and doing.
     - 📈 Ability to partner with various teams and stakeholders to drive sales.
@@ -149,6 +151,6 @@
     - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
     - 💭 You know how to manage complex sales, difficult escalations, and challenging procurement processes with the utmost care and organization.
     - 💖 You know how to manage your time and priorities between leads, opportunities other day-to-day responsibilities.
-    - ✍ You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and discuss Fleet's value with them.
+    - ✍ You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and discuss the potential ROI of using Fleet to solve real problems in their organization.
     - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
     - ➕ Bonus: You are comfortable with concepts like DevOps/GitOps, APIs, and security.
