@@ -40,8 +40,9 @@ type DetailQuery struct {
 	Description string
 	// Query is the SQL query string.
 	Query string
-	// QueryFunc is optionally used to dynamically build a query.
-	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) string
+	// QueryFunc is optionally used to dynamically build a query. If false is returned, then the query should be
+	// ignored.
+	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool)
 	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
@@ -2066,15 +2067,14 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 
 var luksVerifyQuery = DetailQuery{
 	Platforms: fleet.HostLinuxOSs,
-	QueryFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) string {
-		emptyQuery := "SELECT 1 WHERE 1 = 0"
+	QueryFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
 		if !host.IsLUKSSupported() {
-			return emptyQuery
+			return "", false
 		}
 
 		if _, err := ds.GetHostDiskEncryptionKey(ctx, host.ID); err != nil {
 			if fleet.IsNotFound(err) {
-				return emptyQuery
+				return "", false
 			}
 		}
 
@@ -2121,7 +2121,7 @@ var luksVerifyQuery = DetailQuery{
 		SELECT salt, key_slot
 		FROM cryptsetup_luks_salt 
 		WHERE device = (SELECT path FROM luks_h WHERE fstype = 'crypto_LUKS' LIMIT 1)`
-		return query
+		return query, true
 	},
 }
 
@@ -2297,7 +2297,7 @@ func buildConfigProfilesWindowsQuery(
 	logger log.Logger,
 	host *fleet.Host,
 	ds fleet.Datastore,
-) string {
+) (string, bool) {
 	var sb strings.Builder
 	sb.WriteString("<SyncBody>")
 	gotProfiles := false
@@ -2322,7 +2322,7 @@ func buildConfigProfilesWindowsQuery(
 			"method", "QueryFunc - windows config profiles",
 			"err", err,
 		)
-		return ""
+		return "", false
 	}
 	if !gotProfiles {
 		level.Debug(logger).Log(
@@ -2331,10 +2331,10 @@ func buildConfigProfilesWindowsQuery(
 			"msg", "host doesn't have profiles to check",
 			"host_id", host.ID,
 		)
-		return ""
+		return "", false
 	}
 	sb.WriteString("</SyncBody>")
-	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String())
+	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String()), true
 }
 
 func directIngestWindowsProfiles(
