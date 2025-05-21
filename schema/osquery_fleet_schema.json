@@ -5440,9 +5440,9 @@
   },
   {
     "name": "cryptsetup_luks_salt",
-    "description": "Given an LUKS encrypted device path, returns the key slots and all Salts used on each key slot of the device.",
+    "description": "Given an LUKS encrypted device path, returns all the LUKS2 key slots and their respective salts.",
     "evented": false,
-    "notes": "This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "platforms": [
       "linux"
     ],
@@ -14698,14 +14698,14 @@
     "name": "lsblk",
     "description": "Based on the output obtained by running `lsblk -n -O`",
     "evented": false,
-    "notes": "This table is not a core osquery table. It is included as part of Fleetd, the osquery manager from Fleet.",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "platforms": [
       "linux"
     ],
     "columns": [
       {
         "name": "fullkey",
-        "description": "Flattened full key with '/' as separator, e.g. `blockdevices/15/min-io\t`.",
+        "description": "Flattened full key with '/' as separator, e.g. `blockdevices/15/min-io`.",
         "required": false,
         "type": "text"
       },
