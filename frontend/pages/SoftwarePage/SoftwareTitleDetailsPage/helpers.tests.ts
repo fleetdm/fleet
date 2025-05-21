@@ -12,6 +12,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           labels_include_any: null,
           labels_exclude_any: null,
           name: "TestPackage.pkg",
+          title_id: 2,
           version: "1.0.0",
           self_service: true,
           uploaded_at: "2021-01-01T00:00:00Z",
