@@ -52,7 +52,8 @@ module.exports = {
   exits: {
     success: { description: 'Information about LinkedIn activity has successfully been received.' },
     duplicateContactOrAccountFound: {description: 'A contact or account could not be created because a duplicate record exists.', statusCode: 409 },
-    couldNotCreateContactOrAccount: { description: 'A contact or account could not be created in the CRM using the provided information.', statusCode: 400 }
+    couldNotCreateContactOrAccount: { description: 'A contact or account could not be created in the CRM using the provided information.' },
+    couldNotCreateActivity: { description: 'An error occured when trying to create a historical event record in the CRM' },
   },
 
 
@@ -107,7 +108,8 @@ module.exports = {
         Interactor_profile_url__c: trimmedLinkedinUrl,// eslint-disable-line camelcase
       });
     }).intercept((err)=>{
-      return new Error(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);
+      sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);
+      return 'couldNotCreateActivity';
     });
 
     // All done.
