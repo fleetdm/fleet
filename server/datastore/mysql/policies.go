@@ -2084,6 +2084,14 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	return hosts, nil
 }
 
+func (ds *Datastore) GetPoliciesBySoftwareTitleIDs(
+	ctx context.Context,
+	softwareTitleIDs []uint,
+	teamID *uint,
+) ([]fleet.AutomaticInstallPolicy, error) {
+	return ds.getPoliciesBySoftwareTitleIDs(ctx, softwareTitleIDs, teamID)
+}
+
 // GetPoliciesBySoftwareTitleID returns the policies that are associated with a set of software titles.
 func (ds *Datastore) getPoliciesBySoftwareTitleIDs(
 	ctx context.Context,

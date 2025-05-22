@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/go-kit/log/level"
 )
 
 // Used for overriding the env var value in testing
@@ -450,6 +451,31 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create activity for add app store app")
+	}
+
+	if appID.AddAutoInstallPolicy {
+		policies, err := svc.ds.GetPoliciesBySoftwareTitleIDs(ctx, []uint{addedApp.TitleID}, teamID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "getting new automatic install policy for VPP app")
+		}
+
+		if len(policies) == 0 {
+			// Something very weird has happened if we don't find
+			// the policy since we just created it in a transaction above.
+			level.Warn(svc.logger).Log("msg", "automatic install policy was created for VPP app but not found in DB")
+
+			return addedApp.TitleID, nil
+		}
+
+		policyAct := fleet.ActivityTypeCreatedPolicy{
+			ID:   policies[0].ID,
+			Name: policies[0].Name,
+		}
+
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "create activity for create automatic install policy")
+		}
+
 	}
 
 	return addedApp.TitleID, nil

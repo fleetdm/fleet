@@ -14,10 +14,12 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/go-kit/kit/log/level"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -198,6 +200,29 @@ func (svc *Service) AddFleetMaintainedApp(
 		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
+	}
+
+	if automaticInstall {
+		policies, err := svc.ds.GetPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "getting new automatic install policy for FMA")
+		}
+
+		if len(policies) == 0 {
+			// Something very weird has happened if we don't find
+			// the policy since we just created it in a transaction above.
+			level.Warn(svc.logger).Log("msg", "automatic install policy was created for FMA but not found in DB")
+			return titleID, nil
+		}
+
+		policyAct := fleet.ActivityTypeCreatedPolicy{
+			ID:   policies[0].ID,
+			Name: policies[0].Name,
+		}
+
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "create activity for create automatic install policy for FMA")
+		}
 	}
 
 	return titleID, nil
