@@ -726,10 +726,10 @@ Requests a base64 encoded certificate (`.pem`) from the specified certificate au
 | -------- | ------- | ---- | ------------------------------------------- |
 | ca_id   | string | body | **Required.** The certificate authority (CA) name in Fleet. See your CAs [here](#list-certificate-authorities-cas). |
 | csr       | string | body | The signed certificate signing request (CSR). If left unspecified, Fleet will create the CSR with a shared key.        |
-| cn   | integer | body | Certificates will have this common name (CN) in the subject. |
-| upn   | string | body | Certificates will have this user principal name (UPN). |
-| san   | string | body | Certificates will have this subject alternative name (SAN). |
-| uri  | string | body | Certificates will have this uniform resource identifier (URI). |
+| cn   | integer | body | Certificates will have this common name (CN) in the subject. If left unspecified, Fleet will use the CN in the template configured in the CA. |
+| upn   | string | body | Certificates will have this user principal name (UPN). If left unspecified, Fleet will use the CN in the template configured in the CA. |
+| san   | string | body | Certificates will have this subject alternative name (SAN). If left unspecified, Fleet will use the CN in the template configured in the CA. |
+| uri  | string | body | Certificates will have this uniform resource identifier (URI). If left unspecified, Fleet will use the CN in the template configured in the CA. |
 | idp_oauth_url | string | body | OAuth URL from your identity provier (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 
