@@ -182,7 +182,7 @@ WHERE
 		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
 	}
 
-	require.Equal(t, exceptions, nonStandardCollations)
+	require.ElementsMatch(t, exceptions, nonStandardCollations)
 }
 
 func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
