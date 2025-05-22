@@ -15,8 +15,10 @@ To connect Fleet to Entra you need your "Microsoft Entra tenant ID".
 You can follow the steps in https://learn.microsoft.com/en-us/entra/fundamentals/how-to-find-tenant to get it.
 
 Once you have the tenant ID, go to Fleet: `Settings` > `Integrations` > `Conditional access` and enter the tenant ID.
-You will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application.
-After you consent you will be redirected to Fleet and the integration is setup.
+
+![Conditional access setup](../website/assets/images/conditional-access-setup.png)
+
+After clicking `Save` you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application.
 
 The next step is to enable and configure the integration on your teams.
 
@@ -110,17 +112,17 @@ We will use this label to trigger users to log in to Entra via Company Portal.
 
 Go to `Hosts` > `Filter by platform or label` > `Add label +` > `Dynamic`.
 
-Name: `Company Portal installed and configured`
-Description: `Company Portal is installed on the host and configured to log in to Entra using the Platform SSO extension (which must be deployed via configuration profiles).`
-Query:
-```sql
-SELECT 1 WHERE EXISTS (
-	SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac'
-) AND EXISTS (
-	SELECT 1 FROM managed_policies WHERE value = 'com.microsoft.CompanyPortalMac.ssoextension'
-);
-```
-Platform: `macOS`
+- Name: `Company Portal installed and configured`
+- Description: `Company Portal is installed on the host and configured to log in to Entra using the Platform SSO extension (which must be deployed via configuration profiles).`
+- Query:
+  ```sql
+  SELECT 1 WHERE EXISTS (
+    SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac'
+  ) AND EXISTS (
+    SELECT 1 FROM managed_policies WHERE value = 'com.microsoft.CompanyPortalMac.ssoextension'
+  );
+  ```
+- Platform: `macOS`
 
 ### Policy and script to trigger users to log in to Entra
 
@@ -129,17 +131,17 @@ We will create a policy and an associated script to trigger users to log in to E
 #### Create policy
 
 Go to `Policies` > `Select team` > `Add policy`.
-Query:
-```sql
--- Checks if the user has logged in to Entra on this host (Fleet requires the Device ID and User Principal Name to be able to mark devices as compliant/non-compliant).
-SELECT 1 FROM (SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' LIMIT 1)
-CROSS JOIN (SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1);
-```
-Name: `Company Portal sign in`.
-Description: `This policy checks that the user has signed to Entra on the host using the Company Portal application (using the flow for Conditional access).`
-Resolve: `The script associated with this policy will open the Company Portal application in the correct mode for Conditional access.`
-Target: `macOS`
-Select `Custom` > `Include any` > `Company Portal installed and configured` (this is the label we configured in the previous step)
+- Query:
+  ```sql
+  -- Checks if the user has logged in to Entra on this host (Fleet requires the Device ID and User Principal Name to be able to mark devices as compliant/non-compliant).
+  SELECT 1 FROM (SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' LIMIT 1)
+  CROSS JOIN (SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1);
+  ```
+- Name: `Company Portal sign in`.
+- Description: `This policy checks that the user has signed to Entra on the host using the Company Portal application (using the flow for Conditional access).`
+- Resolve: `The script associated with this policy will open the Company Portal application in the correct mode for Conditional access.`
+- Target: `macOS`
+- Select `Custom` > `Include any` > `Company Portal installed and configured` (this is the label we configured in the previous step)
 
 #### Create script
 
