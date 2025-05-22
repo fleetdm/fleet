@@ -48,7 +48,7 @@ data "aws_iam_policy_document" "aws_backup_policy" {
       "rds:DescribeDBClusters",
       "rds:DescribeDBClusterSnapshots",
       "rds:CopyDBClusterSnapshot",
-      "rds:DescribeDBClusterAutomatedBackups"  
+      "rds:DescribeDBClusterAutomatedBackups"
     ]
     resources = ["*"]
   }
@@ -113,7 +113,7 @@ data "aws_iam_policy_document" "aws_backup_policy" {
     condition {
       test     = "ForAnyValue:StringLike"
       variable = "kms:ViaService"
-      values   = [
+      values = [
         "dynamodb.*.amazonaws.com",
       ]
     }
@@ -136,7 +136,7 @@ data "aws_iam_policy_document" "aws_backup_policy" {
     condition {
       test     = "ForAnyValue:Bool"
       variable = "kms:GrantIsForAWSResource"
-      values   = [
+      values = [
         "true"
       ]
     }
@@ -168,7 +168,7 @@ data "aws_iam_policy_document" "aws_backup_policy" {
     condition {
       test     = "ForAnyValue:StringEquals"
       variable = "aws:PrincipalAccount"
-      values   = [
+      values = [
         "&{aws:ResourceAccount}"
       ]
     }
@@ -215,10 +215,10 @@ data "aws_iam_policy_document" "aws_backup_policy" {
     condition {
       test     = "ForAnyValue:StringLike"
       variable = "kms:ViaService"
-      values   = [
+      values = [
         "s3.*.amazonaws.com",
       ]
-    } 
+    }
   }
 
   statement {
@@ -268,7 +268,7 @@ data "aws_iam_policy_document" "aws_backup_policy" {
     condition {
       test     = "ForAnyValue:StringEquals"
       variable = "aws:PrincipalAccount"
-      values   = [
+      values = [
         "&{aws:ResourceAccount}"
       ]
     }
@@ -342,7 +342,7 @@ data "aws_iam_policy_document" "aws_restore_policy" {
     condition {
       test     = "ForAnyValue:StringLike"
       variable = "kms:ViaService"
-      values   = [
+      values = [
         "dynamodb.*.amazonaws.com",
         "rds.*.amazonaws.com"
       ]
@@ -358,7 +358,7 @@ data "aws_iam_policy_document" "aws_restore_policy" {
     condition {
       test     = "ForAnyValue:Bool"
       variable = "kms:GrantIsForAWSResource"
-      values   = [
+      values = [
         "true"
       ]
     }
@@ -371,7 +371,7 @@ data "aws_iam_policy_document" "aws_restore_policy" {
     ]
     resources = ["arn:aws:rds:*:*:db:*"]
   }
-  
+
   statement {
     effect = "Allow"
     actions = [
