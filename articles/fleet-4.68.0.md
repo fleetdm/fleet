@@ -50,6 +50,10 @@ IT admins can now select multiple hosts and run a script across all of them at o
 
 IT admins can now add Fleet-maintained apps to their environment using [GitOps (YAML)](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps). This enables full GitOps workflows for software management, allowing teams to manage all software alongside other configuration as code.
 
+### Generate GitOps (YAML)
+
+A new `fleetctl generate-gitops` command now generates GitOps (YAML) files based on your current Fleet configuration. This supports a more seamless transition from UI-based Fleet administration to GitOps.
+
 ### Custom Fleet agent (fleetd) during new Mac setup (ADE)
 
 Fleet now allows IT admins to deploy a custom fleetd during Mac Setup Assistant (ADE). This makes it possible to custom the fleetd configuration to point hosts to a custom Fleet server URL during initial enrollment, meeting security requirements without manual reconfiguration. Learn how [here](https://fleetdm.com/guides/macos-setup-experience#advanced).
