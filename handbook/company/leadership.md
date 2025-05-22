@@ -189,11 +189,11 @@ If the consultant is international, you will also provide:
 At Fleet, we collaborate with [core team members](#creating-a-new-position), [consultants](#hiring-a-consultant), [advisors](#adding-an-advisor), and [outside contributors](https://github.com/fleetdm/fleet/graphs/contributors) from the community.  
 
 
-### Hiring restrictions
-
-**Incompatible former employers**: Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevent us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [Digital Experience spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
-
-**Incompatible locations**: Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
+> Hiring restrictions
+>
+>**Incompatible former employers**: Fleet maintains a list of companies with whom Fleet has do-not-solicit terms that prevent us from making offers to employees of these companies.  The list is in the Do Not Solicit tab of the [Digital Experience spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0).
+>
+>**Incompatible locations**: Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
 
 ### Communicating with applicants 
