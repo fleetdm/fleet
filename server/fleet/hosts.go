@@ -221,6 +221,11 @@ type HostListOptions struct {
 	// ConnectedToFleetFilter filters hosts that have an active MDM
 	// connection with this Fleet instance.
 	ConnectedToFleetFilter *bool
+
+	// ProfileUUID is the UUID of the MDM configuration profile and filters hosts by that profile.
+	ProfileUUIDFilter *string
+	// ProfileStatus is the status of the MDM configuration profile and filters hosts by that status.
+	ProfileStatusFilter *OSSettingsStatus
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -249,7 +254,9 @@ func (h HostListOptions) Empty() bool {
 		h.MunkiIssueIDFilter == nil &&
 		h.LowDiskSpaceFilter == nil &&
 		h.OSSettingsFilter == "" &&
-		h.OSSettingsDiskEncryptionFilter == ""
+		h.OSSettingsDiskEncryptionFilter == "" &&
+		h.ProfileUUIDFilter == nil &&
+		h.ProfileStatusFilter == nil
 }
 
 type HostUser struct {
@@ -1244,6 +1251,8 @@ type HostSoftwareInstalledPath struct {
 	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
 	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
 	TeamIdentifier string `db:"team_identifier"`
+	// A SHA256 hash of the executable file of the software.
+	ExecutableSHA256 *string `db:"executable_sha256"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles

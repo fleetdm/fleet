@@ -546,6 +546,7 @@ var hostRefs = []string{
 	"android_devices",
 	"host_scim_user",
 	"batch_script_execution_host_results",
+	"host_mdm_commands",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -1254,6 +1255,7 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByOS(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByVulnerability(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByProfileStatus(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams, _ = hostSearchLike(sqlStmt, whereParams, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt.ListOptions)
 
@@ -1688,6 +1690,50 @@ func filterHostsByVulnerability(sqlstmt string, opt fleet.HostListOptions, param
 			WHERE osv.cve = ?)`
 
 		params = append(params, opt.VulnerabilityFilter, opt.VulnerabilityFilter)
+	}
+
+	return sqlstmt, params
+}
+
+func filterHostsByProfileStatus(sqlstmt string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.ProfileUUIDFilter != nil && opt.ProfileStatusFilter != nil {
+
+		switch {
+		case strings.HasPrefix(*opt.ProfileUUIDFilter, fleet.MDMAppleProfileUUIDPrefix):
+			sqlstmt += ` AND EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_apple_profiles hmap
+		WHERE
+			hmap.host_uuid = h.uuid
+				AND hmap.profile_uuid = ?
+				AND hmap.status = ?)`
+		case strings.HasPrefix(*opt.ProfileUUIDFilter, fleet.MDMAppleDeclarationUUIDPrefix):
+			sqlstmt += ` AND EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_apple_declarations had
+		WHERE
+			had.host_uuid = h.uuid
+				AND had.declaration_uuid = ?
+				AND had.status = ?)`
+		case strings.HasPrefix(*opt.ProfileUUIDFilter, fleet.MDMWindowsProfileUUIDPrefix):
+			sqlstmt += ` AND EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_windows_profiles hwap
+		WHERE
+			hwap.host_uuid = h.uuid
+			AND hwap.profile_uuid = ?
+			AND hwap.status = ?)`
+		default:
+			return sqlstmt, params
+		}
+
+		params = append(params, opt.ProfileUUIDFilter, opt.ProfileStatusFilter)
 	}
 
 	return sqlstmt, params
@@ -5492,6 +5538,24 @@ func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []s
 		return nil, ctxerr.Wrap(ctx, err, "get hostnames by identifiers")
 	}
 	return hostnames, nil
+}
+
+func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error) {
+	stmt := `
+		SELECT updated_at FROM host_issues WHERE host_id = ?
+	`
+	var out []time.Time
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &out, stmt, hostId); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "checking host_issues last updated")
+	}
+	if len(out) == 0 {
+		// okay
+		return time.Time{}, nil
+	}
+	if len(out) > 1 {
+		return time.Time{}, ctxerr.New(ctx, "Multiple host_issues rows found for this host_id")
+	}
+	return out[0], nil
 }
 
 func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {

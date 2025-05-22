@@ -16,6 +16,7 @@ module.exports = {
     // Set…
     firstName: { type: 'string'},
     lastName: { type: 'string'},
+    jobTitle: {type: 'string'},
     organization: { type: 'string' },
     description: { type: 'string' },
     primaryBuyingSituation: { type: 'string' },
@@ -40,6 +41,10 @@ module.exports = {
         'Website - Contact forms',
         'Website - Sign up',
         'Website - Newsletter',
+        'LinkedIn - Comment',
+        'LinkedIn - Reaction',
+        'LinkedIn - Share',
+        'LinkedIn - Liked the LinkedIn company page',
       ],
     },
     getStartedResponses: {
@@ -69,7 +74,7 @@ module.exports = {
 
   },
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -118,6 +123,9 @@ module.exports = {
     }
     if(intentSignal) {
       valuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
+    }
+    if(jobTitle) {
+      valuesToSet.Title = jobTitle;
     }
 
     let existingContactRecord;

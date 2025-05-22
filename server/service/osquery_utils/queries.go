@@ -516,39 +516,44 @@ var extraDetailQueries = map[string]DetailQuery{
 		//
 		// [1]: https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-enrollmentstate
 		Query: `
-                    WITH registry_keys AS (
-                        SELECT *
-                        FROM registry
-                        WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
-                    ),
-                    enrollment_info AS (
-                        SELECT
-                            MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-                            MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
-                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
-                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
-                            MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
-                        FROM registry_keys
-                        GROUP BY key
-                    ),
-                    installation_info AS (
-                        SELECT data AS installation_type
-                        FROM registry
-                        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-                        LIMIT 1
-                    )
-                    SELECT
-                        e.aad_resource_id,
-                        e.discovery_service_url,
-                        e.provider_id,
-                        i.installation_type
-                    FROM installation_info i
-                    LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
-		    -- coalesce to 'unknown' and keep that state in the list
-		    -- in order to account for hosts that might not have this
-		    -- key, and servers
-                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-                    LIMIT 1;
+					WITH registry_keys AS (
+						SELECT *
+						FROM registry
+						WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+					),
+					enrollment_info AS (
+						SELECT
+							MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+							MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+							MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+							MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+							MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+						FROM registry_keys
+						GROUP BY key
+					),
+					installation_info AS (
+						SELECT data AS installation_type
+						FROM registry
+						WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+						LIMIT 1
+					)
+					SELECT
+						e.aad_resource_id,
+						e.discovery_service_url,
+						e.provider_id,
+						i.installation_type
+					FROM installation_info i
+					LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+			-- coalesce to 'unknown' and keep that state in the list
+			-- in order to account for hosts that might not have this
+			-- key, and servers
+					WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+			-- old enrollments that aren't completely cleaned up may still be aronud
+			-- in the registry so we want to make sure we return the one with an actual
+			-- discovery URL set if there is one. LENGTH is used here to prefer those
+			-- with actual URLs over empty string/null if there are multiple
+					ORDER BY LENGTH(e.discovery_service_url) DESC
+					LIMIT 1;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,
 		Platforms:        []string{"windows"},
@@ -1214,7 +1219,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	//     (having big queries can cause performance issues or be denylisted).
 	"macos_codesign": {
 		Query: `
-		SELECT a.path, c.team_identifier
+		SELECT c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
 	`,
@@ -1222,21 +1227,35 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Platforms:   []string{"darwin"},
 		Discovery:   discoveryTable("codesign"),
 		SoftwareProcessResults: func(mainSoftwareResults, codesignResults []map[string]string) []map[string]string {
-			codesignInformation := make(map[string]string) // path -> team_identifier
+			type codesignResultRow struct {
+				teamIdentifier string
+				cdhashSHA256   string
+			}
+
+			codesignInformation := make(map[string]codesignResultRow) // path -> team_identifier
 			for _, codesignResult := range codesignResults {
-				codesignInformation[codesignResult["path"]] = codesignResult["team_identifier"]
+				var cdhashSha256 string
+				if hash, ok := codesignResult["cdhash_sha256"]; ok {
+					cdhashSha256 = hash
+				}
+
+				codesignInformation[codesignResult["path"]] = codesignResultRow{
+					teamIdentifier: codesignResult["team_identifier"],
+					cdhashSHA256:   cdhashSha256,
+				}
 			}
 			if len(codesignInformation) == 0 {
 				return mainSoftwareResults
 			}
 
 			for _, result := range mainSoftwareResults {
-				codesignInfo := codesignInformation[result["installed_path"]]
-				if codesignInfo == "" {
+				codesignInfo, ok := codesignInformation[result["installed_path"]]
+				if !ok {
 					// No codesign information for this application.
 					continue
 				}
-				result["team_identifier"] = codesignInfo
+				result["team_identifier"] = codesignInfo.teamIdentifier
+				result["cdhash_sha256"] = codesignInfo.cdhashSHA256
 			}
 
 			return mainSoftwareResults
@@ -1629,9 +1648,13 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 				return str
 			}
 			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
+			var cdhashSHA256 string
+			if hash, ok := row["cdhash_sha256"]; ok {
+				cdhashSHA256 = hash
+			}
 			key := fmt.Sprintf(
-				"%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			sPaths[key] = struct{}{}
 		}
