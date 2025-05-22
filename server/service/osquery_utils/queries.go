@@ -2266,7 +2266,7 @@ func GetDetailQueries(
 	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
 		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(func(privateKey string) func(string) (string, error) {
 			return func(encrypted string) (string, error) {
-				return mdm.DecodeAndDecrypt(privateKey, encrypted)
+				return mdm.DecodeAndDecrypt(encrypted, privateKey)
 			}
 		}(fleetConfig.Server.PrivateKey))
 		generatedMap["luks_verify"] = luksVerifyQuery
