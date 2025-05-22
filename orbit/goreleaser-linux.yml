@@ -15,6 +15,7 @@ builds:
       # able to use the cgo versions of the networking libraries (see
       # https://github.com/fleetdm/fleet/issues/8992)
       - CGO_ENABLED=1
+      - CC=musl-gcc
     goos:
       - linux
     goarch:
@@ -22,6 +23,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
+      - -linkmode external -extldflags "-static"
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version={{.Version}}
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit={{.Commit}}
       - -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Date={{.Date}}
@@ -33,7 +35,7 @@ archives:
     name_template: orbit_{{.Version}}_{{.Os}}
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 
 snapshot:
   version_template: "{{ .Tag }}-untagged"
