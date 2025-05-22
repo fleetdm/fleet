@@ -5,6 +5,7 @@ Fleet can now connect to Microsoft Entra ID and block end users from logging int
 
 > This feature is only available on Fleet Cloud.
 > Currently supports macOS.
+> The macOS hosts must be enrolled to Fleet MDM.
 
 ## Setup integration in Fleet
 
@@ -20,6 +21,8 @@ After you consent you will be redirected to Fleet and the integration is setup.
 The next step is to enable and configure the integration on your teams.
 
 ## Configure devices for integration
+
+The following steps need to be configured on the Fleet teams you want Microsoft "Conditional Access".
 
 ### Automatic install software for Company Portal.app
 
