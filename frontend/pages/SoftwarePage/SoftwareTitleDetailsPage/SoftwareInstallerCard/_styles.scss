@@ -7,6 +7,10 @@
 
   &__actions {
     display: flex;
+
+    .component__tooltip-wrapper__element {
+      display: flex; // Required for vertical align icons that have and don't have tooltip
+    }
   }
 
   &__installer-status-table,
