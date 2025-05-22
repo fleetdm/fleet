@@ -2147,10 +2147,18 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 		dek, err := ds.GetHostDiskEncryptionKey(ctx, host.ID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
+				level.Error(logger).Log(
+					"component", "service",
+					"method", "luksVerifyQueryIngester",
+					"msg", "unexpected missing LUKS2 disk encryption key",
+					"err", err,
+				)
 				return nil
 			}
 			level.Error(logger).Log(
-				"msg", "unexpected missing LUKS2 disk encryption key",
+				"component", "service",
+				"method", "luksVerifyQueryIngester",
+				"msg", "unexpected error",
 				"err", err,
 			)
 			return err
@@ -2163,7 +2171,7 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 		if err != nil {
 			level.Debug(logger).Log(
 				"component", "service",
-				"method", "IngestFunc",
+				"method", "luksVerifyQueryIngester",
 				"host", host.ID,
 				"err", err,
 			)
@@ -2179,7 +2187,7 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 			if !okSalt || !okKeySlot {
 				level.Error(logger).Log(
 					"component", "service",
-					"method", "IngestFunc",
+					"method", "luksVerifyQueryIngester",
 					"host", host.ID,
 					"err", "luks_verify expected some salt and a key_slot",
 				)
@@ -2193,7 +2201,7 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 		if !entryFound {
 			level.Info(logger).Log(
 				"component", "service",
-				"method", "IngestFunc",
+				"method", "luksVerifyQueryIngester",
 				"host", host.ID,
 				"msg", "LUKS key do not match, deleting",
 			)
