@@ -82,7 +82,7 @@ type DeleteResponse struct {
 func (p *Proxy) Delete(ctx context.Context, tenantID string, secret string) (*DeleteResponse, error) {
 	var deleteResponse DeleteResponse
 	if err := p.delete(
-		"/api/v1/microsoft-compliance-partner/settings",
+		"/api/v1/microsoft-compliance-partner",
 		fmt.Sprintf("entraTenantId=%s&fleetServerSecret=%s", tenantID, secret),
 		&deleteResponse,
 	); err != nil {
@@ -232,7 +232,7 @@ func (p *Proxy) get(path string, query string, response interface{}) error {
 func (p *Proxy) delete(path string, query string, response interface{}) error {
 	deleteURL := p.uri + path
 	if query != "" {
-		deleteURL += "&" + url.PathEscape(query)
+		deleteURL += "?" + url.PathEscape(query)
 	}
 	deleteRequest, err := http.NewRequest("DELETE", deleteURL, nil)
 	if err != nil {

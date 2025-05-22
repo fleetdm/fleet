@@ -103,6 +103,7 @@ func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, host
 	// TODO(lucas): Update "compliant" if device_id or user_principal_name were changed.
 	// TODO(lucas): Related remove entry from microsoft_compliance_partner_host_statuses when deleting a host.
 	// TODO(lucas): Clear compliance status (to NULL) from microsoft_compliance_partner_host_statuses when transfering a host to another team.
+	// TODO(lucas): Delete all microsoft_compliance_partner_host_statuses entries when integration is deleted.
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO microsoft_compliance_partner_host_statuses
 		(host_id, device_id, user_principal_name)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 )
 
 type conditionalAccessMicrosoftCreateRequest struct {
@@ -117,7 +118,9 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 
 	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "failed to get integration")
+		// TODO(lucas): Check if we need to delete the integration here.
+		level.Error(svc.logger).Log("msg", "failed to get integration settings from proxy", "err", err)
+		return false, nil
 	}
 
 	if !getResponse.SetupDone {

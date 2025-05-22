@@ -1,11 +1,23 @@
 # Entra Conditional Access integration
 
-Fleet v4.69.0.
-macOS only.
+Fleet v4.69.0 integrates with Entra ID to provide Microsoft "Conditional Access" for macOS devices.
+Fleet can now connect to Microsoft Entra ID and block end users from logging into third-party apps if they're failing any Fleet policies (non-compliant).
+
+> This feature is only available on Fleet Cloud.
+> Currently supports macOS.
 
 ## Setup integration in Fleet
 
-Setup screens and steps.
+The first step is to connect and authorize Fleet to operate on your Entra ID tenant.
+
+To connect Fleet to Entra you need your "Microsoft Entra tenant ID". 
+You can follow the steps in https://learn.microsoft.com/en-us/entra/fundamentals/how-to-find-tenant to get it.
+
+Once you have the tenant ID, go to Fleet: `Settings` > `Integrations` > `Conditional access` and enter the tenant ID.
+You will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application.
+After you consent you will be redirected to Fleet and the integration is setup.
+
+The next step is to enable and configure the integration on your teams.
 
 ## Configure devices for integration
 
@@ -133,6 +145,7 @@ We will need the following script to trigger users to log in to Entra:
 ```bash
 #!/bin/bash
 
+# Company Portal has to be started with the following arguments to work in "Conditional access" mode.
 open "/Applications/Company Portal.app" --args -r
 ```
 
@@ -141,11 +154,12 @@ To upload the script go to: `Controls` > `Select team` > `Scripts` > `Upload`.
 #### Associate script to policy
 
 Go to `Policies` > `Select team` > `Manage automations v` > `Scripts`.
-1. Make sure the feature is enabled for the team.
-2. Check `Company Portal sign in` and select `user-enroll-entra-company-portal.sh`.
+Check `Company Portal sign in` and select `user-enroll-entra-company-portal.sh`.
 
 ## Configure Fleet policies for Conditional Access
 
-The final step is to configure Fleet policies to determine whether a device is marked as Compliant or not-Compliant on Entra.
+The final step is to configure Fleet policies that will determine whether a device is marked as "compliant" or "not compliant" on Entra.
 
-Go to `Policies` > `Select team` > `Automations` > 
+Go to `Policies` > `Select team` > `Automations` > `Conditional access`.
+1. Make sure the feature is enabled for the team.
+2. Check the policies you want for Conditional access.
