@@ -705,14 +705,14 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
-			queries[queryName] = query.Query
 			if query.QueryFunc != nil && query.Query == "" {
-				if query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds); !ok {
+				query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				if !ok {
 					continue
-				} else {
-					queries[queryName] = query
 				}
+				queries[queryName] = query
 			}
+			queries[queryName] = query.Query
 			discoveryQuery := query.Discovery
 			if discoveryQuery == "" {
 				discoveryQuery = alwaysTrueQuery
