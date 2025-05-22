@@ -1,6 +1,7 @@
 import React, { MouseEvent } from "react";
 
 import Button from "components/buttons/Button";
+import { hyphenateString } from "utilities/strings/stringUtils";
 
 interface RenderYamlHelperText {
   installScript?: string;
@@ -12,6 +13,27 @@ interface RenderYamlHelperText {
   onClickPostInstallScript?: (evt: MouseEvent) => void;
   onClickUninstallScript?: (evt: MouseEvent) => void;
 }
+
+// Helper to join items with commas and Oxford comma before "and"
+const joinWithCommasAnd = (
+  elements: { key: string; element: JSX.Element }[]
+) => {
+  return elements.map((item, idx) => {
+    if (idx === 0) return item.element;
+    if (idx === elements.length - 1) {
+      return (
+        <React.Fragment key={`and-${item.key}`}>
+          {elements.length > 2 ? "," : ""} and {item.element}
+        </React.Fragment>
+      );
+    }
+    return (
+      <React.Fragment key={`comma-${item.key}`}>
+        , {item.element}
+      </React.Fragment>
+    );
+  });
+};
 
 export const renderYamlHelperText = ({
   preInstallQuery,
@@ -80,27 +102,6 @@ export const renderYamlHelperText = ({
 
   if (items.length === 0) return <></>;
 
-  // Helper to join items with commas and Oxford comma before "and"
-  const joinWithCommasAnd = (
-    elements: { key: string; element: JSX.Element }[]
-  ) => {
-    return elements.map((item, idx) => {
-      if (idx === 0) return item.element;
-      if (idx === elements.length - 1) {
-        return (
-          <React.Fragment key={`and-${item.key}`}>
-            {elements.length > 2 ? "," : ""} and {item.element}
-          </React.Fragment>
-        );
-      }
-      return (
-        <React.Fragment key={`comma-${item.key}`}>
-          , {item.element}
-        </React.Fragment>
-      );
-    });
-  };
-
   return (
     <>
       Next, download your {joinWithCommasAnd(items)} and add{" "}
@@ -108,11 +109,6 @@ export const renderYamlHelperText = ({
       above {items.length === 1 ? "path" : "paths"}).
     </>
   );
-};
-
-/** Hyphenate the name for file paths */
-export const hyphenatedSoftwareTitle = (softwareTitle: string): string => {
-  return softwareTitle.trim().toLowerCase().replace(/\s+/g, "-");
 };
 
 interface CreatePackageYamlParams {
@@ -151,7 +147,7 @@ export const createPackageYaml = ({
 `;
   }
 
-  const hyphenatedSWTitle = hyphenatedSoftwareTitle(softwareTitle);
+  const hyphenatedSWTitle = hyphenateString(softwareTitle);
 
   if (preInstallQuery) {
     yaml += `pre_install_query:

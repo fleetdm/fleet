@@ -2,53 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 import { noop } from "lodash";
 
-import {
-  hyphenatedSoftwareTitle,
-  createPackageYaml,
-  renderYamlHelperText,
-} from "./helpers";
-
-describe("hyphenatedSoftwareTitle", () => {
-  it("converts spaces to hyphens and lowercases", () => {
-    expect(hyphenatedSoftwareTitle("My Cool App")).toBe("my-cool-app");
-  });
-
-  it("trims leading and trailing spaces", () => {
-    expect(hyphenatedSoftwareTitle("   Leading and trailing   ")).toBe(
-      "leading-and-trailing"
-    );
-  });
-
-  it("collapses multiple spaces into one hyphen", () => {
-    expect(hyphenatedSoftwareTitle("Multiple    spaces here")).toBe(
-      "multiple-spaces-here"
-    );
-  });
-
-  it("returns empty string for empty input", () => {
-    expect(hyphenatedSoftwareTitle("")).toBe("");
-  });
-
-  it("handles already hyphenated and lowercase input", () => {
-    expect(hyphenatedSoftwareTitle("already-hyphenated-title")).toBe(
-      "already-hyphenated-title"
-    );
-  });
-
-  it("handles single word", () => {
-    expect(hyphenatedSoftwareTitle("Word")).toBe("word");
-  });
-
-  it("handles all uppercase", () => {
-    expect(hyphenatedSoftwareTitle("ALL UPPERCASE")).toBe("all-uppercase");
-  });
-
-  it("handles mixed case and spaces", () => {
-    expect(hyphenatedSoftwareTitle("  MixED CaSe   App ")).toBe(
-      "mixed-case-app"
-    );
-  });
-});
+import { createPackageYaml, renderYamlHelperText } from "./helpers";
 
 describe("createPackageYaml", () => {
   const {

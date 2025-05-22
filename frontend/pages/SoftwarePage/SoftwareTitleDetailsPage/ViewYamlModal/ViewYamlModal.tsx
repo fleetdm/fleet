@@ -15,11 +15,8 @@ import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import Editor from "components/Editor";
 
-import {
-  createPackageYaml,
-  hyphenatedSoftwareTitle,
-  renderYamlHelperText,
-} from "./helpers";
+import { hyphenateString } from "utilities/strings/stringUtils";
+import { createPackageYaml, renderYamlHelperText } from "./helpers";
 
 const baseClass = "view-yaml-modal";
 
@@ -27,6 +24,14 @@ interface IViewYamlModalProps {
   softwareTitleName: string;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
+}
+
+interface HandleDownloadParams {
+  evt: React.MouseEvent;
+  content?: string;
+  filename: string;
+  filetype: string;
+  errorMsg: string;
 }
 
 const ViewYamlModal = ({
@@ -61,13 +66,13 @@ const ViewYamlModal = ({
   });
 
   // Generic download handler
-  const handleDownload = (
-    evt: React.MouseEvent,
-    content: string | undefined,
-    filename: string,
-    filetype: string,
-    errorMsg: string
-  ) => {
+  const handleDownload = ({
+    evt,
+    content,
+    filename,
+    filetype,
+    errorMsg,
+  }: HandleDownloadParams) => {
     evt.preventDefault();
 
     if (content) {
@@ -79,43 +84,51 @@ const ViewYamlModal = ({
     return false;
   };
 
-  const hyphenatedTitle = hyphenatedSoftwareTitle(softwareTitleName);
+  const hyphenatedSoftwareTitle = hyphenateString(softwareTitleName);
 
-  const onDownloadPreInstallQuery = (evt: React.MouseEvent) =>
-    handleDownload(
+  const onDownloadPreInstallQuery = (evt: React.MouseEvent) => {
+    handleDownload({
       evt,
-      preInstallQuery,
-      `pre-install-query-${hyphenatedTitle}.sh`,
-      "text/yml",
-      "Your pre-install query could not be downloaded. Please create YAML file (.yml) manually."
-    );
+      content: preInstallQuery,
+      filename: `pre-install-query-${hyphenatedSoftwareTitle}.sh`,
+      filetype: "text/yml",
+      errorMsg:
+        "Your pre-install query could not be downloaded. Please create YAML file (.yml) manually.",
+    });
+  };
 
-  const onDownloadPostInstallScript = (evt: React.MouseEvent) =>
-    handleDownload(
+  const onDownloadPostInstallScript = (evt: React.MouseEvent) => {
+    handleDownload({
       evt,
-      postInstallScript,
-      `post-install-script-${hyphenatedTitle}.sh`,
-      "text/sh",
-      "Your post-install script could not be downloaded. Please create script file (.sh) manually."
-    );
+      content: postInstallScript,
+      filename: `post-install-script-${hyphenatedSoftwareTitle}.sh`,
+      filetype: "text/sh",
+      errorMsg:
+        "Your post-install script could not be downloaded. Please create script file (.sh) manually.",
+    });
+  };
 
-  const onDownloadInstallScript = (evt: React.MouseEvent) =>
-    handleDownload(
+  const onDownloadInstallScript = (evt: React.MouseEvent) => {
+    handleDownload({
       evt,
-      installScript,
-      `install-script-${hyphenatedTitle}.sh`,
-      "text/sh",
-      "Your install script could not be downloaded. Please create script file (.sh) manually."
-    );
+      content: installScript,
+      filename: `install-script-${hyphenatedSoftwareTitle}.sh`,
+      filetype: "text/sh",
+      errorMsg:
+        "Your install script could not be downloaded. Please create script file (.sh) manually.",
+    });
+  };
 
-  const onDownloadUninstallScript = (evt: React.MouseEvent) =>
-    handleDownload(
+  const onDownloadUninstallScript = (evt: React.MouseEvent) => {
+    handleDownload({
       evt,
-      uninstallScript,
-      `uninstall-script-${hyphenatedTitle}.sh`,
-      "text/sh",
-      "Your uninstall script could not be downloaded. Please create script file (.sh) manually."
-    );
+      content: uninstallScript,
+      filename: `uninstall-script-${hyphenatedSoftwareTitle}.sh`,
+      filetype: "text/sh",
+      errorMsg:
+        "Your uninstall script could not be downloaded. Please create script file (.sh) manually.",
+    });
+  };
 
   return (
     <Modal className={baseClass} title="YAML" onExit={onExit}>
@@ -147,7 +160,7 @@ const ViewYamlModal = ({
             inputWrapperClass
             name="filename"
             label="Filename"
-            value={`${hyphenatedSoftwareTitle(softwareTitleName)}.yml`}
+            value={`${hyphenatedSoftwareTitle}.yml`}
           />
           <Editor
             label="Contents"
