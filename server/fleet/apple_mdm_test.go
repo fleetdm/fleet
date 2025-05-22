@@ -486,6 +486,121 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	assert.True(t, items[0].Equal(items[1]))
 }
 
+func TestMDMManagedCertificateEqual(t *testing.T) {
+	t.Parallel()
+
+	// Create two different time values for testing
+	now := time.Now().Truncate(time.Second)
+	later := now.Add(1 * time.Hour)
+
+	// Create a serial string for testing
+	serial1 := "serial1"
+	serial2 := "serial2"
+
+	// Create two instances with different values for all fields
+	cert1 := MDMManagedCertificate{
+		ProfileUUID:          "profile1",
+		HostUUID:             "host1",
+		ChallengeRetrievedAt: &now,
+		NotValidBefore:       &now,
+		NotValidAfter:        &later,
+		Type:                 "type1",
+		CAName:               "ca1",
+		Serial:               &serial1,
+	}
+
+	cert2 := MDMManagedCertificate{
+		ProfileUUID:          "profile2",
+		HostUUID:             "host2",
+		ChallengeRetrievedAt: &later,
+		NotValidBefore:       &later,
+		NotValidAfter:        &now,
+		Type:                 "type2",
+		CAName:               "ca2",
+		Serial:               &serial2,
+	}
+
+	// Initial assertion - should not be equal
+	assert.False(t, cert1.Equal(cert2))
+
+	// Make fields equal one by one and test
+	cert2.ProfileUUID = cert1.ProfileUUID
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.HostUUID = cert1.HostUUID
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.Type = cert1.Type
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.CAName = cert1.CAName
+	assert.False(t, cert1.Equal(cert2))
+
+	// Make time pointers equal
+	cert2.ChallengeRetrievedAt = cert1.ChallengeRetrievedAt
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.NotValidBefore = cert1.NotValidBefore
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.NotValidAfter = cert1.NotValidAfter
+	assert.False(t, cert1.Equal(cert2))
+
+	// Make serial equal
+	cert2.Serial = cert1.Serial
+	assert.True(t, cert1.Equal(cert2))
+
+	// Test nil pointer scenarios
+	cert1.ChallengeRetrievedAt = nil
+	assert.False(t, cert1.Equal(cert2))
+	cert2.ChallengeRetrievedAt = nil
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.NotValidBefore = nil
+	assert.False(t, cert1.Equal(cert2))
+	cert2.NotValidBefore = nil
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.NotValidAfter = nil
+	assert.False(t, cert1.Equal(cert2))
+	cert2.NotValidAfter = nil
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.Serial = nil
+	assert.False(t, cert1.Equal(cert2))
+	cert2.Serial = nil
+	assert.True(t, cert1.Equal(cert2))
+
+	// Test time fields with same value but different memory addresses
+	time1 := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	time2 := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	// Verify these are different objects with the same value
+	assert.NotSame(t, &time1, &time2)
+	assert.True(t, time1.Equal(time2))
+
+	cert1.ChallengeRetrievedAt = &time1
+	cert2.ChallengeRetrievedAt = &time2
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.NotValidBefore = &time1
+	cert2.NotValidBefore = &time2
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.NotValidAfter = &time1
+	cert2.NotValidAfter = &time2
+	assert.True(t, cert1.Equal(cert2))
+
+	// Test serial with same value but different memory addresses
+	serialStr1 := "same-serial"
+	serialStr2 := "same-serial"
+	assert.NotSame(t, &serialStr1, &serialStr2)
+
+	cert1.Serial = &serialStr1
+	cert2.Serial = &serialStr2
+	assert.True(t, cert1.Equal(cert2))
+}
+
 func TestConfigurationProfileLabelEqual(t *testing.T) {
 	t.Parallel()
 

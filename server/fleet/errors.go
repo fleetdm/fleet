@@ -27,7 +27,6 @@ var (
 	AppleMDMNotConfiguredMessage         = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleABMDefaultTeamDeprecatedMessage = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 	CantTurnOffMDMForWindowsHostsMessage = "Can't turn off MDM for Windows hosts."
-	CantTurnOffMDMForIOSOrIPadOSMessage  = "Can't turn off MDM for iOS or iPadOS hosts. Use wipe instead."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -645,6 +644,19 @@ const (
 
 	// Config
 	InvalidServerURLMsg = `Fleet server URL must use “https” or “http”.`
+
+	// macOS setup experience
+	BootstrapPkgNotDistributionErrMsg = "Couldn’t add. Bootstrap package must be a distribution package. Learn more at: https://fleetdm.com/learn-more-about/macos-distribution-packages"
+
+	// NDES/SCEP validation
+	MultipleSCEPPayloadsErrMsg          = "Add only one SCEP payload."
+	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload."
+)
+
+// Error message variables
+var (
+	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarSCEPRenewalID)
+	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + FleetVarSCEPRenewalID + "\" can't be used if variables for SCEP URL and Challenge are not specified."
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

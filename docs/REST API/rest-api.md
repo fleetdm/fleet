@@ -574,7 +574,7 @@ Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allo
 
 To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
 
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/File-carving.md).
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/file-carving.md).
 
 ### List carves
 
@@ -747,7 +747,7 @@ Returns all information about the Fleet's configuration.
 
 The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned for admin and GitOps users with global access. Learn more about roles and permissions [here](https://fleetdm.com/guides/role-based-access).
 
-`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
 `GET /api/v1/fleet/config`
 
@@ -1977,7 +1977,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
-| additional_queries                | boolean | Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
+| additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
 
 <br/>
 
@@ -1988,7 +1988,10 @@ _Available in Fleet Premium._
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
-    "additional_queries": null
+    "additional_queries": {
+      "time": "SELECT * FROM time",
+      "macs": "SELECT mac FROM interface_details"
+    }
   }
 }
 ```
@@ -2241,6 +2244,7 @@ None.
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
 - [Batch-delete hosts by filter or ids](#batch-delete-hosts-by-filter-or-ids)
+- [Update custom human-device mapping](#update-custom-human-device-mapping)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
@@ -2306,7 +2310,7 @@ the `software` table.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| software_status       | string | query | The status of the software install to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_status       | string | query | The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -3047,7 +3051,7 @@ Returns the information of the specified host.
 > - `fleet_desktop_version: ""` means this agent is a fleetd agent but does not have fleet desktop
 > - `scripts_enabled: null` means this agent is not a fleetd agent, or this agent is version <=1.23.0 which is not collecting the scripts enabled info
 
-> Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) and [Update custom human-device mapping endpoints](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3564) are deprecated as of Fleet 4.67.0. They are maintained for backwards compatibility. Please use the [Get host](#get-host) endpoint to get human-device mapping.
+> Note: [Get human-device mapping](https://github.com/fleetdm/fleet/blob/62dc32454f6a40e81fe229abdfc370d3bf7a56c6/docs/REST%20API/rest-api.md?plain=1#L3518) is deprecated as of Fleet 4.67.0. It is maintained for backwards compatibility. Please use the [Get host](#get-host) endpoint to get human-device mapping.
 
 ### Get host by identifier
 
@@ -3657,6 +3661,55 @@ Request (`filters` is specified and empty, to delete all hosts):
 ##### Default response
 
 `Status: 200`
+
+### Update custom human-device mapping
+
+`PUT /api/v1/fleet/hosts/:id/device_mapping`
+
+Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+| email      | string            | body | **Required**. The custom email.                                               |
+
+#### Example
+
+`PUT /api/v1/fleet/hosts/1/device_mapping`
+
+##### Request body
+
+```json
+{
+	"email": "user@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+	"host_id": 1,
+	"device_mapping": [
+	  {
+  		"email": "user@example.com",
+  		"source": "mdm_idp_accounts"
+		},
+		{
+  		"email": "user@example.com",
+  		"source": "google_chrome_profiles"
+		},
+		{
+  		"email": "user@example.com",
+  		"source": "custom"
+		}
+	]
+}
+```
 
 
 ### Get host's device health report
@@ -7480,6 +7533,8 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 Resets [automation](https://fleetdm.com/docs/using-fleet/automations#policy-automations) status for *all* hosts failing the specified policies. On the next automation run, any failing host will be considered newly failing.
 
+Currently, this API endpoint only resets ticket and webhook automations.
+
 `POST /api/v1/fleet/automations/reset`
 
 #### Parameters
@@ -10688,7 +10743,7 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/teams/:id`
 
-`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, and `scripts` only include the configuration profiles and scripts applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles or scripts added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles) or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) endpoints instead.
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
 #### Parameters
 

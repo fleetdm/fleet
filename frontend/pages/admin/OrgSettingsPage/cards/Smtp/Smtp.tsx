@@ -12,10 +12,11 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import validEmail from "components/forms/validators/valid_email";
-import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
+import Card from "components/Card";
 
 import {
   IAppConfigFormProps,
@@ -222,18 +223,24 @@ const Smtp = ({
   };
 
   const renderSesEnabled = () => {
-    const header = "Email already configured";
-    const info = (
-      <>
-        To configure SMTP,{" "}
-        <CustomLink
-          url={isPremiumTier ? CONTACT_FLEET_LINK : "https://fleetdm.com/slack"}
-          text="get help"
-          newTab
-        />
-      </>
+    const sesBaseClass = `${baseClass}__ses-enabled`;
+    return (
+      <Card paddingSize="xxlarge" className={sesBaseClass}>
+        <div className={`${sesBaseClass}__content`}>
+          <p className={`${sesBaseClass}__title`}>Email already configured</p>
+          <p>
+            To configure SMTP,{" "}
+            <CustomLink
+              url={
+                isPremiumTier ? CONTACT_FLEET_LINK : "https://fleetdm.com/slack"
+              }
+              text="get help"
+              newTab
+            />
+          </p>
+        </div>
+      </Card>
     );
-    return <EmptyTable header={header} info={info} />;
   };
 
   const renderSmtpForm = () => {
@@ -322,14 +329,24 @@ const Smtp = ({
         <GitOpsModeTooltipWrapper
           tipOffset={-8}
           renderChildren={(disableChildren) => (
-            <Button
-              type="submit"
-              disabled={Object.keys(formErrors).length > 0 || disableChildren}
+            <TooltipWrapper
+              tipContent={
+                disableChildren ? "" : "Saving changes will send a test email"
+              }
+              position="right"
               className="button-wrap"
-              isLoading={isUpdatingSettings}
+              tipOffset={8}
+              showArrow
+              underline={false}
             >
-              Save
-            </Button>
+              <Button
+                type="submit"
+                disabled={Object.keys(formErrors).length > 0 || disableChildren}
+                isLoading={isUpdatingSettings}
+              >
+                Save
+              </Button>
+            </TooltipWrapper>
           )}
         />
       </form>

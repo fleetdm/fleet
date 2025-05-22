@@ -40,7 +40,7 @@ For possible options, see the parameters for the [Add label API endpoint](https:
 labels:
   - name: Arm64
     description: Hosts on the Arm64 architecture
-    query: SELECT 1 FROM system_info WHERE cpu_type LIKE "arm64%" OR cpu_type LIKE "aarch64%"
+    query: "SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%' OR cpu_type LIKE 'aarch64%'"
     label_membership_type: dynamic
   - name: C-Suite
     description: Hosts belonging to the C-Suite
@@ -98,7 +98,7 @@ policies:
   - name: macOS - Enable FileVault
     description: This policy checks if FileVault (disk encryption) is enabled.
     resolution: As an IT admin, turn on disk encryption in Fleet.
-    query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+    query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
     platform: darwin
     critical: false
     labels_include_any:
@@ -114,14 +114,14 @@ policies:
 - name: macOS - Enable FileVault
   description: This policy checks if FileVault (disk encryption) is enabled.
   resolution: As an IT admin, turn on disk encryption in Fleet.
-  query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+  query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
   platform: darwin
   critical: false
   calendar_events_enabled: false
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
-  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.mcx' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
+  query: "SELECT 1 FROM managed_policies WHERE domain='com.apple.mcx' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;"
   platform: darwin
   critical: false
   calendar_events_enabled: false
@@ -141,7 +141,7 @@ policies:
   query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
   install_software:
     package_path: ./linux-firefox.deb.package.yml
-    # app_store_id: '1487937127' (for App Store apps)
+    # app_store_id: "1487937127" (for App Store apps)
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `teams/team-name.yml`, or `teams/no-team.yml`
@@ -235,7 +235,7 @@ labels:
   # Dynamic label:
   - name: Windows Arm
     description: Windows hosts that are running on Arm64.
-    query: SELECT * FROM os_version WHERE arch LIKE 'ARM%';
+    query: "SELECT * FROM os_version WHERE arch LIKE 'ARM%';"
     platform: windows
   # Manual label
   - name: Executive (C-suite) computers
@@ -253,7 +253,7 @@ labels:
 # Dynamic label:
 - name: Windows Arm
   description: Windows hosts that are running on Arm64.
-  query: SELECT * FROM os_version WHERE arch LIKE 'ARM%';
+  query: "SELECT * FROM os_version WHERE arch LIKE 'ARM%';"
   platform: windows
 # Manual label
 - name: Executive (C-suite) computers
@@ -349,13 +349,13 @@ controls:
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
-    deadline: 2024-12-31
+    deadline: "2024-12-31"
     minimum_version: "15.1"
   ios_updates: # Available in Fleet Premium
-    deadline: 2024-12-31
+    deadline: "2024-12-31"
     minimum_version: "18.1"
   ipados_updates: # Available in Fleet Premium
-    deadline: 2024-12-31
+    deadline: "2024-12-31"
     minimum_version: "18.1"
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
@@ -381,7 +381,7 @@ controls:
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
     software:
-      - app_store_id: '1091189122'
+      - app_store_id: "1091189122"
       - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
     enable: true
@@ -475,7 +475,7 @@ software:
         - Engineering
         - Customer Support
   app_store_apps:
-    - app_store_id: '1091189122'
+    - app_store_id: "1091189122"
       labels_include_any: # Available in Fleet Premium
         - Product
         - Marketing
@@ -634,8 +634,8 @@ The `sso_settings` section lets you define single sign-on (SSO) settings. Learn 
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
-- `enable_jit_provisioning` specified whether or not to allow single sign-on login initiated by identity provider (default: `false`). 
-- `enable_sso_idp_login` specifies whether or not to enables [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`).
+- `enable_jit_provisioning` specifies whether or not to enable [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`).
+- `enable_sso_idp_login` specifies whether or not to allow single sign-on login initiated by identity provider (default: `false`).
 
 Can only be configured for all teams (`org_settings`).
 
@@ -692,7 +692,7 @@ org_settings:
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
       username: Administrator@example.com
-      password: 'myPassword'
+      password: myPassword
     custom_scep_proxy:
       - name: SCEP_VPN
         url: https://example.com/scep
@@ -766,6 +766,8 @@ org_settings:
 ```
 
 #### failing_policies_webhook
+
+> These settings can also be configured per-team when nested under `team_settings`. 
 
 - `enable_failing_policies_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).

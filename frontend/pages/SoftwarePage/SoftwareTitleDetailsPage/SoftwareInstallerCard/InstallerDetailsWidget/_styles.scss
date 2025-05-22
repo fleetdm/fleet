@@ -1,0 +1,45 @@
+.installer-details-widget {
+  display: flex;
+  gap: $pad-medium;
+
+  &__title {
+    font-size: $x-small;
+    font-weight: $bold;
+    @include ellipse-text;
+    max-width: 48vw;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+    justify-content: center;
+  }
+
+  &__details {
+    display: flex;
+    gap: $pad-xsmall;
+    font-size: $xx-small;
+  }
+
+  &__sha256 {
+    display: flex;
+    align-items: center;
+    margin: -$pad-small 0; // Remove vertical padding but keep clickable area
+  }
+
+  &__copy-overlay {
+    display: flex;
+    position: relative;
+    left: -95px;
+  }
+
+  &__sha-copy-button {
+    display: flex;
+    align-items: center;
+  }
+
+  &__copy-message {
+    @include copy-message;
+  }
+}

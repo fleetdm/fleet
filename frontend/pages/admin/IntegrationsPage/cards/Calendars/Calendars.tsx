@@ -5,8 +5,6 @@ import { IConfig } from "interfaces/config";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
-// @ts-ignore
-import { stringToClipboard } from "utilities/copy_text";
 import paths from "router/paths";
 
 // @ts-ignore
@@ -17,7 +15,6 @@ import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
-import Icon from "components/Icon";
 import Card from "components/Card";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { getPathWithQueryParams } from "utilities/url";
@@ -84,7 +81,6 @@ const Calendars = (): JSX.Element => {
   });
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<ICalendarsFormErrors>({});
-  const [copyMessage, setCopyMessage] = useState<string>("");
 
   const {
     data: config,
@@ -107,6 +103,7 @@ const Calendars = (): JSX.Element => {
       }
     },
   });
+
   const gomEnabled = config?.gitops.gitops_mode_enabled;
 
   const { apiKeyJson, domain } = formData;
@@ -143,6 +140,8 @@ const Calendars = (): JSX.Element => {
     },
     [formData]
   );
+
+  if (!isPremiumTier) return <PremiumFeatureMessage />;
 
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     setIsUpdatingSettings(true);
@@ -359,7 +358,6 @@ const Calendars = (): JSX.Element => {
                   inputWrapperClass={`${baseClass}__oauth-scopes`}
                   name="oauth-scopes"
                   enableCopy
-                  copyButtonPosition="inside"
                   type="textarea"
                   value={OAUTH_SCOPES}
                 />
@@ -404,8 +402,6 @@ const Calendars = (): JSX.Element => {
       </>
     );
   };
-
-  if (!isPremiumTier) return <PremiumFeatureMessage />;
 
   if (isLoadingAppConfig) {
     <div className={baseClass}>

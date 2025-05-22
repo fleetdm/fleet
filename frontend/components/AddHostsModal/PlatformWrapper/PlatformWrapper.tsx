@@ -315,7 +315,6 @@ const PlatformWrapper = ({
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
             name="Extension ID"
             enableCopy
-            copyButtonPosition="inside"
             label="Extension ID"
             value={CHROME_OS_INFO.extensionId}
           />
@@ -324,7 +323,6 @@ const PlatformWrapper = ({
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
             name="Installation URL"
             enableCopy
-            copyButtonPosition="inside"
             label="Installation URL"
             value={CHROME_OS_INFO.installationUrl}
           />
@@ -333,7 +331,6 @@ const PlatformWrapper = ({
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
             name="Policy for extension"
             enableCopy
-            copyButtonPosition="inside"
             label="Policy for extension"
             type="textarea"
             value={CHROME_OS_INFO.policyForExtension}
@@ -360,7 +357,6 @@ const PlatformWrapper = ({
               inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
               name="installer"
               enableCopy
-              copyButtonPosition="inside"
               label={renderLabel(packageType)}
               type="textarea"
               value={renderInstallerString(packageType)}
@@ -455,7 +451,6 @@ const PlatformWrapper = ({
                   inputWrapperClass={`${baseClass}__run-osquery-input`}
                   name="run-osquery"
                   enableCopy
-                  copyButtonPosition="inside"
                   label={renderLabel("plain-osquery")}
                   type="text"
                   value="osqueryd --flagfile=flagfile.txt --verbose"
@@ -499,7 +494,6 @@ const PlatformWrapper = ({
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
           name="installer"
           enableCopy
-          copyButtonPosition="inside"
           label={renderLabel(packageType)}
           type="textarea"
           value={renderInstallerString(packageType)}

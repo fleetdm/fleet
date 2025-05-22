@@ -125,7 +125,7 @@ module.exports.custom = {
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
-    // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
+    // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     '/docs/get-started/faq': 'zayhanlon',
@@ -183,6 +183,9 @@ module.exports.custom = {
     // 🌐 GitHub issue templates
     '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
+    // 💝 Fleet-maintained apps
+    'ee/maintained-apps/inputs': 'mostlikelee',
+    'ee/maintained-apps/outputs': 'eugkuo',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -316,7 +319,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.17.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗

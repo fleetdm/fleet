@@ -5,6 +5,19 @@
   align-items: center;
   gap: $pad-medium;
 
+  &__actions {
+    display: flex;
+
+    .component__tooltip-wrapper__element {
+      display: flex; // Required for vertical align icons that have and don't have tooltip
+    }
+  }
+
+  &__installer-status-table,
+  &__installer-policies-table {
+    width: 100%;
+  }
+
   &__row-1 {
     display: flex;
     width: 100%;
