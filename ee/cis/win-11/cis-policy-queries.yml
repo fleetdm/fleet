@@ -3207,25 +3207,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Turn off Windows Copilot' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting configures the use of Windows Copilot. Windows Copilot is an artificial intelligence (AI) assistant that's integrated in Microsoft Windows workstation OSes, beginning with Windows 11 Release 23H2.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'User Configuration\Policies\Administrative Templates\Windows Components\Windows Copilot\Turn off Windows Copilot'
-  query: |
-    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\Software\Policies\Microsoft\Windows\WindowsCopilot\TurnOffWindowsCopilot' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: DefensiveDepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Network security: Restrict NTLM: Audit Incoming NTLM Traffic' is set to 'Enable auditing for all accounts'
   platforms: win11
   platform: windows
