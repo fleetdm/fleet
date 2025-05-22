@@ -735,12 +735,12 @@ Requests a base64 encoded certificate (`.pem`) from the specified certificate au
 
 ```json
 {
-  "certificate_authority_name": "WIFI_CERTIFICATES",
-  "certificate_signing_request": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJZtbxathh+RfK+Z613ar4E\nYSIem8yAvv2JZJtopjD3noy1yF+nGRyF/ocm+FhYvjR5u7teJXlcv24tAAHuWL4U\nuPIql0Slakjdsfl098salkj324lkjmtElWDi6XRjUIXEj1zyCnZTCxGmyHcYB/+f3fyv/\ngZ8SkPqocNOCpX6cSW8hxOlaF9aZUC+xMHRdjQgxQ79hleb5K/n2gCJjiW1sV0Es\nRg+MX0cbPCpahpzlvIAkzA7TTUTOd7ZN+V0GW0fH86uMstrqeW2QUuZmSDC9fNyj\nQhk6n5iURaHXdFjSmyrhW5AVvw1nIblHodhUtD6J+g9kjhBg1frss3ndQtnNrnMC\nAwEAAaCBlzCkldflkjc098dlkj2KoZIhvcNAQkOMYGGMIGDMIGABgNVHREEeTB3ggljaXNjby5j\nb22BEWthYW53YXJAY2lzY28uY29thjRJRDpGbGVldERNOkdVSUQ6Y2FkMTM4OTEt\nMzU3Ni00NzhmLTk1MzAtZmM1Y2VlZTEzZTkwoCEGCisGAQQBgjcUAgOgEwwRa2Fh\nbndhckBjaXNjby5jb20wDQYJKoZIhvcNAQELBQADggEBAH2U6Or14b4O22YjM22k\nXI9QDC5P+sDczcLjivv4MyXQL1ks8R6B1nXCrOmiLPPLaZ09f+UkeMnyuGAxW8Ce\n6LTKquwvlifZ+5TjyANz0I/d9ETLQF2MTphEZd4ySNLtq2RwYyDOBKaxMdW0sUsd\n6M3WyAuTBVgBkTVIqbMJBzFsgXSrr2a0LJEHszOO2BN3yT5muDQsKPJ1uXL7tNUv\n16pGaYpQZR8yGAmWyISHhAyLaJ1N1R8L77SLxdd/Sj7RunNNxqFqaEgIJMgsyu08\nGharLkQcIoW7qPHZuaLa54xMF/s/vfKH6rgGbbCAgw9kw8Klt+6H3OH1FSMeRfZ/\nDWs=\n-----END CERTIFICATE REQUEST-----",
-  "common_name": "NetworkAccess",
-  "user_principal_name": "username@example.com",
-  "subject_alternative_name": "example.com",
-  "uniform_resource_identifier": "username@example.com",
+  "ca_id": "WIFI_CERTIFICATES",
+  "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJZtbxathh+RfK+Z613ar4E\nYSIem8yAvv2JZJtopjD3noy1yF+nGRyF/ocm+FhYvjR5u7teJXlcv24tAAHuWL4U\nuPIql0Slakjdsfl098salkj324lkjmtElWDi6XRjUIXEj1zyCnZTCxGmyHcYB/+f3fyv/\ngZ8SkPqocNOCpX6cSW8hxOlaF9aZUC+xMHRdjQgxQ79hleb5K/n2gCJjiW1sV0Es\nRg+MX0cbPCpahpzlvIAkzA7TTUTOd7ZN+V0GW0fH86uMstrqeW2QUuZmSDC9fNyj\nQhk6n5iURaHXdFjSmyrhW5AVvw1nIblHodhUtD6J+g9kjhBg1frss3ndQtnNrnMC\nAwEAAaCBlzCkldflkjc098dlkj2KoZIhvcNAQkOMYGGMIGDMIGABgNVHREEeTB3ggljaXNjby5j\nb22BEWthYW53YXJAY2lzY28uY29thjRJRDpGbGVldERNOkdVSUQ6Y2FkMTM4OTEt\nMzU3Ni00NzhmLTk1MzAtZmM1Y2VlZTEzZTkwoCEGCisGAQQBgjcUAgOgEwwRa2Fh\nbndhckBjaXNjby5jb20wDQYJKoZIhvcNAQELBQADggEBAH2U6Or14b4O22YjM22k\nXI9QDC5P+sDczcLjivv4MyXQL1ks8R6B1nXCrOmiLPPLaZ09f+UkeMnyuGAxW8Ce\n6LTKquwvlifZ+5TjyANz0I/d9ETLQF2MTphEZd4ySNLtq2RwYyDOBKaxMdW0sUsd\n6M3WyAuTBVgBkTVIqbMJBzFsgXSrr2a0LJEHszOO2BN3yT5muDQsKPJ1uXL7tNUv\n16pGaYpQZR8yGAmWyISHhAyLaJ1N1R8L77SLxdd/Sj7RunNNxqFqaEgIJMgsyu08\nGharLkQcIoW7qPHZuaLa54xMF/s/vfKH6rgGbbCAgw9kw8Klt+6H3OH1FSMeRfZ/\nDWs=\n-----END CERTIFICATE REQUEST-----",
+  "cn": "NetworkAccess",
+  "upn": "username@example.com",
+  "san": "example.com",
+  "uri": "username@example.com",
   "idp_token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
 }
 ```
