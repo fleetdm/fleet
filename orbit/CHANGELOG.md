@@ -19,7 +19,9 @@
 
 * Updated go to 1.24.2.
 
-* Updated the 'windows_updates' Orbit table so that results are only returned iff there are non-installed windows updates.
+* Updated the `windows_updates` Orbit table so that results are only returned iff there are non-installed windows updates.
+
+* Updated orbit linux CI builders to build (musl) static executable. (The main reason for this move was the deprecation of Ubuntu 20.04 runners by Github.)
 
 ## Orbit 1.41.0 (Apr 14, 2025)
 
