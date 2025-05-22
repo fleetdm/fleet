@@ -6,7 +6,7 @@ When using Gitops to manage Fleet, you can optionally put the UI in [GitOps mode
 
 ## Fleet-maintained apps
 
-Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML coming soon).
+Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) is only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (Gitops support coming soon).
 
 ## App Store (VPP) apps
 
