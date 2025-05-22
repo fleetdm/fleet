@@ -10,7 +10,7 @@ Currently, managing [Fleet-maintained apps](https://fleetdm.com/guides/fleet-mai
 
 ## App Store (VPP) apps
 
-To configure App Store (VPP) apps, via GitOps, please see the [Software section](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#software) of Fleet's best practice [GitOps documentation](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#gitops).
+To configure App Store (VPP) apps, via GitOps, please see the [Software section](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#software) of Fleet's best practice [GitOps documentation](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#gitops). Note that VPP apps must first be added to Apple Business Manager.
 
 ## Custom packages
 
