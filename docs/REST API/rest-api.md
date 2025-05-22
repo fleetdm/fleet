@@ -730,7 +730,8 @@ Requests a base64 encoded certificate (`.pem`) from the specified certificate au
 | upn   | string | body | Certificates will have this user principal name (UPN). |
 | san   | string | body | Certificates will have this subject alternative name (SAN). |
 | uri  | string | body | Certificates will have this uniform resource identifier (URI). |
-| idp_token | string | body | Active session token from your identity provider you configured for [end user authentication](#mdm-end-user-authentication). Required if you're enforcing end user authentication |
+| idp_oauth_url | string | body | OAuth URL from your identity provier (IdP). Required if `idp_token` is specified. |
+| idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 
 #### Example
 
