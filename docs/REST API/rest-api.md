@@ -576,7 +576,7 @@ Fleet supports osquery's file carving functionality as of Fleet 3.3.0. This allo
 
 To initiate a file carve using the Fleet API, you can use the [live query](#run-live-query) endpoint to run a query against the `carves` table.
 
-For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/File-carving.md).
+For more information on executing a file carve in Fleet, go to the [File carving with Fleet docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/orchestration/file-carving.md).
 
 ### List carves
 
@@ -805,6 +805,10 @@ None.
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false
   },
+  "conditional_access": {
+    "microsoft_entra_tenant_id": "<TENANT ID>",
+    "microsoft_entra_connection_configured": true
+  },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
     "host_expiry_window": 0
@@ -870,7 +874,8 @@ None.
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json",
-      "enable_release_device_manually": true
+      "enable_release_device_manually": false,
+      "manual_agent_install": false
     },
     "client_url": "https://instance.fleet.com"
   },
@@ -901,6 +906,7 @@ None.
     "tier": "premium",
     "organization": "fleet",
     "device_count": 500000,
+    "managed_cloud": false,
     "expiration": "2031-10-16T00:00:00Z",
     "note": ""
   },
@@ -1131,6 +1137,10 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_sso": false,
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false
+  },
+  "conditional_access": {
+    "microsoft_entra_tenant_id": "<TENANT ID>",
+    "microsoft_entra_connection_configured": true
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1979,7 +1989,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
-| additional_queries                | boolean | Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
+| additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
 
 <br/>
 
@@ -1990,7 +2000,10 @@ _Available in Fleet Premium._
   "features": {
     "enable_host_users": true,
     "enable_software_inventory": true,
-    "additional_queries": null
+    "additional_queries": {
+      "time": "SELECT * FROM time",
+      "macs": "SELECT mac FROM interface_details"
+    }
   }
 }
 ```
@@ -2309,7 +2322,7 @@ the `software` table.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| software_status       | string | query | The status of the software install to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_status       | string | query | The status of the software install to filter hosts by. One of: `pending_install`, `failed_install`, `installed`, `pending_uninstall`, `failed_uninstall`, `pending`, or `failed`. Mutually exclusive with `software_version_id`, and must be supplied if `software_title_id` is set.   |
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -6121,6 +6134,8 @@ The summary can optionally be filtered by team ID.
 
 ### Configure setup experience
 
+> **Experimental feature.** The `manual_agent_install` feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 _Available in Fleet Premium_
 
 `PATCH /api/v1/fleet/setup_experience`
@@ -6132,6 +6147,7 @@ _Available in Fleet Premium_
 | team_id                        | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the DeviceConfigured command.|
+| manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
 
@@ -6955,6 +6971,7 @@ _Available in Fleet Premium_
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true,
+      "conditional_access_enabled": true,
       "fleet_maintained": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
@@ -6976,6 +6993,7 @@ _Available in Fleet Premium_
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
+      "conditional_access_enabled": false,
       "fleet_maintained": false,
       "labels_exclude_any": ["Compliance exclusions", "Workstations (Canary)"],
       "run_script": {
@@ -7001,6 +7019,7 @@ _Available in Fleet Premium_
       "failing_host_count": 3,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false,
+      "conditional_access_enabled": false,
       "fleet_maintained": false,
       "install_software": {
         "name": "Adobe Acrobat.app",
@@ -7059,6 +7078,8 @@ _Available in Fleet Premium_
       "passing_host_count": 2000,
       "failing_host_count": 300,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "calendar_events_enabled": false,
+      "conditional_access_enabled": false,
       "fleet_maintained": false,
       "labels_include_any": ["Macs on Sonoma"]
     },
@@ -7079,6 +7100,8 @@ _Available in Fleet Premium_
       "passing_host_count": 2300,
       "failing_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
+      "calendar_events_enabled": false,
+      "conditional_access_enabled": false,
       "fleet_maintained": false
     },
     {
@@ -7245,6 +7268,7 @@ _Available in Fleet Premium_
     "failing_host_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
+    "conditional_access_enabled": false,
     "fleet_maintained": false,
     "labels_include_any": ["Macs on Sonoma"],
     "install_software": {
@@ -7507,6 +7531,7 @@ _Available in Fleet Premium_
 | platform                | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact.                                                                                      |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
+| conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label in the array. |
@@ -7556,6 +7581,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
     "failing_host_count": 0,
     "host_count_updated_at": null,
     "calendar_events_enabled": true,
+    "conditional_access_enabled": false,
     "fleet_maintained": false,
     "install_software": {
       "name": "Adobe Acrobat.app",
@@ -8796,6 +8822,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
+- [Batch-run script](#batch-run-script)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -8906,7 +8933,6 @@ The script will be added to each host's list of upcoming activities.
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
 | team_id                           | number  | ID of the team to filter by. | 
-
 
 
 #### Example
@@ -9342,13 +9368,14 @@ Get a list of all software.
 ```json
 {
   "counts_updated_at": "2022-01-01 12:32:00",
-  "count": 2,
+  "count": 3,
   "software_titles": [
     {
       "id": 12,
       "name": "Firefox.app",
       "software_package": {
         "platform": "darwin",
+        "fleet_maintained_app_id": 42,
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
         "self_service": true,
@@ -9381,7 +9408,8 @@ Get a list of all software.
           "version": "1.13",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
-      ]
+      ],
+      "hash_sha256": "1e83a94b801db429398b95a11f76fc5ba0e8643cb027b40a2b890592761f48f9"
     },
     {
       "id": 22,
@@ -9413,7 +9441,8 @@ Get a list of all software.
           "version": "121.5",
           "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
         },
-      ]
+      ],
+      "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f"
     },
     {
       "id": 32,
@@ -9630,6 +9659,7 @@ Returns information about the specified software. By default, `versions` are sor
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
+      "categories": ["Productivity"],
       "platform": "darwin",
       "fleet_maintained_app_id": 42,
       "installer_id": 23,
@@ -9714,6 +9744,7 @@ Returns information about the specified software. By default, `versions` are sor
     "software_package": null,
     "app_store_app": {
       "name": "Logic Pro",
+      "categories": [],
       "app_store_id": 1091189122,
       "platform": "darwin",
       "latest_version": "2.04",
@@ -9873,7 +9904,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Linux hosts.
+Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windows, or Linux hosts.
 
 
 `POST /api/v1/fleet/software/package`
@@ -9884,8 +9915,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm) to install on macOS, Windows, or Li
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
-| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
-| uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
+| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
+| uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
@@ -9937,12 +9968,12 @@ Content-Type: application/octet-stream
 
 ```json
 {
-  "software_title_id": 123,
   "software_package": {
+    "title_id": 123,
     "name": "FalconSensor-6.44.pkg",
-    "fleet_maintained_app_id": 42,
     "version": "6.44",
     "platform": "darwin",
+    "fleet_maintained_app_id": 42,
     "installer_id": 23,
     "team_id": 3,
     "uploaded_at": "2024-04-01T14:22:58Z",
@@ -9951,6 +9982,10 @@ Content-Type: application/octet-stream
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
     "self_service": true,
+    "url": "",
+    "automatic_install_policies": null,
+    "labels_include_any": null,
+    "labels_exclude_any": null,
     "status": {
       "installed": 0,
       "pending": 0,
@@ -9977,7 +10012,8 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
-| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
+| categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
@@ -10032,6 +10068,7 @@ Content-Type: application/octet-stream
 {
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
+    "categories": [],
     "version": "6.44",
     "platform": "darwin",
     "fleet_maintained_app_id": 42,
@@ -10136,6 +10173,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 ```json
 {
   "app_store_id": "497799835",
+  "categories": ["Productivity"],
   "team_id": 2,
   "platform": "ipados",
   "self_service": true
@@ -10166,6 +10204,7 @@ Modify App Store (VPP) app's options.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
+| categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
@@ -10182,6 +10221,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 {
   "team_id": 2,
   "self_service": true,
+  "categories": ["Browser"],
   "labels_include_any": [
     "Product",
     "Marketing"
@@ -10198,6 +10238,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
   "app_store_app": {
     "name": "Logic Pro",
     "app_store_id": 1091189122,
+    "categories": ["Browser"],
     "latest_version": "2.04",
     "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
     "self_service": true,
@@ -10324,6 +10365,7 @@ Returns information about the specified Fleet-maintained app.
     "install_script": "#!/bin/sh\ninstaller -pkg \"$INSTALLER_PATH\" -target /",
     "uninstall_script": "#!/bin/sh\npkg_ids=$PACKAGE_ID\nfor pkg_id in '${pkg_ids[@]}'...",
     "software_title_id": 3
+    "categories": ["Productivity"]
   }
 }
 ```
@@ -11048,7 +11090,9 @@ _Available in Fleet Premium_
       "macos_setup": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
-        "macos_setup_assistant": "path/to/config.json"
+        "macos_setup_assistant": "path/to/config.json",
+        "enable_release_device_manually": false,
+        "manual_agent_install": false
       }
     }
   }
@@ -11262,6 +11306,7 @@ _Available in Fleet Premium_
 | jira            | array  | See [`integrations.jira`](#integrations-jira2).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk2).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar2). |
+| conditional_access_enabled | boolean | **Available in Fleet Premium for managed cloud customers.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra connected and configured in global config. |
 
 <br/>
 
@@ -11303,6 +11348,7 @@ _Available in Fleet Premium_
 ```json
 {
   "integrations": {
+    "conditional_access_enabled": true,
     "jira": [
       {
         "enable_software_vulnerabilities": false,

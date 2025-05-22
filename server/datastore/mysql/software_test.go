@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -1571,7 +1572,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software1
 	s1Paths := map[string]struct{}{}
 	for _, s := range software1 {
-		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s1Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host1.ID, s1Paths, mutationResults))
@@ -1582,7 +1583,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 	// Insert paths for software2
 	s2Paths := map[string]struct{}{}
 	for _, s := range software2 {
-		key := fmt.Sprintf("%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s", fmt.Sprintf("/some/path/%s", s.Name), fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		s2Paths[key] = struct{}{}
 	}
 	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(context.Background(), host2.ID, s2Paths, mutationResults))
@@ -2938,11 +2939,18 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 	t.Run("nothing reported from osquery", func(t *testing.T) {
 		var stored []fleet.HostSoftwareInstalledPath
 		for i, s := range software {
+			var executableSHA256 *string
+			if i%2 == 0 {
+				hash := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("hash-%d", s.ID))))
+				executableSHA256 = &hash
+			}
+
 			stored = append(stored, fleet.HostSoftwareInstalledPath{
-				ID:            uint(i),
-				HostID:        host.ID,
-				SoftwareID:    s.ID,
-				InstalledPath: fmt.Sprintf("/some/path/%d", s.ID),
+				ID:               uint(i),
+				HostID:           host.ID,
+				SoftwareID:       s.ID,
+				InstalledPath:    fmt.Sprintf("/some/path/%d", s.ID),
+				ExecutableSHA256: executableSHA256,
 			})
 		}
 
@@ -2973,8 +2981,31 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("we have some deltas", func(t *testing.T) {
+		hash1 := fmt.Sprintf("%x", sha256.Sum256([]byte("hash-1")))
+		hash2 := fmt.Sprintf("%x", sha256.Sum256([]byte("hash-2")))
+
 		getKey := func(s fleet.Software, change uint) string {
-			return fmt.Sprintf("/some/path/%d%s%s%s%s", s.ID+change, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+			var key string
+
+			switch s.ID {
+			case 3:
+				key = fmt.Sprintf(
+					"%s%d%s%s%s%s%s%s",
+					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, hash1, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				)
+			case 5:
+				key = fmt.Sprintf(
+					"%s%d%s%s%s%s%s%s",
+					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, hash2, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				)
+			default:
+				key = fmt.Sprintf(
+					"%s%d%s%s%s%s%s%s",
+					"/some/path/", s.ID+change, fleet.SoftwareFieldSeparator, "corp1", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				)
+			}
+
+			return key
 		}
 		reported := make(map[string]struct{})
 		reported[getKey(software[0], 0)] = struct{}{}
@@ -2983,28 +3014,34 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 
 		var stored []fleet.HostSoftwareInstalledPath
 		stored = append(stored, fleet.HostSoftwareInstalledPath{
-			ID:            1,
-			HostID:        host.ID,
-			SoftwareID:    software[0].ID,
-			InstalledPath: fmt.Sprintf("/some/path/%d", software[0].ID),
+			ID:             1,
+			HostID:         host.ID,
+			SoftwareID:     software[0].ID,
+			TeamIdentifier: "corp1",
+			InstalledPath:  fmt.Sprintf("/some/path/%d", software[0].ID),
 		})
 		stored = append(stored, fleet.HostSoftwareInstalledPath{
-			ID:            2,
-			HostID:        host.ID,
-			SoftwareID:    software[1].ID,
-			InstalledPath: fmt.Sprintf("/some/path/%d", software[1].ID),
+			ID:               2,
+			HostID:           host.ID,
+			SoftwareID:       software[1].ID,
+			TeamIdentifier:   "corp1",
+			InstalledPath:    fmt.Sprintf("/some/path/%d", software[1].ID),
+			ExecutableSHA256: &hash1,
 		})
 		stored = append(stored, fleet.HostSoftwareInstalledPath{
-			ID:            3,
-			HostID:        host.ID,
-			SoftwareID:    software[2].ID,
-			InstalledPath: fmt.Sprintf("/some/path/%d", software[2].ID+1),
+			ID:             3,
+			HostID:         host.ID,
+			SoftwareID:     software[2].ID,
+			TeamIdentifier: "corp1",
+			InstalledPath:  fmt.Sprintf("/some/path/%d", software[2].ID+1),
 		})
 		stored = append(stored, fleet.HostSoftwareInstalledPath{
-			ID:            4,
-			HostID:        host.ID,
-			SoftwareID:    software[3].ID,
-			InstalledPath: fmt.Sprintf("/some/path/%d", software[3].ID),
+			ID:               4,
+			HostID:           host.ID,
+			SoftwareID:       software[3].ID,
+			TeamIdentifier:   "corp1",
+			InstalledPath:    fmt.Sprintf("/some/path/%d", software[3].ID),
+			ExecutableSHA256: &hash2,
 		})
 
 		toI, toD, err := hostSoftwareInstalledPathsDelta(host.ID, reported, stored, software, nil)
@@ -3028,6 +3065,10 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		require.ElementsMatch(t,
 			[]string{toI[0].InstalledPath, toI[1].InstalledPath},
 			[]string{fmt.Sprintf("/some/path/%d", software[1].ID+1), fmt.Sprintf("/some/path/%d", software[2].ID)},
+		)
+		require.ElementsMatch(t,
+			[]*string{toI[0].ExecutableSHA256, toI[1].ExecutableSHA256},
+			[]*string{&hash1, nil},
 		)
 	})
 }
@@ -3099,25 +3140,31 @@ func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 
 	toInsert := []fleet.HostSoftwareInstalledPath{
 		{
-			HostID:        1,
-			SoftwareID:    1,
-			InstalledPath: "1",
+			HostID:           1,
+			SoftwareID:       1,
+			InstalledPath:    "1",
+			TeamIdentifier:   "corp1",
+			ExecutableSHA256: nil,
 		},
 		{
-			HostID:        1,
-			SoftwareID:    2,
-			InstalledPath: "2",
+			HostID:           1,
+			SoftwareID:       2,
+			InstalledPath:    "2",
+			TeamIdentifier:   "corp2",
+			ExecutableSHA256: ptr.String("c32f12fc330236fcef22a4c776b001da75e6a54d68aa4f1fd3f24ad66be76f63"),
 		},
 		{
-			HostID:        1,
-			SoftwareID:    3,
-			InstalledPath: "3",
+			HostID:           1,
+			SoftwareID:       3,
+			InstalledPath:    "3",
+			TeamIdentifier:   "",
+			ExecutableSHA256: nil,
 		},
 	}
 	require.NoError(t, insertHostSoftwareInstalledPaths(ctx, ds.writer(ctx), toInsert))
 
 	var actual []fleet.HostSoftwareInstalledPath
-	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path FROM host_software_installed_paths`))
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path, team_identifier, executable_sha256 FROM host_software_installed_paths`))
 
 	require.ElementsMatch(t, actual, toInsert)
 }
@@ -3553,7 +3600,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	installPaths := make([]string, 0, len(software))
 	for _, s := range software {
 		path := fmt.Sprintf("/some/path/%s", s.Name)
-		key := fmt.Sprintf("%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		key := fmt.Sprintf("%s%s%s%s%s%s%s", path, fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, s.ToUniqueStr())
 		swPaths[key] = struct{}{}
 		installPaths = append(installPaths, path)
 	}
@@ -7086,7 +7133,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 
 	time.Sleep(time.Second) // ensure the labels_updated_at timestamp is before labels creation
 
-	vppApp := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	vppApp := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
 	vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
 	require.NoError(t, err)
 	vppAppTeamID := vppApp.VPPAppTeam.AppTeamID
@@ -7133,7 +7180,7 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 		},
 		vppApp.Name: {
 			AppStoreID:  vppApp.AdamID,
-			SelfService: ptr.Bool(false),
+			SelfService: ptr.Bool(true),
 			Platform:    "darwin",
 		},
 	}
@@ -7259,6 +7306,18 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	time.Sleep(time.Second)
 
+	fourthHost := test.NewHost(t, ds, "host4", "", "host4key", "host4uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, fourthHost, false)
+	require.NoError(t, ds.AddLabelsToHost(ctx, fourthHost.ID, []uint{label1.ID}))
+	fourthHost.LabelUpdatedAt = time.Now()
+	err = ds.UpdateHost(ctx, fourthHost)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+
+	scoped, err = ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, fourthHost.ID)
+	require.NoError(t, err)
+	require.True(t, scoped)
+
 	// Assign the label to the VPP app. Now we should have an empty list
 	err = setOrUpdateSoftwareInstallerLabelsDB(ctx, ds.writer(ctx), vppAppTeamID, fleet.LabelIdentsWithScope{
 		LabelScope: fleet.LabelScopeExcludeAny,
@@ -7266,13 +7325,33 @@ func testListHostSoftwareWithLabelScopingVPP(t *testing.T, ds *Datastore) {
 	}, softwareTypeVPP)
 	require.NoError(t, err)
 
+	// intall vpp app on fourth host
+	forthHostVpp1CmdUUID := createVPPAppInstallRequest(t, ds, fourthHost, vppApp.AdamID, user1)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), fourthHost.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, fourthHost, forthHostVpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	// but inventory has not been updated yet so no software/host software records exist
+	software, _, err = ds.ListHostSoftware(
+		ctx,
+		fourthHost,
+		fleet.HostSoftwareTitleListOptions{
+			ListOptions:                fleet.ListOptions{PerPage: 10},
+			IncludeAvailableForInstall: true,
+			SelfServiceOnly:            true,
+			IsMDMEnrolled:              true,
+		},
+	)
+	require.NoError(t, err)
+	// installer one is not self service, vpp app is but out of scope due to label
+	checkSoftware(software, installer1.Filename, vppApp.Name)
+
 	software, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	checkSoftware(software, installer1.Filename, vppApp.Name)
 
 	hostsNotInScope, err = ds.GetExcludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)
-	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}, thirdHost.ID: {}}, hostsNotInScope)
+	require.Equal(t, map[uint]struct{}{host.ID: {}, anotherHost.ID: {}, thirdHost.ID: {}, fourthHost.ID: {}}, hostsNotInScope)
 
 	hostsInScope, err = ds.GetIncludedHostIDMapForVPPApp(ctx, vppAppTeamID)
 	require.NoError(t, err)

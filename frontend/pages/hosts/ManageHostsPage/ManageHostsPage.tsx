@@ -1430,6 +1430,8 @@ const ManageHostsPage = ({
       bootstrapPackageStatus,
       vulnerability,
       visibleColumns,
+      configProfileUUID,
+      configProfileStatus,
     };
 
     options = {

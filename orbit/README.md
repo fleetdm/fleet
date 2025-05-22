@@ -64,7 +64,11 @@ To report a bug or request a feature, [click here](https://github.com/fleetdm/fl
 
 ### Run Orbit From Source
 
-To execute orbit from source directly, run the following command:
+To execute orbit from source, use the following commands:
+
+#### Connect to a Fleet server
+
+Modify the `fleet-url` and `enroll-secret` as appropriate:
 
 ```sh
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
@@ -77,13 +81,28 @@ go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     -- --verbose
 ```
 
-Or, using a `flagfile.txt` for osqueryd:
+#### Using a custom flagfile
+
+With a `flagfile.txt` for osqueryd:
+
 ```sh 
 go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
     --dev-mode \
     --disable-updates \
     --root-dir /tmp/orbit \
     -- --flagfile=flagfile.txt --verbose
+```
+
+#### Open an interactive shell to run SQL
+
+This can be useful for building/testing extension tables:
+
+```sh
+go run github.com/fleetdm/fleet/v4/orbit/cmd/orbit \
+    --dev-mode \
+    --disable-updates \
+    --root-dir /tmp/orbit \
+    shell
 ```
 
 ### Generate Installer Packages from Orbit Source

@@ -802,6 +802,12 @@ func TestHostAuth(t *testing.T) {
 	ds.GetCategoriesForSoftwareTitlesFunc = func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
 		return map[uint][]string{}, nil
 	}
+	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
+		return nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
+		return time.Time{}, nil
+	}
 
 	testCases := []struct {
 		name                  string
@@ -1477,6 +1483,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			) error {
 				act := activity.(fleet.ActivityTypeReadHostDiskEncryptionKey)
 				require.Equal(t, tt.host.ID, act.HostID)
+				require.Equal(t, []uint{tt.host.ID}, act.HostIDs())
 				require.EqualValues(t, act.HostDisplayName, tt.host.DisplayName())
 				return nil
 			}
@@ -1747,6 +1754,12 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	}
 	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
 		return nil, nil, nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
+		return nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
+		return time.Time{}, nil
 	}
 
 	cases := []struct {

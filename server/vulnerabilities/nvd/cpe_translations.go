@@ -18,6 +18,11 @@ import (
 
 const cpeTranslationsFilename = "cpe_translations.json"
 
+// Exported for testing.
+func LoadCPETranslations(path string) (CPETranslations, error) {
+	return loadCPETranslations(path)
+}
+
 func loadCPETranslations(path string) (CPETranslations, error) {
 	f, err := os.Open(path)
 	if err != nil {

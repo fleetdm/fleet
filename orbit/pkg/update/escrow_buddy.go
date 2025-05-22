@@ -64,17 +64,7 @@ func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	// For #25928 we are going to always install escrowBuddy as a target
 	updaterHasTarget := e.updateRunner.HasRunnerOptTarget("escrowBuddy")
-	runnerHasLocalHash := e.updateRunner.HasLocalHash("escrowBuddy")
-	if !updaterHasTarget || !runnerHasLocalHash {
-		log.Info().Msg("refreshing the update runner config with Escrow Buddy targets and hashes")
-		log.Debug().Msgf("updater has target: %t, runner has local hash: %t", updaterHasTarget, runnerHasLocalHash)
-		if err := e.setTargetsAndHashes(); err != nil {
-			return fmt.Errorf("setting Escrow Buddy targets and hashes: %w", err)
-		}
-	}
-
 	// if the notification is false, it could mean that we shouldn't do
 	// anything at all (eg: MDM is not configured) or that this host
 	// doesn't need to rotate the key.
@@ -91,6 +81,15 @@ func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
 
 		log.Debug().Msg("EscrowBuddyRunner: skipping any actions related to disk encryption")
 		return nil
+	}
+
+	runnerHasLocalHash := e.updateRunner.HasLocalHash("escrowBuddy")
+	if !updaterHasTarget || !runnerHasLocalHash {
+		log.Info().Msg("refreshing the update runner config with Escrow Buddy targets and hashes")
+		log.Debug().Msgf("updater has target: %t, runner has local hash: %t", updaterHasTarget, runnerHasLocalHash)
+		if err := e.setTargetsAndHashes(); err != nil {
+			return fmt.Errorf("setting Escrow Buddy targets and hashes: %w", err)
+		}
 	}
 
 	// Some macOS updates and upgrades reset the authorization database to its default state

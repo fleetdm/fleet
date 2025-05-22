@@ -34,16 +34,15 @@ module.exports = {
       },
     ];
 
-    let weighedPosts = [];
-    await ƒ.simultaneouslyForEach(posts, async (post)=>{
-      let postWeights = await ƒ.weigh(post, [
-        'related to cats',
-        'related to javascript',
-        'A social media post that is both (a) VERY interesting and (b) in reasonably good taste'
-      ]);
-      weighedPosts.push(Object.assign({
-        scoresByTopic: postWeights
-      }, post));
+    let weighedPosts = await ƒ.simultaneouslyForEach(posts, async (post)=>{
+      return {
+        ...post,
+        scoresByTopic: await ƒ.weigh(post, [
+          'related to cats',
+          'related to javascript',
+          'A social media post that is both (a) VERY interesting and (b) in reasonably good taste'
+        ])
+      };
     });//∞
 
     return weighedPosts;
