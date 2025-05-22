@@ -4525,7 +4525,7 @@
       }
     ],
     "examples": "Get all containers from all namespaces:\n\n```\nSELECT * FROM containerd_containers;\n```\n\nGet only running containers in the `default` namespace:\n\n```\nSELECT * FROM containerd_containers WHERE namespace='default' AND state='running';\n```",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd` table is available on Linux systems with containerd installed. It provides\ninformation about the containers managed by containerd, including their state, image, and runtime.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_containers` table for information about containers managed by Docker.",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd` table is available on Linux systems with containerd installed. It provides\ninformation about the containers managed by containerd, including their state, image, and runtime.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_containers` table for information about containers managed by Docker.",
     "url": "https://fleetdm.com/tables/containerd_containers",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_containers.yml"
   },
