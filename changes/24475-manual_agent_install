@@ -1,1 +1,0 @@
-In macOS MDM setup experience, added macos_setup.manual_agent_install option to bypass fleetd install. Instead, fleetd should be installed via customer-customized bootstrap package.
