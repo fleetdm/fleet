@@ -43,7 +43,9 @@ const SoftwareCustomPackage = ({
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, config } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
   const [
@@ -132,8 +134,21 @@ const SoftwareCustomPackage = ({
         },
       });
 
+      if (!gitOpsModeEnabled) {
+        renderFlash(
+          "success",
+          <>
+            <b>{formData.software?.name}</b> successfully added.
+            {formData.selfService
+              ? " The end user can install from Fleet Desktop."
+              : ""}
+          </>
+        );
+      }
+
       const newQueryParams: QueryParams = {
         team_id: currentTeamId,
+        gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
       };
       router.push(
         getPathWithQueryParams(
@@ -166,8 +181,6 @@ const SoftwareCustomPackage = ({
           onCancel={onCancel}
           onSubmit={onSubmit}
           onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
-          // TODO - unnecessary if all uses of `PackageForm` are gitops compatible - TBD by product
-          gitopsCompatible
         />
         {uploadDetails && (
           <FileProgressModal
