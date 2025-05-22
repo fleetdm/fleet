@@ -10,6 +10,12 @@ If some of the following don't apply, delete the relevant line.
 - [ ] Added support on fleet's osquery simulator `cmd/osquery-perf` for new osquery data ingestion features.
 - [ ] If paths of existing endpoints are modified without backwards compatibility, checked the frontend/CLI for any necessary changes
 - [ ] If database migrations are included, checked table schema to confirm autoupdate
+- For new Fleet configuration settings
+  - [ ] Verified that the setting can be managed via GitOps, or confirmed that the setting is explicitly being excluded from GitOps.  If managing via Gitops:
+    - [ ] Verified that the setting is exported via `fleetctl generate-gitops`
+    - [ ] Added the setting to [the GitOps documentation](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#L485)
+    - [ ] Verified that the setting is cleared on the server if it is not supplied in a YAML file (or that it is documented as being optional)
+    - [ ] Verified that any relevant UI is disabled when GitOps mode is enabled
 - For database migrations:
   - [ ] Checked schema for all modified table for columns that will auto-update timestamps during migration.
   - [ ] Confirmed that updating the timestamps is acceptable, and will not cause unwanted side effects.

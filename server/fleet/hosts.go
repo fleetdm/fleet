@@ -221,6 +221,11 @@ type HostListOptions struct {
 	// ConnectedToFleetFilter filters hosts that have an active MDM
 	// connection with this Fleet instance.
 	ConnectedToFleetFilter *bool
+
+	// ProfileUUID is the UUID of the MDM configuration profile and filters hosts by that profile.
+	ProfileUUIDFilter *string
+	// ProfileStatus is the status of the MDM configuration profile and filters hosts by that status.
+	ProfileStatusFilter *OSSettingsStatus
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -249,7 +254,9 @@ func (h HostListOptions) Empty() bool {
 		h.MunkiIssueIDFilter == nil &&
 		h.LowDiskSpaceFilter == nil &&
 		h.OSSettingsFilter == "" &&
-		h.OSSettingsDiskEncryptionFilter == ""
+		h.OSSettingsDiskEncryptionFilter == "" &&
+		h.ProfileUUIDFilter == nil &&
+		h.ProfileStatusFilter == nil
 }
 
 type HostUser struct {
@@ -1223,12 +1230,14 @@ type HostMDMCheckinInfo struct {
 }
 
 type HostDiskEncryptionKey struct {
-	HostID          uint      `json:"-" db:"host_id"`
-	Base64Encrypted string    `json:"-" db:"base64_encrypted"`
-	Decryptable     *bool     `json:"-" db:"decryptable"`
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
-	DecryptedValue  string    `json:"key" db:"-"`
-	ClientError     string    `json:"-" db:"client_error"`
+	HostID              uint      `json:"-" db:"host_id"`
+	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
+	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
+	KeySlot             *uint     `json:"-" db:"key_slot"`
+	Decryptable         *bool     `json:"-" db:"decryptable"`
+	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
+	DecryptedValue      string    `json:"key" db:"-"`
+	ClientError         string    `json:"-" db:"client_error"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed
