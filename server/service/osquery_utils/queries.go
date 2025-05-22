@@ -2073,7 +2073,7 @@ var luksVerifyQuery = DetailQuery{
 		discoveryTable("cryptsetup_luks_salt"),
 	),
 	QueryFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
-		if host.OrbitNodeKey == nil || !host.IsLUKSSupported() {
+		if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" || !host.IsLUKSSupported() {
 			return "", false
 		}
 
