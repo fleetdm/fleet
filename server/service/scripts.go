@@ -1094,10 +1094,10 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchScriptRunRequest struct {
-	ScriptID uint   `json:"script_id"`
-	HostIDs  []uint `json:"host_ids"`
+	ScriptID uint                    `json:"script_id"`
+	HostIDs  []uint                  `json:"host_ids"`
+	Filters  *map[string]interface{} `json:"filters"`
 }
-
 type batchScriptRunResponse struct {
 	BatchExecutionID string `json:"batch_execution_id"`
 	Err              error  `json:"error,omitempty"`
@@ -1107,14 +1107,21 @@ func (r batchScriptRunResponse) Error() error { return r.Err }
 
 func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptRunRequest)
-	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs)
+	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs, req.Filters)
 	if err != nil {
 		return batchScriptRunResponse{Err: err}, nil
 	}
 	return batchScriptRunResponse{BatchExecutionID: batchID}, nil
 }
 
-func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint) (string, error) {
+const MAX_BATCH_EXECUTION_HOSTS = 5000
+
+func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error) {
+	// If we are given both host IDs and filters, return an error
+	if len(hostIDs) > 0 && filters != nil {
+		return "", fleet.NewInvalidArgumentError("filters", "cannot specify both host_ids and filters")
+	}
+
 	// First check if scripts are disabled globally. If so, no need for further processing.
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -1139,7 +1146,63 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		userId = &ctxUser.ID
 	}
 
-	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDs)
+	var hosts []*fleet.Host
+
+	// If we are given filters, we need to get the hosts matching those filters
+	if filters != nil {
+		opt, lid, err := hostListOptionsFromFilters(filters)
+		if err != nil {
+			return "", err
+		}
+
+		if opt == nil {
+			return "", fleet.NewInvalidArgumentError("filters", "filters must be a valid set of host list options")
+		}
+
+		if opt.TeamFilter == nil {
+			return "", fleet.NewInvalidArgumentError("filters", "filters must include a team filter")
+		}
+
+		filter := fleet.TeamFilter{User: ctxUser, IncludeObserver: true}
+
+		// Load hosts, either from label if provided or from all hosts.
+		if lid != nil {
+			hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, *opt)
+		} else {
+			opt.DisableIssues = true // intentionally ignore failing policies
+			hosts, err = svc.ds.ListHosts(ctx, filter, *opt)
+		}
+
+		if err != nil {
+			return "", err
+		}
+	} else {
+		// Get the hosts matching the host IDs
+		hosts, err = svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+		if err != nil {
+			return "", err
+		}
+	}
+	if len(hosts) == 0 {
+		return "", &fleet.BadRequestError{Message: "no hosts match the specified host IDs"}
+	}
+
+	if len(hosts) > MAX_BATCH_EXECUTION_HOSTS {
+		return "", fleet.NewInvalidArgumentError("filters", "too_many_hosts")
+	}
+
+	hostIDsToExecute := make([]uint, 0, len(hosts))
+	for _, host := range hosts {
+		hostIDsToExecute = append(hostIDsToExecute, host.ID)
+		if host.TeamID == nil && script.TeamID == nil {
+			continue
+		}
+		if host.TeamID == nil || script.TeamID == nil || *host.TeamID != *script.TeamID {
+			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
+		}
+	}
+
+	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
@@ -1147,7 +1210,7 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
 		ScriptName:       script.Name,
 		BatchExeuctionID: batchID,
-		HostCount:        uint(len(hostIDs)),
+		HostCount:        uint(len(hostIDsToExecute)),
 		TeamID:           script.TeamID,
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
