@@ -707,7 +707,9 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 			queryName := hostDetailQueryPrefix + name
 			queries[queryName] = query.Query
 			if query.QueryFunc != nil && query.Query == "" {
-				if query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds); ok {
+				if query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds); !ok {
+					continue
+				} else {
 					queries[queryName] = query
 				}
 			}
