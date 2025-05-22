@@ -471,16 +471,57 @@ WHERE
 `
 	md5Checksum := md5ChecksumScriptContent(scriptContents)
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, scriptContents, md5Checksum, scriptID)
-	if err != nil {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, scriptContents, md5Checksum, scriptID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating script_contents")
+		}
+
+		if _, err := tx.ExecContext(ctx, "UPDATE scripts SET updated_at = NOW() WHERE id = ?", scriptID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating script updated_at time")
+		}
+
+		if err := ds.cancelUpcomingScriptActivities(ctx, tx, scriptID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting upcoming script executions")
+		}
+
+		return nil
+	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating script contents")
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, "UPDATE scripts SET updated_at = NOW() WHERE id = ?", scriptID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "updating script updated_at time")
+	return ds.Script(ctx, scriptID)
+}
+
+func (ds *Datastore) cancelUpcomingScriptActivities(ctx context.Context, db sqlx.ExtContext, scriptID uint) error {
+	const stmt = `
+SELECT
+	ua.execution_id,
+	ua.host_id
+FROM
+	script_upcoming_activities sua
+INNER JOIN
+	upcoming_activities ua ON ua.id = sua.upcoming_activity_id
+WHERE
+	sua.script_id = ?
+`
+
+	var upcomingExecutions []struct {
+		ExecutionID string `db:"execution_id"`
+		HostID      uint   `db:"host_id"`
 	}
 
-	return ds.Script(ctx, scriptID)
+	if err := sqlx.SelectContext(ctx, db, &upcomingExecutions, stmt, scriptID); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting upcoming script executions")
+	}
+
+	for _, upcomingExecution := range upcomingExecutions {
+		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID); err != nil {
+			return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
+		}
+	}
+
+	return nil
 }
 
 func insertScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {

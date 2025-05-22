@@ -448,6 +448,23 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
+	profileUUID := r.URL.Query().Get("profile_uuid")
+	profileStatus := r.URL.Query().Get("profile_status")
+	switch {
+	case profileUUID != "" && profileStatus != "":
+		hopt.ProfileUUIDFilter = &profileUUID
+		if fleet.OSSettingsStatus(profileStatus).IsValid() {
+			psf := fleet.OSSettingsStatus(profileStatus)
+			hopt.ProfileStatusFilter = &psf
+		} else {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid profile_status: %s", profileStatus)))
+		}
+	case profileUUID != "" && profileStatus == "":
+		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_status (it must be present when profile_uuid is specified)"))
+	case profileUUID == "" && profileStatus != "":
+		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_uuid (it must be present when profile_status is specified)"))
+	}
+
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
 	if munkiIssueID != "" {
 		id, err := strconv.ParseUint(munkiIssueID, 10, 32)

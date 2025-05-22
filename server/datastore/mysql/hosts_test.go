@@ -175,6 +175,7 @@ func TestHosts(t *testing.T) {
 		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
 		{"GetHostEmails", testGetHostEmails},
 		{"TestGetMatchingHostSerialsMarkedDeleted", testGetMatchingHostSerialsMarkedDeleted},
+		{"ListHostsByProfileUUIDAndStatus", testListHostsProfileUUIDAndStatus},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3561,6 +3562,169 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing}, 3)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed}, 2)
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 1)
+}
+
+func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// seed hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 6; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+		nanoEnrollAndSetHostMDMData(t, ds, h, false)
+	}
+
+	/////////////////////////////
+	// no team Apple config profile //
+	/////////////////////////////
+
+	noTeamProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("test-profile", "com.fleetdm.fleet.mdm.test", 0), nil)
+	require.NoError(t, err)
+
+	verified := fleet.OSSettingsVerified
+	verifying := fleet.OSSettingsVerifying
+	pending := fleet.OSSettingsPending
+	failed := fleet.OSSettingsFailed
+
+	// verifying status
+	upsertHostCPs([]*fleet.Host{hosts[0], hosts[1]}, []*fleet.MDMAppleConfigProfile{noTeamProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &pending}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &failed}, 0)
+
+	// verified status
+	upsertHostCPs([]*fleet.Host{hosts[0]}, []*fleet.MDMAppleConfigProfile{noTeamProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &pending}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &failed}, 0)
+
+	// pending status
+	upsertHostCPs(
+		[]*fleet.Host{hosts[2]},
+		[]*fleet.MDMAppleConfigProfile{noTeamProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryPending, ctx, ds, t,
+	)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &pending}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &failed}, 0)
+
+	// failed status
+	upsertHostCPs([]*fleet.Host{hosts[3], hosts[4], hosts[5]}, []*fleet.MDMAppleConfigProfile{noTeamProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, ctx, ds, t)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &pending}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamProfile.ProfileUUID, ProfileStatusFilter: &failed}, 3)
+
+	/////////////////////////////////////
+	// no team Apple declaration profile //
+	/////////////////////////////////////
+
+	noTeamDeclaration, err := ds.NewMDMAppleDeclaration(ctx, declForTest("test-decleration", "com.fleetdm.fleet.mdm.test-decl", "{}"))
+	require.NoError(t, err)
+
+	// verified status
+	forceSetAppleHostDeclarationStatus(t, ds, hosts[0].UUID, noTeamDeclaration, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &verified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &pending}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &failed}, 0)
+
+	// verified status
+	forceSetAppleHostDeclarationStatus(t, ds, hosts[1].UUID, noTeamDeclaration, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &pending}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &failed}, 0)
+
+	// pending status
+	forceSetAppleHostDeclarationStatus(t, ds, hosts[2].UUID, noTeamDeclaration, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	forceSetAppleHostDeclarationStatus(t, ds, hosts[3].UUID, noTeamDeclaration, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &pending}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &failed}, 0)
+
+	// failed status
+	forceSetAppleHostDeclarationStatus(t, ds, hosts[4].UUID, noTeamDeclaration, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+	forceSetAppleHostDeclarationStatus(t, ds, hosts[5].UUID, noTeamDeclaration, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &pending}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamDeclaration.DeclarationUUID, ProfileStatusFilter: &failed}, 2)
+
+	/////////////////////////////
+	// no team Windows config profile //
+	/////////////////////////////
+
+	windowsProfile := fleet.MDMWindowsConfigProfile{
+		ProfileUUID:      uuid.New().String(),
+		Name:             "test-windows-profile",
+		SyncML:           []byte("test-syncml"),
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{},
+		LabelsIncludeAny: []fleet.ConfigurationProfileLabel{},
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{},
+		CreatedAt:        time.Now(),
+		UploadedAt:       time.Now(),
+	}
+	noTeamWindowsProfile, err := ds.NewMDMWindowsConfigProfile(ctx, windowsProfile)
+	require.NoError(t, err)
+
+	// verified status
+	forceSetWindowsHostProfileStatus(t, ds, hosts[0].UUID, noTeamWindowsProfile, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &verified}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &pending}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &failed}, 0)
+
+	// verified status
+	forceSetWindowsHostProfileStatus(t, ds, hosts[1].UUID, noTeamWindowsProfile, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &pending}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &failed}, 0)
+
+	// pending status
+	forceSetWindowsHostProfileStatus(t, ds, hosts[2].UUID, noTeamWindowsProfile, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	forceSetWindowsHostProfileStatus(t, ds, hosts[3].UUID, noTeamWindowsProfile, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &pending}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &failed}, 0)
+
+	// failed status
+	forceSetWindowsHostProfileStatus(t, ds, hosts[4].UUID, noTeamWindowsProfile, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+	forceSetWindowsHostProfileStatus(t, ds, hosts[5].UUID, noTeamWindowsProfile, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &verified}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &verifying}, 1)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &pending}, 2)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{ProfileUUIDFilter: &noTeamWindowsProfile.ProfileUUID, ProfileStatusFilter: &failed}, 2)
 }
 
 func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {

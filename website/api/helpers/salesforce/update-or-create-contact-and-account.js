@@ -44,6 +44,7 @@ module.exports = {
         'LinkedIn - Comment',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
+        'LinkedIn - Liked the LinkedIn company page',
       ],
     },
     getStartedResponses: {
