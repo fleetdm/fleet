@@ -9606,7 +9606,7 @@ Returns information about the specified software. By default, `versions` are sor
       "fleet_maintained_app": null,
       "app_store_app": {
         "app_store_id": "8675309"
-      },
+      }
     }
     "software_package": null,
     "app_store_app": {
