@@ -73,7 +73,7 @@ module.exports = {
 
 
     // All done.
-    return;
+    return this.res.json({});
 
   }
 
