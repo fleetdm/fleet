@@ -426,6 +426,41 @@ $ awslocal kinesis list-streams
     ]
 }
 ```
+Use the following to describe the sample_status stream. 
+
+Note: Check the `StreamARN` value to see your region. If your region is not `us-east-1` you will need to update the command for running `fleet serve` below to match your region. 
+```sh
+$ awslocal kinesis describe-stream --stream-name sample_status
+{
+    "StreamDescription": {
+        "Shards": [
+            {
+                "ShardId": "shardId-000000000000",
+                "HashKeyRange": {
+                    "StartingHashKey": "0",
+                    "EndingHashKey": "340282366920938463463374607431768211455"
+                },
+                "SequenceNumberRange": {
+                    "StartingSequenceNumber": "49663516104709326340269823046323233838660186951542374402"
+                }
+            }
+        ],
+        "StreamARN": "arn:aws:kinesis:us-east-1:000000000000:stream/sample_status",
+        "StreamName": "sample_status",
+        "StreamStatus": "ACTIVE",
+        "RetentionPeriodHours": 24,
+        "EnhancedMonitoring": [
+            {
+                "ShardLevelMetrics": []
+            }
+        ],
+        "EncryptionType": "NONE",
+        "KeyId": null,
+        "StreamCreationTimestamp": 1747864229.031
+    }
+}
+```
+
 
 Use the following configuration to run Fleet:
 ```sh
