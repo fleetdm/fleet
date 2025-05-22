@@ -1531,6 +1531,18 @@ WHERE
 			)
 		)
 `
+
+	const cancelSetupExperienceStatusForAllDeletedPendingSoftwareInstalls = `
+UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
+	  SELECT execution_id FROM host_software_installs hsi INNER JOIN software_installers si ON hsi.software_installer_id=si.id
+	  WHERE hsi.status IN ('pending_install', 'pending_uninstall') si.global_or_team_id = ?
+	UNION
+	  SELECT ua.execution_id FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+	  INNER JOIN software_installers si ON siua.software_installer_id=si.id
+	  WHERE ua.activity_type IN ('software_install', 'software_uninstall') AND si.global_or_team_id = ?
+)
+`
+
 	const deleteAllPendingSoftwareInstallsHSI = `
 		DELETE FROM host_software_installs
 		WHERE status IN('pending_install', 'pending_uninstall')
@@ -1573,6 +1585,18 @@ WHERE
 			)
 		)
 `
+
+	const cancelSetupExperienceStatusForDeletedSoftwareInstalls = `
+		UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
+			  SELECT execution_id FROM host_software_installs hsi INNER JOIN software_installers si ON hsi.software_installer_id=si.id
+			  WHERE hsi.status IN ('pending_install', 'pending_uninstall') si.global_or_team_id = ? AND si.title_id NOT IN (?)
+			UNION
+			  SELECT ua.execution_id FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
+			  INNER JOIN software_installers si ON siua.software_installer_id=si.id
+			  WHERE ua.activity_type IN ('software_install', 'software_uninstall') AND si.global_or_team_id = ? AND si.title_id NOT IN (?)
+		)
+	`
+
 	const deletePendingSoftwareInstallsNotInListHSI = `
 		DELETE FROM host_software_installs
 		WHERE status IN('pending_install', 'pending_uninstall')
@@ -1788,6 +1812,11 @@ VALUES
 				return ctxerr.Wrap(ctx, err, "delete all pending uninstall script executions")
 			}
 
+			if _, err := tx.ExecContext(ctx, cancelSetupExperienceStatusForAllDeletedPendingSoftwareInstalls, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning,
+				globalOrTeamID, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs")
+			}
+
 			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsHSI, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete all pending host software install records")
 			}
@@ -1879,6 +1908,15 @@ VALUES
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete pending uninstall script executions")
+		}
+
+		stmt, args, err = sqlx.In(cancelSetupExperienceStatusForDeletedSoftwareInstalls, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning,
+			globalOrTeamID, titleIDs, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to cancel pending setup experience software installs")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "cancel pending setup experience software installs for obsolete host software install records")
 		}
 
 		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListHSI, globalOrTeamID, titleIDs)
