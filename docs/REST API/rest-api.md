@@ -992,6 +992,14 @@ None.
         "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
       }
     ],
+    "hydrant": [
+      {
+        "name": "HYDRANT_WIFI",
+        "url": "https://example.hydrantid.com/.well-known/est/abc123",
+        "client_id": "********",
+        "client_secret": "********"
+      }
+    ],
     "ndes_scep_proxy": {
       "admin_url": "https://example.com/certsrv/mscep_admin/",
       "password": "********",
@@ -1070,7 +1078,7 @@ Modifies the Fleet's configuration with the supplied information.
 | fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
 | webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
 | gitops                   | object  | body  | See [gitops](#gitops).                                                                                                               |
-| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
+| integrations             | object  | body  | Includes `ndes_scep_proxy` object and `jira`, `zendesk`, `digicert`, `hydrant`, `custom_scep_proxy`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
 | mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
 | features                 | object  | body  | See [features](#features).                                                                                                           |
 | scripts                  | array   | body  | A list of script files to add so they can be executed at a later time.                                                               |
@@ -1638,6 +1646,7 @@ _Available in Fleet Premium._
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | digicert | array | See [`integrations.digicert`](#integrations-digicert). |
 | ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
+| hydrant | array | See [`integrations.ndes_scep_proxy`](#integrations-hydrant). |
 | custom_scep_proxy | array | See [`integrations.custom_scep_proxy`](#integrations-scep-proxy). |
 
 
@@ -1723,6 +1732,20 @@ _Available in Fleet Premium._
 
 Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. Not specifying `integrations.ndes_scep_proxy` in the payload will not change the existing settings.
 
+##### integrations.hydrant
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+`integrations.hydrant` is an object with the following structure:
+
+| Name      | Type   | Description                                             |
+|-----------|--------|---------------------------------------------------------|
+| url       | string | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.        |
+| client_id | string | **Required**. The client ID provided by Hydrant.       |
+| client_secret  | string | **Required**. The client secret provided by Hydrant. |
+
+Setting `integrations.hydrant` to `null` will clear existing settings. Not specifying `integrations.hydrant` in the payload will not change the existing settings.
+
 ##### integrations.custom_scep_proxy
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -1771,6 +1794,14 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
         "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
         "certificate_subject_alternative_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
         "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
+      }
+    ],
+    "hydrant": [
+      {
+        "name": "HYDRANT_WIFI",
+        "url": "https://example.hydrantid.com/.well-known/est/abc123",
+        "client_id": "********",
+        "client_secret": "********"
       }
     ],
     "ndes_scep_proxy": {
