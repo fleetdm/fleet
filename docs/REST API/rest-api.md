@@ -707,7 +707,12 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Certificates
 
+- [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Request certificate](#request-certificate)
+
+### List certificate authorities (CAs)
+
+TODO
 
 ### Request certificate
 
@@ -719,7 +724,7 @@ Requests a base64 encoded certificate (`.pem`) from the specified certificate au
 
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
-| ca_id   | string | body | **Required.** The certificate authority (CA) name in Fleet. See your CAs [here](). |
+| ca_id   | string | body | **Required.** The certificate authority (CA) name in Fleet. See your CAs [here](#list-certificate-authorities-cas). |
 | csr       | string | body | **Required.** The signed certificate signing request (CSR). Noah: Does NDES and Custom SCEP need a CSR?        |
 | cn   | integer | body | Certificates will have this common name (CN) in the subject. |
 | upn   | string | body | Certificates will have this user principal name (UPN). |
