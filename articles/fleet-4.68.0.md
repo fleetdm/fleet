@@ -16,6 +16,7 @@ Fleet 4.68.0 is now available. See the complete [changelog](https://github.com/f
 - Software self-service categories
 - Run scripts in bulk
 - Fleet-maintained apps via GitOps (YAML)
+- Generate GitOps (YAML)
 - Custom Fleet agent (fleetd) during new Mac setup (ADE)
 
 ### Scheduled query webhooks
