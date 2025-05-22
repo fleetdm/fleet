@@ -1,3 +1,5 @@
+# Migrating to GitOps using `fleetctl`
+
 ## Introduction
 
 At Fleet, we are strong proponents of using [GitOps](https://fleetdm.com/guides/sysadmin-diaries-gitops-a-strategic-advantage#basic-article) to manage your configuration (you can read more about our rationale [here](https://fleetdm.com/guides/articles/preventing-mistakes-with-gitops)). But what if you already have a Fleet instance with complex configuration or a large numbers of labels, policies, queries or software installers? How can you migrate your configuration management to GitOps while ensuring that nothing is lost in the shuffle?
@@ -48,3 +50,10 @@ See `fleetctl generate-gitops --help` for all options.
 - GitOps cannot currently sync Fleet-maintained app installers. If your current configuration includes FMA-based installers, the migration tool will output a placeholder for them which will cause GitOps to fail (ensuring that your current configuration is not overwritten).
 - The migration tool does not output YARA rules at this time. If you have previously used GitOps to apply YARA rules, you will need to manually add them to any output from the tool to ensure that your existing rules are maintained.
 - The migration tool does not output the `macos_settings` key configuration at this time. If you have customized configuration for Mac hosts such as a bootstrap package or script, the tool will output a placeholder for you to replace with the correct details. See [the GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#macos-setup) for more information on `macos_settings`.
+
+<meta name="category" value="guides">
+<meta name="authorGitHubUsername" value="sgress454">
+<meta name="authorFullName" value="Scott Gress">
+<meta name="publishedOn" value="2025-05-22">
+<meta name="articleTitle" value="Migrating to GitOps using fleetctl">
+<meta name="description" value="Instructions for migrating your Fleet configuration to GitOps.">
