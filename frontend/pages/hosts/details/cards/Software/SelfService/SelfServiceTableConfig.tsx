@@ -34,11 +34,8 @@ import { IStatusDisplayConfig } from "../InstallStatusCell/InstallStatusCell";
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
 type ITableStringCellProps = IStringCellProps<IHostSoftware>;
-type IInstalledVersionsCellProps = CellProps<
-  IHostSoftware,
-  IHostSoftware["installed_versions"]
->;
-type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
+type IStatusCellProps = CellProps<IHostSoftware, IHostSoftware["status"]>;
+type IActionCellProps = CellProps<IHostSoftware, IHostSoftware["status"]>;
 
 const baseClass = "self-service-table";
 
@@ -293,6 +290,7 @@ const InstallerStatusAction = ({
         onInstallOrUninstall();
       }
     } catch (error) {
+      // We only show toast message if API returns an error
       renderFlash("error", "Couldn't install. Please try again.");
     }
   }, [deviceToken, id, onInstallOrUninstall, renderFlash]);
@@ -392,14 +390,14 @@ export const generateSoftwareTableHeaders = ({
     {
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
-          value="Status"
+          value="Install status"
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
       disableSortBy: false,
       disableGlobalFilter: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
+      accessor: "status",
+      Cell: (cellProps: IStatusCellProps) => (
         <InstallerStatus
           status={cellProps.row.original.status}
           last_install={
@@ -415,7 +413,7 @@ export const generateSoftwareTableHeaders = ({
       Header: "Actions",
       accessor: (originalRow) => originalRow.status,
       disableSortBy: true,
-      Cell: (cellProps: IVulnerabilitiesCellProps) => {
+      Cell: (cellProps: IActionCellProps) => {
         return (
           <InstallerStatusAction
             deviceToken={deviceToken}

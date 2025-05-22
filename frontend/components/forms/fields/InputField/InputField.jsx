@@ -107,6 +107,16 @@ class InputField extends Component {
     return false;
   };
 
+  onClickCopy = (e) => {
+    e.preventDefault();
+    stringToClipboard(this.props.value).then(() => {
+      this.setState({ copied: true });
+      setTimeout(() => {
+        this.setState({ copied: false });
+      }, 2000);
+    });
+  };
+
   renderShowSecretButton = () => {
     const { onToggleSecret } = this;
 
@@ -122,17 +132,7 @@ class InputField extends Component {
   };
 
   renderCopyButton = () => {
-    const { value } = this.props;
-
-    const copyValue = (e) => {
-      e.preventDefault();
-      stringToClipboard(value).then(() => {
-        this.setState({ copied: true });
-        setTimeout(() => {
-          this.setState({ copied: false });
-        }, 2000);
-      });
-    };
+    const { onClickCopy } = this;
 
     const copyButtonValue = <Icon name="copy" />;
     const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
@@ -146,7 +146,7 @@ class InputField extends Component {
         {this.state.copied && (
           <span className={copiedConfirmationClasses}>Copied!</span>
         )}
-        <Button variant={"icon"} onClick={copyValue} iconStroke>
+        <Button variant={"icon"} onClick={onClickCopy} iconStroke>
           {copyButtonValue}
         </Button>
         {this.props.enableShowSecret && this.renderShowSecretButton()}

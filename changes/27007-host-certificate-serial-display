@@ -1,1 +1,0 @@
-Host certificates with serial numbers below 2^63 will display the decimal represntation of the serial number in addition to hex so that it is easier to match them up to what is displayed in the macOS keychain.
