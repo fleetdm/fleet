@@ -21,6 +21,10 @@ module.exports = {
   exits: {
     success: {
       description: 'The requesting entra tenant has been successfully deprovisioned.'
+    },
+    tenantNotFound: {
+      description: 'A Microsoft compliance tenant could not be found using the provided information.',
+      responseType: 'notFound',
     }
   },
 
@@ -29,7 +33,7 @@ module.exports = {
 
     let informationAboutThisTenant = await MicrosoftComplianceTenant.findOne({entraTenantId: entraTenantId, fleetServerSecret: fleetServerSecret});
     if(!informationAboutThisTenant) {
-      return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
+      throw 'tenantNotFound';
     }
     if(sails.config.custom.sendMockProxyResponsesForDevelopment) {
       sails.log(`Sending mock success response without communicating with the Microsoft API because 'sails.config.custom.sendMockProxyResponsesForDevelopment' is set to true`);
