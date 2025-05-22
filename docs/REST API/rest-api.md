@@ -720,11 +720,11 @@ Requests a base64 encoded certificate (`.pem`) from the specified certificate au
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
 | certificate_authority_name   | string | body | **Required.** The certificate authority (CA) name in Fleet. See your CAs [here](). |
-| certificate_signing_request       | string | body | **Required.** The signed certificate signing request (CSR). Noah: Does NDES and Custom SCEP need a CSR?        |
-| common_name   | integer | body | Certificates will have this CN in the subject. |
-| user_principal_name   | string | body | Certificates will have this UPN. |
-| subject_alternative_name   | string | body | Certificates will have this SAN. |
-| uniform_resource_identifier  | string | body | Certificates will have this URI. |
+| csr       | string | body | **Required.** The signed certificate signing request (CSR). Noah: Does NDES and Custom SCEP need a CSR?        |
+| cn   | integer | body | Certificates will have this common name (CN) in the subject. |
+| upn   | string | body | Certificates will have this user principal name (UPN). |
+| san   | string | body | Certificates will have this subject alternative name (SAN). |
+| uri  | string | body | Certificates will have this uniform resource identifier (URI). |
 | idp_token | string | body | Active session token from your identity provider you configured for [end user authentication](#mdm-end-user-authentication). Required if you're enforcing end user authentication |
 
 #### Example
