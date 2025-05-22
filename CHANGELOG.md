@@ -11,6 +11,7 @@
 - Added ability to run a script on a batch of hosts with a single user flow.
 - Added download validation and existing-installer matching in GitOps via a new `hash_sha256` field in software YAML.
 - Added `hash_sha256` field to the response for the `GET /software/titles` API.
+- Added `fleetctl generate-gitops` command to generate gitops YAML files based on current Fleet configuration.
 - Enabled saving Integrations > Advanced in GitOps mode.
 
 ### IT Admins
@@ -29,6 +30,7 @@
 - Added `hash_sha256` field to the response for the `GET /software/titles` API.
 - Added support for `FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` and `FLEET_VAR_HOST_END_USER_IDP_GROUPS` fleet variables in macOS MDM configuration profiles.
 - Added `last_mdm_enrolled_at` and `last_mdm_checked_in_at` to host detail endpoints to return the last time a host enrolled, or re-enrolled in MDM and the last time a host checked in via MDM, respectively.
+- Added `fleetctl generate-gitops` command to generate gitops YAML files based on current Fleet configuration.
 - Updated Fleet-managed DigiCert, NDES, and SCEP certificates to be renewed 30 days before expiry for those valid longer than 30 days or when half the validity period remains for certificates valid 30 days or less. Applies to certificates requested using this release or later. 
 - Updated host certificates with serial numbers below 2^63 will now display the decimal represntation of the serial number in addition to hex so that it is easier to match them up to what is displayed in the macOS keychain.
 - Updated Install Status to correctly display available for self-service VPP apps.
