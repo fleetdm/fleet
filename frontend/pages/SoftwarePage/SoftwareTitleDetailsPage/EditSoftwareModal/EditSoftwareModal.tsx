@@ -5,7 +5,11 @@ import paths from "router/paths";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
-import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  isSoftwarePackage,
+} from "interfaces/software";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { NotificationContext } from "context/notification";
@@ -187,14 +191,16 @@ const EditSoftwareModal = ({
         },
       });
 
-      if ("title_id" in software && software.title_id && gitOpsModeEnabled) {
+      if (
+        isSoftwarePackage(software) &&
+        software.title_id &&
+        gitOpsModeEnabled
+      ) {
         // No longer refetch as we open YAML modal if editing with gitOpsModeEnabled
         const newQueryParams: QueryParams = {
           team_id: teamId,
           gitops_yaml: "true",
         };
-        // Should have title_id so can return to the same page
-        // TODO: Make it so YAML reopens! It's pushing to the same URL so it might need a refresh.
         router.push(
           getPathWithQueryParams(
             paths.SOFTWARE_TITLE_DETAILS(software.title_id.toString()),

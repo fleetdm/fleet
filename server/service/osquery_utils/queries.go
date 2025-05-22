@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"net"
 	"net/url"
 	"regexp"
@@ -39,8 +40,9 @@ type DetailQuery struct {
 	Description string
 	// Query is the SQL query string.
 	Query string
-	// QueryFunc is optionally used to dynamically build a query.
-	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) string
+	// QueryFunc is optionally used to dynamically build a query. If false is returned, then the query should be
+	// ignored.
+	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool)
 	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
@@ -2068,6 +2070,152 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
+var luksVerifyQuery = DetailQuery{
+	Platforms: fleet.HostLinuxOSs,
+	Discovery: fmt.Sprintf(
+		`SELECT 1 WHERE EXISTS (%s) AND EXISTS (%s);`,
+		discoveryTable("lsblk"),
+		discoveryTable("cryptsetup_luks_salt"),
+	),
+	QueryFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+		if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" || !host.IsLUKSSupported() {
+			return "", false
+		}
+
+		if _, err := ds.GetHostDiskEncryptionKey(ctx, host.ID); err != nil {
+			if fleet.IsNotFound(err) {
+				return "", false
+			}
+		}
+
+		// Returns the key_slot and salt of the LUKS block device where '/' is mounted.
+		query := `
+		WITH RECURSIVE
+		devices AS (
+			SELECT 
+				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
+				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
+				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
+				MAX(CASE WHEN key = 'fstype' THEN value ELSE NULL END) AS fstype,
+				MAX(CASE WHEN key = 'mountpoint' THEN value ELSE NULL END) as mountpoint
+			FROM lsblk
+			GROUP BY parent
+		HAVING path <> '' AND fstype <> ''
+		),
+		root_mount AS (
+			SELECT 
+				path, 
+				kname, 
+				-- if '/' is mounted in a LUKS FS, then we don't need to transverse the tree
+				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname, 
+				fstype 
+			FROM devices
+			WHERE mountpoint = '/'
+		),
+		luks_h(path, kname, pkname, fstype) AS (
+			SELECT 
+				rtm.path, 
+				rtm.kname, 
+				rtm.pkname, 
+				rtm.fstype 
+			FROM root_mount rtm
+			UNION
+		   SELECT 
+				dv.path,
+				dv.kname,
+				dv.pkname,
+				dv.fstype
+		   FROM devices dv 
+		   JOIN luks_h ON dv.kname=luks_h.pkname
+		)
+		SELECT salt, key_slot
+		FROM cryptsetup_luks_salt 
+		WHERE device = (SELECT path FROM luks_h WHERE fstype = 'crypto_LUKS' LIMIT 1)`
+		return query, true
+	},
+}
+
+// We need to define the ingest function inline like this because we need access to the server private key
+var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
+	ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	return func(
+		ctx context.Context,
+		logger log.Logger,
+		host *fleet.Host,
+		ds fleet.Datastore,
+		rows []map[string]string,
+	) error {
+		if len(rows) == 0 || host == nil || !host.IsLUKSSupported() {
+			return nil
+		}
+
+		dek, err := ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				level.Error(logger).Log(
+					"component", "service",
+					"method", "luksVerifyQueryIngester",
+					"msg", "unexpected missing LUKS2 disk encryption key",
+					"err", err,
+				)
+				return nil
+			}
+			level.Error(logger).Log(
+				"component", "service",
+				"method", "luksVerifyQueryIngester",
+				"msg", "unexpected error",
+				"err", err,
+			)
+			return err
+		}
+		if dek == nil || dek.Base64EncryptedSalt == "" || dek.KeySlot == nil {
+			return nil
+		}
+
+		storedSalt, err := decrypter(dek.Base64EncryptedSalt)
+		if err != nil {
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "luksVerifyQueryIngester",
+				"host", host.ID,
+				"err", err,
+			)
+			return err
+		}
+		storedKeySlot := fmt.Sprintf("%d", *dek.KeySlot)
+
+		var entryFound bool
+		for _, row := range rows {
+			hostSalt, okSalt := row["salt"]
+			hostKeySlot, okKeySlot := row["key_slot"]
+
+			if !okSalt || !okKeySlot {
+				level.Error(logger).Log(
+					"component", "service",
+					"method", "luksVerifyQueryIngester",
+					"host", host.ID,
+					"err", "luks_verify expected some salt and a key_slot",
+				)
+				continue
+			}
+			if hostSalt == storedSalt && hostKeySlot == storedKeySlot {
+				entryFound = true
+				break
+			}
+		}
+		if !entryFound {
+			level.Info(logger).Log(
+				"component", "service",
+				"method", "luksVerifyQueryIngester",
+				"host", host.ID,
+				"msg", "LUKS key do not match, deleting",
+			)
+			return ds.DeleteLUKSData(ctx, host.ID, *dek.KeySlot)
+		}
+		return nil
+	}
+}
+
 //go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
 
 func GetDetailQueries(
@@ -2120,6 +2268,15 @@ func GetDetailQueries(
 		}
 	}
 
+	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
+		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(func(privateKey string) func(string) (string, error) {
+			return func(encrypted string) (string, error) {
+				return mdm.DecodeAndDecrypt(encrypted, privateKey)
+			}
+		}(fleetConfig.Server.PrivateKey))
+		generatedMap["luks_verify"] = luksVerifyQuery
+	}
+
 	if features != nil {
 		var unknownQueries []string
 
@@ -2162,7 +2319,7 @@ func buildConfigProfilesWindowsQuery(
 	logger log.Logger,
 	host *fleet.Host,
 	ds fleet.Datastore,
-) string {
+) (string, bool) {
 	var sb strings.Builder
 	sb.WriteString("<SyncBody>")
 	gotProfiles := false
@@ -2187,7 +2344,7 @@ func buildConfigProfilesWindowsQuery(
 			"method", "QueryFunc - windows config profiles",
 			"err", err,
 		)
-		return ""
+		return "", false
 	}
 	if !gotProfiles {
 		level.Debug(logger).Log(
@@ -2196,10 +2353,10 @@ func buildConfigProfilesWindowsQuery(
 			"msg", "host doesn't have profiles to check",
 			"host_id", host.ID,
 		)
-		return ""
+		return "", false
 	}
 	sb.WriteString("</SyncBody>")
-	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String())
+	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String()), true
 }
 
 func directIngestWindowsProfiles(
