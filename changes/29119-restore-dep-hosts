@@ -1,2 +1,0 @@
-- Fixed bug where Fleet failed to restore some "pending" hosts (i.e. hosts that remained assigned to
-  Fleet in Apple Business Manager) when multiple hosts are deleted from Fleet.
