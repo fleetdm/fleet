@@ -5,8 +5,6 @@ import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { pick } from "lodash";
 
-import { JACOB_FAKE_POLICIES } from "__mocks__/policyMock";
-
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
@@ -1100,8 +1098,7 @@ const HostDetailsPage = ({
             </TabPanel>
             <TabPanel>
               <PoliciesCard
-                // policies={host?.policies || []}
-                policies={JACOB_FAKE_POLICIES}
+                policies={host?.policies || []}
                 isLoading={isLoadingHost}
                 togglePolicyDetailsModal={togglePolicyDetailsModal}
                 hostPlatform={host.platform}
