@@ -1047,7 +1047,9 @@ const ManagePolicyPage = ({
     false;
 
   const isConditionalAccessEnabled =
-    teamConfig?.integrations.conditional_access_enabled ?? false;
+    (teamIdForApi === API_NO_TEAM_ID
+      ? globalConfig?.integrations.conditional_access_enabled
+      : teamConfig?.integrations.conditional_access_enabled) ?? false;
 
   const getAutomationsDropdownOptions = (configPresent: boolean) => {
     let disabledInstallTooltipContent: TooltipContent;
