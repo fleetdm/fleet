@@ -8440,11 +8440,13 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
 	var resp listSoftwareTitlesResponse
-	// no self-service software yet
+	// self-service flag is ignored if no team specified see https://github.com/fleetdm/fleet/issues/26375
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp, "self_service", "1")
-	require.Empty(t, resp.SoftwareTitles)
+	require.Equal(t, 2, resp.Count)
+
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
 	require.Equal(t, 2, resp.Count)
+
 	require.NotEmpty(t, resp.CountsUpdatedAt)
 	softwareTitleListResultsMatch([]fleet.SoftwareTitleListResult{
 		{
@@ -9190,7 +9192,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
-	// "All teams" returns no software because the self-service software it's not installed (host_counts == 0).
+	// "All teams" returns all software regardless of self_service see https://github.com/fleetdm/fleet/issues/26375
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -9199,7 +9201,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "true",
 	)
 
-	require.Empty(t, resp.SoftwareTitles, 0)
+	require.Equal(t, resp.Count, 2)
 
 	// "No team" returns the emacs software
 	resp = listSoftwareTitlesResponse{}
