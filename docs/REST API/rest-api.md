@@ -1666,10 +1666,10 @@ _Available in Fleet Premium._
 | jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
-| digicert | array | See [`integrations.digicert`](#integrations-digicert). |
-| ndes_scep_proxy | object | See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
-| hydrant | array | See [`integrations.ndes_scep_proxy`](#integrations-hydrant). |
-| custom_scep_proxy | array | See [`integrations.custom_scep_proxy`](#integrations-scep-proxy). |
+| digicert | array | _Available in Fleet Premium._ See [`integrations.digicert`](#integrations-digicert). |
+| ndes_scep_proxy | object | _Available in Fleet Premium._ See [`integrations.ndes_scep_proxy`](#integrations-ndes-scep-proxy). |
+| hydrant | array | _Available in Fleet Premium._ See [`integrations.ndes_scep_proxy`](#integrations-hydrant). |
+| custom_scep_proxy | array | _Available in Fleet Premium._ See [`integrations.custom_scep_proxy`](#integrations-scep-proxy). |
 
 
 <br/>

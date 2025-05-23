@@ -728,7 +728,7 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
-    digicert:
+    digicert: # Available in Fleet Premium
       - name: DIGICERT_WIFI
         url: https://one.digicert.com
         api_token: $DIGICERT_API_TOKEN
@@ -737,17 +737,17 @@ org_settings:
         certificate_user_principal_names:
           - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
         certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-    hydrant:
+    hydrant: # Available in Fleet Premium
       - name: HYDRANT_WIFI
         url: https://example.hydrantid.com/.well-known/est/abc123
         client_id: $HYDRANT_CLIENT_ID
         client_secret: $HYDRANT_CLIENT_SECRET
-    ndes_scep_proxy:
+    ndes_scep_proxy: # Available in Fleet Premium
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
       username: Administrator@example.com
       password: myPassword
-    custom_scep_proxy:
+    custom_scep_proxy: # Available in Fleet Premium
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
