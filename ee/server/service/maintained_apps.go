@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/go-kit/kit/log/level"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -206,13 +205,6 @@ func (svc *Service) AddFleetMaintainedApp(
 		policies, err := svc.ds.GetPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
 		if err != nil {
 			return 0, ctxerr.Wrap(ctx, err, "getting new automatic install policy for FMA")
-		}
-
-		if len(policies) == 0 {
-			// Something very weird has happened if we don't find
-			// the policy since we just created it in a transaction above.
-			level.Warn(svc.logger).Log("msg", "automatic install policy was created for FMA but not found in DB")
-			return titleID, nil
 		}
 
 		policyAct := fleet.ActivityTypeCreatedPolicy{

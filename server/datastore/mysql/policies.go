@@ -12,6 +12,7 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -2089,7 +2090,7 @@ func (ds *Datastore) GetPoliciesBySoftwareTitleIDs(
 	softwareTitleIDs []uint,
 	teamID *uint,
 ) ([]fleet.AutomaticInstallPolicy, error) {
-	return ds.getPoliciesBySoftwareTitleIDs(ctx, softwareTitleIDs, teamID)
+	return ds.getPoliciesBySoftwareTitleIDs(ctxdb.RequirePrimary(ctx, true), softwareTitleIDs, teamID)
 }
 
 // GetPoliciesBySoftwareTitleID returns the policies that are associated with a set of software titles.
