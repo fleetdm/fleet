@@ -8,6 +8,7 @@ module.exports = {
 
 
   inputs: {
+    // Required values on new historical event records.
     salesforceAccountId: {
       type: 'string',
       required: true,
@@ -41,6 +42,21 @@ module.exports = {
     // For "Intent signal" type historical events:
     intentSignal: {
       type: 'string',
+      isIn: [
+        'Followed the Fleet LinkedIn company page',
+        'LinkedIn comment',
+        'LinkedIn share',
+        'LinkedIn reaction',
+        'Fleet channel member in MacAdmins Slack',
+        'Fleet channel member in osquery Slack',
+        'Implemented a trial key',
+        'Engaged with fleetie at community event',
+        'Attended a Fleet happy hour',
+        'Stared the fleetdm/fleet repo on GitHub',
+        'Forked the fleetdm/fleet repo on GitHub',
+        'Subscribed to the Fleet newsletter',
+        'Attended a Fleet training course'
+      ]
     },
     eventContent: {
       type: 'string',
@@ -87,9 +103,6 @@ module.exports = {
     if(eventType === 'Intent signal') {
       if(!intentSignal) {
         throw new Error(`A intentSignal value is required when creating "Intent signal" type historical events`);
-      }
-      if(!eventContent) {
-        throw new Error(`A eventContentUrl value is required when creating "Intent signal" type historical events`);
       }
     } else if(eventType === 'Website page view') {
       if(!fleetWebsitePageUrl){
