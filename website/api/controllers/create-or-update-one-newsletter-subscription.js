@@ -63,9 +63,6 @@ module.exports = {
         salesforceContactId: recordIds.salesforceContactId,
         eventType: 'Intent signal',
         intentSignal: 'Subscribed to the Fleet newsletter',
-      }).intercept((err)=>{
-        sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);
-        return 'couldNotCreateActivity';
       });
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {
