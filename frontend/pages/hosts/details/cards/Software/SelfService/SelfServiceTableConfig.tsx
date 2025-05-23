@@ -128,6 +128,7 @@ const InstallerStatus = ({
     return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
   }
 
+  // TODO: If there's both a last_install and last_uninstall, render the most recent status
   const renderDisplayStatus = () => {
     if (last_install && displayConfig.displayText === "Failed") {
       return (
