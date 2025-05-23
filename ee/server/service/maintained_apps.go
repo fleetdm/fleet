@@ -201,15 +201,11 @@ func (svc *Service) AddFleetMaintainedApp(
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
 
-	if automaticInstall {
-		policies, err := svc.ds.GetPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "getting new automatic install policy for FMA")
-		}
+	if automaticInstall && payload.AddedAutomaticInstallPolicy != nil {
 
 		policyAct := fleet.ActivityTypeCreatedPolicy{
-			ID:   policies[0].ID,
-			Name: policies[0].Name,
+			ID:   payload.AddedAutomaticInstallPolicy.ID,
+			Name: payload.AddedAutomaticInstallPolicy.Name,
 		}
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {

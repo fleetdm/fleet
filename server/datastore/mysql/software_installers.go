@@ -279,9 +279,12 @@ INSERT INTO software_installers (
 				return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
 			}
 
-			if _, err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, payload.TeamID, ptr.Uint(installerID), nil); err != nil {
+			policy, err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, payload.TeamID, ptr.Uint(installerID), nil)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "create automatic policy")
 			}
+
+			payload.AddedAutomaticInstallPolicy = policy
 		}
 
 		return nil
