@@ -1,1 +1,0 @@
-* Added new Detail Query 'luks_verify' used to verify if the stored LUKS key is valid.
