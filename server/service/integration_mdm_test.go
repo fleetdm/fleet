@@ -14968,7 +14968,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		Platform:          string(fleet.MacOSPlatform),
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
 	}
-	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &swInstallerPayload1)
+	installerID1, titleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &swInstallerPayload1)
 	_ = installerID1
 	require.NoError(t, err)
 
@@ -15047,7 +15047,8 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	require.True(t, awaitingConfig)
 
 	updatePayload := &fleet.UpdateSoftwareInstallerPayload{
-		TitleID:           installerID1,
+		TitleID:           titleID1,
+		InstallerID:       installerID1,
 		Filename:          swInstallerPayload1.Filename,
 		InstallScript:     ptr.String("some new content"),
 		PreInstallQuery:   &swInstallerPayload1.PreInstallQuery,
