@@ -1535,7 +1535,7 @@ WHERE
 	const cancelSetupExperienceStatusForAllDeletedPendingSoftwareInstalls = `
 UPDATE setup_experience_status_results SET status=? WHERE status IN (?, ?) AND host_software_installs_execution_id IN (
 	  SELECT execution_id FROM host_software_installs hsi INNER JOIN software_installers si ON hsi.software_installer_id=si.id
-	  WHERE hsi.status IN ('pending_install', 'pending_uninstall') si.global_or_team_id = ?
+	  WHERE hsi.status IN ('pending_install', 'pending_uninstall') AND si.global_or_team_id = ?
 	UNION
 	  SELECT ua.execution_id FROM upcoming_activities ua INNER JOIN software_install_upcoming_activities siua ON ua.id = siua.upcoming_activity_id
 	  INNER JOIN software_installers si ON siua.software_installer_id=si.id
