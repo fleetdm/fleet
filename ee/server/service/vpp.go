@@ -452,15 +452,15 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "create activity for add app store app")
 	}
 
-	if appID.AddAutoInstallPolicy {
-		policies, err := svc.ds.GetPoliciesBySoftwareTitleIDs(ctx, []uint{addedApp.TitleID}, teamID)
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "getting new automatic install policy for VPP app")
-		}
+	if appID.AddAutoInstallPolicy && app.AddedAutomaticInstallPolicy != nil {
+		// policies, err := svc.ds.GetPoliciesBySoftwareTitleIDs(ctx, []uint{addedApp.TitleID}, teamID)
+		// if err != nil {
+		// 	return 0, ctxerr.Wrap(ctx, err, "getting new automatic install policy for VPP app")
+		// }
 
 		policyAct := fleet.ActivityTypeCreatedPolicy{
-			ID:   policies[0].ID,
-			Name: policies[0].Name,
+			ID:   app.AddedAutomaticInstallPolicy.ID,
+			Name: app.AddedAutomaticInstallPolicy.Name,
 		}
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {

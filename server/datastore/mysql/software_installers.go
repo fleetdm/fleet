@@ -279,7 +279,7 @@ INSERT INTO software_installers (
 				return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
 			}
 
-			if err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, payload.TeamID, ptr.Uint(installerID), nil); err != nil {
+			if _, err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, payload.TeamID, ptr.Uint(installerID), nil); err != nil {
 				return ctxerr.Wrap(ctx, err, "create automatic policy")
 			}
 		}
@@ -329,30 +329,32 @@ func setOrUpdateSoftwareInstallerCategoriesDB(ctx context.Context, tx sqlx.ExtCo
 	return nil
 }
 
-func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtContext, policyData automatic_policy.PolicyData, teamID *uint, softwareInstallerID *uint, vppAppsTeamsID *uint) error {
+func (ds *Datastore) createAutomaticPolicy(ctx context.Context, tx sqlx.ExtContext, policyData automatic_policy.PolicyData, teamID *uint, softwareInstallerID *uint, vppAppsTeamsID *uint) (*fleet.Policy, error) {
 	tmID := fleet.PolicyNoTeamID
 	if teamID != nil {
 		tmID = *teamID
 	}
 	availablePolicyName, err := getAvailablePolicyName(ctx, tx, tmID, policyData.Name)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get available policy name")
+		return nil, ctxerr.Wrap(ctx, err, "get available policy name")
 	}
 	var userID *uint
 	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
 		userID = &ctxUser.ID
 	}
-	if _, err := newTeamPolicy(ctx, tx, tmID, userID, fleet.PolicyPayload{
+	policy, err := newTeamPolicy(ctx, tx, tmID, userID, fleet.PolicyPayload{
 		Name:                availablePolicyName,
 		Query:               policyData.Query,
 		Platform:            policyData.Platform,
 		Description:         policyData.Description,
 		SoftwareInstallerID: softwareInstallerID,
 		VPPAppsTeamsID:      vppAppsTeamsID,
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create automatic policy query")
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create automatic policy query")
 	}
-	return nil
+
+	return policy, nil
 }
 
 func getAvailablePolicyName(ctx context.Context, db sqlx.QueryerContext, teamID uint, tentativePolicyName string) (string, error) {
