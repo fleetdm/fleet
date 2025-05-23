@@ -351,11 +351,11 @@ will be disabled and/or hidden in the UI.
                     }
                     // Create the new Fleet website page view record.
                     await sails.helpers.salesforce.createHistoricalEvent.with({
-                      salesforceContactId: recordIds.salesforceContactId,// eslint-disable-line camelcase
-                      salesforceAccountId: recordIds.salesforceAccountId,// eslint-disable-line camelcase
-                      fleetWebsitePageUrl: `https://fleetdm.com${req.url}`,// eslint-disable-line camelcase
-                      eventType: 'Website page view',// eslint-disable-line camelcase
-                      websiteVisitReason: websiteVisitReason// eslint-disable-line camelcase
+                      salesforceContactId: recordIds.salesforceContactId,
+                      salesforceAccountId: recordIds.salesforceAccountId,
+                      fleetWebsitePageUrl: `https://fleetdm.com${req.url}`,
+                      eventType: 'Website page view',
+                      websiteVisitReason: websiteVisitReason
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);
                     });
