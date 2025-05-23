@@ -3,7 +3,9 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { pick } from "lodash";
+import { JACOB_FAKE_POLICIES } from "__mocks__/policyMock";
+
+import { pick, findIndex } from "lodash";
 
 import { NotificationContext } from "context/notification";
 
@@ -586,7 +588,8 @@ const DeviceUserPage = ({
                 {isPremiumTier && (
                   <TabPanel>
                     <PoliciesCard
-                      policies={host?.policies || []}
+                      // policies={host?.policies || []}
+                      policies={JACOB_FAKE_POLICIES}
                       isLoading={isLoadingHost}
                       deviceUser
                       togglePolicyDetailsModal={togglePolicyDetailsModal}
