@@ -1379,10 +1379,89 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	require.Len(t, statuses, 2)
 
 	// Verify that ins0's install was cancelled but ins1 is still running
+	ins1ExecID := ""
+	ins0Found := false
+	ins1Found := false
 	for _, status := range statuses {
 		if status.Name == ins0 {
+			assert.False(t, ins0Found, "duplicate ins0 found")
+			ins0Found = true
 			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
 		} else {
+			assert.False(t, ins1Found, "duplicate ins1 found")
+			assert.Equal(t, ins1, status.Name)
+			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
+			require.NotNil(t, status.HostSoftwareInstallsExecutionID)
+			ins1ExecID = *status.HostSoftwareInstallsExecutionID
+		}
+	}
+
+	// activate and set a result for ins1 as if the install completed
+	ds.testActivateSpecificNextActivities = []string{ins1ExecID}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host1.ID, "")
+	require.NoError(t, err)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host1.ID,
+		InstallUUID:           ins1ExecID,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+
+	require.NoError(t, err)
+
+	// batch-set change ins1's install script to update it. This should do nothing to the setup
+	// experience result because the install already completed
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install2",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:      "install3",
+			PostInstallScript:  "post-install",
+			InstallerFile:      tfr1,
+			StorageID:          ins1,
+			Filename:           ins1,
+			Title:              ins1,
+			Source:             "apps",
+			Version:            "2",
+			PreInstallQuery:    "select 1 from bar;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example2.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	// Verify that ins0's install is still cancelled and ins1 is still running(because it hasn't
+	// been updated in the SESR entry yet)
+	ins0Found = false
+	ins1Found = false
+	for _, status := range statuses {
+		if status.Name == ins0 {
+			assert.False(t, ins0Found, "duplicate ins0 found")
+			ins0Found = true
+			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
+		} else {
+			assert.False(t, ins1Found, "duplicate ins1 found")
+			assert.Equal(t, ins1, status.Name)
 			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
 		}
 	}
