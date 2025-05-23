@@ -9,8 +9,10 @@ import { CellProps, Column } from "react-table";
 
 import {
   IAppLastInstall,
+  IAppLastUninstall,
   IHostSoftware,
   ISoftwareLastInstall,
+  ISoftwareLastUninstall,
   SoftwareInstallStatus,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
@@ -102,21 +104,79 @@ interface InstallUuid {
 
 export type InstallOrCommandUuid = CommandUuid | InstallUuid;
 
+export type ScriptExecutionId = {
+  script_execution_id: string;
+};
+
 type IInstallerStatusProps = Pick<IHostSoftware, "status"> & {
   last_install: ISoftwareLastInstall | IAppLastInstall | null;
+  last_uninstall: ISoftwareLastUninstall | IAppLastUninstall | null;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
+  onShowUninstallDetails: (ScriptExecutionId?: ScriptExecutionId) => void;
 };
 
 const InstallerStatus = ({
   status,
   last_install,
+  last_uninstall,
   onShowInstallerDetails,
+  onShowUninstallDetails,
 }: IInstallerStatusProps) => {
   const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
   if (!displayConfig) {
     // This is shown mid-install
     return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
   }
+
+  const renderDisplayStatus = () => {
+    if (last_install && displayConfig.displayText === "Failed") {
+      return (
+        <Button
+          className={`${baseClass}__item-status-button`}
+          variant="text-icon"
+          onClick={() => {
+            if ("command_uuid" in last_install) {
+              onShowInstallerDetails({
+                command_uuid: last_install.command_uuid,
+              });
+            } else if ("install_uuid" in last_install) {
+              onShowInstallerDetails({
+                install_uuid: last_install.install_uuid,
+              });
+            } else {
+              onShowInstallerDetails(undefined);
+            }
+          }}
+        >
+          {displayConfig.displayText}
+        </Button>
+      );
+    }
+
+    if (last_uninstall && displayConfig.displayText === "Failed (uninstall)") {
+      return (
+        <Button
+          className={`${baseClass}__item-status-button`}
+          variant="text-icon"
+          onClick={() => {
+            if ("script_execution_id" in last_uninstall) {
+              onShowUninstallDetails({
+                script_execution_id: (last_uninstall as {
+                  script_execution_id: string;
+                }).script_execution_id,
+              });
+            } else {
+              onShowUninstallDetails(undefined);
+            }
+          }}
+        >
+          {displayConfig.displayText}
+        </Button>
+      );
+    }
+
+    return displayConfig.displayText;
+  };
 
   return (
     <TooltipWrapper
@@ -134,29 +194,7 @@ const InstallerStatus = ({
           <Icon name={displayConfig.iconName} />
         )}
         <span data-testid={`${baseClass}__status--test`}>
-          {last_install && displayConfig.displayText === "Failed" ? (
-            <Button
-              className={`${baseClass}__item-status-button`}
-              variant="text-icon"
-              onClick={() => {
-                if ("command_uuid" in last_install) {
-                  onShowInstallerDetails({
-                    command_uuid: last_install.command_uuid,
-                  });
-                } else if ("install_uuid" in last_install) {
-                  onShowInstallerDetails({
-                    install_uuid: last_install.install_uuid,
-                  });
-                } else {
-                  onShowInstallerDetails(undefined);
-                }
-              }}
-            >
-              {displayConfig.displayText}
-            </Button>
-          ) : (
-            displayConfig.displayText
-          )}
+          {renderDisplayStatus()}
         </span>
       </div>
     </TooltipWrapper>
@@ -354,6 +392,7 @@ interface ISelfServiceTableHeaders {
   deviceToken: string;
   onInstall: () => void;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
+  onShowUninstallDetails: (script_execution_id?: ScriptExecutionId) => void;
   onClickUninstallAction: (software: IHostSoftware) => void;
 }
 
@@ -363,6 +402,7 @@ export const generateSoftwareTableHeaders = ({
   deviceToken,
   onInstall,
   onShowInstallerDetails,
+  onShowUninstallDetails,
   onClickUninstallAction,
 }: ISelfServiceTableHeaders): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
@@ -405,7 +445,13 @@ export const generateSoftwareTableHeaders = ({
             cellProps.row.original.app_store_app?.last_install ||
             null
           }
+          last_uninstall={
+            cellProps.row.original.software_package?.last_uninstall ||
+            cellProps.row.original.app_store_app?.last_uninstall ||
+            null
+          }
           onShowInstallerDetails={onShowInstallerDetails}
+          onShowUninstallDetails={onShowUninstallDetails}
         />
       ),
     },
