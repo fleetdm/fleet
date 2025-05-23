@@ -33,8 +33,10 @@
       gap: $pad-small;
     }
 
+    // No column shift when changed statuses
+    // min-width longest status: "Failed (uninstall)"
     .self-service-table__status-content {
-      min-width: 100px; // No table layout shift when changed to pending status
+      min-width: 138px;
     }
 
     .self-service-table__item-status-button {
@@ -56,7 +58,7 @@
     display: none;
   }
 
-  @media (min-width: $break-sm) {
+  @media (min-width: $break-md) {
     .categories-menu {
       display: flex;
       flex-direction: column;
