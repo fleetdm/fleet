@@ -21,7 +21,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 ## Contact us
 
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/65) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
@@ -474,7 +474,7 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 
 ### Process a tool upgrade request from a team member
 
-- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through ZenHub.
+- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through GitHub.
 - Digital Experience will upgrade or add the license seat as needed and let the requesting team member know they did it.
 
 
@@ -482,7 +482,7 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 
 - On the first Wednesday of every quarter, the CEO and Head of Digital experience will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
 - During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
-- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to Digital Experience to have their access restored.
+- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a GitHub issue to Digital Experience to have their access restored.
 - The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
 
 

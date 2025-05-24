@@ -49,7 +49,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | Customer Success DRI              | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
 | Customer Support Engineer (CSE)   |[Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://github.com/orgs/fleetdm/projects/65), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
 
 
 ## Customer support service level agreements (SLAs)
