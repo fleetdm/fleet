@@ -99,6 +99,7 @@ describe("generateActions", () => {
         icon_url: "",
         version: "",
         last_install: { command_uuid: "", installed_at: "" },
+        last_uninstall: null,
       },
     };
     const actions = generateActions(props);
@@ -116,6 +117,7 @@ describe("generateActions", () => {
         icon_url: "",
         version: "",
         last_install: { command_uuid: "", installed_at: "" },
+        last_uninstall: null,
       },
     };
     const actions = generateActions(props);
@@ -133,6 +135,7 @@ describe("generateActions", () => {
         icon_url: "",
         version: "",
         last_install: { command_uuid: "", installed_at: "" },
+        last_uninstall: null,
       },
     };
     const actions = generateActions(props);
