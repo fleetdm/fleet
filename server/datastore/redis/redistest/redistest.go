@@ -43,8 +43,11 @@ func SetupRedisWithConfig(tb testing.TB, cleanupKeyPrefix string, cluster, redir
 	if _, ok := os.LookupEnv("REDIS_TEST"); !ok {
 		tb.Skip("set REDIS_TEST environment variable to run redis-based tests")
 	}
-	if cluster && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+	if cluster && runtime.GOOS == "windows" {
 		tb.Skipf("docker networking limitations prevent running redis cluster tests on %s", runtime.GOOS)
+	}
+	if cluster && runtime.GOOS == "darwin" {
+		tb.Log("running redis cluster test on macOS. Make sure to follow the instructions in testing-and-local-development.md#redis-cluster-on-macOS")
 	}
 	if cleanupKeyPrefix == "" {
 		tb.Fatal("missing cleanup key prefix: all redis tests need to specify a key prefix to delete on test cleanup, otherwise different packages' tests running concurrently might delete other tests' keys")

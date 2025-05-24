@@ -99,6 +99,18 @@ Note that on a Linux system, the Redis tests will include running in cluster mod
 $ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
 ```
 
+### Redis cluster on macOS
+
+Redis cluster mode can also be run on macOS, but requires an extra component to give the local development environment access to the docker network. The required tool is located [here](https://github.com/chipmk/docker-mac-net-connect). Run the following commands to setup the docker VPN bridge:
+
+```sh
+# Install via Homebrew
+$ brew install chipmk/tap/docker-mac-net-connect
+
+# Run the service and register it to launch at boot
+$ sudo brew services start chipmk/tap/docker-mac-net-connect
+```
+
 ### Go unit tests
 
 To run all Go unit tests, run the following:
