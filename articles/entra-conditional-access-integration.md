@@ -1,20 +1,27 @@
 # Entra Conditional Access integration
 
-Fleet v4.69.0 integrates with Entra ID to provide Microsoft "Conditional Access" for macOS devices.
+Fleet v4.69.0 integrates with Entra ID to provide Microsoft "Conditional Access" for macOS.
 Fleet can now connect to Microsoft Entra ID and block end users from logging into third-party apps if they're failing any Fleet policies (non-compliant).
 
-> This feature is only available on Fleet Cloud.
-> Currently supports macOS.
-> The macOS hosts must be enrolled to Fleet MDM.
+> This feature is only available on Fleet Cloud and currently supports macOS.
+
+For more information about this feature see https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners.
+
+### Configure Fleet as compliance partner in Intune
+
+The steps to configure Fleet as "Compliance partner" for macOS devices can be found here: https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners. The steps are executed in the Intune portal (https://intune.microsoft.com).
+
+After this is done, the "Fleet partner" will be shown with a "Pending activation" status.
+
+![Conditional access pending activation](../website/assets/images/compliance-partner-pending-activation.png)
 
 ## Setup integration in Fleet
 
-The first step is to connect and authorize Fleet to operate on your Entra ID tenant.
+Now we need to connect and provision Fleet to operate on your Entra ID tenant (activate partner).
 
-To connect Fleet to Entra you need your "Microsoft Entra tenant ID". 
-You can follow the steps in https://learn.microsoft.com/en-us/entra/fundamentals/how-to-find-tenant to get it.
+To connect Fleet to your Entra account you need your "Microsoft Entra tenant ID", which can be found in https://entra.microsoft.com. You can follow the steps in https://learn.microsoft.com/en-us/entra/fundamentals/how-to-find-tenant to get your tenant ID.
 
-Once you have the tenant ID, go to Fleet: `Settings` > `Integrations` > `Conditional access` and enter the tenant ID.
+Once you have your tenant ID, go to Fleet: `Settings` > `Integrations` > `Conditional access` and enter the tenant ID.
 
 ![Conditional access setup](../website/assets/images/conditional-access-setup.png)
 
@@ -22,9 +29,9 @@ After clicking `Save` you will be redirected to https://login.microsoftonline.co
 
 The next step is to enable and configure the integration on your teams.
 
-## Configure devices for integration
+## Configure devices in Fleet
 
-The following steps need to be configured on the Fleet teams you want Microsoft "Conditional Access".
+The following steps need to be configured on the Fleet teams you want to enable Microsoft "Conditional Access".
 
 ### Automatic install software for Company Portal.app
 
@@ -168,3 +175,9 @@ The final step is to configure Fleet policies that will determine whether a devi
 Go to `Policies` > `Select team` > `Automations` > `Conditional access`.
 1. Make sure the feature is enabled for the team.
 2. Check the policies you want for Conditional access.
+
+IMPORTANT: If a device is not MDM-enrolled to Fleet then it will be marked as "not compliant".
+
+## GitOps
+
+TODO(lucas)!
