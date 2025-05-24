@@ -3153,6 +3153,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		"vpp_apps_platforms":    fleet.VPPAppsPlatforms,
 		"known_exploit":         1,
 	}
+	var hasCVEMetaFilters bool
+	if opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
+		hasCVEMetaFilters = true
+	}
+
 	bySoftwareTitleID := make(map[uint]*hostSoftware)
 	bySoftwareID := make(map[uint]*hostSoftware)
 
@@ -3226,7 +3231,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					s.SoftwareSource = installedTitle.SoftwareSource
 					s.Version = installedTitle.Version
 					s.BundleIdentifier = installedTitle.BundleIdentifier
-					delete(bySoftwareTitleID, s.ID)
+					if !opts.VulnerableOnly && !hasCVEMetaFilters {
+						// When we are filtering by vulnerable only
+						// we want to treat the installed vpp app as a regular software title
+						delete(bySoftwareTitleID, s.ID)
+					}
 				} else {
 					continue
 				}
@@ -3592,13 +3601,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				// it will be present in bySoftwareTitleID, because osquery returned it as inventory.
 				// We need to remove it from bySoftwareTitleID and add it to byVPPAdamID
 				if invetoriedSoftware, ok := bySoftwareTitleID[s.ID]; ok {
-					delete(bySoftwareTitleID, s.ID)
 					invetoriedSoftware.VPPAppAdamID = s.VPPAppAdamID
 					invetoriedSoftware.VPPAppVersion = s.VPPAppVersion
 					invetoriedSoftware.VPPAppPlatform = s.VPPAppPlatform
 					invetoriedSoftware.VPPAppIconURL = s.VPPAppIconURL
 					invetoriedSoftware.VPPAppSelfService = s.VPPAppSelfService
-					byVPPAdamID[*s.VPPAppAdamID] = invetoriedSoftware
+					if !opts.VulnerableOnly && !hasCVEMetaFilters {
+						// When we are filtering by vulnerable only
+						// we want to treat the installed vpp app as a regular software title
+						delete(bySoftwareTitleID, s.ID)
+						byVPPAdamID[*s.VPPAppAdamID] = invetoriedSoftware
+					}
 					hostVPPInstalledTitles[s.ID] = invetoriedSoftware
 				}
 			}
@@ -3752,21 +3765,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 
 		var cveMetaFilter string
-		var hasCVEMetaFilters bool
 		var cveMatchClause string
 		var cveNamedArgs []interface{}
 		var cveMatchArgs []interface{}
 		if opts.KnownExploit {
 			cveMetaFilter += "\nAND cve_meta.cisa_known_exploit = :known_exploit"
-			hasCVEMetaFilters = true
 		}
 		if opts.MinimumCVSS > 0 {
 			cveMetaFilter += "\nAND cve_meta.cvss_score >= :min_cvss"
-			hasCVEMetaFilters = true
 		}
 		if opts.MaximumCVSS > 0 {
 			cveMetaFilter += "\nAND cve_meta.cvss_score <= :max_cvss"
-			hasCVEMetaFilters = true
 		}
 		if hasCVEMetaFilters {
 			cveMetaFilter, cveNamedArgs, err = sqlx.Named(cveMetaFilter, namedArgs)
