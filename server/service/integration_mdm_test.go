@@ -12079,8 +12079,9 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Add an app store app to non-existent team
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: addedApp.AdamID}, http.StatusNotFound, &addAppResp)
 
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
-	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, SelfService: true, AutomaticInstall: true}, http.StatusOK, &addAppResp)
+
+	s.lastActivityOfTypeMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true}`, team.Name,
 			addedApp.Name, getSoftwareTitleIDFromApp(addedApp), addedApp.AdamID, team.ID, addedApp.Platform), 0)
 
@@ -12097,12 +12098,24 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Len(t, listSw.SoftwareTitles, 1)
 	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
 	macOSTitleID := listSw.SoftwareTitles[0].ID
+	require.Len(t, listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies, 1)
+
+	// check that we created an activity for the policy creation
+	wantAct := fleet.ActivityTypeCreatedPolicy{
+		ID:   listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID,
+		Name: listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].Name,
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
 	// listing with the self-service filter also returns it
 	listSw = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "self_service", "true")
 	require.Len(t, listSw.SoftwareTitles, 1)
 	require.Equal(t, macOSTitleID, listSw.SoftwareTitles[0].ID)
+
+	// delete the automatic install policy (so we can delete the app next)
+	var deletePolicyResp deleteTeamPoliciesResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", team.ID), &deleteGlobalPoliciesRequest{IDs: []uint{listSw.SoftwareTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID}}, http.StatusOK, &deletePolicyResp)
 
 	// delete the app store app for team 1
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,

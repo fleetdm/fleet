@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -198,6 +199,18 @@ func (svc *Service) AddFleetMaintainedApp(
 		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
+	}
+
+	if automaticInstall && payload.AddedAutomaticInstallPolicy != nil {
+
+		policyAct := fleet.ActivityTypeCreatedPolicy{
+			ID:   payload.AddedAutomaticInstallPolicy.ID,
+			Name: payload.AddedAutomaticInstallPolicy.Name,
+		}
+
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "create activity for create automatic install policy for FMA")
+		}
 	}
 
 	return titleID, nil

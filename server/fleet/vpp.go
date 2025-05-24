@@ -38,9 +38,10 @@ type VPPAppTeam struct {
 	// AddAutoInstallPolicy
 	AddAutoInstallPolicy bool `json:"-"`
 	// AddedAt is when the VPP app was added to the team
-	AddedAt     time.Time `db:"added_at" json:"created_at"`
-	Categories  []string  `json:"categories"`
-	CategoryIDs []uint    `json:"-"`
+	AddedAt                     time.Time `db:"added_at" json:"created_at"`
+	Categories                  []string  `json:"categories"`
+	CategoryIDs                 []uint    `json:"-"`
+	AddedAutomaticInstallPolicy *Policy   `json:"-"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
