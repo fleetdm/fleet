@@ -36,7 +36,7 @@ module "free" {
     subnets                 = module.main.vpc.database_subnets
     backup_retention_period = 30
     cluster_tags = {
-      backup                = "true"
+      backup = "true"
     }
   }
   redis_config = {
