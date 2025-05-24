@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS mdm_apple_enrollment_profiles (
     PRIMARY KEY (id),
     UNIQUE KEY idx_token (token),
     UNIQUE KEY idx_type (type)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `)
 	if err != nil {
 		return fmt.Errorf("failed to create mdm_apple_enrollments table: %w", err)
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS mdm_apple_installers (
     url_token VARCHAR(36) DEFAULT NULL,
 
     PRIMARY KEY (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 `)
 	if err != nil {
 		return fmt.Errorf("failed to create mdm_apple_installers table: %w", err)

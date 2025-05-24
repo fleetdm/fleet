@@ -3,6 +3,7 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"os"
 
 	"github.com/pkg/errors"
 )
@@ -14,6 +15,11 @@ func init() {
 // changeCharacterSet changes the default character set of the database and all
 // table to the provided character set
 func changeCharacterSet(tx *sql.Tx, charset string) error {
+	// This env var should only be set during TestCollation.
+	if v := os.Getenv("FLEET_TEST_DISABLE_COLLATION_UPDATES"); v != "" {
+		return nil
+	}
+
 	_, err := tx.Exec(fmt.Sprintf("ALTER DATABASE DEFAULT CHARACTER SET %s", charset))
 	if err != nil {
 		return errors.Wrap(err, "alter database")
@@ -45,7 +51,7 @@ func changeCharacterSet(tx *sql.Tx, charset string) error {
 	rows.Close()
 
 	for _, name := range names {
-		_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s CONVERT TO CHARACTER SET %s", name, charset))
+		_, err = tx.Exec(fmt.Sprintf("ALTER TABLE %s CONVERT TO CHARACTER SET %s COLLATE utf8mb4_unicode_ci", name, charset))
 		if err != nil {
 			return errors.Wrap(err, "alter table "+name)
 		}

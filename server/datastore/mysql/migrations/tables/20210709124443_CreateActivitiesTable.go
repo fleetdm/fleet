@@ -2,6 +2,7 @@ package tables
 
 import (
 	"database/sql"
+
 	"github.com/pkg/errors"
 )
 
@@ -20,7 +21,7 @@ func Up_20210709124443(tx *sql.Tx) error {
 			details json DEFAULT NULL,
 			PRIMARY KEY (id),
 			FOREIGN KEY fk_activities_user_id (user_id) REFERENCES users (id) ON DELETE SET NULL 
-		)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	if _, err := tx.Exec(sql); err != nil {
 		return errors.Wrap(err, "create activities")

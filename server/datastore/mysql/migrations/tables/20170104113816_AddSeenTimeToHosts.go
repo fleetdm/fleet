@@ -9,7 +9,7 @@ func init() {
 func Up_20170104113816(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		"ALTER TABLE `hosts` " +
-			"ADD COLUMN `seen_time` timestamp NULL DEFAULT NULL;",
+			"ADD COLUMN `seen_time` timestamp NULL DEFAULT NULL COLLATE utf8mb4_unicode_ci;",
 	)
 	return err
 }

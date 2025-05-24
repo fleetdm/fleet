@@ -3,7 +3,7 @@
  */
 
 CREATE TABLE nano_devices (
-    id VARCHAR(255) NOT NULL,
+    id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 
     identity_cert TEXT NULL,
 
@@ -41,7 +41,7 @@ CREATE TABLE nano_devices (
     CHECK (token_update IS NULL OR token_update != ''),
 
     CHECK (bootstrap_token_b64 IS NULL OR bootstrap_token_b64 != '')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE nano_users (
@@ -77,7 +77,7 @@ CREATE TABLE nano_users (
 
     CHECK (user_authenticate        IS NULL OR user_authenticate        != ''),
     CHECK (user_authenticate_digest IS NULL OR user_authenticate_digest != '')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE nano_users ADD CONSTRAINT idx_unique_id UNIQUE (id);
 
@@ -86,7 +86,7 @@ ALTER TABLE nano_users ADD CONSTRAINT idx_unique_id UNIQUE (id);
  */
 CREATE TABLE nano_enrollments (
     -- The enrollment ID of this enrollment
-    id        VARCHAR(255) NOT NULL,
+    id        VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
     -- The "device" enrollment ID of this enrollment. This will be
     -- the same as the `id` field in the case of a "device" enrollment,
     -- or will be the "parent" enrollment for a "user" enrollment.
@@ -130,7 +130,7 @@ CREATE TABLE nano_enrollments (
     CHECK (topic != ''),
     CHECK (push_magic != ''),
     CHECK (token_hex != '')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 /* Commands stand alone. By themsevles they aren't associated with
@@ -151,7 +151,7 @@ CREATE TABLE nano_commands (
     CHECK (command_uuid != ''),
     CHECK (request_type != ''),
     CHECK (SUBSTRING(command FROM 1 FOR 5) = '<?xml')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 /* Results are enrollment responses to device commands.
@@ -192,7 +192,7 @@ CREATE TABLE nano_command_results (
     CHECK (status != ''),
     INDEX (status),
     CHECK (SUBSTRING(result FROM 1 FOR 5) = '<?xml')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE nano_enrollment_queue (
@@ -214,7 +214,7 @@ CREATE TABLE nano_enrollment_queue (
     FOREIGN KEY (command_uuid)
         REFERENCES nano_commands (command_uuid)
         ON DELETE CASCADE ON UPDATE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 /* An enrollment's queue is a view into commands, enrollment queued
  * commands, and any results received. Outstanding queue items (i.e.
@@ -268,7 +268,7 @@ CREATE TABLE nano_push_certs (
 
     CHECK (SUBSTRING(cert_pem FROM 1 FOR 27) = '-----BEGIN CERTIFICATE-----'),
     CHECK (SUBSTRING(key_pem  FROM 1 FOR  5) = '-----')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE nano_cert_auth_associations (
@@ -282,4 +282,4 @@ CREATE TABLE nano_cert_auth_associations (
 
     CHECK (id != ''),
     CHECK (sha256 != '')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

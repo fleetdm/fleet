@@ -18,7 +18,7 @@ func Up_20161118212649(tx *sql.Tx) error {
 			"`deleted` tinyint(1) NOT NULL DEFAULT FALSE," +
 			"`username` varchar(255) NOT NULL," +
 			"`password` varbinary(255) NOT NULL," +
-			"`salt` varchar(255) NOT NULL," +
+			"`salt` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL," +
 			"`name` varchar(255) NOT NULL DEFAULT ''," +
 			"`email` varchar(255) NOT NULL," +
 			"`admin` tinyint(1) NOT NULL DEFAULT FALSE," +
@@ -29,7 +29,7 @@ func Up_20161118212649(tx *sql.Tx) error {
 			"PRIMARY KEY (`id`)," +
 			"UNIQUE KEY `idx_user_unique_username` (`username`)," +
 			"UNIQUE KEY `idx_user_unique_email` (`email`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }

@@ -12,7 +12,7 @@ func Up_20230214131519(tx *sql.Tx) error {
 	_, err := tx.Exec(`
           CREATE TABLE mdm_apple_delivery_status (
             status VARCHAR(20) PRIMARY KEY
-          )`)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 	if err != nil {
 		return err
 	}
@@ -28,7 +28,7 @@ func Up_20230214131519(tx *sql.Tx) error {
 	_, err = tx.Exec(`
           CREATE TABLE mdm_apple_operation_types (
             operation_type VARCHAR(20) PRIMARY KEY
-          )`)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 	if err != nil {
 		return err
 	}
@@ -42,6 +42,7 @@ func Up_20230214131519(tx *sql.Tx) error {
 	}
 
 	_, err = tx.Exec(`
+		  -- Default collation isn't set on this table because we use host_uuid in a JOIN in a later migration.
           CREATE TABLE host_mdm_apple_profiles (
             profile_id          int(10) UNSIGNED NOT NULL,
             profile_identifier  varchar(255) NOT NULL,
@@ -54,7 +55,7 @@ func Up_20230214131519(tx *sql.Tx) error {
 	    PRIMARY KEY (host_uuid, profile_id),
 	    FOREIGN KEY (status) REFERENCES mdm_apple_delivery_status (status) ON UPDATE CASCADE,
 	    FOREIGN KEY (operation_type) REFERENCES mdm_apple_operation_types (operation_type) ON UPDATE CASCADE
-          )`)
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	return err
 }
 

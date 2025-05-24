@@ -2,6 +2,7 @@ package tables
 
 import (
 	"database/sql"
+
 	"github.com/pkg/errors"
 )
 
@@ -17,7 +18,7 @@ func Up_20210712155608(tx *sql.Tx) error {
 		owner VARCHAR(255),
 		expires_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		UNIQUE KEY idx_name (name)
-	)`); err != nil {
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`); err != nil {
 		return errors.Wrap(err, "create locks")
 	}
 	return nil

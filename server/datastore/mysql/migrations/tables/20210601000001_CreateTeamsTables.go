@@ -17,7 +17,7 @@ func Up_20210601000001(tx *sql.Tx) error {
 		name VARCHAR(255) NOT NULL,
 		description VARCHAR(1023) NOT NULL DEFAULT '',
 		UNIQUE KEY idx_name (name)
-	)`); err != nil {
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`); err != nil {
 		return errors.Wrap(err, "create teams")
 	}
 
@@ -29,7 +29,7 @@ func Up_20210601000001(tx *sql.Tx) error {
 		PRIMARY KEY (user_id, team_id),
 		FOREIGN KEY fk_user_teams_user_id (user_id) REFERENCES users (id) ON DELETE CASCADE ON UPDATE CASCADE,
 		FOREIGN KEY fk_user_teams_team_id (team_id) REFERENCES teams (id) ON DELETE CASCADE ON UPDATE CASCADE
-	)`); err != nil {
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`); err != nil {
 		return errors.Wrap(err, "create user_teams")
 	}
 
@@ -41,7 +41,7 @@ func Up_20210601000001(tx *sql.Tx) error {
 	}
 
 	if _, err := tx.Exec(`ALTER TABLE users
-		ADD global_role VARCHAR(64) DEFAULT NULL
+		ADD global_role VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 	`); err != nil {
 		return errors.Wrap(err, "alter users")
 	}

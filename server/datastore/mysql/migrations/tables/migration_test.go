@@ -155,6 +155,36 @@ func insertQuery(t *testing.T, db *sqlx.DB) uint {
 	return uint(id) //nolint:gosec // dismiss G115
 }
 
+func checkCollation(t *testing.T, db *sqlx.DB) {
+	type collationData struct {
+		CollationName    string `db:"COLLATION_NAME"`
+		TableName        string `db:"TABLE_NAME"`
+		ColumnName       string `db:"COLUMN_NAME"`
+		CharacterSetName string `db:"CHARACTER_SET_NAME"`
+	}
+
+	stmt := `
+SELECT
+	TABLE_NAME, COLLATION_NAME, COLUMN_NAME, CHARACTER_SET_NAME 
+FROM information_schema.columns
+WHERE
+	TABLE_SCHEMA = (SELECT DATABASE()) 
+	AND (CHARACTER_SET_NAME != ? OR COLLATION_NAME != ?)`
+
+	var nonStandardCollations []collationData
+	err := db.Select(&nonStandardCollations, stmt, "utf8mb4", "utf8mb4_unicode_ci")
+	require.NoError(t, err)
+
+	exceptions := []collationData{
+		{"utf8mb4_bin", "enroll_secrets", "secret", "utf8mb4"},
+		{"utf8mb4_bin", "hosts", "node_key", "utf8mb4"},
+		{"utf8mb4_bin", "hosts", "orbit_node_key", "utf8mb4"},
+		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
+	}
+
+	require.ElementsMatch(t, exceptions, nonStandardCollations)
+}
+
 func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
 	// Insert a minimal record into hosts table
 	insertHostStmt := `
