@@ -164,9 +164,12 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 	// Delete integration on the proxy.
 	deleteResponse, err := svc.conditionalAccessMicrosoftProxy.Delete(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to delete the integration on the proxy")
-	}
-	if deleteResponse.Error != "" {
+		if fleet.IsNotFound(err) {
+			svc.logger.Log("msg", "delete returned not found, continuing...")
+		} else {
+			return ctxerr.Wrap(ctx, err, "failed to delete the integration on the proxy")
+		}
+	} else if deleteResponse.Error != "" {
 		return ctxerr.Wrap(ctx, errors.New(deleteResponse.Error), "delete on the proxy failed")
 	}
 

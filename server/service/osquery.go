@@ -2268,8 +2268,8 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to check for conditional access configuration")
 	}
-	if !configured {
-		// Nothing to do, feature not configured.
+	if !configured || !enabledForTeam {
+		// Nothing to do, feature not configured or not enabled for this host's team.
 		return nil
 	}
 
@@ -2283,20 +2283,6 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		return ctxerr.Wrap(ctx, err, "failed to load host conditional access status")
 	}
 
-	if !enabledForTeam &&
-		hostConditionalAccessStatus.Compliant != nil &&
-		!*hostConditionalAccessStatus.Compliant {
-		// Scenario: Host was set as non-complianon Entra t and admin has disabled the feature for a team.
-		// Thus we must set the host as compliant to unblock devices access to Entra ID resources.
-		//
-		// TODO(lucas): Discuss and document that once the feature is disabled for a team it
-		// might take up to one hour for non-compliant team hosts to access Entra ID resources again.
-		// Discuss if we need to be faster and run a cron for this scenario.
-		svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, true)
-
-		return nil
-	}
-
 	var policyTeamID uint
 	if hostTeamID == nil {
 		policyTeamID = fleet.PolicyNoTeamID
@@ -2304,10 +2290,15 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		policyTeamID = *hostTeamID
 	}
 
+	hostMDM, err := svc.ds.GetHostMDM(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get host mdm")
+	}
+
 	// Get policies configured for conditional access.
 	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get policies with script")
+		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
 	}
 
 	hostIsCompliantInFleet := true
@@ -2326,12 +2317,13 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		}
 	}
 
-	if hostConditionalAccessStatus.Compliant != nil && hostIsCompliantInFleet == *hostConditionalAccessStatus.Compliant {
+	if hostConditionalAccessStatus.Managed != nil && hostMDM.Enrolled == *hostConditionalAccessStatus.Managed &&
+		hostConditionalAccessStatus.Compliant != nil && hostIsCompliantInFleet == *hostConditionalAccessStatus.Compliant {
 		// Nothing to do, nothing has changed.
 		return nil
 	}
 
-	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, hostIsCompliantInFleet)
+	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, hostMDM.Enrolled, hostIsCompliantInFleet)
 
 	return nil
 }
@@ -2339,15 +2331,18 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 func (svc *Service) setHostConditionalAccessAsync(
 	hostID uint,
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
+	managed bool,
 	compliant bool,
 ) {
 	go func() {
 		logger := log.With(svc.logger,
 			"msg", "set host conditional access",
-			"host_id", hostID, "compliant", compliant,
+			"host_id", hostID,
+			"managed", managed,
+			"compliant", compliant,
 		)
 		start := time.Now()
-		if err := svc.setHostConditionalAccess(hostID, hostConditionalAccessStatus, compliant); err != nil {
+		if err := svc.setHostConditionalAccess(hostID, hostConditionalAccessStatus, managed, compliant); err != nil {
 			level.Error(logger).Log("took", time.Since(start), "err", err)
 		}
 		level.Debug(logger).Log("took", time.Since(start))
@@ -2357,6 +2352,7 @@ func (svc *Service) setHostConditionalAccessAsync(
 func (svc *Service) setHostConditionalAccess(
 	hostID uint,
 	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
+	managed bool,
 	compliant bool,
 ) error {
 	ctx := context.Background()
@@ -2368,6 +2364,7 @@ func (svc *Service) setHostConditionalAccess(
 	logger := log.With(svc.logger,
 		"msg", "set compliance status",
 		"host_id", hostID,
+		"managed", managed,
 		"compliant", compliant,
 	)
 	level.Debug(logger).Log()
@@ -2378,7 +2375,7 @@ func (svc *Service) setHostConditionalAccess(
 		hostConditionalAccessStatus.DeviceID,
 		hostConditionalAccessStatus.UserPrincipalName,
 
-		hostConditionalAccessStatus.MDMEnrolled,
+		managed,
 		hostConditionalAccessStatus.DisplayName,
 		"macOS",
 		hostConditionalAccessStatus.OSVersion,
@@ -2425,7 +2422,7 @@ func (svc *Service) setHostConditionalAccess(
 		)
 	}
 
-	if err := svc.ds.SetHostConditionalAccessStatus(ctx, hostID, compliant); err != nil {
+	if err := svc.ds.SetHostConditionalAccessStatus(ctx, hostID, managed, compliant); err != nil {
 		return ctxerr.Wrap(ctx, err, "set conditional access status on datastore")
 	}
 

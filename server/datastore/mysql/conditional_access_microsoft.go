@@ -68,11 +68,17 @@ func getConditionalAccessMicrosoft(ctx context.Context, q sqlx.QueryerContext) (
 }
 
 func (ds *Datastore) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
-	// Currently only one global integration is supported.
-	if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM microsoft_compliance_partner_integrations;`); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting microsoft_compliance_partner_integrations")
-	}
-	return nil
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		// Currently only one global integration is supported.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM microsoft_compliance_partner_integrations;`); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting microsoft_compliance_partner_integrations")
+		}
+		// Remove all last reported statuses.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM microsoft_compliance_partner_host_statuses;`); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting microsoft_compliance_partner_host_statuses")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error) {
@@ -81,13 +87,11 @@ func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID
 		ds.reader(ctx),
 		&hostConditionalAccessStatus,
 		`SELECT
-			mcphs.host_id, mcphs.device_id, mcphs.user_principal_name, mcphs.compliant, mcphs.created_at, mcphs.updated_at,
-			COALESCE(hmdm.enrolled, 0) AS mdm_enrolled,
+			mcphs.host_id, mcphs.device_id, mcphs.user_principal_name, mcphs.compliant, mcphs.created_at, mcphs.updated_at, mcphs.managed,
 			h.os_version, hdn.display_name
 		FROM microsoft_compliance_partner_host_statuses mcphs
 		JOIN host_display_names hdn ON hdn.host_id=mcphs.host_id
 		JOIN hosts h ON h.id=mcphs.host_id
-		LEFT JOIN host_mdm hmdm ON h.id=hmdm.host_id
 		WHERE mcphs.host_id = ?`,
 		hostID,
 	); err != nil {
@@ -100,10 +104,26 @@ func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID
 }
 
 func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error {
-	// TODO(lucas): Update "compliant" if device_id or user_principal_name were changed.
-	// TODO(lucas): Related remove entry from microsoft_compliance_partner_host_statuses when deleting a host.
-	// TODO(lucas): Clear compliance status (to NULL) from microsoft_compliance_partner_host_statuses when transfering a host to another team.
-	// TODO(lucas): Delete all microsoft_compliance_partner_host_statuses entries when integration is deleted.
+	// Most of the time this information won't change, so use the reader first.
+	var hostConditionalAccessStatus fleet.HostConditionalAccessStatus
+	err := sqlx.GetContext(ctx,
+		ds.reader(ctx),
+		&hostConditionalAccessStatus,
+		`SELECT device_id, user_principal_name FROM microsoft_compliance_partner_host_statuses WHERE host_id = ?`,
+		hostID,
+	)
+	switch {
+	case err == nil:
+		if deviceID == hostConditionalAccessStatus.DeviceID && userPrincipalName == hostConditionalAccessStatus.UserPrincipalName {
+			// Nothing to do.
+			return nil
+		}
+	case errors.Is(err, sql.ErrNoRows):
+		// OK
+	default:
+		return ctxerr.Wrap(ctx, err, "failed to get microsoft_compliance_partner_host_statuses")
+	}
+
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO microsoft_compliance_partner_host_statuses
 		(host_id, device_id, user_principal_name)
@@ -118,10 +138,10 @@ func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, host
 	return nil
 }
 
-func (ds *Datastore) SetHostConditionalAccessStatus(ctx context.Context, hostID uint, compliant bool) error {
+func (ds *Datastore) SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error {
 	if _, err := ds.writer(ctx).ExecContext(ctx,
-		`UPDATE microsoft_compliance_partner_host_statuses SET compliant = ? WHERE host_id = ?;`,
-		compliant, hostID,
+		`UPDATE microsoft_compliance_partner_host_statuses SET managed = ?, compliant = ? WHERE host_id = ?;`,
+		managed, compliant, hostID,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "update host conditional access status")
 	}

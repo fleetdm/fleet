@@ -2120,7 +2120,7 @@ type Datastore interface {
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 	LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*HostConditionalAccessStatus, error)
 	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
-	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, compliant bool) error
+	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
 }
 
 type AndroidDatastore interface {

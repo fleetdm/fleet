@@ -1370,7 +1370,7 @@ type LoadHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint) 
 
 type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
 
-type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, compliant bool) error
+type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -8119,9 +8119,9 @@ func (s *DataStore) CreateHostConditionalAccessStatus(ctx context.Context, hostI
 	return s.CreateHostConditionalAccessStatusFunc(ctx, hostID, deviceID, userPrincipalName)
 }
 
-func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID uint, compliant bool) error {
+func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed bool, compliant bool) error {
 	s.mu.Lock()
 	s.SetHostConditionalAccessStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetHostConditionalAccessStatusFunc(ctx, hostID, compliant)
+	return s.SetHostConditionalAccessStatusFunc(ctx, hostID, managed, compliant)
 }

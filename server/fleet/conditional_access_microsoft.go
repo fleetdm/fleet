@@ -16,6 +16,7 @@ type HostConditionalAccessStatus struct {
 	DeviceID          string `db:"device_id"`
 	UserPrincipalName string `db:"user_principal_name"`
 
+	Managed   *bool `db:"managed"`
 	Compliant *bool `db:"compliant"`
 
 	MDMEnrolled bool   `db:"mdm_enrolled"`

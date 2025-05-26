@@ -79,6 +79,8 @@ type DeleteResponse struct {
 	Error string `json:"error"`
 }
 
+// Delete deprovisions the tenant on Microsoft and deletes the integration in the proxy service.
+// Returns a fleet.IsNotFound error if the integration doesn't exist.
 func (p *Proxy) Delete(ctx context.Context, tenantID string, secret string) (*DeleteResponse, error) {
 	var deleteResponse DeleteResponse
 	if err := p.delete(
@@ -246,7 +248,12 @@ func (p *Proxy) delete(path string, query string, response interface{}) error {
 		return fmt.Errorf("delete request: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// OK
+	case http.StatusNotFound:
+		return &notFoundError{}
+	default:
 		return fmt.Errorf("delete request failed: %s", resp.Status)
 	}
 	body, err := io.ReadAll(resp.Body)
@@ -257,6 +264,16 @@ func (p *Proxy) delete(path string, query string, response interface{}) error {
 		return fmt.Errorf("delete unmarshal response: %w", err)
 	}
 	return nil
+}
+
+type notFoundError struct{}
+
+func (e *notFoundError) Error() string {
+	return "not found"
+}
+
+func (e *notFoundError) IsNotFound() bool {
+	return true
 }
 
 func (p *Proxy) setHeaders(r *http.Request) error {

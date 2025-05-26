@@ -1471,6 +1471,22 @@ func cleanupQueryResultsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, ho
 	return nil
 }
 
+func cleanupConditionalAccessOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
+	// Similar to cleanupPolicyMembershipOnTeamChange, hosts can belong to one team only, so we just delete all
+	// the query results of the hosts that belong to queries that are not global.
+	const cleanupQuery = `
+		DELETE FROM microsoft_compliance_partner_host_statuses
+		WHERE host_id IN (?)`
+	query, args, err := sqlx.In(cleanupQuery, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build cleanup conditional access")
+	}
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "exec cleanup query conditional access")
+	}
+	return nil
+}
+
 func cleanupPolicyMembershipOnPolicyUpdate(
 	ctx context.Context, queryerContext sqlx.QueryerContext, db sqlx.ExecerContext, policyID uint, platforms string,
 ) error {

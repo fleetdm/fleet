@@ -28,13 +28,14 @@ func Up_20250520120000(tx *sql.Tx) error {
 	}
 
 	// microsoft_compliance_partner_host_statuses is used to track the DeviceID of the host in Entra
-	// and the last compliance status reported to Microsoft Intune servers.
+	// and the last "managed" and "compliant" statuses reported to Microsoft Intune servers.
 	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS microsoft_compliance_partner_host_statuses (
 		host_id INT UNSIGNED NOT NULL PRIMARY KEY,
 
 		device_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 		user_principal_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 
+		managed BOOLEAN NULL,
 		compliant BOOLEAN NULL,
 
 		created_at DATETIME(6) NULL DEFAULT NOW(6),

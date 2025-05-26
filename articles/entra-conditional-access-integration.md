@@ -178,6 +178,11 @@ Go to `Policies` > `Select team` > `Automations` > `Conditional access`.
 
 IMPORTANT: If a device is not MDM-enrolled to Fleet then it will be marked as "not compliant".
 
+### Disabling "Conditional Access" on a team
+
+To disable "Conditional Access" on a team go to `Policies` > `Select team` > `Automations` > `Conditional access` > `Disable`.
+Once disabled, hosts will not be reporting compliance status to Entra anymore.
+
 ## GitOps
 
 TODO(lucas)!
