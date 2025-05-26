@@ -61,8 +61,8 @@ module.exports = {
         },
         body: {
           Provisioned: 2,// 1 = provisioned, 2 = deprovisioned.
-          PartnerEnrollmentUrl: `${informationAboutThisTenant.fleetInstanceUrl}/enrollment`,
-          PartnerRemediationUrl: `${informationAboutThisTenant.fleetInstanceUrl}/remediation`,
+          PartnerEnrollmentUrl: `https://fleetdm.com/microsoft-compliance-partner/enroll`,
+          PartnerRemediationUrl: `https://fleetdm.com/microsoft-compliance-partner/remediate`,
         }
       }).intercept((err)=>{
         return new Error({error: `an error occurred when deprovisioning a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
