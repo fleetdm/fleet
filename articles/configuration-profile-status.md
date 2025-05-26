@@ -1,4 +1,4 @@
-# View and manage mdm configuration profile status
+# View and manage MDM configuration profile status
 
 Fleet now makes it easier to understand and manage the status of your MDM configuration profiles
 across all your hosts - and to bulk resend failed profiles.
@@ -44,3 +44,10 @@ failed profiles to affected hosts.
 - Re-apply MDM configuration profiles without needing to touch each host.
 - Confirm deployment success across your entire fleet.
 - Drill down to view all hosts in a specific configuration profile status.
+
+
+<meta name="articleTitle" value="View and manage MDM configuration profile status">
+<meta name="authorFullName" value="Gabe Hernandez">
+<meta name="authorGitHubUsername" value="ghernandez345">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2025-05-26">
