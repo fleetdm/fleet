@@ -87,45 +87,52 @@ export interface IScriptRunResponse {
   execution_id: string;
 }
 
-/** Request body for POST /scripts/run/batch */
-export interface IRunScriptBatchRequest {
-  host_ids: number[];
+export interface IScriptBatchSupportedFilters {
+  // a search string, not a Fleet.Query
+  query?: string;
+  label_id?: number;
+  team_id?: number;
+  status: any; // TODO - improve upstream typing
+}
+interface IRunScriptBatchRequestBase {
   script_id: number;
 }
+
+interface IByFilters extends IRunScriptBatchRequestBase {
+  host_ids?: never;
+  filters: IScriptBatchSupportedFilters;
+}
+
+interface IByHostIds extends IRunScriptBatchRequestBase {
+  host_ids: number[];
+  filters?: never;
+}
+/** Request body for POST /scripts/run/batch */
+export type IRunScriptBatchRequest = IByFilters | IByHostIds;
 
 /** 202 successful response body for POST /scripts/run/batch */
 export interface IRunScriptBatchResponse {
   batch_execution_id: string;
 }
+export interface IScriptBatchSummaryParams {
+  batch_execution_id: string;
+}
+export interface IScriptBatchSummaryQueryKey extends IScriptBatchSummaryParams {
+  scope: "script_batch_summary";
+}
 
-// Summary types + endpoint coming in following iteration
-
-// interface IScriptBatchHostResponse {
-//   host_id: number;
-//   host_display_name: string;
-// }
-
-// type IScriptBatchHostErrorReason =
-//   | "incompatible-platform"
-//   | "incompatbile-fleetd";
-
-// type IScriptBatchHostError = IScriptBatchHostResponse & {
-//   execution_id?: never;
-//   error: IScriptBatchHostErrorReason;
-// };
-
-// type IScriptBatchHostResult = IScriptBatchHostResponse & {
-//   execution_id: string;
-//   error?: never;
-// };
-
-// // 200 successful response
-// export interface IRunScriptBatchSummaryResponse {
-//   script_id: number;
-//   team_id: number | null;
-//   script_name: string;
-//   hosts: (IScriptBatchHostResult | IScriptBatchHostError)[];
-// }
+// 200 successful response
+export interface IScriptBatchSummaryResponse {
+  ran: number;
+  pending: number;
+  errored: number;
+  team_id: number;
+  // below fields not yet used by the UI
+  canceled: number;
+  targeted: number;
+  script_id: number;
+  script_name: string;
+}
 export default {
   getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
     const { HOST_SCRIPTS } = endpoints;
@@ -201,10 +208,12 @@ export default {
     const { SCRIPT_RUN_BATCH } = endpoints;
     return sendRequest("POST", SCRIPT_RUN_BATCH, request);
   },
-  // getRunScriptBatchSummary(
-  //   batchExecutionId: string
-  // ): Promise<IRunScriptBatchSummaryResponse> {
-  //   const { SCRIPT_RUN_BATCH_SUMMARY } = endpoints;
-  //   return sendRequest("GET", SCRIPT_RUN_BATCH_SUMMARY(batchExecutionId));
-  // },
+  getRunScriptBatchSummary({
+    batch_execution_id,
+  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryResponse> {
+    return sendRequest(
+      "GET",
+      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`
+    );
+  },
 };

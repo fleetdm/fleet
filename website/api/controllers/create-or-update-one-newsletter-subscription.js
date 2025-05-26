@@ -49,14 +49,21 @@ module.exports = {
         psychologicalStageChangeReason = this.req.session.adAttributionString;
       }
     }
+    sails.helpers.flow.build(async()=>{
+      let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: emailAddress,
+        contactSource: 'Website - Newsletter',
+        description: `Subscribed to the Fleet newsletter`,
+        psychologicalStage: '3 - Intrigued',
+        psychologicalStageChangeReason,
+      });
 
-    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-      emailAddress: emailAddress,
-      contactSource: 'Website - Newsletter',
-      description: `Subscribed to the Fleet newsletter`,
-      psychologicalStage: '3 - Intrigued',
-      psychologicalStageChangeReason,
-      intentSignal: 'Subscribed to the Fleet newsletter',
+      await sails.helpers.salesforce.createHistoricalEvent.with({
+        salesforceAccountId: recordIds.salesforceAccountId,
+        salesforceContactId: recordIds.salesforceContactId,
+        eventType: 'Intent signal',
+        intentSignal: 'Subscribed to the Fleet newsletter',
+      });
     }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
       if(err) {
         sails.log.warn(`Background task failed: When a user signed up for a newsletter, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);

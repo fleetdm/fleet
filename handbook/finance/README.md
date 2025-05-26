@@ -413,38 +413,6 @@ Note: These are out of date, but retained for future reference.  TODO: Deal with
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
 -->
 
-#### Stubs
-The following stubs are included only to make links backward compatible.
-
-##### Secure company-issued equipment for a team member
-Please see [handbook/engineering#secure-company-issued-equipment-for-a-team-member](https://www.fleetdm.com/handbook/engineering#secure-company-issued-equipment-for-a-team-member).
-
-##### Register a domain for Fleet
-Please see [handbook/register-a-domain-for-fleet](https://www.fleetdm.com/handbook/engineering#register-a-domain-for-fleet).
-
-##### Updating personnel details
-Please see [handbook/engineering#update-personnel-details](https://www.fleetdm.com/handbook/engineering#update-personnel-details).
-
-##### Fix a laptop that's not checking in
-Please see [handbook/engineering#fix-a-laptop-thats-not-checking-in](https://www.fleetdm.com/handbook/engineering#fix-a-laptop-thats-not-checking-in)
-
-##### Enroll a macOS host in dogfood
-Please see [handbook/engineering#enroll-a-macos-host-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-macos-host-in-dogfood)
-
-##### Enroll a Windows or Ubuntu Linux device in dogfood
-Please see [handbook/engineering#enroll-a-windows-or-ubuntu-linux-device-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-windows-or-ubuntu-linux-device-in-dogfood)
-
-##### Enroll a ChromeOS device in dogfood
-Please see [handbook/engineering#enroll-a-chromeos-device-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-chromeos-device-in-dogfood)
-
-##### Lock a macOS host in dogfood using fleetctl CLI tool
-Please see [handbook/engineering#lock-a-macos-host-in-dogfood-using-fleetctl-cli-tool](https://www.fleetdm.com/handbook/engineering#lock-a-macos-host-in-dogfood-using-fleetctl-cli-tool)
-
-##### Book an event
-Please see [handbook/engineering#book-an-event](https://www.fleetdm.com/handbook/engineering#book-an-event)
-
-##### Order SWAG
-Please see [handbook/engineering#order-swag](https://www.fleetdm.com/handbook/engineering#order-swag)
 
 
 <meta name="maintainedBy" value="ireedy">

@@ -17,7 +17,9 @@ export type IndicatorStatus =
   | "actionRequired";
 
 interface IStatusIndicatorWithIconProps {
+  /** Determines which icon to display */
   status: IndicatorStatus;
+  /** The text to be displayed */
   value: string;
   tooltip?: {
     tooltipText: string | JSX.Element;

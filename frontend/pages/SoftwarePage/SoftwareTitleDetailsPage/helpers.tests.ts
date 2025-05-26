@@ -41,6 +41,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         name: "TestPackage.pkg", // packages should display the package name not the software title name
         version: "1.0.0",
         addedTimestamp: "2021-01-01T00:00:00Z",
+        softwareTitleName: "Test Software",
         status: {
           installed: 10,
           pending: 8,
@@ -80,6 +81,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         name: "Test Software", // apps should display the software title name (backend should ensure the app name and software title name match)
         version: "1.0.1",
         addedTimestamp: "2020-01-01T00:00:00.000Z",
+        softwareTitleName: "Test Software",
         status: {
           installed: 10,
           pending: 5,
