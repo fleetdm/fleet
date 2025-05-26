@@ -394,6 +394,10 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, endpoint_utils.BadRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
 	}
 
+	if strings.HasPrefix(redirectURL, "javascript:") {
+		return "", ctxerr.Wrap(ctx, badRequest("javascript SSO redirect URLs not permitted"))
+	}
+
 	serverURL := appConfig.ServerSettings.ServerURL
 	settings := sso.Settings{
 		Metadata: metadata,
