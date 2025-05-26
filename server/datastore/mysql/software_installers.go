@@ -759,11 +759,14 @@ var (
 )
 
 func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
+	var activateAffectedHostIDs []uint
+
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		activateNextHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clean up related installs and uninstalls")
 		}
+		activateAffectedHostIDs = activateNextHostIDs
 
 		// allow delete only if install_during_setup is false
 		res, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ? AND install_during_setup = 0`, id)
@@ -798,6 +801,10 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
 }
 
 // deletePendingSoftwareInstallsForPolicy should be called after a policy is
@@ -971,25 +978,49 @@ VALUES
 }
 
 func (ds *Datastore) ProcessInstallerUpdateSideEffects(ctx context.Context, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		return ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, installerID, wasMetadataUpdated, wasPackageUpdated)
+	var activateAffectedHostIDs []uint
+
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, installerID, wasMetadataUpdated, wasPackageUpdated)
+		if err != nil {
+			return err
+		}
+		activateAffectedHostIDs = affectedHostIDs
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
 }
 
-func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) error {
+func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Context, tx sqlx.ExtContext, installerID uint, wasMetadataUpdated bool, wasPackageUpdated bool) (affectedHostIDs []uint, err error) {
 	if wasMetadataUpdated || wasPackageUpdated { // cancel pending installs/uninstalls
 		// TODO make this less naive; this assumes that installs/uninstalls execute and report back immediately
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id IN (
 				SELECT execution_id FROM host_software_installs WHERE software_installer_id = ? AND status = 'pending_uninstall'
 			)`, installerID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
+			return nil, ctxerr.Wrap(ctx, err, "delete pending uninstall scripts")
 		}
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
 			   WHERE software_installer_id = ? AND status IN('pending_install', 'pending_uninstall')`, installerID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
+			return nil, ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
+		}
+
+		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, `SELECT 
+			DISTINCT host_id 
+		FROM 
+			upcoming_activities ua 
+			INNER JOIN software_install_upcoming_activities siua
+				ON ua.id = siua.upcoming_activity_id
+		WHERE 
+			siua.software_installer_id = ? AND 
+			ua.activated_at IS NOT NULL AND
+			ua.activity_type IN ('software_install', 'software_uninstall')`, installerID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
 		}
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
@@ -999,7 +1030,7 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 					ON upcoming_activities.id = siua.upcoming_activity_id
 			WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')`, installerID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete upcoming host software installs/uninstalls")
+			return nil, ctxerr.Wrap(ctx, err, "delete upcoming host software installs/uninstalls")
 		}
 	}
 
@@ -1007,11 +1038,11 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 		_, err := tx.ExecContext(ctx, `UPDATE host_software_installs SET removed = TRUE
 	  			WHERE software_installer_id = ? AND status IS NOT NULL AND host_deleted_at IS NULL`, installerID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "hide existing install counts")
+			return nil, ctxerr.Wrap(ctx, err, "hide existing install counts")
 		}
 	}
 
-	return nil
+	return affectedHostIDs, nil
 }
 
 func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
@@ -1786,7 +1817,9 @@ VALUES
 		replacingInstallDuringSetup = true
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var activateAffectedHostIDs []uint
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// if no installers are provided, just delete whatever was in
 		// the table
 		if len(installers) == 0 {
@@ -2122,20 +2155,26 @@ VALUES
 
 			// perform side effects if this was an update (related to pending (un)install requests)
 			if len(existing) > 0 {
-				if err := ds.runInstallerUpdateSideEffectsInTransaction(
+				affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(
 					ctx,
 					tx,
 					existing[0].InstallerID,
 					existing[0].IsMetadataModified,
 					existing[0].IsPackageModified,
-				); err != nil {
+				)
+				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
 				}
+				activateAffectedHostIDs = affectedHostIDs
 			}
 		}
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs)
 }
 
 func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {
