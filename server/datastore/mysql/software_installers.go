@@ -829,7 +829,7 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 
 	const loadAffectedHostsStmt = `
 		SELECT
-			host_id
+			DISTINCT host_id
 		FROM
 			upcoming_activities ua
 			INNER JOIN software_install_upcoming_activities siua
