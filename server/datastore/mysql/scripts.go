@@ -651,7 +651,9 @@ WHERE
 var errDeleteScriptWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this script. Please remove this script from associated policy automations and try again."}
 
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	var activateAffectedHosts []uint
+
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE script_id = ?
        		  AND exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)`,
 			id, int(constants.MaxServerWaitTime.Seconds()),
@@ -664,7 +666,7 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 		// activity is "activated", as that means we will have to call
 		// activateNextUpcomingActivity for those hosts.
 		loadAffectedHostsStmt := `
-			SELECT 
+			SELECT
 				host_id
 			FROM
 				upcoming_activities ua
@@ -680,6 +682,7 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 			id, int(constants.MaxServerWaitTime.Seconds())); err != nil {
 			return ctxerr.Wrapf(ctx, err, "load affected hosts")
 		}
+		activateAffectedHosts = affectedHosts
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
 			USING upcoming_activities
@@ -711,16 +714,15 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 			return ctxerr.Wrap(ctx, err, "delete script")
 		}
 
-		// TODO: maybe process in batches outside the transaction to avoid a long
-		// transaction with risks of deadlocks if there are many affected hosts.
-		for _, hostID := range affectedHosts {
-			if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-				return ctxerr.Wrap(ctx, err, "activate next activity")
-			}
-		}
-
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// we call this outside of the transaction to avoid a
+	// long-running/deadlock-prone transaction, as many hosts could be affected.
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts)
 }
 
 // deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
