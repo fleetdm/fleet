@@ -44,6 +44,7 @@ func TestScripts(t *testing.T) {
 		{"UpdateScriptContents", testUpdateScriptContents},
 		{"UpdateDeletingUpcomingScriptExecutions", testUpdateDeletingUpcomingScriptExecutions},
 		{"BatchExecute", testBatchExecute},
+		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1864,4 +1865,134 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.Len(t, hostTeam1Upcoming, 1)
 	require.Equal(t, summary.Hosts[0].ExecutionID, &hostTeam1Upcoming[0].ExecutionID)
 	require.Equal(t, &summary.ScriptID, hostTeam1Upcoming[0].ScriptID)
+}
+
+func testDeleteScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create a couple of scripts
+	scriptA, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "a",
+		ScriptContents: "echo 'a'",
+	})
+	require.NoError(t, err)
+	scriptB, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "b",
+		ScriptContents: "echo 'b'",
+	})
+	require.NoError(t, err)
+
+	// create some hosts
+	hosts := make([]*fleet.Host, 4)
+	for i := range hosts {
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(fmt.Sprint(i)),
+			UUID:            fmt.Sprint(i),
+			Hostname:        fmt.Sprintf("%d-foo.local", i),
+			PrimaryIP:       fmt.Sprintf("192.168.1.%d", i),
+			PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-5%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = host
+	}
+
+	// enqueue scripts executions:
+	// * hosts[0]: a, b
+	// * hosts[1]: a, b
+	// * hosts[2]: b, a
+	// * hosts[3]: b
+	execHost0ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[0].ID,
+		ScriptID:    &scriptA.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost0ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[0].ID,
+		ScriptID:    &scriptB.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost1ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[1].ID,
+		ScriptID:    &scriptA.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost1ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[1].ID,
+		ScriptID:    &scriptB.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost2ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[2].ID,
+		ScriptID:    &scriptB.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost2ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[2].ID,
+		ScriptID:    &scriptA.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost3ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[3].ID,
+		ScriptID:    &scriptB.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+
+	checkUpcomingActivities := func(host *fleet.Host, execIDs ...string) {
+		type upcoming struct {
+			ExecutionID    string `db:"execution_id"`
+			ActivatedAtSet bool   `db:"activated_at_set"`
+		}
+
+		var got []upcoming
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &got,
+				`SELECT 
+					execution_id, 
+					(activated_at IS NOT NULL) as activated_at_set
+				FROM upcoming_activities
+				WHERE host_id = ?
+				ORDER BY IF(activated_at IS NULL, 0, 1) DESC, priority DESC, created_at ASC`, host.ID)
+		})
+
+		want := make([]upcoming, len(execIDs))
+		for i, execID := range execIDs {
+			want[i] = upcoming{
+				ExecutionID:    execID,
+				ActivatedAtSet: i == 0,
+			}
+		}
+		require.Equal(t, want, got)
+	}
+
+	checkUpcomingActivities(hosts[0], execHost0ScriptA.ExecutionID, execHost0ScriptB.ExecutionID)
+	checkUpcomingActivities(hosts[1], execHost1ScriptA.ExecutionID, execHost1ScriptB.ExecutionID)
+	checkUpcomingActivities(hosts[2], execHost2ScriptB.ExecutionID, execHost2ScriptA.ExecutionID)
+	checkUpcomingActivities(hosts[3], execHost3ScriptB.ExecutionID)
+
+	// delete scriptA removes pending upcoming activity and activates next activity
+	err = ds.DeleteScript(ctx, scriptA.ID)
+	require.NoError(t, err)
+
+	checkUpcomingActivities(hosts[0], execHost0ScriptB.ExecutionID)
+	checkUpcomingActivities(hosts[1], execHost1ScriptB.ExecutionID)
+	checkUpcomingActivities(hosts[2], execHost2ScriptB.ExecutionID)
+	checkUpcomingActivities(hosts[3], execHost3ScriptB.ExecutionID)
 }
