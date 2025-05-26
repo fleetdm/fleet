@@ -2103,7 +2103,7 @@ func testBatchSetScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptA.ExecutionID, execHost3ScriptB.ExecutionID, execHost3ScriptC.ExecutionID)
 
 	// no change
-	scripts, err = ds.BatchSetScripts(ctx, nil, []*fleet.Script{
+	_, err = ds.BatchSetScripts(ctx, nil, []*fleet.Script{
 		{Name: "A", ScriptContents: "C1"},
 		{Name: "B", ScriptContents: "C2"},
 		{Name: "C", ScriptContents: "C3"},
@@ -2116,7 +2116,7 @@ func testBatchSetScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptA.ExecutionID, execHost3ScriptB.ExecutionID, execHost3ScriptC.ExecutionID)
 
 	// batch-set removes A, updates B and creates D, cancelling any pending A and B executions
-	scripts, err = ds.BatchSetScripts(ctx, nil, []*fleet.Script{
+	_, err = ds.BatchSetScripts(ctx, nil, []*fleet.Script{
 		{Name: "B", ScriptContents: "C2updated"},
 		{Name: "C", ScriptContents: "C3"},
 		{Name: "D", ScriptContents: "C4"},
@@ -2129,7 +2129,7 @@ func testBatchSetScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptC.ExecutionID)
 
 	// batch-set remove all
-	scripts, err = ds.BatchSetScripts(ctx, nil, []*fleet.Script{})
+	_, err = ds.BatchSetScripts(ctx, nil, []*fleet.Script{})
 	require.NoError(t, err)
 
 	checkUpcomingActivities(t, ds, hosts[0])
