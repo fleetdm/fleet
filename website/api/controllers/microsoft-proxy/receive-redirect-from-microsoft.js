@@ -81,8 +81,8 @@ module.exports = {
         },
         body: {
           Provisioned: 1,// 1 = provisioned, 2 = deprovisioned.
-          PartnerEnrollmentUrl: `${informationAboutThisTenant.fleetInstanceUrl}/enrollment`,
-          PartnerRemediationUrl: `${informationAboutThisTenant.fleetInstanceUrl}/remediation`,
+          PartnerEnrollmentUrl: `https://fleetdm.com/microsoft-compliance-partner/enroll`,
+          PartnerRemediationUrl: `https://fleetdm.com/microsoft-compliance-partner/remediate`,
         }
       }).intercept(async (err)=>{
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
