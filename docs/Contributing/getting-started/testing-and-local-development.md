@@ -91,7 +91,7 @@ When the S3 backend is used, this line will be printed in the tests' output (as 
     integration_mdm_test.go:196: >>> using S3/minio software installer store
 ```
 
-Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
+Note that on a Linux and macOS systems, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
 
 ```sh
 # start both the default docker-compose.yml and the redis cluster-specific
