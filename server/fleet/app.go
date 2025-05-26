@@ -1349,6 +1349,8 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+	// AllowDisableTelemetry allows specific customers to not send analytics
+	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
 	// ManagedCloud indicates whether this Fleet instance is a cloud instance.
 	// Currently only used to display UI features only present on cloud instances.
 	ManagedCloud bool `json:"managed_cloud"`
@@ -1366,6 +1368,11 @@ func (l *LicenseInfo) ForceUpgrade() {
 	if l.Tier == tierBasicDeprecated {
 		l.Tier = TierPremium
 	}
+}
+
+// Both free and specific premium users are allowed to disable telemetry
+func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
+	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
 const (

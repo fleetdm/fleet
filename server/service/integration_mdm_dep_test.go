@@ -129,10 +129,11 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;new_flow", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, DEPEnrollTestOpts{
-				EnableReleaseManually: enableReleaseManually,
-				TeamID:                nil,
-				CustomProfileIdent:    "I1",
-				UseOldFleetdFlow:      false,
+				EnableReleaseManually:             enableReleaseManually,
+				TeamID:                            nil,
+				CustomProfileIdent:                "I1",
+				UseOldFleetdFlow:                  false,
+				EnrollmentProfileFromDEPUsingPost: true,
 			})
 		})
 	}
@@ -154,10 +155,11 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;bypass_flow", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, DEPEnrollTestOpts{
-				EnableReleaseManually: enableReleaseManually,
-				TeamID:                nil,
-				CustomProfileIdent:    "I1",
-				UseOldFleetdFlow:      false,
+				EnableReleaseManually:             enableReleaseManually,
+				TeamID:                            nil,
+				CustomProfileIdent:                "I1",
+				UseOldFleetdFlow:                  false,
+				EnrollmentProfileFromDEPUsingPost: true,
 			})
 		})
 	}
@@ -268,10 +270,11 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;new_flow", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
-				EnableReleaseManually: enableReleaseManually,
-				TeamID:                &tm.ID,
-				CustomProfileIdent:    "I2",
-				UseOldFleetdFlow:      false,
+				EnableReleaseManually:             enableReleaseManually,
+				TeamID:                            &tm.ID,
+				CustomProfileIdent:                "I2",
+				UseOldFleetdFlow:                  false,
+				EnrollmentProfileFromDEPUsingPost: true,
 			})
 		})
 	}
@@ -293,10 +296,11 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;bypass_flow", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
-				EnableReleaseManually: enableReleaseManually,
-				TeamID:                &tm.ID,
-				CustomProfileIdent:    "I2",
-				UseOldFleetdFlow:      false,
+				EnableReleaseManually:             enableReleaseManually,
+				TeamID:                            &tm.ID,
+				CustomProfileIdent:                "I2",
+				UseOldFleetdFlow:                  false,
+				EnrollmentProfileFromDEPUsingPost: true,
 			})
 		})
 	}
@@ -373,10 +377,11 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
-				EnableReleaseManually: enableReleaseManually,
-				TeamID:                &tm.ID,
-				CustomProfileIdent:    "I2",
-				UseOldFleetdFlow:      false,
+				EnableReleaseManually:             enableReleaseManually,
+				TeamID:                            &tm.ID,
+				CustomProfileIdent:                "I2",
+				UseOldFleetdFlow:                  false,
+				EnrollmentProfileFromDEPUsingPost: true,
 			})
 		})
 	}
@@ -384,11 +389,12 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 
 // DEPEnrollTestOpts contains options for DEP enrollment and release device tests
 type DEPEnrollTestOpts struct {
-	EnableReleaseManually bool
-	TeamID                *uint
-	CustomProfileIdent    string
-	UseOldFleetdFlow      bool
-	ManualAgentInstall    bool
+	EnableReleaseManually             bool
+	TeamID                            *uint
+	CustomProfileIdent                string
+	UseOldFleetdFlow                  bool
+	ManualAgentInstall                bool
+	EnrollmentProfileFromDEPUsingPost bool
 }
 
 func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, device godep.Device, opts DEPEnrollTestOpts) {
@@ -478,7 +484,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 	// enroll the host
 	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
-	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	clientOpts := make([]mdmtest.TestMDMAppleClientOption, 0)
+	if opts.EnrollmentProfileFromDEPUsingPost {
+		clientOpts = append(clientOpts, mdmtest.WithEnrollmentProfileFromDEPUsingPost())
+	}
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken, clientOpts...)
 	if isIphone {
 		mdmDevice.Model = "iPhone 14,6"
 	}

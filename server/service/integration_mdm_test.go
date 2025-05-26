@@ -5271,7 +5271,8 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	assert.Empty(t, acResp.MDM.EndUserAuthentication.SSOProviderSettings)
 
 	s.runWorker()
-	require.Equal(t, lastSubmittedProfile.ConfigurationWebURL, lastSubmittedProfile.URL)
+	assert.Empty(t, lastSubmittedProfile.ConfigurationWebURL)
+	assert.NotEmpty(t, lastSubmittedProfile.URL)
 
 	// test basic authentication for each supported config flow.
 	//
@@ -5821,12 +5822,6 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 		{Name: "N2", Contents: mobileconfigForTest("N2", "I2", fleet.FleetVarHostEndUserIDPGroups)},
 	}}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
-
-	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 	mysql.DumpTable(t, q, "mdm_apple_configuration_profiles", "team_id", "identifier", "name")
-	// 	mysql.DumpTable(t, q, "host_mdm_apple_profiles", "host_uuid", "status", "operation_type", "profile_name")
-	// 	return nil
-	// })
 
 	// one will be failed (no IdP groups), and the other will succeed and be sent to the host
 	// ask for commands and verify that we get InstallProfile for the username N1 profile
@@ -9824,6 +9819,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 
 	s.enableABM(t.Name())
 	var lastSubmittedProfile *godep.Profile
+	configurationWebURLShouldBeEmpty := true
 	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
@@ -9857,8 +9853,12 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 
 			// check that the urls are not empty and equal
 			require.NotEmpty(t, lastSubmittedProfile.URL)
-			require.NotEmpty(t, lastSubmittedProfile.ConfigurationWebURL)
-			require.Equal(t, lastSubmittedProfile.URL, lastSubmittedProfile.ConfigurationWebURL)
+			if configurationWebURLShouldBeEmpty {
+				assert.Empty(t, lastSubmittedProfile.ConfigurationWebURL)
+			} else {
+				require.NotEmpty(t, lastSubmittedProfile.ConfigurationWebURL)
+				assert.Equal(t, lastSubmittedProfile.URL, lastSubmittedProfile.ConfigurationWebURL)
+			}
 			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
 			require.NoError(t, err)
 		default:
@@ -9896,6 +9896,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	}`), http.StatusOK, &acResp)
 
 	// assign the DEP profile and assert that contains the right values for the URL
+	configurationWebURLShouldBeEmpty = false
 	s.runWorker()
 	require.NotNil(t, lastSubmittedProfile)
 	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, acResp.ServerSettings.ServerURL+"/mdm/sso")
@@ -9926,12 +9927,14 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	}`), http.StatusOK, &acResp)
 
 	// assign the DEP profile and assert that contains the right values for the URL
+	configurationWebURLShouldBeEmpty = true
 	s.runWorker()
 	require.NotNil(t, lastSubmittedProfile)
-	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
+	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
 
 	// setting a custom configuration_web_url succeeds because user authentication is disabled
 	globalAsstResp = createMDMAppleSetupAssistantResponse{}
+	configurationWebURLShouldBeEmpty = false
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            nil,
 		Name:              "no-team",
@@ -10046,11 +10049,13 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	// assign the DEP profile and assert that contains the right values for the URL
+	configurationWebURLShouldBeEmpty = true
 	s.runWorker()
-	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
+	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
 
 	// setting configuration_web_url succeeds because end user authentication is disabled
 	tmAsstResp = createMDMAppleSetupAssistantResponse{}
+	configurationWebURLShouldBeEmpty = false
 	s.DoJSON("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
 		TeamID:            &teamID,
 		Name:              t.Name(),
@@ -11687,6 +11692,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		addAppReq.LabelsExcludeAny = []string{}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", addAppReq, http.StatusOK, &addAppResp)
 		titleID := getSoftwareTitleIDFromApp(&includeAnyApp)
+		require.Equal(t, titleID, addAppResp.TitleID, "addAppResp should contain the correct software title ID")
 		activityData := `{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
 			fmt.Sprintf(activityData, team.Name,
@@ -14048,6 +14054,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 0)
+
 	// Receive enrollment profiles (we are not checking/testing these here)
 	for {
 		cmd, err := mdmDevice.Idle()
@@ -14250,12 +14257,22 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 
 	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
+	// first command is the RemoveProfile of N3 (which was install failed)
+	require.NotNil(t, cmd, "Expecting removal of failed N3 install")
+	require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
+
+	// second command is the InstallProfile of N4
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
 	require.NotNil(t, cmd, "Expecting PKCS12 certificate")
+	require.Equal(t, "InstallProfile", cmd.Command.RequestType)
 	fullCmd = micromdm.CommandPayload{}
 	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 	assert.Nil(t, cmd)
+
 	require.NotNil(t, fullCmd.Command)
 	require.NotNil(t, fullCmd.Command.InstallProfile)
 	rawProfile = fullCmd.Command.InstallProfile.Payload

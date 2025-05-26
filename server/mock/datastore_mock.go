@@ -228,6 +228,8 @@ type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) 
 
 type UpdateHostIssuesFailingPoliciesFunc func(ctx context.Context, hostIDs []uint) error
 
+type GetHostIssuesLastUpdatedFunc func(ctx context.Context, hostId uint) (time.Time, error)
+
 type UpdateHostIssuesVulnerabilitiesFunc func(ctx context.Context) error
 
 type CleanupHostIssuesFunc func(ctx context.Context) error
@@ -683,6 +685,8 @@ type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, e
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) error
 
 type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+
+type DeleteLUKSDataFunc func(ctx context.Context, hostID uint, keySlot uint) error
 
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
@@ -1682,6 +1686,9 @@ type DataStore struct {
 	UpdateHostIssuesFailingPoliciesFunc        UpdateHostIssuesFailingPoliciesFunc
 	UpdateHostIssuesFailingPoliciesFuncInvoked bool
 
+	GetHostIssuesLastUpdatedFunc        GetHostIssuesLastUpdatedFunc
+	GetHostIssuesLastUpdatedFuncInvoked bool
+
 	UpdateHostIssuesVulnerabilitiesFunc        UpdateHostIssuesVulnerabilitiesFunc
 	UpdateHostIssuesVulnerabilitiesFuncInvoked bool
 
@@ -2365,6 +2372,9 @@ type DataStore struct {
 
 	SaveLUKSDataFunc        SaveLUKSDataFunc
 	SaveLUKSDataFuncInvoked bool
+
+	DeleteLUKSDataFunc        DeleteLUKSDataFunc
+	DeleteLUKSDataFuncInvoked bool
 
 	GetUnverifiedDiskEncryptionKeysFunc        GetUnverifiedDiskEncryptionKeysFunc
 	GetUnverifiedDiskEncryptionKeysFuncInvoked bool
@@ -4122,6 +4132,13 @@ func (s *DataStore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs
 	return s.UpdateHostIssuesFailingPoliciesFunc(ctx, hostIDs)
 }
 
+func (s *DataStore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error) {
+	s.mu.Lock()
+	s.GetHostIssuesLastUpdatedFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostIssuesLastUpdatedFunc(ctx, hostId)
+}
+
 func (s *DataStore) UpdateHostIssuesVulnerabilities(ctx context.Context) error {
 	s.mu.Lock()
 	s.UpdateHostIssuesVulnerabilitiesFuncInvoked = true
@@ -5716,6 +5733,13 @@ func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encrypte
 	s.SaveLUKSDataFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveLUKSDataFunc(ctx, host, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
+}
+
+func (s *DataStore) DeleteLUKSData(ctx context.Context, hostID uint, keySlot uint) error {
+	s.mu.Lock()
+	s.DeleteLUKSDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteLUKSDataFunc(ctx, hostID, keySlot)
 }
 
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {

@@ -2961,7 +2961,24 @@ func TestGitOpsSMTPSettings(t *testing.T) {
 	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
-	require.Nil(t, appConfig.SMTPSettings)
+	// Currently we do NOT clear the SMTP settings if they are not in the config,
+	// because the smtp_settings key is not documented in the GitOps config.
+	// TODO - update this test if we change this behavior.
+	require.Equal(t, &fleet.SMTPSettings{
+		SMTPEnabled:              true,
+		SMTPConfigured:           true,
+		SMTPSenderAddress:        "http://example.com",
+		SMTPServer:               "server.example.com",
+		SMTPPort:                 587,
+		SMTPAuthenticationType:   "smoooth",
+		SMTPUserName:             "uzer",
+		SMTPPassword:             "********",
+		SMTPEnableTLS:            true,
+		SMTPAuthenticationMethod: "crunchy",
+		SMTPDomain:               "smtp.example.com",
+		SMTPVerifySSLCerts:       true,
+		SMTPEnableStartTLS:       true,
+	}, appConfig.SMTPSettings)
 }
 
 func TestGitOpsMDMAuthSettings(t *testing.T) {

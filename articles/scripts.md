@@ -49,6 +49,24 @@ fleetctl run-script --script-path=/path/to/script --host=hostname
 
 Learn more about automatically running scripts [here](https://fleetdm.com/guides/policy-automation-run-script).
 
+## Batch execute scripts
+
+You can execute a script  on a large number of hosts at the same time using the Fleet UI or Fleet API.
+
+Fleet UI:
+
+1. In Fleet, go to the **Hosts** page, and select a team.
+
+2. Select the hosts that you want to run the script on.
+
+3. Click the **Run Script** button at the top of the list of hosts.
+
+4. In the **Run Script** modal, mouse over the script you want to run and click **Run Script**.
+
+5. Either close the modal or select another script to run.
+
+Fleet API: See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
