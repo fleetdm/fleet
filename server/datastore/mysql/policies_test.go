@@ -76,7 +76,8 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesBySoftwareTitleID", testPoliciesBySoftwareTitleID},
 		{"TestClearAutoInstallPolicyStatusForHost", testClearAutoInstallPolicyStatusForHost},
 		{"PolicyLabels", testPolicyLabels},
-		{"DeletePolicyActivatesNextActivity", testDeletePolicyActivatesNextActivity},
+		{"DeletePolicyWithSoftwareActivatesNextActivity", testDeletePolicyWithSoftwareActivatesNextActivity},
+		{"DeletePolicyWithScriptActivatesNextActivity", testDeletePolicyWithScriptActivatesNextActivity},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6125,7 +6126,7 @@ func testPolicyLabels(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testDeletePolicyActivatesNextActivity(t *testing.T, ds *Datastore) {
+func testDeletePolicyWithSoftwareActivatesNextActivity(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	u := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
@@ -6193,7 +6194,7 @@ func testDeletePolicyActivatesNextActivity(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// record a failing policy for both hosts, will enqueue the install
+	// record a failing policy for both hosts, would enqueue the install
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hostNoTm, map[uint]*bool{policyNoTm.ID: ptr.Bool(false)}, time.Now(), false))
 	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hostTm, map[uint]*bool{policyTm.ID: ptr.Bool(false)}, time.Now(), false))
 
@@ -6225,6 +6226,106 @@ func testDeletePolicyActivatesNextActivity(t *testing.T, ds *Datastore) {
 
 	checkUpcomingActivities(t, ds, hostNoTm, scriptExec.ExecutionID, installUUIDNoTm)
 	checkUpcomingActivities(t, ds, hostTm, installUUIDTm)
+
+	// delete both policies, will cancel and activate next
+	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{policyTm.ID})
+	require.NoError(t, err)
+	_, err = ds.DeleteTeamPolicies(ctx, fleet.PolicyNoTeamID, []uint{policyNoTm.ID})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hostNoTm, scriptExec.ExecutionID)
+	checkUpcomingActivities(t, ds, hostTm)
+}
+
+func testDeletePolicyWithScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	hostTm := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	hostNoTm := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	// move hostTm to team1
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{hostTm.ID})
+	require.NoError(t, err)
+
+	// Create a couple policies with an associated script, one for team1 and
+	// one for no team
+	scriptTm, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo",
+		TeamID:         &team1.ID,
+	})
+	require.NoError(t, err)
+	scriptNoTm, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script2.sh",
+		ScriptContents: "echo",
+		TeamID:         nil,
+	})
+	require.NoError(t, err)
+
+	policyTm, err := ds.NewTeamPolicy(ctx, team1.ID, &u.ID, fleet.PolicyPayload{
+		Name:     "p1",
+		Query:    "SELECT 1;",
+		ScriptID: &scriptTm.ID,
+	})
+	require.NoError(t, err)
+	policyNoTm, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, &u.ID, fleet.PolicyPayload{
+		Name:     "p2",
+		Query:    "SELECT 2;",
+		ScriptID: &scriptNoTm.ID,
+	})
+	require.NoError(t, err)
+
+	// enqueue a script execution on hostNoTm
+	scriptExec, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hostNoTm.ID,
+		ScriptContents: "echo",
+		UserID:         &u.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+
+	// record a failing policy for both hosts, would enqueue the associated
+	// scripts
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hostNoTm, map[uint]*bool{policyNoTm.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, hostTm, map[uint]*bool{policyTm.ID: ptr.Bool(false)}, time.Now(), false))
+
+	// simulate the work of "processScriptsForNewlyFailingPolicies"
+	hsrPolicyNoTm, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hostNoTm.ID,
+		ScriptContents: "echo",
+		UserID:         &u.ID,
+		PolicyID:       &policyNoTm.ID,
+		SyncRequest:    true,
+		ScriptID:       &scriptNoTm.ID,
+	})
+	require.NoError(t, err)
+	hsrPolicyTm, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hostTm.ID,
+		ScriptContents: "echo",
+		UserID:         &u.ID,
+		PolicyID:       &policyTm.ID,
+		SyncRequest:    true,
+		ScriptID:       &scriptTm.ID,
+	})
+	require.NoError(t, err)
+
+	// check the upcoming activities before deletion
+	activities, _, err := ds.ListHostUpcomingActivities(ctx, hostNoTm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 2)
+	require.Equal(t, scriptExec.ExecutionID, activities[0].UUID)
+	require.Equal(t, hsrPolicyNoTm.ExecutionID, activities[1].UUID)
+
+	activities, _, err = ds.ListHostUpcomingActivities(ctx, hostTm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, activities, 1)
+	require.Equal(t, hsrPolicyTm.ExecutionID, activities[0].UUID)
+
+	checkUpcomingActivities(t, ds, hostNoTm, scriptExec.ExecutionID, hsrPolicyNoTm.ExecutionID)
+	checkUpcomingActivities(t, ds, hostTm, hsrPolicyTm.ExecutionID)
 
 	// delete both policies, will cancel and activate next
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{policyTm.ID})
