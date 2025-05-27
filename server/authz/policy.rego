@@ -1078,6 +1078,6 @@ allow {
 # Global admins can configure Microsoft conditional access.
 allow {
   object.type == "conditional_access_microsoft"
-  subject.global_role == [admin][_]
+  subject.global_role == admin
   action == write
 }

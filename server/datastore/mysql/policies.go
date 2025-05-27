@@ -1472,11 +1472,7 @@ func cleanupQueryResultsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, ho
 }
 
 func cleanupConditionalAccessOnTeamChange(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error {
-	// Similar to cleanupPolicyMembershipOnTeamChange, hosts can belong to one team only, so we just delete all
-	// the query results of the hosts that belong to queries that are not global.
-	const cleanupQuery = `
-		DELETE FROM microsoft_compliance_partner_host_statuses
-		WHERE host_id IN (?)`
+	const cleanupQuery = `DELETE FROM microsoft_compliance_partner_host_statuses WHERE host_id IN (?)`
 	query, args, err := sqlx.In(cleanupQuery, hostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build cleanup conditional access")
@@ -2012,6 +2008,7 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 }
 
 func (ds *Datastore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error) {
+	// Currently, the "Conditional access" feature is for macOS hosts only.
 	query := `SELECT id FROM policies WHERE team_id = ? AND conditional_access_enabled AND (platforms LIKE '%darwin%' OR platforms = '');`
 	var policyIDs []uint
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyIDs, query, teamID)

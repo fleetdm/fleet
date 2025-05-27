@@ -27,8 +27,8 @@ func Up_20250520120000(tx *sql.Tx) error {
 		return fmt.Errorf("failed to create microsoft_compliance_partner table: %w", err)
 	}
 
-	// microsoft_compliance_partner_host_statuses is used to track the DeviceID of the host in Entra
-	// and the last "managed" and "compliant" statuses reported to Microsoft Intune servers.
+	// microsoft_compliance_partner_host_statuses is used to track the "Device ID" and "User Principal Name"
+	// of the host in Entra and the last "managed" and "compliant" statuses reported to Microsoft Intune servers.
 	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS microsoft_compliance_partner_host_statuses (
 		host_id INT UNSIGNED NOT NULL PRIMARY KEY,
 

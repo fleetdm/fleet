@@ -26,6 +26,7 @@ Once you have your tenant ID, go to Fleet: `Settings` > `Integrations` > `Condit
 ![Conditional access setup](../website/assets/images/conditional-access-setup.png)
 
 After clicking `Save` you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application.
+After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`).
 
 The next step is to enable and configure the integration on your teams.
 

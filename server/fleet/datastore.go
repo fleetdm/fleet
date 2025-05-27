@@ -740,6 +740,7 @@ type Datastore interface {
 	GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyVPPData, error)
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
+	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
 
 	// Methods used for async processing of host policy query results.
@@ -2118,12 +2119,26 @@ type Datastore interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Microsoft Compliance Partner
 
+	// ConditionalAccessMicrosoftCreateIntegration creates the Conditional Access integration on the datastore.
+	// The integration is created as "not done".
+	// Currently only one integration can be configured, so this method replaces any existing integration.
 	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID, proxyServerSecret string) error
+	// ConditionalAccessMicrosoftGet returns the current Conditional Access integration.
+	// Returns a NotFoundError error if there's none.
 	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	// ConditionalAccessMicrosoftMarkSetupDone marks the configuration as done on the datastore.
 	ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context) error
+	// ConditionalAccessMicrosoftDelete deletes the integration from the datastore.
+	// It will also cleanup all recorded compliance status of all hosts from the datastore.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+	// LoadHostConditionalAccessStatus will load the current "Conditional Access" status of a host.
+	// The status holds Entra's "Device ID", "User Principal Name", and last reported "managed" and "compliant" status.
 	LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*HostConditionalAccessStatus, error)
+	// CreateHostConditionalAccessStatus creates the entry for the host on the datastore.
+	// This does not set the "managed" or "compliant" status yet, this just creates the entry needed with Entra information.
+	// If the host already has a different deviceID/userPrincipalName it will override them.
 	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
 }
 

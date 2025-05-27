@@ -2283,8 +2283,9 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	hostConditionalAccessStatus, err := svc.ds.LoadHostConditionalAccessStatus(ctx, hostID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			// Nothing to do because Fleet hasn't ingested the Entra's "Device ID" from the device yet
-			// (we cannot perform any actions for the host on Entra without it).
+			// Nothing to do because Fleet hasn't ingested the Entra's "Device ID" or
+			// "User Principal Name" from the device yet (we cannot perform any actions
+			// for the host on Entra without it).
 			return nil
 		}
 		return ctxerr.Wrap(ctx, err, "failed to load host conditional access status")

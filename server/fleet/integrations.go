@@ -422,6 +422,8 @@ type Integrations struct {
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
 }
 
+// ValidateConditionalAccessIntegration validates "Conditional access" can be enabled on a team/"No team".
+// It checks the global setup of the feature has been made.
 func ValidateConditionalAccessIntegration(
 	ctx context.Context,
 	g interface {
@@ -434,10 +436,7 @@ func ValidateConditionalAccessIntegration(
 	case currentConditionalAccessEnabled == newConditionalAccessEnabled:
 		// No change, mothing to do.
 	case currentConditionalAccessEnabled && !newConditionalAccessEnabled:
-		// Disabling feature on team/no-team, nothing to do here.
-		//
-		// The non-compliant hosts in the team/no-team will need their compliance
-		// status set to "compliant" next time they check in with policy results.
+		// Disabling feature on team/no-team, nothing to do.
 	case !currentConditionalAccessEnabled && newConditionalAccessEnabled:
 		// Enabling feature on team/no-team.
 		var settings *ConditionalAccessSettings

@@ -1,3 +1,4 @@
+// Package conditional_access_microsoft_proxy is the client HTTP package to operate on Entra through Fleet's MS proxy.
 package conditional_access_microsoft_proxy
 
 import (
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 )
 
+// Proxy holds functionality to send requests to Entra via Fleet's MS proxy.
 type Proxy struct {
 	uri          string
 	apiKey       string
@@ -21,6 +23,7 @@ type Proxy struct {
 	c *http.Client
 }
 
+// New creates a Proxy that will use the given URI and API key.
 func New(uri string, apiKey string, originGetter func() (string, error)) (*Proxy, error) {
 	if _, err := url.Parse(uri); err != nil {
 		return nil, fmt.Errorf("parse uri: %w", err)
@@ -38,11 +41,15 @@ func New(uri string, apiKey string, originGetter func() (string, error)) (*Proxy
 type createRequest struct {
 	TenantID string `json:"entraTenantId"`
 }
+
+// CreateResponse returns the tenant ID and the secret of the created integration
+// Such credentials are used to authenticate all requests.
 type CreateResponse struct {
 	TenantID string `json:"entra_tenant_id"`
 	Secret   string `json:"fleet_server_secret"`
 }
 
+// Create creates the integration on the MS proxy and returns the consent URL.
 func (p *Proxy) Create(ctx context.Context, tenantID string) (*CreateResponse, error) {
 	var createResponse CreateResponse
 	if err := p.post(
@@ -55,6 +62,7 @@ func (p *Proxy) Create(ctx context.Context, tenantID string) (*CreateResponse, e
 	return &createResponse, nil
 }
 
+// GetResponse holds the settings of the current integration.
 type GetResponse struct {
 	TenantID        string  `json:"entra_tenant_id"`
 	SetupDone       bool    `json:"setup_done"`
@@ -63,6 +71,7 @@ type GetResponse struct {
 	SetupError      *string `json:"setup_error"`
 }
 
+// Get returns the integration settings.
 func (p *Proxy) Get(ctx context.Context, tenantID string, secret string) (*GetResponse, error) {
 	var getResponse GetResponse
 	if err := p.get(
@@ -75,6 +84,7 @@ func (p *Proxy) Get(ctx context.Context, tenantID string, secret string) (*GetRe
 	return &getResponse, nil
 }
 
+// DeleteResponse contains an error detail if any.
 type DeleteResponse struct {
 	Error string `json:"error"`
 }
@@ -107,10 +117,15 @@ type setComplianceStatusRequest struct {
 	Compliant             bool   `json:"compliant"`
 	LastCheckInTime       int    `json:"lastCheckInTime"`
 }
+
+// SetComplianceStatusResponse holds the MessageID to query the status of the "compliance set" operation.
 type SetComplianceStatusResponse struct {
+	// MessageID holds the ID to use when querying the status of the "compliance set" operation.
 	MessageID string `json:"message_id"`
 }
 
+// SetComplianceStatus sets the inventory and compliance status of a host.
+// Returns the message ID to query the status of the operation (MS has an asynchronous API).
 func (p *Proxy) SetComplianceStatus(
 	ctx context.Context,
 	tenantID string, secret string,
@@ -145,14 +160,20 @@ func (p *Proxy) SetComplianceStatus(
 	return &setComplianceStatusResponse, nil
 }
 
+// MessageStatusCompleted is the value returned when a "compliance set" operation has been successfully applied.
 const MessageStatusCompleted = "Completed"
 
+// GetMessageStatusResponse returns the status of a "compliance set" operation.
 type GetMessageStatusResponse struct {
-	MessageID string  `json:"message_id"`
-	Status    string  `json:"status"`
-	Detail    *string `json:"detail"`
+	// MessageID is the ID of the operation.
+	MessageID string `json:"message_id"`
+	// Status of the operation.
+	Status string `json:"status"`
+	// Detail has some error description when Status is not "Completed".
+	Detail *string `json:"detail"`
 }
 
+// GetMessageStatus returns the status of the operation (MS has an asynchronous API).
 func (p *Proxy) GetMessageStatus(
 	ctx context.Context,
 	tenantID string, secret string,

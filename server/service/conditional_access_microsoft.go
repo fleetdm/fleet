@@ -10,10 +10,13 @@ import (
 )
 
 type conditionalAccessMicrosoftCreateRequest struct {
+	// MicrosoftTenantID holds the Entra tenant ID.
 	MicrosoftTenantID string `json:"microsoft_tenant_id"`
 }
 
 type conditionalAccessMicrosoftCreateResponse struct {
+	// MicrosoftAuthenticationURL holds the URL to redirect the admin to consent access
+	// to the tenant to Fleet's multi-tenant application.
 	MicrosoftAuthenticationURL string `json:"microsoft_authentication_url"`
 	Err                        error  `json:"error,omitempty"`
 }

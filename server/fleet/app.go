@@ -77,9 +77,13 @@ type SSOSettings struct {
 	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
 }
 
+// ConditionalAccessSettings holds the global settings for the "Conditional access" feature.
 type ConditionalAccessSettings struct {
-	MicrosoftEntraTenantID             string `json:"microsoft_entra_tenant_id"`
-	MicrosoftEntraConnectionConfigured bool   `json:"microsoft_entra_connection_configured"`
+	// MicrosoftEntraTenantID is the Entra's tenant ID.
+	MicrosoftEntraTenantID string `json:"microsoft_entra_tenant_id"`
+	// MicrosoftEntraConnectionConfigured is true when the tenant has been configured
+	// for "Conditional access" on Entra and Fleet.
+	MicrosoftEntraConnectionConfigured bool `json:"microsoft_entra_connection_configured"`
 }
 
 // SMTPSettings is part of the AppConfig which defines the wire representation

@@ -47,14 +47,10 @@ SELECT email FROM users
 
 - Platforms: darwin
 
-- Discovery query:
-```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'entra_id_details'
-```
-
 - Query:
 ```sql
-SELECT device_id FROM entra_id_details;
+SELECT * FROM (SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' LIMIT 1)
+		CROSS JOIN (SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1);
 ```
 
 ## disk_encryption_darwin

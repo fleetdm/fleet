@@ -626,6 +626,8 @@ type PartnershipsConfig struct {
 	EnablePrimo       bool `yaml:"enable_primo"`
 }
 
+// MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
+// Currently only set on Cloud environments.
 type MicrosoftCompliancePartnerConfig struct {
 	// ProxyAPIKey is a shared key required to use the Microsoft Compliance Partner proxy API (fleetdm.com).
 	ProxyAPIKey string `yaml:"proxy_api_key"`
@@ -633,6 +635,8 @@ type MicrosoftCompliancePartnerConfig struct {
 	ProxyURI string `yaml:"proxy_uri"`
 }
 
+// IsSet returns if the compliance partner configuration is set.
+// Currently only set on Cloud environments.
 func (m MicrosoftCompliancePartnerConfig) IsSet() bool {
 	return m.ProxyAPIKey != ""
 }
