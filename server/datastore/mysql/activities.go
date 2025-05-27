@@ -1053,6 +1053,29 @@ func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uin
 	return &actMeta, nil
 }
 
+func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
+	const maxHostIDsPerBatch = 500
+
+	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
+	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
+
+	var errs []error
+	for batch := range slices.Chunk(hostIDs, maxHostIDsPerBatch) {
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			for _, hostID := range batch {
+				if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+					return ctxerr.Wrap(ctx, err, "activate next activity")
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
 // This function activates the next upcoming activity, if any, for the specified host.
 // It does a few things to achieve this:
 //   - If there was an activity already marked as activated (activated_at is
