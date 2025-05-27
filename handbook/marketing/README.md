@@ -114,7 +114,7 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://app.
 
 **To order T-shirts:**
 
-  - Login to [https://www.rushordertees.com/my-account/login/) (saved in 1Password).
+  - Login to [Rush Order tees](https://www.rushordertees.com/my-account/login/) (saved in 1Password).
   - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
   - Order shirts based on the pre-determined number (~5% of total event attendees).
   - Submit the order. Ensure the address matches the expected receiving address.
