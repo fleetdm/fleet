@@ -381,6 +381,7 @@ controls:
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
+    enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
     software:
