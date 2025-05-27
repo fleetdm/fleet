@@ -206,8 +206,8 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 
 	if len(lookup) != 0 {
 		usersQ := `
-			SELECT u.id, u.name, u.gravatar_url, u.email
-			FROM users u
+			SELECT u.id, u.name, u.gravatar_url, u.email, u.deleted_at
+			FROM users_all u
 			WHERE id IN (?)
 		`
 		userIDs := make([]uint, 0, len(lookup))
@@ -221,10 +221,11 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 		}
 
 		var usersR []struct {
-			ID          uint   `db:"id"`
-			Name        string `db:"name"`
-			GravatarUrl string `db:"gravatar_url"`
-			Email       string `db:"email"`
+			ID          uint         `db:"id"`
+			Name        string       `db:"name"`
+			GravatarUrl string       `db:"gravatar_url"`
+			Email       string       `db:"email"`
+			DeletedAt   sql.NullTime `db:"deleted_at"`
 		}
 
 		err = sqlx.SelectContext(ctx, ds.reader(ctx), &usersR, usersQ, usersArgs...)
@@ -246,6 +247,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 				activities[idx].ActorEmail = &email
 				activities[idx].ActorGravatar = &gravatar
 				activities[idx].ActorFullName = &name
+				activities[idx].ActorDeletedAt = &r.DeletedAt.Time
 			}
 		}
 	}
@@ -306,6 +308,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) as name,
 			u.id as user_id,
+			u.deleted_at,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:ran_script_type as activity_type,
@@ -327,7 +330,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		INNER JOIN
 			script_upcoming_activities sua ON sua.upcoming_activity_id = ua.id
 		LEFT OUTER JOIN
-			users u ON u.id = ua.user_id
+			users_all u ON u.id = ua.user_id
 		LEFT OUTER JOIN
 			policies p ON p.id = sua.policy_id
 		LEFT OUTER JOIN

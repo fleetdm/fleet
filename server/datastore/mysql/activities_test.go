@@ -126,7 +126,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
 	assert.Equal(t, "email@asd.com", *activities[0].ActorEmail)
 
-	err = ds.DeleteUser(context.Background(), u.ID)
+	err = ds.DeleteUser(context.Background(), u.ID, 0)
 	require.NoError(t, err)
 
 	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})

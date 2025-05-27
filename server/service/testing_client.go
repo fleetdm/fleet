@@ -168,7 +168,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	require.NoError(t, err)
 	for _, u := range users {
 		if _, ok := ts.users[u.Email]; !ok {
-			err := ts.ds.DeleteUser(ctx, u.ID)
+			err := ts.ds.DeleteUser(ctx, u.ID, 0)
 			require.NoError(t, err)
 		}
 	}

@@ -24,7 +24,7 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		sqlStatement := `
-      INSERT INTO users (
+      INSERT INTO users_all (
       	password,
       	salt,
       	name,
@@ -74,14 +74,19 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 	return user, nil
 }
 
-func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
+func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}, includeDeleted bool) (*fleet.User, error) {
+	table := "users"
+	if includeDeleted {
+		table = "users_all"
+	}
 	sqlStatement := fmt.Sprintf(
 		// everything except `settings`. Since we only want to include user settings on an opt-in basis
 		// from the API perspective (see `include_ui_settings` query param on `GET` `/me` and `GET` `/users/:id`), excluding it here ensures it's only included in API responses
 		// when explicitly coded to be, via calling the dedicated UserSettings method. Otherwise,
 		// `settings` would be included in `user` objects in various places, which we do not want.
-		"SELECT id, created_at, updated_at, password, salt, name, email, admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role, api_only, mfa_enabled FROM users "+
+		"SELECT id, created_at, updated_at, password, salt, name, email, admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role, api_only, mfa_enabled, !isnull(deleted_at) as deleted, deleted_at FROM %s "+
 			"WHERE %s = ? LIMIT 1",
+		table,
 		searchCol,
 	)
 
@@ -151,35 +156,19 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 }
 
 func (ds *Datastore) UserByEmail(ctx context.Context, email string) (*fleet.User, error) {
-	return ds.findUser(ctx, "email", email)
+	return ds.findUser(ctx, "email", email, false)
 }
 
 func (ds *Datastore) UserByID(ctx context.Context, id uint) (*fleet.User, error) {
-	return ds.findUser(ctx, "id", id)
+	return ds.findUser(ctx, "id", id, false)
 }
 
 func (ds *Datastore) UserOrDeletedUserByID(ctx context.Context, id uint) (*fleet.User, error) {
-	user, err := ds.findUser(ctx, "id", id)
-	switch {
-	case fleet.IsNotFound(err):
-		return ds.deletedUserByID(ctx, id)
-	case err != nil:
+	user, err := ds.findUser(ctx, "id", id, true)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "find user")
 	}
 	return user, nil
-}
-
-func (ds *Datastore) deletedUserByID(ctx context.Context, id uint) (*fleet.User, error) {
-	stmt := `SELECT id, name, email, 1 as deleted FROM users_deleted WHERE id = ?`
-	var user fleet.User
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &user, stmt, id)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		return nil, ctxerr.Wrap(ctx, notFound("deleted user").WithID(id))
-	case err != nil:
-		return nil, ctxerr.Wrap(ctx, err, "selecting deleted user")
-	}
-	return &user, nil
 }
 
 func (ds *Datastore) SaveUser(ctx context.Context, user *fleet.User) error {
@@ -205,7 +194,7 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		return ctxerr.Wrap(ctx, err, "validate role")
 	}
 	sqlStatement := `
-      UPDATE users SET
+      UPDATE users_all SET
       	password = ?,
       	salt = ?,
       	name = ?,
@@ -331,22 +320,22 @@ func saveTeamsForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.Use
 }
 
 // DeleteUser deletes the associated user
-func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
+func (ds *Datastore) DeleteUser(ctx context.Context, id uint, deletedByUserID uint) error {
 	// Transfer user data to deleted_users table for audit/activity purposes
 	stmt := `
-		INSERT INTO users_deleted (id, name, email)
-		SELECT u.id, u.name, u.email
-		FROM users AS u
-		WHERE u.id = ?
-		ON DUPLICATE KEY UPDATE
-			name       = u.name,
-			email      = u.email`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, id)
+		UPDATE 
+			users_all
+		SET 
+			deleted_at = NOW(),
+			deleted_by_user_id = ?
+		WHERE
+			id = ?
+`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, deletedByUserID, id)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "populate users_deleted entry")
 	}
-
-	return ds.deleteEntity(ctx, usersTable, id)
+	return nil
 }
 
 func tableRowsCount(ctx context.Context, db sqlx.QueryerContext, tableName string) (int, error) {

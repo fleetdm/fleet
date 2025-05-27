@@ -14844,7 +14844,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	s.token = adminTeam1Session.Key
 	s.uploadSoftwareInstaller(t, rubyPayload, http.StatusOK, "")
 	s.token = adminToken
-	err = s.ds.DeleteUser(ctx, adminTeam1.ID)
+	err = s.ds.DeleteUser(ctx, adminTeam1.ID, 0)
 	require.NoError(t, err)
 	// Get software title ID of the uploaded installer.
 	resp = listSoftwareTitlesResponse{}

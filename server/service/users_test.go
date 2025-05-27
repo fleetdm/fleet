@@ -78,7 +78,7 @@ func TestUserAuth(t *testing.T) {
 	ds.ListUsersFunc = func(ctx context.Context, opts fleet.UserListOptions) ([]*fleet.User, error) {
 		return nil, nil
 	}
-	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+	ds.DeleteUserFunc = func(ctx context.Context, id uint, deletedByUserID uint) error {
 		return nil
 	}
 	ds.DestroyAllSessionsForUserFunc = func(ctx context.Context, id uint) error {

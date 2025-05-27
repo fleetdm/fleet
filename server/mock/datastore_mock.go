@@ -58,7 +58,7 @@ type SaveUserFunc func(ctx context.Context, user *fleet.User) error
 
 type SaveUsersFunc func(ctx context.Context, users []*fleet.User) error
 
-type DeleteUserFunc func(ctx context.Context, id uint) error
+type DeleteUserFunc func(ctx context.Context, id uint, deletedByUserId uint) error
 
 type PendingEmailChangeFunc func(ctx context.Context, userID uint, newEmail string, token string) error
 
@@ -3497,11 +3497,11 @@ func (s *DataStore) SaveUsers(ctx context.Context, users []*fleet.User) error {
 	return s.SaveUsersFunc(ctx, users)
 }
 
-func (s *DataStore) DeleteUser(ctx context.Context, id uint) error {
+func (s *DataStore) DeleteUser(ctx context.Context, id uint, deletedByUserID uint) error {
 	s.mu.Lock()
 	s.DeleteUserFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteUserFunc(ctx, id)
+	return s.DeleteUserFunc(ctx, id, deletedByUserID)
 }
 
 func (s *DataStore) PendingEmailChange(ctx context.Context, userID uint, newEmail string, token string) error {

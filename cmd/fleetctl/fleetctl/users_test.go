@@ -33,7 +33,7 @@ func TestUserDelete(t *testing.T) {
 
 	deletedUser := uint(0)
 
-	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+	ds.DeleteUserFunc = func(ctx context.Context, id uint, deletedByUserID uint) error {
 		deletedUser = id
 		return nil
 	}
@@ -244,7 +244,7 @@ func TestDeleteBulkUsers(t *testing.T) {
 	}
 	deletedUser := uint(0)
 
-	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+	ds.DeleteUserFunc = func(ctx context.Context, id uint, deletedByUserID uint) error {
 		deletedUser = id
 		return nil
 	}

@@ -574,7 +574,7 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
 		return err
 	}
-	if err := svc.ds.DeleteUser(ctx, id); err != nil {
+	if err := svc.ds.DeleteUser(ctx, id, 0); err != nil {
 		return err
 	}
 

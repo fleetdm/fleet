@@ -33,8 +33,10 @@ type User struct {
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
 	Teams []UserTeam `json:"teams"`
 
-	Settings *UserSettings `json:"settings,omitempty"`
-	Deleted  bool          `json:"-" db:"deleted"`
+	Settings        *UserSettings `json:"settings,omitempty"`
+	Deleted         bool          `json:"-" db:"deleted"`
+	DeletedAt       *time.Time    `json:"deleted_at" db:"deleted_at"`
+	DeletedByUserID *uint         `json:"deleted_by_user_id" db:"deleted_by_user_id"`
 }
 
 type UserSettings struct {

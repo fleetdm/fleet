@@ -142,7 +142,7 @@ func testUsersDelete(t *testing.T, ds *Datastore) {
 
 	users := createTestUsers(t, ds)
 	for _, tt := range users {
-		err := ds.DeleteUser(context.Background(), tt.ID)
+		err := ds.DeleteUser(context.Background(), tt.ID, 0)
 		assert.Nil(t, err)
 		_, err = ds.UserByID(context.Background(), tt.ID)
 		var nfe fleet.NotFoundError

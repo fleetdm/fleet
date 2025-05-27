@@ -2543,9 +2543,9 @@ func testPoliciesDelUser(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.DeleteUser(ctx, user1.ID)
+	err = ds.DeleteUser(ctx, user1.ID, 0)
 	require.NoError(t, err)
-	err = ds.DeleteUser(ctx, user2.ID)
+	err = ds.DeleteUser(ctx, user2.ID, 0)
 	require.NoError(t, err)
 
 	tp, err = ds.Policy(ctx, tp.ID)

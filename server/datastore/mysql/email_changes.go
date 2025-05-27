@@ -44,7 +44,7 @@ func (ds *Datastore) ConfirmPendingEmailChange(ctx context.Context, id uint, tok
 		}
 
 		query := `
-    		UPDATE users SET
+    		UPDATE users_all SET
       			email = ?
     		WHERE id = ?
   `
@@ -68,7 +68,6 @@ func (ds *Datastore) ConfirmPendingEmailChange(ctx context.Context, id uint, tok
 
 		return nil
 	})
-
 	if err != nil {
 		return "", err
 	}

@@ -356,7 +356,7 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 	}
 	require.True(t, found)
 
-	err := s.ds.DeleteUser(context.Background(), u.ID)
+	err := s.ds.DeleteUser(context.Background(), u.ID, 0)
 	require.NoError(t, err)
 
 	activities = listActivitiesResponse{}
