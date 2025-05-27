@@ -362,11 +362,19 @@ export interface IAppLastInstall {
   installed_at: string;
 }
 
+interface SignatureInformation {
+  installed_path: string;
+  team_identifier: string;
+  hash_sha256: string | null;
+}
+
 export interface ISoftwareInstallVersion {
   version: string;
+  bundle_identifier: string;
   last_opened_at: string | null;
   vulnerabilities: string[] | null;
   installed_paths: string[];
+  signature_information: SignatureInformation[];
 }
 
 export interface IHostSoftwarePackage {

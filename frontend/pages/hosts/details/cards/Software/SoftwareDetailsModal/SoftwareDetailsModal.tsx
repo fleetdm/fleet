@@ -47,7 +47,13 @@ const SoftwareDetailsInfo = ({
   source,
   bundleIdentifier,
 }: ISoftwareDetailsInfoProps) => {
-  const { vulnerabilities, installed_paths } = installedVersion;
+  const {
+    vulnerabilities,
+    installed_paths,
+    signature_information,
+  } = installedVersion;
+
+  const { hash_sha256: sha256 } = signature_information[0];
 
   return (
     <div className={`${baseClass}__details-info`}>
@@ -74,6 +80,19 @@ const SoftwareDetailsInfo = ({
                 {installed_paths.map((path) => (
                   <span>{path}</span>
                 ))}
+              </div>
+            }
+          />
+        </div>
+      )}
+      {sha256 && (
+        <div className={`${baseClass}__row`}>
+          <DataSet
+            className={`${baseClass}__hash-sha256-data-set`}
+            title="Hash"
+            value={
+              <div className={`${baseClass}__hash-sha256-value`}>
+                <span>{sha256}</span>
               </div>
             }
           />
