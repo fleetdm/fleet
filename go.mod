@@ -28,6 +28,7 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/clbanning/mxj v1.8.4
+	github.com/containerd/containerd v1.7.27
 	github.com/danieljoos/wincred v1.2.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.4
@@ -158,13 +159,15 @@ require (
 	cloud.google.com/go/iam v1.2.2 // indirect
 	dario.cat/mergo v1.0.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230811130428-ced1acdcaa24 // indirect
+	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect
 	github.com/AlekSi/pointer v1.2.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/OneOfOne/xxhash v1.2.8 // indirect
+	github.com/Microsoft/hcsshim v0.11.7 // indirect
 	github.com/ProtonMail/go-crypto v1.1.3 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
@@ -178,6 +181,15 @@ require (
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.3.8 // indirect
+	github.com/containerd/cgroups v1.1.0 // indirect
+	github.com/containerd/containerd/api v1.8.0 // indirect
+	github.com/containerd/continuity v0.4.4 // indirect
+	github.com/containerd/errdefs v1.0.0 // indirect
+	github.com/containerd/fifo v1.1.0 // indirect
+	github.com/containerd/log v0.1.0 // indirect
+	github.com/containerd/platforms v0.2.1 // indirect
+	github.com/containerd/ttrpc v1.2.7 // indirect
+	github.com/containerd/typeurl/v2 v2.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
@@ -186,6 +198,7 @@ require (
 	github.com/di-wu/xsd-datetime v1.0.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
+	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/elastic/go-sysinfo v1.11.2 // indirect
@@ -239,9 +252,17 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/locker v1.0.1 // indirect
+	github.com/moby/sys/mountinfo v0.6.2 // indirect
+	github.com/moby/sys/sequential v0.5.0 // indirect
+	github.com/moby/sys/signal v0.7.0 // indirect
+	github.com/moby/sys/user v0.3.0 // indirect
+	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
+	github.com/opencontainers/runtime-spec v1.1.0 // indirect
+	github.com/opencontainers/selinux v1.11.0 // indirect
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
