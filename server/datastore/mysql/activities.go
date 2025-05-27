@@ -1062,8 +1062,8 @@ func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uin
 func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
 	const findBlockedHostsStmt = `
 		SELECT
-			DISTINCT ua.host_id
-		FROM 
+			DISTINCT inactive_ua.host_id
+		FROM
 			upcoming_activities inactive_ua
 			LEFT OUTER JOIN upcoming_activities active_ua ON
 				active_ua.host_id = inactive_ua.host_id AND
