@@ -633,6 +633,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
         setRefetchActivities={setRefetchActivities}
+        router={router}
       />
     ),
   });
