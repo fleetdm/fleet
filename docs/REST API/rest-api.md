@@ -8960,7 +8960,7 @@ Get statuses and host counts for a batch-run script.
 
 #### Example
 
-`GET /api/v1/fleet/scripts/batch/summary`
+`GET /api/v1/fleet/scripts/batch/summary/abc-def`
 
 ##### Request body
 
