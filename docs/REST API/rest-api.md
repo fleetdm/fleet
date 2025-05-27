@@ -8955,7 +8955,7 @@ Get statuses and host counts for a batch-run script.
 
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
-| batch_execution_id | integer | body | **Required**. The ID returned from a batch script run. |
+| batch_execution_id | string | path | **Required**. The ID returned from a batch script run. |
 
 
 #### Example
