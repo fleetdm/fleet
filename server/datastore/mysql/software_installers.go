@@ -1010,14 +1010,14 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			return nil, ctxerr.Wrap(ctx, err, "delete pending host software installs/uninstalls")
 		}
 
-		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, `SELECT 
-			DISTINCT host_id 
-		FROM 
-			upcoming_activities ua 
+		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, `SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
 			INNER JOIN software_install_upcoming_activities siua
 				ON ua.id = siua.upcoming_activity_id
-		WHERE 
-			siua.software_installer_id = ? AND 
+		WHERE
+			siua.software_installer_id = ? AND
 			ua.activated_at IS NOT NULL AND
 			ua.activity_type IN ('software_install', 'software_uninstall')`, installerID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "select affected host IDs for software installs/uninstalls")
@@ -1580,6 +1580,21 @@ WHERE
 		)
 `
 
+	const loadAffectedHostsPendingSoftwareInstallsUA = `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua
+			ON ua.id = siua.upcoming_activity_id
+		WHERE
+			ua.activity_type IN ('software_install', 'software_uninstall') AND
+			ua.activated_at IS NOT NULL AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+		)
+`
+
 	const deleteAllPendingSoftwareInstallsUA = `
 		DELETE FROM upcoming_activities
 		USING upcoming_activities
@@ -1621,6 +1636,22 @@ WHERE
 			SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
 		)
 `
+
+	const loadAffectedHostsPendingSoftwareInstallsNotInListUA = `
+		SELECT 
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+		INNER JOIN software_install_upcoming_activities siua
+			ON ua.id = siua.upcoming_activity_id
+		WHERE
+			ua.activity_type IN ('software_install', 'software_uninstall') AND
+			ua.activated_at IS NOT NULL AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id NOT IN (?)
+			)
+`
+
 	const deletePendingSoftwareInstallsNotInListUA = `
 		DELETE FROM upcoming_activities
 		USING upcoming_activities
@@ -1835,6 +1866,13 @@ VALUES
 				return ctxerr.Wrap(ctx, err, "delete all pending host software install records")
 			}
 
+			var affectedHostIDs []uint
+			if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs,
+				loadAffectedHostsPendingSoftwareInstallsUA, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming software installs")
+			}
+			activateAffectedHostIDs = affectedHostIDs
+
 			if _, err := tx.ExecContext(ctx, deleteAllPendingSoftwareInstallsUA, globalOrTeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete all upcoming pending host software install records")
 			}
@@ -1931,6 +1969,16 @@ VALUES
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete pending host software install records")
 		}
+
+		stmt, args, err = sqlx.In(loadAffectedHostsPendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build statement to load affected hosts for upcoming software installs")
+		}
+		var affectedHostIDs []uint
+		if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming software installs")
+		}
+		activateAffectedHostIDs = affectedHostIDs
 
 		stmt, args, err = sqlx.In(deletePendingSoftwareInstallsNotInListUA, globalOrTeamID, titleIDs)
 		if err != nil {
@@ -2165,7 +2213,7 @@ VALUES
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
 				}
-				activateAffectedHostIDs = affectedHostIDs
+				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
 			}
 		}
 
