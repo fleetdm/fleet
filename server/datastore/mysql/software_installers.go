@@ -1011,7 +1011,7 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 			  WHERE siua.software_installer_id = ? AND activity_type IN ('software_install', 'software_uninstall')
 		)`, fleet.SetupExperienceStatusCancelled, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning, installerID, installerID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "fail setup experience results dependant on deleted software install")
+			return nil, ctxerr.Wrap(ctx, err, "fail setup experience results dependant on deleted software install")
 		}
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM host_software_installs
