@@ -130,11 +130,7 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://app.
 
 **To order pens and sticky note pads**
 
-  - Pens and sticky note pads are ordered through Everything Branded.
-  - Email our sales representative Jake William (saved in 1Password) to order any of the following:
-    - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
-    - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
-    - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
+  - Pens and sticky note pads are ordered through TODO.
 
 
 ### Upload contacts to Salesforce after an event
