@@ -514,6 +514,8 @@ type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, script
 
 type GetHostUpcomingActivityMetaFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error)
 
+type UnblockHostsUpcomingActivityQueueFunc func(ctx context.Context, maxHosts int) (int, error)
+
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
@@ -2098,6 +2100,9 @@ type DataStore struct {
 
 	GetHostUpcomingActivityMetaFunc        GetHostUpcomingActivityMetaFunc
 	GetHostUpcomingActivityMetaFuncInvoked bool
+
+	UnblockHostsUpcomingActivityQueueFunc        UnblockHostsUpcomingActivityQueueFunc
+	UnblockHostsUpcomingActivityQueueFuncInvoked bool
 
 	ShouldSendStatisticsFunc        ShouldSendStatisticsFunc
 	ShouldSendStatisticsFuncInvoked bool
@@ -5091,6 +5096,13 @@ func (s *DataStore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint
 	s.GetHostUpcomingActivityMetaFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostUpcomingActivityMetaFunc(ctx, hostID, executionID)
+}
+
+func (s *DataStore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+	s.mu.Lock()
+	s.UnblockHostsUpcomingActivityQueueFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnblockHostsUpcomingActivityQueueFunc(ctx, maxHosts)
 }
 
 func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {

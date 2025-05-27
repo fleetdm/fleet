@@ -45,6 +45,7 @@ func TestActivity(t *testing.T) {
 		{"CancelActivatedUpcomingActivity", testCancelActivatedUpcomingActivity},
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
+		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2008,4 +2009,152 @@ func testGetHostUpcomingActivityMeta(t *testing.T, ds *Datastore) {
 	// its meta is now non-existing
 	_, err = ds.GetHostUpcomingActivityMeta(ctx, host2.ID, wipeExecID)
 	require.ErrorAs(t, err, &nfe)
+}
+
+func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	// create a few hosts
+	hosts := make([]*fleet.Host, 5)
+	for i := range hosts {
+		host := test.NewHost(t, ds, fmt.Sprintf("h%d.local", i+1), fmt.Sprintf("10.10.10.%d", i+1), fmt.Sprint(i+1), fmt.Sprint(i+1), time.Now())
+		hosts[i] = host
+	}
+
+	// run without anything in any host queue
+	n, err := ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	deleteUpcomingActivityToBlockQueue := func(execID string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM upcoming_activities WHERE execution_id = ?`, execID)
+			return err
+		})
+	}
+
+	// enqueue some activities on some hosts (the nature of the activity is not relevant)
+	host0ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "A", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host0ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "B", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host1ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[1].ID, ScriptContents: "A", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host2ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[2].ID, ScriptContents: "A", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptA.ExecutionID, host0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3])
+	checkUpcomingActivities(t, ds, hosts[4])
+
+	// nothing to unblock
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// block queue for host 0
+	deleteUpcomingActivityToBlockQueue(host0ScriptA.ExecutionID)
+
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3])
+	checkUpcomingActivities(t, ds, hosts[4])
+
+	// enqueue script C for all hosts
+	host0ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host1ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[1].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host2ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[2].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host3ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[3].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host4ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[4].ID, ScriptContents: "C", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptB.ExecutionID, host0ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptA.ExecutionID, host1ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptA.ExecutionID, host2ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], host3ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[4], host4ScriptC.ExecutionID)
+
+	// block queue for all hosts, but since hosts 3 and 4 are now empty, no need
+	// to unblock
+	deleteUpcomingActivityToBlockQueue(host0ScriptB.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host1ScriptA.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host2ScriptA.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host3ScriptC.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host4ScriptC.ExecutionID)
+
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 3, n)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3])
+	checkUpcomingActivities(t, ds, hosts[4])
+
+	// enqueue script D and E for all hosts
+	host0ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host1ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[1].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host2ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[2].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host3ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[3].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host4ScriptD, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[4].ID, ScriptContents: "D", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host0ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[0].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host1ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[1].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host2ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[2].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host3ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[3].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	host4ScriptE, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: hosts[4].ID, ScriptContents: "E", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptC.ExecutionID, host0ScriptD.ExecutionID, host0ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptC.ExecutionID, host1ScriptD.ExecutionID, host1ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptC.ExecutionID, host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], host3ScriptD.ExecutionID, host3ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[4], host4ScriptD.ExecutionID, host4ScriptE.ExecutionID)
+
+	// block queue for all hosts
+	deleteUpcomingActivityToBlockQueue(host0ScriptC.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host1ScriptC.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host2ScriptC.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host3ScriptD.ExecutionID)
+	deleteUpcomingActivityToBlockQueue(host4ScriptD.ExecutionID)
+
+	// process max 3 hosts
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	require.NoError(t, err)
+	require.Equal(t, 3, n)
+	// run again, should process the next 2 hosts
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	require.NoError(t, err)
+	require.Equal(t, 2, n)
+	// run again, nothing to unblock
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	checkUpcomingActivities(t, ds, hosts[0], host0ScriptD.ExecutionID, host0ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], host1ScriptD.ExecutionID, host1ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], host3ScriptE.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[4], host4ScriptE.ExecutionID)
 }
