@@ -123,8 +123,9 @@ const ManageQueryAutomationsModal = ({
     >
       <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
-          Query automations let you send data to your log destination on a
-          schedule. Data is sent according to a query&apos;s frequency.
+          Query automations let you send data gathered from macOS, Windows, and
+          Linux hosts to a log destination. Data is sent according to a
+          query&apos;s frequency.
         </div>
         {availableQueries?.length ? (
           <div className={`${baseClass}__select form-field`}>
@@ -179,13 +180,6 @@ const ManageQueryAutomationsModal = ({
             />
           </div>
         </div>
-        <InfoBanner className={`${baseClass}__supported-platforms`}>
-          <p>Automations currently run on macOS, Windows, and Linux hosts.</p>
-          <p>
-            Interested in query automations for your Chromebooks? &nbsp;
-            <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
-          </p>
-        </InfoBanner>
         <Button
           type="button"
           variant="text-link"
