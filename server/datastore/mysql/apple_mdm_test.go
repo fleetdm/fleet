@@ -4637,7 +4637,7 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 
 	// try with a host that doesn't have a matching entry
 	// in nano_enrollments
-	err = ds.MDMResetEnrollment(ctx, host.UUID)
+	err = ds.MDMResetEnrollment(ctx, host.UUID, false)
 	require.NoError(t, err)
 
 	// add a matching entry in the nano table
@@ -4704,7 +4704,7 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 1, sum.Installed)
 
 	// reset the enrollment
-	err = ds.MDMResetEnrollment(ctx, host.UUID)
+	err = ds.MDMResetEnrollment(ctx, host.UUID, false)
 	require.NoError(t, err)
 
 	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, host.UUID)
@@ -4980,7 +4980,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 	require.NotEqual(t, oldTok, toks.DeclarationsToken)
 	oldTok = toks.DeclarationsToken
 
-	err = ds.DeleteMDMAppleConfigProfile(ctx, decl.DeclarationUUID)
+	err = ds.DeleteMDMAppleDeclaration(ctx, decl.DeclarationUUID)
 	require.NoError(t, err)
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{decl2.DeclarationUUID}, nil)
 	require.NoError(t, err)

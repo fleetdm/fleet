@@ -111,7 +111,7 @@ const isAnyTeamMaintainerOrTeamAdmin = (user: IUser): boolean => {
   return false;
 };
 
-const isOnlyObserver = (user: IUser): boolean => {
+export const isOnlyObserver = (user: IUser): boolean => {
   if (isGlobalObserver(user)) {
     return true;
   }

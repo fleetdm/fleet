@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-//go:generate go run gen_activity_doc.go "../../docs/Contributing/Audit-logs.md"
+//go:generate go run gen_activity_doc.go "../../docs/Contributing/reference/audit-logs.md"
 
 type ContextKey string
 
@@ -1041,6 +1041,10 @@ type ActivityTypeReadHostDiskEncryptionKey struct {
 
 func (a ActivityTypeReadHostDiskEncryptionKey) ActivityName() string {
 	return "read_host_disk_encryption_key"
+}
+
+func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 func (a ActivityTypeReadHostDiskEncryptionKey) Documentation() (activity string, details string, detailsExample string) {
@@ -2482,6 +2486,7 @@ type ActivityTypeRanScriptBatch struct {
 	ScriptName       string `json:"script_name"`
 	BatchExeuctionID string `json:"batch_execution_id"`
 	HostCount        uint   `json:"host_count"`
+	TeamID           *uint  `json:"team_id"`
 }
 
 func (a ActivityTypeRanScriptBatch) ActivityName() string {

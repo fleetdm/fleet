@@ -20,7 +20,7 @@ interface IConfigProfileRowData {
 
 // This is the order in which the statuses will be displayed in the table. It
 // will always be in this order.
-const STAUTS_ORDER = ["verified", "verifying", "pending", "failed"];
+const STATUS_ORDER = ["verified", "verifying", "pending", "failed"];
 
 export interface IStatusCellValue {
   displayName: string;
@@ -96,7 +96,7 @@ export const generateTableConfig = (
 export const generateTableData = (
   profileStatus: IGetConfigProfileStatusResponse
 ): IConfigProfileRowData[] => {
-  const tableData = STAUTS_ORDER.map((status) => ({
+  const tableData = STATUS_ORDER.map((status) => ({
     status,
     hosts: profileStatus[
       status as keyof IGetConfigProfileStatusResponse

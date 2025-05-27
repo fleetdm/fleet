@@ -1,16 +1,12 @@
 package update
 
 import (
-	"sync"
-
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
 
 type SwiftDialogDownloader struct {
-	UpdateRunner                   *Runner
-	triggeredSetupExperienceUpdate bool
-	runMu                          sync.Mutex
+	UpdateRunner *Runner
 }
 
 type SwiftDialogDownloaderOptions struct {
@@ -38,13 +34,13 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	if !s.runMu.TryLock() {
-		log.Debug().Msg("SwiftDialogDownloader: a previous instance is currently running, returning early")
+	// TODO: we probably want to ensure that swiftDialog is always installed if we're going to be
+	// using it offline.
+	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile && !cfg.Notifications.RunSetupExperience {
+		log.Debug().Msg("skipping swiftDialog update")
 		return nil
 	}
-	defer s.runMu.Unlock()
 
-	// For #25928 we are going to always install swiftDialog as a target
 	updaterHasTarget := s.UpdateRunner.HasRunnerOptTarget("swiftDialog")
 	runnerHasLocalHash := s.UpdateRunner.HasLocalHash("swiftDialog")
 	if !updaterHasTarget || !runnerHasLocalHash {
@@ -60,16 +56,14 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 			s.UpdateRunner.updater.RemoveTargetInfo("swiftDialog")
 			return err
 		}
-	}
 
-	// If we're running setup experience and we have the hashes we need to make sure we trigger
-	// an immediate update to get SwiftDialog installed and usable.
-	if cfg.Notifications.RunSetupExperience && !s.triggeredSetupExperienceUpdate {
-		s.triggeredSetupExperienceUpdate = true
-		log.Debug().Msg("SwiftDialogDownloader: triggering update to install swiftDialog immediately during setup experience")
-		_, err := s.UpdateRunner.UpdateAction()
-		if err != nil {
-			return err
+		if cfg.Notifications.RunSetupExperience {
+			// Then update immediately, since we need to get swiftDialog quickly to show the setup
+			// experience
+			_, err := s.UpdateRunner.UpdateAction()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
