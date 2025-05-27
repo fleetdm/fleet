@@ -8949,7 +8949,7 @@ Request (using `filters`):
 
 Get statuses and host counts for a batch-run script.
 
-`GET /api/v1/fleet/scripts/batch/summary`
+`GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id`
 
 #### Parameters
 
