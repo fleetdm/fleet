@@ -1030,11 +1030,6 @@ func newFrequentCleanupsSchedule(
 			err = lq.CleanupInactiveQueries(ctx, completed)
 			return err
 		}),
-		schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
-			const maxUnblockHosts = 500
-			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
-			return err
-		}),
 	)
 
 	return s, nil
@@ -1542,6 +1537,29 @@ func newIPhoneIPadReviver(
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_reviver", func(ctx context.Context) error {
 			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newUpcomingActivitiesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronUpcomingActivitiesMaintenance)
+		defaultInterval = 10 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
+			const maxUnblockHosts = 500
+			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
+			return err
 		}),
 	)
 
