@@ -45,6 +45,7 @@ func TestActivity(t *testing.T) {
 		{"CancelActivatedUpcomingActivity", testCancelActivatedUpcomingActivity},
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
+		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2008,4 +2009,20 @@ func testGetHostUpcomingActivityMeta(t *testing.T, ds *Datastore) {
 	// its meta is now non-existing
 	_, err = ds.GetHostUpcomingActivityMeta(ctx, host2.ID, wipeExecID)
 	require.ErrorAs(t, err, &nfe)
+}
+
+func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// create a few hosts
+	hosts := make([]*fleet.Host, 0, 10)
+	for i := 0; i < 10; i++ {
+		host := test.NewHost(t, ds, fmt.Sprintf("h%d.local", i+1), fmt.Sprintf("10.10.10.%d", i+1), fmt.Sprint(i+1), fmt.Sprint(i+1), time.Now())
+		hosts = append(hosts, host)
+	}
+
+	// run without anything in any host queue
+	n, err := ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
 }

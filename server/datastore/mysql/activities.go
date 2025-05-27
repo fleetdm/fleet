@@ -1053,6 +1053,33 @@ func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uin
 	return &actMeta, nil
 }
 
+// UnblockHostsUpcomingActivityQueue checks for hosts that have upcoming
+// activities but none is "activated", meaning that the queue is blocked
+// (cannot make progress anymore), possibly due to a failure when activating
+// the next activity, or to a missing call to activateNextUpcomingActivity. It
+// unblocks up to maxHosts found in this situation (by activating the next
+// activity for each host).
+func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+	const findBlockedHostsStmt = `
+		SELECT
+			DISTINCT ua.host_id
+		FROM 
+			upcoming_activities inactive_ua
+			LEFT OUTER JOIN upcoming_activities active_ua ON
+				active_ua.host_id = inactive_ua.host_id AND
+				active_ua.activated_at IS NOT NULL
+		WHERE
+			active_ua.host_id IS NULL AND
+			inactive_ua.activated_at IS NULL
+		LIMIT ?`
+
+	var blockedHostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, findBlockedHostsStmt, maxHosts); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "select blocked hosts")
+	}
+	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+}
+
 func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
 	const maxHostIDsPerBatch = 500
 
