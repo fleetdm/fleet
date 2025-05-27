@@ -1195,8 +1195,6 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	// TODO(roberto): perform better assertions, we should have everything
-	// to check that the actual values of everything match.
 	assertSoftware := func(wantTitles []fleet.SoftwareTitle) {
 		tmFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
 		titles, _, _, err := ds.ListSoftwareTitles(

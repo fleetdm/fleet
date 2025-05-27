@@ -2048,7 +2048,7 @@ CREATE TABLE `setup_experience_status_results` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` enum('pending','running','success','failure','cancelled') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('pending','running','success','failure','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `software_installer_id` int unsigned DEFAULT NULL,
   `host_software_installs_execution_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `vpp_app_team_id` int unsigned DEFAULT NULL,
