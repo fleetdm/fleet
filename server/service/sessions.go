@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -394,8 +395,13 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, endpoint_utils.BadRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
 	}
 
-	if strings.HasPrefix(redirectURL, "javascript:") {
-		return "", ctxerr.Wrap(ctx, badRequest("javascript SSO redirect URLs not permitted"))
+	parsedUrl, err := url.Parse(redirectURL)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url"))
+	}
+
+	if slices.Contains([]string{"javascript", "vbscript", "data"}, parsedUrl.Scheme) {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url scheme: "+parsedUrl.Scheme))
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
