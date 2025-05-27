@@ -1056,7 +1056,8 @@ func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uin
 func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
 	const maxHostIDsPerBatch = 500
 
-	slices.Sort(hostIDs) // sorting can help avoid deadlocks
+	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
+	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
 
 	var errs []error
 	for batch := range slices.Chunk(hostIDs, maxHostIDsPerBatch) {

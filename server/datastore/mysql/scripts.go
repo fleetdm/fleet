@@ -668,7 +668,7 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 		// activateNextUpcomingActivity for those hosts.
 		loadAffectedHostsStmt := `
 			SELECT
-				host_id
+				DISTINCT host_id
 			FROM
 				upcoming_activities ua
 				INNER JOIN script_upcoming_activities sua
@@ -755,7 +755,7 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 
 	loadAffectedHostsStmt := `
 		SELECT
-			host_id
+			DISTINCT host_id
 		FROM
 			upcoming_activities ua
 			INNER JOIN script_upcoming_activities sua
@@ -1018,6 +1018,19 @@ WHERE
 		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
 		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
 
+	const loadAffectedHostsAllPendingExecutionsUA = `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script'
+			AND ua.activated_at IS NOT NULL
+			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
+
 	const clearAllPendingExecutionsUA = `DELETE FROM upcoming_activities
 		USING
 			upcoming_activities
@@ -1045,6 +1058,19 @@ WHERE
 		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
 		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
 
+	const loadAffectedHostsPendingExecutionsNotInListUA = `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script'
+			AND ua.activated_at IS NOT NULL
+			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
+
 	const clearPendingExecutionsNotInListUA = `DELETE FROM upcoming_activities
 		USING
 			upcoming_activities
@@ -1069,6 +1095,19 @@ ON DUPLICATE KEY UPDATE
 	const clearPendingExecutionsWithObsoleteScriptHSR = `DELETE FROM host_script_results WHERE
 		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
 		AND script_id = ? AND script_content_id != ?`
+
+	const loadAffectedHostsPendingExecutionsWithObsoleteScriptUA = `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script'
+			AND ua.activated_at IS NOT NULL
+			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id = ? AND sua.script_content_id != ?`
 
 	const clearPendingExecutionsWithObsoleteScriptUA = `DELETE FROM upcoming_activities
 		USING
@@ -1100,6 +1139,8 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	var insertedScripts []fleet.ScriptResponse
+	var activateAffectedHosts []uint
+
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var existingScripts []*fleet.Script
 
@@ -1123,15 +1164,16 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		var (
-			scriptsStmt    string
-			scriptsArgs    []any
-			policiesStmt   string
-			policiesArgs   []any
-			executionsStmt string
-			executionsArgs []any
-			extraExecStmt  string
-			extraExecArgs  []any
-			err            error
+			scriptsStmt     string
+			scriptsArgs     []any
+			policiesStmt    string
+			policiesArgs    []any
+			executionsStmt  string
+			executionsArgs  []any
+			extraExecStmt   string
+			extraExecArgs   []any
+			err             error
+			affectedHostIDs []uint
 		)
 		if len(keepNames) > 0 {
 			// delete the obsolete scripts
@@ -1150,6 +1192,15 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "build statement to clear pending script executions from obsolete scripts")
 			}
 
+			loadAffectedStmt, args, err := sqlx.In(loadAffectedHostsPendingExecutionsNotInListUA,
+				int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load affected hosts for upcoming script executions")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, loadAffectedStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming script executions")
+			}
+
 			extraExecStmt, extraExecArgs, err = sqlx.In(clearPendingExecutionsNotInListUA, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to clear upcoming pending script executions from obsolete scripts")
@@ -1163,6 +1214,11 @@ ON DUPLICATE KEY UPDATE
 
 			executionsStmt = clearAllPendingExecutionsHSR
 			executionsArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
+
+			if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs,
+				loadAffectedHostsAllPendingExecutionsUA, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming script executions")
+			}
 
 			extraExecStmt = clearAllPendingExecutionsUA
 			extraExecArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
@@ -1179,6 +1235,7 @@ ON DUPLICATE KEY UPDATE
 		if _, err := tx.ExecContext(ctx, scriptsStmt, scriptsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
 		}
+		activateAffectedHosts = affectedHostIDs
 
 		// insert the new scripts and the ones that have changed
 		for _, s := range incomingScripts {
@@ -1192,10 +1249,19 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 			scriptID, _ := insertRes.LastInsertId()
+
 			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScriptHSR, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "clear obsolete pending script executions with name %q", s.Name)
 			}
-			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScriptUA, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
+
+			var affectedHosts []uint
+			if err := sqlx.SelectContext(ctx, tx, &affectedHosts, loadAffectedHostsPendingExecutionsWithObsoleteScriptUA,
+				int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "load affected hosts for upcoming script executions with name %q", s.Name)
+			}
+			activateAffectedHosts = append(activateAffectedHosts, affectedHosts...)
+
+			if _, err = tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScriptUA, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "clear obsolete upcoming pending script executions with name %q", s.Name)
 			}
 		}
@@ -1207,6 +1273,10 @@ ON DUPLICATE KEY UPDATE
 		return nil
 	}); err != nil {
 		return nil, err
+	}
+
+	if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity for batch of hosts")
 	}
 
 	return insertedScripts, nil
