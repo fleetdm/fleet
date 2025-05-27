@@ -69,7 +69,7 @@ In Terminal, execute the following command:
 16F4301E-7A88-42AD-8523-A2F73F9D38FA
 ```
 
-> It's not necessary to add the `CommandUUID` to the MDM command payload, but, having it available makes it easier and quicker to verify the MDM command result if a check is needed. 
+> It's not necessary to add the `CommandUUID` to the MDM command payload, but having it available makes it easier and quicker to verify the MDM command result if a check is needed. 
 
 A `.plist` with the `CommandUUID` key / value added will look something like this:
 
