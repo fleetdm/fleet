@@ -1013,26 +1013,28 @@ func newFrequentCleanupsSchedule(
 		schedule.WithAltLockID("leader_frequent_cleanups"),
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		// Run cleanup jobs first.
-		schedule.WithJob(
-			"redis_live_queries",
-			func(ctx context.Context) error {
-				// It's necessary to avoid lingering live queries in case of:
-				// - (Unknown) bug in the implementation, or,
-				// - Redis is so overloaded already that the lq.StopQuery in svc.CompleteCampaign fails to execute, or,
-				// - MySQL is so overloaded that ds.SaveDistributedQueryCampaign in svc.CompleteCampaign fails to execute.
-				names, err := lq.LoadActiveQueryNames()
-				if err != nil {
-					return err
-				}
-				ids := stringSliceToUintSlice(names, logger)
-				completed, err := ds.GetCompletedCampaigns(ctx, ids)
-				if err != nil {
-					return err
-				}
-				err = lq.CleanupInactiveQueries(ctx, completed)
+		schedule.WithJob("redis_live_queries", func(ctx context.Context) error {
+			// It's necessary to avoid lingering live queries in case of:
+			// - (Unknown) bug in the implementation, or,
+			// - Redis is so overloaded already that the lq.StopQuery in svc.CompleteCampaign fails to execute, or,
+			// - MySQL is so overloaded that ds.SaveDistributedQueryCampaign in svc.CompleteCampaign fails to execute.
+			names, err := lq.LoadActiveQueryNames()
+			if err != nil {
 				return err
-			},
-		),
+			}
+			ids := stringSliceToUintSlice(names, logger)
+			completed, err := ds.GetCompletedCampaigns(ctx, ids)
+			if err != nil {
+				return err
+			}
+			err = lq.CleanupInactiveQueries(ctx, completed)
+			return err
+		}),
+		schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
+			const maxUnblockHosts = 500
+			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
+			return err
+		}),
 	)
 
 	return s, nil
