@@ -45,6 +45,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
 		{"GetSoftwareTitleNameFromExecutionID", testGetSoftwareTitleNameFromExecutionID},
 		{"GetTeamsWithInstallerByHash", testGetTeamsWithInstallerByHash},
+		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
 	}
@@ -1180,6 +1181,291 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
+}
+
+func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
+
+	// create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// create a host
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID})
+	host1.TeamID = &team.ID
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	assertSoftware := func(wantTitles []fleet.SoftwareTitle) {
+		tmFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+		titles, _, _, err := ds.ListSoftwareTitles(
+			ctx,
+			fleet.SoftwareTitleListOptions{TeamID: &team.ID},
+			tmFilter,
+		)
+		require.NoError(t, err)
+		require.Len(t, titles, len(wantTitles))
+
+		for _, title := range titles {
+			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, title.ID, false)
+			require.NoError(t, err)
+			require.NotNil(t, meta.TitleID)
+		}
+	}
+
+	// add two installers
+	ins0 := "installer0"
+	ins0File := bytes.NewReader([]byte("installer0"))
+	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
+
+	ins1 := "installer1"
+	ins1File := bytes.NewReader([]byte("installer1"))
+	tfr1, err := fleet.NewTempFileReader(ins1File, t.TempDir)
+	require.NoError(t, err)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:      "install",
+			PostInstallScript:  "post-install",
+			InstallerFile:      tfr1,
+			StorageID:          ins1,
+			Filename:           ins1,
+			Title:              ins1,
+			Source:             "apps",
+			Version:            "2",
+			PreInstallQuery:    "select 1 from bar;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example2.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+
+	require.NoError(t, err)
+	softwareInstallers, err := ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 2)
+	require.NotNil(t, softwareInstallers[0].TitleID)
+	require.NotNil(t, softwareInstallers[0].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[0].TeamID)
+	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
+	require.NotNil(t, softwareInstallers[1].TitleID)
+	require.NotNil(t, softwareInstallers[1].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[1].TeamID)
+	require.Equal(t, "https://example2.com", softwareInstallers[1].URL)
+	assertSoftware([]fleet.SoftwareTitle{
+		{Name: ins0, Source: "apps", Browser: ""},
+		{Name: ins1, Source: "apps", Browser: ""},
+	})
+
+	// Add setup_experience_status_results for both installers
+	_, err = ds.EnqueueSetupExperienceItems(ctx, host1.UUID, *host1.TeamID)
+	require.NoError(t, err)
+
+	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	// Enqueue the actual install requests
+	for _, status := range statuses {
+		execID, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, *status.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{ForSetupExperience: true})
+		require.NoError(t, err)
+		status.HostSoftwareInstallsExecutionID = &execID
+		status.Status = fleet.SetupExperienceStatusRunning
+		err = ds.UpdateSetupExperienceStatusResult(ctx, status)
+		require.NoError(t, err)
+	}
+
+	// batch-set without changes
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:      "install",
+			PostInstallScript:  "post-install",
+			InstallerFile:      tfr1,
+			StorageID:          ins1,
+			Filename:           ins1,
+			Title:              ins1,
+			Source:             "apps",
+			Version:            "2",
+			PreInstallQuery:    "select 1 from bar;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example2.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	for _, status := range statuses {
+		require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
+	}
+
+	// batch-set change ins0's install script to update it and cancel the pending install
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install2",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:      "install",
+			PostInstallScript:  "post-install",
+			InstallerFile:      tfr1,
+			StorageID:          ins1,
+			Filename:           ins1,
+			Title:              ins1,
+			Source:             "apps",
+			Version:            "2",
+			PreInstallQuery:    "select 1 from bar;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example2.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+
+	require.NoError(t, err)
+
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	// Verify that ins0's install was cancelled but ins1 is still running
+	ins1ExecID := ""
+	ins0Found := false
+	ins1Found := false
+	for _, status := range statuses {
+		if status.Name == ins0 {
+			assert.False(t, ins0Found, "duplicate ins0 found")
+			ins0Found = true
+			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
+		} else {
+			assert.False(t, ins1Found, "duplicate ins1 found")
+			assert.Equal(t, ins1, status.Name)
+			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
+			require.NotNil(t, status.HostSoftwareInstallsExecutionID)
+			ins1ExecID = *status.HostSoftwareInstallsExecutionID
+		}
+	}
+
+	// activate and set a result for ins1 as if the install completed
+	ds.testActivateSpecificNextActivities = []string{ins1ExecID}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host1.ID, "")
+	require.NoError(t, err)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host1.ID,
+		InstallUUID:           ins1ExecID,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+
+	require.NoError(t, err)
+
+	// batch-set change ins1's install script to update it. This should do nothing to the setup
+	// experience result because the install already completed
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install2",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:      "install3",
+			PostInstallScript:  "post-install",
+			InstallerFile:      tfr1,
+			StorageID:          ins1,
+			Filename:           ins1,
+			Title:              ins1,
+			Source:             "apps",
+			Version:            "2",
+			PreInstallQuery:    "select 1 from bar;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example2.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	// Verify that ins0's install is still cancelled and ins1 is still running(because it hasn't
+	// been updated in the SESR entry yet)
+	ins0Found = false
+	ins1Found = false
+	for _, status := range statuses {
+		if status.Name == ins0 {
+			assert.False(t, ins0Found, "duplicate ins0 found")
+			ins0Found = true
+			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
+		} else {
+			assert.False(t, ins1Found, "duplicate ins1 found")
+			assert.Equal(t, ins1, status.Name)
+			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
+		}
+	}
 }
 
 func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastore) {

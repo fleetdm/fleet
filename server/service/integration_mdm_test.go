@@ -14952,7 +14952,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	installerID1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	swInstallerPayload1 := fleet.UploadSoftwareInstallerPayload{
 		InstallScript:     "hello",
 		PreInstallQuery:   "SELECT 1",
 		PostInstallScript: "world",
@@ -14967,7 +14967,8 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		TeamID:            &team1.ID,
 		Platform:          string(fleet.MacOSPlatform),
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
-	})
+	}
+	installerID1, titleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &swInstallerPayload1)
 	_ = installerID1
 	require.NoError(t, err)
 
@@ -15042,6 +15043,47 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	require.True(t, softwareFound, "software installer app not found in status results")
 
 	awaitingConfig, err := s.ds.GetHostAwaitingConfiguration(ctx, fleetHost.UUID)
+	require.NoError(t, err)
+	require.True(t, awaitingConfig)
+
+	updatePayload := &fleet.UpdateSoftwareInstallerPayload{
+		TitleID:           titleID1,
+		InstallerID:       installerID1,
+		Filename:          swInstallerPayload1.Filename,
+		InstallScript:     ptr.String("some new content"),
+		PreInstallQuery:   &swInstallerPayload1.PreInstallQuery,
+		PostInstallScript: &swInstallerPayload1.PostInstallScript,
+		UninstallScript:   &swInstallerPayload1.UninstallScript,
+		Version:           swInstallerPayload1.Version,
+		SelfService:       ptr.Bool(true),
+		UserID:            user1.ID,
+		TeamID:            &team1.ID,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+
+	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
+
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusRequest{OrbitNodeKey: orbitNodeKey}, http.StatusOK, &orbitRes)
+
+	require.Len(t, orbitRes.Results.Software, 2)
+
+	vppFound = false
+	softwareFound = false
+	for _, res := range orbitRes.Results.Software {
+
+		if res.Name == "file1" {
+			softwareFound = true
+			assert.Equal(t, fleet.SetupExperienceStatusFailure, res.Status)
+		}
+		if res.Name == "vpp_app_1" {
+			vppFound = true
+		}
+	}
+
+	require.True(t, vppFound, "vpp app not found in status results")
+	require.True(t, softwareFound, "software installer app not found in status results")
+
+	awaitingConfig, err = s.ds.GetHostAwaitingConfiguration(ctx, fleetHost.UUID)
 	require.NoError(t, err)
 	require.True(t, awaitingConfig)
 }
