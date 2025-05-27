@@ -435,12 +435,12 @@ resource "aws_iam_role" "aws_backup" {
 
   inline_policy {
     name   = "aws-backup-restore-policy"
-    policy = data.aws_iam_policy_document.aws_backup_policy.json
+    policy = data.aws_iam_policy_document.aws_restore_policy.json
   }
 
   inline_policy {
     name   = "aws-backup-backup-policy"
-    policy = data.aws_iam_policy_document.aws_restore_policy.json
+    policy = data.aws_iam_policy_document.aws_backup_policy.json
   }
 }
 
