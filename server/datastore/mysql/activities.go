@@ -347,6 +347,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		`SELECT
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
+			u.deleted_at,
 			ua.user_id as user_id,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
@@ -375,7 +376,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		LEFT OUTER JOIN
 			software_titles st ON st.id = si.title_id
 		LEFT OUTER JOIN
-			users u ON u.id = ua.user_id
+			users_all u ON u.id = ua.user_id
 		LEFT OUTER JOIN
 			policies p ON p.id = siua.policy_id
 		LEFT OUTER JOIN
@@ -388,6 +389,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		`SELECT
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
+			u.deleted_at,
 			ua.user_id as user_id,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
@@ -414,7 +416,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		LEFT OUTER JOIN
 			software_titles st ON st.id = si.title_id
 		LEFT OUTER JOIN
-			users u ON u.id = ua.user_id
+			users_all u ON u.id = ua.user_id
 		LEFT OUTER JOIN
 			policies p ON p.id = siua.policy_id
 		LEFT OUTER JOIN
@@ -427,6 +429,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id AS uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			u.id AS user_id,
+			u.deleted_at,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:installed_app_store_app_type AS activity_type,
@@ -448,7 +451,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		INNER JOIN
 			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
 		LEFT OUTER JOIN
-			users u ON ua.user_id = u.id
+			users_all u ON ua.user_id = u.id
 		LEFT OUTER JOIN
 			host_display_names hdn ON hdn.host_id = ua.host_id
 		LEFT OUTER JOIN
