@@ -762,11 +762,11 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 	var activateAffectedHostIDs []uint
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		activateNextHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
+		affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "clean up related installs and uninstalls")
 		}
-		activateAffectedHostIDs = activateNextHostIDs
+		activateAffectedHostIDs = affectedHostIDs
 
 		// allow delete only if install_during_setup is false
 		res, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ? AND install_during_setup = 0`, id)
@@ -1638,7 +1638,7 @@ WHERE
 `
 
 	const loadAffectedHostsPendingSoftwareInstallsNotInListUA = `
-		SELECT 
+		SELECT
 			DISTINCT host_id
 		FROM
 			upcoming_activities ua
