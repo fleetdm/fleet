@@ -9007,7 +9007,12 @@ Get statuses and host counts for a batch-run script.
 {
   "ran": 12345,
   "pending": 234,
-  "error": 18
+  "errored": 18,
+  "canceled": 2,
+  "targeted": 12599,
+  "script_id": 555,
+  "script_name": "my-script.sh",
+  "team_id": 123
 }
 ```
 
