@@ -827,6 +827,26 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 		return ctxerr.Wrap(ctx, err, "delete pending software installs for policy")
 	}
 
+	const loadAffectedHostsStmt = `
+		SELECT
+			host_id
+		FROM
+			upcoming_activities ua
+			INNER JOIN software_install_upcoming_activities siua
+				ON ua.id = siua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'software_install' AND
+			ua.activated_at IS NOT NULL AND
+			siua.policy_id = ? AND
+			siua.software_installer_id IN (
+				SELECT id FROM software_installers WHERE global_or_team_id = ?
+			)`
+	var affectedHosts []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &affectedHosts,
+		loadAffectedHostsStmt, policyID, globalOrTeamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "load affected hosts for software installs")
+	}
+
 	const deleteUAStmt = `
 		DELETE FROM
 			upcoming_activities
@@ -846,7 +866,7 @@ func (ds *Datastore) deletePendingSoftwareInstallsForPolicy(ctx context.Context,
 		return ctxerr.Wrap(ctx, err, "delete upcoming software installs for policy")
 	}
 
-	return nil
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
 }
 
 func (ds *Datastore) InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
@@ -1727,7 +1747,7 @@ WHERE
 `
 
 	const deleteAllInstallerCategories = `
-DELETE FROM 
+DELETE FROM
 	software_installer_software_categories
 WHERE
 	software_installer_id = ?
@@ -2435,7 +2455,7 @@ WHERE
 
 func (ds *Datastore) GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error) {
 	stmt := `
-SELECT 
+SELECT
 	si.id AS installer_id,
 	si.team_id AS team_id,
 	si.filename AS filename,

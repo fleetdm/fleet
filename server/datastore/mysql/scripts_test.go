@@ -1993,44 +1993,17 @@ func testDeleteScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	checkUpcomingActivities := func(host *fleet.Host, execIDs ...string) {
-		type upcoming struct {
-			ExecutionID    string `db:"execution_id"`
-			ActivatedAtSet bool   `db:"activated_at_set"`
-		}
-
-		var got []upcoming
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.SelectContext(ctx, q, &got,
-				`SELECT 
-					execution_id, 
-					(activated_at IS NOT NULL) as activated_at_set
-				FROM upcoming_activities
-				WHERE host_id = ?
-				ORDER BY IF(activated_at IS NULL, 0, 1) DESC, priority DESC, created_at ASC`, host.ID)
-		})
-
-		want := make([]upcoming, len(execIDs))
-		for i, execID := range execIDs {
-			want[i] = upcoming{
-				ExecutionID:    execID,
-				ActivatedAtSet: i == 0,
-			}
-		}
-		require.Equal(t, want, got)
-	}
-
-	checkUpcomingActivities(hosts[0], execHost0ScriptA.ExecutionID, execHost0ScriptB.ExecutionID)
-	checkUpcomingActivities(hosts[1], execHost1ScriptA.ExecutionID, execHost1ScriptB.ExecutionID)
-	checkUpcomingActivities(hosts[2], execHost2ScriptB.ExecutionID, execHost2ScriptA.ExecutionID)
-	checkUpcomingActivities(hosts[3], execHost3ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[0], execHost0ScriptA.ExecutionID, execHost0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], execHost1ScriptA.ExecutionID, execHost1ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], execHost2ScriptB.ExecutionID, execHost2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptB.ExecutionID)
 
 	// delete scriptA removes pending upcoming activity and activates next activity
 	err = ds.DeleteScript(ctx, scriptA.ID)
 	require.NoError(t, err)
 
-	checkUpcomingActivities(hosts[0], execHost0ScriptB.ExecutionID)
-	checkUpcomingActivities(hosts[1], execHost1ScriptB.ExecutionID)
-	checkUpcomingActivities(hosts[2], execHost2ScriptB.ExecutionID)
-	checkUpcomingActivities(hosts[3], execHost3ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[0], execHost0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], execHost1ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], execHost2ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptB.ExecutionID)
 }
