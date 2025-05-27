@@ -24,7 +24,7 @@ func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("dconf_read", dconf_read.Columns(), dconf_read.Generate),
 		table.NewPlugin("containerd_containers", containerd_containers.Columns(), containerd_containers.Generate),
 
-    dataflattentable.TablePluginExec(
+		dataflattentable.TablePluginExec(
 			log.Logger,
 			"lsblk",
 			dataflattentable.JsonType,
