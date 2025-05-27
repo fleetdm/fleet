@@ -422,6 +422,10 @@ func MakeDecoder(
 				return nil, &fleet.BadRequestError{Message: "Expected JSON Body"}
 			}
 
+			if jsonExpected && r.Header.Get("Content-Type") != "application/json" {
+				return nil, fleet.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
+			}
+
 			err = DecodeQueryTagValue(r, fp)
 			if err != nil {
 				return nil, err
