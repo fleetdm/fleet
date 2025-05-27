@@ -753,6 +753,26 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 		return err
 	}
 
+	loadAffectedHostsStmt := `
+		SELECT
+			host_id
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script' AND
+			ua.activated_at IS NOT NULL AND
+			sua.policy_id = ? AND
+			sua.script_id IN (
+				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
+			)`
+	var affectedHosts []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &affectedHosts,
+		loadAffectedHostsStmt, policyID, globalOrTeamID); err != nil {
+		return err
+	}
+
 	deleteUAStmt := `
 		DELETE FROM
 			upcoming_activities
@@ -771,7 +791,7 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 		return err
 	}
 
-	return nil
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
 }
 
 func (ds *Datastore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
