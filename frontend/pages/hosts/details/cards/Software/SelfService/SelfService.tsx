@@ -264,7 +264,7 @@ const SoftwareSelfService = ({
   const onSuccessUninstallSoftwareModal = () => {
     selectedSoftware.current = null;
     setShowUninstallSoftwareModal(false);
-    onInstallOrUninstall;
+    onInstallOrUninstall();
   };
 
   const onNextPage = useCallback(() => {
