@@ -101,7 +101,7 @@ const ViewYamlModal = ({
     handleDownload({
       evt,
       content: postInstallScript,
-      filename: `post-install-script-${hyphenatedSoftwareTitle}.sh`,
+      filename: `post-install-${hyphenatedSoftwareTitle}.sh`,
       filetype: "text/sh",
       errorMsg:
         "Your post-install script could not be downloaded. Please create script file (.sh) manually.",
@@ -112,7 +112,7 @@ const ViewYamlModal = ({
     handleDownload({
       evt,
       content: installScript,
-      filename: `install-script-${hyphenatedSoftwareTitle}.sh`,
+      filename: `install-${hyphenatedSoftwareTitle}.sh`,
       filetype: "text/sh",
       errorMsg:
         "Your install script could not be downloaded. Please create script file (.sh) manually.",
@@ -123,7 +123,7 @@ const ViewYamlModal = ({
     handleDownload({
       evt,
       content: uninstallScript,
-      filename: `uninstall-script-${hyphenatedSoftwareTitle}.sh`,
+      filename: `uninstall-${hyphenatedSoftwareTitle}.sh`,
       filetype: "text/sh",
       errorMsg:
         "Your uninstall script could not be downloaded. Please create script file (.sh) manually.",
@@ -183,6 +183,7 @@ const ViewYamlModal = ({
                 : undefined,
             })}
             value={packageYaml}
+            enableCopy
           />
         </div>
         <div className="modal-cta-wrap">
