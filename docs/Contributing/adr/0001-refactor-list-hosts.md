@@ -30,7 +30,7 @@ The proposal in this ADR is to refactor `ListHosts` in the following ways:
 1. Add an option allowing the caller to specify which host properties to populate.  For example, `opts.HostFieldNames = {"SeenTime", "DeviceMapping", "ScriptsEnabled"}`.  This will allow paring down the response and the related memory and data transfer pressures when we're filtering over large data sets.
 1. Move all filtering and joining logic into helper methods. This will make the logic easier to maintain and test.  `applyHostFilters` already does a good job of this, and it can be enhanced further by making sure that each helper fully encapsulates any if/then logic so that `applyHostFilters` mainly iterates over a set of helper methods[^1].  
 1. Add a helper method for filtering by label, and deprecate `ListHostsInLabel`. This will alleviate the burden of maintaining essentially duplicate methods.
-1. (Optional, but ideal): Track all SQL query parts in a data type and construct the SQL programatically at the end of `ListHosts`, rather than using `fmt.Sprintf`.  This will make the logic less error-prone and easier to test.  We already do this partly in `applyHostFilters` with `whereParams`, but we still have some string soup that we can improve upon.   
+1. (Optional, but ideal): Track all SQL query parts in a data type and construct the SQL programatically at the end of `ListHosts`, rather than using `fmt.Sprintf`.  This will make the logic less error-prone and easier to test.  We already do this partly in `applyHostFilters` with `whereParams`, but we still have some string soup that we can improve upon.  This would be a much bigger refactor, so we definitely need to judge risk/effort vs. reward here.
 
 ## Consequences
 
