@@ -4,6 +4,7 @@ import {
   strToBool,
   stripQuotes,
   isIncompleteQuoteQuery,
+  hyphenateString,
 } from "./stringUtils";
 
 describe("string utilities", () => {
@@ -89,6 +90,56 @@ describe("string utilities", () => {
     it("returns false for a string without any quotes or an empty string", () => {
       expect(isIncompleteQuoteQuery("no quotes")).toBe(false);
       expect(isIncompleteQuoteQuery("")).toBe(false);
+    });
+  });
+
+  describe("hyphenatedTitle", () => {
+    it("converts spaces to hyphens and lowercases", () => {
+      expect(hyphenateString("My Cool App")).toBe("my-cool-app");
+    });
+
+    it("trims leading and trailing spaces", () => {
+      expect(hyphenateString("   Leading and trailing   ")).toBe(
+        "leading-and-trailing"
+      );
+    });
+
+    it("collapses multiple spaces into one hyphen", () => {
+      expect(hyphenateString("Multiple    spaces here")).toBe(
+        "multiple-spaces-here"
+      );
+    });
+
+    it("returns empty string for empty input", () => {
+      expect(hyphenateString("")).toBe("");
+    });
+
+    it("handles already hyphenated and lowercase input", () => {
+      expect(hyphenateString("already-hyphenated-title")).toBe(
+        "already-hyphenated-title"
+      );
+    });
+
+    it("handles single word", () => {
+      expect(hyphenateString("Word")).toBe("word");
+    });
+
+    it("handles all uppercase", () => {
+      expect(hyphenateString("ALL UPPERCASE")).toBe("all-uppercase");
+    });
+
+    it("handles mixed case and spaces", () => {
+      expect(hyphenateString("  MixED CaSe   App ")).toBe("mixed-case-app");
+    });
+
+    it("handles numbers separated by spaces", () => {
+      expect(hyphenateString("Numbered App 3")).toBe("numbered-app-3");
+    });
+
+    it("handles numbers attached to words", () => {
+      expect(hyphenateString("Attached Numbered App3")).toBe(
+        "attached-numbered-app3"
+      );
     });
   });
 });

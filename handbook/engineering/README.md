@@ -135,6 +135,8 @@ During the release candidate period, the release candidate is deployed to our QA
 
 Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch. 
 
+You can see Fleet's release calendar [here](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t).
+
 
 ### Merge unreleased bug fixes into the release candidate
 

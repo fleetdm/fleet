@@ -951,6 +951,8 @@ type Datastore interface {
 	// SaveLUKSData sets base64'd encrypted LUKS passphrase, key slot, and salt data for a host that has successfully
 	// escrowed LUKS data
 	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+	// DeleteLUKSData deletes the LUKS encryption key associated with the provided host ID and key slot.
+	DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error
 
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:

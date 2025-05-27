@@ -2486,6 +2486,7 @@ type ActivityTypeRanScriptBatch struct {
 	ScriptName       string `json:"script_name"`
 	BatchExeuctionID string `json:"batch_execution_id"`
 	HostCount        uint   `json:"host_count"`
+	TeamID           *uint  `json:"team_id"`
 }
 
 func (a ActivityTypeRanScriptBatch) ActivityName() string {
