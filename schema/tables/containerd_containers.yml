@@ -1,0 +1,73 @@
+name: containerd_containers
+platforms:
+  - linux
+description: Information about containerd containers.
+evented: false
+columns:
+  - name: namespace
+    type: text
+    required: false
+    description: |-
+      Namespace of the container.
+  - name: id
+    type: text
+    required: false
+    description: |-
+      Container ID.
+  - name: image
+    type: text
+    required: false
+    description: |-
+      Image name.
+  - name: image_digest
+    type: text
+    required: false
+    description: |-
+      Image digest (SHA256).
+  - name: state
+    type: text
+    required: false
+    description: |-
+      Container state (e.g. running, stopped).
+  - name: created
+    type: integer
+    required: false
+    description: |-
+      Unix timestamp of when the container was created.
+  - name: runtime
+    type: text
+    required: false
+    description: |-
+      Name of the container runtime (e.g. io.containerd.runc.v2).
+  - name: command
+    type: text
+    required: false
+    description: |-
+      Command used to start the container.
+  - name: pid
+    type: integer
+    required: false
+    description: |-
+      PID of the container process.
+examples: |-
+  Get all containers from all namespaces:
+
+  ```
+  SELECT * FROM containerd_containers;
+  ```
+
+  Get only running containers in the `default` namespace:
+
+  ```
+  SELECT * FROM containerd_containers WHERE namespace='default' AND state='running';
+  ```
+  
+notes: |-
+  This table is not a core osquery table. It is included as part of Fleet's agent
+  ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+  
+  The `containerd` table is available on Linux systems with containerd installed. It provides
+  information about the containers managed by containerd, including their state, image, and runtime.
+  
+  This table is useful for systems using containerd as a container runtime, such as those running
+  Kubernetes. See the `docker_containers` table for information about containers managed by Docker.

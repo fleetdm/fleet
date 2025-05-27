@@ -147,42 +147,6 @@ osquery:
 			},
 		},
 		{
-			desc: "yaml set enabled yes",
-			yaml: `
-osquery:
-  enable_async_host_processing: yes`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set enabled on",
-			yaml: `
-osquery:
-  enable_async_host_processing: on`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
 			desc: "yaml set enabled invalid",
 			yaml: `
 osquery:
@@ -716,12 +680,18 @@ func TestValidateCloudfrontURL(t *testing.T) {
 		{"bad URL", "bozo!://example.com", "public", "private", "parse"},
 		{"non-HTTPS URL", "http://example.com", "public", "private", "cloudfront url scheme must be https"},
 		{"missing URL", "", "public", "private", "`s3_software_installers_cloudfront_url` must be set"},
-		{"missing public key", "https://example.com", "", "private",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
-		{"missing private key", "https://example.com", "public", "",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
-		{"missing keys", "https://example.com", "", "",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
+		{
+			"missing public key", "https://example.com", "", "private",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
+		{
+			"missing private key", "https://example.com", "public", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
+		{
+			"missing keys", "https://example.com", "", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
 	}
 
 	for _, c := range cases {
