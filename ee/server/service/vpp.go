@@ -453,11 +453,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	if appID.AddAutoInstallPolicy && app.AddedAutomaticInstallPolicy != nil {
-		// policies, err := svc.ds.GetPoliciesBySoftwareTitleIDs(ctx, []uint{addedApp.TitleID}, teamID)
-		// if err != nil {
-		// 	return 0, ctxerr.Wrap(ctx, err, "getting new automatic install policy for VPP app")
-		// }
-
 		policyAct := fleet.ActivityTypeCreatedPolicy{
 			ID:   app.AddedAutomaticInstallPolicy.ID,
 			Name: app.AddedAutomaticInstallPolicy.Name,
