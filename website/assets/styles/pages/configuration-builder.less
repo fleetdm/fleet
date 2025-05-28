@@ -450,6 +450,9 @@
     &:first-of-type {
       border-top: none;
     }
+    &:last-of-type {
+      margin-bottom: 80px;
+    }
   }
   [purpose='category-header'] {
     display: flex;
@@ -482,6 +485,7 @@
     align-self: stretch;
     border-radius: var(--spacing-spacing-none, 0px);
     border-top: 1px solid var(--border-border-primary, #E2E4EA);
+
     [purpose='access-type-select'] {
       height: 36px;
       padding: 0px 6px 0px var(--spacing-spacing-xs, 8px);
@@ -589,11 +593,11 @@
     }
   }
   [purpose='bottom-download-bar'] {
-    transform: translateX(-100%);
+    transform: translateX(200%);
     display: flex;
-    position: absolute;
+    position: fixed;
     bottom: 0px;
-    width: 100%;
+    width: calc(~'100% - 600px');
     height: 53px;
     padding: var(--spacing-spacing-xs, 8px);
     justify-content: flex-end;
