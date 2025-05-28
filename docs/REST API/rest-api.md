@@ -707,7 +707,62 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 ## Certificates
 
+- [List certificate authorities (CAs)](#list-certificate-authorities-cas)
 - [Request certificate](#request-certificate)
+
+### List certificate authorities (CAs)
+
+`GET /api/v1/fleet/certificate_authorities`
+
+#### Example
+
+`GET /api/v1/fleet/certificate_authorities`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_authorities": [
+    {
+      "id": 1,
+      "name": "NDES_VPN",
+      "type": "ndes"
+    },
+    {
+      "id": 2,
+      "name": "DIGICERT_STAGE",
+      "type": "digicert"
+    },
+    {
+      "id": 3,
+      "name": "DIGICERT_PROD",
+      "type": "digicert"
+    },
+    {
+      "id": 4,
+      "name": "SCEP_CERTIFICATE_STAGE",
+      "type": "custom_scep"
+    },
+    {
+      "id": 5,
+      "name": "SCEP_CERTIFICATE_PROD",
+      "type": "custom_scep"
+    },
+    {
+      "id": 6,
+      "name": "HYDRANT_WIFI_STAGE",
+      "type": "hydrant"
+    },
+    {
+      "id": 7,
+      "name": "HYDRANT_WIFI_PROD",
+      "type": "hydrant"
+    },
+  ]
+}
+```
 
 ### Request certificate
 
@@ -715,12 +770,13 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
 
-`POST /api/v1/fleet/certificates`
+`POST /api/v1/fleet/certificate_authories/:id/certificate`
 
 #### Parameters
 
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
+| id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. See your CAs [here](#list-certificate-authorities-cas). |
 | csr       | string | body | The signed certificate signing request (CSR). If left unspecified, Fleet will create the CSR with a shared key.        |
 | idp_oauth_url | string | body | OAuth URL from your identity provier (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
@@ -729,7 +785,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is supp
 
 `POST /api/v1/fleet/certificates`
 
-##### Request
+##### Request body
 
 ```json
 {
