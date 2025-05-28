@@ -3417,6 +3417,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 		Name:           "script1.sh",
 		ScriptContents: "echo hi",
 	})
+	require.NoError(t, err)
 
 	// Execute the batch script on all hosts.
 	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
@@ -3457,6 +3458,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 		Output:      "foo",
 		ExitCode:    0,
 	})
+	require.NoError(t, err)
 
 	// Simulate that host2 errored out
 	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
@@ -3471,6 +3473,8 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 
 	// Simulate that host3 cancelled the script execution
 	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
+	require.NoError(t, err)
+
 	// Cancel the execution
 	_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, host3Upcoming[0].ExecutionID)
 	require.NoError(t, err)
