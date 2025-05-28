@@ -130,13 +130,24 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 		return 0, nil
 	}
 
-	res, err := s.s3client.DeleteObjects(&s3.DeleteObjectsInput{
-		Bucket: &s.bucket,
-		Delete: &s3.Delete{
-			Objects: toDeleteKeys,
-		},
-	})
-	return len(res.Deleted), ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
+	deleted := 0
+	var errs []error
+	for _, obj := range toDeleteKeys {
+		_, err := s.s3client.DeleteObject(&s3.DeleteObjectInput{
+			Bucket: &s.bucket,
+			Key:    obj.Key,
+		})
+
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel))
+		} else {
+			deleted++
+		}
+	}
+	if len(errs) > 0 {
+		return deleted, ctxerr.Wrap(ctx, errors.Join(errs...), "errors occurred during S3 deletion")
+	}
+	return deleted, ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
 }
 
 func (s *commonFileStore) Sign(ctx context.Context, fileID string) (string, error) {
