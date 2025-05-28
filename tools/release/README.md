@@ -27,7 +27,7 @@ Make sure the repo is set to default (Needed only once)
 
 Make sure all tickets are tagged with the correct milestone.
 
-Filter by both the milestone you expect and also double check `no milestone` to make sure you haven't missed anything, and that all tickets are in the correct ZenHub column.
+Filter by both the milestone you expect and also double check `no milestone` to make sure you haven't missed anything, and that all tickets are in the correct GitHub Projects column.
 
 Make sure you are on the `main` branch, and that you have all updates pulled locally.
 

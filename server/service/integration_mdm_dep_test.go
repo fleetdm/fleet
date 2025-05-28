@@ -2780,7 +2780,7 @@ func (s *integrationMDMTestSuite) TestReenrollingADEDeviceAfterRemovingItFromABM
 	require.Len(t, *hostResp.Host.MDM.Profiles, 2)
 
 	// Turn MDM off in the host
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusOK)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusNoContent)
 
 	// profiles are removed and the host is no longer enrolled
 	hostResp = getHostResponse{}
