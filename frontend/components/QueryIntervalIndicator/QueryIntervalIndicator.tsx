@@ -16,7 +16,7 @@ const generateClassTag = (rawValue: string): string => {
   return rawValue.replace(" ", "-").toLowerCase();
 };
 
-const QueryFrequencyIndicator = ({
+const QueryIntervalIndicator = ({
   frequency,
   checked,
 }: IStatusIndicatorProps): JSX.Element => {
@@ -26,7 +26,7 @@ const QueryFrequencyIndicator = ({
     `query-frequency-indicator--${classTag}`,
     `frequency--${classTag}`
   );
-  const readableQueryFrequency = () => {
+  const readableQueryInterval = () => {
     switch (frequency) {
       case 0:
         return "Never";
@@ -58,9 +58,9 @@ const QueryFrequencyIndicator = ({
         ${frequency === 0 && !checked && "grey"}`}
     >
       {frequencyIcon()}
-      {readableQueryFrequency()}
+      {readableQueryInterval()}
     </div>
   );
 };
 
-export default QueryFrequencyIndicator;
+export default QueryIntervalIndicator;

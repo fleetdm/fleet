@@ -81,7 +81,7 @@ const SaveQueryModal = ({
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedFrequency, setSelectedFrequency] = useState(
+  const [selectedInterval, setSelectedInterval] = useState(
     existingQuery?.interval ?? 3600
   );
   const [
@@ -172,7 +172,7 @@ const SaveQueryModal = ({
         // from modal fields
         name: trimmedName,
         description,
-        interval: selectedFrequency,
+        interval: selectedInterval,
         observer_can_run: observerCanRun,
         automations_enabled: automationsEnabled,
         discard_data: discardData,
@@ -226,10 +226,10 @@ const SaveQueryModal = ({
           searchable={false}
           options={FREQUENCY_DROPDOWN_OPTIONS}
           onChange={(value: number) => {
-            setSelectedFrequency(value);
+            setSelectedInterval(value);
           }}
           placeholder="Every hour"
-          value={selectedFrequency}
+          value={selectedInterval}
           label="Interval"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
           helpText="This is how often your query collects data."
@@ -249,7 +249,7 @@ const SaveQueryModal = ({
           activeText={
             <>
               Automations on
-              {selectedFrequency === 0 && (
+              {selectedInterval === 0 && (
                 <TooltipWrapper
                   tipContent={
                     <>

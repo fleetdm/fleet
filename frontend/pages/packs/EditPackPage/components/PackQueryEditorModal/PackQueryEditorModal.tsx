@@ -69,10 +69,10 @@ const PackQueryEditorModal = ({
   const [selectedQuery, setSelectedQuery] = useState<
     IScheduledQuery | INoQueryOption
   >();
-  const [selectedFrequency, setSelectedFrequency] = useState(
+  const [selectedInterval, setSelectedInterval] = useState(
     editQuery?.interval.toString() || ""
   );
-  const [errorFrequency, setErrorFrequency] = useState("");
+  const [errorInterval, setErrorInterval] = useState("");
   const [selectedPlatformOptions, setSelectedPlatformOptions] = useState(
     editQuery?.platform || ""
   );
@@ -110,11 +110,11 @@ const PackQueryEditorModal = ({
     setSelectedQuery(queryWithId);
   };
 
-  const onChangeFrequency = (value: string) => {
-    if (errorFrequency) {
-      setErrorFrequency("");
+  const onChangeInterval = (value: string) => {
+    if (errorInterval) {
+      setErrorInterval("");
     }
-    setSelectedFrequency(value);
+    setSelectedInterval(value);
   };
 
   const onChangeSelectPlatformOptions = (values: string) => {
@@ -146,7 +146,7 @@ const PackQueryEditorModal = ({
   };
 
   const onFormSubmit = (): void => {
-    setErrorFrequency("");
+    setErrorInterval("");
     const query_id = () => {
       if (editQuery) {
         return editQuery.query_id;
@@ -154,21 +154,21 @@ const PackQueryEditorModal = ({
       return selectedQuery?.id;
     };
 
-    const frequency = parseInt(selectedFrequency, 10);
+    const frequency = parseInt(selectedInterval, 10);
     if (!frequency || frequency < 0) {
-      setErrorFrequency("Frequency must be an integer greater than zero");
+      setErrorInterval("Interval must be an integer greater than zero");
       return;
     }
     if (frequency > MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL) {
-      setErrorFrequency(
-        "Frequency must be an integer that does not exceed 604,800 (i.e. 7 days)"
+      setErrorInterval(
+        "Interval must be an integer that does not exceed 604,800 (i.e. 7 days)"
       );
       return;
     }
 
     onPackQueryFormSubmit(
       {
-        interval: parseInt(selectedFrequency, 10),
+        interval: parseInt(selectedInterval, 10),
         pack_id: packId,
         platform: selectedPlatformOptions,
         query_id: query_id(),
@@ -201,12 +201,12 @@ const PackQueryEditorModal = ({
           />
         )}
         <InputField
-          onChange={onChangeFrequency}
-          error={errorFrequency}
+          onChange={onChangeInterval}
+          error={errorInterval}
           inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-          value={selectedFrequency}
+          value={selectedInterval}
           placeholder="- - -"
-          label="Frequency (seconds)"
+          label="Interval (seconds)"
           type="number"
         />
         <Dropdown

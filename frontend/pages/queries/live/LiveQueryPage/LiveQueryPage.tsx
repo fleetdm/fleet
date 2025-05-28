@@ -63,7 +63,7 @@ const RunQueryPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
-    setLastEditedQueryFrequency,
+    setLastEditedQueryInterval,
     setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryPlatforms,
@@ -111,7 +111,7 @@ const RunQueryPage = ({
       setLastEditedQueryDescription(returnedQuery.description);
       setLastEditedQueryBody(returnedQuery.query);
       setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
-      setLastEditedQueryFrequency(returnedQuery.interval);
+      setLastEditedQueryInterval(returnedQuery.interval);
       setLastEditedQueryPlatforms(returnedQuery.platform);
       setLastEditedQueryLoggingType(returnedQuery.logging);
       setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);

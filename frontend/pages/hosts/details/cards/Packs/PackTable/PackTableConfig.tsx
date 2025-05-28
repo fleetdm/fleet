@@ -68,8 +68,8 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       ),
     },
     {
-      title: "Frequency",
-      Header: "Frequency",
+      title: "Interval",
+      Header: "Interval",
       disableSortBy: true,
       accessor: "frequency",
       Cell: (cellProps: ICellProps) => (

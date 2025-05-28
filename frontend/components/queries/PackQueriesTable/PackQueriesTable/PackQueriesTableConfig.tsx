@@ -118,8 +118,8 @@ const generateTableHeaders = (
       ),
     },
     {
-      title: "Frequency",
-      Header: "Frequency",
+      title: "Interval",
+      Header: "Interval",
       disableSortBy: false,
       accessor: "interval",
       Cell: (cellProps: ICellProps) => (

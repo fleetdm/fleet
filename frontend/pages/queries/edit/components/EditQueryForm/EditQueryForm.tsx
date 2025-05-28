@@ -144,7 +144,7 @@ const EditQueryForm = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
-    lastEditedQueryFrequency,
+    lastEditedQueryInterval,
     lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion,
@@ -154,7 +154,7 @@ const EditQueryForm = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
-    setLastEditedQueryFrequency,
+    setLastEditedQueryInterval,
     setLastEditedQueryAutomationsEnabled,
     setLastEditedQueryPlatforms,
     setLastEditedQueryMinOsqueryVersion,
@@ -301,11 +301,11 @@ const EditQueryForm = ({
     () =>
       getCustomDropdownOptions(
         FREQUENCY_DROPDOWN_OPTIONS,
-        lastEditedQueryFrequency,
+        lastEditedQueryInterval,
         // it's safe to assume that frequency is a number
         (frequency) => `Every ${secondsToDhms(frequency as number)}`
       ),
-    // intentionally leave lastEditedQueryFrequency out of the dependencies, so that the custom
+    // intentionally leave lastEditedQueryInterval out of the dependencies, so that the custom
     // options are maintained even if the user changes the frequency in the UI
     []
   );
@@ -323,11 +323,11 @@ const EditQueryForm = ({
     });
   };
 
-  const onChangeSelectFrequency = useCallback(
+  const onChangeSelectInterval = useCallback(
     (value: number) => {
-      setLastEditedQueryFrequency(value);
+      setLastEditedQueryInterval(value);
     },
-    [setLastEditedQueryFrequency]
+    [setLastEditedQueryInterval]
   );
 
   const toggleAdvancedOptions = () => {
@@ -376,7 +376,7 @@ const EditQueryForm = ({
         query: lastEditedQueryBody,
         team_id: apiTeamIdForQuery,
         observer_can_run: lastEditedQueryObserverCanRun,
-        interval: lastEditedQueryFrequency,
+        interval: lastEditedQueryInterval,
         automations_enabled: lastEditedQueryAutomationsEnabled,
         platform: newPlatformString,
         min_osquery_version: lastEditedQueryMinOsqueryVersion,
@@ -487,7 +487,7 @@ const EditQueryForm = ({
           description: lastEditedQueryDescription,
           query: lastEditedQueryBody,
           observer_can_run: lastEditedQueryObserverCanRun,
-          interval: lastEditedQueryFrequency,
+          interval: lastEditedQueryInterval,
           automations_enabled: lastEditedQueryAutomationsEnabled,
           platform: newPlatformString,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
@@ -841,9 +841,9 @@ const EditQueryForm = ({
               <Dropdown
                 searchable={false}
                 options={frequencyOptions}
-                onChange={onChangeSelectFrequency}
+                onChange={onChangeSelectInterval}
                 placeholder="Every day"
-                value={lastEditedQueryFrequency}
+                value={lastEditedQueryInterval}
                 label="Interval"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 helpText="This is how often your query collects data."
@@ -858,7 +858,7 @@ const EditQueryForm = ({
                 activeText={
                   <>
                     Automations on
-                    {lastEditedQueryFrequency === 0 && (
+                    {lastEditedQueryInterval === 0 && (
                       <TooltipWrapper
                         tipContent={
                           <>

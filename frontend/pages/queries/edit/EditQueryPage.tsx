@@ -90,7 +90,7 @@ const EditQueryPage = ({
     lastEditedQueryDescription,
     lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
-    lastEditedQueryFrequency,
+    lastEditedQueryInterval,
     lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms,
     lastEditedQueryLoggingType,
@@ -101,7 +101,7 @@ const EditQueryPage = ({
     setLastEditedQueryDescription,
     setLastEditedQueryBody,
     setLastEditedQueryObserverCanRun,
-    setLastEditedQueryFrequency,
+    setLastEditedQueryInterval,
     setLastEditedQueryAutomationsEnabled,
     setLastEditedQueryLoggingType,
     setLastEditedQueryMinOsqueryVersion,
@@ -151,7 +151,7 @@ const EditQueryPage = ({
         setLastEditedQueryDescription(returnedQuery.description);
         setLastEditedQueryBody(returnedQuery.query);
         setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
-        setLastEditedQueryFrequency(returnedQuery.interval);
+        setLastEditedQueryInterval(returnedQuery.interval);
         setLastEditedQueryAutomationsEnabled(returnedQuery.automations_enabled);
         setLastEditedQueryPlatforms(returnedQuery.platform);
         setLastEditedQueryLoggingType(returnedQuery.logging);
@@ -231,7 +231,7 @@ const EditQueryPage = ({
       setLastEditedQueryDescription(DEFAULT_QUERY.description);
       // Persist lastEditedQueryBody through live query flow instead of resetting to DEFAULT_QUERY.query
       setLastEditedQueryObserverCanRun(DEFAULT_QUERY.observer_can_run);
-      setLastEditedQueryFrequency(DEFAULT_QUERY.interval);
+      setLastEditedQueryInterval(DEFAULT_QUERY.interval);
       setLastEditedQueryAutomationsEnabled(DEFAULT_QUERY.automations_enabled);
       setLastEditedQueryLoggingType(DEFAULT_QUERY.logging);
       setLastEditedQueryMinOsqueryVersion(DEFAULT_QUERY.min_osquery_version);
@@ -306,7 +306,7 @@ const EditQueryPage = ({
       lastEditedQueryDescription,
       lastEditedQueryBody,
       lastEditedQueryObserverCanRun,
-      lastEditedQueryFrequency,
+      lastEditedQueryInterval,
       lastEditedQueryAutomationsEnabled,
       lastEditedQueryPlatforms,
       lastEditedQueryLoggingType,

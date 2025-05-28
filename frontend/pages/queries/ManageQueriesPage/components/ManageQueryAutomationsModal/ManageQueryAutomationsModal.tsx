@@ -10,7 +10,7 @@ import Button from "components/buttons/Button";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox/Checkbox";
-import QueryFrequencyIndicator from "components/QueryFrequencyIndicator/QueryFrequencyIndicator";
+import QueryIntervalIndicator from "components/QueryIntervalIndicator/QueryIntervalIndicator";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { CONTACT_FLEET_LINK } from "utilities/constants";
@@ -147,7 +147,7 @@ const ManageQueryAutomationsModal = ({
                       >
                         <TooltipTruncatedText value={name} />
                       </Checkbox>
-                      <QueryFrequencyIndicator
+                      <QueryIntervalIndicator
                         frequency={interval}
                         checked={isChecked}
                       />

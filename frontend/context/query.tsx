@@ -24,7 +24,7 @@ type InitialStateType = {
   lastEditedQueryDescription: string;
   lastEditedQueryBody: string;
   lastEditedQueryObserverCanRun: boolean;
-  lastEditedQueryFrequency: number;
+  lastEditedQueryInterval: number;
   lastEditedQueryAutomationsEnabled: boolean;
   lastEditedQueryPlatforms: CommaSeparatedPlatformString;
   lastEditedQueryMinOsqueryVersion: string;
@@ -38,7 +38,7 @@ type InitialStateType = {
   setLastEditedQueryDescription: (value: string) => void;
   setLastEditedQueryBody: (value: string) => void;
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
-  setLastEditedQueryFrequency: (value: number) => void;
+  setLastEditedQueryInterval: (value: number) => void;
   setLastEditedQueryAutomationsEnabled: (value: boolean) => void;
   setLastEditedQueryPlatforms: (value: CommaSeparatedPlatformString) => void;
   setLastEditedQueryMinOsqueryVersion: (value: string) => void;
@@ -60,7 +60,7 @@ const initialState = {
   lastEditedQueryDescription: DEFAULT_QUERY.description,
   lastEditedQueryBody: DEFAULT_QUERY.query,
   lastEditedQueryObserverCanRun: DEFAULT_QUERY.observer_can_run,
-  lastEditedQueryFrequency: DEFAULT_QUERY.interval,
+  lastEditedQueryInterval: DEFAULT_QUERY.interval,
   lastEditedQueryAutomationsEnabled: DEFAULT_QUERY.automations_enabled,
   lastEditedQueryPlatforms: DEFAULT_QUERY.platform,
   lastEditedQueryMinOsqueryVersion: DEFAULT_QUERY.min_osquery_version,
@@ -74,7 +74,7 @@ const initialState = {
   setLastEditedQueryDescription: () => null,
   setLastEditedQueryBody: () => null,
   setLastEditedQueryObserverCanRun: () => null,
-  setLastEditedQueryFrequency: () => null,
+  setLastEditedQueryInterval: () => null,
   setLastEditedQueryAutomationsEnabled: () => null,
   setLastEditedQueryPlatforms: () => null,
   setLastEditedQueryMinOsqueryVersion: () => null,
@@ -125,10 +125,10 @@ const reducer = (state: InitialStateType, action: any) => {
           typeof action.lastEditedQueryObserverCanRun === "undefined"
             ? state.lastEditedQueryObserverCanRun
             : action.lastEditedQueryObserverCanRun,
-        lastEditedQueryFrequency:
-          typeof action.lastEditedQueryFrequency === "undefined"
-            ? state.lastEditedQueryFrequency
-            : action.lastEditedQueryFrequency,
+        lastEditedQueryInterval:
+          typeof action.lastEditedQueryInterval === "undefined"
+            ? state.lastEditedQueryInterval
+            : action.lastEditedQueryInterval,
         lastEditedQueryAutomationsEnabled:
           typeof action.lastEditedQueryAutomationsEnabled === "undefined"
             ? state.lastEditedQueryAutomationsEnabled
@@ -187,7 +187,7 @@ const QueryProvider = ({ children }: Props) => {
     lastEditedQueryDescription: state.lastEditedQueryDescription,
     lastEditedQueryBody: state.lastEditedQueryBody,
     lastEditedQueryObserverCanRun: state.lastEditedQueryObserverCanRun,
-    lastEditedQueryFrequency: state.lastEditedQueryFrequency,
+    lastEditedQueryInterval: state.lastEditedQueryInterval,
     lastEditedQueryAutomationsEnabled: state.lastEditedQueryAutomationsEnabled,
     lastEditedQueryPlatforms: state.lastEditedQueryPlatforms,
     lastEditedQueryMinOsqueryVersion: state.lastEditedQueryMinOsqueryVersion,
@@ -228,10 +228,10 @@ const QueryProvider = ({ children }: Props) => {
         lastEditedQueryObserverCanRun,
       });
     },
-    setLastEditedQueryFrequency: (lastEditedQueryFrequency: number) => {
+    setLastEditedQueryInterval: (lastEditedQueryInterval: number) => {
       dispatch({
         type: actions.SET_LAST_EDITED_QUERY_INFO,
-        lastEditedQueryFrequency,
+        lastEditedQueryInterval,
       });
     },
     setLastEditedQueryAutomationsEnabled: (
