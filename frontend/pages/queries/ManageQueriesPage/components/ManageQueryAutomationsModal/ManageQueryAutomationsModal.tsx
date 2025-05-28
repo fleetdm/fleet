@@ -124,7 +124,7 @@ const ManageQueryAutomationsModal = ({
       <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
           Query automations let you send data to your log destination on a
-          schedule. Data is sent according to a query&apos;s frequency.
+          schedule. Data is sent according to a query&apos;s interval.
         </div>
         {availableQueries?.length ? (
           <div className={`${baseClass}__select form-field`}>
