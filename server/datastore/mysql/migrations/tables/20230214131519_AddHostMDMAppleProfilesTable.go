@@ -42,7 +42,6 @@ func Up_20230214131519(tx *sql.Tx) error {
 	}
 
 	_, err = tx.Exec(`
-		  -- Default collation isn't set on this table because we use host_uuid in a JOIN in a later migration.
           CREATE TABLE host_mdm_apple_profiles (
             profile_id          int(10) UNSIGNED NOT NULL,
             profile_identifier  varchar(255) NOT NULL,
