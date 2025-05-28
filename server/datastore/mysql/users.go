@@ -36,7 +36,7 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 	    mfa_enabled,
 		api_only,
 		global_role,
-		invite_id,
+		invite_id
       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
       `
 		result, err := tx.ExecContext(ctx, sqlStatement,
@@ -83,7 +83,7 @@ func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal i
 		// from the API perspective (see `include_ui_settings` query param on `GET` `/me` and `GET` `/users/:id`), excluding it here ensures it's only included in API responses
 		// when explicitly coded to be, via calling the dedicated UserSettings method. Otherwise,
 		// `settings` would be included in `user` objects in various places, which we do not want.
-		"SELECT id, created_at, updated_at, password, salt, name, email, admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role, api_only, mfa_enabled FROM users "+
+		"SELECT id, created_at, updated_at, password, salt, name, email, admin_forced_password_reset, gravatar_url, position, sso_enabled, global_role, api_only, mfa_enabled, invite_id FROM users "+
 			"WHERE %s = ? LIMIT 1",
 		searchCol,
 	)

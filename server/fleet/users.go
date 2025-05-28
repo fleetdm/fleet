@@ -34,7 +34,7 @@ type User struct {
 	Teams []UserTeam `json:"teams"`
 
 	// Only used to to prevent duplicate invite acceptance
-	InviteID *uint `json:"-"`
+	InviteID *uint `json:"-" db:"invite_id"`
 
 	Settings *UserSettings `json:"settings,omitempty"`
 	Deleted  bool          `json:"-" db:"deleted"`
