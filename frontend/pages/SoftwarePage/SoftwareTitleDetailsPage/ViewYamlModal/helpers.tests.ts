@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { createMockSoftwarePackage } from "__mocks__/softwareMock";
 import { noop } from "lodash";
 
-import { createPackageYaml, renderYamlHelperText } from "./helpers";
+import { createPackageYaml, renderDownloadFilesText } from "./helpers";
 
 describe("createPackageYaml", () => {
   const {
@@ -145,13 +145,15 @@ describe("renderYamlHelperText", () => {
 
   it("renders nothing if no scripts/queries are present", () => {
     // Empty to simulate 'no items'
-    const { container } = render(renderYamlHelperText({}));
+    const { container } = render(renderDownloadFilesText({}));
     expect(container).toBeEmptyDOMElement();
   });
 
   it("renders correctly with one item", () => {
     // Only install_script present
-    render(renderYamlHelperText({ installScript, onClickInstallScript: noop }));
+    render(
+      renderDownloadFilesText({ installScript, onClickInstallScript: noop })
+    );
     expect(
       screen.getByRole("button", { name: "install script" })
     ).toBeInTheDocument();
@@ -167,7 +169,7 @@ describe("renderYamlHelperText", () => {
 
   it("renders correctly with two items", () => {
     const { container } = render(
-      renderYamlHelperText({
+      renderDownloadFilesText({
         installScript,
         uninstallScript,
         onClickInstallScript: noop,
@@ -202,7 +204,7 @@ describe("renderYamlHelperText", () => {
   it("renders correctly with all items", () => {
     // All present (default)
     const { container } = render(
-      renderYamlHelperText({
+      renderDownloadFilesText({
         preInstallQuery,
         installScript,
         uninstallScript,
@@ -247,7 +249,7 @@ describe("renderYamlHelperText", () => {
   it("renders comma correctly for three items (with Oxford comma)", () => {
     // pre_install_query, install_script, uninstall_script present
     const { container } = render(
-      renderYamlHelperText({
+      renderDownloadFilesText({
         preInstallQuery,
         installScript,
         uninstallScript,
