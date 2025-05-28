@@ -1,6 +1,6 @@
 # Fleet 4.69.0 | Bulk scripts improvements, Entra ID and authentik foreign vitals, and more...
 
-<div purpose="embedded-content">
+<div purpose="[embedded-content](https://www.youtube.com/embed/KfWGkgaMEN0?si=XpL8tufModTR9Q_O)">
    <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
 </div>
 
