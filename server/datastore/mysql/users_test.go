@@ -56,6 +56,7 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		{"foobar", "jason2@fleet.co", true, true, true, false, false, nil, nil},
 		{"foobar", "jason3@fleet.co", true, true, false, false, true, nil, nil},
 		{"foobar", "jason4@fleet.co", true, true, false, false, true, ptr.Uint(1), nil},
+		// Simulating a race condition where two users accept the same invite
 		{"foobar", "jason5@fleet.co", true, true, false, false, true, ptr.Uint(1), ptr.String("users.invite_id")},
 	}
 

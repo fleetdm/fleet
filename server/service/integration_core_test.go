@@ -2182,6 +2182,11 @@ func (s *integrationTestSuite) TestInvites() {
 		InviteToken: ptr.String(validInviteToken),
 	}, http.StatusOK, &createFromInviteResp)
 
+	// Check that user is associated with unique invite ID
+	user, err := s.ds.UserByEmail(context.Background(), "a@b.c")
+	require.NoError(t, err)
+	require.Equal(t, inv.ID, *user.InviteID)
+
 	// keep the invite token from the other valid invite (before deleting it)
 	inv, err = s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
 	require.NoError(t, err)
