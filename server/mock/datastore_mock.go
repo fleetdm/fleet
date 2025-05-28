@@ -514,6 +514,8 @@ type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, script
 
 type GetHostUpcomingActivityMetaFunc func(ctx context.Context, hostID uint, executionID string) (*fleet.UpcomingActivityMeta, error)
 
+type UnblockHostsUpcomingActivityQueueFunc func(ctx context.Context, maxHosts int) (int, error)
+
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
@@ -683,6 +685,8 @@ type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, e
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Key string, clientError string, decryptable *bool) error
 
 type SaveLUKSDataFunc func(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+
+type DeleteLUKSDataFunc func(ctx context.Context, hostID uint, keySlot uint) error
 
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
@@ -2097,6 +2101,9 @@ type DataStore struct {
 	GetHostUpcomingActivityMetaFunc        GetHostUpcomingActivityMetaFunc
 	GetHostUpcomingActivityMetaFuncInvoked bool
 
+	UnblockHostsUpcomingActivityQueueFunc        UnblockHostsUpcomingActivityQueueFunc
+	UnblockHostsUpcomingActivityQueueFuncInvoked bool
+
 	ShouldSendStatisticsFunc        ShouldSendStatisticsFunc
 	ShouldSendStatisticsFuncInvoked bool
 
@@ -2351,6 +2358,9 @@ type DataStore struct {
 
 	SaveLUKSDataFunc        SaveLUKSDataFunc
 	SaveLUKSDataFuncInvoked bool
+
+	DeleteLUKSDataFunc        DeleteLUKSDataFunc
+	DeleteLUKSDataFuncInvoked bool
 
 	GetUnverifiedDiskEncryptionKeysFunc        GetUnverifiedDiskEncryptionKeysFunc
 	GetUnverifiedDiskEncryptionKeysFuncInvoked bool
@@ -5088,6 +5098,13 @@ func (s *DataStore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uint
 	return s.GetHostUpcomingActivityMetaFunc(ctx, hostID, executionID)
 }
 
+func (s *DataStore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+	s.mu.Lock()
+	s.UnblockHostsUpcomingActivityQueueFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnblockHostsUpcomingActivityQueueFunc(ctx, maxHosts)
+}
+
 func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
 	s.mu.Lock()
 	s.ShouldSendStatisticsFuncInvoked = true
@@ -5681,6 +5698,13 @@ func (s *DataStore) SaveLUKSData(ctx context.Context, host *fleet.Host, encrypte
 	s.SaveLUKSDataFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveLUKSDataFunc(ctx, host, encryptedBase64Passphrase, encryptedBase64Salt, keySlot)
+}
+
+func (s *DataStore) DeleteLUKSData(ctx context.Context, hostID uint, keySlot uint) error {
+	s.mu.Lock()
+	s.DeleteLUKSDataFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteLUKSDataFunc(ctx, hostID, keySlot)
 }
 
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {

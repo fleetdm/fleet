@@ -334,8 +334,8 @@ module.exports = {
       averageDaysContributorPullRequestsAreOpenFor,
       averageNumberOfDaysBugsAreOpenFor,
       allBugs32DaysOrOlder.length,
-      allBugsCreatedInPastWeek.length,
       allBugsClosedInPastWeek.length,
+      allBugsCreatedInPastWeek.length,
       allBugsReportedByCustomersInPastWeek.length,);
 
     // Log the results

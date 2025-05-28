@@ -91,12 +91,24 @@ When the S3 backend is used, this line will be printed in the tests' output (as 
     integration_mdm_test.go:196: >>> using S3/minio software installer store
 ```
 
-Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
+Note that on a Linux and macOS systems, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
 
 ```sh
 # start both the default docker-compose.yml and the redis cluster-specific
 # docker-compose-redis-cluster.yml
 $ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
+```
+
+### Redis cluster on macOS
+
+Redis cluster mode can also be run on macOS, but requires an extra component to give the local development environment access to the docker network. The required tool is located [here](https://github.com/chipmk/docker-mac-net-connect). Run the following commands to setup the docker VPN bridge:
+
+```sh
+# Install via Homebrew
+$ brew install chipmk/tap/docker-mac-net-connect
+
+# Run the service and register it to launch at boot
+$ sudo brew services start chipmk/tap/docker-mac-net-connect
 ```
 
 ### Go unit tests
@@ -426,6 +438,41 @@ $ awslocal kinesis list-streams
     ]
 }
 ```
+Use the following to describe the sample_status stream. 
+
+Note: Check the `StreamARN` value to see your region. If your region is not `us-east-1` you will need to update the command for running `fleet serve` below to match your region. 
+```sh
+$ awslocal kinesis describe-stream --stream-name sample_status
+{
+    "StreamDescription": {
+        "Shards": [
+            {
+                "ShardId": "shardId-000000000000",
+                "HashKeyRange": {
+                    "StartingHashKey": "0",
+                    "EndingHashKey": "340282366920938463463374607431768211455"
+                },
+                "SequenceNumberRange": {
+                    "StartingSequenceNumber": "49663516104709326340269823046323233838660186951542374402"
+                }
+            }
+        ],
+        "StreamARN": "arn:aws:kinesis:us-east-1:000000000000:stream/sample_status",
+        "StreamName": "sample_status",
+        "StreamStatus": "ACTIVE",
+        "RetentionPeriodHours": 24,
+        "EnhancedMonitoring": [
+            {
+                "ShardLevelMetrics": []
+            }
+        ],
+        "EncryptionType": "NONE",
+        "KeyId": null,
+        "StreamCreationTimestamp": 1747864229.031
+    }
+}
+```
+
 
 Use the following configuration to run Fleet:
 ```sh
