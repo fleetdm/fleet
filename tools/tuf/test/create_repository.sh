@@ -3,7 +3,8 @@
 set -xe
 
 # This script initializes a test Fleet TUF repository.
-# All targets are created with version set to YY.MM.DD.HHMM (build time date)
+# All targets are created with version set to YY.MM.XXXXX, e.g. 25.5.56178
+# (patch version is a 16-bit number made from day, hour and minute).
 
 # Input:
 # TUF_PATH: directory path for the test TUF repository.
