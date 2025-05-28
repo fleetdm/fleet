@@ -728,9 +728,6 @@ type Datastore interface {
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
-	// GetPoliciesBySoftwareTitleID returns the policies that are associated with a set of software titles.
-	GetPoliciesBySoftwareTitleIDs(ctx context.Context, softwareTitleIDs []uint, teamID *uint) ([]AutomaticInstallPolicy, error)
-
 	// GetTeamHostsPolicyMemberships returns the hosts that belong to the given team and their pass/fail statuses
 	// around the provided policyIDs.
 	// 	- Returns hosts of the team that are failing one or more of the provided policies.

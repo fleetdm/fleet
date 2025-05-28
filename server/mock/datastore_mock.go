@@ -544,8 +544,6 @@ type UpdateHostPolicyCountsFunc func(ctx context.Context) error
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
-type GetPoliciesBySoftwareTitleIDsFunc func(ctx context.Context, softwareTitleIDs []uint, teamID *uint) ([]fleet.AutomaticInstallPolicy, error)
-
 type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error)
 
 type GetPoliciesWithAssociatedInstallerFunc func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error)
@@ -2145,9 +2143,6 @@ type DataStore struct {
 
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
-
-	GetPoliciesBySoftwareTitleIDsFunc        GetPoliciesBySoftwareTitleIDsFunc
-	GetPoliciesBySoftwareTitleIDsFuncInvoked bool
 
 	GetTeamHostsPolicyMembershipsFunc        GetTeamHostsPolicyMembershipsFunc
 	GetTeamHostsPolicyMembershipsFuncInvoked bool
@@ -5201,13 +5196,6 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	s.PolicyQueriesForHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.PolicyQueriesForHostFunc(ctx, host)
-}
-
-func (s *DataStore) GetPoliciesBySoftwareTitleIDs(ctx context.Context, softwareTitleIDs []uint, teamID *uint) ([]fleet.AutomaticInstallPolicy, error) {
-	s.mu.Lock()
-	s.GetPoliciesBySoftwareTitleIDsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPoliciesBySoftwareTitleIDsFunc(ctx, softwareTitleIDs, teamID)
 }
 
 func (s *DataStore) GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint, hostID *uint) ([]fleet.HostPolicyMembershipData, error) {
