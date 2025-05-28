@@ -190,7 +190,7 @@ describe("EditQueryForm - component", () => {
     );
   });
 
-  it("shows automations warning icon when query frequency is set to 0", async () => {
+  it("shows automations warning icon when query interval is set to 0", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -200,7 +200,7 @@ describe("EditQueryForm - component", () => {
           lastEditedQueryDescription: mockQuery.description,
           lastEditedQueryBody: mockQuery.query,
           lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
-          lastEditedQueryInterval: 0, // Set frequency to 0
+          lastEditedQueryInterval: 0, // Set interval to 0
           lastEditedQueryAutomationsEnabled: true, // Enable automations
           lastEditedQueryPlatforms: mockQuery.platform,
           lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,

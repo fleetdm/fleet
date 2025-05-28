@@ -269,7 +269,7 @@ const OtherWorkflowsModal = ({
             }
             label="Integration"
             error={errors.integration}
-            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--interval`}
             hint={
               "For each policy, Fleet will create a ticket with a list of the failing hosts."
             }

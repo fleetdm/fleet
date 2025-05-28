@@ -297,16 +297,16 @@ const EditQueryForm = ({
       setIsEditingDescription(false);
     }
   };
-  const frequencyOptions = useMemo(
+  const intervalOptions = useMemo(
     () =>
       getCustomDropdownOptions(
         FREQUENCY_DROPDOWN_OPTIONS,
         lastEditedQueryInterval,
-        // it's safe to assume that frequency is a number
-        (frequency) => `Every ${secondsToDhms(frequency as number)}`
+        // it's safe to assume that interval is a number
+        (interval) => `Every ${secondsToDhms(interval as number)}`
       ),
     // intentionally leave lastEditedQueryInterval out of the dependencies, so that the custom
-    // options are maintained even if the user changes the frequency in the UI
+    // options are maintained even if the user changes the interval in the UI
     []
   );
 
@@ -840,12 +840,12 @@ const EditQueryForm = ({
             >
               <Dropdown
                 searchable={false}
-                options={frequencyOptions}
+                options={intervalOptions}
                 onChange={onChangeSelectInterval}
                 placeholder="Every day"
                 value={lastEditedQueryInterval}
                 label="Interval"
-                wrapperClassName={`${baseClass}__form-field form-field--frequency`}
+                wrapperClassName={`${baseClass}__form-field form-field--interval`}
                 helpText="This is how often your query collects data."
               />
               <Slider

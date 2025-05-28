@@ -148,7 +148,7 @@ const ManageQueryAutomationsModal = ({
                         <TooltipTruncatedText value={name} />
                       </Checkbox>
                       <QueryIntervalIndicator
-                        frequency={interval}
+                        interval={interval}
                         checked={isChecked}
                       />
                     </div>

@@ -362,7 +362,7 @@ const ManageAutomationsModal = ({
             placeholder="Select integration"
             value={selectedIntegration?.dropdownIndex}
             label="Integration"
-            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--interval`}
             helpText="For each new vulnerability detected, Fleet will create a ticket with a list of the affected hosts."
           />
         ) : (

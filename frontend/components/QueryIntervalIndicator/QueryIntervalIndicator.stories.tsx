@@ -6,7 +6,7 @@ const meta: Meta<typeof QueryIntervalIndicator> = {
   title: "Components/QueryIntervalIndicator",
   component: QueryIntervalIndicator,
   args: {
-    frequency: 300,
+    interval: 300,
     checked: true,
   },
 };

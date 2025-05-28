@@ -5,7 +5,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { secondsToDhms } from "utilities/helpers";
 
 interface IStatusIndicatorProps {
-  frequency: number;
+  interval: number;
   checked: boolean;
 }
 
@@ -17,17 +17,17 @@ const generateClassTag = (rawValue: string): string => {
 };
 
 const QueryIntervalIndicator = ({
-  frequency,
+  interval,
   checked,
 }: IStatusIndicatorProps): JSX.Element => {
-  const classTag = generateClassTag(frequency.toString());
-  const frequencyClassName = classnames(
-    "query-frequency-indicator",
-    `query-frequency-indicator--${classTag}`,
-    `frequency--${classTag}`
+  const classTag = generateClassTag(interval.toString());
+  const intervalClassName = classnames(
+    "query-interval-indicator",
+    `query-interval-indicator--${classTag}`,
+    `interval--${classTag}`
   );
   const readableQueryInterval = () => {
-    switch (frequency) {
+    switch (interval) {
       case 0:
         return "Never";
       case 3600:
@@ -37,12 +37,12 @@ const QueryIntervalIndicator = ({
       case 604800:
         return "Weekly";
       default:
-        return secondsToDhms(frequency);
+        return secondsToDhms(interval);
     }
   };
 
-  const frequencyIcon = () => {
-    if (frequency === 0) {
+  const intervalIcon = () => {
+    if (interval === 0) {
       return checked ? (
         <Icon size="medium" name="warning" />
       ) : (
@@ -54,10 +54,10 @@ const QueryIntervalIndicator = ({
 
   return (
     <div
-      className={`${frequencyClassName}
-        ${frequency === 0 && !checked && "grey"}`}
+      className={`${intervalClassName}
+        ${interval === 0 && !checked && "grey"}`}
     >
-      {frequencyIcon()}
+      {intervalIcon()}
       {readableQueryInterval()}
     </div>
   );

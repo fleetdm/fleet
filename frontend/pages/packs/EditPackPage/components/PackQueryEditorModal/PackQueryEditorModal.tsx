@@ -154,12 +154,12 @@ const PackQueryEditorModal = ({
       return selectedQuery?.id;
     };
 
-    const frequency = parseInt(selectedInterval, 10);
-    if (!frequency || frequency < 0) {
+    const interval = parseInt(selectedInterval, 10);
+    if (!interval || interval < 0) {
       setErrorInterval("Interval must be an integer greater than zero");
       return;
     }
-    if (frequency > MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL) {
+    if (interval > MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL) {
       setErrorInterval(
         "Interval must be an integer that does not exceed 604,800 (i.e. 7 days)"
       );
@@ -203,7 +203,7 @@ const PackQueryEditorModal = ({
         <InputField
           onChange={onChangeInterval}
           error={errorInterval}
-          inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+          inputWrapperClass={`${baseClass}__form-field ${baseClass}__form-field--interval`}
           value={selectedInterval}
           placeholder="- - -"
           label="Interval (seconds)"

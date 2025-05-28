@@ -118,11 +118,11 @@ const Advanced = ({
       getCustomDropdownOptions(
         ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS,
         activityExpiryWindow,
-        // it's safe to assume that frequency is a number
-        (frequency: number | string) => `${frequency as number} days`
+        // it's safe to assume that interval is a number
+        (interval: number | string) => `${interval as number} days`
       ),
     // intentionally leave activityExpiryWindow out of the dependencies, so that the custom
-    // options are maintained even if the user changes the frequency in the UI
+    // options are maintained even if the user changes the interval in the UI
     [deleteActivities]
   );
 

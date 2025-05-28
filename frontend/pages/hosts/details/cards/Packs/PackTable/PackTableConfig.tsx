@@ -49,7 +49,7 @@ interface IDataColumn {
 }
 
 interface IPackTable extends Partial<IQueryStats> {
-  frequency: string;
+  human_readable_interval: string;
   last_run: string;
   performance: { indicator: string; id: number };
 }
@@ -71,7 +71,7 @@ const generatePackTableHeaders = (): IDataColumn[] => {
       title: "Interval",
       Header: "Interval",
       disableSortBy: true,
-      accessor: "frequency",
+      accessor: "human_readable_interval",
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
@@ -136,7 +136,7 @@ const enhancePackData = (query_stats: IQueryStats[]): IPackTable[] => {
     return {
       query_name: query.query_name,
       last_executed: query.last_executed,
-      frequency: secondsToHms(query.interval),
+      human_readable_interval: secondsToHms(query.interval),
       last_run: humanQueryLastRun(query.last_executed),
       performance: {
         indicator: getPerformanceImpactDescription(scheduledQueryPerformance),

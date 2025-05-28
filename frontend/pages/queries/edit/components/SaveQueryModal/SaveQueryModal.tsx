@@ -231,7 +231,7 @@ const SaveQueryModal = ({
           placeholder="Every hour"
           value={selectedInterval}
           label="Interval"
-          wrapperClassName={`${baseClass}__form-field form-field--frequency`}
+          wrapperClassName={`${baseClass}__form-field form-field--interval`}
           helpText="This is how often your query collects data."
         />
         <Checkbox

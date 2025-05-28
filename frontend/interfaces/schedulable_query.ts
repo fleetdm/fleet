@@ -111,7 +111,7 @@ export interface IModifyQueryRequestBody
   description?: string;
   observer_can_run?: boolean;
   discard_data?: boolean;
-  frequency?: number;
+  interval?: number;
   platform?: CommaSeparatedPlatformString;
   min_osquery_version?: string;
   automations_enabled?: boolean;
@@ -145,7 +145,7 @@ export interface IEditQueryFormFields {
   query: IFormField<string>;
   observer_can_run: IFormField<boolean>;
   discard_data: IFormField<boolean>;
-  frequency: IFormField<number>;
+  interval: IFormField<number>;
   automations_enabled: IFormField<boolean>;
   platforms: IFormField<CommaSeparatedPlatformString>;
   min_osquery_version: IFormField<string>;
