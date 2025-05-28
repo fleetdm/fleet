@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -65,6 +66,11 @@ const (
 	logErrorMissingExecMsg       logError = "bad desktop executable"
 	logErrorMissingDomainSubstr  logError = "Domain=OSLaunchdErrorDomain Code=112"
 	logErrorMissingDomainMsg     logError = "missing specified domain"
+
+	mTLSSCEPChallengeFlag   = "fleet-mtls-challenge"
+	mTLSSCEPChallengeEnvVar = "FLEET_MTLS_CHALLENGE"
+	mTLSSCEPUrlFlag         = "fleet-mtls-scep-url"
+	mTLSSCEPUrlEnvVar       = "FLEET_MTLS_SCEP_URL"
 )
 
 func main() {
@@ -220,6 +226,16 @@ func main() {
 			Name:    "osquery-db",
 			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
+		},
+		&cli.StringFlag{
+			Name:    mTLSSCEPChallengeFlag,
+			Usage:   "Sets the SCEP challenge for requesting the mTLS client certificate.",
+			EnvVars: []string{mTLSSCEPChallengeEnvVar},
+		},
+		&cli.StringFlag{
+			Name:    mTLSSCEPUrlFlag,
+			Usage:   "Sets the SCEP URL for requesting the mTLS client certificate.",
+			EnvVars: []string{mTLSSCEPUrlEnvVar},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -909,11 +925,35 @@ func main() {
 
 		}
 
+		// Load certificates for mTLS, if they exist.
 		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
 		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
-		fleetClientCrt, err := certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
-		if err != nil {
+		var fleetClientCrt *certificate.Certificate
+		loadCertificatesForMTLS := func() error {
+			fleetClientCrt, err = certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+			return err
+		}
+		if err = loadCertificatesForMTLS(); err != nil {
 			return fmt.Errorf("error loading fleet client certificate: %w", err)
+		}
+
+		// Check whether we need to request a new cert.
+		if fleetClientCrt == nil && c.String(mTLSSCEPUrlFlag) != "" {
+			client, err := scep.NewClient(
+				scep.WithURL(c.String(mTLSSCEPUrlFlag)),
+				scep.WithChallenge(c.String(mTLSSCEPChallengeFlag)),
+				scep.WithCertDestDir(c.String("root-dir")),
+				scep.WithCommonName(osqueryHostInfo.HardwareUUID))
+			if err != nil {
+				return fmt.Errorf("error creating scep client: %w", err)
+			}
+			if err = client.FetchAndSaveCert(c.Context); err != nil {
+				return fmt.Errorf("error fetching and saving SCEP cert: %w", err)
+			}
+			// Once we have a new mTLS client certificate, we need to load it again.
+			if err = loadCertificatesForMTLS(); err != nil {
+				return fmt.Errorf("error loading fleet client certificate: %w", err)
+			}
 		}
 
 		var fleetClientCertificate *tls.Certificate
