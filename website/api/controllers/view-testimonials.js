@@ -26,6 +26,7 @@ module.exports = {
 
     // Filter the testimonials by product category
     let testimonialOrderForMdm = [
+      'Bart Reardon',
       'Scott MacVicar',
       'Mike Meyer',
       'Tom Larkin',
