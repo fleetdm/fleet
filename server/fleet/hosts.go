@@ -563,7 +563,6 @@ const (
 	BatchScriptExecutionPending   BatchScriptExecutionStatus = "pending"
 	BatchScriptExecutionErrored   BatchScriptExecutionStatus = "errored"
 	BatchScriptExecutionCancelled BatchScriptExecutionStatus = "cancelled"
-	BatchScriptExecutionFailed    BatchScriptExecutionStatus = "failed"
 )
 
 func (s BatchScriptExecutionStatus) IsValid() bool {
@@ -572,8 +571,7 @@ func (s BatchScriptExecutionStatus) IsValid() bool {
 		BatchScriptExecutionRan,
 		BatchScriptExecutionPending,
 		BatchScriptExecutionErrored,
-		BatchScriptExecutionCancelled,
-		BatchScriptExecutionFailed:
+		BatchScriptExecutionCancelled:
 		return true
 	default:
 		return false
