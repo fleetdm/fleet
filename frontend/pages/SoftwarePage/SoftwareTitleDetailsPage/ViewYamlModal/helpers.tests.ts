@@ -159,9 +159,7 @@ describe("renderYamlHelperText", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes(
-          "add it to your repository (please use the above path)."
-        )
+        content.includes("add it to your repository using the path above.")
       )
     ).toBeInTheDocument();
     expect(screen.queryByText("and")).not.toBeInTheDocument();
@@ -183,10 +181,10 @@ describe("renderYamlHelperText", () => {
       screen.getByRole("button", { name: "uninstall script" })
     ).toBeInTheDocument();
 
-    // In "Next," only
+    // In "Next," and "Advanced options," only
     const text = container.textContent ?? "";
     const commaCount = (text.match(/,/g) || []).length;
-    expect(commaCount).toBe(1);
+    expect(commaCount).toBe(2);
 
     // No oxford comma for two items
     expect(
@@ -194,9 +192,7 @@ describe("renderYamlHelperText", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes(
-          "add them to your repository (please use the above paths)."
-        )
+        content.includes("add them to your repository using the paths above.")
       )
     ).toBeInTheDocument();
   });
@@ -228,10 +224,10 @@ describe("renderYamlHelperText", () => {
       screen.getByRole("button", { name: "uninstall script" })
     ).toBeInTheDocument();
 
-    // In "Next," and 3 more commas
+    // In "Next," "Advanced options," and 3 more commas
     const text = container.textContent ?? "";
     const commaCount = (text.match(/,/g) || []).length;
-    expect(commaCount).toBe(4);
+    expect(commaCount).toBe(5);
 
     // Oxford comma for four items
     expect(
@@ -239,9 +235,7 @@ describe("renderYamlHelperText", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes(
-          "add them to your repository (please use the above paths)."
-        )
+        content.includes("add them to your repository using the paths above.")
       )
     ).toBeInTheDocument();
   });
@@ -269,10 +263,10 @@ describe("renderYamlHelperText", () => {
       screen.getByRole("button", { name: "uninstall script" })
     ).toBeInTheDocument();
 
-    // In "Next," and 2 more commas
+    // In "Next," "Advanced options," and 2 more commas
     const text = container.textContent ?? "";
     const commaCount = (text.match(/,/g) || []).length;
-    expect(commaCount).toBe(3);
+    expect(commaCount).toBe(4);
 
     // Oxford comma for three items
     expect(
@@ -280,9 +274,7 @@ describe("renderYamlHelperText", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
-        content.includes(
-          "add them to your repository (please use the above paths)."
-        )
+        content.includes("add them to your repository using the paths above.")
       )
     ).toBeInTheDocument();
   });
