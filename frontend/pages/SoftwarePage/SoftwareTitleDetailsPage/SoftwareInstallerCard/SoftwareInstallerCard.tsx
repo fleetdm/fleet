@@ -353,7 +353,7 @@ const SoftwareInstallerCard = ({
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
         <div className={`${baseClass}__row-1`}>
-          <div className={`${baseClass}__row-1--responsive`}>
+          <div className={`${baseClass}__row-1--responsive-wrap`}>
             <InstallerDetailsWidget
               softwareName={softwareInstaller?.name || name}
               installerType={installerType}

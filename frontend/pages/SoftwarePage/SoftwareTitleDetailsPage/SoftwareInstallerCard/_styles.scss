@@ -37,7 +37,7 @@
       flex-wrap: wrap;
     }
     // SoftwareDetailsWidget and Tags wrap onto 2 lines on low widths
-    &__row-1--responsive {
+    &__row-1--responsive-wrap {
       flex-direction: column;
       gap: $pad-medium;
     }
