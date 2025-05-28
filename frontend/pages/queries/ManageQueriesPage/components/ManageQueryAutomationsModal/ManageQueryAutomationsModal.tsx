@@ -123,7 +123,7 @@ const ManageQueryAutomationsModal = ({
         <div className={`${baseClass}__heading`}>
           Query automations let you send data gathered from macOS, Windows, and
           Linux hosts to a log destination. Data is sent according to a
-          query&apos;s frequency.
+          query&apos;s interval.
         </div>
         {availableQueries?.length ? (
           <div className={`${baseClass}__select form-field`}>
