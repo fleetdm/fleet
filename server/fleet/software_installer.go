@@ -385,11 +385,14 @@ type UploadSoftwareInstallerPayload struct {
 	LabelsExcludeAny     []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
-	ValidatedLabels             *LabelIdentsWithScope
-	AutomaticInstall            bool
-	AutomaticInstallQuery       string
-	Categories                  []string
-	CategoryIDs                 []uint
+	ValidatedLabels       *LabelIdentsWithScope
+	AutomaticInstall      bool
+	AutomaticInstallQuery string
+	Categories            []string
+	CategoryIDs           []uint
+	// AddedAutomaticInstallPolicy is the auto-install policy that can be
+	// automatically created when a software installer is added to Fleet. This field should be set
+	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
 }
 

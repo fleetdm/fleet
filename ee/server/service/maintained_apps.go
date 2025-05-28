@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/go-kit/kit/log/level"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -202,14 +203,13 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	if automaticInstall && payload.AddedAutomaticInstallPolicy != nil {
-
 		policyAct := fleet.ActivityTypeCreatedPolicy{
 			ID:   payload.AddedAutomaticInstallPolicy.ID,
 			Name: payload.AddedAutomaticInstallPolicy.Name,
 		}
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "create activity for create automatic install policy for FMA")
+			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for FMA", "err", err)
 		}
 	}
 
