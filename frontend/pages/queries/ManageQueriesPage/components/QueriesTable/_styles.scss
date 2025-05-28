@@ -1,0 +1,9 @@
+.observer-can-run-badge{
+  @include tooltip5-arrow-styles;
+
+  .react-tooltip {
+    @include tooltip-text;
+    font-style: normal;
+    text-align: center;
+  }
+}
