@@ -14,7 +14,9 @@ To configure App Store (VPP) apps, via GitOps, please see the [`app_store_apps`]
 
 ## Custom packages
 
-To use the Fleet UI to manage custom packages, first turn GitOps mode on in **Settings > Integration > Change management**
+To configure custom packages via GitOps, please see the [`packages`](https://fleetdm.com/docs/configuration/yaml-files#packages) of Fleet's best practice [GitOps documentation](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#gitops).
+
+If you want to use Fleet to host custom packages instead of a third-party package hosting tool (ex. [Artifactory](https://jfrog.com/artifactory/)), first turn GitOps mode on in **Settings > Integration > Change management**
 1. Navigate to **Software** and select a team. Then select **Add Software > Custom package**
 2. Select a team and choose a file to upload and select **Add software**
 3. A modal will appear with YAML instructions.
