@@ -424,13 +424,13 @@ For macOS configuration profiles, you can use any of Apple's [built-in variables
 
 Fleet also supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format. 
 
-In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (currently available only for Apple profiles). Fleet will populate these variables when profiles are sent to hosts. Fleet will automatically resend the profile if these variables change. Supported variables are:
+In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (currently available only for Apple profiles). Fleet will populate these variables when profiles are sent to hosts. Supported variables are:
 
 - `$FLEET_VAR_NDES_SCEP_CHALLENGE`
 - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
-- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username.
-- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com).
-- `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to.
+- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username. When this changes, Fleet will automatically resend the profile.
+- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile.
+- `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile.
 - `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy).)
 - `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
