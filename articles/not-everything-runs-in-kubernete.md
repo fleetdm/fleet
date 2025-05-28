@@ -20,15 +20,17 @@ Today, Fleet manages and secures millions of devices, from AWS servers, to conta
 
 Let's look at some case studies:
 
-### Large gaming company enhancing server observability: 
+#### Large gaming company enhancing server observability: 
 <blockquote purpose="quote">
 Fleet's extremely wide and diverse set of data allows us to answer questions that we didn't even know we had. On top of that, the experience is near instantaneous. Seconds to sort through billions of data points and return the exact handful that we need, with complete auditing and transparency. We're able to address reliability and compliance concerns without sacrificing a single point-of-a-percent of performance for our servers. All of this done consistently and continuously.
 </blockquote>
-### Cloud-based data leader chooses Fleet for orchestration: 
+
+#### Cloud-based data leader chooses Fleet for orchestration: 
 <blockquote purpose="quote">
 I wanted an easy way to control osquery configurations, and I wanted to stream data as fast as possible. No other solution jumped out to solve those things except for Fleet.
 </blockquote>
-### Vehicle manufacturer transitions to Fleet for endpoint security:
+
+#### Vehicle manufacturer transitions to Fleet for endpoint security:
 <blockquote purpose="quote">
 Fleet has become the central source for a lot of things. The visibility down into the assets covered by the agent is phenomenal.
 </blockquote>
@@ -36,6 +38,6 @@ Fleet has become the central source for a lot of things. The visibility down int
 <meta name="articleTitle" value="Not everything runs in Kubernetes">
 <meta name="authorFullName" value="Zach Wasserman">
 <meta name="authorGitHubUsername" value="zwass">
-<meta name="category" value="annoucements">
+<meta name="category" value="announcements">
 <meta name="publishedOn" value="2025-05-27">
 <meta name="description" value="Why Fleet goes beyond Kubernetes to manage real-world infrastructure.">
