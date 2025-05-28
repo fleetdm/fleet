@@ -908,6 +908,7 @@ None.
     "device_count": 500000,
     "managed_cloud": false,
     "expiration": "2031-10-16T00:00:00Z",
+    "allow_disable_telemetry": false,
     "note": ""
   },
   "logging": {
