@@ -1181,13 +1181,16 @@ func (ds *Datastore) applyHostFilters(
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
 	}
 
+	// Join on the batch_script_execution_host_results and host_script_results tables if the
+	// BatchScriptExecutionIDFilter is set. This allows us to filter hosts based on the status of
+	// batch script executions.
 	batchScriptExecutionJoin := ""
 	batchScriptExecutionIDFilter := "TRUE"
 	if opt.BatchScriptExecutionIDFilter != nil {
 		batchScriptExecutionJoin = `LEFT JOIN batch_script_execution_host_results bsehr ON h.id = bsehr.host_id`
 		batchScriptExecutionIDFilter = `bsehr.batch_execution_id = ?`
 		whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
-		if opt.BatchScriptExecutionStatusFilter != "" {
+		if opt.BatchScriptExecutionStatusFilter.IsValid() {
 			batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
 			switch opt.BatchScriptExecutionStatusFilter {
 			case fleet.BatchScriptExecutionRan:
