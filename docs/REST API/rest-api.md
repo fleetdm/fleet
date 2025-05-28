@@ -759,7 +759,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
       "id": 7,
       "name": "HYDRANT_WIFI_PROD",
       "type": "hydrant"
-    },
+    }
   ]
 }
 ```
