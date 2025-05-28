@@ -1,4 +1,4 @@
-# Entra Conditional Access integration
+# Entra conditional access integration
 
 Fleet v4.69.0 integrates with Entra ID to provide Microsoft "Conditional Access" for macOS.
 Fleet can now connect to Microsoft Entra ID and block end users from logging into third-party apps if they're failing any Fleet policies (non-compliant).
@@ -187,3 +187,10 @@ Once disabled, hosts will not be reporting compliance status to Entra anymore.
 ## GitOps
 
 TODO(lucas)!
+
+<meta name="articleTitle" value="Entra conditional access integration">
+<meta name="authorFullName" value="Lucas Manuel Rodriguez">
+<meta name="authorGitHubUsername" value="lucasmrod">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2025-05-28">
+<meta name="description" value="Entra conditional access integration">
