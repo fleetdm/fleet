@@ -1555,7 +1555,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	require.Len(t, *hostResp.Host.MDM.Profiles, 5)
 
 	// returns success, but this is effectively a no-op because the host isn't enrolled yet.
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusOK)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusNoContent)
 
 	// we're going to modify this mock, make sure we restore its default
 	originalPushMock := s.pushProvider.PushFunc
@@ -1591,7 +1591,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 		checkoutErr = mdmDevice.Checkout()
 		return res, err
 	}
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusOK)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusNoContent)
 	// trying again fails with 409 as it is alreayd unenrolled
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusConflict)
 
@@ -15583,8 +15583,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	host2VppAppExecID := hostActivitiesResp.Activities[0].UUID
 
 	// turn off MDM for host 1
-	var delMDMResp mdmAppleCommandRemoveEnrollmentProfileResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost.ID), nil, http.StatusOK, &delMDMResp)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost.ID), nil, http.StatusNoContent)
 
 	// confirm that this host's MDM is off
 	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost.ID), nil, http.StatusOK)
