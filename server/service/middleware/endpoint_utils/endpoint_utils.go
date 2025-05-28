@@ -422,7 +422,9 @@ func MakeDecoder(
 				return nil, &fleet.BadRequestError{Message: "Expected JSON Body"}
 			}
 
-			if jsonExpected && r.Header.Get("Content-Type") != "application/json" {
+			isContentJson := r.Header.Get("Content-Type") == "application/json"
+			isCrossSite := r.Header.Get("Origin") != "" || r.Header.Get("Referer") != ""
+			if jsonExpected && isCrossSite && !isContentJson {
 				return nil, fleet.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
 			}
 
