@@ -3018,3 +3018,62 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.MetadataURL)
 	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IDPName)
 }
+
+func TestGitOpsTeamConditionalAccess(t *testing.T) {
+	teamName := "TestTeamConditionalAccess"
+
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+	}
+
+	// Create integration with conditional access enabled.
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{
+		Integrations: fleet.TeamIntegrations{
+			ConditionalAccessEnabled: true,
+		},
+	}})
+	require.NoError(t, err)
+	require.NotNil(t, *savedTeams[teamName])
+
+	// Do a GitOps run with conditional access not set.
+	t.Setenv("TEST_TEAM_NAME", teamName)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
+	require.NoError(t, err)
+
+	team, err := ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.NotNil(t, team)
+	require.False(t, team.Config.Integrations.ConditionalAccessEnabled)
+}
+
+func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+	}
+
+	appConfig := fleet.AppConfig{
+		Integrations: fleet.Integrations{
+			ConditionalAccessEnabled: true,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with conditional access not set.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	require.False(t, appConfig.Integrations.ConditionalAccessEnabled)
+}

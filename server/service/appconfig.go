@@ -495,9 +495,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
 
-	if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, oldConditionalAccessEnabled, appConfig.Integrations.ConditionalAccessEnabled); err != nil {
+	if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, oldConditionalAccessEnabled, newAppConfig.Integrations.ConditionalAccessEnabled); err != nil {
 		return nil, err
 	}
+	appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
 
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")

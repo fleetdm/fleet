@@ -681,13 +681,11 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		result = result["global_integrations"].(map[string]interface{})
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
-		if result["google_calendar"] != nil {
-			result = map[string]interface{}{
-				"google_calendar": result["google_calendar"],
-			}
-		} else {
-			result = nil
-		}
+
+		// We currently don't support configuring Jira and Zendesk integrations on the team.
+		delete(result, "jira")
+		delete(result, "zendesk")
+
 		// Team integrations don't have secrets right now, so just return as-is.
 		return result, nil
 	}
