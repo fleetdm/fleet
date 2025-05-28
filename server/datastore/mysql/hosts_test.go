@@ -3422,14 +3422,21 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
 
+	// Filter by batch script execution ID, without status, should return all hosts
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID}, 5)
+	expectedHostIds := []uint{host1.ID, host2.ID, host3.ID, hostNoScripts.ID, hostWindows.ID}
+	require.Contains(t, expectedHostIds, hosts[0].ID)
+	require.Contains(t, expectedHostIds, hosts[1].ID)
+	require.Contains(t, expectedHostIds, hosts[2].ID)
+
 	// At this point, filtering by:
 	// - `pending` should return hosts 1, 2 and 3
 	// - `ran` should return zero hosts
 	// - `errored` should return hostNoScripts and hostWindows
 	// - `cancelled` should return zero hosts
 
-	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionPending}, 3)
-	expectedHostIds := []uint{host1.ID, host2.ID, host3.ID}
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionPending}, 3)
+	expectedHostIds = []uint{host1.ID, host2.ID, host3.ID}
 	require.Contains(t, expectedHostIds, hosts[0].ID)
 	require.Contains(t, expectedHostIds, hosts[1].ID)
 	require.Contains(t, expectedHostIds, hosts[2].ID)
