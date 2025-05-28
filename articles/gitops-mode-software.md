@@ -25,7 +25,6 @@ If you want to use Fleet to host custom packages instead of a third-party packag
     3. Make sure that the package YAML is referenced from your team YAML.
     4. Download the additional queries and scripts that are linked in the modal and add them to your repository. Make sure to use the paths listed in the contents area above.
 
-To learn more about configuring custom packages using GitOps, [click here](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/yaml-files.md#software).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
