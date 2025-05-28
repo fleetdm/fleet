@@ -187,18 +187,20 @@ INSERT INTO host_certificates (
 	issuer_country,
 	issuer_org,
 	issuer_org_unit,
-	issuer_common_name
+	issuer_common_name,
+	source
 ) VALUES %s`
 
 	placeholders := make([]string, 0, len(certs))
-	args := make([]interface{}, 0, len(certs)*19)
+	const singleRowPlaceholderCount = 20
+	args := make([]interface{}, 0, len(certs)*singleRowPlaceholderCount)
 	for _, cert := range certs {
-		placeholders = append(placeholders, "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
 		args = append(args,
 			cert.HostID, cert.SHA1Sum, cert.NotValidBefore, cert.NotValidAfter, cert.CertificateAuthority, cert.CommonName,
 			cert.KeyAlgorithm, cert.KeyStrength, cert.KeyUsage, cert.Serial, cert.SigningAlgorithm,
 			cert.SubjectCountry, cert.SubjectOrganization, cert.SubjectOrganizationalUnit, cert.SubjectCommonName,
-			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName)
+			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName, cert.Source)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.Join(placeholders, ","))
