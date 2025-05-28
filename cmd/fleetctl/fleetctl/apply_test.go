@@ -2832,6 +2832,10 @@ func TestApplySpecs(t *testing.T) {
 			return nil
 		}
 
+		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+			return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+		}
+
 		// teams - team ID 1 already exists
 		teamsByName := map[string]*fleet.Team{
 			"team1": {

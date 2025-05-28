@@ -190,6 +190,10 @@ func (svc *Service) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.C
 		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
+	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+		return nil, nil
+	}
+
 	// Load current integration.
 	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
 	if err != nil {

@@ -14,13 +14,13 @@ spec:
     enable_host_users: true
     enable_software_inventory: false
   integrations:
+    conditional_access_enabled: false
     custom_scep_proxy: null
     digicert: null
     google_calendar: null
     jira: null
     ndes_scep_proxy: null
     zendesk: null
-    conditional_access_enabled: false
   mdm:
     android_enabled_and_configured: false
     apple_business_manager: null

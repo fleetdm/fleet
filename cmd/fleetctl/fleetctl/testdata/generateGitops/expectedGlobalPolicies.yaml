@@ -1,4 +1,5 @@
 - calendar_events_enabled: false
+  conditional_access_enabled: true
   critical: false
   description: This is a global policy
   install_software:

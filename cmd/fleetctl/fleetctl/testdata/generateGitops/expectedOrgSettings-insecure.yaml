@@ -13,6 +13,7 @@ host_expiry_settings:
   host_expiry_enabled: false
   host_expiry_window: 59995
 integrations:
+  conditional_access_enabled: true
   custom_scep_proxy:
   - challenge: some-custom-scep-proxy-challenge
     name: some-custom-scep-proxy-name

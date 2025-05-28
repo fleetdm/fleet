@@ -39,6 +39,7 @@ controls:
 name: Team A
 policies:
 - calendar_events_enabled: false
+  conditional_access_enabled: true
   critical: false
   description: This is a team policy
   name: Team Policy
@@ -84,6 +85,7 @@ team_settings:
     host_expiry_enabled: false
     host_expiry_window: 1
   integrations:
+    conditional_access_enabled: true
     google_calendar:
       enable_calendar_events: true
       webhook_url: https://some-team-google-calendar-webhook.com
