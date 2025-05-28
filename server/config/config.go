@@ -2078,6 +2078,10 @@ func TestConfig() FleetConfig {
 			MaxSize:       500,
 		},
 		Server: ServerConfig{PrivateKey: "72414F4A688151F75D032F5CDA095FC4"},
+		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
+			ProxyAPIKey: "insecure",
+			ProxyURI:    "http://localhost:2024",
+		},
 	}
 }
 

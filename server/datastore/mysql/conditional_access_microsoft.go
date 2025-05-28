@@ -22,18 +22,13 @@ func (ds *Datastore) ConditionalAccessMicrosoftCreateIntegration(
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting microsoft_compliance_partner_integrations")
 		}
-
-		switch _, err := tx.ExecContext(ctx,
+		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO microsoft_compliance_partner_integrations (tenant_id, proxy_server_secret) VALUES (?, ?);`,
 			tenantID, proxyServerSecret,
-		); {
-		case err == nil:
-			return nil
-		case IsDuplicate(err):
-			return ctxerr.Wrap(ctx, alreadyExists("MicrosoftCompliancePartnerIntegration", tenantID))
-		default:
+		); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting new microsoft_compliance_partner_integrations")
 		}
+		return nil
 	})
 }
 
@@ -115,22 +110,26 @@ func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, host
 	switch {
 	case err == nil:
 		if deviceID == hostConditionalAccessStatus.DeviceID && userPrincipalName == hostConditionalAccessStatus.UserPrincipalName {
-			// Nothing to do.
+			// Nothing to do, the Entra account on the device is still the same.
 			return nil
 		}
+		// If we got here it means the host's Entra data has changed, so we will override the host's status row.
 	case errors.Is(err, sql.ErrNoRows):
-		// OK
+		// OK, let's create one.
 	default:
 		return ctxerr.Wrap(ctx, err, "failed to get microsoft_compliance_partner_host_statuses")
 	}
 
+	// Create or override existing row for the host.
 	if _, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO microsoft_compliance_partner_host_statuses
 		(host_id, device_id, user_principal_name)
 		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 		device_id = VALUES(device_id),
-		user_principal_name = VALUES(user_principal_name)`,
+		user_principal_name = VALUES(user_principal_name),
+		managed = NULL,
+		compliant = NULL`,
 		hostID, deviceID, userPrincipalName,
 	); err != nil {
 		return ctxerr.Wrap(ctx, err, "create host conditional access status")
