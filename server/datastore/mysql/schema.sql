@@ -373,10 +373,11 @@ CREATE TABLE `host_certificates` (
   `sha1_sum` binary(20) NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `deleted_at` datetime(6) DEFAULT NULL,
+  `source` enum('system','user') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'system',
   PRIMARY KEY (`id`),
   KEY `idx_host_certs_hid_cn` (`host_id`,`common_name`),
   KEY `idx_host_certs_not_valid_after` (`host_id`,`not_valid_after`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -2048,7 +2049,7 @@ CREATE TABLE `setup_experience_status_results` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `status` enum('pending','running','success','failure') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('pending','running','success','failure','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `software_installer_id` int unsigned DEFAULT NULL,
   `host_software_installs_execution_id` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `vpp_app_team_id` int unsigned DEFAULT NULL,
@@ -2067,7 +2068,7 @@ CREATE TABLE `setup_experience_status_results` (
   CONSTRAINT `fk_setup_experience_status_results_ses_id` FOREIGN KEY (`setup_experience_script_id`) REFERENCES `setup_experience_scripts` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_setup_experience_status_results_si_id` FOREIGN KEY (`software_installer_id`) REFERENCES `software_installers` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_setup_experience_status_results_va_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

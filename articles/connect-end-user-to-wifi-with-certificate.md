@@ -306,7 +306,6 @@ the OS generates several temporary certificates needed for the SCEP protocol. Th
 
 ## Assumptions and limitations
 * NDES SCEP proxy is currently supported for macOS devices via Apple config profiles. Support for DDM (Declarative Device Management) is coming soon, as is support for iOS, iPadOS, Windows, and Linux.
-* Certificate renewal is coming soon.
 * Fleet server assumes a one-time challenge password expiration time of 60 minutes.
 
 <meta name="articleTitle" value="Connect end users to Wi-Fi or VPN with a certificate (DigiCert, NDES, or custom SCEP)">
