@@ -35,8 +35,9 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
         sso_enabled,
 	    mfa_enabled,
 		api_only,
-		global_role
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?)
+		global_role,
+		invite_id,
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
       `
 		result, err := tx.ExecContext(ctx, sqlStatement,
 			user.Password,
@@ -49,7 +50,9 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 			user.SSOEnabled,
 			user.MFAEnabled,
 			user.APIOnly,
-			user.GlobalRole)
+			user.GlobalRole,
+			user.InviteID,
+		)
 
 		// set timestamp as close as possible to insert query to be as accurate as possible without needing to SELECT
 		user.CreatedAt = time.Now().UTC().Truncate(time.Second) // truncating because DB is at second resolution
