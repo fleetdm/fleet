@@ -5634,9 +5634,6 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		return team.ID, host
 	}
 
-	// ===================================================
-	// MacOS earliest install date override tests
-	// ===================================================
 	macosInstallDateOverrideSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      "macos-test-5",
