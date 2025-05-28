@@ -232,7 +232,7 @@ func (c *Client) saveCertAndKey(cert *x509.Certificate, key *rsa.PrivateKey) err
 
 	// Save certificate
 	certPath := filepath.Join(c.certDestDir, constant.FleetTLSClientCertificateFileName)
-	certFile, err := os.Create(certPath)
+	certFile, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("create cert file: %w", err)
 	}
@@ -247,7 +247,7 @@ func (c *Client) saveCertAndKey(cert *x509.Certificate, key *rsa.PrivateKey) err
 
 	// Save the private key
 	keyPath := filepath.Join(c.certDestDir, constant.FleetTLSClientKeyFileName)
-	keyFile, err := os.Create(keyPath)
+	keyFile, err := os.OpenFile(keyPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("create key file: %w", err)
 	}
