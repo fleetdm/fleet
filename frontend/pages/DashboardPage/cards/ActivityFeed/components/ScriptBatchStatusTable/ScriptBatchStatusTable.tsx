@@ -11,16 +11,18 @@ const baseClass = "script-batch-status-table";
 
 interface IScriptBatchStatusTableProps {
   statusData: IScriptBatchSummaryResponse;
+  batchExecutionId: string;
   onClickCancel: () => void;
 }
 
 const ScriptBatchStatusTable = ({
   statusData,
+  batchExecutionId,
   onClickCancel,
 }: IScriptBatchStatusTableProps) => {
   const columnConfigs = useMemo(() => {
-    return generateTableConfig(onClickCancel);
-  }, [onClickCancel]);
+    return generateTableConfig(batchExecutionId, onClickCancel);
+  }, [batchExecutionId, onClickCancel]);
   const tableData = generateTableData(statusData);
 
   return (
