@@ -114,7 +114,7 @@ First:
 
 Advisor agreements are sent through [DocuSign](https://www.docusign.com/), using the "Advisor Agreement" template.
 - Update the ["Advisors" sheet](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1803674483)
-  >**_Note:_** *Be sure to mark any columns that haven't been completed yet as "TODO"*
+  >*Be sure to mark any columns that haven't been completed yet as "TODO"*
 - Update the "Equity plan" sheet (which should have been automatically updated after updating "Advisors" thanks to the global unique IDs next to each row which are used to connect the spreadsheets) to reflect the default number of shares for advisor equity grants.
 - Send the advisor agreement [through Docusign](https://apps.docusign.com/send/templates?view=shared&folder=0482b0fd-a752-41be-93a0-185e2fb7ef54) using the CEO's account, pulling the advisor's email address from a recent calendar event on the CEO's calendar.
 - Complete the first step of signing, which involves filling in the number of shares.
@@ -167,8 +167,10 @@ Consultants [track time using the company's tools](#tracking-hours) and sign [Fl
 To send a consulting agreement, you will need to [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the Digital Experience team. They will then peform the steps needed to bring aboard a new consultant.
 
 You will be asked to provide the following details:
-- Consultant's name (or business name)
+- Consultant's name 
 - Consultant's email
+- Does the consultant wish to be paid personaly or as a business.
+  - 
 - Term of service (default is 1 month, 10hrs/week)
 - Who will be managing the output (approving hours) for the consultant
 - Consultant's fee (always ask for their hourly rate)
