@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/sassoftware/relic/v8/lib/comdoc"
+	"golang.org/x/text/encoding/charmap"
 )
 
 func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
@@ -78,9 +79,14 @@ func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		return nil, err
 	}
 
+	productName, err := charmap.Windows1252.NewDecoder().String(props["ProductName"])
+	if err != nil {
+		return nil, err
+	}
+
 	// MSI installer product information properties: https://learn.microsoft.com/en-us/windows/win32/msi/property-reference#product-information-properties
 	return &InstallerMetadata{
-		Name:       strings.TrimSpace(props["ProductName"]),
+		Name:       strings.TrimSpace(productName),
 		Version:    strings.TrimSpace(props["ProductVersion"]),
 		PackageIDs: []string{strings.TrimSpace(props["ProductCode"])},
 		SHASum:     h.Sum(nil),

@@ -84,9 +84,10 @@ export interface ISoftwareAppStoreAppStatus {
 
 export interface ISoftwarePackage {
   name: string;
+  title_id: number;
   last_install: string | null;
   last_uninstall: string | null;
-  package_url: string;
+  url: string;
   version: string;
   uploaded_at: string;
   install_script: string;
@@ -103,6 +104,7 @@ export interface ISoftwarePackage {
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[];
   fleet_maintained_app_id?: number | null;
+  hash_sha256?: string | null;
 }
 
 export const isSoftwarePackage = (
@@ -360,11 +362,19 @@ export interface IAppLastInstall {
   installed_at: string;
 }
 
+interface SignatureInformation {
+  installed_path: string;
+  team_identifier: string;
+  hash_sha256: string | null;
+}
+
 export interface ISoftwareInstallVersion {
   version: string;
+  bundle_identifier: string;
   last_opened_at: string | null;
   vulnerabilities: string[] | null;
   installed_paths: string[];
+  signature_information?: SignatureInformation[];
 }
 
 export interface IHostSoftwarePackage {

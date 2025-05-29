@@ -3,8 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/md5" // nolint:gosec // used for declarative management token
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"encoding/xml"
@@ -18,6 +20,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,6 +63,7 @@ import (
 const (
 	maxValueCharsInError          = 100
 	SameProfileNameUploadErrorMsg = "Couldn't add. A configuration profile with this name already exists (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
+	limit10KiB                    = 10 * 1024
 )
 
 var (
@@ -1226,11 +1230,6 @@ func (svc *Service) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	// cannot use the profile ID as it is now deleted
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{profileUUID}, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
-	}
-
 	var (
 		actTeamID   *uint
 		actTeamName *string
@@ -1308,12 +1307,8 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	if err := svc.ds.DeleteMDMAppleConfigProfile(ctx, declUUID); err != nil {
+	if err := svc.ds.DeleteMDMAppleDeclaration(ctx, declUUID); err != nil {
 		return ctxerr.Wrap(ctx, err)
-	}
-
-	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{teamID}, nil, nil); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending host profiles")
 	}
 
 	var (
@@ -1706,9 +1701,20 @@ func (svc *Service) EnqueueMDMAppleCommand(
 }
 
 type mdmAppleEnrollRequest struct {
-	Token               string `query:"token"`
+	// Token is expected to be a UUID string that identifies a template MDM Apple enrollment profile.
+	Token string `query:"token"`
+	// EnrollmentReference is expected to be a UUID string that identifies the MDM IdP account used
+	// to authenticate the end user as part of the MDM IdP flow.
 	EnrollmentReference string `query:"enrollment_reference,optional"`
-	MachineInfo         *fleet.MDMAppleMachineInfo
+	// DeviceInfo is expected to be a base64 encoded string extracted during MDM IdP enrollment from the
+	// x-apple-aspen-deviceinfo header of the original configuration web view request and
+	// persisted by the client in local storage for inclusion in a subsequent enrollment request as
+	// part of the MDM IdP flow.
+	// See https://developer.apple.com/documentation/devicemanagement/device_assignment/authenticating_through_web_views
+	DeviceInfo string `query:"deviceinfo,optional"`
+	// MachineInfo is the decoded deviceinfo URL query param for MDM IdP enrollments or the decoded
+	// x-apple-aspen-deviceinfo header for non-IdP enrollments.
+	MachineInfo *fleet.MDMAppleMachineInfo
 }
 
 func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -1725,10 +1731,22 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 	er := r.URL.Query().Get("enrollment_reference")
 	decoded.EnrollmentReference = er
 
-	// Parse the machine info from the request body
+	// Parse the machine info from the request header or URL query param.
 	di := r.Header.Get("x-apple-aspen-deviceinfo")
+	if di == "" {
+		vals, err := url.ParseQuery(r.URL.RawQuery)
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     "unable to parse query string",
+				InternalErr: err,
+			}
+		}
+		di = vals.Get("deviceinfo")
+		decoded.DeviceInfo = di
+	}
+
 	if di != "" {
-		// extract x-apple-aspen-deviceinfo custom header from request
+		// parse the base64 encoded deviceinfo
 		parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
@@ -1737,6 +1755,27 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 			}
 		}
 		decoded.MachineInfo = parsed
+	}
+
+	if decoded.MachineInfo == nil && r.Header.Get("Content-Type") == "application/pkcs7-signature" {
+		defer r.Body.Close()
+		// We limit the amount we read since this is an untrusted HTTP request -- a potential DoS attack from huge payloads.
+		body, err := io.ReadAll(io.LimitReader(r.Body, limit10KiB))
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     "unable to read request body",
+				InternalErr: err,
+			}
+		}
+
+		// FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
+		decoded.MachineInfo, err = apple_mdm.ParseMachineInfoFromPKCS7(body, false)
+		if err != nil {
+			return nil, &fleet.BadRequestError{
+				Message:     "unable to parse machine info",
+				InternalErr: err,
+			}
+		}
 	}
 
 	return &decoded, nil
@@ -1780,23 +1819,50 @@ func (r mdmAppleEnrollResponse) HijackRender(ctx context.Context, w http.Respons
 func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
 
-	sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, req.MachineInfo)
+	if req.DeviceInfo == "" {
+		// This is a non-IdP enrollment, so we need to check the OS version here. For IdP enrollments
+		// os version checks is performed by the frontend MDM enrollment handler.
+		sur, err := svc.CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx, req.MachineInfo)
+		if err != nil {
+			return mdmAppleEnrollResponse{Err: err}, nil
+		}
+		if sur != nil {
+			return mdmAppleEnrollResponse{
+				SoftwareUpdateRequired: sur,
+			}, nil
+		}
+	}
+
+	legacyRef, err := svc.ReconcileMDMAppleEnrollRef(ctx, req.EnrollmentReference, req.MachineInfo)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
-	if sur != nil {
-		return mdmAppleEnrollResponse{
-			SoftwareUpdateRequired: sur,
-		}, nil
-	}
 
-	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, req.EnrollmentReference)
+	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, legacyRef)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
 	return mdmAppleEnrollResponse{
 		Profile: profile,
 	}, nil
+}
+
+func (svc *Service) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *fleet.MDMAppleMachineInfo) (string, error) {
+	if machineInfo == nil {
+		// TODO: what to do here? We can't reconcile the enroll ref without machine info
+		level.Info(svc.logger).Log("msg", "missing machine info, failing enroll ref check", "enroll_ref", enrollRef)
+		return "", &fleet.BadRequestError{
+			Message: "missing deviceinfo",
+		}
+	}
+
+	legacyRef, err := svc.ds.ReconcileMDMAppleEnrollRef(ctx, enrollRef, machineInfo)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "check legacy enroll ref")
+	}
+	level.Info(svc.logger).Log("msg", "check legacy enroll ref", "host_uuid", machineInfo.UDID, "legacy_enroll_ref", legacyRef)
+
+	return legacyRef, nil
 }
 
 func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string, ref string) (profile []byte, err error) {
@@ -1975,6 +2041,8 @@ type mdmAppleCommandRemoveEnrollmentProfileResponse struct {
 
 func (r mdmAppleCommandRemoveEnrollmentProfileResponse) Error() error { return r.Err }
 
+func (r mdmAppleCommandRemoveEnrollmentProfileResponse) Status() int { return http.StatusNoContent }
+
 func mdmAppleCommandRemoveEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleCommandRemoveEnrollmentProfileRequest)
 	err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, req.HostID)
@@ -1995,12 +2063,6 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 	}
 
 	switch h.Platform {
-	case "ios":
-		fallthrough
-	case "ipados":
-		return &fleet.BadRequestError{
-			Message: fleet.CantTurnOffMDMForIOSOrIPadOSMessage,
-		}
 	case "windows":
 		return &fleet.BadRequestError{
 			Message: fleet.CantTurnOffMDMForWindowsHostsMessage,
@@ -3116,15 +3178,16 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/authenticate
 func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm.Authenticate) error {
+	var scepRenewalInProgress bool
 	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
 	if err != nil {
 		var nfe fleet.NotFoundError
 		if !errors.As(err, &nfe) {
 			return ctxerr.Wrap(r.Context, err, "getting checkin info")
 		}
-	} else if existingDeviceInfo.SCEPRenewalInProgress {
-		svc.logger.Log("info", "host lifecycle action received for a SCEP renewal in process, skipping host ingestion and cleanups", "host_uuid", r.ID)
-		return nil
+	}
+	if existingDeviceInfo != nil {
+		scepRenewalInProgress = existingDeviceInfo.SCEPRenewalInProgress
 	}
 
 	// iPhones and iPads send ProductName but not Model/ModelName,
@@ -3141,31 +3204,38 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		}
 	}
 
-	err = svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
-		Action:         mdmlifecycle.HostActionReset,
-		Platform:       platform,
-		UUID:           m.UDID,
-		HardwareSerial: m.SerialNumber,
-		HardwareModel:  m.Model,
-	})
-	if err != nil {
+	if err := svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
+		Action:                mdmlifecycle.HostActionReset,
+		Platform:              platform,
+		UUID:                  m.UDID,
+		HardwareSerial:        m.SerialNumber,
+		HardwareModel:         m.Model,
+		SCEPRenewalInProgress: scepRenewalInProgress,
+	}); err != nil {
 		return err
 	}
 
-	// MDM state changes after is reset, fetch the checkin updatedInfo again
-	updatedInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
-	if err != nil {
-		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
+	// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
+	// much more difficult to reason about the state of the host. We should try instead
+	// to centralize the flow control in the lifecycle methods.
+	if !scepRenewalInProgress {
+		// Create a new activity for the enrollment, MDM state changes after is reset, fetch the
+		// checkin updatedInfo again
+		updatedInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, r.ID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
+		}
+		return newActivity(
+			r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
+				HostSerial:       updatedInfo.HardwareSerial,
+				HostDisplayName:  updatedInfo.DisplayName,
+				InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
+				MDMPlatform:      fleet.MDMPlatformApple,
+			}, svc.ds, svc.logger,
+		)
 	}
 
-	return newActivity(
-		r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
-			HostSerial:       updatedInfo.HardwareSerial,
-			HostDisplayName:  updatedInfo.DisplayName,
-			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
-			MDMPlatform:      fleet.MDMPlatformApple,
-		}, svc.ds, svc.logger,
-	)
+	return nil
 }
 
 // TokenUpdate handles MDM [TokenUpdate][1] requests.
@@ -3180,6 +3250,9 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		return ctxerr.Wrap(r.Context, err, "getting checkin info")
 	}
 
+	// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
+	// much more difficult to reason about the state of the host. We should try instead
+	// to centralize the flow control in the lifecycle methods.
 	if info.SCEPRenewalInProgress {
 		svc.logger.Log("info", "token update received for a SCEP renewal in process, cleaning SCEP refs", "host_uuid", r.ID)
 		if err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID); err != nil {
@@ -3198,11 +3271,20 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 	}
 
+	var acctUUID string
+	idp, err := svc.ds.GetMDMIdPAccountByHostUUID(r.Context, r.ID)
+	if err != nil {
+		return ctxerr.Wrap(r.Context, err, "getting idp account")
+	}
+	if idp != nil {
+		acctUUID = idp.UUID
+	}
+
 	return svc.mdmLifecycle.Do(r.Context, mdmlifecycle.HostOptions{
 		Action:                  mdmlifecycle.HostActionTurnOn,
 		Platform:                info.Platform,
 		UUID:                    r.ID,
-		EnrollReference:         r.Params[mobileconfig.FleetEnrollReferenceKey],
+		EnrollReference:         acctUUID,
 		HasSetupExperienceItems: hasSetupExpItems,
 	})
 }
@@ -3792,6 +3874,26 @@ func ReconcileAppleDeclarations(
 	changedHosts, err := ds.MDMAppleBatchSetHostDeclarationState(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host declaration state")
+	}
+
+	// Find any hosts that requested a resync. This is used to cover special cases where we're not
+	// 100% certain of the declarations on the device.
+	resyncHosts, err := ds.MDMAppleHostDeclarationsGetAndClearResync(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting and clearing resync hosts")
+	}
+	if len(resyncHosts) > 0 {
+		changedHosts = append(changedHosts, resyncHosts...)
+		// Deduplicate changedHosts
+		uniqueHosts := make(map[string]struct{})
+		deduplicatedHosts := make([]string, 0, len(changedHosts))
+		for _, id := range changedHosts {
+			if _, exists := uniqueHosts[id]; !exists {
+				uniqueHosts[id] = struct{}{}
+				deduplicatedHosts = append(deduplicatedHosts, id)
+			}
+		}
+		changedHosts = deduplicatedHosts
 	}
 
 	if len(changedHosts) == 0 {
@@ -5440,6 +5542,7 @@ func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string
 	return b, nil
 }
 
+// handleDeclarationItems retrieves the declaration items to send back to the client to update
 func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostUUID string) ([]byte, error) {
 	di, err := svc.ds.MDMAppleDDMDeclarationItems(ctx, hostUUID)
 	if err != nil {
@@ -5448,18 +5551,65 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 
 	activations := []fleet.MDMAppleDDMManifest{}
 	configurations := []fleet.MDMAppleDDMManifest{}
+	var removeDeclarationUUIDsToUpdateToPending []string
 	for _, d := range di {
-		configurations = append(configurations, fleet.MDMAppleDDMManifest(d))
+		if d.OperationType == nil {
+			continue
+		}
+		if *d.OperationType != string(fleet.MDMOperationTypeInstall) {
+			if d.Status == nil && *d.OperationType == string(fleet.MDMOperationTypeRemove) {
+				removeDeclarationUUIDsToUpdateToPending = append(removeDeclarationUUIDsToUpdateToPending, d.DeclarationUUID)
+			}
+			continue
+		}
+		configurations = append(configurations, fleet.MDMAppleDDMManifest{
+			Identifier:  d.Identifier,
+			ServerToken: d.ServerToken,
+		})
 		activations = append(activations, fleet.MDMAppleDDMManifest{
 			Identifier:  fmt.Sprintf("%s.activation", d.Identifier),
 			ServerToken: d.ServerToken,
 		})
 	}
 
-	// TODO: Look for ways to optimize the declaration item query so that we don't have to get the declarations token separately.
-	dTok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting declarations token")
+	// Calculate token based on count and concatenated tokens for install items
+	var count int
+	type tokenSorting struct {
+		token           string
+		uploadedAt      time.Time
+		declarationUUID string
+	}
+	var tokens []tokenSorting
+	for _, d := range di {
+		if d.OperationType != nil && *d.OperationType == string(fleet.MDMOperationTypeInstall) {
+			// Extract d.ServerToken and order by d.UploadedAt descending and then by d.DeclarationUUID ascending
+			sorting := tokenSorting{
+				token:           d.ServerToken,
+				uploadedAt:      d.UploadedAt,
+				declarationUUID: d.DeclarationUUID,
+			}
+			tokens = append(tokens, sorting)
+			count++
+		}
+	}
+
+	sort.SliceStable(tokens, func(i, j int) bool {
+		if tokens[i].uploadedAt.Equal(tokens[j].uploadedAt) {
+			return tokens[i].declarationUUID < tokens[j].declarationUUID
+		}
+		return tokens[i].uploadedAt.After(tokens[j].uploadedAt)
+	})
+	var tokenBuilder strings.Builder
+	for _, t := range tokens {
+		tokenBuilder.WriteString(t.token)
+	}
+
+	var token string
+	if count > 0 {
+		// Generate MD5 hash token. It must match the token generated by MDMAppleDDMDeclarationsToken
+		hasher := md5.New() // nolint:gosec // used for declarative management token
+		hasher.Write([]byte(fmt.Sprintf("%d%s", count, tokenBuilder.String())))
+		token = hex.EncodeToString(hasher.Sum(nil))
 	}
 
 	b, err := json.Marshal(fleet.MDMAppleDDMDeclarationItemsResponse{
@@ -5469,10 +5619,20 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 			Assets:         []fleet.MDMAppleDDMManifest{},
 			Management:     []fleet.MDMAppleDDMManifest{},
 		},
-		DeclarationsToken: dTok.DeclarationsToken,
+		DeclarationsToken: token,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshaling synchronization tokens")
+	}
+
+	// If any "remove" declarations have a NULL status, update them to a "pending" status
+	// so they can be cleared when the host sends back a status report.
+	// Otherwise they may get stuck in "pending" -- host already cleared them, but Fleet doesn't think so.
+	if len(removeDeclarationUUIDsToUpdateToPending) > 0 {
+		err = svc.ds.MDMAppleSetRemoveDeclarationsAsPending(ctx, hostUUID, removeDeclarationUUIDsToUpdateToPending)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "updating remove declarations to pending")
+		}
 	}
 
 	return b, nil

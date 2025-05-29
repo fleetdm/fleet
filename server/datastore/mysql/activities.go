@@ -661,6 +661,19 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 }
 
 func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
+	var details fleet.ActivityDetails
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		activityDetails, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, executionID)
+		details = activityDetails
+		return err
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "cancel upcoming activity transaction")
+	}
+
+	return details, nil
+}
+
+func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 	const (
 		loadScriptActivityStmt = `
 	SELECT
@@ -770,174 +783,168 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 
 	var act activityToCancel
 	var pastAct fleet.ActivityDetails
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// read the activity along with the required information to create the
-		// "canceled" past activity, and check if the activity was activated or
-		// not.
-		stmt := strings.Join([]string{
-			loadScriptActivityStmt, loadSoftwareInstallActivityStmt,
-			loadSoftwareUninstallActivityStmt, loadVPPAppInstallActivityStmt,
-		}, " UNION ALL ")
-		stmt, args, err := sqlx.Named(stmt, map[string]any{"host_id": hostID, "execution_id": executionID})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build load upcoming activity to cancel statement")
-		}
-
-		if err := sqlx.GetContext(ctx, tx, &act, stmt, args...); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return ctxerr.Wrap(ctx, notFound("UpcomingActivity").WithName(executionID))
-			}
-			return ctxerr.Wrap(ctx, err, "load upcoming activity to cancel")
-		}
-
-		// in all cases, we must delete the row from upcoming_activities
-		const delStmt = `DELETE FROM upcoming_activities WHERE host_id = ? AND execution_id = ?`
-		if _, err := tx.ExecContext(ctx, delStmt, hostID, executionID); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete upcoming activity")
-		}
-
-		// if the activity is related to lock/wipe actions, clear the status for that
-		// action as it was canceled (note that lock/wipe is prevented at the service
-		// layer from being canceled if it was already activated).
-		if err := clearLockWipeForCanceledActivity(ctx, tx, hostID, executionID); err != nil {
-			return err
-		}
-
-		// must get the host uuid for the setup experience and nano table updates
-		const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
-		var hostUUID string
-		if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "get host uuid")
-		}
-
-		switch act.ActivityType {
-		case "script":
-			// if the script was part of the setup experience, then it must be marked
-			// as "failed" for that setup experience flow (regardless of whether or
-			// not it was activated).
-			const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND script_execution_id = ?`
-			if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
-				return ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
-			}
-
-			if act.Activated {
-				const updStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
-				if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
-					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
-				}
-			}
-
-			pastAct = fleet.ActivityTypeCanceledRunScript{
-				HostID:          act.HostID,
-				HostDisplayName: act.HostDisplayName,
-				ScriptName:      act.CanceledName,
-			}
-
-		case "software_install":
-			// if the install was part of the setup experience, then it must be
-			// marked as "failed" for that setup experience flow (regardless of
-			// whether or not it was activated).
-			const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND host_software_installs_execution_id = ?`
-			if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
-				return ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
-			}
-
-			if act.Activated {
-				const updStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
-				if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
-					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
-				}
-			}
-
-			var titleID uint
-			if act.CanceledID != nil {
-				titleID = *act.CanceledID
-			}
-			pastAct = fleet.ActivityTypeCanceledInstallSoftware{
-				HostID:          act.HostID,
-				HostDisplayName: act.HostDisplayName,
-				SoftwareTitle:   act.CanceledName,
-				SoftwareTitleID: titleID,
-			}
-
-		case "software_uninstall":
-			// uninstall cannot be part of setup experience, so there's no update for
-			// that in this case.
-
-			if act.Activated {
-				// uninstall is a combination of software install and script result,
-				// with the same execution id.
-				const updSoftwareStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
-				if _, err := tx.ExecContext(ctx, updSoftwareStmt, executionID); err != nil {
-					return ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
-				}
-
-				const updScriptStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
-				if _, err := tx.ExecContext(ctx, updScriptStmt, executionID); err != nil {
-					return ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
-				}
-			}
-
-			var titleID uint
-			if act.CanceledID != nil {
-				titleID = *act.CanceledID
-			}
-			pastAct = fleet.ActivityTypeCanceledUninstallSoftware{
-				HostID:          act.HostID,
-				HostDisplayName: act.HostDisplayName,
-				SoftwareTitle:   act.CanceledName,
-				SoftwareTitleID: titleID,
-			}
-
-		case "vpp_app_install":
-			// if the VPP install was part of the setup experience, then it must be
-			// marked as "failed" for that setup experience flow (regardless of
-			// whether or not it was activated).
-			const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND nano_command_uuid = ?`
-			if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
-				return ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
-			}
-
-			if act.Activated {
-				const updVPPStmt = `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`
-				if _, err := tx.ExecContext(ctx, updVPPStmt, executionID); err != nil {
-					return ctxerr.Wrap(ctx, err, "update host_vpp_software_installs as canceled")
-				}
-
-				const updNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
-				if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, executionID); err != nil {
-					return ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
-				}
-			}
-
-			var titleID uint
-			if act.CanceledID != nil {
-				titleID = *act.CanceledID
-			}
-			pastAct = fleet.ActivityTypeCanceledInstallAppStoreApp{
-				HostID:          act.HostID,
-				HostDisplayName: act.HostDisplayName,
-				SoftwareTitle:   act.CanceledName,
-				SoftwareTitleID: titleID,
-			}
-
-		default:
-			// cannot happen since activity type comes from the UNION query above,
-			// but can be useful to detect a missing case in tests
-			panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
-		}
-
-		// must activate the next activity, if any (this should be required only if
-		// the canceled activity was already "activated", but there's no harm in
-		// doing it if it wasn't, and it makes sure there's always progress even in
-		// unsuspected scenarios)
-		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next upcoming activity")
-		}
-		return nil
-	})
+	// read the activity along with the required information to create the
+	// "canceled" past activity, and check if the activity was activated or
+	// not.
+	stmt := strings.Join([]string{
+		loadScriptActivityStmt, loadSoftwareInstallActivityStmt,
+		loadSoftwareUninstallActivityStmt, loadVPPAppInstallActivityStmt,
+	}, " UNION ALL ")
+	stmt, args, err := sqlx.Named(stmt, map[string]any{"host_id": hostID, "execution_id": executionID})
 	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build load upcoming activity to cancel statement")
+	}
+
+	if err := sqlx.GetContext(ctx, tx, &act, stmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("UpcomingActivity").WithName(executionID))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "load upcoming activity to cancel")
+	}
+
+	// in all cases, we must delete the row from upcoming_activities
+	const delStmt = `DELETE FROM upcoming_activities WHERE host_id = ? AND execution_id = ?`
+	if _, err := tx.ExecContext(ctx, delStmt, hostID, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "delete upcoming activity")
+	}
+
+	// if the activity is related to lock/wipe actions, clear the status for that
+	// action as it was canceled (note that lock/wipe is prevented at the service
+	// layer from being canceled if it was already activated).
+	if err := clearLockWipeForCanceledActivity(ctx, tx, hostID, executionID); err != nil {
 		return nil, err
+	}
+
+	// must get the host uuid for the setup experience and nano table updates
+	const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
+	var hostUUID string
+	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host uuid")
+	}
+
+	switch act.ActivityType {
+	case "script":
+		// if the script was part of the setup experience, then it must be marked
+		// as "failed" for that setup experience flow (regardless of whether or
+		// not it was activated).
+		const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND script_execution_id = ?`
+		if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
+		}
+
+		if act.Activated {
+			const updStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
+			if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
+			}
+		}
+
+		pastAct = fleet.ActivityTypeCanceledRunScript{
+			HostID:          act.HostID,
+			HostDisplayName: act.HostDisplayName,
+			ScriptName:      act.CanceledName,
+		}
+
+	case "software_install":
+		// if the install was part of the setup experience, then it must be
+		// marked as "failed" for that setup experience flow (regardless of
+		// whether or not it was activated).
+		const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND host_software_installs_execution_id = ?`
+		if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
+		}
+
+		if act.Activated {
+			const updStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
+			if _, err := tx.ExecContext(ctx, updStmt, executionID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
+			}
+		}
+
+		var titleID uint
+		if act.CanceledID != nil {
+			titleID = *act.CanceledID
+		}
+		pastAct = fleet.ActivityTypeCanceledInstallSoftware{
+			HostID:          act.HostID,
+			HostDisplayName: act.HostDisplayName,
+			SoftwareTitle:   act.CanceledName,
+			SoftwareTitleID: titleID,
+		}
+
+	case "software_uninstall":
+		// uninstall cannot be part of setup experience, so there's no update for
+		// that in this case.
+
+		if act.Activated {
+			// uninstall is a combination of software install and script result,
+			// with the same execution id.
+			const updSoftwareStmt = `UPDATE host_software_installs SET canceled = 1 WHERE execution_id = ?`
+			if _, err := tx.ExecContext(ctx, updSoftwareStmt, executionID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update host_software_installs as canceled")
+			}
+
+			const updScriptStmt = `UPDATE host_script_results SET canceled = 1 WHERE execution_id = ?`
+			if _, err := tx.ExecContext(ctx, updScriptStmt, executionID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update host_script_results as canceled")
+			}
+		}
+
+		var titleID uint
+		if act.CanceledID != nil {
+			titleID = *act.CanceledID
+		}
+		pastAct = fleet.ActivityTypeCanceledUninstallSoftware{
+			HostID:          act.HostID,
+			HostDisplayName: act.HostDisplayName,
+			SoftwareTitle:   act.CanceledName,
+			SoftwareTitleID: titleID,
+		}
+
+	case "vpp_app_install":
+		// if the VPP install was part of the setup experience, then it must be
+		// marked as "failed" for that setup experience flow (regardless of
+		// whether or not it was activated).
+		const failSetupExpStmt = `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND nano_command_uuid = ?`
+		if _, err := tx.ExecContext(ctx, failSetupExpStmt, fleet.SetupExperienceStatusFailure, hostUUID, executionID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update setup_experience_status_results as failed")
+		}
+
+		if act.Activated {
+			const updVPPStmt = `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`
+			if _, err := tx.ExecContext(ctx, updVPPStmt, executionID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update host_vpp_software_installs as canceled")
+			}
+
+			const updNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
+			if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, executionID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
+			}
+		}
+
+		var titleID uint
+		if act.CanceledID != nil {
+			titleID = *act.CanceledID
+		}
+		pastAct = fleet.ActivityTypeCanceledInstallAppStoreApp{
+			HostID:          act.HostID,
+			HostDisplayName: act.HostDisplayName,
+			SoftwareTitle:   act.CanceledName,
+			SoftwareTitleID: titleID,
+		}
+
+	default:
+		// cannot happen since activity type comes from the UNION query above,
+		// but can be useful to detect a missing case in tests
+		panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
+	}
+
+	// must activate the next activity, if any (this should be required only if
+	// the canceled activity was already "activated", but there's no harm in
+	// doing it if it wasn't, and it makes sure there's always progress even in
+	// unsuspected scenarios)
+	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
 	}
 
 	// creating the canceled activity must be done via svc.NewActivity (not
@@ -1044,6 +1051,56 @@ func (ds *Datastore) GetHostUpcomingActivityMeta(ctx context.Context, hostID uin
 		return nil, ctxerr.Wrap(ctx, err, "lookup upcoming activity meta")
 	}
 	return &actMeta, nil
+}
+
+// UnblockHostsUpcomingActivityQueue checks for hosts that have upcoming
+// activities but none is "activated", meaning that the queue is blocked
+// (cannot make progress anymore), possibly due to a failure when activating
+// the next activity, or to a missing call to activateNextUpcomingActivity. It
+// unblocks up to maxHosts found in this situation (by activating the next
+// activity for each host).
+func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error) {
+	const findBlockedHostsStmt = `
+		SELECT
+			DISTINCT inactive_ua.host_id
+		FROM
+			upcoming_activities inactive_ua
+			LEFT OUTER JOIN upcoming_activities active_ua ON
+				active_ua.host_id = inactive_ua.host_id AND
+				active_ua.activated_at IS NOT NULL
+		WHERE
+			active_ua.host_id IS NULL AND
+			inactive_ua.activated_at IS NULL
+		LIMIT ?`
+
+	var blockedHostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &blockedHostIDs, findBlockedHostsStmt, maxHosts); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "select blocked hosts")
+	}
+	return len(blockedHostIDs), ds.activateNextUpcomingActivityForBatchOfHosts(ctx, blockedHostIDs)
+}
+
+func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) error {
+	const maxHostIDsPerBatch = 500
+
+	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
+	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
+
+	var errs []error
+	for batch := range slices.Chunk(hostIDs, maxHostIDsPerBatch) {
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			for _, hostID := range batch {
+				if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+					return ctxerr.Wrap(ctx, err, "activate next activity")
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // This function activates the next upcoming activity, if any, for the specified host.

@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -145,6 +146,17 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
+	}
+
+	if payload.AutomaticInstall {
+		policyAct := fleet.ActivityTypeCreatedPolicy{
+			ID:   addedInstaller.AutomaticInstallPolicies[0].ID,
+			Name: addedInstaller.AutomaticInstallPolicies[0].Name,
+		}
+
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for create automatic install policy for custom package")
+		}
 	}
 
 	return addedInstaller, nil
@@ -1817,6 +1829,7 @@ func (svc *Service) softwareBatchUpload(
 			case ok:
 				// Perfect match: existing installer on the same team
 				installer.StorageID = p.SHA256
+
 				if foundInstaller.Extension == "exe" || foundInstaller.Extension == "tar.gz" {
 					if p.InstallScript == "" {
 						return fmt.Errorf("Couldn't edit. Install script is required for .%s packages.", foundInstaller.Extension)
@@ -1882,8 +1895,16 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			var installerBytesExist bool
+			if p.SHA256 != "" {
+				installerBytesExist, err = svc.softwareInstallStore.Exists(ctx, installer.StorageID)
+				if err != nil {
+					return err
+				}
+			}
+
 			// no accessible matching installer was found, so attempt to download it from URL.
-			if installer.StorageID == "" {
+			if installer.StorageID == "" || !installerBytesExist {
 				if p.SHA256 != "" && p.URL == "" {
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}

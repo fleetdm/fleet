@@ -359,7 +359,7 @@ In Figma:
 
 ## Change management
 
-Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
+Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/committing-changes.md#committing-changes).
 
 
 ### Issue labels
@@ -384,7 +384,6 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `story` A user story.
 -  `prospect-` A customer prospect.
 - `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
-- `Epic` Do not use. _(TODO: ZenHub automatically recreates this label when we group sub-tasks inside of a user story. Find a way to remove this. It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
 
 
 > If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct you can preview the template and make sure each label name is in a separate box.  
@@ -665,6 +664,8 @@ For recurring business expenses paid by credit card, there are four accounts pay
 - If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
 - If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) for their help approving and booking additional event space.
 
+
+> ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
 
 ### Spending company money while traveling
 

@@ -1,15 +1,17 @@
 import React from "react";
 import { Column } from "react-table";
 
-import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
+import { MdmProfileStatus } from "interfaces/mdm";
 import { IGetConfigProfileStatusResponse } from "services/entities/config_profiles";
-import ConfigProfileHostCountCell from "../ConfigProfileHostCountCell";
 
-type IConfigProfileStatus = "verified" | "verifying" | "pending" | "failed";
+import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
+
+import ConfigProfileHostCountCell from "../ConfigProfileHostCountCell";
 
 interface IConfigProfileRowData {
   status: string;
@@ -18,15 +20,14 @@ interface IConfigProfileRowData {
 
 // This is the order in which the statuses will be displayed in the table. It
 // will always be in this order.
-const STAUTS_ORDER = ["verified", "verifying", "pending", "failed"];
+const STATUS_ORDER = ["verified", "verifying", "pending", "failed"];
 
 export interface IStatusCellValue {
   displayName: string;
-  statusName: IConfigProfileStatus;
-  value: IConfigProfileStatus;
+  statusName: IndicatorStatus;
 }
 
-const STATUS_DISPLAY_OPTIONS = {
+const STATUS_DISPLAY_OPTIONS: Record<MdmProfileStatus, IStatusCellValue> = {
   verified: {
     displayName: "Verified",
     statusName: "success",
@@ -43,7 +44,7 @@ const STATUS_DISPLAY_OPTIONS = {
     displayName: "Failed",
     statusName: "error",
   },
-} as const;
+};
 
 type IConfigProfileStatusColumnConfig = Column<IConfigProfileRowData>;
 type IStatusCellProps = IStringCellProps<IConfigProfileRowData>;
@@ -95,7 +96,7 @@ export const generateTableConfig = (
 export const generateTableData = (
   profileStatus: IGetConfigProfileStatusResponse
 ): IConfigProfileRowData[] => {
-  const tableData = STAUTS_ORDER.map((status) => ({
+  const tableData = STATUS_ORDER.map((status) => ({
     status,
     hosts: profileStatus[
       status as keyof IGetConfigProfileStatusResponse

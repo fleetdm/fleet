@@ -14,7 +14,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Contact us
 
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/74) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
@@ -73,7 +73,7 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 3. Edit the order form to be specific to the customer (e.g. add/remove table rows as needed for multi-year deals). Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask Digital Experience for help.
 
 
-> **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
+> **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (#g-digital-experience)"](https://github.com/orgs/fleetdm/projects/65) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
 
 4. In the internal Slack channel for the deal, @-mention the CRO and the Head of Digital Experience with a link to the docx version of the order and ask them to approve the order form.
 5. Once approved, copy the Google Doc URL to the "Order form URL" field on the Salesforce opportunity and send the order to the prospect. 
