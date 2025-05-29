@@ -18225,6 +18225,15 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 			"conditional_access_enabled": true
 		}
 	}`), http.StatusOK)
+	// Test that by not setting it it's not disabled.
+	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(`{
+		"integrations": {}
+	}`), http.StatusOK)
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+	require.NotNil(t, acResp.Integrations.ConditionalAccessEnabled)
+	require.True(t, *acResp.Integrations.ConditionalAccessEnabled)
 
 	pr = teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", fleet.PolicyNoTeamID), teamPolicyRequest{

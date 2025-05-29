@@ -2248,7 +2248,11 @@ func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Con
 		if err != nil {
 			return false, false, ctxerr.Wrap(ctx, err, "failed to load appconfig")
 		}
-		return true, cfg.Integrations.ConditionalAccessEnabled, nil
+		var conditionalAccessEnabled bool
+		if cfg.Integrations.ConditionalAccessEnabled != nil {
+			conditionalAccessEnabled = *cfg.Integrations.ConditionalAccessEnabled
+		}
+		return true, conditionalAccessEnabled, nil
 	}
 
 	// Host belongs to a team, thus we load the team configuration.
@@ -2256,7 +2260,11 @@ func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Con
 	if err != nil {
 		return false, false, ctxerr.Wrap(ctx, err, "failed to load team config")
 	}
-	return true, team.Config.Integrations.ConditionalAccessEnabled, nil
+	var teamConditionalAccessEnabled bool
+	if team.Config.Integrations.ConditionalAccessEnabled != nil {
+		teamConditionalAccessEnabled = *team.Config.Integrations.ConditionalAccessEnabled
+	}
+	return true, teamConditionalAccessEnabled, nil
 }
 
 func (svc *Service) processConditionalAccessForNewlyFailingPolicies(

@@ -3031,7 +3031,7 @@ func TestGitOpsTeamConditionalAccess(t *testing.T) {
 	// Create integration with conditional access enabled.
 	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{
 		Integrations: fleet.TeamIntegrations{
-			ConditionalAccessEnabled: true,
+			ConditionalAccessEnabled: ptr.Bool(true),
 		},
 	}})
 	require.NoError(t, err)
@@ -3045,7 +3045,8 @@ func TestGitOpsTeamConditionalAccess(t *testing.T) {
 	team, err := ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.NotNil(t, team)
-	require.False(t, team.Config.Integrations.ConditionalAccessEnabled)
+	require.NotNil(t, team.Config.Integrations.ConditionalAccessEnabled)
+	require.False(t, *team.Config.Integrations.ConditionalAccessEnabled)
 }
 
 func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
@@ -3058,7 +3059,7 @@ func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
 
 	appConfig := fleet.AppConfig{
 		Integrations: fleet.Integrations{
-			ConditionalAccessEnabled: true,
+			ConditionalAccessEnabled: ptr.Bool(true),
 		},
 	}
 
@@ -3074,6 +3075,6 @@ func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
 	// Do a GitOps run with conditional access not set.
 	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
-
-	require.False(t, appConfig.Integrations.ConditionalAccessEnabled)
+	require.NotNil(t, appConfig.Integrations.ConditionalAccessEnabled)
+	require.False(t, *appConfig.Integrations.ConditionalAccessEnabled)
 }

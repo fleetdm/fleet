@@ -340,8 +340,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
-	oldConditionalAccessEnabled := appConfig.Integrations.ConditionalAccessEnabled
-
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
@@ -495,10 +493,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
 
-	if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, oldConditionalAccessEnabled, newAppConfig.Integrations.ConditionalAccessEnabled); err != nil {
-		return nil, err
+	if newAppConfig.Integrations.ConditionalAccessEnabled != nil {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, appConfig.Integrations.ConditionalAccessEnabled, *newAppConfig.Integrations.ConditionalAccessEnabled); err != nil {
+			return nil, err
+		}
+		appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
 	}
-	appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
 
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
