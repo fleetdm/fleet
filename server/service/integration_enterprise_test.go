@@ -18290,6 +18290,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	_, err = s.ds.DeleteTeamPolicies(ctx, fleet.PolicyNoTeamID, []uint{cp1.ID})
 	require.NoError(t, err)
 
+	setDone = make(chan struct{})
+
 	// Now the host is failing a compliance policy.
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		h2,
@@ -18297,8 +18299,6 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 			p2.ID: ptr.Bool(false),
 		},
 	), http.StatusOK, &distributedResp)
-
-	setDone = make(chan struct{})
 
 	select {
 	case <-setDone:
