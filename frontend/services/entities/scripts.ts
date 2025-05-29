@@ -121,11 +121,15 @@ export interface IScriptBatchSummaryQueryKey extends IScriptBatchSummaryParams {
   scope: "script_batch_summary";
 }
 
-// 200 successful response
-export interface IScriptBatchSummaryResponse {
+export interface IScriptBatchExecutionStatuses {
   ran: number;
   pending: number;
   errored: number;
+}
+export type ScriptBatchExecutionStatus = keyof IScriptBatchExecutionStatuses;
+// 200 successful response
+export interface IScriptBatchSummaryResponse
+  extends IScriptBatchExecutionStatuses {
   team_id: number;
   script_name: string;
   created_at: string;
