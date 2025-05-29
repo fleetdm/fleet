@@ -14,7 +14,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 - To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/help-marketing-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/65) for this department, including pending tasks and the status of new requests.
 
 > To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/digital-experience#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
@@ -34,7 +34,7 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 
 ### Begin or modify an advertising campaign
 
-Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none).
+Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://github.com/orgs/fleetdm/projects/65).
 
 To propose an ad, or a change to an ad:
 1. Evaluate the buying situation before proposing any changes to ads. This determines the audience that will see each ad and which campaign it will be placed in. (Device management, vuln management, endpoint ops - security, endpoint ops - IT)
@@ -106,7 +106,7 @@ Article creation begins with creation of an issue using the "Article request" te
 2. Move the issue into the "📃 Planned articles" column.
 
 ### Review ongoing articles
-Check the "📃 Planned articles" column in [:help-marketing board](https://app.zenhub.com/workspaces/help-marketing-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
+Check the "📃 Planned articles" column in [:help-marketing board](https://github.com/orgs/fleetdm/projects/65) and continue to work through steps in each event's issue.
 -->
 
 
@@ -196,7 +196,7 @@ To do this:
 
 ### Request swag
 There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. To request swag:
-1. [Create an issue](https://app.zenhub.com/workspaces/help-marketing-64e6c8e2d35c7f001a457b7f/issues/gh/fleetdm/confidential/new?issueType=issue) on the :help-marketing board.
+1. [Create an issue](https://github.com/orgs/fleetdm/projects/65) on the :help-marketing board.
 2. Provide order details (e.g. expected shirt size, name, and shipping details).
 3. Decide if you'd like to include a personalized message and attach it to the issue.
 

@@ -53,7 +53,7 @@ const SoftwareDetailsInfo = ({
     signature_information,
   } = installedVersion;
 
-  const { hash_sha256: sha256 } = signature_information[0];
+  const sha256 = signature_information?.[0]?.hash_sha256;
 
   return (
     <div className={`${baseClass}__details-info`}>
