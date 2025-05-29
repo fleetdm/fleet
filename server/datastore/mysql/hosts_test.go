@@ -3407,6 +3407,8 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
 	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
+	// Create another host that should not show up in any counts.
+	test.NewHost(t, ds, "host4", "10.0.0.4", "host4key", "host4uuid", time.Now())
 
 	test.SetOrbitEnrollment(t, hostWindows, ds)
 	test.SetOrbitEnrollment(t, host1, ds)
@@ -3429,6 +3431,11 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Contains(t, expectedHostIds, hosts[0].ID)
 	require.Contains(t, expectedHostIds, hosts[1].ID)
 	require.Contains(t, expectedHostIds, hosts[2].ID)
+
+	// Count hosts should return 5 as well.
+	count, err := ds.CountHosts(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID})
+	require.NoError(t, err)
+	require.Equal(t, 5, count)
 
 	// At this point, filtering by:
 	// - `pending` should return hosts 1, 2 and 3
