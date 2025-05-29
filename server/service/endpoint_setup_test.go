@@ -406,9 +406,3 @@ func TestDownloadAndUpdateScriptsTimeout(t *testing.T) {
 		})
 	}
 }
-
-// TestApplyStarterLibrary tests the applyStarterLibrary function
-func TestApplyStarterLibrary(t *testing.T) {
-	// Skip the test since we can't mock the NewClient function
-	t.Skip("This test requires mocking the NewClient function which is not possible in Go")
-}
