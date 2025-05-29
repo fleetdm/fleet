@@ -2208,6 +2208,49 @@ func (s *integrationTestSuite) TestInvites() {
 	}, http.StatusNotFound, &createFromInviteResp)
 }
 
+func (s *integrationTestSuite) TestCrossOriginJSONSecurity() {
+	t := s.T()
+
+	// valid request with no Origin or Referer headers
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("some email"),
+		Name:       ptr.String("some name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+	}}
+	createInviteResp := createInviteResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+	require.NotNil(t, createInviteResp.Invite)
+	require.NotZero(t, createInviteResp.Invite.ID)
+
+	createInviteReq.Email = ptr.String("other@email.com")
+	createInviteReq.Name = ptr.String("other name")
+	req, err := json.Marshal(createInviteReq)
+	require.NoError(t, err)
+
+	// cross origin request with Origin header and no Content-Type
+	resp := s.DoRawWithHeaders("POST", "/api/latest/fleet/invites", req, http.StatusUnsupportedMediaType, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", s.withServer.token),
+		"Origin":        "example.com",
+	})
+	resp.Body.Close()
+
+	// cross origin request with Referer header and no Content-Type
+	resp = s.DoRawWithHeaders("POST", "/api/latest/fleet/invites", req, http.StatusUnsupportedMediaType, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", s.withServer.token),
+		"Referer":       "example.com",
+	})
+	resp.Body.Close()
+
+	// cross origin request with valid Content-Type
+	resp = s.DoRawWithHeaders("POST", "/api/latest/fleet/invites", req, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", s.withServer.token),
+		"Origin":        "example.com",
+		"Referer":       "example.com",
+		"Content-Type":  "application/json",
+	})
+	resp.Body.Close()
+}
+
 func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
 	t := s.T()
 
