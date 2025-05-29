@@ -126,3 +126,6 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
+      categories:
+        - Communication
+        - Productivity
