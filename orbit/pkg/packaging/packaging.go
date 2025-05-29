@@ -131,6 +131,8 @@ type Options struct {
 	Architecture string
 	// TUF platform name. windows, windows-arm64, linux, linux-arm64, darwin
 	NativePlatform string
+	// CustomOutfile is the custom output file name for the package.
+	CustomOutfile string
 }
 
 const (
