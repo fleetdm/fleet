@@ -2041,6 +2041,8 @@ type mdmAppleCommandRemoveEnrollmentProfileResponse struct {
 
 func (r mdmAppleCommandRemoveEnrollmentProfileResponse) Error() error { return r.Err }
 
+func (r mdmAppleCommandRemoveEnrollmentProfileResponse) Status() int { return http.StatusNoContent }
+
 func mdmAppleCommandRemoveEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleCommandRemoveEnrollmentProfileRequest)
 	err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, req.HostID)

@@ -374,7 +374,7 @@ export interface ISoftwareInstallVersion {
   last_opened_at: string | null;
   vulnerabilities: string[] | null;
   installed_paths: string[];
-  signature_information: SignatureInformation[];
+  signature_information?: SignatureInformation[];
 }
 
 export interface IHostSoftwarePackage {
