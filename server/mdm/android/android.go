@@ -2,8 +2,6 @@ package android
 
 import (
 	"time"
-
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type SignupDetails struct {
@@ -78,7 +76,7 @@ func (h *Host) SetNodeKey(enterpriseSpecificID string) {
 	if h.Device == nil {
 		return
 	}
-	h.Device.EnterpriseSpecificID = ptr.String(enterpriseSpecificID)
+	h.Device.EnterpriseSpecificID = &enterpriseSpecificID
 	// We use node_key as a unique identifier for the host table row.
 	// Since this key is used by other hosts, we use a prefix to avoid conflicts.
 	hostNodeKey := "android/" + enterpriseSpecificID

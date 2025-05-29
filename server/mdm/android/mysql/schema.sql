@@ -90,7 +90,7 @@ CREATE TABLE `host_display_names` (
   `display_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`host_id`),
   KEY `display_name` (`display_name`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -124,12 +124,14 @@ CREATE TABLE `users` (
   `gravatar_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `position` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `sso_enabled` tinyint NOT NULL DEFAULT '0',
-  `global_role` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `global_role` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `api_only` tinyint(1) NOT NULL DEFAULT '0',
   `mfa_enabled` tinyint(1) NOT NULL DEFAULT '0',
   `settings` json NOT NULL DEFAULT (json_object()),
+  `invite_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_user_unique_email` (`email`)
+  UNIQUE KEY `idx_user_unique_email` (`email`),
+  UNIQUE KEY `invite_id` (`invite_id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -174,5 +176,5 @@ CREATE TABLE `mobile_device_management_solutions` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_mobile_device_management_solutions_name` (`name`,`server_url`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
