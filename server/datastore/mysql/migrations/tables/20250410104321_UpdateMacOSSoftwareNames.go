@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -16,6 +17,8 @@ func init() {
 }
 
 func Up_20250410104321(tx *sql.Tx) error {
+	fmt.Printf("%s Cleaning up software title names\n", time.Now().Format("15:04:05"))
+
 	titleStmt := `UPDATE software_titles SET name = TRIM( TRAILING '.app' FROM name ) WHERE source = 'apps' AND bundle_identifier IS NOT NULL`
 	_, err := tx.Exec(titleStmt)
 	if err != nil {
@@ -48,6 +51,9 @@ func Up_20250410104321(tx *sql.Tx) error {
 		IDs         string `db:"ids"`
 		NewChecksum string `db:"new_checksum"`
 	}
+
+	fmt.Printf("%s Getting software groups\n", time.Now().Format("15:04:05"))
+
 	if err := txx.Select(&softwareGroups, dupeIDsStmt); err != nil {
 		if !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("selecting duplicate software rows: %w", err)
@@ -87,11 +93,15 @@ WHERE
 			AND hs2.host_id = hs1.host_id)`
 	updateHostSoftwareInstalledPathsStmt := `UPDATE host_software_installed_paths SET software_id = ? WHERE software_id IN (?)`
 
+	fmt.Printf("%s Adding temporary index\n", time.Now().Format("15:04:05"))
+
 	var allExcludedIDs []uint64
 	_, err = tx.Exec(`ALTER TABLE host_software_installed_paths ADD INDEX software_id (software_id)`)
 	if err != nil {
 		return fmt.Errorf("adding temporary index to host_software_installed_paths: %w", err)
 	}
+
+	fmt.Printf("%s Added temporary index; updating host paths and inserting host software\n", time.Now().Format("15:04:05"))
 
 	for newChecksum, idsToMerge := range idsToMergeByNewChecksum {
 		allExcludedIDs = append(allExcludedIDs, idsToMerge...)
@@ -127,6 +137,9 @@ WHERE
 
 				if len(hostSoftwareInsertParams) >= 20_000 { // update up to 10k hosts at a time
 					_, err = tx.Exec(strings.TrimSuffix(hostSoftwareInsertQuery, ","), hostSoftwareInsertParams...)
+
+					fmt.Printf("%s Inserted intermediate batch of host software\n", time.Now().Format("15:04:05"))
+
 					if err != nil {
 						return fmt.Errorf("updating host_software.software_id for old software IDs %v: %w", idsToMerge, err)
 					}
@@ -154,10 +167,14 @@ WHERE
 		}
 	}
 
+	fmt.Printf("%s Done updating installed paths, inserting host software; dropping temporary index\n", time.Now().Format("15:04:05"))
+
 	_, err = tx.Exec(`ALTER TABLE host_software_installed_paths DROP INDEX software_id`)
 	if err != nil {
 		return fmt.Errorf("removing temporary index from host_software_installed_paths: %w", err)
 	}
+
+	fmt.Printf("%s Dropped temporary index; deleting extra software rows\n", time.Now().Format("15:04:05"))
 
 	// at this point, every host that needs one has a pointer to the selected ID, so we can delete
 	// all the records with the excluded IDs.
@@ -194,6 +211,8 @@ WHERE
 		}
 	}
 
+	fmt.Printf("%s Done deleting extra rows; updating software entries\n", time.Now().Format("15:04:05"))
+
 	// Now we can update the software entries to use the new name
 	softwareStmt := `
 	UPDATE software SET 
@@ -222,11 +241,15 @@ WHERE
 		return fmt.Errorf("updating software name and checksum: %w", err)
 	}
 
+	fmt.Printf("%s Done updating software entries; adding name source column\n", time.Now().Format("15:04:05"))
+
 	newColStmt := `ALTER TABLE software ADD COLUMN name_source enum('basic', 'bundle_4.67') DEFAULT 'basic' NOT NULL`
 	_, err = tx.Exec(newColStmt)
 	if err != nil {
 		return fmt.Errorf("adding name_source column to software: %w", err)
 	}
+
+	fmt.Printf("%s Done adding name source column\n", time.Now().Format("15:04:05"))
 
 	return nil
 }
