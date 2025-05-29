@@ -1,7 +1,7 @@
 # Fleet 4.69.0 | Bulk scripts improvements, Entra ID and authentik foreign vitals, and more...
 
-<div purpose="[embedded-content](https://www.youtube.com/embed/KfWGkgaMEN0?si=XpL8tufModTR9Q_O)">
-   <iframe src="TODO" frameborder="0" allowfullscreen></iframe>
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/KfWGkgaMEN0?si=XpL8tufModTR9Q_O" frameborder="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.69.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.69.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
