@@ -14,7 +14,7 @@
 
   &__info {
     p {
-      margin: $pad-small 0 0 0;
+      margin: $pad-small 0 0 0; // TOFIX: this causes weird top margin noticed in #28110
     }
   }
 
