@@ -287,7 +287,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	return nil
 }
 
-func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
+func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -338,6 +338,10 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 	hash := sha256.New()
 	if _, err := io.Copy(hash, buffReader); err != nil {
 		return err
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	bp := &fleet.MDMAppleBootstrapPackage{

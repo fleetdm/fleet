@@ -103,7 +103,7 @@ func (c *Client) DeleteBootstrapPackage(teamID uint, dryRun bool) error {
 	return err
 }
 
-func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) error {
+func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dryRun bool) error {
 	verb, path := "POST", "/api/latest/fleet/mdm/bootstrap"
 
 	var b bytes.Buffer
@@ -125,7 +125,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 
 	w.Close()
 
-	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, "",
+	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
 		b.Bytes(),
 		map[string]string{
 			"Content-Type":  w.FormDataContentType(),
@@ -171,7 +171,7 @@ func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPacka
 	}
 
 	bp.TeamID = teamID
-	if err := c.UploadBootstrapPackage(bp); err != nil {
+	if err := c.UploadBootstrapPackage(bp, dryRun); err != nil {
 		return err
 	}
 

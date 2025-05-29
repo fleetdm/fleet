@@ -727,7 +727,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// svc.DeleteMDMAppleBootstrapPackage here as it would call the (non-premium)
 		// current service implementation. We have to go through the Enterprise
 		// extensions.
-		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil); err != nil {
+		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil, applyOpts.DryRun); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
 		}
 	}
