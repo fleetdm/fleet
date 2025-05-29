@@ -1,6 +1,5 @@
 # This file adds teams (Fleet Premium), scripts, policies, and queries to all new Fleet instances.
 
----
 apiVersion: v1
 kind: team
 spec:
