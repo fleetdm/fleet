@@ -191,6 +191,12 @@ const ManageHostsPage = ({
       // remove the software status filter when selecting All teams
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
         newTeamId === API_ALL_TEAMS_ID,
+      // remove batch script summary results filters on team change
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: (newTeamId?: number) =>
+        newTeamId !== currentTeamId,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: (
+        newTeamId?: number
+      ) => newTeamId !== currentTeamId,
     },
   });
 
@@ -298,7 +304,7 @@ const ManageHostsPage = ({
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID];
   const scriptBatchExecutionStatus =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
-    (scriptBatchExecutionId ? "success" : undefined);
+    (scriptBatchExecutionId ? "ran" : undefined);
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;

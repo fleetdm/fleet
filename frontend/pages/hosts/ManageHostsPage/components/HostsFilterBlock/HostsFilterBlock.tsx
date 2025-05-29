@@ -555,7 +555,7 @@ const HostsFilterBlock = ({
 
   const renderScriptBatchExecutionBlock = () => {
     const OPTIONS = [
-      { value: "success", label: "Ran" },
+      { value: "ran", label: "Ran" },
       { value: "errored", label: "Error" },
       { value: "pending", label: "Pending" },
     ];
