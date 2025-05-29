@@ -40,6 +40,10 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 		return "", ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
+	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+		return "", &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+	}
+
 	// Load current integration, if any.
 	existingIntegration, err := svc.ConditionalAccessMicrosoftGet(ctx)
 	if err != nil {
@@ -55,7 +59,7 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 		}
 		return getResponse.AdminConsentURL, nil
 	case existingIntegration != nil && existingIntegration.SetupDone:
-		return "", ctxerr.New(ctx, "integration already setup")
+		return "", &fleet.BadRequestError{Message: "integration already setup"}
 	}
 
 	//
@@ -109,6 +113,10 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 		return false, ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
+	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+		return false, &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+	}
+
 	// Load current integration.
 	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
 	if err != nil {
@@ -121,7 +129,6 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 
 	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
-		// TODO(lucas): Check if we need to delete the integration here.
 		level.Error(svc.logger).Log("msg", "failed to get integration settings from proxy", "err", err)
 		return false, nil
 	}
@@ -158,9 +165,16 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 		return ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
+	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+		return &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+	}
+
 	// Load current integration.
 	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{Message: "integration not found"}
+		}
 		return ctxerr.Wrap(ctx, err, "failed to load the integration")
 	}
 
@@ -168,6 +182,8 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 	deleteResponse, err := svc.conditionalAccessMicrosoftProxy.Delete(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
 		if fleet.IsNotFound(err) {
+			// In case there's an issue on the Proxy database we want to make sure to
+			// allow deleting the integration in Fleet, so we continue.
 			svc.logger.Log("msg", "delete returned not found, continuing...")
 		} else {
 			return ctxerr.Wrap(ctx, err, "failed to delete the integration on the proxy")

@@ -2275,6 +2275,7 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to check for conditional access configuration")
 	}
+
 	if !configured || !enabledForTeam {
 		// Nothing to do, feature not configured or not enabled for this host's team.
 		return nil
@@ -2298,9 +2299,16 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		policyTeamID = *hostTeamID
 	}
 
+	var mdmEnrolled bool
 	hostMDM, err := svc.ds.GetHostMDM(ctx, hostID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to get host mdm")
+		// If GetHostMDM returns not found then it means that
+		// the host may not be MDM enrolled yet.
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "failed to get host mdm")
+		}
+	} else {
+		mdmEnrolled = hostMDM.Enrolled
 	}
 
 	// Get policies configured for conditional access.
@@ -2325,13 +2333,13 @@ func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
 		}
 	}
 
-	if hostConditionalAccessStatus.Managed != nil && hostMDM.Enrolled == *hostConditionalAccessStatus.Managed &&
+	if hostConditionalAccessStatus.Managed != nil && mdmEnrolled == *hostConditionalAccessStatus.Managed &&
 		hostConditionalAccessStatus.Compliant != nil && hostIsCompliantInFleet == *hostConditionalAccessStatus.Compliant {
 		// Nothing to do, nothing has changed.
 		return nil
 	}
 
-	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, hostMDM.Enrolled, hostIsCompliantInFleet)
+	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
 
 	return nil
 }
@@ -2356,6 +2364,10 @@ func (svc *Service) setHostConditionalAccessAsync(
 		level.Debug(logger).Log("took", time.Since(start))
 	}()
 }
+
+// conditionalAccessSetWaitTime is the interval to check for message status.
+// It's a global variable to be set in tests.
+var conditionalAccessSetWaitTime = 10 * time.Second
 
 func (svc *Service) setHostConditionalAccess(
 	hostID uint,
@@ -2394,12 +2406,11 @@ func (svc *Service) setHostConditionalAccess(
 		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
 	}
 	const (
-		waitTime = 10 * time.Second
-		timeout  = 1 * time.Minute
+		timeout = 1 * time.Minute
 	)
 	level.Debug(logger).Log("msg", "set compliance status message sent")
 	startTime := time.Now()
-	for range time.Tick(waitTime) {
+	for range time.Tick(conditionalAccessSetWaitTime) {
 		if time.Since(startTime) > timeout {
 			return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
 		}

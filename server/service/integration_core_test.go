@@ -13397,3 +13397,23 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 		require.Equal(t, oldHosts[i].ID, h.ID)
 	}
 }
+
+func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
+	t := s.T()
+
+	var resp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
+	require.False(t, resp.License.ManagedCloud)
+
+	// Microsoft compliance partner APIs should fail if the setting is not set (only set on Cloud).
+	var r conditionalAccessMicrosoftCreateResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
+		MicrosoftTenantID: "foobar",
+	}, http.StatusBadRequest, &r)
+	var c conditionalAccessMicrosoftConfirmResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
+		http.StatusBadRequest, &c)
+	var d conditionalAccessMicrosoftDeleteResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
+		http.StatusBadRequest, &d)
+}

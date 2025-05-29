@@ -66,7 +66,6 @@ func (p *Proxy) Create(ctx context.Context, tenantID string) (*CreateResponse, e
 type GetResponse struct {
 	TenantID        string  `json:"entra_tenant_id"`
 	SetupDone       bool    `json:"setup_done"`
-	AdminConsented  bool    `json:"admin_consented"`
 	AdminConsentURL string  `json:"admin_consent_url"`
 	SetupError      *string `json:"setup_error"`
 }

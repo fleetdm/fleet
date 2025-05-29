@@ -65,7 +65,32 @@ type Service struct {
 	scepConfigService fleet.SCEPConfigService
 	digiCertService   fleet.DigiCertService
 
-	conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
+	conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
+}
+
+// ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
+type ConditionalAccessMicrosoftProxy interface {
+	// Create creates the integration on the MS proxy and returns the consent URL.
+	Create(ctx context.Context, tenantID string) (*conditional_access_microsoft_proxy.CreateResponse, error)
+	// Get returns the integration settings.
+	Get(ctx context.Context, tenantID string, secret string) (*conditional_access_microsoft_proxy.GetResponse, error)
+	// Delete deprovisions the tenant on Microsoft and deletes the integration in the proxy service.
+	// Returns a fleet.IsNotFound error if the integration doesn't exist.
+	Delete(ctx context.Context, tenantID string, secret string) (*conditional_access_microsoft_proxy.DeleteResponse, error)
+	// SetComplianceStatus sets the inventory and compliance status of a host.
+	// Returns the message ID to query the status of the operation (MS has an asynchronous API).
+	SetComplianceStatus(
+		ctx context.Context,
+		tenantID string, secret string,
+		deviceID string,
+		userPrincipalName string,
+		mdmEnrolled bool,
+		deviceName, osName, osVersion string,
+		compliant bool,
+		lastCheckInTime time.Time,
+	) (*conditional_access_microsoft_proxy.SetComplianceStatusResponse, error)
+	// GetMessageStatusResponse returns the status of a "compliance set" operation.
+	GetMessageStatus(ctx context.Context, tenantID string, secret string, messageID string) (*conditional_access_microsoft_proxy.GetMessageStatusResponse, error)
 }
 
 func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -112,25 +137,11 @@ func NewService(
 	wstepCertManager microsoft_mdm.CertManager,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
+	conditionalAccessProxy ConditionalAccessMicrosoftProxy,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
 		return nil, fmt.Errorf("new authorizer: %w", err)
-	}
-
-	conditionalAccessMicrosoftProxy, err := conditional_access_microsoft_proxy.New(
-		config.MicrosoftCompliancePartner.ProxyURI,
-		config.MicrosoftCompliancePartner.ProxyAPIKey,
-		func() (string, error) {
-			appCfg, err := ds.AppConfig(ctx)
-			if err != nil {
-				return "", fmt.Errorf("failed to load appconfig: %w", err)
-			}
-			return appCfg.ServerSettings.ServerURL, nil
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("new microsoft compliance proxy: %w", err)
 	}
 
 	svc := &Service{
@@ -163,7 +174,7 @@ func NewService(
 		scepConfigService:    scepConfigService,
 		digiCertService:      digiCertService,
 
-		conditionalAccessMicrosoftProxy: conditionalAccessMicrosoftProxy,
+		conditionalAccessMicrosoftProxy: conditionalAccessProxy,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
