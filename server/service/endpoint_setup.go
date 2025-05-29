@@ -15,7 +15,7 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-const standardQueryLibraryURL = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
+const starterLibraryURL = "https://raw.githubusercontent.com/fleetdm/fleet/c86d5cd04ab9beb0d1cbbc8a211c84991f3d9201/docs/01-Using-Fleet/starter-library/starter-library.yml"
 
 type setupRequest struct {
 	Admin        *fleet.UserPayload `json:"admin"`
@@ -82,14 +82,14 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 		} else {
 			token = &session.Key
 
-			// Apply standard query library using the admin token we just created
+			// Apply starter library using the admin token we just created
 			if req.ServerURL != nil {
-				if err := applyStandardQueryLibrary(ctx, *req.ServerURL, session.Key, logger); err != nil {
-					level.Debug(logger).Log("endpoint", "setup", "op", "applyStandardQueryLibrary", "err", err)
-					// Continue even if there's an error applying the standard query library
+				if err := applyStarterLibrary(ctx, *req.ServerURL, session.Key, logger); err != nil {
+					level.Debug(logger).Log("endpoint", "setup", "op", "applyStarterLibrary", "err", err)
+					// Continue even if there's an error applying the starter library
 				}
 			} else {
-				level.Debug(logger).Log("endpoint", "setup", "msg", "Skipping standard query library application due to missing server URL")
+				level.Debug(logger).Log("endpoint", "setup", "msg", "Skipping starter library application due to missing server URL")
 			}
 		}
 
@@ -102,31 +102,31 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 	}
 }
 
-// applyStandardQueryLibrary downloads the standard query library from GitHub
+// applyStarterLibrary downloads the starter library from GitHub
 // and applies it to the Fleet server using an authenticated client.
-func applyStandardQueryLibrary(ctx context.Context, serverURL string, token string, logger kitlog.Logger) error {
-	level.Debug(logger).Log("msg", "Applying standard query library")
+func applyStarterLibrary(ctx context.Context, serverURL string, token string, logger kitlog.Logger) error {
+	level.Debug(logger).Log("msg", "Applying starter library")
 
-	// Download the standard query library from GitHub
-	resp, err := http.Get(standardQueryLibraryURL)
+	// Download the starter library from GitHub
+	resp, err := http.Get(starterLibraryURL)
 	if err != nil {
-		return fmt.Errorf("failed to download standard query library: %w", err)
+		return fmt.Errorf("failed to download starter library: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download standard query library, status: %d", resp.StatusCode)
+		return fmt.Errorf("failed to download starter library, status: %d", resp.StatusCode)
 	}
 
 	buf, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read standard query library response body: %w", err)
+		return fmt.Errorf("failed to read starter library response body: %w", err)
 	}
 
 	// Parse the YAML content into specs
 	specs, err := spec.GroupFromBytes(buf)
 	if err != nil {
-		return fmt.Errorf("failed to parse standard query library: %w", err)
+		return fmt.Errorf("failed to parse starter library: %w", err)
 	}
 
 	// Create an authenticated client and apply specs
@@ -157,9 +157,9 @@ func applyStandardQueryLibrary(ctx context.Context, serverURL string, token stri
 		teamsScripts,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to apply standard query library: %w", err)
+		return fmt.Errorf("failed to apply starter library: %w", err)
 	}
 
-	level.Debug(logger).Log("msg", "Standard query library applied successfully")
+	level.Debug(logger).Log("msg", "Starter library applied successfully")
 	return nil
 }
