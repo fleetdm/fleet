@@ -128,7 +128,7 @@
                 <label for="macos-min-length" >
                   <span purpose="custom-checkbox" :class="[selectedPayloadSettings['macos-min-length'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
                   <input type="checkbox" v-model="selectedPayloadSettings['macos-min-length']" id="macos-min-length" @input="clickSelectPayload('macos-min-length')">
-                  Min password length
+                  Min passcode length
                 </label>
                 <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The minimum number of characters a device's password must be">
               </div>
@@ -227,10 +227,10 @@
                   </div>
                   <%// Checkbox input %>
                   <div purpose="option-value" v-else-if="['boolean'].includes(option.formInput.type)">
-                    <label purpose="form-option" class="form-control" >
+                    <label purpose="form-option" class="form-control">
                       <input type="checkbox" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" @input="clickClearOneFormError(option.uniqueSlug+'-value')">
                       <span purpose="custom-switch" :class="[configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'checked' : '']"><span purpose="custom-switch-status"></span></span>
-                      {{ configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'Enabled' : 'Disallowed' }}
+                      {{ configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'Yes' : 'No' }}
                     </label>
                   </div>
                   <a @click="clickRemovePayloadOption(option)" purpose="form-button">Remove</a>
