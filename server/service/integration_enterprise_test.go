@@ -16795,6 +16795,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
 	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
 
+	// check that we created an activity for the policy creation
+	wantAct := fleet.ActivityTypeCreatedPolicy{
+		ID:   gotPolicy.ID,
+		Name: gotPolicy.Name,
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
 	// First FMA added doesn't have automatic install policies
 	st = resp.SoftwareTitles[1] // sorted by ID above
 	require.NotNil(t, st.SoftwarePackage)
@@ -17136,6 +17143,13 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
 	require.Len(t, respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
 	require.Equal(t, "[Install software] DummyApp (pkg)", respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name)
+
+	// check that we created an activity for the policy creation
+	wantAct := fleet.ActivityTypeCreatedPolicy{
+		ID:   respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID,
+		Name: respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name,
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
 	// Check a policy was created on team1.
 	ts = listTeamPoliciesResponse{}

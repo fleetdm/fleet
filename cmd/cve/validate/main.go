@@ -41,12 +41,12 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 		panic(err)
 	}
 
-	// make sure VulnCheck enrichment is working
 	vulns, err := cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2025.json.gz"))
 	if err != nil {
 		panic(err)
 	}
 
+	// make sure VulnCheck enrichment is working
 	vulnEntry, ok := vulns["CVE-2025-0938"].(*feednvd.Vuln)
 	if !ok {
 		panic("failed to cast CVE-2025-0938 to a Vuln")
@@ -55,11 +55,16 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 		panic(errors.New("enriched vulnerability spot-check failed for Python on CVE-2025-0938"))
 	}
 
+	if vulns["CVE-2025-3196"].CVSSv3BaseScore() != 5.5 { // Should pull primary CVSSv3 score, (has primary and secondary)
+		panic(fmt.Errorf("cvss v3 spot-check failed for CVE-2025-3196; score was %f instead of 5.5", vulns["CVE-2025-3196"].CVSSv3BaseScore()))
+	}
+
 	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2024.json.gz"))
 	if err != nil {
 		panic(err)
 	}
 
+	// make sure VulnCheck enrichment is working on less recent vulns
 	vulnEntry, ok = vulns["CVE-2024-6286"].(*feednvd.Vuln)
 	if !ok {
 		panic("failed to cast CVE-2024-6286 to a Vuln")
@@ -67,6 +72,17 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 2 ||
 		vulnEntry.Schema().Configurations.Nodes[0].CPEMatch[1].VersionEndExcluding != "2403.1" {
 		panic(errors.New("enriched vulnerability spot-check failed for Citrix Workstation on CVE-2024-6286"))
+	}
+
+	// check CVSS score extraction; confirm that secondary CVSS scores are extracted when primary isn't set
+	if vulns["CVE-2024-54559"].CVSSv3BaseScore() != 5.5 { // secondary source CVSS score
+		panic(errors.New("cvss v3 spot-check failed for CVE-2024-54559"))
+	}
+	if vulns["CVE-2024-0450"].CVSSv3BaseScore() != 6.2 { // secondary source CVSS score
+		panic(errors.New("cvss v3 spot-check failed for CVE-2024-0450"))
+	}
+	if vulns["CVE-2024-0540"].CVSSv3BaseScore() != 9.8 { // primary source CVSS score
+		panic(errors.New("cvss v3 spot-check failed for CVE-2024-0540"))
 	}
 }
 

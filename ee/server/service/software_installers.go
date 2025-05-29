@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -145,6 +146,17 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
+	}
+
+	if payload.AutomaticInstall {
+		policyAct := fleet.ActivityTypeCreatedPolicy{
+			ID:   addedInstaller.AutomaticInstallPolicies[0].ID,
+			Name: addedInstaller.AutomaticInstallPolicies[0].Name,
+		}
+
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for create automatic install policy for custom package")
+		}
 	}
 
 	return addedInstaller, nil
