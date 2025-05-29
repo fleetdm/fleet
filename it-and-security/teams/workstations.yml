@@ -157,3 +157,6 @@ software:
         - Apple Silicon macOShosts
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
+      categories:
+        - Communication
+        - Productivity

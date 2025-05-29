@@ -112,7 +112,6 @@ controls:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/enable-firewall-all-domains.xml
       - path: ../lib/windows/configuration-profiles/password.xml
-      - path: ../lib/windows/configuration-profiles/screen-lock.xml
       - path: ../lib/windows/configuration-profiles/advanced-logging-powershell.xml
       - path: ../lib/windows/configuration-profiles/autoset-time-date.xml
       - path: ../lib/windows/configuration-profiles/disable-onedrive.xml
@@ -200,3 +199,6 @@ software:
         - Apple Silicon macOShosts
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
+      categories:
+        - Communication
+        - Productivity

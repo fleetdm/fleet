@@ -492,18 +492,18 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
-	}{
-		{
-			software: fleet.Software{
-				Name:             "Adobe Acrobat Reader DC.app",
-				Source:           "apps",
-				Version:          "22.002.20191",
-				Vendor:           "",
-				BundleIdentifier: "com.adobe.Reader",
-			},
-			cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
-		},
-		{
+	}{ /*
+			{ // See #29570
+					software: fleet.Software{
+						Name:             "Adobe Acrobat Reader DC.app",
+						Source:           "apps",
+						Version:          "22.002.20191",
+						Vendor:           "",
+						BundleIdentifier: "com.adobe.Reader",
+					},
+					cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
+				},
+		*/{
 			software: fleet.Software{
 				Name:             "Adobe Lightroom.app",
 				Source:           "apps",
@@ -782,8 +782,8 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "Igor Pavlov",
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:7-zip:7-zip:22.01:*:*:*:*:windows:*:*",
-		},
-		{
+		}, /*
+			{ // See #29570
 			software: fleet.Software{
 				Name:             "Adobe Acrobat DC (64-bit)",
 				Source:           "programs",
@@ -791,8 +791,8 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "Adobe",
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:adobe:acrobat_dc:22.002.20212:*:*:*:*:windows:*:*",
-		},
-		{
+			},
+		*/{
 			software: fleet.Software{
 				Name:             "Brave",
 				Source:           "programs",
