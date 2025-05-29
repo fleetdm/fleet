@@ -1,5 +1,6 @@
 <Replace>
   <!-- Enforce screenlock -->
+  <CmdID>1</CmdID>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
@@ -7,11 +8,12 @@
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled</LocURI>
     </Target>
-    <Data>0</Data>
+    <Data>1</Data>
   </Item>
 </Replace>
 <Replace>
   <!-- Enforce screenlock after 15 minutes -->
+  <CmdID>2</CmdID>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>
