@@ -20,7 +20,7 @@ type TeamIntegrations struct {
 	Zendesk        []*TeamZendeskIntegration      `json:"zendesk"`
 	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
 	// ConditionalAccessEnabled indicates whether the conditional access feature is enabled on this team.
-	ConditionalAccessEnabled *bool `json:"conditional_access_enabled,omitempty"`
+	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled,omitempty"`
 }
 
 // MatchWithIntegrations matches the team integrations to their corresponding
@@ -419,7 +419,7 @@ type Integrations struct {
 	NDESSCEPProxy   optjson.Any[NDESSCEPProxyIntegration]     `json:"ndes_scep_proxy"`
 	CustomSCEPProxy optjson.Slice[CustomSCEPProxyIntegration] `json:"custom_scep_proxy"`
 	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
-	ConditionalAccessEnabled *bool `json:"conditional_access_enabled,omitempty"`
+	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 }
 
 // ValidateConditionalAccessIntegration validates "Conditional access" can be enabled on a team/"No team".
@@ -429,13 +429,9 @@ func ValidateConditionalAccessIntegration(
 	g interface {
 		ConditionalAccessMicrosoftGet(context.Context) (*ConditionalAccessMicrosoftIntegration, error)
 	},
-	currentConditionalAccessEnabled_ *bool,
+	currentConditionalAccessEnabled bool,
 	newConditionalAccessEnabled bool,
 ) error {
-	var currentConditionalAccessEnabled bool
-	if currentConditionalAccessEnabled_ != nil {
-		currentConditionalAccessEnabled = *currentConditionalAccessEnabled_
-	}
 	switch {
 	case currentConditionalAccessEnabled == newConditionalAccessEnabled:
 		// No change, mothing to do.

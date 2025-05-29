@@ -493,8 +493,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
 
-	if newAppConfig.Integrations.ConditionalAccessEnabled != nil {
-		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, appConfig.Integrations.ConditionalAccessEnabled, *newAppConfig.Integrations.ConditionalAccessEnabled); err != nil {
+	if newAppConfig.Integrations.ConditionalAccessEnabled.Set {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, appConfig.Integrations.ConditionalAccessEnabled.Value, newAppConfig.Integrations.ConditionalAccessEnabled.Value); err != nil {
 			return nil, err
 		}
 		appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled

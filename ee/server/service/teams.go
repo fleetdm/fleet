@@ -266,11 +266,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		// Only update conditional_access_enabled if it's not nil.
-		if payload.Integrations.ConditionalAccessEnabled != nil {
+		if payload.Integrations.ConditionalAccessEnabled.Set {
 			if err := fleet.ValidateConditionalAccessIntegration(ctx,
 				svc,
-				team.Config.Integrations.ConditionalAccessEnabled,
-				*payload.Integrations.ConditionalAccessEnabled,
+				team.Config.Integrations.ConditionalAccessEnabled.Value,
+				payload.Integrations.ConditionalAccessEnabled.Value,
 			); err != nil {
 				return nil, ctxerr.Wrap(ctx, err)
 			}
@@ -1091,14 +1091,16 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
+	var conditionalAccessEnabled optjson.Bool
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if err := fleet.ValidateConditionalAccessIntegration(ctx,
 			svc,
-			nil,
+			false,
 			*spec.Integrations.ConditionalAccessEnabled,
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
 		}
+		conditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
 	}
 
 	if dryRun {
@@ -1142,7 +1144,7 @@ func (svc *Service) createTeamFromSpec(
 			},
 			Integrations: fleet.TeamIntegrations{
 				GoogleCalendar:           spec.Integrations.GoogleCalendar,
-				ConditionalAccessEnabled: spec.Integrations.ConditionalAccessEnabled,
+				ConditionalAccessEnabled: conditionalAccessEnabled,
 			},
 			Software: spec.Software,
 		},
@@ -1363,12 +1365,12 @@ func (svc *Service) editTeamFromSpec(
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if err := fleet.ValidateConditionalAccessIntegration(ctx,
 			svc,
-			team.Config.Integrations.ConditionalAccessEnabled,
+			team.Config.Integrations.ConditionalAccessEnabled.Value,
 			*spec.Integrations.ConditionalAccessEnabled,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err)
 		}
-		team.Config.Integrations.ConditionalAccessEnabled = spec.Integrations.ConditionalAccessEnabled
+		team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
 	}
 
 	if opts.DryRun {

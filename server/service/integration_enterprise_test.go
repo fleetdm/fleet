@@ -18246,8 +18246,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	acResp := appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
-	require.NotNil(t, acResp.Integrations.ConditionalAccessEnabled)
-	require.True(t, *acResp.Integrations.ConditionalAccessEnabled)
+	require.True(t, acResp.Integrations.ConditionalAccessEnabled.Set)
+	require.True(t, acResp.Integrations.ConditionalAccessEnabled.Value)
 
 	pr = teamPolicyResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", fleet.PolicyNoTeamID), teamPolicyRequest{

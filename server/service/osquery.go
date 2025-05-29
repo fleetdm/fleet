@@ -2249,8 +2249,8 @@ func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Con
 			return false, false, ctxerr.Wrap(ctx, err, "failed to load appconfig")
 		}
 		var conditionalAccessEnabled bool
-		if cfg.Integrations.ConditionalAccessEnabled != nil {
-			conditionalAccessEnabled = *cfg.Integrations.ConditionalAccessEnabled
+		if cfg.Integrations.ConditionalAccessEnabled.Set {
+			conditionalAccessEnabled = cfg.Integrations.ConditionalAccessEnabled.Value
 		}
 		return true, conditionalAccessEnabled, nil
 	}
@@ -2261,8 +2261,8 @@ func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Con
 		return false, false, ctxerr.Wrap(ctx, err, "failed to load team config")
 	}
 	var teamConditionalAccessEnabled bool
-	if team.Config.Integrations.ConditionalAccessEnabled != nil {
-		teamConditionalAccessEnabled = *team.Config.Integrations.ConditionalAccessEnabled
+	if team.Config.Integrations.ConditionalAccessEnabled.Set {
+		teamConditionalAccessEnabled = team.Config.Integrations.ConditionalAccessEnabled.Value
 	}
 	return true, teamConditionalAccessEnabled, nil
 }
