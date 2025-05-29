@@ -29,7 +29,7 @@ func Up_20161118212649(tx *sql.Tx) error {
 			"PRIMARY KEY (`id`)," +
 			"UNIQUE KEY `idx_user_unique_username` (`username`)," +
 			"UNIQUE KEY `idx_user_unique_email` (`email`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }
