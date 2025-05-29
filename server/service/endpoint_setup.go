@@ -2,10 +2,16 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -15,7 +21,10 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-const starterLibraryURL = "https://raw.githubusercontent.com/fleetdm/fleet/c86d5cd04ab9beb0d1cbbc8a211c84991f3d9201/docs/01-Using-Fleet/starter-library/starter-library.yml"
+const (
+	starterLibraryURL = "https://raw.githubusercontent.com/fleetdm/fleet/246aacdab80a93bbd6d0115f64bc41be4cf0f181/docs/01-Using-Fleet/starter-library/starter-library.yml"
+	scriptsBaseURL    = "https://raw.githubusercontent.com/fleetdm/fleet/main/"
+)
 
 type setupRequest struct {
 	Admin        *fleet.UserPayload `json:"admin"`
@@ -107,8 +116,15 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 func applyStarterLibrary(ctx context.Context, serverURL string, token string, logger kitlog.Logger) error {
 	level.Debug(logger).Log("msg", "Applying starter library")
 
-	// Download the starter library from GitHub
-	resp, err := http.Get(starterLibraryURL)
+	// Create a request with context for downloading the starter library
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, starterLibraryURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request for starter library: %w", err)
+	}
+
+	// Download the starter library from GitHub using fleethttp
+	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download starter library: %w", err)
 	}
@@ -123,10 +139,31 @@ func applyStarterLibrary(ctx context.Context, serverURL string, token string, lo
 		return fmt.Errorf("failed to read starter library response body: %w", err)
 	}
 
+	// Create a temporary directory to store downloaded scripts
+	tempDir, err := os.MkdirTemp("", "fleet-scripts-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir) // Clean up the temporary directory when done
+
+	level.Debug(logger).Log("msg", "Created temporary directory for scripts", "path", tempDir)
+
 	// Parse the YAML content into specs
 	specs, err := spec.GroupFromBytes(buf)
 	if err != nil {
 		return fmt.Errorf("failed to parse starter library: %w", err)
+	}
+
+	// Find all script references in the YAML and download them
+	scriptNames := extractScriptNames(specs)
+	level.Debug(logger).Log("msg", "Found script references in starter library", "count", len(scriptNames))
+
+	// Download scripts and update references in specs
+	if len(scriptNames) > 0 {
+		err = downloadAndUpdateScripts(ctx, specs, scriptNames, tempDir, logger)
+		if err != nil {
+			return fmt.Errorf("failed to download and update scripts: %w", err)
+		}
 	}
 
 	// Create an authenticated client and apply specs
@@ -161,5 +198,124 @@ func applyStarterLibrary(ctx context.Context, serverURL string, token string, lo
 	}
 
 	level.Debug(logger).Log("msg", "Starter library applied successfully")
+	return nil
+}
+
+// extractScriptNames extracts all script names from the specs
+func extractScriptNames(specs *spec.Group) []string {
+	var scriptNames []string
+	scriptMap := make(map[string]bool) // Use a map to deduplicate script names
+
+	// Process team specs
+	for _, teamRaw := range specs.Teams {
+		var teamData map[string]interface{}
+		if err := json.Unmarshal(teamRaw, &teamData); err != nil {
+			continue // Skip if we can't unmarshal
+		}
+
+		if scripts, ok := teamData["scripts"].([]interface{}); ok {
+			for _, script := range scripts {
+				if scriptName, ok := script.(string); ok && !scriptMap[scriptName] {
+					scriptMap[scriptName] = true
+					scriptNames = append(scriptNames, scriptName)
+				}
+			}
+		}
+	}
+
+	return scriptNames
+}
+
+// downloadAndUpdateScripts downloads scripts from URLs and updates the specs to reference local files
+func downloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptNames []string, tempDir string, logger kitlog.Logger) error {
+	// Create a single HTTP client to be reused for all requests
+	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
+
+	// Map to store local paths for each script
+	scriptPaths := make(map[string]string, len(scriptNames))
+
+	// Download each script sequentially
+	for _, scriptName := range scriptNames {
+		// Sanitize the script name to prevent path traversal
+		sanitizedName := filepath.Clean(scriptName)
+		if strings.HasPrefix(sanitizedName, "..") || filepath.IsAbs(sanitizedName) {
+			return fmt.Errorf("invalid script name %s: must be a relative path", scriptName)
+		}
+
+		localPath := filepath.Join(tempDir, sanitizedName)
+		scriptPaths[scriptName] = localPath
+
+		// Create parent directories if they don't exist
+		parentDir := filepath.Dir(localPath)
+		if err := os.MkdirAll(parentDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create parent directories for script %s: %w", scriptName, err)
+		}
+
+		scriptURL := fmt.Sprintf("%s/%s", scriptsBaseURL, scriptName)
+		level.Debug(logger).Log("msg", "Downloading script", "name", scriptName, "url", scriptURL, "local_path", localPath)
+
+		// Create the request with context
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, scriptURL, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create request for script %s: %w", scriptName, err)
+		}
+
+		// Download the script using the shared HTTP client
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("failed to download script %s: %w", scriptName, err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to download script %s, status: %d", scriptName, resp.StatusCode)
+		}
+
+		// Create the local file
+		file, err := os.Create(localPath)
+		if err != nil {
+			return fmt.Errorf("failed to create local file for script %s: %w", scriptName, err)
+		}
+		defer file.Close()
+
+		// Copy the content to the local file
+		_, err = io.Copy(file, resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to write script %s to local file: %w", scriptName, err)
+		}
+	}
+
+	// Update script references in the specs to point to local files
+	for i, teamRaw := range specs.Teams {
+		var teamData map[string]interface{}
+		if err := json.Unmarshal(teamRaw, &teamData); err != nil {
+			continue // Skip if we can't unmarshal
+		}
+
+		if scripts, ok := teamData["scripts"].([]interface{}); ok {
+			for j, script := range scripts {
+				if scriptName, ok := script.(string); ok {
+					// Update the script reference to the local path from our map
+					if localPath, exists := scriptPaths[scriptName]; exists {
+						scripts[j] = localPath
+					}
+				}
+			}
+
+			// Update the team data with modified scripts
+			teamData["scripts"] = scripts
+
+			// Marshal back to JSON
+			updatedTeamRaw, err := json.Marshal(teamData)
+			if err != nil {
+				level.Debug(logger).Log("msg", "Failed to marshal updated team data", "err", err)
+				continue
+			}
+
+			// Update the team in the specs
+			specs.Teams[i] = updatedTeamRaw
+		}
+	}
+
 	return nil
 }
