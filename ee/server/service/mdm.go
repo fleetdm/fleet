@@ -389,7 +389,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 	return meta, nil
 }
 
-func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error {
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint, dryRun bool) error {
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
@@ -413,6 +413,10 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {

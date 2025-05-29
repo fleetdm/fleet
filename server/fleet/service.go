@@ -971,7 +971,7 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint, forUpdate bool) (*MDMAppleBootstrapPackage, error)
 
-	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint, dryRun bool) error
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
