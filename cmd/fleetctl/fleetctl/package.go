@@ -345,9 +345,6 @@ func packageCommand() *cli.Command {
 			}
 
 			if opt.CustomOutfile != "" {
-				if _, err := os.Stat(opt.CustomOutfile); err == nil {
-					return fmt.Errorf("output file %q already exists, please specify a different path", opt.CustomOutfile)
-				}
 				switch c.String("type") {
 				case "deb":
 					if !strings.HasSuffix(opt.CustomOutfile, ".deb") {
