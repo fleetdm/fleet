@@ -13214,17 +13214,13 @@ func (s *integrationTestSuite) TestListAndroidHostsInLabel() {
 func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *uint) []uint {
 	ids := make([]uint, 0, count)
 	for i := range count {
-		host := &fleet.AndroidHost{
-			Host: &fleet.Host{
-				Hostname:       fmt.Sprintf("hostname%d", i),
-				ComputerName:   fmt.Sprintf("computer_name%d", i),
-				Platform:       "android",
-				OSVersion:      "Android 14",
-				Build:          fmt.Sprintf("build%d", i),
-				Memory:         1024,
-				TeamID:         teamID,
-				HardwareSerial: uuid.NewString(),
-			},
+		host := &android.Host{
+			OSVersion:      "Android 14",
+			Build:          fmt.Sprintf("build%d", i),
+			Memory:         1024,
+			TeamID:         teamID,
+			HardwareSerial: uuid.NewString(),
+			HardwareModel:  fmt.Sprintf("hostname%d", i),
 			Device: &android.Device{
 				DeviceID:             uuid.NewString(),
 				EnterpriseSpecificID: ptr.String(uuid.NewString()),
@@ -13233,9 +13229,9 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			},
 		}
 		host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-		ahost, err := ds.NewAndroidHost(context.Background(), host)
+		ahost, err := ds.NewAndroidHost(context.Background(), "https://server.example.com", host)
 		require.NoError(t, err)
-		ids = append(ids, ahost.Host.ID)
+		ids = append(ids, ahost.ID)
 	}
 	return ids
 }

@@ -2,6 +2,8 @@ package android
 
 import (
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type SignupDetails struct {
@@ -46,4 +48,45 @@ type Device struct {
 	EnterpriseSpecificID *string    `db:"enterprise_specific_id"`
 	AndroidPolicyID      *uint      `db:"android_policy_id"`
 	LastPolicySyncTime   *time.Time `db:"last_policy_sync_time"`
+}
+
+type Host struct {
+	*Device
+	ID              uint
+	TeamID          *uint
+	OSVersion       string
+	Build           string
+	Memory          int64
+	CPUType         string
+	HardwareSerial  string
+	HardwareModel   string
+	HardwareVendor  string
+	NodeKey         *string
+	DetailUpdatedAt time.Time
+	LabelUpdatedAt  time.Time
+}
+
+func (h *Host) Platform() string {
+	return "android"
+}
+
+func (h *Host) DisplayName() string {
+	return h.HardwareModel
+}
+
+func (h *Host) SetNodeKey(enterpriseSpecificID string) {
+	if h.Device == nil {
+		return
+	}
+	h.Device.EnterpriseSpecificID = ptr.String(enterpriseSpecificID)
+	// We use node_key as a unique identifier for the host table row.
+	// Since this key is used by other hosts, we use a prefix to avoid conflicts.
+	hostNodeKey := "android/" + enterpriseSpecificID
+	h.NodeKey = &hostNodeKey
+}
+
+func (h *Host) IsValid() bool {
+	return !(h == nil || h.Device == nil ||
+		h.NodeKey == nil || h.Device.EnterpriseSpecificID == nil ||
+		*h.NodeKey != "android/"+*h.Device.EnterpriseSpecificID)
 }

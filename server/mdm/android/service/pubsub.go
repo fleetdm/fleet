@@ -186,7 +186,7 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	return svc.addNewHost(ctx, device)
 }
 
-func (svc *Service) getExistingHost(ctx context.Context, device *androidmanagement.Device) (*fleet.AndroidHost, error) {
+func (svc *Service) getExistingHost(ctx context.Context, device *androidmanagement.Device) (*android.Host, error) {
 	host, err := svc.getHostIfPresent(ctx, device.HardwareInfo.EnterpriseSpecificId)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting Android host if present")
@@ -207,7 +207,7 @@ func (svc *Service) validateDevice(ctx context.Context, device *androidmanagemen
 	return nil
 }
 
-func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost, fromEnroll bool) error {
+func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.Device, host *android.Host, fromEnroll bool) error {
 	err := svc.validateDevice(ctx, device)
 	if err != nil {
 		return err
@@ -231,17 +231,13 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 	host.Device.DeviceID = deviceID
 
-	host.Host.ComputerName = svc.getComputerName(device)
-	host.Host.Hostname = svc.getComputerName(device)
-	host.Host.Platform = "android"
-	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
-	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
-	host.Host.Memory = device.MemoryInfo.TotalRam
-	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
-	host.Host.CPUType = device.HardwareInfo.Hardware
-	host.Host.HardwareModel = svc.getComputerName(device)
-	host.Host.HardwareVendor = device.HardwareInfo.Brand
-	host.LabelUpdatedAt = time.Time{}
+	host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
+	host.Build = device.SoftwareInfo.AndroidBuildNumber
+	host.Memory = device.MemoryInfo.TotalRam
+	host.HardwareSerial = device.HardwareInfo.SerialNumber
+	host.CPUType = device.HardwareInfo.Hardware
+	host.HardwareModel = svc.getComputerName(device)
+	host.HardwareVendor = device.HardwareInfo.Brand
 	if device.LastStatusReportTime != "" {
 		lastStatusReportTime, err := time.Parse(time.RFC3339, device.LastStatusReportTime)
 		if err != nil {
@@ -251,7 +247,11 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
 
-	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll)
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	err = svc.ds.UpdateAndroidHost(ctx, appCfg.ServerSettings.ServerURL, host, fromEnroll)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -268,22 +268,16 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting device ID")
 	}
-	host := &fleet.AndroidHost{
-		Host: &fleet.Host{
-			TeamID:          enrollSecret.GetTeamID(),
-			ComputerName:    svc.getComputerName(device),
-			Hostname:        svc.getComputerName(device),
-			Platform:        "android",
-			OSVersion:       "Android " + device.SoftwareInfo.AndroidVersion,
-			Build:           device.SoftwareInfo.AndroidBuildNumber,
-			Memory:          device.MemoryInfo.TotalRam,
-			HardwareSerial:  device.HardwareInfo.SerialNumber,
-			CPUType:         device.HardwareInfo.Hardware,
-			HardwareModel:   svc.getComputerName(device),
-			HardwareVendor:  device.HardwareInfo.Brand,
-			LabelUpdatedAt:  time.Time{},
-			DetailUpdatedAt: time.Time{},
-		},
+	host := &android.Host{
+		TeamID:          enrollSecret.GetTeamID(),
+		OSVersion:       "Android " + device.SoftwareInfo.AndroidVersion,
+		Build:           device.SoftwareInfo.AndroidBuildNumber,
+		Memory:          device.MemoryInfo.TotalRam,
+		HardwareSerial:  device.HardwareInfo.SerialNumber,
+		CPUType:         device.HardwareInfo.Hardware,
+		HardwareModel:   svc.getComputerName(device),
+		HardwareVendor:  device.HardwareInfo.Brand,
+		DetailUpdatedAt: time.Time{},
 		Device: &android.Device{
 			DeviceID: deviceID,
 		},
@@ -301,7 +295,11 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
-	_, err = svc.ds.NewAndroidHost(ctx, host)
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	_, err = svc.ds.NewAndroidHost(ctx, appCfg.ServerSettings.ServerURL, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
@@ -313,7 +311,7 @@ func (svc *Service) getComputerName(device *androidmanagement.Device) string {
 	return computerName
 }
 
-func (svc *Service) getHostIfPresent(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+func (svc *Service) getHostIfPresent(ctx context.Context, enterpriseSpecificID string) (*android.Host, error) {
 	host, err := svc.ds.AndroidHostLite(ctx, enterpriseSpecificID)
 	switch {
 	case fleet.IsNotFound(err):

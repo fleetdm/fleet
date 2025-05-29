@@ -2119,16 +2119,12 @@ type Datastore interface {
 
 type AndroidDatastore interface {
 	android.Datastore
-	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
 	AppConfig(ctx context.Context) (*AppConfig, error)
-	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
 	InsertOrReplaceMDMConfigAsset(ctx context.Context, asset MDMConfigAsset) error
-	NewAndroidHost(ctx context.Context, host *AndroidHost) (*AndroidHost, error)
 	SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error
-	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
 }

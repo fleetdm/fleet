@@ -4,11 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/cenkalti/backoff/v4"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -19,11 +19,11 @@ var DoRetryErr = errors.New("fleet datastore retry")
 type TxFn func(tx sqlx.ExtContext) error
 
 // WithRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
-func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error {
+func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, ew ErrorWrapper, logger log.Logger) error {
 	operation := func() error {
 		tx, err := db.BeginTxx(ctx, nil)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "create transaction")
+			return ew.Wrap(ctx, err, "create transaction")
 		}
 
 		defer func() {
@@ -39,7 +39,7 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 			rbErr := tx.Rollback()
 			if rbErr != nil && rbErr != sql.ErrTxDone {
 				// Consider rollback errors to be non-retryable
-				return backoff.Permanent(ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error()))
+				return backoff.Permanent(ew.Wrap(ctx, err, fmt.Sprintf("got err '%s' rolling back after err", rbErr.Error())))
 			}
 
 			if retryableError(err) {
@@ -51,7 +51,7 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 		}
 
 		if err := tx.Commit(); err != nil {
-			err = ctxerr.Wrap(ctx, err, "commit transaction")
+			err = ew.Wrap(ctx, err, "commit transaction")
 
 			if retryableError(err) {
 				return err
@@ -77,7 +77,7 @@ func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) 
 // errors are considered non-retryable. Only errors that we know have a
 // possibility of succeeding on a retry should return true in this function.
 func retryableError(err error) bool {
-	base := ctxerr.Cause(err)
+	base := cause(err)
 	if b, ok := base.(*mysql.MySQLError); ok {
 		switch b.Number {
 		// Consider lock related errors to be retryable
@@ -90,4 +90,15 @@ func retryableError(err error) bool {
 	}
 
 	return false
+}
+
+// cause returns the root error in err's chain.
+func cause(err error) error {
+	for {
+		uerr := errors.Unwrap(err)
+		if uerr == nil {
+			return err
+		}
+		err = uerr
+	}
 }
