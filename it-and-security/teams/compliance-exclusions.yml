@@ -41,14 +41,6 @@ queries:
 software:
   packages:
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
-      categories:
-        - Communication
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
-      categories:
-        - Communication
     - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
-      categories:
-        - Communication
     - path: ../lib/linux/software/slack-rpm.yml # Zoom for RHEL
-      categories:
-        - Communication

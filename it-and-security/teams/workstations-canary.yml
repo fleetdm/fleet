@@ -159,46 +159,18 @@ queries:
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
-      categories:
-        - Browsers
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
-      categories:
     - path: ../lib/macos/software/santa.yml # Santa for macOS
-      categories:
-      labels_include_any:
-        - "Santa test devices"
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
-      categories:
-        - Communication
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
-      categories:
-        - Communication
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
-      categories:
-        - Communication
-        - Productivity
     - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
-      categories:
-        - Communication
-        - Productivity
     - path: ../lib/windows/software/slack.yml # Slack for Windows
-      categories:
-        - Communication
-        - Productivity
     - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
-      categories:
-        - Communication
     - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
-      categories:
-        - Communication
     - path: ../lib/windows/software/google-chrome.yml # Google Chrome for Windows
-      categories:
-        - Browsers
     - path: ../lib/windows/software/google-chrome-arm.yml # Google Chrome for Windows (ARM)
-      categories:
-        - Browsers
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
-      categories:
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
       categories:
