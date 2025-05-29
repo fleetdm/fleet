@@ -81,6 +81,10 @@ interface IHostsFilterBlockProps {
     configProfileStatus?: string;
     configProfileUUID?: string;
     configProfile?: IMdmProfile;
+    scriptBatchExecutionStatus?: string;
+    scriptBatchExecutionId?: string;
+    scriptBatchRanAt: string | null;
+    scriptBatchScriptName: string | null;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -99,6 +103,7 @@ interface IHostsFilterBlockProps {
     newStatus: SoftwareAggregateStatus
   ) => void;
   onChangeConfigProfileStatusFilter: (newStatus: string) => void;
+  onChangeScriptBatchStatusFilter: (newStatus: string) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
 }
@@ -135,6 +140,10 @@ const HostsFilterBlock = ({
     configProfileStatus,
     configProfileUUID,
     configProfile,
+    scriptBatchExecutionStatus,
+    scriptBatchExecutionId,
+    scriptBatchRanAt,
+    scriptBatchScriptName,
   },
   selectedLabel,
   isOnlyObserver,
@@ -147,6 +156,7 @@ const HostsFilterBlock = ({
   onChangeMacSettingsFilter,
   onChangeSoftwareInstallStatusFilter,
   onChangeConfigProfileStatusFilter,
+  onChangeScriptBatchStatusFilter,
   onClickEditLabel,
   onClickDeleteLabel,
 }: IHostsFilterBlockProps) => {
@@ -543,6 +553,38 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderScriptBatchExecutionBlock = () => {
+    const OPTIONS = [
+      { value: "success", label: "Ran" },
+      { value: "errored", label: "Error" },
+      { value: "pending", label: "Pending" },
+    ];
+    return (
+      <>
+        <Dropdown
+          value={scriptBatchExecutionStatus}
+          className={`${baseClass}__script-batch-status-dropdown`}
+          options={OPTIONS}
+          searchable={false}
+          onChange={onChangeScriptBatchStatusFilter}
+          iconName="filter-alt"
+        />
+        {scriptBatchScriptName && (
+          <FilterPill
+            label={scriptBatchScriptName}
+            onClear={() =>
+              handleClearFilter([
+                HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID,
+                HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
+              ])
+            }
+            tooltipDescription={scriptBatchRanAt}
+          />
+        )}
+      </>
+    );
+  };
+
   const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
   if (
@@ -563,7 +605,8 @@ const HostsFilterBlock = ({
     diskEncryptionStatus ||
     bootstrapPackageStatus ||
     vulnerability ||
-    (configProfileStatus && configProfileUUID && configProfile)
+    (configProfileStatus && configProfileUUID && configProfile) ||
+    (scriptBatchExecutionStatus && scriptBatchExecutionId)
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -618,6 +661,8 @@ const HostsFilterBlock = ({
           return renderBootstrapPackageStatusBlock();
         case !!configProfileStatus && !!configProfileUUID && !!configProfile:
           return renderConfigProfileStatusBlock();
+        case !!scriptBatchExecutionStatus && !!scriptBatchExecutionId:
+          return renderScriptBatchExecutionBlock();
         default:
           return null;
       }

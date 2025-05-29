@@ -127,11 +127,12 @@ export interface IScriptBatchSummaryResponse {
   pending: number;
   errored: number;
   team_id: number;
+  script_name: string;
+  created_at: string;
   // below fields not yet used by the UI
   canceled: number;
   targeted: number;
   script_id: number;
-  script_name: string;
 }
 export default {
   getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
