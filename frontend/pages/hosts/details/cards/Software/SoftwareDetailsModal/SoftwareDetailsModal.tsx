@@ -49,11 +49,9 @@ const SoftwareDetailsInfo = ({
 }: ISoftwareDetailsInfoProps) => {
   const {
     vulnerabilities,
-    installed_paths,
-    signature_information,
+    installed_paths: installedPaths,
+    signature_information: signatureInformation,
   } = installedVersion;
-
-  const sha256 = signature_information?.[0]?.hash_sha256;
 
   return (
     <div className={`${baseClass}__details-info`}>
@@ -70,34 +68,26 @@ const SoftwareDetailsInfo = ({
           />
         )}
       </div>
-      {!!installed_paths?.length && (
-        <div className={`${baseClass}__row`}>
-          <DataSet
-            className={`${baseClass}__file-path-data-set`}
-            title={`File path${installed_paths.length > 1 ? "s" : ""}`}
-            value={
-              <div className={`${baseClass}__file-path-values`}>
-                {installed_paths.map((path) => (
-                  <span>{path}</span>
-                ))}
+      {!!installedPaths?.length &&
+        installedPaths.map((path) => {
+          // Find the signature info for this path
+          const sigInfo = signatureInformation?.find(
+            (info) => info.installed_path === path
+          );
+
+          return (
+            <div className={`${baseClass}__sig-info`}>
+              <div className={`${baseClass}__file-path`}>
+                <b>File path:</b> {path}
               </div>
-            }
-          />
-        </div>
-      )}
-      {sha256 && (
-        <div className={`${baseClass}__row`}>
-          <DataSet
-            className={`${baseClass}__hash-sha256-data-set`}
-            title="Hash"
-            value={
-              <div className={`${baseClass}__hash-sha256-value`}>
-                <span>{sha256}</span>
-              </div>
-            }
-          />
-        </div>
-      )}
+              {sigInfo?.hash_sha256 && (
+                <div className={`${baseClass}__hash`}>
+                  <b>Hash:</b> {sigInfo.hash_sha256}
+                </div>
+              )}
+            </div>
+          );
+        })}
       {vulnerabilities && vulnerabilities.length !== 0 && (
         <div className={`${baseClass}__row`}>
           <DataSet
