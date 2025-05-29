@@ -400,7 +400,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url"))
 	}
 
-	if !slices.Contains([]string{"http", "https"}, parsedUrl.Scheme) {
+	if slices.Contains([]string{"javascript", "vbscript", "data"}, parsedUrl.Scheme) {
 		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url scheme: "+parsedUrl.Scheme))
 	}
 
