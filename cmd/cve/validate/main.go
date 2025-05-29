@@ -56,7 +56,7 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 	}
 
 	if vulns["CVE-2025-3196"].CVSSv3BaseScore() != 5.5 { // Should pull primary CVSSv3 score, (has primary and secondary)
-		panic(fmt.Errorf("cvss v3 spot-check failed for CVE-2025-3196; score was %s instead of 5.5", vulns["CVE-2025-3196"].CVSSv3BaseScore()))
+		panic(fmt.Errorf("cvss v3 spot-check failed for CVE-2025-3196; score was %f instead of 5.5", vulns["CVE-2025-3196"].CVSSv3BaseScore()))
 	}
 
 	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2024.json.gz"))
