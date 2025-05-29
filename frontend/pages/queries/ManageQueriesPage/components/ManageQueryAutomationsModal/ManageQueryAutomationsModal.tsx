@@ -7,13 +7,11 @@ import { LogDestination } from "interfaces/config";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox/Checkbox";
 import QueryFrequencyIndicator from "components/QueryFrequencyIndicator/QueryFrequencyIndicator";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import { CONTACT_FLEET_LINK } from "utilities/constants";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IManageQueryAutomationsModalProps {
@@ -123,8 +121,9 @@ const ManageQueryAutomationsModal = ({
     >
       <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
-          Query automations let you send data to your log destination on a
-          schedule. Data is sent according to a query&apos;s frequency.
+          Query automations let you send data gathered from macOS, Windows, and
+          Linux hosts to a log destination. Data is sent according to a
+          query&apos;s interval.
         </div>
         {availableQueries?.length ? (
           <div className={`${baseClass}__select form-field`}>
@@ -179,13 +178,6 @@ const ManageQueryAutomationsModal = ({
             />
           </div>
         </div>
-        <InfoBanner className={`${baseClass}__supported-platforms`}>
-          <p>Automations currently run on macOS, Windows, and Linux hosts.</p>
-          <p>
-            Interested in query automations for your Chromebooks? &nbsp;
-            <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
-          </p>
-        </InfoBanner>
         <Button
           type="button"
           variant="text-link"

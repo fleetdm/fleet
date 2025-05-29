@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 
-import { pull, size } from "lodash";
+import { size } from "lodash";
 
 import { AppContext } from "context/app";
 
@@ -12,7 +12,6 @@ import {
   FREQUENCY_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
-  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
@@ -231,7 +230,7 @@ const SaveQueryModal = ({
           }}
           placeholder="Every hour"
           value={selectedFrequency}
-          label="Frequency"
+          label="Interval"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
           helpText="This is how often your query collects data."
         />
@@ -255,7 +254,7 @@ const SaveQueryModal = ({
                   tipContent={
                     <>
                       Automations and reporting will be paused <br />
-                      for this query until a frequency is set.
+                      for this query until an interval is set.
                     </>
                   }
                   position="right"
