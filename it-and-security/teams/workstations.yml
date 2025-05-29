@@ -154,7 +154,7 @@ software:
     - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
       self_service: true
       labels_include_any:
-        - Apple Silicon macOShosts
+        - Apple Silicon macOS hosts
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
       categories:
