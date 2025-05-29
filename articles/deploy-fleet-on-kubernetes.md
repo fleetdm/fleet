@@ -129,7 +129,7 @@ data:
 
 While the examples below support ingress settings, they are limited to nginx. If you or your organization would like to use a specific ingress controller, they can be configured to handle and route traffic to the Fleet pods.
 
-### Helm
+#### Helm
 
 To configure preferences for Fleet for use in Helm, including secret names, MySQL and Redis hostnames, and TLS certificates, download the [values.yaml](https://raw.githubusercontent.com/fleetdm/fleet/main/charts/fleet/values.yaml) and change the settings to match your configuration.
 
@@ -144,7 +144,7 @@ helm upgrade --install fleet fleet \
   --values values.yaml
 ```
 
-### Terraform
+#### Terraform
 
 Let's start by cloning the [fleet-terraform repository](https://github.com/fleetdm/fleet-terraform).
 
