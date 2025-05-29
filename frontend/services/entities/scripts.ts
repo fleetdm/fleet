@@ -220,5 +220,11 @@ export default {
       "GET",
       `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`
     );
+    // return sendRequest(
+    //   "GET",
+    //   `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`
+    // ).then((r) => {
+    //   return { ...r, ran: 1, pending: 1, errored: 1 };
+    // });
   },
 };
