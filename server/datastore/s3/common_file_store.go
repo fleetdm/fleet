@@ -151,11 +151,15 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 			return nil
 		})
 	}
-	g.Wait()
+	err = g.Wait()
 
 	if len(errs) > 0 {
 		return deleted, ctxerr.Wrap(ctx, errors.Join(errs...), "errors occurred during S3 deletion")
 	}
+	if err != nil {
+		return deleted, ctxerr.Wrap(ctx, err, "errors occurred during S3 deletion")
+	}
+
 	return deleted, ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
 }
 
