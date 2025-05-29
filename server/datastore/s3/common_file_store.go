@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign"
@@ -132,17 +133,39 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 
 	deleted := 0
 	var errs []error
-	for _, obj := range toDeleteKeys {
-		_, err := s.s3client.DeleteObject(&s3.DeleteObjectInput{
-			Bucket: &s.bucket,
-			Key:    obj.Key,
-		})
+	var wg sync.WaitGroup
+	semaphore := make(chan struct{}, 10) // limit concurrency to 10
+	deletedCh := make(chan int, len(toDeleteKeys))
+	errCh := make(chan error, len(toDeleteKeys))
 
-		if err != nil {
-			errs = append(errs, ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel))
-		} else {
-			deleted++
-		}
+	for _, obj := range toDeleteKeys {
+		semaphore <- struct{}{}
+		wg.Add(1)
+		go func(obj *s3.ObjectIdentifier) {
+			defer wg.Done()
+			defer func() { <-semaphore }()
+
+			_, err := s.s3client.DeleteObject(&s3.DeleteObjectInput{
+				Bucket: &s.bucket,
+				Key:    obj.Key,
+			})
+			if err != nil {
+				errCh <- ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
+			} else {
+				deletedCh <- 1
+			}
+		}(obj)
+	}
+
+	wg.Wait()
+	close(deletedCh)
+	close(errCh)
+
+	for n := range deletedCh {
+		deleted += n
+	}
+	for err := range errCh {
+		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
 		return deleted, ctxerr.Wrap(ctx, errors.Join(errs...), "errors occurred during S3 deletion")
