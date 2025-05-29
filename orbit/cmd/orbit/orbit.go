@@ -68,9 +68,9 @@ const (
 	logErrorMissingDomainMsg     logError = "missing specified domain"
 
 	mTLSSCEPChallengeFlag   = "fleet-mtls-challenge"
-	mTLSSCEPChallengeEnvVar = "FLEET_MTLS_CHALLENGE"
+	mTLSSCEPChallengeEnvVar = "ORBIT_FLEET_MTLS_CHALLENGE"
 	mTLSSCEPUrlFlag         = "fleet-mtls-scep-url"
-	mTLSSCEPUrlEnvVar       = "FLEET_MTLS_SCEP_URL"
+	mTLSSCEPUrlEnvVar       = "ORBIT_FLEET_MTLS_SCEP_URL"
 )
 
 func main() {
