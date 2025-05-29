@@ -12,6 +12,7 @@ interface IScriptBatchHostCountCellProps {
   status: string;
   count: number;
   onClickCancel: () => void;
+  teamId?: number;
 }
 
 const ScriptBatchHostCountCell = ({
@@ -19,10 +20,12 @@ const ScriptBatchHostCountCell = ({
   status,
   count,
   onClickCancel,
+  teamId,
 }: IScriptBatchHostCountCellProps) => {
   const hostPath = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
     script_batch_execution_status: status,
     script_batch_execution_id: batchExecutionId,
+    team_id: teamId,
   })}`;
 
   const renderCount = () => {

@@ -45,7 +45,8 @@ type IHostCellProps = INumberCellProps<IRowData>;
 
 export const generateTableConfig = (
   batchExecutionId: string,
-  onClickCancel: () => void
+  onClickCancel: () => void,
+  teamId?: number
 ): IColumnConfig[] => {
   return [
     {
@@ -74,6 +75,7 @@ export const generateTableConfig = (
             status={cell.row.original.status}
             batchExecutionId={batchExecutionId}
             onClickCancel={onClickCancel}
+            teamId={teamId}
           />
         );
       },

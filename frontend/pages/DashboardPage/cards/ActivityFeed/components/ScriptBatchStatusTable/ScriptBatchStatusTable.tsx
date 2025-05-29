@@ -21,8 +21,12 @@ const ScriptBatchStatusTable = ({
   onClickCancel,
 }: IScriptBatchStatusTableProps) => {
   const columnConfigs = useMemo(() => {
-    return generateTableConfig(batchExecutionId, onClickCancel);
-  }, [batchExecutionId, onClickCancel]);
+    return generateTableConfig(
+      batchExecutionId,
+      onClickCancel,
+      statusData.team_id
+    );
+  }, [batchExecutionId, onClickCancel, statusData.team_id]);
   const tableData = generateTableData(statusData);
 
   return (
