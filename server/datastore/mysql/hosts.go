@@ -1196,7 +1196,9 @@ func (ds *Datastore) applyHostFilters(
 			case fleet.BatchScriptExecutionRan:
 				batchScriptExecutionIDFilter += ` AND hsr.exit_code = 0`
 			case fleet.BatchScriptExecutionPending:
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 0 AND bsehr.error IS NULL`
+				// Pending can mean "waiting for execution" or "waiting for results".
+				batchScriptExecutionJoin += ` LEFT JOIN upcoming_activities ua ON ua.execution_id = bsehr.host_execution_id`
+				batchScriptExecutionIDFilter += ` AND ((ua.execution_id IS NOT NULL) OR (hsr.host_id is NOT NULL AND hsr.exit_code IS NULL AND hsr.canceled = 0 AND bsehr.error IS NULL))`
 			case fleet.BatchScriptExecutionErrored:
 				// TODO - remove exit code condition when we split up "errored" and "failed"
 				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL OR hsr.exit_code > 0`
@@ -1290,7 +1292,7 @@ func (ds *Datastore) applyHostFilters(
 	params := selectParams
 	params = append(params, joinParams...)
 	params = append(params, whereParams...)
-
+	fmt.Println(sqlStmt)
 	return sqlStmt, params, nil
 }
 
