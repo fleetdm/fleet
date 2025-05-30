@@ -17,7 +17,6 @@ module.exports = {
       description: 'The URL of the Fleet server that this Android enterprise exists on.',
       unique: true,
       required: true,
-      required: true,
     },
 
     fleetLicenseKey: {
