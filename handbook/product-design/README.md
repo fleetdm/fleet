@@ -175,6 +175,9 @@ Ensure the interview process follows these steps in order. This process must fol
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
+### Confirm and celebrate
+
+Product Designers (PD) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
 
 ## Rituals
 <rituals :rituals="rituals['handbook/product-design/product-design.rituals.yml']"></rituals>
