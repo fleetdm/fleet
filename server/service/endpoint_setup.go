@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	starterLibraryURL = "https://raw.githubusercontent.com/fleetdm/fleet/246aacdab80a93bbd6d0115f64bc41be4cf0f181/docs/01-Using-Fleet/starter-library/starter-library.yml"
+	starterLibraryURL = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/starter-library/starter-library.yml"
 	scriptsBaseURL    = "https://raw.githubusercontent.com/fleetdm/fleet/main/"
 )
 
