@@ -186,7 +186,88 @@ Once disabled, hosts will not be reporting compliance status to Entra anymore.
 
 ## GitOps
 
-TODO(lucas)!
+Here's the full configuration that you can apply via GitOps.
+> It is only including the necessary keys for this integration.
+
+`default.yml`:
+```yml
+labels:
+- description: Company Portal is installed on the host and configured to log in to
+    Entra using the Platform SSO extension (which must be deployed via configuration
+    profiles).
+  label_membership_type: dynamic
+  name: Company Portal installed and configured
+  platform: darwin
+  query: |-
+    SELECT 1 WHERE EXISTS (
+      SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac'
+    ) AND EXISTS (
+      SELECT 1 FROM managed_policies WHERE value = 'com.microsoft.CompanyPortalMac.ssoextension'
+    );
+org_settings:
+  integrations:
+    conditional_access_enabled: true # enables setting for "No team"
+```
+
+`teams/team-name.yml` (should be the same for `teams/no-team.yml` with the `team_settings` removed):
+```yml
+team_settings:
+  integrations:
+    conditional_access_enabled: true
+controls:
+  macos_settings:
+    custom_settings:
+    - path: ../lib/team-name/profiles/company-portal-single-signon-extension.mobileconfig
+policies:
+- calendar_events_enabled: false
+  conditional_access_enabled: true
+  critical: false
+  description: Example description for compliance policy 2
+  name: Compliance check policy 2
+  platform: darwin
+  query: SELECT * FROM osquery_info WHERE start_time < 0;
+  resolution: Resolution steps for this policy
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: Policy triggers automatic install of Company Portal on each host that's
+    missing this software.
+  install_software:
+    hash_sha256: 931db4af2fe6320a1bfb6776fae75b6f7280a947203a5a622b2cae00e8f6b6e6
+      # Company Portal (CompanyPortal-Installer.pkg) version 5.2504.0
+  name: '[Install software] Company Portal (pkg)'
+  platform: darwin
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';
+  resolution:
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This policy checks that the user has signed to Entra on the host using
+    the Company Portal application (using the flow for Conditional access).
+  labels_include_any:
+  - Company Portal installed and configured
+  name: Company Portal sign in
+  platform: darwin
+  query: |-
+    -- Checks if the user has logged in to Entra on this host (Fleet requires the Device ID and User Principal Name to be able to mark devices as compliant/non-compliant).
+    SELECT 1 FROM (SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' LIMIT 1)
+    CROSS JOIN (SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1);
+  resolution: The script associated with this policy will open the Company Portal
+    application in the correct mode for Conditional access.
+  run_script:
+    path: ../lib/team-name/scripts/user-enroll-entra-company-portal.sh
+software:
+  packages:
+  - hash_sha256: 931db4af2fe6320a1bfb6776fae75b6f7280a947203a5a622b2cae00e8f6b6e6
+      # Company Portal (CompanyPortal-Installer.pkg) version 5.2504.0
+    install_script:
+      path: ../lib/team-name/scripts/company-portal-darwin-install
+    uninstall_script:
+      path: ../lib/team-name/scripts/company-portal-darwin-uninstall
+```
+
+`lib/team-name/scripts/user-enroll-entra-company-portal.sh`: See [Create script](#create-script).
+`lib/team-name/profiles/company-portal-single-signon-extension.mobileconfig`: See [Configure profile](#configure-profile).
 
 <meta name="articleTitle" value="Entra conditional access integration">
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">

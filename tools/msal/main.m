@@ -4,7 +4,7 @@
 void run(void) {
         NSError *error = nil;
         MSALPublicClientApplicationConfig *config = [[MSALPublicClientApplicationConfig alloc]
-            initWithClientId:@"d6f479f6-9b7c-459d-baa4-9146b15e93bb"
+            initWithClientId:@"<CLIENT_ID>"
             redirectUri:nil
             authority:nil];
 
