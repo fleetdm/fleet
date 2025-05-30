@@ -150,7 +150,7 @@
       "ndes_scep_proxy": null,
       "custom_scep_proxy": null,
       "digicert": null,
-      "conditional_access_enabled": false
+      "conditional_access_enabled": null
     },
     "update_interval": {
       "osquery_detail": "1h0m0s",

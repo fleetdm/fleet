@@ -24,7 +24,7 @@
 				"jira": null,
 				"zendesk": null,
 				"google_calendar": null,
-				"conditional_access_enabled": false
+				"conditional_access_enabled": null
 			},
 			"features": {
 				"enable_host_users": true,
@@ -108,7 +108,7 @@
 				"jira": null,
 				"zendesk": null,
 				"google_calendar": null,
-				"conditional_access_enabled": false
+				"conditional_access_enabled": null
 			},
 			"features": {
 				"enable_host_users": false,
