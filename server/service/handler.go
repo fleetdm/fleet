@@ -72,7 +72,7 @@ func WithLoginRateLimit(r throttled.Rate) ExtraHandlerOption {
 	}
 }
 
-// WithMdmSsoRateLimit configures the rate limit for the SSO endpoints (falls back to login rate limit otherwise).
+// WithMdmSsoRateLimit configures the rate limit for the MDM SSO endpoints (falls back to login rate limit otherwise).
 func WithMdmSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.mdmSsoRateLimit = &r
