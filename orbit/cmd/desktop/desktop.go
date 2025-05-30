@@ -140,7 +140,21 @@ func main() {
 	const checkInterval = 5 * time.Minute
 	summaryTicker := time.NewTicker(checkInterval)
 
+	// we have seen some cases where systray.Run() does not call onReady seemingly due to early
+	// initialization states with the GUI such as Windows Autopilot first time setup. This ensures
+	// we don't just hang forever waiting for the GUI to be ready.
+	trayAppDisplayed := make(chan struct{})
+	go func() {
+		select {
+		case <-trayAppDisplayed:
+			// The tray app is ready and displayed so there is nothing to do
+		case <-time.After(1 * time.Minute):
+			log.Fatal().Msg("onReady was never called - the GUI may not yet be ready")
+		}
+	}()
+
 	onReady := func() {
+		close(trayAppDisplayed)
 		log.Info().Msg("ready")
 
 		systray.SetTooltip("Fleet Desktop")
@@ -428,9 +442,9 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					openURL := client.BrowserDeviceURL(tokenReader.GetCached())
+					openURL := client.BrowserPoliciesURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
-						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
+						log.Error().Err(err).Str("url", openURL).Msg("open browser policies")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
 					summaryTicker.Reset(1 * time.Millisecond)

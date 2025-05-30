@@ -14,7 +14,8 @@ type ModifyLabelPayload struct {
 	// valid for manual labels. If it is nil (not just len() == 0, but == nil),
 	// then the list of hosts is not modified. If it is not nil and len == 0,
 	// then all members are removed.
-	Hosts []string `json:"hosts"`
+	Hosts   []string `json:"hosts"`
+	HostIDs []uint   `json:"host_ids"`
 }
 
 type LabelPayload struct {
@@ -30,7 +31,8 @@ type LabelPayload struct {
 	// supported by HostByIdentifier) that are part of the label. This defines a
 	// manual label. Can be empty for a manual label that doesn't target any
 	// host. Must be empty for a dynamic label.
-	Hosts []string `json:"hosts"`
+	Hosts   []string `json:"hosts"`
+	HostIDs []uint   `json:"host_ids"`
 }
 
 // LabelType is used to catagorize the kind of label

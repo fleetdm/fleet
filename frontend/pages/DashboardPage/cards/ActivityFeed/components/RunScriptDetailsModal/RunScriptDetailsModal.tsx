@@ -20,12 +20,9 @@ interface IScriptContentProps {
 
 const ScriptContent = ({ content }: IScriptContentProps) => {
   return (
-    <div className={`${baseClass}__script-content`}>
-      <span>Script content:</span>
-      <Textarea className={`${baseClass}__script-content-textarea`}>
-        {content}
-      </Textarea>
-    </div>
+    <Textarea label="Script content:" variant="code">
+      {content}
+    </Textarea>
   );
 };
 
@@ -122,40 +119,35 @@ const StatusMessage = ({
 interface IScriptOutputProps {
   output: string;
   hostname: string;
+  wasAdHoc: boolean;
 }
 
-const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
-  return (
-    <div className={`${baseClass}__script-output`}>
-      <p>
-        The{" "}
-        <TooltipWrapper
-          tipContent="Fleet records the last 10,000 characters to prevent downtime."
-          tooltipClass={`${baseClass}__output-tooltip`}
-          isDelayed
-        >
-          output recorded
-        </TooltipWrapper>{" "}
-        when <b>{hostname}</b> ran the script above:
-      </p>
-      <Textarea className={`${baseClass}__output-textarea`}>{output}</Textarea>
-    </div>
-  );
-};
-
-interface IScriptResultProps {
-  hostname: string;
-  output: string;
-}
-
-const ScriptResult = ({ hostname, output }: IScriptResultProps) => {
-  return (
-    <div className={`${baseClass}__script-result`}>
-      <ScriptOutput output={output} hostname={hostname} />
-    </div>
-  );
-};
-
+const ScriptOutput = ({
+  output,
+  hostname,
+  wasAdHoc = false,
+}: IScriptOutputProps) => (
+  <div className={`${baseClass}__script-result`}>
+    <Textarea
+      label={
+        <>
+          The{" "}
+          <TooltipWrapper
+            tipContent="Fleet records the last 10,000 characters to prevent downtime."
+            tooltipClass={`${baseClass}__output-tooltip`}
+            isDelayed
+          >
+            output recorded
+          </TooltipWrapper>{" "}
+          when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
+        </>
+      }
+      variant="code"
+    >
+      {output}
+    </Textarea>
+  </div>
+);
 interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;
@@ -208,6 +200,7 @@ const RunScriptDetailsModal = ({
         data.exit_code === null && data.host_timeout === false;
       const showOutputText =
         !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
+      const ranAdHocScript = data.script_id === null;
 
       content = (
         <>
@@ -216,9 +209,13 @@ const RunScriptDetailsModal = ({
             exitCode={data.exit_code}
             message={data.output}
           />
-          <ScriptContent content={data.script_contents} />
+          {ranAdHocScript && <ScriptContent content={data.script_contents} />}
           {showOutputText && (
-            <ScriptResult hostname={data.hostname} output={data.output} />
+            <ScriptOutput
+              hostname={data.hostname}
+              output={data.output}
+              wasAdHoc={ranAdHocScript}
+            />
           )}
         </>
       );
@@ -237,11 +234,7 @@ const RunScriptDetailsModal = ({
   const renderFooter = () => (
     <ModalFooter
       isTopScrolling={isTopScrolling}
-      primaryButtons={
-        <Button onClick={onCancel} variant="brand">
-          Done
-        </Button>
-      }
+      primaryButtons={<Button onClick={onCancel}>Done</Button>}
     />
   );
   return (

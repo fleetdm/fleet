@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net"
 	"net/smtp"
 	"strings"
@@ -77,7 +78,13 @@ func getMessageBody(e fleet.Email, f fromFunc) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain from address: %w", err)
 	}
-	msg := []byte(subject + from + mime + content + "\r\n" + string(body) + "\r\n")
+	to := ""
+	if len(e.To) == 1 {
+		to = "To: " + e.To[0] + "\r\n"
+	} else if len(e.To) > 1 {
+		to = "To: undisclosed-recipients\r\n"
+	}
+	msg := []byte(subject + from + to + mime + content + "\r\n" + string(body) + "\r\n")
 	return msg, nil
 }
 
@@ -238,7 +245,11 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	}
 
 	if err := client.Quit(); err != nil {
-		return fmt.Errorf("error on client quit: %w", err)
+		// Ignore EOF errors on quit, which can happen if the server
+		// closes the connection after the message is sent.
+		if !errors.Is(err, io.EOF) {
+			return fmt.Errorf("error on client quit: %w", err)
+		}
 	}
 	return nil
 }

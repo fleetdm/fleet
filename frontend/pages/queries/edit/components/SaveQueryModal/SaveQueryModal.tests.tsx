@@ -7,6 +7,7 @@ import createMockConfig from "__mocks__/configMock";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import mockServer from "test/mock-server";
+import { QueryablePlatform } from "interfaces/platform";
 
 import SaveQueryModal from "./SaveQueryModal";
 
@@ -47,6 +48,12 @@ describe("SaveQueryModal", () => {
     backendValidators: {},
     existingQuery: mockQuery,
     queryReportsDisabled: false,
+    platformSelector: {
+      getSelectedPlatforms: () => ["linux"] as QueryablePlatform[],
+      setSelectedPlatforms: jest.fn(),
+      isAnyPlatformSelected: true,
+      render: () => <></>,
+    },
   };
 
   it("renders the modal with initial values and allows editing", async () => {
@@ -65,7 +72,7 @@ describe("SaveQueryModal", () => {
 
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
     expect(screen.getByLabelText("Description")).toBeInTheDocument();
-    expect(screen.getByText("Frequency")).toBeInTheDocument();
+    expect(screen.getByText("Interval")).toBeInTheDocument();
     expect(screen.getByText("Observers can run")).toBeInTheDocument();
     expect(screen.getByText("Automations off")).toBeInTheDocument();
     expect(screen.getByText("Show advanced options")).toBeInTheDocument();
@@ -92,13 +99,10 @@ describe("SaveQueryModal", () => {
     const advancedOptionsButton = screen.getByText("Show advanced options");
     await user.click(advancedOptionsButton);
 
-    expect(screen.getByText("Platforms")).toBeInTheDocument();
     expect(screen.getByText("Minimum osquery version")).toBeInTheDocument();
     expect(screen.getByText("Logging")).toBeInTheDocument();
 
     await user.click(advancedOptionsButton);
-
-    expect(screen.queryByText("Platforms")).not.toBeInTheDocument();
   });
 
   it("displays error when query name is empty", async () => {
@@ -139,6 +143,76 @@ describe("SaveQueryModal", () => {
 
     // Check that the target selector is not present.
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+  });
+
+  it("should disable the save button in when no platforms are selected", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: false,
+          isGlobalAdmin: true,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: false,
+          isSandboxMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const props = {
+      ...defaultProps,
+      platformSelector: {
+        getSelectedPlatforms: () => [] as QueryablePlatform[],
+        setSelectedPlatforms: jest.fn(),
+        isAnyPlatformSelected: false,
+        render: () => <></>,
+      },
+    };
+
+    render(<SaveQueryModal {...props} />);
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).toBeDisabled();
+  });
+
+  it("should send platforms when saving a new query", async () => {
+    const saveQuery = jest.fn();
+    const props = {
+      ...defaultProps,
+      platformSelector: {
+        getSelectedPlatforms: () => ["linux", "macos"] as QueryablePlatform[],
+        setSelectedPlatforms: jest.fn(),
+        isAnyPlatformSelected: true,
+        render: () => <></>,
+      },
+      saveQuery,
+    };
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: false,
+          isGlobalAdmin: true,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: false,
+          isSandboxMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+    render(<SaveQueryModal {...props} />);
+    await waitFor(() => {
+      expect(screen.getByLabelText("Name")).toBeInTheDocument();
+    });
+    // Set a name.
+    await userEvent.type(screen.getByLabelText("Name"), "A Brand New Query!");
+    // Set a label.
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(saveQuery.mock.calls[0][0].platform).toEqual("linux,macos");
   });
 
   describe("in premium tier", () => {

@@ -53,3 +53,13 @@
     margin: 0;
   }
 }
+
+.sql-editor,
+.sql-editor * {
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+.sql-editor .ace_editor {
+  font-family: "SourceCodePro", monospace !important;
+}

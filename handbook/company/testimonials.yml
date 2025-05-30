@@ -166,7 +166,14 @@
   youtubeVideoUrl: https://www.youtube.com/watch?v=nRbZJflWqCo
   productCategories: [Observability]
 -
-  quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first.
+  quote: I’m a huge fan of Fleet and their approach to GitOps. # https://www.linkedin.com/posts/mathewcarr_gitops-for-device-management-activity-7306101943301455872-4cTx
+  quoteAuthorName: Matt Carr
+  quoteAuthorJobTitle: CPE manager
+  quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/mathewcarr/
+  productCategories: [Observability]
+-
+  quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first. Thanks for making our lives easier. We got a pat on the back for making the migration so easy! 
   quoteAuthorName: Matt Carr
   quoteAuthorJobTitle: CPE manager
   quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
@@ -252,3 +259,10 @@
   quoteAuthorProfileImageFilename: testimonial-author-bart-reardon-48x48@2x.png
   quoteAuthorJobTitle: Creator of swiftDialog
   productCategories: [Device management, Observability]
+-
+  quote: If I needed a single pane of glass for all OS endpoints, starting fresh, I'd push for the paid version of FleetDM.
+  quoteLinkUrl: https://www.reddit.com/r/Intune/comments/1jkzxyl/comment/mk02c2k/
+  quoteAuthorName: u/Heteronymous
+  quoteAuthorJobTitle: Redditor
+  quoteAuthorProfileImageFilename: testimonial-author-redditor-48x48@2x.png  
+  productCategories: [Device management]

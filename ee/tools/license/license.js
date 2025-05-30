@@ -16,6 +16,7 @@ const generate = (argv) => {
     devices,
     note,
     tier,
+    allowDisableTelemetry,
   } = argv;
 
   const unixExpiration = Math.floor(expiration / 1000);
@@ -30,6 +31,7 @@ const generate = (argv) => {
     devices,
     note,
     tier,
+    notel: allowDisableTelemetry,
   };
   console.log(
     jwt.sign(
@@ -89,6 +91,11 @@ yargs(hideBin(process.argv))
           description: "License tier",
           default: "premium",
           type: "string",
+        },
+        "allow-disable-telemetry": {
+          description: "Allow customer to disable telemetry",
+          type: "boolean",
+          default: false,
         },
       });
     },

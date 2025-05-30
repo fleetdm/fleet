@@ -15,6 +15,7 @@ const baseClass = "upcoming-activity-feed";
 interface IUpcomingActivityFeedProps {
   activities?: IHostUpcomingActivitiesResponse;
   isError?: boolean;
+  canCancelActivities: boolean;
   onShowDetails: ShowActivityDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
   onNextPage: () => void;
@@ -24,13 +25,14 @@ interface IUpcomingActivityFeedProps {
 const UpcomingActivityFeed = ({
   activities,
   isError = false,
+  canCancelActivities,
   onShowDetails,
   onCancel,
   onNextPage,
   onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
   if (isError) {
-    return <DataError />;
+    return <DataError verticalPaddingSize="pad-large" />;
   }
 
   if (!activities) {
@@ -57,11 +59,11 @@ const UpcomingActivityFeed = ({
             upcomingActivityComponentMap[activity.type];
           return (
             <ActivityItemComponent
-              key={activity.id}
+              key={activity.uuid}
               tab="upcoming"
               activity={activity}
               onShowDetails={onShowDetails}
-              hideCancel // TODO: remove this when canceling is implemented in API
+              hideCancel={!canCancelActivities}
               onCancel={() => onCancel(activity)}
             />
           );

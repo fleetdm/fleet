@@ -4,7 +4,7 @@ import { Meta, StoryObj } from "@storybook/react";
 import DataError from "./DataError";
 
 const meta: Meta<typeof DataError> = {
-  title: "Components/DataError",
+  title: "Components/Error Messages/Data error",
   component: DataError,
 };
 

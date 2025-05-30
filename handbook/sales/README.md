@@ -13,8 +13,8 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/74) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
@@ -66,18 +66,19 @@ Reseller partners occasionally reach out and ask Fleet for a quote on behalf of 
 
 ### Send an order form
 
-In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form the Fleet owner of the opportunity (usually AE or CSM) will: 
+In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 🌐 [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
 
 1. Navigate to the Salesforce opportunity and click the "Create a subscription order form" link (top-right corner of the op page) to copy the "[TEMPLATE - Order form](https://docs.google.com/document/u/0/?tgif=d&ftv=1). 
 2. Move the order for to the "[Contract drafts](https://drive.google.com/drive/u/0/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c)" folder in Google Drive.
 3. Edit the order form to be specific to the customer (e.g. add/remove table rows as needed for multi-year deals). Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask Digital Experience for help.
 
-> **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for approval.
 
-4. In the internal Slack channel for the deal, at-mention the CRO and the Head of Digital Experience with a link to the docx version of the order and ask them to approve the order form.
+> **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (#g-digital-experience)"](https://github.com/orgs/fleetdm/projects/65) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
+
+4. In the internal Slack channel for the deal, @-mention the CRO and the Head of Digital Experience with a link to the docx version of the order and ask them to approve the order form.
 5. Once approved, copy the Google Doc URL to the "Order form URL" field on the Salesforce opportunity and send the order to the prospect. 
 
-> Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and closed lost. The review of these opportunities and exceptions for them of one (1) week or less are the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.
+> Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.
 
 
 ### Send an NDA to a customer

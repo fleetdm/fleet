@@ -5,22 +5,22 @@ Following are the currently deployed versions of fleetd components on the `stabl
 
 ## `stable`
 
-| Component\OS |    macOS     | Linux  | Windows | Linux (arm64) |
-|--------------|--------------|--------|---------|---------------|
-| orbit        | 1.40.1       | 1.40.1 | 1.40.1  | 1.40.1        |
-| desktop      | 1.40.1       | 1.40.1 | 1.40.1  | 1.40.1        |
-| osqueryd     | 5.16.0       | 5.16.0 | 5.16.0  | 5.16.0        |
-| nudge        | 1.1.10.81462 | -      | -       | -             |
-| swiftDialog  | 2.1.0        | -      | -       | -             |
-| escrowBuddy  | 1.0.0        | -      | -       | -             |
+| Component\OS |    macOS     | Linux  | Windows | Linux (arm64) | Windows (arm64) |
+|--------------|--------------|--------|---------|---------------|-----------------|
+| orbit        | 1.42.0       | 1.42.0 | 1.42.0  | 1.42.0        | 1.42.0          |
+| desktop      | 1.42.0       | 1.42.0 | 1.42.0  | 1.42.0        | 1.42.0          |
+| osqueryd     | 5.17.0       | 5.17.0 | 5.17.0  | 5.17.0        | 5.17.0          |
+| nudge        | 1.1.10.81462 | -      | -       | -             | -               |
+| swiftDialog  | 2.1.0        | -      | -       | -             | -               |
+| escrowBuddy  | 1.0.0        | -      | -       | -             | -               |
 
 ## `edge`
 
-| Component\OS | macOS  | Linux  | Windows | Linux (arm64) |
-|--------------|--------|--------|---------|---------------|
-| orbit        | 1.40.1 | 1.40.1 | 1.40.1  | 1.40.1        |
-| desktop      | 1.40.1 | 1.40.1 | 1.40.1  | 1.40.1        |
-| osqueryd     | 5.16.0 | 5.16.0 | 5.16.0  | 5.16.0        |
-| nudge        | -      | -      | -       | -             |
-| swiftDialog  | -      | -      | -       | -             |
-| escrowBuddy  | -      | -      | -       | -             |
+| Component\OS | macOS  | Linux  | Windows | Linux (arm64) | Windows (arm64) |
+|--------------|--------|--------|---------|---------------|-----------------|
+| orbit        | 1.42.0 | 1.42.0 | 1.42.0  | 1.42.0        | 1.42.0          |
+| desktop      | 1.42.0 | 1.42.0 | 1.42.0  | 1.42.0        | 1.42.0          |
+| osqueryd     | 5.17.0 | 5.17.0 | 5.17.0  | 5.17.0        | 5.17.0          |
+| nudge        | -      | -      | -       | -             | -               |
+| swiftDialog  | -      | -      | -       | -             | -               |
+| escrowBuddy  | -      | -      | -       | -             | -               |

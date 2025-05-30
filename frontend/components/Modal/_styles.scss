@@ -38,21 +38,7 @@
   }
 
   &__ex {
-    text-decoration: none;
-
-    &:hover {
-      .icon {
-        svg {
-          path {
-            stroke: $core-vibrant-blue;
-          }
-        }
-      }
-    }
-
-    .button {
-      padding: $pad-small;
-    }
+    height: 32px;
   }
 
   &__header {
@@ -63,6 +49,7 @@
     border-bottom: 1px solid $ui-fleet-black-10;
     display: flex;
     justify-content: space-between;
+    min-height: 37px;
 
     span {
       overflow: hidden;

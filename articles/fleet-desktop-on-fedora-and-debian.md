@@ -8,12 +8,10 @@ This article aims to explain how admins can enable Fleet Desktop on such Linux d
 
 ## Policy and script execution
 
-The [fedora-debian-check-fleet-desktop.yml](../it-and-security/lib/linux/policies/fedora-debian-check-fleet-desktop.yml) policy (used in our Dogfood environment) can be used to check if the extension needed for Fleet Desktop is installed and enabled on Fedora and Debian hosts.
+The policy query defined in [check-fleet-desktop-extension-fedora-debian.yml](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml) (from our Dogfood environment) checks if the extension needed for Fleet Desktop is installed and enabled on Fedora and Debian hosts.
 > NOTE: fleetd 1.41.0 is required (the policy query relies on a table added to that version).
 
-Starting in version v4.58.0, Fleet supports running scripts to remediate failing policies (see the [Automatically run scripts](./policy-automation-run-script.md) article for more information). Admins can therefore configure Fleet to run [fedora-debian-enable-fleet-desktop.sh](../it-and-security/lib/linux/scripts/fedora-debian-enable-fleet-desktop.sh) on devices where the policy detects the extension is missing.
-
-[Here](../it-and-security/lib/linux/policies/fedora-debian-check-fleet-desktop.yml)'s the full example (policy + script) we use in our GitOps configuration for our Dogfood environment.
+Starting in version v4.58.0, Fleet supports running scripts to remediate failing policies (see the [Automatically run scripts](./policy-automation-run-script.md) article for more information). Admins can therefore configure Fleet to run [install-fleet-desktop-required-extension.sh](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/scripts/install-fleet-desktop-required-extension.sh) on devices where the policy detects the extension is missing ([check-fleet-desktop-extension-fedora-debian.yml](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml) contains both the policy and remediation script).
 
 ### End-user experience
 

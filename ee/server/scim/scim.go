@@ -1,9 +1,12 @@
 package scim
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 
 	"github.com/elimity-com/scim"
 	"github.com/elimity-com/scim/errors"
@@ -18,7 +21,7 @@ import (
 )
 
 const (
-	maxResults = 1000
+	maxResults = 100
 )
 
 func RegisterSCIM(
@@ -30,6 +33,8 @@ func RegisterSCIM(
 	config := scim.ServiceProviderConfig{
 		DocumentationURI: optional.NewString("https://fleetdm.com/docs/get-started/why-fleet"),
 		MaxResults:       maxResults,
+		SupportFiltering: true,
+		SupportPatch:     true,
 	}
 
 	// The common attributes are id, externalId, and meta.
@@ -52,10 +57,12 @@ func RegisterSCIM(
 					schema.SimpleStringParams(schema.StringParams{
 						Description: optional.NewString("The family name of the User, or last name in most Western languages (e.g., 'Jensen' given the full name 'Ms. Barbara J Jensen, III')."),
 						Name:        "familyName",
+						Required:    true,
 					}),
 					schema.SimpleStringParams(schema.StringParams{
 						Description: optional.NewString("The given name of the User, or first name in most Western languages (e.g., 'Barbara' given the full name 'Ms. Barbara J Jensen, III')."),
 						Name:        "givenName",
+						Required:    true,
 					}),
 				},
 			}),
@@ -100,6 +107,11 @@ func RegisterSCIM(
 						Name:           "$ref",
 						ReferenceTypes: []schema.AttributeReferenceType{"Group"},
 					}),
+					schema.SimpleStringParams(schema.StringParams{
+						Description: optional.NewString("A human-readable name, primarily used for display purposes. READ-ONLY."),
+						Mutability:  schema.AttributeMutabilityReadOnly(),
+						Name:        "display",
+					}),
 				},
 			}),
 		},
@@ -126,18 +138,14 @@ func RegisterSCIM(
 						Mutability:  schema.AttributeMutabilityImmutable(),
 						Name:        "value",
 					}),
-					schema.SimpleReferenceParams(schema.ReferenceParams{
-						Description:    optional.NewString("The URI corresponding to a SCIM resource that is a member of this Group."),
-						Mutability:     schema.AttributeMutabilityImmutable(),
-						Name:           "$ref",
-						ReferenceTypes: []schema.AttributeReferenceType{"User"},
-					}),
 					schema.SimpleStringParams(schema.StringParams{
 						CanonicalValues: []string{"User"},
 						Description:     optional.NewString("A label indicating the type of resource, e.g., 'User' or 'Group'."),
 						Mutability:      schema.AttributeMutabilityImmutable(),
 						Name:            "type",
 					}),
+					// Note (2025/05/06): Microsoft does not properly support $ref attribute on group members
+					// https://learn.microsoft.com/en-us/answers/questions/1457148/scim-validator-patch-group-remove-member-test-comp
 				},
 			}),
 		},
@@ -190,6 +198,7 @@ func RegisterSCIM(
 		handler := http.StripPrefix(prefix, server)
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
+		handler = LastRequestMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
 		return handler
@@ -200,6 +209,61 @@ func RegisterSCIM(
 	mux.Handle("/api/v1/fleet/scim/", applyMiddleware("/api/v1/fleet/scim", server))
 	mux.Handle("/api/latest/fleet/scim/", applyMiddleware("/api/latest/fleet/scim", server))
 	return nil
+}
+
+// LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.
+// These details can be used as a debug tool by the Fleet admin to see if SCIM integration is working.
+func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		multi := newMultiResponseWriter(w)
+		next.ServeHTTP(multi, r)
+
+		var status, details string
+		switch {
+		case multi.statusCode == 0 || (multi.statusCode >= 200 && multi.statusCode < 300):
+			status = "success"
+		case multi.statusCode == http.StatusUnauthorized:
+			// We do not save unauthenticated error details; we simply log them.
+			level.Info(logger).Log(
+				"msg", "unauthenticated request",
+				"origin", r.Header.Get("Origin"),
+				"ip", r.RemoteAddr,
+				"method", r.Method,
+				"path", r.URL.Path,
+				"user-agent", r.UserAgent(),
+				"referer", r.Referer(),
+			)
+			return
+		case multi.statusCode >= 400:
+			status = "error"
+			// Attempt to parse the response body as a SCIM error.
+			var parsedScimError errors.ScimError
+			if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
+				details = parsedScimError.Detail
+			} else {
+				details = multi.body.String()
+			}
+			if multi.statusCode == errors.ScimErrorInvalidValue.Status && details == errors.ScimErrorInvalidValue.Detail &&
+				strings.Contains(r.URL.Path, "/Users") {
+				// We customize the error message here since we can't do it inside the 3rd party SCIM library.
+				details = `Missing required attributes. "userName", "givenName", and "familyName" are required. Please configure your identity provider to send required attributes to Fleet.`
+			}
+		default:
+			status = "error"
+			details = fmt.Sprintf("Unhandled status code: %d", multi.statusCode)
+			level.Error(logger).Log("msg", "unhandled status code", "status", multi.statusCode, "body", multi.body.String())
+		}
+		if len(details) > fleet.SCIMMaxFieldLength {
+			details = details[:fleet.SCIMMaxFieldLength]
+		}
+		err := ds.UpdateScimLastRequest(r.Context(), &fleet.ScimLastRequest{
+			Status:  status,
+			Details: details,
+		})
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to update last scim request", "err", err)
+		}
+	})
 }
 
 func AuthorizationMiddleware(authorizer *authz.Authorizer, logger kitlog.Logger, next http.Handler) http.Handler {
@@ -242,4 +306,44 @@ func (l *scimErrorLogger) Error(args ...interface{}) {
 	level.Error(l.Logger).Log(
 		"error", fmt.Sprint(args...),
 	)
+}
+
+type multiResponseWriter struct {
+	body       *bytes.Buffer
+	resp       http.ResponseWriter
+	multi      io.Writer
+	statusCode int
+}
+
+const maxBodyBufferSize = 32 * 1024 // 32K
+
+func newMultiResponseWriter(resp http.ResponseWriter) *multiResponseWriter {
+	body := &bytes.Buffer{}
+	multi := io.MultiWriter(body, resp)
+	return &multiResponseWriter{
+		body:  body,
+		resp:  resp,
+		multi: multi,
+	}
+}
+
+// multiResponseWriter implements http.ResponseWriter
+// https://golang.org/pkg/net/http/#ResponseWriter
+var _ http.ResponseWriter = &multiResponseWriter{}
+
+func (w *multiResponseWriter) Header() http.Header {
+	return w.resp.Header()
+}
+
+func (w *multiResponseWriter) Write(b []byte) (int, error) {
+	// Don't write large amounts of data to our temporary buffer
+	if w.body.Len()+len(b) > maxBodyBufferSize {
+		return w.resp.Write(b)
+	}
+	return w.multi.Write(b)
+}
+
+func (w *multiResponseWriter) WriteHeader(statusCode int) {
+	w.resp.WriteHeader(statusCode)
+	w.statusCode = statusCode
 }

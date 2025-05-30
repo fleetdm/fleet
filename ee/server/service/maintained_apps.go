@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,10 +13,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/go-kit/kit/log/level"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -145,7 +149,23 @@ func (svc *Service) AddFleetMaintainedApp(
 		ValidatedLabels:       validatedLabels,
 		AutomaticInstall:      automaticInstall,
 		AutomaticInstallQuery: app.AutomaticInstallQuery,
+		Categories:            app.Categories,
 	}
+
+	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
+	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "getting software category ids")
+	}
+
+	if len(catIDs) != len(payload.Categories) {
+		return 0, &fleet.BadRequestError{
+			Message:     "some or all of the categories provided don't exist",
+			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
+		}
+	}
+
+	payload.CategoryIDs = catIDs
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
@@ -180,6 +200,17 @@ func (svc *Service) AddFleetMaintainedApp(
 		LabelsExcludeAny: actLabelsExcl,
 	}); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
+	}
+
+	if automaticInstall && payload.AddedAutomaticInstallPolicy != nil {
+		policyAct := fleet.ActivityTypeCreatedPolicy{
+			ID:   payload.AddedAutomaticInstallPolicy.ID,
+			Name: payload.AddedAutomaticInstallPolicy.Name,
+		}
+
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for FMA", "err", err)
+		}
 	}
 
 	return titleID, nil

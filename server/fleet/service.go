@@ -473,6 +473,9 @@ type Service interface {
 	// License returns the licensing information.
 	License(ctx context.Context) (*LicenseInfo, error)
 
+	// PartnershipsConfig returns Fleet partnership-specific configuration
+	PartnershipsConfig(ctx context.Context) (*Partnerships, error)
+
 	// LoggingConfig parses config.FleetConfig instance and returns a Logging.
 	LoggingConfig(ctx context.Context) (*Logging, error)
 
@@ -605,7 +608,7 @@ type Service interface {
 	// CancelHostUpcomingActivity cancels an upcoming activity for the specified
 	// host. If the activity does not exist in the queue of upcoming activities
 	// (e.g. it did complete), it returns a not found error.
-	CancelHostUpcomingActivity(ctx context.Context, hostID uint, upcomingActivityID string) error
+	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
@@ -699,8 +702,9 @@ type Service interface {
 
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
-	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) error
-	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny []string) (*VPPAppStoreApp, error)
+	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID
+	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, error)
+	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, selfService bool, labelsIncludeAny, labelsExcludeAny, categories []string) (*VPPAppStoreApp, error)
 
 	// MDMAppleProcessOTAEnrollment handles OTA enrollment requests.
 	//
@@ -829,6 +833,16 @@ type Service interface {
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
+
+	// ReconcileMDMAppleEnrollRef reconciles the enrollment reference for the
+	// specified device. It performs several related tasks:
+	//
+	// 1. Checks given the enroll reference against MDM IdP accounts and associates the matching IdP
+	// account uuid to the given device UUID, if applicable.
+	//
+	// 2. Checks if the given device UUID has a legacy enrollment reference and returns the legacy
+	// enrollment reference, if applicable.
+	ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef string, machineInfo *MDMAppleMachineInfo) (string, error)
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
@@ -1107,6 +1121,14 @@ type Service interface {
 	// ResendHostMDMProfile resends the MDM profile to the host.
 	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
 
+	// BatchResendMDMProfileToHosts resends an MDM profile to the hosts that
+	// satisfy the specified filters.
+	BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters BatchResendMDMProfileFilters) error
+
+	// GetMDMConfigProfileStatus returns the number of hosts for each status of a
+	// single configuration profile.
+	GetMDMConfigProfileStatus(ctx context.Context, profileUUID string) (MDMConfigProfileStatus, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Execution
 
@@ -1153,6 +1175,11 @@ type Service interface {
 	// hosts with no team.
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) ([]ScriptResponse, error)
 
+	// BatchScriptExecute runs a script on many hosts. It creates and returns a batch execution ID
+	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error)
+
+	BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*BatchExecutionSummary, error)
+
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
@@ -1162,7 +1189,7 @@ type Service interface {
 	// Software installers
 	//
 
-	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) error
+	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
 	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error
 	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error)
@@ -1211,6 +1238,12 @@ type Service interface {
 
 	// CreateSecretVariables creates secret variables for scripts and profiles.
 	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// SCIM
+
+	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
+	ScimDetails(ctx context.Context) (ScimDetails, error)
 }
 
 type KeyValueStore interface {

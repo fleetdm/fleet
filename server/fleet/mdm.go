@@ -23,6 +23,28 @@ const (
 	// RefetchCriticalQueriesUntil field when migrating a device from a
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+
+	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
+	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
+	// Currently, we assume the variables are fully unique and not substrings of each other.
+	//
+	// NOTE: if you add new variables, make sure you create a DB migration to insert them
+	// in the fleet_variables table. At some point we should refactor those constants/regexp
+	// and the findFleetVariables logic to use the DB table instead of hardcoding them here
+	// (not doing it now because of time constraints to finish the story for the release).
+	FleetVarNDESSCEPChallenge               = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL                = "NDES_SCEP_PROXY_URL"
+	FleetVarHostEndUserEmailIDP             = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostHardwareSerial              = "HOST_HARDWARE_SERIAL"
+	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
+	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
+	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
+	FleetVarSCEPRenewalID                   = "SCEP_RENEWAL_ID"
+
+	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
+	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
+	FleetVarCustomSCEPChallengePrefix = "CUSTOM_SCEP_CHALLENGE_"
+	FleetVarCustomSCEPProxyURLPrefix  = "CUSTOM_SCEP_PROXY_URL_"
 )
 
 type AppleMDM struct {
@@ -153,6 +175,7 @@ func (e MDMEULA) AuthzType() string {
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
 type ExpectedMDMProfile struct {
+	ProfileUUID string `db:"profile_uuid"`
 	// Identifier is the unique identifier used by macOS profiles
 	Identifier string `db:"identifier"`
 	// Name is the unique name used by Windows profiles
@@ -942,4 +965,43 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+}
+
+// MDMProfileUUIDFleetVariables represents the Fleet variables used by a
+// profile identified by its UUID.
+type MDMProfileUUIDFleetVariables struct {
+	// ProfileUUID is the UUID of the profile.
+	ProfileUUID string
+	// FleetVariables is the (deduplicated) list of Fleet variables used by the
+	// profile, without the "FLEET_VAR_" prefix (as returned by
+	// findFleetVariables).
+	FleetVariables []string
+}
+
+// MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
+// profile identified by its identifier.
+type MDMProfileIdentifierFleetVariables struct {
+	// Identifier is the identifier of the profile (which is unique by team for
+	// Apple profiles).
+	Identifier string
+	// FleetVariables is the (deduplicated) list of Fleet variables used by the
+	// profile, without the "FLEET_VAR_" prefix (as returned by
+	// findFleetVariables).
+	FleetVariables []string
+}
+
+// BatchResendMDMProfileFilters represents the filters to apply to hosts for
+// batch-redelivery of an MDM profile.
+type BatchResendMDMProfileFilters struct {
+	ProfileStatus MDMDeliveryStatus
+}
+
+// MDMConfigProfileStatus represents the number of hosts in each status for a
+// given configuration profile. See MDMProfilesSummary for more information on
+// each status, this struct is the same except for a single profile.
+type MDMConfigProfileStatus struct {
+	Verified  uint `json:"verified" db:"verified"`
+	Verifying uint `json:"verifying" db:"verifying"`
+	Pending   uint `json:"pending" db:"pending"`
+	Failed    uint `json:"failed" db:"failed"`
 }

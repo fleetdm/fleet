@@ -227,7 +227,6 @@ const UserMenu = ({
       ...provided,
       padding: "10px 8px",
       fontSize: "15px",
-      borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
       color: COLORS["tooltip-bg"],
       whiteSpace: "nowrap",

@@ -3170,10 +3170,10 @@
     "@storybook/react-dom-shim" "8.4.7"
     "@storybook/theming" "8.4.7"
 
-"@storybook/test-runner@0.21.0":
-  version "0.21.0"
-  resolved "https://registry.yarnpkg.com/@storybook/test-runner/-/test-runner-0.21.0.tgz#31e7a6878e15a3f4d5555c57a135dd4d13fce9c4"
-  integrity sha512-aG2QvKXSIjMN1CA9PJK/esnidZWgt1gAkfo9Kqf8+NqBSsmP/2GyL5vxu1lkRFO/4qCv5JenNZ5Uj6ie4b2oag==
+"@storybook/test-runner@0.22.0":
+  version "0.22.0"
+  resolved "https://registry.yarnpkg.com/@storybook/test-runner/-/test-runner-0.22.0.tgz#0b7ca84f9140594a7f8da24fb9e839c97046b0d0"
+  integrity sha512-fKY6MTE/bcvMaulKXy+z0fPmRXJx1REkYMOMcGn8zn6uffyBigGgaVf/sZ+AZfibwvjzg/StWhJ9HvAM8pc14g==
   dependencies:
     "@babel/core" "^7.22.5"
     "@babel/generator" "^7.22.5"
@@ -3676,6 +3676,11 @@
   version "4.0.0"
   resolved "https://registry.npmjs.org/@types/parse-json/-/parse-json-4.0.0.tgz"
   integrity sha512-//oorEZjL6sbPcKUaCdIGlIUeH26mgzimjBB77G6XRgnDl/L5wOnpyBGRe/Mmf5CVW3PwEBE1NjiMZ/ssFh4wA==
+
+"@types/pegjs@^0.10.0":
+  version "0.10.6"
+  resolved "https://registry.yarnpkg.com/@types/pegjs/-/pegjs-0.10.6.tgz#bc20fc4809fed4cddab8d0dbee0e568803741a82"
+  integrity sha512-eLYXDbZWXh2uxf+w8sXS8d6KSoXTswfps6fvCUuVAGN8eRpfe7h9eSRydxiSJvo9Bf+GzifsDOr9TMQlmJdmkw==
 
 "@types/prettier@^2.1.5":
   version "2.7.1"
@@ -4266,12 +4271,7 @@ abab@^2.0.3, abab@^2.0.5, abab@^2.0.6:
   resolved "https://registry.yarnpkg.com/abab/-/abab-2.0.6.tgz#41b80f2c871d19686216b82309231cfd3cb3d291"
   integrity sha512-j2afSsaIENvHZN2B8GOpF566vZ5WVk5opAiMTvWgaQT8DkbOqsTfvNAvHoRGU2zzP8cPoqys+xHTRDWW8L+/BA==
 
-ace-builds@1.4.12:
-  version "1.4.12"
-  resolved "https://registry.npmjs.org/ace-builds/-/ace-builds-1.4.12.tgz"
-  integrity sha512-G+chJctFPiiLGvs3+/Mly3apXTcfgE45dT5yp12BcWZ1kUs+gm0qd3/fv4gsz6fVag4mM0moHVpjHDIgph6Psg==
-
-ace-builds@^1.4.6:
+ace-builds@1.4.14, ace-builds@^1.4.6:
   version "1.4.14"
   resolved "https://registry.npmjs.org/ace-builds/-/ace-builds-1.4.14.tgz"
   integrity sha512-NBOQlm9+7RBqRqZwimpgquaLeTJFayqb9UEPtTkpC3TkkwDnlsT/TwsCC0svjt9kEZ6G9mH5AEOHSz6Q/HrzQQ==
@@ -4876,6 +4876,11 @@ big-integer@^1.6.16:
   version "1.6.51"
   resolved "https://registry.npmjs.org/big-integer/-/big-integer-1.6.51.tgz"
   integrity sha512-GPEid2Y9QU1Exl1rpO9B2IPJGHPSupF5GnVIP0blYvNOMer2bTvSWs1jGOUg04hTmu67nmLsQ9TBo1puaotBHg==
+
+big-integer@^1.6.48:
+  version "1.6.52"
+  resolved "https://registry.yarnpkg.com/big-integer/-/big-integer-1.6.52.tgz#60a887f3047614a8e1bffe5d7173490a97dc8c85"
+  integrity sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==
 
 big.js@^5.2.2:
   version "5.2.2"
@@ -10701,6 +10706,14 @@ node-sass-magic-importer@^5.3.3:
     postcss-scss "^3.0.2"
     resolve "^1.17.0"
 
+node-sql-parser@5.3.8:
+  version "5.3.8"
+  resolved "https://registry.yarnpkg.com/node-sql-parser/-/node-sql-parser-5.3.8.tgz#b71db4cb80dc5302fc77d7b6ca3bcb269b2124bf"
+  integrity sha512-aqGTzK8kPJAwQ6tqdS0l+vX358LXMmZDw902ePfiPn3PSDsg2HeR2tHFioXNHJW00YHoic6VVYY80waFb/zdxw==
+  dependencies:
+    "@types/pegjs" "^0.10.0"
+    big-integer "^1.6.48"
+
 normalize-path@^3.0.0, normalize-path@~3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/normalize-path/-/normalize-path-3.0.0.tgz#0dcd69ff23a1c9b11fd0978316644a0388216a65"
@@ -12530,11 +12543,6 @@ sprintf-js@~1.0.2:
   version "1.0.3"
   resolved "https://registry.yarnpkg.com/sprintf-js/-/sprintf-js-1.0.3.tgz#04e6926f662895354f3dd015203633b857297e2c"
   integrity sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==
-
-sqlite-parser@1.0.1:
-  version "1.0.1"
-  resolved "https://registry.npmjs.org/sqlite-parser/-/sqlite-parser-1.0.1.tgz"
-  integrity sha1-EQGD8mgvBKxsfYrQnEREbvl21ew=
 
 stack-utils@^2.0.3:
   version "2.0.5"

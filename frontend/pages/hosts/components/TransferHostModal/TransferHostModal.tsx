@@ -104,7 +104,6 @@ const TransferHostModal = ({
             <Button
               disabled={selectedTeam === undefined}
               type="button"
-              variant="brand"
               onClick={onSubmitTransferHost}
               className="transfer-loading"
               isLoading={isUpdating}

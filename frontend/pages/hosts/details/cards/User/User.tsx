@@ -13,13 +13,13 @@ import Button from "components/buttons/Button";
 
 import UserValue from "./components/UserValue";
 import {
-  generateChromeProfilesValue,
+  generateChromeProfilesValues,
   generateUsernameValues,
   generateFullNameTipContent,
   generateFullNameValues,
   generateGroupsTipContent,
   generateGroupsValues,
-  generateOtherEmailsValue,
+  generateOtherEmailsValues,
 } from "./helpers";
 
 const baseClass = "user-card";
@@ -46,14 +46,15 @@ const User = ({
   const classNames = classnames(baseClass, className);
 
   const userNameDisplayValues = generateUsernameValues(endUsers);
-  const chromeProfilesDisplayValues = generateChromeProfilesValue(endUsers);
+  const chromeProfilesDisplayValues = generateChromeProfilesValues(endUsers);
+  const otherEmailsDisplayValues = generateOtherEmailsValues(endUsers);
 
   const endUser = endUsers[0];
   const showUsername = platform === "darwin";
   const showFullName = showUsername && userNameDisplayValues.length > 0;
   const showGroups = showUsername && userNameDisplayValues.length > 0;
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;
-  const showOtherEmails = endUser.other_emails.length > 0;
+  const showOtherEmails = otherEmailsDisplayValues.length > 0;
 
   return (
     <Card
@@ -130,7 +131,7 @@ const User = ({
                 Other emails
               </TooltipWrapper>
             }
-            value={<UserValue values={generateOtherEmailsValue(endUsers)} />}
+            value={<UserValue values={generateOtherEmailsValues(endUsers)} />}
           />
         )}
       </div>

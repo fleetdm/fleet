@@ -554,7 +554,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   return (
     <>
       {tableDataError ? (
-        <TableDataError />
+        <TableDataError verticalPaddingSize="pad-xxxlarge" />
       ) : (
         <TableContainer
           columnConfigs={tableHeaders}
@@ -566,7 +566,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           actionButton={{
             name: "add user",
             buttonText: "Add user",
-            onActionButtonClick: toggleAddUserModal,
+            onClick: toggleAddUserModal,
           }}
           onQueryChange={onTableQueryChange}
           resultsTitle="users"

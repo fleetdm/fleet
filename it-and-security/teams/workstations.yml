@@ -1,5 +1,13 @@
 name: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
 team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
+      enable_failing_policies_webhook: true
+      host_batch_size: 0
+      policy_ids:
+        - 14946
+        - 15329
   features:
     enable_host_users: true
     enable_software_inventory: true
@@ -59,7 +67,7 @@ controls:
       - path: ../lib/macos/declaration-profiles/software-update-settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
-          - "Macs with 1Password8 installed"
+          - "Macs with 1Password installed"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
@@ -70,8 +78,8 @@ controls:
       - package_path: ../lib/macos/software/1password.yml # 1Password for macOS
       - app_store_id: '803453959' # Slack Desktop
   macos_updates:
-    deadline: "2025-04-26"
-    minimum_version: "15.4"
+    deadline: "2025-06-08"
+    minimum_version: "15.5"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -107,9 +115,15 @@ queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
   packages:
-    - path: ../lib/macos/software/zoom.yml # Zoom for macOS
+    - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
     - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
+    - path: ../lib/macos/software/santa.yml # Santa for macOS
+    - path: ../lib/macos/software/zoom.yml # Zoom for macOS
+    - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
+    - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
+    - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
+    - path: ../lib/linux/software/slack-rpm.yml # Slack for RedHat
     - path: ../lib/windows/software/slack.yml # Slack for Windows
     - path: ../lib/windows/software/zoom-arm.yml # Zoom for Windows (ARM)
     - path: ../lib/windows/software/zoom.yml # Zoom for Windows (x86)
@@ -118,3 +132,31 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
+      self_service: true
+      categories:
+        - Communication
+        - Productivity
+    - app_store_id: '409183694' # Keynote
+      self_service: true
+  fleet_maintained_apps:
+    - slug: brave-browser/darwin # Brave for macOS (ARM)
+      self_service: true
+      labels_include_any:
+        - Apple Silicon macOS hosts
+    - slug: brave-browser/windows # Brave for Windows
+      self_service: true
+    - slug: docker/darwin # Docker for macOS (ARM)
+      self_service: true
+      labels_include_any:
+        - Apple Silicon macOS hosts
+    - slug: microsoft-edge/darwin # Microsoft Edge for macOS
+      self_service: true
+    - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
+      self_service: true
+      labels_include_any:
+        - Apple Silicon macOS hosts
+    - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
+      self_service: true
+      categories:
+        - Communication
+        - Productivity

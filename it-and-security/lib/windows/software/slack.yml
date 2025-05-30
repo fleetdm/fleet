@@ -1,4 +1,11 @@
-url: https://downloads.slack-edge.com/desktop-releases/windows/x64/4.42.120/SlackSetup.exe
+url: https://downloads.slack-edge.com/desktop-releases/windows/x64/4.44.60/SlackSetup.exe
 self_service: true
+categories:
+  - Productivity
+  - Communication
 labels_include_any:
   - "x86-based Windows hosts"
+install_script:
+  path: ../scripts/default-exe-install-script.ps1
+uninstall_script:
+  path: ../scripts/uninstall-slack.ps1

@@ -62,6 +62,36 @@ Create a new SAML app in Google Workspace:
 
 8. Enable SSO for a test user and try logging in. Note that Google sometimes takes a long time to propagate the SSO configuration, and it can help to try logging in to Fleet with an Incognito/Private window in the browser.
 
+## Entra
+Create a new SAML app in Microsoft Entra Admin Center:
+1. From the left sidebar, navigate to **Applications > Enterprise Applications**.
+2. At the top of the page, click **+ New Application**.
+3. On the next page, click **+ Create your own application** and enter the following.
+   - For **Input name**, enter `Fleet`.
+   - For **What are you looking to do with your application?**, select `Integrate any other application you don't find in the gallery (Non-gallery)`.
+   - Click **Create**.
+4. In your newly crated Fleet app, select **Single sign-on** from the menu on the left. Then, on the Single sign-on page, select **SAML**.
+5. Click the **Edit** button in the (1) Basic SAML Configuration Box.
+   - For **Identifier (Entity ID)**, click **Add identifier** and enter `fleet`.
+   - For **Reply URL (Assertion Consumer Service URL)**, enter `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+   - Click **Save**.
+6. In the **(3) SAML Certificates** box, click the copy button in the **App Federation Metadata Url** field.
+ ![The new SAML app's details page in Enta Admin Center](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-step-6.png)
+
+On your Fleet server: 
+1. Navigate to **Settings > Organization settings > Single sign-on options**.
+2. On the **Single sign-on options** page:
+   - Check the box to **Enable single sign-on**.
+   - For **Identity provider name**, enter `Entra`.
+   - For **Entity ID**, enter `fleet`.
+   - In the **Metadata URL** field, paste the URL that you copied from Entra in step 6 in the previous section.
+   - Click **Save**.
+
+ ![The configuration for the SSO connection in Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-fleet-config.png) 
+3. Enable SSO for a test user and try to log in with Entra.
+   
+
+
 ## authentik
 
 Fleet can be configured to use authentik as an identity provider. To continue, you will need to have an authentik instance hosted on an HTTPS domain, and an admin account.
@@ -109,7 +139,7 @@ After supplying the above information, your IdP will generate an issuer URI and 
 
 ## Fleet configuration
 
-To configure SSO in Fleet head to **Settings > Organization settings > Single sign-on options**.
+To configure SSO in Fleet head to **Settings > Integrations > Single sign-on (SSO)**.
 
 If you're configuring end user authentication head to **Settings > Integrations > Automatic enrollment > End user authentication**.
 
@@ -129,18 +159,22 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 `Applies only to Fleet Premium`
 
-When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. This removes the need to create individual user accounts for a large organization.
+Fleet automates user creation using just-in-time (JIT) provisioning. Fleet uses System for Cross-domain Identity Management (SCIM) to [map end users' identity provider (IdP) information to host vitals](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts). SCIM for user provisioning is coming soon.
+
+This section explains how JIT user provisioning works. With JIT, Fleet will automatically create a user account when someone logs in for the first time using your configured SSO. This removes the need to create individual user accounts for a large organization.
+
+When JIT user provisioning is turned on, Fleet will automatically create an account when a user logs in for the first time with the configured SSO.
 
 The new account's email and full name are copied from the user data in the SSO response.
 By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions).
-To assign different roles for accounts created via JIT provisioning see [Customization of user roles](#customization-of-user-roles) below.
+To assign different roles for accounts created via JIT provisioning, see [Customization of user roles](#customization-of-user-roles) below.
 
-To enable this option, go to **Settings > Organization settings > Single sign-on options** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
+To enable this option, go to **Settings > Integrations > Single sign-on (SSO)** and check "_Create user and sync permissions on login_" or [adjust your config](#sso-settings-enable-jit-provisioning).
 
 For this to work correctly make sure that:
 
 - Your IdP is configured to send the user email as the Name ID (instructions for configuring different providers are detailed below)
-- Your IdP sends the full name of the user as an attribute with any of the following names (if this value is not provided Fleet will fallback to the user email)
+- Your IdP sends the full name of the user as an attribute with any of the following names (if this value is not provided, Fleet will fall back to the user email)
   - `name`
   - `displayname`
   - `cn`

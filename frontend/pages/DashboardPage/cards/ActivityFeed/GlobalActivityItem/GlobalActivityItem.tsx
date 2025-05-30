@@ -17,22 +17,6 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 
 const baseClass = "global-activity-item";
 
-const PREMIUM_ACTIVITIES = new Set([
-  "created_team",
-  "deleted_team",
-  "applied_spec_team",
-  "changed_user_team_role",
-  "deleted_user_team_role",
-  "read_host_disk_encryption_key",
-  "enabled_macos_disk_encryption",
-  "disabled_macos_disk_encryption",
-  "enabled_macos_setup_end_user_auth",
-  "disabled_macos_setup_end_user_auth",
-  "tranferred_hosts",
-  "enabled_windows_mdm_migration",
-  "disabled_windows_mdm_migration",
-]);
-
 const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.RanScript,
   ActivityType.AddedSoftware,
@@ -47,6 +31,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.EditedActivityAutomations,
   ActivityType.LiveQuery,
   ActivityType.InstalledAppStoreApp,
+  ActivityType.RanScriptBatch,
 ]);
 
 const getProfileMessageSuffix = (
@@ -150,6 +135,9 @@ const TAGGED_TEMPLATES = {
     return typeof count === "undefined" || count === 1
       ? "edited a query using fleetctl."
       : "edited queries using fleetctl.";
+  },
+  editSoftwareCtlActivityTemplate: () => {
+    return "edited software using fleetctl.";
   },
   editTeamCtlActivityTemplate: (activity: IActivity) => {
     const count = activity.details?.teams?.length;
@@ -682,6 +670,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  ranScriptBatch: (activity: IActivity) => {
+    const { script_name, host_count } = activity.details || {};
+    return (
+      <>
+        {" "}
+        ran {formatScriptNameForActivityItem(script_name)} on {host_count}{" "}
+        hosts.
+      </>
+    );
+  },
   addedScript: (activity: IActivity) => {
     const scriptName = activity.details?.script_name;
     return (
@@ -887,6 +885,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resentConfigProfileBatch: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent the <b>{activity.details?.profile_name}</b> configuration profile{" "}
+        to {activity.details?.host_count}{" "}
+        {(activity.details?.host_count ?? 0) > 1 ? "hosts." : "host."}
+      </>
+    );
+  },
   addedSoftware: (activity: IActivity) => {
     return (
       <>
@@ -1086,6 +1094,79 @@ const TAGGED_TEMPLATES = {
   disabledAndroidMdm: () => {
     return <> turned off Android MDM.</>;
   },
+  configuredMSEntraConditionalAccess: () => (
+    <> configured Microsoft Entra conditional access.</>
+  ),
+  deletedMSEntraConditionalAccess: () => (
+    <> deleted Microsoft Entra conditional access configuration.</>
+  ),
+  enabledConditionalAccessAutomations: (activity: IActivity) => {
+    const teamName = activity.details?.team_name;
+    return (
+      <>
+        {" "}
+        enabled conditional access for{" "}
+        {teamName ? (
+          <>
+            {" "}
+            the <b>{teamName}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  disabledConditionalAccessAutomations: (activity: IActivity) => {
+    const teamName = activity.details?.team_name;
+    return (
+      <>
+        {" "}
+        disabled conditional access for{" "}
+        {teamName ? (
+          <>
+            {" "}
+            the <b>{teamName}</b> team
+          </>
+        ) : (
+          "no team"
+        )}
+        .
+      </>
+    );
+  },
+  canceledRunScript: (activity: IActivity) => {
+    const { script_name: scriptName, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled {formatScriptNameForActivityItem(scriptName)} on{" "}
+        <b>{hostName}</b>.
+      </>
+    );
+  },
+  canceledInstallSoftware: (activity: IActivity) => {
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> install on <b>{hostName}</b>.
+      </>
+    );
+  },
+  canceledUninstallSoftware: (activity: IActivity) => {
+    const { software_title: title, host_display_name: hostName } =
+      activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> uninstall on <b>{hostName}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1101,6 +1182,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AppliedSpecSavedQuery: {
       return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
+    }
+    case ActivityType.AppliedSpecSoftware: {
+      return TAGGED_TEMPLATES.editSoftwareCtlActivityTemplate();
     }
     case ActivityType.AppliedSpecTeam: {
       return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
@@ -1253,6 +1337,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);
     }
+    case ActivityType.RanScriptBatch: {
+      return TAGGED_TEMPLATES.ranScriptBatch(activity);
+    }
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);
     }
@@ -1297,6 +1384,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ResentConfigurationProfile: {
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.ResentConfigurationProfileBatch: {
+      return TAGGED_TEMPLATES.resentConfigProfileBatch(activity);
     }
     case ActivityType.AddedSoftware: {
       return TAGGED_TEMPLATES.addedSoftware(activity);
@@ -1345,6 +1435,28 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledAndroidMdm: {
       return TAGGED_TEMPLATES.disabledAndroidMdm();
+    }
+    case ActivityType.ConfiguredMSEntraConditionalAccess: {
+      return TAGGED_TEMPLATES.configuredMSEntraConditionalAccess();
+    }
+    case ActivityType.DeletedMSEntraConditionalAccess: {
+      return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.EnabledConditionalAccessAutomations: {
+      return TAGGED_TEMPLATES.enabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.DisabledConditionalAccessAutomations: {
+      return TAGGED_TEMPLATES.disabledConditionalAccessAutomations(activity);
+    }
+    case ActivityType.CanceledRunScript: {
+      return TAGGED_TEMPLATES.canceledRunScript(activity);
+    }
+    case ActivityType.CanceledInstallSoftware:
+    case ActivityType.CanceledInstallAppStoreApp: {
+      return TAGGED_TEMPLATES.canceledInstallSoftware(activity);
+    }
+    case ActivityType.CanceledUninstallSoftware: {
+      return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
     }
 
     default: {

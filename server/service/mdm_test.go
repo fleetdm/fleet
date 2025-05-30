@@ -278,7 +278,7 @@ func TestVerifyMDMWindowsConfigured(t *testing.T) {
 	}
 
 	err := svc.VerifyMDMWindowsConfigured(ctx)
-	require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	require.ErrorIs(t, err, fleet.ErrWindowsMDMNotConfigured)
 	require.True(t, ds.AppConfigFuncInvoked)
 	ds.AppConfigFuncInvoked = false
 	require.True(t, authzCtx.Checked())
@@ -625,6 +625,20 @@ func TestMDMCommonAuthorization(t *testing.T) {
 		return res, nil
 	}
 
+	ds.GetMDMAppleConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMAppleConfigProfile, error) {
+		var tid uint
+		if pid == "a-team-1-profile" {
+			tid = 1
+		}
+		return &fleet.MDMAppleConfigProfile{
+			ProfileUUID: pid,
+			TeamID:      &tid,
+		}, nil
+	}
+	ds.GetMDMConfigProfileStatusFunc = func(ctx context.Context, pid string) (fleet.MDMConfigProfileStatus, error) {
+		return fleet.MDMConfigProfileStatus{}, nil
+	}
+
 	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamFunc {
 		return func(ctx context.Context, teamID uint) (*fleet.Team, error) {
 			if len(u.Teams) > 0 {
@@ -725,11 +739,15 @@ func TestMDMCommonAuthorization(t *testing.T) {
 			checkShouldFail(err, tt.shouldFailGlobal)
 			_, err = svc.GetMDMWindowsProfilesSummary(ctx, nil)
 			checkShouldFail(err, tt.shouldFailGlobal)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, "a-no-team-profile")
+			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz for MDM summary endpoints (team 1)
 			_, err = svc.GetMDMDiskEncryptionSummary(ctx, ptr.Uint(1))
 			checkShouldFail(err, tt.shouldFailTeam)
 			_, err = svc.GetMDMWindowsProfilesSummary(ctx, ptr.Uint(1))
+			checkShouldFail(err, tt.shouldFailTeam)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, "a-team-1-profile")
 			checkShouldFail(err, tt.shouldFailTeam)
 		})
 	}
@@ -1219,9 +1237,11 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
-		{"BitLocker profile", 0,
+		{
+			"BitLocker profile", 0,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
-			syncml.DiskEncryptionProfileRestrictionErrMsg},
+			syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 		{"unsupported Fleet variable", 0, `<Replace>$FLEET_VAR_BOZO</Replace>`, true, "Fleet variable"},
 
@@ -1233,9 +1253,11 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists"},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
 		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
-		{"team BitLocker profile", 1,
+		{
+			"team BitLocker profile", 1,
 			`<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true,
-			syncml.DiskEncryptionProfileRestrictionErrMsg},
+			syncml.DiskEncryptionProfileRestrictionErrMsg,
+		},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"invalid team", 2, `<Replace></Replace>`, true, "not found"},
@@ -1289,7 +1311,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		return &fleet.Team{ID: id, Name: "team"}, nil
 	}
 	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
-		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration, profVars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
@@ -1994,6 +2016,9 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
 		return nil
 	}
+	ds.BatchResendMDMProfileToHostsFunc = func(ctx context.Context, profUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
+		return 0, nil
+	}
 
 	checkShouldFail := func(t *testing.T, err error, shouldFail bool) {
 		if !shouldFail {
@@ -2012,9 +2037,13 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 			// test authz resend config profile (no team)
 			err := svc.ResendHostMDMProfile(ctx, 1337, "a-no-team-profile")
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
+			err = svc.BatchResendMDMProfileToHosts(ctx, "a-no-team-profile", fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
+			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz resend config profile (team 1)
 			err = svc.ResendHostMDMProfile(ctx, 1, "a-team-1-profile")
+			checkShouldFail(t, err, tt.shouldFailTeamWrite)
+			err = svc.BatchResendMDMProfileToHosts(ctx, "a-team-1-profile", fleet.BatchResendMDMProfileFilters{ProfileStatus: fleet.MDMDeliveryFailed})
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 		})
 	}
@@ -2050,7 +2079,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 
 	profileLabels := map[string]*ProfileLabels{}
 
-	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) (updates fleet.MDMProfilesUpdates, err error) {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profVars []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error) {
 		for _, profile := range macProfiles {
 			profileLabels[profile.Name] = &ProfileLabels{}
 			if len(profile.LabelsIncludeAll) > 0 {
@@ -2117,8 +2146,10 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		m := map[string]uint{}
 		for _, label := range labels {
-			labelID++
-			m[label] = labelID
+			if label != "baddy" {
+				labelID++
+				m[label] = labelID
+			}
 		}
 		return m, nil
 	}
@@ -2196,4 +2227,21 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["DIncAll"])
 	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["DIncAny"])
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["DExclAny"])
+
+	// Test that a bad label doesn't pass validation...
+	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+		Name:             "Baddy",
+		Contents:         declarationForTest("Baddy"),
+		LabelsExcludeAny: []string{"baddy"},
+	}}, false, false, ptr.Bool(true), false)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "some or all the labels provided don't exist")
+
+	// ...unless we're in dry run mode
+	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
+		Name:             "Baddy",
+		Contents:         declarationForTest("Baddy"),
+		LabelsExcludeAny: []string{"baddy"},
+	}}, true, false, ptr.Bool(true), false)
+	require.NoError(t, err)
 }

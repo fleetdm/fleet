@@ -78,6 +78,12 @@ WHERE
 	app.LabelsExcludeAny = exclAny
 	app.LabelsIncludeAny = inclAny
 
+	categories, err := ds.getCategoriesForVPPApp(ctx, app.VPPAppsTeamsID)
+	if err != nil {
+		return nil, err
+	}
+	app.Categories = categories
+
 	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
@@ -85,6 +91,22 @@ WHERE
 	app.AutomaticInstallPolicies = policies
 
 	return &app, nil
+}
+
+func (ds *Datastore) getCategoriesForVPPApp(ctx context.Context, vppAppsTeamID uint) ([]string, error) {
+	stmt := `
+SELECT
+	sc.name
+FROM software_categories sc
+JOIN vpp_app_team_software_categories vatsc ON sc.id = vatsc.software_category_id
+WHERE vatsc.vpp_app_team_id = ?`
+
+	var categories []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, vppAppsTeamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get categories for vpp app")
+	}
+
+	return categories, nil
 }
 
 func (ds *Datastore) getVPPAppLabels(ctx context.Context, vppAppsTeamsID uint) ([]fleet.SoftwareScopeLabel, error) {
@@ -170,6 +192,7 @@ past AS (
 				 hvsi.adam_id = hvsi2.adam_id AND
 				 hvsi.platform = hvsi2.platform AND
 				 hvsi2.removed = 0 AND
+				 hvsi2.canceled = 0 AND
 				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
 	WHERE
 		hvsi2.id IS NULL
@@ -178,6 +201,7 @@ past AS (
 		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
 		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
 		AND hvsi.removed = 0
+		AND hvsi.canceled = 0
 )
 
 -- count each status
@@ -196,7 +220,7 @@ UNION
 SELECT
 	upcoming.host_id,
 	upcoming.status
-FROM upcoming 
+FROM upcoming
 ) t`
 
 	var tmID uint
@@ -315,6 +339,16 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 	}
 }
 
+func (ds *Datastore) getVPPAppTeamCategoryIDs(ctx context.Context, vppAppTeamID uint) ([]uint, error) {
+	stmt := `SELECT software_category_id FROM vpp_app_team_software_categories WHERE vpp_app_team_id = ?`
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, stmt, vppAppTeamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting existing software categories for vpp app team")
+	}
+
+	return ids, nil
+}
+
 func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets []fleet.VPPAppTeam) error {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
@@ -355,7 +389,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		// upsert it if it does not exist or labels or SelfService or InstallDuringSetup flags are changed
 		existingApp, isExistingApp := existingApps[appFleet.VPPAppID]
 		appFleet.AppTeamID = existingApp.AppTeamID
-		var labelsChanged bool
+		var labelsChanged, categoriesChanged bool
 		if isExistingApp {
 			existingLabels, err := ds.getExistingLabels(ctx, appFleet.AppTeamID)
 			if err != nil {
@@ -363,6 +397,13 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			}
 
 			labelsChanged = !existingLabels.Equal(appFleet.ValidatedLabels)
+
+			existingCatIDs, err := ds.getVPPAppTeamCategoryIDs(ctx, appFleet.AppTeamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting existing categories for vpp app")
+			}
+
+			categoriesChanged = !slices.Equal(existingCatIDs, appFleet.CategoryIDs)
 
 		}
 
@@ -379,6 +420,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		if !isExistingApp ||
 			existingApp.SelfService != appFleet.SelfService ||
 			labelsChanged ||
+			categoriesChanged ||
 			appFleet.InstallDuringSetup != nil &&
 				existingApp.InstallDuringSetup != nil &&
 				*appFleet.InstallDuringSetup != *existingApp.InstallDuringSetup {
@@ -404,6 +446,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 			if toAdd.ValidatedLabels != nil {
 				if err := setOrUpdateSoftwareInstallerLabelsDB(ctx, tx, vppAppTeamID, *toAdd.ValidatedLabels, softwareTypeVPP); err != nil {
 					return ctxerr.Wrap(ctx, err, "failed to update labels on vpp apps batch operation")
+				}
+			}
+
+			if toAdd.CategoryIDs != nil {
+				if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, vppAppTeamID, toAdd.CategoryIDs, softwareTypeVPP); err != nil {
+					return ctxerr.Wrap(ctx, err, "failed to update categories on vpp apps batch operation")
 				}
 			}
 
@@ -471,6 +519,12 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			}
 		}
 
+		if app.CategoryIDs != nil {
+			if err := setOrUpdateSoftwareInstallerCategoriesDB(ctx, tx, vppAppTeamID, app.CategoryIDs, softwareTypeVPP); err != nil {
+				return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam setOrUpdateSoftwareInstallerCategoriesDB transaction")
+			}
+		}
+
 		if app.VPPAppTeam.AddAutoInstallPolicy {
 			generatedPolicyData, err := automatic_policy.Generate(automatic_policy.MacInstallerMetadata{
 				Title:            app.Name,
@@ -480,9 +534,12 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 				return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
 			}
 
-			if err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, teamID, nil, ptr.Uint(vppAppTeamID)); err != nil {
+			policy, err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, teamID, nil, ptr.Uint(vppAppTeamID))
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "create automatic policy")
 			}
+
+			app.VPPAppTeam.AddedAutomaticInstallPolicy = policy
 		}
 
 		return nil
@@ -904,7 +961,7 @@ func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIds, `SELECT hvsi.adam_id
 			FROM host_vpp_software_installs hvsi
 			JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid AND nvq.status IS NULL
-			WHERE hvsi.host_id = ?`, hostID); err != nil && err != sql.ErrNoRows {
+			WHERE hvsi.host_id = ? AND hvsi.canceled = 0`, hostID); err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "list pending VPP installs")
 	}
 	adamMap := map[string]struct{}{}
@@ -941,7 +998,8 @@ FROM
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
 	LEFT OUTER JOIN policies p ON p.id = hvsi.policy_id
 WHERE
-	hvsi.command_uuid = :command_uuid
+	hvsi.command_uuid = :command_uuid AND
+	hvsi.canceled = 0
 	`
 
 	type result struct {
@@ -1648,13 +1706,13 @@ func (ds *Datastore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTe
 
 func (ds *Datastore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
 	query := `
-SELECT 
-    adam_id, 
-	title_id, 
-	bundle_identifier, 
-	icon_url, 
-	name, 
-	latest_version, 
+SELECT
+    adam_id,
+	title_id,
+	bundle_identifier,
+	icon_url,
+	name,
+	latest_version,
 	platform
 FROM vpp_apps`
 

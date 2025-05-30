@@ -18,7 +18,7 @@ func Up_20210719153709(tx *sql.Tx) error {
 			updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			anonymous_identifier varchar(255) NOT NULL,
 			PRIMARY KEY (id) 
-		)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	if _, err := tx.Exec(sql); err != nil {
 		return errors.Wrap(err, "create statistics")

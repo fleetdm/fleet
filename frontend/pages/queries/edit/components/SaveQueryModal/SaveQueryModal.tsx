@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 
-import { pull, size } from "lodash";
+import { size } from "lodash";
 
 import { AppContext } from "context/app";
 
 import useDeepEffect from "hooks/useDeepEffect";
+import { IPlatformSelector } from "hooks/usePlatformSelector";
 
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
-  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
@@ -52,6 +52,7 @@ export interface ISaveQueryModalProps {
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
   queryReportsDisabled?: boolean;
+  platformSelector: IPlatformSelector;
 }
 
 const validateQueryName = (name: string) => {
@@ -74,6 +75,7 @@ const SaveQueryModal = ({
   backendValidators,
   existingQuery,
   queryReportsDisabled,
+  platformSelector,
 }: ISaveQueryModalProps): JSX.Element => {
   const { config, isPremiumTier } = useContext(AppContext);
 
@@ -82,10 +84,6 @@ const SaveQueryModal = ({
   const [selectedFrequency, setSelectedFrequency] = useState(
     existingQuery?.interval ?? 3600
   );
-  const [
-    selectedPlatformOptions,
-    setSelectedPlatformOptions,
-  ] = useState<CommaSeparatedPlatformString>(existingQuery?.platform ?? "");
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
@@ -147,10 +145,11 @@ const SaveQueryModal = ({
 
   // Disable saving if "Custom" targeting is selected, but no labels are selected.
   const canSave =
-    selectedTargetType === "All hosts" ||
-    Object.entries(selectedLabels).some(([, value]) => {
-      return value;
-    });
+    platformSelector.isAnyPlatformSelected &&
+    (selectedTargetType === "All hosts" ||
+      Object.entries(selectedLabels).some(([, value]) => {
+        return value;
+      }));
 
   const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
@@ -164,6 +163,10 @@ const SaveQueryModal = ({
     });
     setName(trimmedName);
 
+    const newPlatformString = platformSelector
+      .getSelectedPlatforms()
+      .join(",") as CommaSeparatedPlatformString;
+
     if (valid) {
       saveQuery({
         // from modal fields
@@ -173,7 +176,7 @@ const SaveQueryModal = ({
         observer_can_run: observerCanRun,
         automations_enabled: automationsEnabled,
         discard_data: discardData,
-        platform: selectedPlatformOptions,
+        platform: newPlatformString,
         min_osquery_version: selectedMinOsqueryVersionOptions,
         logging: selectedLoggingType,
         // from previous New query page
@@ -189,26 +192,6 @@ const SaveQueryModal = ({
       });
     }
   };
-
-  const onChangeSelectPlatformOptions = useCallback(
-    (values: string) => {
-      const valArray = values.split(",");
-
-      // Remove All if another OS is chosen
-      // else if Remove OS if All is chosen
-      if (valArray.indexOf("") === 0 && valArray.length > 1) {
-        // TODO - inmprove type safety of all 3 options
-        setSelectedPlatformOptions(
-          pull(valArray, "").join(",") as CommaSeparatedPlatformString
-        );
-      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
-        setSelectedPlatformOptions("");
-      } else {
-        setSelectedPlatformOptions(values as CommaSeparatedPlatformString);
-      }
-    },
-    [setSelectedPlatformOptions]
-  );
 
   return (
     <Modal title="Save query" onExit={toggleSaveQueryModal}>
@@ -247,7 +230,7 @@ const SaveQueryModal = ({
           }}
           placeholder="Every hour"
           value={selectedFrequency}
-          label="Frequency"
+          label="Interval"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
           helpText="This is how often your query collects data."
         />
@@ -271,7 +254,7 @@ const SaveQueryModal = ({
                   tipContent={
                     <>
                       Automations and reporting will be paused <br />
-                      for this query until a frequency is set.
+                      for this query until an interval is set.
                     </>
                   }
                   position="right"
@@ -299,6 +282,7 @@ const SaveQueryModal = ({
             </>
           }
         />
+        {platformSelector.render()}
         {isPremiumTier && (
           <TargetLabelSelector
             selectedTargetType={selectedTargetType}
@@ -312,6 +296,7 @@ const SaveQueryModal = ({
                 Query will target hosts that <b>have any</b> of these labels:
               </span>
             }
+            suppressTitle
           />
         )}
         <RevealButton
@@ -324,16 +309,6 @@ const SaveQueryModal = ({
         />
         {showAdvancedOptions && (
           <>
-            <Dropdown
-              options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
-              placeholder="Select"
-              label="Platforms"
-              onChange={onChangeSelectPlatformOptions}
-              value={selectedPlatformOptions}
-              multi
-              wrapperClassName={`${baseClass}__form-field form-field--platform`}
-              helpText="By default, your query collects data on all compatible platforms."
-            />
             <Dropdown
               options={MIN_OSQUERY_VERSION_OPTIONS}
               onChange={setSelectedMinOsqueryVersionOptions}
@@ -366,7 +341,6 @@ const SaveQueryModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            variant="brand"
             className="save-query-loading"
             isLoading={isLoading || isFetchingLabels}
             disabled={!canSave}

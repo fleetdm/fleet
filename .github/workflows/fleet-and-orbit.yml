@@ -310,9 +310,9 @@ jobs:
       - name: Upload DEB installer
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
-          name: fleet-osquery_42.0.0_amd64.deb
+          name: fleet-osquery_amd64.deb
           path: |
-            fleet-osquery_42.0.0_amd64.deb
+            fleet-osquery_*_amd64.deb
 
       - name: Upload MSI installer
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
@@ -339,6 +339,14 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery.pkg
+
+      - name: Wait until fleet address is reachable and fleet responds
+        run: |
+          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          do
+            echo "Awaiting until fleet server responds..."
+            sleep 10
+          done
 
       - name: Install pkg
         run: |
@@ -389,12 +397,20 @@ jobs:
         id: download
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: fleet-osquery_42.0.0_amd64.deb
+          name: fleet-osquery_amd64.deb
+
+      - name: Wait until fleet address is reachable and fleet responds
+        run: |
+          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          do
+            echo "Awaiting until fleet server responds..."
+            sleep 10
+          done
 
       - name: Install deb
         run: |
           sudo hostname orbit-ubuntu
-          sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
+          sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_*_amd64.deb
 
       - name: Wait enroll
         run: |
@@ -441,6 +457,14 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery.msi
+
+      - name: Wait until fleet address is reachable and fleet responds
+        run: |
+          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          do
+            echo "Awaiting until fleet server responds..."
+            sleep 10
+          done
 
       - name: Install msi
         shell: pwsh

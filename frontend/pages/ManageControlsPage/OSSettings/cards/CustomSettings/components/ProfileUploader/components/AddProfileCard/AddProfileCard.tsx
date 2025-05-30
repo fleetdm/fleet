@@ -21,7 +21,6 @@ const AddProfileCard = ({ setShowModal }: IAddProfileCardProps) => (
           <Button
             disabled={disableChildren}
             className={`${baseClass}__card--add-button`}
-            variant="brand"
             type="button"
             onClick={() => setShowModal(true)}
           >

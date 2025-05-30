@@ -125,14 +125,17 @@ module.exports.custom = {
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
-    // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
+    // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     '/docs/get-started/faq': 'zayhanlon',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
+    // Fleet's internal IT and security (+dogfooding)
+    'it-and-security': 'allenhouchins',
+
     // 🫧 Articles and release notes
-    'articles': 'drew-p-drawers',
+    'articles': 'mikermcneil',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -183,6 +186,9 @@ module.exports.custom = {
     // 🌐 GitHub issue templates
     '.github/ISSUE_TEMPLATE': 'sampfluger88',
 
+    // 💝 Fleet-maintained apps
+    'ee/maintained-apps/inputs': 'mostlikelee',
+    'ee/maintained-apps/outputs': 'eugkuo',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)
@@ -217,10 +223,12 @@ module.exports.custom = {
     'schema': ['eashaw'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
+    // Fleet's internal IT and security (+dogfooding)
+    'it-and-security': ['allenhouchins'],
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
-    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'drew-p-drawers', 'lukeheath'],
+    'articles': ['mike-j-thomas', 'eashaw', 'mikermcneil', 'rachaelshaw', 'lukeheath'],
     'website/assets/images/articles': ['mike-j-thomas', 'eashaw', 'mikermcneil'],
 
     // Website (fleetdm.com)
@@ -316,7 +324,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.17.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗

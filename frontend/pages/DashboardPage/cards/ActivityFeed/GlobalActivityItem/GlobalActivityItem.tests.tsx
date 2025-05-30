@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-import createMockActivity from "__mocks__/activityMock";
+import { createMockActivity } from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import { ActivityType } from "interfaces/activity";
@@ -169,6 +169,17 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText("edited queries using fleetctl.")
+    ).toBeInTheDocument();
+  });
+
+  it("renders an applied_spec_software type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AppliedSpecSoftware,
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited software using fleetctl.")
     ).toBeInTheDocument();
   });
 

@@ -33,6 +33,16 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 4. **Open the details page**: Click on the software package’s name. 
 5. **Open the actions dropdown**: Click on the “Actions” dropdown on the far right of the page. From here, you can download the software package, delete the software package, or click “Advanced options” to see the options you configured when adding the software package. 
 
+### Enable self-service on an existing software package
+Self-service is supported on custom packages, App Store apps, and Fleet-maintained apps. To enable self-service on a software package that is already added to Fleet:
+1. **Navigate to the software details page for the software package**: Click “Software” in the main navigation menu.
+2. **Select a team**: Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
+3. **Find your package**: To make it easier to find your software package, click on the dropdown to the left of the search bar and select "Available for install". This will filter the results in the table to only show software packages that are able to be installed on hosts. If you still don’t see your software package, you can page through the results or search for your software package’s name in the search bar. Once you find the software package, click its the row in the table.
+4. **Edit the package**: Click the "Actions" dropdown on the far right of the page, then click "Edit". In the "Edit software" modal, under "Options", check "Self-service".
+5. **Select categories**: Optionally, you can assign the software package to one or more categories. Categories are used to group software on the end user's **My device > Self-service** page, which can make your self-service software easier to find for end users. Fleet-maintained apps have default categories that will be pre-selected when you enable self-service. These default categories can be changed when editing the app.
+
+> Note: editing a software package's categories will _not_ cancel pending installs or uninstalls.
+
 ### Downloading a self-service software package
 
 1. **Navigate to the software details page for the software package**: Click “Software” in the main navigation menu.

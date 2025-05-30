@@ -1,0 +1,14 @@
+.view-yaml-modal {
+  overflow-wrap: anywhere; // Prevent long overflow
+
+  .info-banner__info {
+    p {
+      margin: 0; // Undo weird top margin from info-banner component
+    }
+  }
+  &__form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+}

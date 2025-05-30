@@ -121,7 +121,7 @@ const PoliciesTable = ({
           buttonText: "Delete",
           iconSvg: "trash",
           variant: "text-icon",
-          onActionButtonClick: onDeletePolicyClick,
+          onClick: onDeletePolicyClick,
         }}
         emptyComponent={() =>
           EmptyTable({

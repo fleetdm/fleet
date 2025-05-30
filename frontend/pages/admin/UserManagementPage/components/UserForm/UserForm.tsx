@@ -8,7 +8,11 @@ import React, {
 import { Link } from "react-router";
 import PATHS from "router/paths";
 
+import { PRIMO_TOOLTIP } from "utilities/constants";
+
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
 import { IFormField } from "interfaces/form_field";
@@ -165,6 +169,8 @@ const UserForm = ({
   };
 
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
+  const priMode = config?.partnerships?.enable_primo;
 
   const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
   const [formData, setFormData] = useState<IUserFormData>({
@@ -179,7 +185,18 @@ const UserForm = ({
     currentUserId,
   });
 
-  const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
+  const isGlobalUser = formData.global_role !== null;
+
+  // watch for population from context, set state
+  useEffect(() => {
+    if (priMode) {
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        global_role: "observer",
+        teams: [],
+      }));
+    }
+  }, [priMode]);
 
   const initiallyPasswordAuth = !isSsoEnabled;
 
@@ -265,11 +282,9 @@ const UserForm = ({
   };
 
   const onIsGlobalUserChange = (value: string): void => {
-    const isGlobalUserChange = value === UserTeamType.GlobalUser;
-    setIsGlobalUser(isGlobalUserChange);
     setFormData({
       ...formData,
-      global_role: isGlobalUserChange ? "observer" : null,
+      global_role: value === UserTeamType.GlobalUser ? "observer" : null,
     });
   };
 
@@ -665,32 +680,70 @@ const UserForm = ({
     </div>
   );
 
+  const renderGlobalAdminOptions = () => {
+    if (priMode) {
+      return (
+        <TooltipWrapper
+          tipContent={PRIMO_TOOLTIP}
+          tipOffset={20}
+          position="right"
+          showArrow
+          underline={false}
+        >
+          <Radio
+            className={`${baseClass}__radio-input`}
+            label="Global user"
+            id="global-user"
+            checked={isGlobalUser}
+            value={UserTeamType.GlobalUser}
+            name="user-team-type"
+            onChange={onIsGlobalUserChange}
+            disabled
+          />
+          <Radio
+            className={`${baseClass}__radio-input`}
+            label="Assign team(s)"
+            id="assign-teams"
+            checked={!isGlobalUser}
+            value={UserTeamType.AssignTeams}
+            name="user-team-type"
+            onChange={onIsGlobalUserChange}
+            disabled
+          />
+        </TooltipWrapper>
+      );
+    }
+    return (
+      <>
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label="Global user"
+          id="global-user"
+          checked={isGlobalUser}
+          value={UserTeamType.GlobalUser}
+          name="user-team-type"
+          onChange={onIsGlobalUserChange}
+        />
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label="Assign team(s)"
+          id="assign-teams"
+          checked={!isGlobalUser}
+          value={UserTeamType.AssignTeams}
+          name="user-team-type"
+          onChange={onIsGlobalUserChange}
+          disabled={!availableTeams.length}
+        />
+      </>
+    );
+  };
+
   const renderPremiumRoleOptions = () => (
     <>
-      <div className="form-field">
+      <div className="form-field team-field">
         <div className="form-field__label">Team</div>
         {isModifiedByGlobalAdmin ? (
-          <>
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label="Global user"
-              id="global-user"
-              checked={isGlobalUser}
-              value={UserTeamType.GlobalUser}
-              name="user-team-type"
-              onChange={onIsGlobalUserChange}
-            />
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label="Assign team(s)"
-              id="assign-teams"
-              checked={!isGlobalUser}
-              value={UserTeamType.AssignTeams}
-              name="user-team-type"
-              onChange={onIsGlobalUserChange}
-              disabled={!availableTeams.length}
-            />
-          </>
+          renderGlobalAdminOptions()
         ) : (
           <>{currentTeam ? currentTeam.name : ""}</>
         )}
@@ -729,7 +782,6 @@ const UserForm = ({
           </Button>
           <Button
             type="submit"
-            variant="brand"
             onClick={onFormSubmit}
             className={`${isNewUser ? "add" : "save"}-loading
           `}

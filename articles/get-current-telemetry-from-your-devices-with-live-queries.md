@@ -80,7 +80,7 @@ Documentation:
 
 * [Run live query with the UI](https://fleetdm.com/guides/queries)
 * [Run live query with REST API](https://fleetdm.com/docs/rest-api/rest-api#run-live-query)
-* [Run live query with WebSockets](https://github.com/fleetdm/fleet/blob/6fd06d648601edd89c01e25426e2e35ff2a8a37b/docs/Contributing/API-for-contributors.md#run-live-query)
+* [Run live query with WebSockets](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#run-live-query)
 
 
 <meta name="articleTitle" value="Get current telemetry from your devices with live queries">

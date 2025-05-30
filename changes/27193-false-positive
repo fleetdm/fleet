@@ -1,1 +1,0 @@
-* Fixed false positive for CVE-2024-6286 on non-Windows hosts.
