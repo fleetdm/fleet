@@ -278,8 +278,8 @@ CREATE TABLE `eulas` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `fake_table` (
-  `host_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `command_uuid` varchar(127) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`host_uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

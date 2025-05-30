@@ -13,11 +13,11 @@ func Up_20250530123456(tx *sql.Tx) error {
 	// create fake_table table
 	_, err := tx.Exec(`
           CREATE TABLE fake_table (
-	        host_uuid    varchar(127) NOT NULL,
-            command_uuid varchar(127) NOT NULL,
+	        host_uuid    varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
+            command_uuid varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
 
             PRIMARY KEY (host_uuid)
-          ) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
+          )`)
 	if err != nil {
 		return fmt.Errorf("create fake_table: %w", err)
 	}
