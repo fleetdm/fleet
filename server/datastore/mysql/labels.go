@@ -94,9 +94,9 @@ DELETE FROM label_membership WHERE label_id = ?
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
 				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?))
+INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?))
 `
-				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers)
+				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
