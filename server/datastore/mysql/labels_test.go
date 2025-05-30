@@ -1976,6 +1976,15 @@ func testApplyLabelSpecsForSerial(t *testing.T, ds *Datastore) {
 		Platform:       "windows",
 	})
 	require.NoError(t, err)
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("3"),
+		NodeKey:        ptr.String("3"),
+		UUID:           "2",
+		Hostname:       "baz.local",
+		HardwareSerial: "hwd3",
+		Platform:       "windows",
+	})
+	require.NoError(t, err)
 
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
 		{
