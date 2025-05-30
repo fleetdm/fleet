@@ -35,11 +35,11 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("4 months ago")).toBeVisible();
 
     // File path
-    expect(screen.getByText("File path")).toBeVisible();
+    expect(screen.getByText("Path:")).toBeVisible();
     expect(screen.getByText("/Applications/mock.app")).toBeVisible();
 
     // Hash
-    expect(screen.getByText("Hash")).toBeVisible();
+    expect(screen.getByText("Hash:")).toBeVisible();
     expect(screen.getByText("mockhashhere")).toBeVisible();
 
     // Vulnerabilities
@@ -74,7 +74,7 @@ describe("SoftwareDetailsModal", () => {
       />
     );
 
-    expect(screen.queryByText("Hash")).not.toBeInTheDocument();
+    expect(screen.queryByText("Hash:")).not.toBeInTheDocument();
     expect(screen.queryByText("mockhashhere")).not.toBeInTheDocument();
   });
 
@@ -90,6 +90,48 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Type")).toBeVisible();
     expect(screen.getByText("Application (macOS)")).toBeVisible();
     expect(screen.queryByText("Version")).not.toBeInTheDocument();
-    expect(screen.queryByText("File path")).not.toBeInTheDocument();
+    expect(screen.queryByText("Path:")).not.toBeInTheDocument();
+  });
+
+  it("renders multiple file paths and their corresponding hashes", () => {
+    const mockSoftware = createMockHostSoftware({
+      installed_versions: [
+        {
+          version: "2.0.0",
+          last_opened_at: "2022-02-01T12:00:00Z",
+          vulnerabilities: [],
+          installed_paths: ["/Applications/foo.app", "/Applications/bar.app"],
+          bundle_identifier: "com.example.multi",
+          signature_information: [
+            {
+              installed_path: "/Applications/foo.app",
+              team_identifier: "TEAM1",
+              hash_sha256: "hashfoo123",
+            },
+            {
+              installed_path: "/Applications/bar.app",
+              team_identifier: "TEAM2",
+              hash_sha256: "hashbar456",
+            },
+          ],
+        },
+      ],
+    });
+
+    render(
+      <SoftwareDetailsModal
+        hostDisplayName="Test Host"
+        software={mockSoftware}
+        onExit={jest.fn()}
+      />
+    );
+
+    // File paths
+    expect(screen.getByText("/Applications/foo.app")).toBeVisible();
+    expect(screen.getByText("/Applications/bar.app")).toBeVisible();
+
+    // Hashes
+    expect(screen.getByText("hashfoo123")).toBeVisible();
+    expect(screen.getByText("hashbar456")).toBeVisible();
   });
 });
