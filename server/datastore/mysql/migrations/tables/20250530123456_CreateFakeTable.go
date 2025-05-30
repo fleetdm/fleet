@@ -10,14 +10,13 @@ func init() {
 }
 
 func Up_20250530123456(tx *sql.Tx) error {
-	// create host_mdm_apple_bootstrap_packages table
+	// create fake_table table
 	_, err := tx.Exec(`
           CREATE TABLE fake_table (
 	        host_uuid    varchar(127) NOT NULL,
             command_uuid varchar(127) NOT NULL,
 
-            PRIMARY KEY (host_uuid),
-            FOREIGN KEY (command_uuid) REFERENCES nano_commands (command_uuid) ON DELETE CASCADE
+            PRIMARY KEY (host_uuid)
           )`)
 	if err != nil {
 		return fmt.Errorf("create fake_table: %w", err)
