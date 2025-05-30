@@ -1292,7 +1292,6 @@ func (ds *Datastore) applyHostFilters(
 	params := selectParams
 	params = append(params, joinParams...)
 	params = append(params, whereParams...)
-	fmt.Println(sqlStmt)
 	return sqlStmt, params, nil
 }
 
