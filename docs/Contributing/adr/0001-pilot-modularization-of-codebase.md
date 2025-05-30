@@ -50,8 +50,6 @@ To accurately assess the impact of this and future architectural change, we shou
 
 * [Time to fix](https://github.com/fleetdm/fleet/issues/29140): How long it takes to resolve defects.
 
-Tracking these metrics will provide objective data on whether modularization delivers improvements in maintainability, velocity, and reliability.
-
 ## Consequences
 
 **Benefits:**
@@ -60,17 +58,17 @@ Tracking these metrics will provide objective data on whether modularization del
 * Provides documentation, best practices, and architectural patterns for future modularization efforts.
 * May improve onboarding, feature delivery, and code reliability in the pilot area.
 
-**Drawbacks / Technical Debt:**
+**Drawbacks / technical debt:**
 
 * Inconsistent architecture across the codebase as new and old patterns coexist.
-* Possible need to refactor Android modules if a different architecture is chosen later.
+* Possible need to refactor Android module if a different architecture is chosen later.
 
 **Impact:**
 
 * Minimal disruption to current workflows, as changes are isolated.
 * Sets a precedent and provides a template for future modularization.
 
-**Future Considerations:**
+**Future considerations:**
 
 * Evaluate pilot results after initial Android features (profiles, software) are implemented.
 * Decide whether to expand modularization based on metrics and team feedback.
@@ -108,7 +106,7 @@ Tracking these metrics will provide objective data on whether modularization del
 * **Cons:** Adds additional layers and abstraction, may increase development overhead for simpler features, potential learning curve.
 * **Reason not chosen:** While hexagonal architecture offers valuable separation of concerns, a modular approach provides more immediate, incremental benefits with less overhead and a lower barrier to adoption in the existing codebase.
 
-*Note:* A module in Fleet's codebase could be refactored to use hexagonal architecture by moving the core business logic from service/datastore layers into its own package. The current decision does not prevent us from using hexagonal architecture in the future.
+*Note:* A module in Fleet's codebase could be refactored to use hexagonal architecture by moving the core business logic from service/datastore layers into its own package. A move to a modular monolith architecture does not prevent us from using hexagonal architecture in the future.
 
 ## References
 
