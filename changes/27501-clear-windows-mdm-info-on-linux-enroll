@@ -1,1 +1,0 @@
-Windows hosts which re-enroll as another OS such as Linux will no longer show Windows MDM information on the hosts page unless they later re-enroll as a Windows host again(i.e. when dual booting).

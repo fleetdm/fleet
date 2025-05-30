@@ -34,7 +34,7 @@ org_settings:
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
   org_info:
-    contact_url: https://fleetdm.com/company/contact
+    contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: Fleet
@@ -101,3 +101,4 @@ labels:
   - path: ./lib/all/labels/virtual-machines.yml
   - path: ./lib/all/labels/santa-test-devices.yml
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
+  - path: ./lib/all/labels/apple-silicon-macos-hosts.yml

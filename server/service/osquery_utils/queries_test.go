@@ -10,6 +10,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"regexp"
 	"slices"
 	"sort"
@@ -1862,7 +1863,7 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 			return secret, nil
 		}
 
-		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
+		gotQuery, _ := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
 		if tc.want != "" {
 			require.Contains(t, gotQuery, "SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input =")
 			re := regexp.MustCompile(`'<(.*?)>'`)
@@ -2075,4 +2076,163 @@ func TestGenerateSQLForAllExists(t *testing.T) {
 	query2 = "SELECT 1 WHERE baz = 'qu;x';;; "
 	sql = generateSQLForAllExists(query1, query2)
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
+}
+
+func TestLuksVerifyQueryDiscovery(t *testing.T) {
+	lsblkTbl := "SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'lsblk'"
+	cryptsetupLuksSaltTbl := "SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'cryptsetup_luks_salt'"
+
+	require.Equal(t,
+		fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) AND EXISTS (%s);", lsblkTbl, cryptsetupLuksSaltTbl),
+		luksVerifyQuery.Discovery,
+	)
+}
+
+func TestLuksVerifyQueryIngester(t *testing.T) {
+	decrypter := func(encrypted string) (string, error) {
+		return encrypted, nil
+	}
+	ctx := context.Background()
+	logger := log.NewNopLogger()
+
+	nonLUKSHost := &fleet.Host{ID: 1, Platform: "skynet"}
+	luksHost := &fleet.Host{ID: 1, Platform: "ubuntu"}
+
+	testCases := []struct {
+		name         string
+		rows         []map[string]string
+		err          error
+		host         *fleet.Host
+		setUp        func(t *testing.T, ds *mock.Store)
+		expectations func(t *testing.T, ds *mock.Store, err error)
+	}{
+		{
+			name: "No results",
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.GetHostDiskEncryptionKeyFuncInvoked)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "host is not LUKS capable",
+			host: nonLUKSHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.GetHostDiskEncryptionKeyFuncInvoked)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "disk encryption entry not found on DB",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return nil, common_mysql.NotFound("HostDiskEncryptionKey")
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "error is thrown while getting the host disk encryption key",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return nil, errors.New("some error")
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.Error(t, err)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "stored key matches the one reported",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return &fleet.HostDiskEncryptionKey{
+						KeySlot:             ptr.Uint(0),
+						Base64EncryptedSalt: "some salty bits",
+					}, nil
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "stored key does not match the one reported",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some sour bits",
+				},
+				{
+					"key_slot": "1",
+					"salt":     "some spicy bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return &fleet.HostDiskEncryptionKey{
+						KeySlot:             ptr.Uint(0),
+						Base64EncryptedSalt: base64.StdEncoding.EncodeToString([]byte("some salty bits")),
+					}, nil
+				}
+				ds.DeleteLUKSDataFunc = func(ctx context.Context, hostID uint, keySlot uint) error {
+					require.Equal(t, uint(1), hostID)
+					return nil
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.True(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+	}
+
+	sut := luksVerifyQueryIngester(decrypter)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			if tc.setUp != nil {
+				tc.setUp(t, ds)
+			}
+			tc.expectations(t, ds, sut(ctx, logger, tc.host, ds, tc.rows))
+		})
+	}
 }

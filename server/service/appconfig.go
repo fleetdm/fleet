@@ -357,7 +357,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if applyOpts.Overwrite {
 		appConfig.Features = newAppConfig.Features
 		appConfig.SSOSettings = newAppConfig.SSOSettings
-		appConfig.SMTPSettings = newAppConfig.SMTPSettings
 		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
 	}
 
@@ -469,7 +468,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// If the license is Premium, we should always send usage statisics.
-	if license.IsPremium() {
+	if !license.IsAllowDisableTelemetry() {
 		appConfig.ServerSettings.EnableAnalytics = true
 	}
 

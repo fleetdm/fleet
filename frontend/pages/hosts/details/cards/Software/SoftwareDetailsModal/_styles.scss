@@ -25,7 +25,8 @@
     gap: $pad-xxlarge;
   }
 
-  &__file-path-data-set {
+  &__file-path-data-set,
+  &__hash-sha256-data-set {
     // These following 100% widths are to make sure the text does not
     // overflow from the modal. TODO: Need to look at DataSet component to see why
     // it overflows.
@@ -33,7 +34,8 @@
     min-width: auto;
   }
 
-  &__file-path-values {
+  &__file-path-values,
+  &__hash-sha256-value {
     display: flex;
     flex-direction: column;
     gap: $pad-small;

@@ -1043,6 +1043,10 @@ func (a ActivityTypeReadHostDiskEncryptionKey) ActivityName() string {
 	return "read_host_disk_encryption_key"
 }
 
+func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 func (a ActivityTypeReadHostDiskEncryptionKey) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a user reads the disk encryption key for a host.`,
 		`This activity contains the following fields:
@@ -2482,6 +2486,7 @@ type ActivityTypeRanScriptBatch struct {
 	ScriptName       string `json:"script_name"`
 	BatchExeuctionID string `json:"batch_execution_id"`
 	HostCount        uint   `json:"host_count"`
+	TeamID           *uint  `json:"team_id"`
 }
 
 func (a ActivityTypeRanScriptBatch) ActivityName() string {

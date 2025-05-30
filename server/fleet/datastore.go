@@ -693,6 +693,7 @@ type Datastore interface {
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
+	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -951,6 +952,8 @@ type Datastore interface {
 	// SaveLUKSData sets base64'd encrypted LUKS passphrase, key slot, and salt data for a host that has successfully
 	// escrowed LUKS data
 	SaveLUKSData(ctx context.Context, host *Host, encryptedBase64Passphrase string, encryptedBase64Salt string, keySlot uint) error
+	// DeleteLUKSData deletes the LUKS encryption key associated with the provided host ID and key slot.
+	DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error
 
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
