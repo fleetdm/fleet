@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"path"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign"
@@ -131,8 +132,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 		return 0, nil
 	}
 
-	deleted := 0
-	var errs []error
+	var deleted atomic.Int32
 	var g errgroup.Group
 	g.SetLimit(10)
 
@@ -144,23 +144,18 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 				Key:    obj.Key,
 			})
 			if err != nil {
-				errs = append(errs, ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel))
-				return nil
+				return ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
 			}
-			deleted++
+			deleted.Add(1)
 			return nil
 		})
 	}
-	err = g.Wait()
 
-	if len(errs) > 0 {
-		return deleted, ctxerr.Wrap(ctx, errors.Join(errs...), "errors occurred during S3 deletion")
-	}
-	if err != nil {
-		return deleted, ctxerr.Wrap(ctx, err, "errors occurred during S3 deletion")
+	if err := g.Wait(); err != nil {
+		return int(deleted.Load()), ctxerr.Wrap(ctx, err, "errors occurred during S3 deletion")
 	}
 
-	return deleted, ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
+	return int(deleted.Load()), ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
 }
 
 func (s *commonFileStore) Sign(ctx context.Context, fileID string) (string, error) {
