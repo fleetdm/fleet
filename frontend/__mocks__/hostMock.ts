@@ -175,7 +175,6 @@ const DEFAULT_HOST_APP_STORE_APP_MOCK: IHostAppStoreApp = {
   self_service: false,
   icon_url: "https://via.placeholder.com/512",
   last_install: null,
-  last_uninstall: null,
 };
 
 export const createMockHostAppStoreApp = (
