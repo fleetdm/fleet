@@ -1976,10 +1976,10 @@ func testApplyLabelSpecsForSerial(t *testing.T, ds *Datastore) {
 		Platform:       "windows",
 	})
 	require.NoError(t, err)
-	_, err = ds.NewHost(ctx, &fleet.Host{
+	host3, err := ds.NewHost(ctx, &fleet.Host{
 		OsqueryHostID:  ptr.String("3"),
 		NodeKey:        ptr.String("3"),
-		UUID:           "2",
+		UUID:           "uuid3",
 		Hostname:       "baz.local",
 		HardwareSerial: "hwd3",
 		Platform:       "windows",
@@ -1993,6 +1993,7 @@ func testApplyLabelSpecsForSerial(t *testing.T, ds *Datastore) {
 			Hosts: []string{
 				"foo.local",
 				"hwd2",
+				"uuid3",
 			},
 		},
 	})
@@ -2000,7 +2001,8 @@ func testApplyLabelSpecsForSerial(t *testing.T, ds *Datastore) {
 
 	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 2)
+	require.Len(t, hosts, 3)
 	require.Equal(t, host1.ID, hosts[0].ID)
 	require.Equal(t, host2.ID, hosts[1].ID)
+	require.Equal(t, host3.ID, hosts[2].ID)
 }
