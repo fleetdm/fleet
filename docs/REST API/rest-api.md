@@ -737,7 +737,7 @@ None.
 
 ```json
 {
-  "certificate_chain": <certificate_chain>
+  "certificate_chain": "<certificate_chain>"
 }
 ```
 
@@ -988,7 +988,7 @@ None.
         "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
         "certificate_user_principal_names": [
           "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com",
-        ]
+        ],
         "certificate_seat_id": "$FLEET_VAR_HOST_HARDWARE_SERIAL@example.com"
       }
     ],
