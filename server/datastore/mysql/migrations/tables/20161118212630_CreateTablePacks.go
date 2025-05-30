@@ -23,7 +23,7 @@ func Up_20161118212630(tx *sql.Tx) error {
 			"`created_by` int(10) unsigned DEFAULT NULL," +
 			"PRIMARY KEY (`id`)," +
 			"UNIQUE KEY `idx_pack_unique_name` (`name`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }
