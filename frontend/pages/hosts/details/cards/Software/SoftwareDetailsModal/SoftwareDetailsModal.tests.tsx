@@ -35,7 +35,7 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("4 months ago")).toBeVisible();
 
     // File path
-    expect(screen.getByText("File path:")).toBeVisible();
+    expect(screen.getByText("Path:")).toBeVisible();
     expect(screen.getByText("/Applications/mock.app")).toBeVisible();
 
     // Hash
@@ -90,7 +90,7 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Type")).toBeVisible();
     expect(screen.getByText("Application (macOS)")).toBeVisible();
     expect(screen.queryByText("Version")).not.toBeInTheDocument();
-    expect(screen.queryByText("File path:")).not.toBeInTheDocument();
+    expect(screen.queryByText("Path:")).not.toBeInTheDocument();
   });
 
   it("renders multiple file paths and their corresponding hashes", () => {
