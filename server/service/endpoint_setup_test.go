@@ -451,14 +451,14 @@ func TestApplyStarterLibraryWithMockClient(t *testing.T) {
 	}
 
 	httpClientFactory := func(opts ...fleethttp.ClientOpt) *http.Client {
-		return &http.Client{Transport: mockRT}
+		client := fleethttp.NewClient(opts...)
+		client.Transport = mockRT
+		return client
 	}
 
 	// Create a client factory that returns a real client
-	clientFactory := func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error) {
-		// Return a real client - we're not testing the token setting functionality
-		return NewClient(serverURL, insecureSkipVerify, rootCA, urlPrefix, options...)
-	}
+	// We're not testing the token setting functionality
+	clientFactory := NewClient
 
 	// Track if ApplyGroup was called and capture the specs
 	applyGroupCalled := false
