@@ -49,7 +49,7 @@ Fleet UI (multiple hosts):
 
 Scripts run from the Fleet UI will run the next time your host checks in with Fleet. You can view the status of the script execution as well as the output in the target host's activity feed.
 
-When executing a script on more than one host, you can view the status of the batch of hosts by clicking on the related item in the global feed.
+When executing a script on more than one host, you can view the status of the batch of hosts by clicking on the related item in the global activity feed.
 
 Fleet API: See our [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#run-script)
 
