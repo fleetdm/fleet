@@ -17,7 +17,7 @@ func Up_20250530123456(tx *sql.Tx) error {
             command_uuid varchar(127) NOT NULL,
 
             PRIMARY KEY (host_uuid)
-          )`)
+          ) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("create fake_table: %w", err)
 	}
