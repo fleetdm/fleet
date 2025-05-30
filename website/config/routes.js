@@ -894,6 +894,8 @@ module.exports.routes = {
   'GET /learn-more-about/how-to-connect-android-enterprise': '/guides/android-mdm-setup',
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
+  'GET /learn-more-about/self-service-software': '/guides/software-self-service',
+  'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
 
   // Sitemap
   // =============================================================================================================

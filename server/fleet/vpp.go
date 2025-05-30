@@ -35,12 +35,17 @@ type VPPAppTeam struct {
 	// ValidatedLabels are the labels (either include or exclude any) that have been validated by
 	// Fleet as being valid labels. This field is only used internally.
 	ValidatedLabels *LabelIdentsWithScope `json:"-"`
-	// AddAutoInstallPolicy
+	// AddAutoInstallPolicy indicates whether or not we should create an auto-install policy for
+	// this VPP app on VPP app add to Fleet.
 	AddAutoInstallPolicy bool `json:"-"`
 	// AddedAt is when the VPP app was added to the team
 	AddedAt     time.Time `db:"added_at" json:"created_at"`
 	Categories  []string  `json:"categories"`
 	CategoryIDs []uint    `json:"-"`
+	// AddedAutomaticInstallPolicy is the auto-install policy that can be
+	// automatically created when a VPP app is added to Fleet. This field should be set after VPP
+	// app creation if AddAutoInstallPolicy is true.
+	AddedAutomaticInstallPolicy *Policy `json:"-"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,

@@ -216,8 +216,8 @@ const generateColumnConfigs = ({
       },
     },
     {
-      title: "Frequency",
-      Header: "Frequency",
+      title: "Interval",
+      Header: "Interval",
       disableSortBy: true,
       accessor: "interval",
       Cell: (cellProps: INumberCellProps): JSX.Element => {
@@ -228,7 +228,7 @@ const generateColumnConfigs = ({
           <TextCell
             value={val}
             emptyCellTooltipText={
-              <>Assign a frequency to collect data at an interval.</>
+              <>Assign an interval to collect data on a schedule.</>
             }
           />
         );

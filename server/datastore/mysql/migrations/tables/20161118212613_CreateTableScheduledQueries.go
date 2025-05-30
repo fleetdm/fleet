@@ -25,7 +25,7 @@ func Up_20161118212613(tx *sql.Tx) error {
 			"`version` varchar(255) DEFAULT NULL," +
 			"`shard` int(10) unsigned DEFAULT NULL," +
 			"PRIMARY KEY (`id`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }
