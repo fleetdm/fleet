@@ -25,7 +25,7 @@ func Up_20221027085019(tx *sql.Tx) error {
 
 			UNIQUE KEY idx_operating_system_vulnerabilities_unq_cve (host_id, cve),
 			INDEX idx_operating_system_vulnerabilities_operating_system_id_cve (operating_system_id, cve)
-		)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`)
 	if err != nil {
 		return errors.Wrapf(err, "operating_system_vulnerabilities")
