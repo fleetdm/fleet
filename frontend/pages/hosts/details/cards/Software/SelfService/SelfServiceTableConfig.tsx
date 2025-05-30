@@ -9,7 +9,6 @@ import { CellProps, Column } from "react-table";
 
 import {
   IAppLastInstall,
-  IAppLastUninstall,
   IHostSoftware,
   ISoftwareLastInstall,
   ISoftwareLastUninstall,
@@ -110,7 +109,7 @@ export type ScriptExecutionId = {
 
 type IInstallerStatusProps = Pick<IHostSoftware, "status"> & {
   last_install: ISoftwareLastInstall | IAppLastInstall | null;
-  last_uninstall: ISoftwareLastUninstall | IAppLastUninstall | null;
+  last_uninstall: ISoftwareLastUninstall | null;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
   onShowUninstallDetails: (ScriptExecutionId?: ScriptExecutionId) => void;
 };
@@ -122,13 +121,14 @@ const InstallerStatus = ({
   onShowInstallerDetails,
   onShowUninstallDetails,
 }: IInstallerStatusProps) => {
+  // Ensures we display info for current status even when there's both last_install and last_uninstall data
   const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
+
   if (!displayConfig) {
-    // This is shown mid-install
+    // Empty cell value if an install/uninstall has never ran
     return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
   }
 
-  // TODO: If there's both a last_install and last_uninstall, render the most recent status
   const renderDisplayStatus = () => {
     if (last_install && displayConfig.displayText === "Failed") {
       return (
@@ -447,9 +447,7 @@ export const generateSoftwareTableHeaders = ({
             null
           }
           last_uninstall={
-            cellProps.row.original.software_package?.last_uninstall ||
-            cellProps.row.original.app_store_app?.last_uninstall ||
-            null
+            cellProps.row.original.software_package?.last_uninstall || null
           }
           onShowInstallerDetails={onShowInstallerDetails}
           onShowUninstallDetails={onShowUninstallDetails}

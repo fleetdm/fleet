@@ -109,7 +109,6 @@ export default {
     return sendRequest("GET", path);
   },
 
-  // TODO: Confirm
   /** Gets more info on FMA/custom package uninstall for device user */
   getSoftwareUninstallResult: (
     deviceToken: string,

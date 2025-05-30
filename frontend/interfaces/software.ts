@@ -378,12 +378,6 @@ export interface ISoftwareLastUninstall {
   installed_at: string;
 }
 
-// TODO: Is IAppLastUninstall a thing?
-export interface IAppLastUninstall {
-  command_uuid: string;
-  installed_at: string;
-}
-
 export interface ISoftwareInstallVersion {
   version: string;
   bundle_identifier: string;
@@ -409,7 +403,6 @@ export interface IHostAppStoreApp {
   icon_url: string;
   version: string;
   last_install: IAppLastInstall | null;
-  last_uninstall: IAppLastUninstall | null;
   categories?: SoftwareCategory[];
 }
 

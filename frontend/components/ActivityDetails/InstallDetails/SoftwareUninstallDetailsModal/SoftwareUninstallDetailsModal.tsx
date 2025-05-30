@@ -12,6 +12,7 @@ import { isPendingStatus, SoftwareInstallStatus } from "interfaces/software";
 import React from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import deviceUserAPI from "services/entities/device_user";
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import {
@@ -87,12 +88,10 @@ const SoftwareUninstallDetails = ({
     ["uninstallResult", script_execution_id],
     () => {
       return deviceAuthToken
-        ? // deviceUserAPI.getSoftwareUninstallResult(
-          //     deviceAuthToken,
-          //     script_execution_id
-          //   )
-          // TODO: Correct API call
-          scriptsAPI.getScriptResult(script_execution_id)
+        ? deviceUserAPI.getSoftwareUninstallResult(
+            deviceAuthToken,
+            script_execution_id
+          )
         : scriptsAPI.getScriptResult(script_execution_id);
     },
     {
