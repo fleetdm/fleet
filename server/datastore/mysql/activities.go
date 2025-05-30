@@ -1112,7 +1112,7 @@ func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Con
 //   - If no other activity is still activated and there is an upcoming
 //     activity to activate next, it does so, respecting the priority and enqueue
 //     order. Activation consists of inserting the activity in its respective
-//     table, e.g. `host_script_results` for scripts, `host_sofware_installs` for
+//     table, e.g. `host_script_results` for scripts, `host_software_installs` for
 //     software installs, `host_vpp_software_installs` and nano command queue for
 //     VPP installs; and setting the activated_at timestamp in the
 //     `upcoming_activities` table.
@@ -1359,7 +1359,7 @@ ORDER BY
 INSERT INTO
 	host_software_installs
 (execution_id, host_id, software_installer_id, user_id, uninstall, installer_filename,
-	software_title_id, software_title_name, version)
+	software_title_id, software_title_name, self_service, version)
 SELECT
 	ua.execution_id,
 	ua.host_id,
@@ -1369,6 +1369,7 @@ SELECT
 	'', -- no installer_filename for uninstalls
 	siua.software_title_id,
 	COALESCE(ua.payload->>'$.software_title_name', '[deleted title]'),
+	COALESCE(ua.payload->>'$.self_service', FALSE),
 	'unknown'
 FROM
 	upcoming_activities ua

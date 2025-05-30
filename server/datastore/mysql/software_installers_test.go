@@ -372,7 +372,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostPendingUninstall.ID, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostPendingUninstall.ID, si.InstallerID, false)
 			require.NoError(t, err)
 
 			// Host with failed uninstall
@@ -387,7 +387,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 			execID = "uuid" + tag + tc
-			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostFailedUninstall.ID, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostFailedUninstall.ID, si.InstallerID, false)
 			require.NoError(t, err)
 			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostFailedUninstall.ID,
@@ -408,7 +408,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 			execID = "uuid" + tag + tc
-			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostUninstalled.ID, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostUninstalled.ID, si.InstallerID, false)
 			require.NoError(t, err)
 			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostUninstalled.ID,
@@ -418,7 +418,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// Uninstall request with unknown host
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID, false)
 			assert.ErrorContains(t, err, "Host")
 
 			userTeamFilter := fleet.TeamFilter{
@@ -2652,7 +2652,7 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 
 	// create an uninstall request for installer1
 	req3 := uuid.NewString()
-	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1)
+	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1, false)
 	require.NoError(t, err)
 
 	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
