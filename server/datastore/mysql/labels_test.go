@@ -94,7 +94,7 @@ func TestLabels(t *testing.T) {
 		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
-		{"ApplyLabelSpecSerial", testApplyLabelSpecsForSerial},
+		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -1955,7 +1955,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, host3.Hostname, labelSpec.Hosts[2])
 }
 
-func testApplyLabelSpecsForSerial(t *testing.T, ds *Datastore) {
+func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	host1, err := ds.NewHost(ctx, &fleet.Host{
