@@ -55,9 +55,8 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 		panic(errors.New("enriched vulnerability spot-check failed for Python on CVE-2025-0938"))
 	}
 
-	// check CVSS score extraction; confirm that secondary CVSS scores are extracted when primary isn't set
-	if vulns["CVE-2025-3196"].CVSSv3BaseScore() != 5.3 { // CVSSv4 score and CVSSv3 score are different
-		panic(errors.New("cvss v3 spot-check failed for CVE-2025-3196"))
+	if vulns["CVE-2025-3196"].CVSSv3BaseScore() != 5.5 { // Should pull primary CVSSv3 score, (has primary and secondary)
+		panic(fmt.Errorf("cvss v3 spot-check failed for CVE-2025-3196; score was %f instead of 5.5", vulns["CVE-2025-3196"].CVSSv3BaseScore()))
 	}
 
 	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2024.json.gz"))
@@ -75,6 +74,7 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 		panic(errors.New("enriched vulnerability spot-check failed for Citrix Workstation on CVE-2024-6286"))
 	}
 
+	// check CVSS score extraction; confirm that secondary CVSS scores are extracted when primary isn't set
 	if vulns["CVE-2024-54559"].CVSSv3BaseScore() != 5.5 { // secondary source CVSS score
 		panic(errors.New("cvss v3 spot-check failed for CVE-2024-54559"))
 	}

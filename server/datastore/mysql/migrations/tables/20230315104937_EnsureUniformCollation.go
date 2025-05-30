@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 	"text/template"
 
 	"github.com/jmoiron/sqlx"
@@ -36,7 +37,6 @@ func fixupSoftware(tx *sql.Tx, collation string) error {
 		arch      COLLATE %s
 		HAVING total > 1
 		COLLATE %s`, collation, collation, collation, collation, collation))
-
 	if err != nil {
 		return fmt.Errorf("aggregating dupes: %w", err)
 	}
@@ -208,6 +208,11 @@ func fixupOS(tx *sql.Tx, collation string) error {
 // This is based on the changeCharacterSet function that's included in this
 // module and part of the 20170306075207_UseUTF8MB migration.
 func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
+	// This env var should only be set during TestCollation.
+	if v := os.Getenv("FLEET_TEST_DISABLE_COLLATION_UPDATES"); v != "" {
+		return nil
+	}
+
 	_, err = tx.Exec(fmt.Sprintf("ALTER DATABASE DEFAULT CHARACTER SET `%s` COLLATE `%s`", charset, collation))
 	if err != nil {
 		return fmt.Errorf("alter database: %w", err)
@@ -228,11 +233,11 @@ func changeCollation(tx *sql.Tx, charset string, collation string) (err error) {
 	txx := sqlx.Tx{Tx: tx}
 	var names []string
 	err = txx.Select(&names, `
-          SELECT table_name
-          FROM information_schema.TABLES AS T, information_schema.COLLATION_CHARACTER_SET_APPLICABILITY AS C
-          WHERE C.collation_name = T.table_collation
-          AND T.table_schema = (SELECT database())
-          AND (C.CHARACTER_SET_NAME != ? OR C.COLLATION_NAME != ?)
+	      SELECT table_name
+	      FROM information_schema.TABLES AS T, information_schema.COLLATION_CHARACTER_SET_APPLICABILITY AS C
+	      WHERE C.collation_name = T.table_collation
+	      AND T.table_schema = (SELECT database())
+	      AND (C.CHARACTER_SET_NAME != ? OR C.COLLATION_NAME != ?)
 	  -- exclude tables that have columns with specific collations
 	  AND table_name NOT IN ('hosts', 'enroll_secrets')`, charset, collation)
 	if err != nil {

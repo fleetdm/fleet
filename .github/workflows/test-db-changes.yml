@@ -72,20 +72,6 @@ jobs:
           index=$((index+1))
         done
 
-    - name: Prevent hosts foreign keys
-      run: |
-        # grep exits with an error code if it doesn't find a match, so this condition
-        # is only true if it a) finds a matching migrations file in the diff, and b)
-        # finds an FK to hosts in one of the migrations files.
-        #
-        # grep prints the matches, which will help figure out where those references are.
-        if git diff --name-only origin/main | grep "migrations/" | xargs grep -i -E 'references\s*hosts\s*\(\s*id\s*\)' ; then
-        	echo "❌ fail: hosts foreign keys are not allowed"
-        	echo "Ref: https://github.com/fleetdm/fleet/blob/main/handbook/engineering/scaling-fleet.md#foreign-keys-and-locking"
-        	exit 1
-        fi
-
-
     - name: Install Go
       uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
       with:
@@ -111,4 +97,17 @@ jobs:
           echo "❌ fail: uncommited changes in schema.sql"
           echo "please run 'make test-schema' and commit the changes"
           exit 1
+        fi
+
+    - name: Prevent hosts foreign keys
+      run: |
+        # grep exits with an error code if it doesn't find a match, so this condition
+        # is only true if it a) finds a matching migrations file in the diff, and b)
+        # finds an FK to hosts in one of the migrations files.
+        #
+        # grep prints the matches, which will help figure out where those references are.
+        if git diff --name-only origin/main | grep "migrations/" | xargs grep -i -E 'references\s*hosts\s*\(\s*id\s*\)' ; then
+        	echo "❌ fail: hosts foreign keys are not allowed"
+        	echo "Ref: https://github.com/fleetdm/fleet/blob/main/handbook/engineering/scaling-fleet.md#foreign-keys-and-locking"
+        	exit 1
         fi
