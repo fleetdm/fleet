@@ -123,6 +123,8 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 
 // applyStarterLibrary downloads the starter library from GitHub
 // and applies it to the Fleet server using an authenticated client.
+// TODO: Move the apply starter library logic to use the serve command as an entry point to simplify and leverage the entire fleet.Service.
+// Entry point: https://github.com/fleetdm/fleet/blob/2dfadc0971c6ba45c19dad2f5f1f4cd0f1b89b20/cmd/fleet/serve.go#L1099-L1100
 func applyStarterLibrary(
 	ctx context.Context,
 	serverURL string,
