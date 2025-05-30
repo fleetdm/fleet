@@ -514,3 +514,74 @@ func TestApplyStarterLibraryWithMockClient(t *testing.T) {
 	// Verify that the starter library URL was requested
 	assert.Contains(t, mockRT.calls, starterLibraryURL, "The starter library URL should have been requested")
 }
+
+func TestApplyStarterLibraryWithMalformedYAML(t *testing.T) {
+	// Create mock HTTP client that returns malformed YAML
+	malformedYAML := `
+	teams:
+	- name: "Malformed Team
+	  # Missing closing quote and improper indentation
+	scripts:
+	- "script1.sh
+	`
+
+	mockRT := &testRoundTripper2{
+		calls: []string{},
+		RoundTripFunc: func(req *http.Request) (*http.Response, error) {
+			switch {
+			case req.URL.String() == starterLibraryURL:
+				// Return malformed YAML content
+				return createTestResponse(200, malformedYAML), nil
+			default:
+				// For any other URL, return a 404
+				return createTestResponse(404, "Not found"), nil
+			}
+		},
+	}
+
+	httpClientFactory := func(opts ...fleethttp.ClientOpt) *http.Client {
+		client := fleethttp.NewClient(opts...)
+		client.Transport = mockRT
+		return client
+	}
+
+	// Create a client factory that returns a real client
+	clientFactory := NewClient
+
+	// Create a mock ApplyGroup function that should not be called
+	mockApplyGroup := func(ctx context.Context, specs *spec.Group) error {
+		t.Error("ApplyGroup should not be called with malformed YAML")
+		return nil
+	}
+
+	// Use a defer/recover to explicitly catch any panics
+	var panicValue interface{}
+
+	defer func() {
+		if r := recover(); r != nil {
+			panicValue = r
+			t.Fatalf("Panic occurred when processing malformed YAML: %v", panicValue)
+		}
+	}()
+
+	// Call the function under test
+	testErr := applyStarterLibrary(
+		context.Background(),
+		"https://example.com",
+		"test-token",
+		kitlog.NewNopLogger(),
+		httpClientFactory,
+		clientFactory,
+		mockApplyGroup,
+	)
+
+	// Verify results
+	require.Error(t, testErr, "Should return an error with malformed YAML")
+	assert.Contains(t, testErr.Error(), "failed to parse starter library",
+		"Error should indicate YAML parsing failure")
+
+	// Verify that the starter library URL was requested
+	assert.Contains(t, mockRT.calls, starterLibraryURL, "The starter library URL should have been requested")
+
+	// If we reach here, no panic occurred and the setup flow was not interrupted
+}
