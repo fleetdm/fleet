@@ -223,7 +223,143 @@ const HostDetailsPage = ({
   const [
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
-  ] = useState<IHostSoftware | null>(null);
+  ] = useState<IHostSoftware | null>({
+    id: 223,
+    name: "Google Chrome Helper",
+    source: "apps",
+    status: null,
+    installed_versions: [
+      {
+        version: "136.0.7103.114",
+        bundle_identifier: "com.google.Chrome.helper",
+        last_opened_at: "2025-05-05T23:47:38Z",
+        vulnerabilities: ["CVE-2025-5263"],
+        installed_paths: [
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.114/Helpers/Google Chrome Helper.app",
+        ],
+        signature_information: [
+          {
+            installed_path:
+              "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.114/Helpers/Google Chrome Helper.app",
+            team_identifier: "EQHXZ8M8AV",
+            hash_sha256: null,
+          },
+        ],
+      },
+      {
+        version: "136.0.7103.114",
+        bundle_identifier: "com.google.Chrome.helper",
+        last_opened_at: "2025-05-05T23:47:38Z",
+        vulnerabilities: [
+          "CVE-2025-5263",
+          "CVE-2025-5264",
+          "CVE-2025-5265",
+          "CVE-2025-5266",
+          "CVE-2025-5267",
+          "CVE-2025-5270",
+          "CVE-2025-5271",
+          "CVE-2025-5272",
+        ],
+        installed_paths: [
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.114/Helpers/Google Chrome Helper.app",
+        ],
+        signature_information: [
+          {
+            installed_path:
+              "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.114/Helpers/Google Chrome Helper.app",
+            team_identifier: "EQHXZ8M8AV",
+            hash_sha256: "09q2098q3409802938502984098240980984385",
+          },
+        ],
+      },
+      {
+        version: "136.0.7103.93",
+        bundle_identifier: "com.google.Chrome.helper",
+        last_opened_at: "2025-05-05T23:47:38Z",
+        vulnerabilities: null,
+        installed_paths: [
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper (GPU).app",
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper.app",
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper (GPU)1.app",
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper1.app",
+        ],
+        signature_information: [
+          {
+            installed_path:
+              "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper (GPU).app",
+            team_identifier: "EQHXZ8M8AV",
+            hash_sha256: null,
+          },
+          {
+            installed_path:
+              "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper.app",
+            team_identifier: "EQHXZ8M8AV",
+            hash_sha256: "thisisatesthashwhatdoesitlooklike",
+          },
+        ],
+      },
+      {
+        version: "136.0.7103.94",
+        bundle_identifier: "com.google.Chrome.helper",
+        last_opened_at: "2025-05-05T23:47:38Z",
+        vulnerabilities: null,
+        installed_paths: [
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper (GPU).app",
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper.app",
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper (GPU)1.app",
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper1.app",
+        ],
+        signature_information: [
+          {
+            installed_path:
+              "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper (GPU).app",
+            team_identifier: "EQHXZ8M8AV",
+            hash_sha256: null,
+          },
+          {
+            installed_path:
+              "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper.app",
+            team_identifier: "EQHXZ8M8AV",
+            hash_sha256: "thisisatesthashwhatdoesitlooklike",
+          },
+          {
+            installed_path:
+              "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper1.app",
+            team_identifier: "EQHXZ8M8AV",
+            hash_sha256: "thisisatesthashwhatdoesitlooklike13424",
+          },
+        ],
+      },
+      {
+        version: "136.0.7103.99",
+        bundle_identifier: "com.google.Chrome.helper",
+        last_opened_at: "2025-05-05T23:47:38Z",
+        vulnerabilities: null,
+        installed_paths: [
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper (GPU).app",
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper.app",
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper (GPU)1.app",
+          "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper1.app",
+        ],
+        signature_information: [
+          {
+            installed_path:
+              "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper (GPU).app",
+            team_identifier: "EQHXZ8M8AV",
+            hash_sha256: null,
+          },
+          {
+            installed_path:
+              "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/136.0.7103.94/Helpers/Google Chrome Helper.app",
+            team_identifier: "EQHXZ8M8AV",
+            hash_sha256: "thisisatesthashwhatdoesitlooklike",
+          },
+        ],
+      },
+    ],
+    software_package: null,
+    app_store_app: null,
+  });
   const [
     selectedCancelActivity,
     setSelectedCancelActivity,

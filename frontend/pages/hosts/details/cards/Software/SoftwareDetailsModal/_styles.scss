@@ -1,6 +1,24 @@
 .software-details-modal {
+  // Same as AddHostModal
+  &__content {
+    max-height: 581px;
+    overflow-y: auto;
+  }
+
   &__software-details {
-    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    .data-set dd {
+      white-space: initial;
+    }
+  }
+
+  &__version-details {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
   }
 
   &__details-info {
@@ -28,12 +46,17 @@
   &__sig-info {
     display: flex;
     flex-direction: column;
+
+    dt {
+      min-width: 40px;
+    }
   }
 
   &__file-path,
   &__hash {
     width: 100%;
     white-space: initial;
+    text-wrap: wrap;
     overflow-wrap: anywhere;
   }
 
