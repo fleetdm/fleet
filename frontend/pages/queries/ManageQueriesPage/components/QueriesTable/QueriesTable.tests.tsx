@@ -173,7 +173,7 @@ describe("QueriesTable", () => {
       expect(
         screen.getByText("You don't have any queries")
       ).toBeInTheDocument();
-      expect(screen.queryByText("Frequency")).toBeNull();
+      expect(screen.queryByText("Interval")).toBeNull();
       expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
     });
   });
@@ -200,7 +200,7 @@ describe("QueriesTable", () => {
       expect(
         screen.getByText("You don't have any queries that apply to all teams")
       ).toBeInTheDocument();
-      expect(screen.queryByText("Frequency")).toBeNull();
+      expect(screen.queryByText("Interval")).toBeNull();
       expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
     });
   });
@@ -227,7 +227,7 @@ describe("QueriesTable", () => {
       expect(
         screen.getByText("You don't have any queries that apply to this team")
       ).toBeInTheDocument();
-      expect(screen.queryByText("Frequency")).toBeNull();
+      expect(screen.queryByText("Interval")).toBeNull();
       expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
     });
   });
@@ -251,7 +251,7 @@ describe("QueriesTable", () => {
       "Global query 1",
       "Global query 2",
       "Inherited",
-      "Frequency",
+      "Interval",
       "Team query 1",
       "Team query 2",
     ];

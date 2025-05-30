@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/go-kit/log/level"
 )
 
 // Used for overriding the env var value in testing
@@ -450,6 +451,18 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "create activity for add app store app")
+	}
+
+	if appID.AddAutoInstallPolicy && app.AddedAutomaticInstallPolicy != nil {
+		policyAct := fleet.ActivityTypeCreatedPolicy{
+			ID:   app.AddedAutomaticInstallPolicy.ID,
+			Name: app.AddedAutomaticInstallPolicy.Name,
+		}
+
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for app store app", "err", err)
+		}
+
 	}
 
 	return addedApp.TitleID, nil

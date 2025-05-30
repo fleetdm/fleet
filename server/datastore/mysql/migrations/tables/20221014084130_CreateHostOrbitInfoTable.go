@@ -16,7 +16,7 @@ func Up_20221014084130(tx *sql.Tx) error {
 
         PRIMARY KEY (host_id),
         KEY idx_host_orbit_info_version (version)
-    )`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	return err
 }
 

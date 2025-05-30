@@ -3,6 +3,7 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+	"os"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -17,6 +18,11 @@ func init() {
 // This is based on the changeCollation function that's included in this
 // module and part of the 20230315104937_EnsureUniformCollation migration.
 func changeCollation2025(tx *sql.Tx, charset string, collation string) (err error) {
+	// This env var should only be set during TestCollation.
+	if v := os.Getenv("FLEET_TEST_DISABLE_COLLATION_UPDATES"); v != "" {
+		return nil
+	}
+
 	_, err = tx.Exec(fmt.Sprintf("ALTER DATABASE DEFAULT CHARACTER SET `%s` COLLATE `%s`", charset, collation))
 	if err != nil {
 		return fmt.Errorf("alter database: %w", err)
@@ -25,11 +31,11 @@ func changeCollation2025(tx *sql.Tx, charset string, collation string) (err erro
 	txx := sqlx.Tx{Tx: tx}
 	var names []string
 	err = txx.Select(&names, `
-          SELECT table_name
-          FROM information_schema.TABLES AS T, information_schema.COLLATION_CHARACTER_SET_APPLICABILITY AS C
-          WHERE C.collation_name = T.table_collation
-          AND T.table_schema = (SELECT database())
-          AND (C.CHARACTER_SET_NAME != ? OR C.COLLATION_NAME != ?)
+	      SELECT table_name
+	      FROM information_schema.TABLES AS T, information_schema.COLLATION_CHARACTER_SET_APPLICABILITY AS C
+	      WHERE C.collation_name = T.table_collation
+	      AND T.table_schema = (SELECT database())
+	      AND (C.CHARACTER_SET_NAME != ? OR C.COLLATION_NAME != ?)
 	  -- exclude tables that have columns with specific collations
 	  AND table_name NOT IN ('hosts', 'enroll_secrets')`, charset, collation)
 	if err != nil {
