@@ -58,16 +58,24 @@ func checkLicenseExpiration(svc fleet.Service) func(context.Context, http.Respon
 }
 
 type extraHandlerOpts struct {
-	loginRateLimit *throttled.Rate
+	loginRateLimit  *throttled.Rate
+	mdmSsoRateLimit *throttled.Rate
 }
 
 // ExtraHandlerOption allows adding extra configuration to the HTTP handler.
 type ExtraHandlerOption func(*extraHandlerOpts)
 
-// WithLoginRateLimit configures the rate limit for the login endpoint.
+// WithLoginRateLimit configures the rate limit for the login endpoints.
 func WithLoginRateLimit(r throttled.Rate) ExtraHandlerOption {
 	return func(o *extraHandlerOpts) {
 		o.loginRateLimit = &r
+	}
+}
+
+// WithMdmSsoRateLimit configures the rate limit for the MDM SSO endpoints (falls back to login rate limit otherwise).
+func WithMdmSsoRateLimit(r throttled.Rate) ExtraHandlerOption {
+	return func(o *extraHandlerOpts) {
+		o.mdmSsoRateLimit = &r
 	}
 }
 
@@ -213,6 +221,7 @@ func addMetrics(r *mux.Router) {
 const (
 	desktopRateLimitMaxBurst        = 100 // Max burst used for device request rate limiting.
 	forgotPasswordRateLimitMaxBurst = 9   // Max burst used for rate limiting on the the forgot_password endpoint.
+	DefaultLoginRateLimit           = 10  // Normal per-minute rate limit for logins (and MDM SSO if not overridden)
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
@@ -972,9 +981,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		WithCustomMiddleware(limiter.Limit("forgot_password", quota)).
 		POST("/api/_version_/fleet/forgot_password", forgotPasswordEndpoint, forgotPasswordRequest{})
 
-	loginRateLimit := throttled.PerMin(10)
+	loginRateLimit := throttled.PerMin(DefaultLoginRateLimit)
 	if extra.loginRateLimit != nil {
 		loginRateLimit = *extra.loginRateLimit
+	}
+	mdmSsoRateLimit := loginRateLimit
+	if extra.mdmSsoRateLimit != nil {
+		mdmSsoRateLimit = *extra.mdmSsoRateLimit
 	}
 
 	ne.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
@@ -989,10 +1002,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// This is a callback endpoint for calendar integration -- it is called to notify an event change in a user calendar
 	ne.POST("/api/_version_/fleet/calendar/webhook/{event_uuid}", calendarWebhookEndpoint, calendarWebhookRequest{})
 
-	neAppleMDM.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
+	neAppleMDM.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: mdmSsoRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/mdm/sso", initiateMDMAppleSSOEndpoint, initiateMDMAppleSSORequest{})
 
-	neAppleMDM.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
+	neAppleMDM.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: mdmSsoRateLimit, MaxBurst: 9})).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMAppleSSOEndpoint, callbackMDMAppleSSORequest{})
 }
 
