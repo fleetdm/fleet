@@ -42,7 +42,7 @@ type setupResponse struct {
 	Err          error          `json:"error,omitempty"`
 }
 
-type applyGroupFunc func(ctx context.Context, specs *spec.Group) error
+type applyGroupFunc func(context.Context, *spec.Group) error
 
 func (r setupResponse) Error() error { return r.Err }
 
@@ -196,7 +196,7 @@ func applyStarterLibrary(
 	logf := func(format string, a ...interface{}) {}
 
 	// Assign the real implementation
-	applyGroupFn := func(ctx context.Context, specs *spec.Group) error {
+	var applyGroupFn applyGroupFunc = func(ctx context.Context, specs *spec.Group) error {
 		teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
 		teamsScripts := make(map[string][]fleet.ScriptResponse)
 		teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
