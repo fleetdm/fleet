@@ -41,8 +41,8 @@ func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMA
 	profUUID := "a" + uuid.New().String()
 	stmt := `
 INSERT INTO
-    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at, secrets_updated_at)
-(SELECT ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP(), ? FROM DUAL WHERE
+    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at)
+(SELECT ?, ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP(), ? FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -58,7 +58,7 @@ INSERT INTO
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
-			profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
+			profUUID, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
 			teamID)
 		if err != nil {
 			switch {
@@ -125,6 +125,7 @@ INSERT INTO
 		ProfileID:    uint(profileID), //nolint:gosec // dismiss G115
 		Identifier:   cp.Identifier,
 		Name:         cp.Name,
+		Scope:        cp.Scope,
 		Mobileconfig: cp.Mobileconfig,
 		TeamID:       cp.TeamID,
 	}, nil
@@ -175,6 +176,7 @@ SELECT
 	profile_id,
 	team_id,
 	name,
+	scope,
 	identifier,
 	mobileconfig,
 	created_at,
@@ -221,6 +223,7 @@ SELECT
 	profile_id,
 	team_id,
 	name,
+	scope,
 	identifier,
 	mobileconfig,
 	checksum,
@@ -425,6 +428,7 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_profiles that have not been sent to host")
 	}
 
+	// TODO EJM update for user channel
 	const deactivateNanoStmt = `
 	UPDATE
 		nano_enrollment_queue
@@ -865,6 +869,7 @@ func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID strin
 		ctx,
 		ds.reader(ctx),
 		&results,
+		// TODO EJM Maybe update for user channel?
 		`
 SELECT
     ncr.id as host_uuid,
@@ -919,6 +924,7 @@ WHERE ua.id IS NOT NULL OR hvsi.id IS NOT NULL
 }
 
 func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+	// TODO EJM Maybe update for user channel?
 	query := `
 SELECT
     ncr.id as host_uuid,
@@ -957,6 +963,7 @@ func (ds *Datastore) ListMDMAppleCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMAppleCommand, error) {
+	// TODO EJM Maybe update for user channel?
 	stmt := fmt.Sprintf(`
 SELECT
     nvq.id as device_id,
@@ -1080,6 +1087,7 @@ func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleD
 		ctx,
 		ds.writer(ctx),
 		&devices,
+		// TODO EJM Maybe update for user channel?
 		`
 SELECT
     d.id,
@@ -2010,14 +2018,16 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
-    profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at, secrets_updated_at
+    profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
+  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
+  -- TODO EJM Not sure if Scope should be changeable?
+  scope = VALUES(scope),
   checksum = VALUES(checksum),
   name = VALUES(name),
   mobileconfig = VALUES(mobileconfig)
@@ -2718,6 +2728,7 @@ func generateDesiredStateQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
+	// TODO EJM Maybe update for user channel?
 	return os.Expand(`
 	-- non label-based entities
 	SELECT
@@ -3024,6 +3035,7 @@ func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, uuids []st
 		return nil, nil
 	}
 
+	// TODO EJM should we get scope?
 	stmt := `
           SELECT profile_uuid, mobileconfig as mobileconfig
           FROM mdm_apple_configuration_profiles WHERE profile_uuid IN (?)
@@ -3591,18 +3603,19 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 			teamID = *cp.TeamID
 		}
 
-		args = append(args, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.SecretsUpdatedAt)
+		args = append(args, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.SecretsUpdatedAt)
 		// see https://stackoverflow.com/a/51393124/1094941
-		sb.WriteString("( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(), ?),")
+		sb.WriteString("( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(), ?),")
 	}
 
 	stmt := fmt.Sprintf(`
           INSERT INTO
-              mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at, secrets_updated_at)
+              mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at)
           VALUES %s
           ON DUPLICATE KEY UPDATE
             uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
             mobileconfig = VALUES(mobileconfig),
+			scope = VALUES(scope),
             checksum = VALUES(checksum),
 		    secrets_updated_at = VALUES(secrets_updated_at)
 `, strings.TrimSuffix(sb.String(), ","))
@@ -3932,6 +3945,7 @@ SELECT
 	profile_id,
 	team_id,
 	name,
+	scope,
 	identifier,
 	mobileconfig,
 	created_at,
@@ -5893,6 +5907,7 @@ GROUP BY h.id`
 }
 
 func (ds *Datastore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) (uuids []string, err error) {
+	// TODO EJM This name should probably change also worth checking nano_enrollments.enabled?
 	const stmt = `
 SELECT DISTINCT neq.id
 FROM nano_enrollment_queue neq
@@ -6340,6 +6355,7 @@ func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 }
 
 func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
+	// TODO EJM Do we need to update this function?
 	// Delete pending commands that don't have a corresponding entry in nano_enrollment_queue.
 	// This could occur when the host re-enrolls in MDM with outstanding Pending commands.
 	// This could also occur due to errors (i.e., large server/DB load) or server being stopped while processing the profiles.

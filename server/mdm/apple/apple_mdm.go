@@ -1097,8 +1097,6 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 	<string>` + FleetPayloadIdentifier + `</string>
 	<key>PayloadOrganization</key>
 	<string>{{ .Organization | xml }}</string>
-	<key>PayloadScope</key>
-	<string>System</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>

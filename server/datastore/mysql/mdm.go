@@ -157,6 +157,7 @@ SELECT
 	profile_uuid,
 	team_id,
 	name,
+	scope,
 	platform,
 	identifier,
 	checksum,
@@ -167,6 +168,7 @@ FROM (
 		profile_uuid,
 		team_id,
 		name,
+		scope,
 		'darwin' as platform,
 		identifier,
 		checksum,
@@ -184,6 +186,7 @@ FROM (
 		profile_uuid,
 		team_id,
 		name,
+		'System' as scope,
 		'windows' as platform,
 		'' as identifier,
 		'' as checksum,
@@ -201,6 +204,7 @@ FROM (
 		declaration_uuid AS profile_uuid,
 		team_id,
 		name,
+		'System' as scope,
 		'darwin' AS platform,
 		identifier,
 		token AS checksum,
@@ -831,6 +835,7 @@ HAVING
 }
 
 func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID uint, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
+	// TODO EJM Need update for scopes?
 	stmt := `
 -- profiles without labels
 SELECT
