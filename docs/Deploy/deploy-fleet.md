@@ -41,7 +41,7 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 ### Instructions
 
 <div purpose="deploy-to-render-button">
-    <a href="https://render.com/deploy?repo=https://github.com/fleetdm/fleet" id="render-button">
+    <a href="https://render.com/deploy?repo=https://github.com/fleetdm/fleet/tree/render-deploy-branch" id="render-button">
         <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render">
     </a>
 </div>
