@@ -41,6 +41,8 @@ services:
           name: fleet-redis
           type: redis
           property: connectionString
+      - key: FLEET_IMAGE_TAG
+        value: 'latest'
       - key: FLEET_SERVER_TLS
         value: 'false'
       - key: PORT
