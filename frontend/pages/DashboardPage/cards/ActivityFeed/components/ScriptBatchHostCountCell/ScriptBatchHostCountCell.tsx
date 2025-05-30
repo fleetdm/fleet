@@ -2,7 +2,6 @@ import React from "react";
 import { Link } from "react-router";
 import Button from "components/buttons/Button";
 import PATHS from "router/paths";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 
 const baseClass = "script-batch-host-count-cell";
@@ -28,14 +27,6 @@ const ScriptBatchHostCountCell = ({
     team_id: teamId,
   })}`;
 
-  const renderCount = () => {
-    if (count === 0) {
-      return DEFAULT_EMPTY_CELL_VALUE;
-    }
-
-    return <Link to={hostPath}>{count}</Link>;
-  };
-
   const renderCancelButton = () => {
     if (status !== "pending" || count === 0) {
       return null;
@@ -54,7 +45,7 @@ const ScriptBatchHostCountCell = ({
 
   return (
     <div className={baseClass}>
-      {renderCount()}
+      <Link to={hostPath}>{count}</Link>
       {renderCancelButton()}
     </div>
   );

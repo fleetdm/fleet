@@ -1,6 +1,8 @@
 import React, { useContext } from "react";
 import { invert } from "lodash";
 
+import { dateAgo } from "utilities/date_format";
+
 import { AppContext } from "context/app";
 import { ILabel } from "interfaces/label";
 import {
@@ -574,7 +576,9 @@ const HostsFilterBlock = ({
                 HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
               ])
             }
-            tooltipDescription={scriptBatchRanAt}
+            tooltipDescription={
+              scriptBatchRanAt ? dateAgo(scriptBatchRanAt) : null
+            }
           />
         )}
       </>
