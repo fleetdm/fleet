@@ -93,7 +93,15 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 
 			// Apply starter library using the admin token we just created
 			if req.ServerURL != nil {
-				if err := applyStarterLibrary(ctx, *req.ServerURL, session.Key, logger); err != nil {
+				if err := applyStarterLibrary(
+					ctx,
+					*req.ServerURL,
+					session.Key,
+					logger,
+					fleethttp.NewClient,
+					NewClient,
+					nil, // No mock ApplyGroup for production code
+				); err != nil {
 					level.Debug(logger).Log("endpoint", "setup", "op", "applyStarterLibrary", "err", err)
 					// Continue even if there's an error applying the starter library
 				}
@@ -113,7 +121,16 @@ func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoin
 
 // applyStarterLibrary downloads the starter library from GitHub
 // and applies it to the Fleet server using an authenticated client.
-func applyStarterLibrary(ctx context.Context, serverURL string, token string, logger kitlog.Logger) error {
+func applyStarterLibrary(
+	ctx context.Context,
+	serverURL string,
+	token string,
+	logger kitlog.Logger,
+	httpClientFactory func(opts ...fleethttp.ClientOpt) *http.Client,
+	clientFactory func(serverURL string, insecureSkipVerify bool, rootCA, urlPrefix string, options ...ClientOption) (*Client, error),
+	// For testing only - if provided, this function will be used instead of client.ApplyGroup
+	mockApplyGroup func(ctx context.Context, specs *spec.Group) error,
+) error {
 	level.Debug(logger).Log("msg", "Applying starter library")
 
 	// Create a request with context for downloading the starter library
@@ -122,8 +139,8 @@ func applyStarterLibrary(ctx context.Context, serverURL string, token string, lo
 		return fmt.Errorf("failed to create request for starter library: %w", err)
 	}
 
-	// Download the starter library from GitHub using fleethttp
-	httpClient := fleethttp.NewClient(fleethttp.WithTimeout(5 * time.Second))
+	// Download the starter library from GitHub using the provided HTTP client factory
+	httpClient := httpClientFactory(fleethttp.WithTimeout(5 * time.Second))
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download starter library: %w", err)
@@ -166,8 +183,8 @@ func applyStarterLibrary(ctx context.Context, serverURL string, token string, lo
 		}
 	}
 
-	// Create an authenticated client and apply specs
-	client, err := NewClient(serverURL, true, "", "")
+	// Create an authenticated client and apply specs using the provided client factory
+	client, err := clientFactory(serverURL, true, "", "")
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
@@ -176,25 +193,33 @@ func applyStarterLibrary(ctx context.Context, serverURL string, token string, lo
 	// Log function for ApplyGroup (minimal logging)
 	logf := func(format string, a ...interface{}) {}
 
-	// Apply the specs using the client's ApplyGroup method
-	teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
-	teamsScripts := make(map[string][]fleet.ScriptResponse)
-	teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
+	// Apply the specs using the client's ApplyGroup method or the mock function
+	if mockApplyGroup != nil {
+		// Use the mock function for testing
+		if err := mockApplyGroup(ctx, specs); err != nil {
+			return fmt.Errorf("failed to apply starter library: %w", err)
+		}
+	} else {
+		// Use the real ApplyGroup method
+		teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
+		teamsScripts := make(map[string][]fleet.ScriptResponse)
+		teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 
-	_, _, _, _, err = client.ApplyGroup(
-		ctx,
-		false,
-		specs,
-		".",
-		logf,
-		nil,
-		fleet.ApplyClientSpecOptions{},
-		teamsSoftwareInstallers,
-		teamsVPPApps,
-		teamsScripts,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to apply starter library: %w", err)
+		_, _, _, _, err = client.ApplyGroup(
+			ctx,
+			false,
+			specs,
+			".",
+			logf,
+			nil,
+			fleet.ApplyClientSpecOptions{},
+			teamsSoftwareInstallers,
+			teamsVPPApps,
+			teamsScripts,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to apply starter library: %w", err)
+		}
 	}
 
 	level.Debug(logger).Log("msg", "Starter library applied successfully")
