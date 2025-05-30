@@ -1783,6 +1783,7 @@ type ActivityTypeUninstalledSoftware struct {
 	HostDisplayName string `json:"host_display_name"`
 	SoftwareTitle   string `json:"software_title"`
 	ExecutionID     string `json:"script_execution_id"`
+	SelfService     bool   `json:"self_service"`
 	Status          string `json:"status"`
 }
 
@@ -1801,11 +1802,13 @@ func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, det
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
 - "script_execution_id": ID of the software uninstall script.
+- "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
 - "status": Status of the software uninstallation.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
+  "self_service": false,
   "status": "uninstalled"
 }`
 }
