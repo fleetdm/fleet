@@ -23,6 +23,8 @@ interface IFileDetailsProps {
   onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   accept?: string;
   progress?: number;
+  /** Set to false for one instance we allow users to edit a file as it shows them the YAML */
+  gitopsCompatible?: boolean;
   gitOpsModeEnabled?: boolean;
 }
 
@@ -35,10 +37,12 @@ const FileDetails = ({
   onFileSelect,
   accept,
   progress,
+  gitopsCompatible = true,
   gitOpsModeEnabled = false,
 }: IFileDetailsProps) => {
   const infoClasses = classnames(`${baseClass}__info`, {
-    [`${baseClass}__info--disabled-by-gitops-mode`]: gitOpsModeEnabled,
+    [`${baseClass}__info--disabled-by-gitops-mode`]:
+      gitOpsModeEnabled && gitopsCompatible,
   });
   return (
     <div className={baseClass}>
@@ -58,32 +62,49 @@ const FileDetails = ({
           )}
         </div>
       </div>
-      {!progress && canEdit && onFileSelect && (
-        <GitOpsModeTooltipWrapper
-          position="left"
-          tipOffset={-8}
-          renderChildren={(disableChildren) => (
-            <div className={`${baseClass}__edit`}>
-              <Button
-                disabled={disableChildren}
-                className={`${baseClass}__edit-button`}
-                variant="icon"
-              >
-                <label htmlFor="edit-file">
-                  <Icon name="pencil" color="ui-fleet-black-75" />
-                </label>
-              </Button>
-              <input
-                disabled={disableChildren}
-                accept={accept}
-                id="edit-file"
-                type="file"
-                onChange={onFileSelect}
-              />
-            </div>
-          )}
-        />
-      )}
+      {!progress &&
+        canEdit &&
+        onFileSelect &&
+        (gitopsCompatible ? (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            tipOffset={4}
+            renderChildren={(disableChildren) => (
+              <div className={`${baseClass}__edit`}>
+                <Button
+                  disabled={disableChildren}
+                  className={`${baseClass}__edit-button`}
+                  variant="icon"
+                >
+                  <label htmlFor="edit-file">
+                    <Icon name="pencil" color="ui-fleet-black-75" />
+                  </label>
+                </Button>
+                <input
+                  disabled={disableChildren}
+                  accept={accept}
+                  id="edit-file"
+                  type="file"
+                  onChange={onFileSelect}
+                />
+              </div>
+            )}
+          />
+        ) : (
+          <div className={`${baseClass}__edit`}>
+            <Button className={`${baseClass}__edit-button`} variant="icon">
+              <label htmlFor="edit-file">
+                <Icon name="pencil" color="ui-fleet-black-75" />
+              </label>
+            </Button>
+            <input
+              accept={accept}
+              id="edit-file"
+              type="file"
+              onChange={onFileSelect}
+            />
+          </div>
+        ))}
       {!!progress && (
         <div className={`${baseClass}__progress-wrapper`}>
           <div className={`${baseClass}__progress-bar`}>

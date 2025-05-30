@@ -11,11 +11,10 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 
-import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
-import VersionCell from "pages/SoftwarePage/components/VersionCell";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -55,7 +54,8 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       sortType: "caseInsensitive",
     },
     {
-      Header: "Version",
+      Header: "Installed version",
+      id: "version",
       disableSortBy: true,
       // we use function as accessor because we have two columns that
       // need to access the same data. This is not supported with a string

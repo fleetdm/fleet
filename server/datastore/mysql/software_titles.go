@@ -130,6 +130,7 @@ func (ds *Datastore) ListSoftwareTitles(
 		VPPAppPlatform            *string `db:"vpp_app_platform"`
 		VPPAppIconURL             *string `db:"vpp_app_icon_url"`
 		VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
+		FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
 	}
 	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
@@ -157,7 +158,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	// build an index to quickly access a title by its ID
 	titleIndex := make(map[uint]int, len(softwareList))
 	for i, title := range softwareList {
-		// promote the package name and version to the proper destination fields
+		// promote software installer properties to their proper destination fields
 		if title.PackageName != nil {
 			var version string
 			if title.PackageVersion != nil {
@@ -169,12 +170,13 @@ func (ds *Datastore) ListSoftwareTitles(
 			}
 
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-				Name:               *title.PackageName,
-				Version:            version,
-				Platform:           platform,
-				SelfService:        title.PackageSelfService,
-				PackageURL:         title.PackageURL,
-				InstallDuringSetup: title.PackageInstallDuringSetup,
+				Name:                 *title.PackageName,
+				Version:              version,
+				Platform:             platform,
+				SelfService:          title.PackageSelfService,
+				PackageURL:           title.PackageURL,
+				InstallDuringSetup:   title.PackageInstallDuringSetup,
+				FleetMaintainedAppID: title.FleetMaintainedAppID,
 			}
 		}
 
@@ -320,6 +322,8 @@ SELECT
 	si.platform as package_platform,
 	si.url AS package_url,
 	si.install_during_setup as package_install_during_setup,
+	si.storage_id as package_storage_id,
+	si.fleet_maintained_app_id,
 	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vat.install_during_setup as vpp_install_during_setup,
@@ -337,7 +341,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, package_self_service, package_name, package_version, package_platform, package_url, package_install_during_setup, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_platform, vpp_app_icon_url, vpp_install_during_setup`
+GROUP BY st.id, package_self_service, package_name, package_version, package_platform, package_url, package_install_during_setup, package_storage_id, fleet_maintained_app_id, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_platform, vpp_app_icon_url, vpp_install_during_setup`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {

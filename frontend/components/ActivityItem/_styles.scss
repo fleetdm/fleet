@@ -36,6 +36,7 @@
   }
 
   &__details-wrapper {
+    all: unset; // reset of all browser default button styles.
     display: flex;
     gap: $pad-medium;
     justify-content: space-between;
@@ -44,6 +45,20 @@
     grid-row-start: 1;
     padding: $pad-small;
     margin-bottom: $pad-large;
+
+    &:focus {
+      outline: 2px solid $ui-vibrant-blue-25;
+    }
+
+    &:hover, &:focus, &:focus-within {
+      border-radius: $border-radius-large;
+      background-color: $ui-off-white;
+      cursor: pointer;
+
+      .activity-item__action-button {
+        visibility: visible;
+      }
+    }
 
     .premium-icon-tip {
       position: relative;
@@ -56,16 +71,6 @@
       line-height: 16px;
     }
 
-    &:hover {
-      border-radius: $border-radius-large;
-      background-color: $ui-off-white;
-      cursor: pointer;
-
-      .activity-item__details-actions {
-        visibility: visible;
-      }
-    }
-
     .button {
       height: 16px;
 
@@ -76,10 +81,14 @@
   }
 
   &__details-actions {
-    visibility: hidden;
     display: flex;
     gap: $pad-medium;
   }
+
+  &__action-button {
+    visibility: hidden;
+  }
+
 
   &__close-icon {
     cursor: pointer;

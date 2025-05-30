@@ -32,7 +32,7 @@ const UpcomingActivityFeed = ({
   onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
   if (isError) {
-    return <DataError />;
+    return <DataError verticalPaddingSize="pad-large" />;
   }
 
   if (!activities) {
@@ -59,7 +59,7 @@ const UpcomingActivityFeed = ({
             upcomingActivityComponentMap[activity.type];
           return (
             <ActivityItemComponent
-              key={activity.id}
+              key={activity.uuid}
               tab="upcoming"
               activity={activity}
               onShowDetails={onShowDetails}

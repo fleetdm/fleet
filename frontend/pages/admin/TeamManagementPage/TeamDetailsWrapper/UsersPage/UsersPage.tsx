@@ -397,7 +397,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       {loadingUsersError ||
       loadingTeamsError ||
       (!currentTeamDetails && !isLoadingTeams && !isLoadingUsers) ? (
-        <TableDataError />
+        <TableDataError verticalPaddingSize="pad-xxxlarge" />
       ) : (
         <TableContainer
           resultsTitle="users"
@@ -409,10 +409,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           actionButton={{
             name: isGlobalAdmin ? "add user" : "create user",
             buttonText: isGlobalAdmin ? "Add users" : "Create user",
-            variant: "brand",
-            onActionButtonClick: isGlobalAdmin
-              ? toggleAddUserModal
-              : toggleCreateUserModal,
+            variant: "default",
+            onClick: isGlobalAdmin ? toggleAddUserModal : toggleCreateUserModal,
             hideButton: userIds.length === 0 && searchString === "",
           }}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}

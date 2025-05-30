@@ -20,11 +20,7 @@ const TurnOnAndroidMdmCard = ({
     <SectionCard
       className={baseClass}
       header="Turn on Android MDM"
-      cta={
-        <Button variant="brand" onClick={onClickTurnOn}>
-          Turn on
-        </Button>
-      }
+      cta={<Button onClick={onClickTurnOn}>Turn on</Button>}
     >
       Enforce settings, OS updates, and more.
     </SectionCard>

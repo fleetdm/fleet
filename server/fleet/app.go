@@ -447,6 +447,7 @@ type MacOSSetup struct {
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
 }
 
 func (mos *MacOSSetup) SetDefaultsIfNeeded() {
@@ -467,6 +468,9 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.Software.Valid {
 		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
+	}
+	if !mos.ManualAgentInstall.Valid {
+		mos.ManualAgentInstall = optjson.SetBool(false)
 	}
 }
 
@@ -1212,6 +1216,10 @@ type ApplySpecOptions struct {
 	// NoCache indicates that cached_mysql calls should be bypassed on the server.
 	// This is needed where related data was just updated and we need that latest data from the DB.
 	NoCache bool
+	// Indicate whether or not the spec should be applied in overwrite mode.
+	// This means that any missing fields in the spec will be set to their default values.
+	// GitOps uses this mode.
+	Overwrite bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1246,6 +1254,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	}
 	if o.NoCache {
 		query.Set("no_cache", "true")
+	}
+	if o.Overwrite {
+		query.Set("overwrite", "true")
 	}
 	return query.Encode()
 }
@@ -1290,7 +1301,7 @@ const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
 	// Maximum number of enroll secrets that can be set per team, or globally.
-	// Make sure to change the documentation in docs/Contributing/API-for-Contributors.md
+	// Make sure to change the documentation in docs/Contributing/reference/api-for-contributors.md
 	// if you change that value (look for the string `secrets`).
 	MaxEnrollSecretsCount = 50
 )
@@ -1315,6 +1326,11 @@ const (
 	TierTrial = "trial"
 )
 
+// Partnerships contains specialized configuration options for Fleet partners.
+type Partnerships struct {
+	EnablePrimo bool `json:"enable_primo,omitempty"`
+}
+
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
 	// Tier is the license tier (currently "free" or "premium")
@@ -1327,6 +1343,8 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+	// AllowDisableTelemetry allows specific customers to not send analytics
+	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {
@@ -1341,6 +1359,11 @@ func (l *LicenseInfo) ForceUpgrade() {
 	if l.Tier == tierBasicDeprecated {
 		l.Tier = TierPremium
 	}
+}
+
+// Both free and specific premium users are allowed to disable telemetry
+func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
+	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
 const (
@@ -1394,6 +1417,10 @@ type LoggingPlugin struct {
 
 type FilesystemConfig struct {
 	config.FilesystemConfig
+}
+
+type WebhookConfig struct {
+	config.WebhookConfig
 }
 
 type PubSubConfig struct {

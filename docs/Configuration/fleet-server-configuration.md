@@ -2705,7 +2705,7 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/Configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ### mdm.apple_scep_signer_validity_days
 
@@ -2771,6 +2771,20 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+## Partnerships
+
+### partnerships_enable_secureframe
+
+When enabled, end user's who select **Fleet Desktop > About Fleet** will be navigated to the fleetdm.com/better page with [Secureframe](https://secureframe.com/) branding. See the page here: https://fleetdm.com/better?utm_content=secureframe
+
+- Default value: `false`
+- Environment variable: `FLEET_PARTNERSHIPS_ENABLE_SECUREFRAME`
+- Config file format:
+  ```
+  partnerships:
+    enable_secureframe: true
   ```
 
 <h2 id="running-with-systemd">Running with systemd</h2>

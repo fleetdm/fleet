@@ -59,6 +59,11 @@ func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
+	if cfg.Notifications.RunSetupExperience {
+		log.Debug().Msg("EscrowBuddyRunner: skipping any actions related to disk encryption, setup experience is running")
+		return nil
+	}
+
 	updaterHasTarget := e.updateRunner.HasRunnerOptTarget("escrowBuddy")
 	// if the notification is false, it could mean that we shouldn't do
 	// anything at all (eg: MDM is not configured) or that this host

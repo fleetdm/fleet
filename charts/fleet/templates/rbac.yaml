@@ -22,6 +22,9 @@ rules:
   - {{ .Values.cache.secretName }}
   - {{ .Values.fleet.secretName }}
   - {{ .Values.osquery.secretName }}
+  {{- range .Values.imagePullSecrets }}
+  - {{ .name }}
+  {{- end }}
   verbs:
   - get
 ---

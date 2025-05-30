@@ -52,8 +52,8 @@ Community members can [request a copy of Fleet's SOC 2 report](https://fleetdm.c
 | Public relations                     | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Revenue pipeline                     | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
-| Video                                | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
-| Social media                         | <sup><sub>_See [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Video                                | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| Social media                         | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Information technology (IT)          | <sup><sub>_See [🚀 Client Platform Engineer &amp; Community Advocate](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
@@ -209,7 +209,7 @@ All invitations to meetings are welcomed, and quickly considering them is a top 
 
 > Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
 
-To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=custom-request.md&title=%7BMeeting%20request%3A%20) at-mentioning the [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
+To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=%7BMeeting%20request%3A%20) at-mentioning the [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
 - **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](https://www.fleetdm.com/handbook/digital-experience#process-the-ceos-calendar).
 - **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
@@ -359,7 +359,7 @@ In Figma:
 
 ## Change management
 
-Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
+Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/committing-changes.md#committing-changes).
 
 
 ### Issue labels
@@ -384,7 +384,6 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `story` A user story.
 -  `prospect-` A customer prospect.
 - `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
-- `Epic` Do not use. _(TODO: ZenHub automatically recreates this label when we group sub-tasks inside of a user story. Find a way to remove this. It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
 
 
 > If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct you can preview the template and make sure each label name is in a separate box.  
@@ -631,7 +630,7 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 - Individualized expenses are always attributed to the  "💸 Finance" department.
 - These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.
 
-For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) to notify the Finance department.  
+For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=1-custom-request.md) to notify the Finance department.  
 
 
 ### Accounts payable cards
@@ -666,6 +665,8 @@ For recurring business expenses paid by credit card, there are four accounts pay
 - If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) for their help approving and booking additional event space.
 
 
+> ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
+
 ### Spending company money while traveling
 
 When attending a conference or traveling for Fleet, keep the following in mind:
@@ -677,7 +678,7 @@ When attending a conference or traveling for Fleet, keep the following in mind:
 - **Credit card limit increases:** The monthly limit on your Brex card may need to be increased temporarily as necessary to accommodate the increased spending associated with the conference, such as [booking your own travel](https://fleetdm.com/handbook/company/communications#flights).  You can [request that here](https://fleetdm.com/handbook/digital-experience#contact-us) by providing the following information:
   - The start and end dates for your trip.
   - The [price of your flight](https://fleetdm.com/handbook/company/communications#flights)
-  - The [price of your hotel or Airbnb](https://fletdm.com/handbook/comopany/communications#lodging) per night
+  - The [price of your hotel or Airbnb](https://fleetdm.com/handbook/company/communications#lodging) per night
   - The price of the admission fees (if attending a conference)
 
 
@@ -703,7 +704,13 @@ Follow the process to [request an offsite](https://fleetdm.com/handbook/company/
 
 ### Attending conferences
 
+The Head of Marketing is responsible for executing and organizing all [marketing-related events](https://fleetdm.com/handbook/marketing#settle-event-strategy
+).
+
+The relevant department head should approve and organize all other event types (trainings, developer conferences, meetups, etc.).
+
 When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
+
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/8c3eeeb4-f322-44cf-8405-4f94f10fde6d">
 
@@ -784,7 +791,7 @@ Fleet benchmarks US-based team members based on the United States Dollar (USD). 
 
 ### Relocating
 
-When fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/digital-experience#contact-us) by following the directions listed in the relevant issue template ("Moving").
+When fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/digital-experience#update-personnel-details) by following the directions listed in the relevant issue template.
 
 
 ## Team member onboarding
@@ -918,7 +925,7 @@ If you are in need of additional equipment for any reason, [open a warehouse req
 
 ### Requesting IT support
 
-If you are in need of IT support to assist with a software or hardware issue, [open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) with Digital Experience. A Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part. Reach out to 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
+If you are in need of IT support to assist with a software or hardware issue, [open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=) with Digital Experience. A Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part. Reach out to 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 
 ## Writing

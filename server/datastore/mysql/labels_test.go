@@ -699,7 +699,7 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	assert.Equal(t, label.Description, saved.Description)
 
 	// Create an Apple config profile, which should reflect a change in label's name
-	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0))
+	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0), nil)
 	require.NoError(t, err)
 	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(),
@@ -876,7 +876,7 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	require.Equal(t, user.ID, *label2.AuthorID)
 
 	// Create an Apple config profile
-	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0))
+	profA, err := db.NewMDMAppleConfigProfile(context.Background(), *generateCP("a", "a", 0), nil)
 	require.NoError(t, err)
 	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(),
@@ -1276,7 +1276,7 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	}
 
 	// set up data
-	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0))
+	noTeamFVProfile, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("filevault-1", "com.fleetdm.fleet.mdm.filevault", 0), nil)
 	require.NoError(t, err)
 
 	// verifying status

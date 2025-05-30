@@ -6,14 +6,15 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
+| Head of Finance | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Finance Engineer | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-finance](https://fleetdm.slack.com/archives/C047N5L6EGH).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-finance](https://fleetdm.slack.com/archives/C047N5L6EGH).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-finance-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
 
 ## Responsibilities
@@ -318,7 +319,7 @@ A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF 
 
 Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
 
-- **SLA:** The monthly accounting issue should be completed and closed before the 7th of the month.
+- **SLA:** The monthly accounting issue should be completed and closed before the 21st of the month.
 - The close date is tracked each month in [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit).
 - **When is the issue created?** We create and close the monthly accounting issue for the previous month within the first 7 days of the following month.  For example, the monthly accounting issue to close out the month of January is created promptly in February and closed before the end of the day, Feb 7th.  A convenient trick is to create the issue on the first Friday of the month and close it ASAP.
 
@@ -413,38 +414,6 @@ Note: These are out of date, but retained for future reference.  TODO: Deal with
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
 -->
 
-#### Stubs
-The following stubs are included only to make links backward compatible.
-
-##### Secure company-issued equipment for a team member
-Please see [handbook/engineering#secure-company-issued-equipment-for-a-team-member](https://www.fleetdm.com/handbook/engineering#secure-company-issued-equipment-for-a-team-member).
-
-##### Register a domain for Fleet
-Please see [handbook/register-a-domain-for-fleet](https://www.fleetdm.com/handbook/engineering#register-a-domain-for-fleet).
-
-##### Updating personnel details
-Please see [handbook/engineering#update-personnel-details](https://www.fleetdm.com/handbook/engineering#update-personnel-details).
-
-##### Fix a laptop that's not checking in
-Please see [handbook/engineering#fix-a-laptop-thats-not-checking-in](https://www.fleetdm.com/handbook/engineering#fix-a-laptop-thats-not-checking-in)
-
-##### Enroll a macOS host in dogfood
-Please see [handbook/engineering#enroll-a-macos-host-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-macos-host-in-dogfood)
-
-##### Enroll a Windows or Ubuntu Linux device in dogfood
-Please see [handbook/engineering#enroll-a-windows-or-ubuntu-linux-device-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-windows-or-ubuntu-linux-device-in-dogfood)
-
-##### Enroll a ChromeOS device in dogfood
-Please see [handbook/engineering#enroll-a-chromeos-device-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-chromeos-device-in-dogfood)
-
-##### Lock a macOS host in dogfood using fleetctl CLI tool
-Please see [handbook/engineering#lock-a-macos-host-in-dogfood-using-fleetctl-cli-tool](https://www.fleetdm.com/handbook/engineering#lock-a-macos-host-in-dogfood-using-fleetctl-cli-tool)
-
-##### Book an event
-Please see [handbook/engineering#book-an-event](https://www.fleetdm.com/handbook/engineering#book-an-event)
-
-##### Order SWAG
-Please see [handbook/engineering#order-swag](https://www.fleetdm.com/handbook/engineering#order-swag)
 
 
 <meta name="maintainedBy" value="ireedy">

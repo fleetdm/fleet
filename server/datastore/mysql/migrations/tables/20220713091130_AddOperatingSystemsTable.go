@@ -21,7 +21,7 @@ CREATE TABLE operating_systems (
 	kernel_version VARCHAR(150) NOT NULL,
 	platform VARCHAR(50) NOT NULL,
     UNIQUE KEY idx_unique_os (name, version, arch, kernel_version, platform)
-)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`)
 	if err != nil {
 		return errors.Wrapf(err, "create operating_systems table")

@@ -1,12 +1,13 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useRef } from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
-import Button from "components/buttons/Button";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { COLORS } from "styles/var/colors";
 
+import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
-import { COLORS } from "styles/var/colors";
 
 interface IFilterPillProps {
   label: string;
@@ -30,6 +31,13 @@ const FilterPill = ({
     tooltip: tooltipDescription !== undefined && tooltipDescription !== "",
   });
 
+  const pillText = useRef(null);
+  const isTruncated = useCheckTruncatedElement(pillText);
+
+  // if tooltipDescription not provided, behave like TooltipTruncatedText
+  const tooltipContent =
+    tooltipDescription ?? (isTruncated ? label : undefined);
+
   return (
     <div
       className={baseClasses}
@@ -41,31 +49,33 @@ const FilterPill = ({
           <div className={labelClasses}>
             {icon && <Icon name={icon} />}
             <span
-              data-tip={tooltipDescription}
+              data-tip={tooltipContent}
               data-for={`filter-pill-tooltip-${label}`}
+              className={`${baseClass}__tooltip-text`}
+              ref={pillText}
             >
               {label}
             </span>
             <Button
               className={`${baseClass}__clear-filter`}
               onClick={onClear}
-              variant="small-text-icon"
+              variant="icon"
               title={label}
             >
               <Icon name="close" color="core-fleet-blue" size="small" />
             </Button>
           </div>
         </span>
-        {tooltipDescription && (
+        {tooltipContent && (
           <ReactTooltip
             role="tooltip"
-            place="bottom"
+            place="top"
             effect="solid"
             backgroundColor={COLORS["tooltip-bg"]}
             id={`filter-pill-tooltip-${label}`}
             data-html
           >
-            <span>{tooltipDescription}</span>
+            <span>{tooltipContent}</span>
           </ReactTooltip>
         )}
       </>

@@ -56,7 +56,6 @@ const SelectSoftwareModal = ({
         selectedSoftwareIds
       );
     } catch (e) {
-      console.log("error");
       renderFlash("error", "Couldn't save software. Please try again.");
     }
     setIsSaving(false);
@@ -98,7 +97,6 @@ const SelectSoftwareModal = ({
             renderChildren={(disableChildren) => (
               <Button
                 disabled={disableChildren}
-                variant="brand"
                 onClick={onSaveSelectedSoftware}
                 isLoading={isSaving}
               >

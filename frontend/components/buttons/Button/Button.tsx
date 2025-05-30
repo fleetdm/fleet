@@ -5,25 +5,17 @@ import Spinner from "components/Spinner";
 const baseClass = "button";
 
 export type ButtonVariant =
-  | "brand"
+  | "default"
   | "success"
   | "alert"
-  | "blue-green"
-  | "grey"
-  | "warning"
-  | "link"
-  | "label"
+  | "pill"
   | "text-link" // Underlines on hover
   | "text-icon"
   | "icon" // Buttons without text
-  | "small-icon" // Buttons without text
   | "inverse"
   | "inverse-alert"
-  | "block"
-  | "unstyled"
+  | "unstyled" // Avoid as much as possible (used in registration breadcrumbs, 404/500, an old button dropdown)
   | "unstyled-modal-query"
-  | "contextual-nav-item"
-  | "small-text-icon"
   | "oversized";
 
 export interface IButtonProps {
@@ -31,11 +23,11 @@ export interface IButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  size?: string;
   tabIndex?: number;
   type?: "button" | "submit" | "reset";
+  /** Text shown on tooltip when hovering over a button */
   title?: string;
-  /** Default: "brand" */
+  /** Default: "default" */
   variant?: ButtonVariant;
   onClick?:
     | ((value?: any) => void)
@@ -46,6 +38,8 @@ export interface IButtonProps {
       ) => void);
   isLoading?: boolean;
   customOnKeyDown?: (e: React.KeyboardEvent) => void;
+  /** Required for buttons that contain SVG icons using`stroke` instead of`fill` for proper hover styling */
+  iconStroke?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -57,9 +51,8 @@ interface Inputs {
 
 class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
-    size: "",
     type: "button",
-    variant: "brand",
+    variant: "default",
   };
 
   componentDidMount(): void {
@@ -111,13 +104,13 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       children,
       className,
       disabled,
-      size,
       tabIndex,
       type,
       title,
       variant,
       isLoading,
       customOnKeyDown,
+      iconStroke,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -125,14 +118,14 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       className,
       {
         [`${baseClass}--disabled`]: disabled,
-        [`${baseClass}--${size}`]: size !== undefined,
+        [`${baseClass}--icon-stroke`]: iconStroke,
       }
     );
     const onWhite =
       variant === "text-link" ||
       variant === "inverse" ||
       variant === "text-icon" ||
-      variant === "label";
+      variant === "pill";
 
     return (
       <button

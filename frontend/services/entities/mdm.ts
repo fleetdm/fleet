@@ -1,7 +1,10 @@
 import {
+  IBootstrapPackageAggregate,
+  IBootstrapPackageMetadata,
   IHostMdmProfile,
   IMdmCommandResult,
   IMdmProfile,
+  IMdmSSOReponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
@@ -48,7 +51,9 @@ export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
 
 interface IUpdateSetupExperienceBody {
   team_id?: number;
-  enable_release_device_manually: boolean;
+  enable_end_user_authentication?: boolean;
+  enable_release_device_manually?: boolean;
+  manual_agent_install?: boolean;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
@@ -60,13 +65,13 @@ export interface IAppleSetupEnrollmentProfileResponse {
 }
 
 export interface IMDMSSOParams {
-  dep_device_info: string;
+  deviceinfo: string;
 }
 
 export interface IMDMAppleEnrollmentProfileParams {
   token: string;
   ref?: string;
-  dep_device_info?: string;
+  deviceinfo?: string;
 }
 
 export interface IGetMdmCommandResultsResponse {
@@ -89,6 +94,9 @@ interface IGetSetupExperienceSoftwareParams {
 export type IGetSetupExperienceSoftwareResponse = ISoftwareTitlesResponse & {
   software_titles: ISoftwareTitle[] | null;
 };
+
+export type IGetBootstrapPackageMetadataResponse = IBootstrapPackageMetadata;
+export type IGetBootstrapPackageSummaryResponse = IBootstrapPackageAggregate;
 
 const mdmService = {
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
@@ -177,12 +185,14 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  initiateMDMAppleSSO: () => {
+  initiateMDMAppleSSO: (params: IMDMSSOParams): Promise<IMdmSSOReponse> => {
     const { MDM_APPLE_SSO } = endpoints;
-    return sendRequest("POST", MDM_APPLE_SSO, {});
+    return sendRequest("POST", MDM_APPLE_SSO, params);
   },
 
-  getBootstrapPackageMetadata: (teamId: number) => {
+  getBootstrapPackageMetadata: (
+    teamId: number
+  ): Promise<IGetBootstrapPackageMetadataResponse> => {
     const { MDM_BOOTSTRAP_PACKAGE_METADATA } = endpoints;
 
     return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
@@ -206,7 +216,9 @@ const mdmService = {
     return sendRequest("DELETE", `${MDM_BOOTSTRAP_PACKAGE}/${teamId}`);
   },
 
-  getBootstrapPackageAggregate: (teamId?: number) => {
+  getBootstrapPackageAggregate: (
+    teamId?: number
+  ): Promise<IGetBootstrapPackageSummaryResponse> => {
     let { MDM_BOOTSTRAP_PACKAGE_SUMMARY: path } = endpoints;
 
     if (teamId) {
@@ -246,6 +258,19 @@ const mdmService = {
       team_id: teamId,
       enable_end_user_authentication: isEnabled,
     });
+  },
+
+  updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
+    const { MDM_SETUP_EXPERIENCE } = endpoints;
+    const body = {
+      ...updateData,
+    };
+
+    if (updateData.team_id === API_NO_TEAM_ID) {
+      delete body.team_id;
+    }
+
+    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
   },
 
   updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {

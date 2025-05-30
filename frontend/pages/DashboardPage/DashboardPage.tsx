@@ -60,6 +60,7 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 import Card from "components/Card";
+import DataError from "components/DataError";
 
 import {
   LOW_DISK_SPACE_GB,
@@ -298,6 +299,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ? teams?.find((t) => t.id === currentTeamId)?.features
     : config?.features;
   const isSoftwareEnabled = !!featuresConfig?.enable_software_inventory;
+  const isViewingVulnerableSoftware = !!softwareNavTabIndex; // we can take the tab index as a boolean to represent the vulnerable flag
 
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
   const SOFTWARE_DEFAULT_SORT_HEADER = "hosts_count";
@@ -321,7 +323,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         orderDirection: SOFTWARE_DEFAULT_SORT_DIRECTION,
         orderKey: SOFTWARE_DEFAULT_SORT_HEADER,
         teamId: teamIdForApi,
-        vulnerable: !!softwareNavTabIndex, // we can take the tab index as a boolean to represent the vulnerable flag :)
+        vulnerable: isViewingVulnerableSoftware,
       },
     ],
     ({ queryKey }) => softwareAPI.load(queryKey[0]),
@@ -329,39 +331,47 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       enabled: isRouteOk && isSoftwareEnabled,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
-      onSuccess: (data) => {
-        if (data.software?.length > 0) {
-          setSoftwareTitleDetail &&
-            setSoftwareTitleDetail(
-              <LastUpdatedText
-                lastUpdatedAt={data.counts_updated_at}
-                customTooltipText={
-                  <>
-                    Fleet periodically queries all hosts to
-                    <br />
-                    retrieve software. Click to view
-                    <br />
-                    hosts for the most up-to-date lists.
-                  </>
-                }
-              />
-            );
-          setShowSoftwareCard(true);
-        } else {
-          setShowSoftwareCard(false);
-        }
-      },
+      // Don't use onSuccess for UI state: it won't run for cached data, only after a new fetch
     }
   );
 
-  // If no vulnerable software, !software?.software can return undefined
-  // Must check non-vuln software count > 0 to show software card iff API returning undefined
-  const { data: softwareCount } = useQuery<
-    ISoftwareCountResponse,
-    Error,
-    number,
-    ISoftwareCountQueryKey[]
-  >(
+  // Keeps UI state in sync with both cached and freshly fetched query results
+  useEffect(() => {
+    const hasSoftwareResults =
+      !!software?.software && software.software.length > 0;
+
+    if (hasSoftwareResults) {
+      setShowSoftwareCard(true);
+      setSoftwareTitleDetail(
+        <LastUpdatedText
+          lastUpdatedAt={software.counts_updated_at}
+          customTooltipText={
+            <>
+              Fleet periodically queries all hosts to
+              <br />
+              retrieve software. Click to view
+              <br />
+              hosts for the most up-to-date lists.
+            </>
+          }
+        />
+      );
+    } else if (!isViewingVulnerableSoftware) {
+      setShowSoftwareCard(false);
+      setSoftwareTitleDetail(null);
+    }
+    // For vulnerable software with no results, the count query will handle showing the card.
+  }, [software, isViewingVulnerableSoftware]);
+
+  // If viewing vulnerable software and no results are returned,
+  // fetch the count of non-vulnerable software to decide if the card should be shown.
+  const shouldFetchSoftwareCount =
+    isSoftwareEnabled && // Needed to prevent race condition with isSoftwareFetching
+    !isSoftwareFetching &&
+    isViewingVulnerableSoftware &&
+    (!software?.software || software?.software.length === 0);
+
+  useQuery<ISoftwareCountResponse, Error, number, ISoftwareCountQueryKey[]>(
     [
       {
         scope: "softwareCount",
@@ -370,11 +380,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ],
     ({ queryKey }) => softwareAPI.getCount(queryKey[0]),
     {
-      enabled: isRouteOk && !software?.software,
+      enabled: isRouteOk && shouldFetchSoftwareCount,
       keepPreviousData: true,
       refetchOnWindowFocus: false,
       retry: 1,
       select: (data) => data.count,
+      onSuccess: (count) => {
+        setShowSoftwareCard(!!count && count > 0);
+      },
     }
   );
 
@@ -449,12 +462,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     munki_versions: munkiVersions,
     counts_updated_at: munkiCountsUpdatedAt,
   } = macAdminsData || {};
-
-  useEffect(() => {
-    softwareCount && softwareCount > 0
-      ? setShowSoftwareCard(true)
-      : setShowSoftwareCard(false);
-  }, [softwareCount]);
 
   // Sets selected platform label id for links to filtered manage host page
   useEffect(() => {
@@ -552,7 +559,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ]
   );
 
-  const HostCountCards = (
+  const HostCountCards = errorHosts ? (
+    <Card borderRadiusSize="large">
+      <DataError verticalPaddingSize="pad-large" />
+    </Card>
+  ) : (
     <>
       <PlatformHostCounts
         androidDevEnabled={!!config?.android_enabled}
@@ -566,7 +577,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         androidCount={androidCount}
         builtInLabels={labels}
         selectedPlatform={selectedPlatform}
-        errorHosts={!!errorHosts}
         totalHostCount={
           !isHostSummaryFetching && !errorHosts
             ? hostSummaryData?.totals_hosts_count
@@ -576,7 +586,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       <MetricsHostCounts
         currentTeamId={teamIdForApi}
         selectedPlatform={selectedPlatform}
-        errorHosts={!!errorHosts}
         totalHostCount={
           !isHostSummaryFetching && !errorHosts
             ? hostSummaryData?.totals_hosts_count
@@ -624,6 +633,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
         setRefetchActivities={setRefetchActivities}
+        router={router}
       />
     ),
   });
@@ -848,7 +858,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const renderDashboardHeader = () => {
-    if (isPremiumTier) {
+    if (isPremiumTier && !config?.partnerships?.enable_primo) {
       if (userTeams) {
         if (userTeams.length > 1 || isOnGlobalTeam) {
           return (
@@ -866,7 +876,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       // userTeams.length should have at least 1 element
       return null;
     }
-    // Free tier
     return <h1>{config?.org_info.org_name}</h1>;
   };
   return !isRouteOk ? (

@@ -15,18 +15,18 @@ import (
 )
 
 var (
-	ErrNoContext             = errors.New("context key not set")
-	ErrPasswordResetRequired = &passwordResetRequiredError{}
-	ErrMissingLicense        = &licenseError{}
-	ErrMDMNotConfigured      = &MDMNotConfiguredError{}
-	ErrNotConfigured         = &NotConfiguredError{}
+	ErrNoContext               = errors.New("context key not set")
+	ErrPasswordResetRequired   = &passwordResetRequiredError{}
+	ErrMissingLicense          = &licenseError{}
+	ErrMDMNotConfigured        = &MDMNotConfiguredError{}
+	ErrWindowsMDMNotConfigured = &WindowsMDMNotConfiguredError{}
+	ErrNotConfigured           = &NotConfiguredError{}
 
 	MDMNotConfiguredMessage              = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
 	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/windows-mdm"
 	AppleMDMNotConfiguredMessage         = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleABMDefaultTeamDeprecatedMessage = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 	CantTurnOffMDMForWindowsHostsMessage = "Can't turn off MDM for Windows hosts."
-	CantTurnOffMDMForIOSOrIPadOSMessage  = "Can't turn off MDM for iOS or iPadOS hosts. Use wipe instead."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -363,6 +363,20 @@ func (e *MDMNotConfiguredError) Error() string {
 	return MDMNotConfiguredMessage
 }
 
+// WindowsMDMNotConfiguredError is used when an MDM endpoint or resource is accessed
+// without having Windows MDM correctly configured.
+type WindowsMDMNotConfiguredError struct{}
+
+// Status implements the kithttp.StatusCoder interface so we can customize the
+// HTTP status code of the response returning this error.
+func (e *WindowsMDMNotConfiguredError) StatusCode() int {
+	return http.StatusBadRequest
+}
+
+func (e *WindowsMDMNotConfiguredError) Error() string {
+	return WindowsMDMNotConfiguredMessage
+}
+
 // NotConfiguredError is a generic "not configured" error that can be used
 // when expected configuration is missing.
 type NotConfiguredError struct{}
@@ -630,6 +644,19 @@ const (
 
 	// Config
 	InvalidServerURLMsg = `Fleet server URL must use “https” or “http”.`
+
+	// macOS setup experience
+	BootstrapPkgNotDistributionErrMsg = "Couldn’t add. Bootstrap package must be a distribution package. Learn more at: https://fleetdm.com/learn-more-about/macos-distribution-packages"
+
+	// NDES/SCEP validation
+	MultipleSCEPPayloadsErrMsg          = "Add only one SCEP payload."
+	SCEPVariablesNotInSCEPPayloadErrMsg = "Variables prefixed with \"$FLEET_VAR_SCEP_\", \"$FLEET_VAR_CUSTOM_SCEP_\" and \"$FLEET_VAR_NDES_SCEP\" must only be in the SCEP payload."
+)
+
+// Error message variables
+var (
+	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarSCEPRenewalID)
+	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + FleetVarSCEPRenewalID + "\" can't be used if variables for SCEP URL and Challenge are not specified."
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
