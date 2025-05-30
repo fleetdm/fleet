@@ -66,8 +66,8 @@ module.exports = {
 
 
     return {
-      signup_url: signupUrl.url,// eslint-disable-line camelcase
-      signup_url_name: signupUrl.name,// eslint-disable-line camelcase
+      url: signupUrl.url,// eslint-disable-line camelcase
+      name: signupUrl.name,// eslint-disable-line camelcase
     };
 
 

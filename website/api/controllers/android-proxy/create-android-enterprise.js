@@ -152,8 +152,8 @@ module.exports = {
 
 
     return {
-      android_enterprise_id: newAndroidEnterpriseId,// eslint-disable-line camelcase
-      fleet_server_secret: newFleetServerSecret,// eslint-disable-line camelcase
+      name: newAndroidEnterpriseId,// eslint-disable-line camelcase
+      fleetServerSecret: newFleetServerSecret,// eslint-disable-line camelcase
     };
 
   }

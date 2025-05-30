@@ -8,10 +8,6 @@ module.exports = {
 
 
   inputs: {
-    fleetServerSecret: {
-      type: 'string',
-      required: true,
-    },
     androidEnterpriseId: {
       type: 'string',
       required: true,
@@ -29,7 +25,17 @@ module.exports = {
   },
 
 
-  fn: async function ({fleetServerSecret, androidEnterpriseId, enrollmentToken}) {
+  fn: async function ({androidEnterpriseId, enrollmentToken}) {
+    // Extract fleetServerSecret from the Authorization header
+    let authHeader = this.req.headers.authorization;
+    let fleetServerSecret;
+
+    if (authHeader && authHeader.startsWith('Bearer')) {
+      fleetServerSecret = authHeader.replace('Bearer', '').trim();
+    } else {
+      return this.res.unauthorized('Authorization header with Bearer token is required');
+    }
+
     // Authenticate this request
     let thisAndroidEnterprise = await AndroidEnterprise.findOne({
       androidEnterpriseId: androidEnterpriseId,
