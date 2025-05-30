@@ -42,6 +42,8 @@ type setupResponse struct {
 	Err          error          `json:"error,omitempty"`
 }
 
+type applyGroupFunc func(ctx context.Context, specs *spec.Group) error
+
 func (r setupResponse) Error() error { return r.Err }
 
 func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoint {
@@ -193,19 +195,13 @@ func applyStarterLibrary(
 	// Log function for ApplyGroup (minimal logging)
 	logf := func(format string, a ...interface{}) {}
 
-	// Apply the specs using the client's ApplyGroup method or the mock function
-	if mockApplyGroup != nil {
-		// Use the mock function for testing
-		if err := mockApplyGroup(ctx, specs); err != nil {
-			return fmt.Errorf("failed to apply starter library: %w", err)
-		}
-	} else {
-		// Use the real ApplyGroup method
+	// Assign the real implementation
+	applyGroupFn := func(ctx context.Context, specs *spec.Group) error {
 		teamsSoftwareInstallers := make(map[string][]fleet.SoftwarePackageResponse)
 		teamsScripts := make(map[string][]fleet.ScriptResponse)
 		teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 
-		_, _, _, _, err = client.ApplyGroup(
+		_, _, _, _, err := client.ApplyGroup(
 			ctx,
 			false,
 			specs,
@@ -217,9 +213,16 @@ func applyStarterLibrary(
 			teamsVPPApps,
 			teamsScripts,
 		)
-		if err != nil {
-			return fmt.Errorf("failed to apply starter library: %w", err)
-		}
+		return err
+	}
+
+	// Apply mock if mockApplyGroup is supplied
+	if mockApplyGroup != nil {
+		applyGroupFn = mockApplyGroup
+	}
+
+	if err := applyGroupFn(ctx, specs); err != nil {
+		return fmt.Errorf("failed to apply starter library: %w", err)
 	}
 
 	level.Debug(logger).Log("msg", "Starter library applied successfully")
