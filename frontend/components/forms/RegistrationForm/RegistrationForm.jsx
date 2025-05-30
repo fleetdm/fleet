@@ -14,6 +14,7 @@ class RegistrationForm extends Component {
     onNextPage: PropTypes.func,
     onSubmit: PropTypes.func,
     page: PropTypes.number,
+    isLoading: PropTypes.bool,
   };
 
   constructor(props) {
@@ -62,7 +63,7 @@ class RegistrationForm extends Component {
   };
 
   render() {
-    const { page } = this.props;
+    const { page, isLoading } = this.props;
     const { formData } = this.state;
     const { isCurrentPage, onPageFormSubmit, onSubmitConfirmation } = this;
 
@@ -153,6 +154,7 @@ class RegistrationForm extends Component {
               handleSubmit={onSubmitConfirmation}
               className={confirmationClass}
               currentPage={isCurrentPage(4)}
+              isLoading={isLoading}
             />
           </div>
         </div>
