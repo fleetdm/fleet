@@ -128,7 +128,7 @@ func TestDownloadAndUpdateScripts(t *testing.T) {
 			scriptContent := "#!/bin/bash\necho 'Hello, World!'"
 			mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(scriptContent))
+				_, _ = w.Write([]byte(scriptContent))
 			}))
 			defer mockServer.Close()
 
@@ -225,7 +225,7 @@ func TestDownloadAndUpdateScriptsWithInvalidPaths(t *testing.T) {
 			// Create a mock server to serve the scripts
 			mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("script content"))
+				_, _ = w.Write([]byte("script content"))
 			}))
 			defer mockServer.Close()
 
@@ -276,17 +276,16 @@ func TestFleetHTTPClientOverride(t *testing.T) {
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("test response"))
+		_, _ = w.Write([]byte("test response"))
 	}))
 	defer mockServer.Close()
 
 	// Create a custom client that uses our mock server
-	client := &http.Client{
-		Transport: &mockRoundTripper{
-			mockServer:  mockServer.URL,
-			origBaseURL: scriptsBaseURL,
-			next:        http.DefaultTransport,
-		},
+	client := fleethttp.NewClient()
+	client.Transport = &mockRoundTripper{
+		mockServer:  mockServer.URL,
+		origBaseURL: scriptsBaseURL,
+		next:        http.DefaultTransport,
 	}
 
 	// Create a fleethttp client with our custom transport
@@ -342,7 +341,7 @@ func TestDownloadAndUpdateScriptsTimeout(t *testing.T) {
 			mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				time.Sleep(tt.sleepTime)
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("test response"))
+				_, _ = w.Write([]byte("test response"))
 			}))
 			defer mockServer.Close()
 
