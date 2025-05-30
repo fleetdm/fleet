@@ -4,7 +4,7 @@ services:
     type: web
     runtime: image
     image:
-      url: 'fleetdm/fleet:${FLEET_IMAGE_TAG:-latest}'
+      url: 'fleetdm/fleet:apply-config-setup'
     preDeployCommand: "fleet prepare --no-prompt=true db"
     healthCheckPath: /healthz
     disk:
@@ -41,8 +41,6 @@ services:
           name: fleet-redis
           type: redis
           property: connectionString
-      - key: FLEET_IMAGE_TAG
-        value: 'latest'
       - key: FLEET_SERVER_TLS
         value: 'false'
       - key: PORT
