@@ -8,6 +8,24 @@ import (
 	"time"
 )
 
+type HostCertificateSource string
+
+const (
+	SystemHostCertificate HostCertificateSource = "system"
+	UserHostCertificate   HostCertificateSource = "user"
+)
+
+// IsValid returns true if the current host certificate source value is
+// accepted, otherwise false.
+func (s HostCertificateSource) IsValid() bool {
+	switch s {
+	case SystemHostCertificate, UserHostCertificate:
+		return true
+	default:
+		return false
+	}
+}
+
 // HostCertificateRecord is the database model for a host certificate.
 type HostCertificateRecord struct {
 	ID     uint `json:"-" db:"id"`
@@ -42,6 +60,8 @@ type HostCertificateRecord struct {
 	IssuerOrganization        string `json:"-" db:"issuer_org"`
 	IssuerOrganizationalUnit  string `json:"-" db:"issuer_org_unit"`
 	IssuerCommonName          string `json:"-" db:"issuer_common_name"`
+
+	Source HostCertificateSource `json:"-" db:"source"`
 }
 
 func NewHostCertificateRecord(
@@ -79,6 +99,7 @@ func NewHostCertificateRecord(
 		IssuerCountry:             firstOrEmpty(cert.Issuer.Country),            // TODO: confirm methodology
 		IssuerOrganization:        firstOrEmpty(cert.Issuer.Organization),       // TODO: confirm methodology
 		IssuerOrganizationalUnit:  firstOrEmpty(cert.Issuer.OrganizationalUnit), // TODO: confirm methodology
+		Source:                    SystemHostCertificate,                        // default to system host certificate
 	}
 }
 
