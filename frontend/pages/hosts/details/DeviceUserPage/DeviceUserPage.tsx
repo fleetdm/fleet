@@ -37,6 +37,7 @@ import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -75,7 +76,10 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceTableConfig";
+import {
+  InstallOrCommandUuid,
+  ScriptExecutionId,
+} from "../cards/Software/SelfService/SelfServiceTableConfig";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";
@@ -136,6 +140,10 @@ const DeviceUserPage = ({
   const [selectedSelfServiceUuid, setSelectedSelfServiceUuid] = useState<
     InstallOrCommandUuid | undefined
   >(undefined);
+  const [
+    selectedSelfServiceScriptExecutionId,
+    setSelectedSelfServiceScriptExecutionId,
+  ] = useState<string | undefined>(undefined);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
@@ -342,6 +350,15 @@ const DeviceUserPage = ({
     [setSelectedSelfServiceUuid]
   );
 
+  const onShowUninstallDetails = useCallback(
+    (script_execution_id?: ScriptExecutionId) => {
+      setSelectedSelfServiceScriptExecutionId(
+        script_execution_id?.script_execution_id
+      );
+    },
+    [setSelectedSelfServiceScriptExecutionId]
+  );
+
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
     setSelectedPolicy(null);
@@ -516,6 +533,7 @@ const DeviceUserPage = ({
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       router={router}
                       onShowInstallerDetails={onShowInstallerDetails}
+                      onShowUninstallDetails={onShowUninstallDetails}
                     />
                   </TabPanel>
                 )}
@@ -657,6 +675,17 @@ const DeviceUserPage = ({
               deviceAuthToken={deviceAuthToken}
             />
           )}
+        {selectedSelfServiceScriptExecutionId && !!host && (
+          <SoftwareUninstallDetailsModal
+            details={{
+              host_display_name: host.display_name,
+              script_execution_id: selectedSelfServiceScriptExecutionId,
+              status: "failed_uninstall",
+            }}
+            onCancel={() => setSelectedSelfServiceScriptExecutionId(undefined)}
+            deviceAuthToken={deviceAuthToken}
+          />
+        )}
         {selectedSelfServiceUuid &&
           "command_uuid" in selectedSelfServiceUuid &&
           !!host && (

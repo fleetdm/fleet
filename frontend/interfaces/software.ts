@@ -85,8 +85,14 @@ export interface ISoftwareAppStoreAppStatus {
 export interface ISoftwarePackage {
   name: string;
   title_id: number;
-  last_install: string | null;
-  last_uninstall: string | null;
+  last_install?: {
+    install_uuid: string;
+    installed_at: string;
+  } | null;
+  last_uninstall?: {
+    script_execution_id: string;
+    uninstalled_at: string;
+  } | null;
   url: string;
   version: string;
   uploaded_at: string;
@@ -367,6 +373,10 @@ interface SignatureInformation {
   team_identifier: string;
   hash_sha256: string | null;
 }
+export interface ISoftwareLastUninstall {
+  install_uuid: string;
+  installed_at: string;
+}
 
 export interface ISoftwareInstallVersion {
   version: string;
@@ -383,6 +393,7 @@ export interface IHostSoftwarePackage {
   icon_url: string | null;
   version: string;
   last_install: ISoftwareLastInstall | null;
+  last_uninstall: ISoftwareLastUninstall | null;
   categories?: SoftwareCategory[];
 }
 

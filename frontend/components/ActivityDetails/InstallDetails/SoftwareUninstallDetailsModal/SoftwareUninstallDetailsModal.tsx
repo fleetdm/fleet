@@ -12,6 +12,7 @@ import { isPendingStatus, SoftwareInstallStatus } from "interfaces/software";
 import React from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import deviceUserAPI from "services/entities/device_user";
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import {
@@ -24,7 +25,7 @@ const baseClass = "software-uninstall-details-modal";
 type ISoftwareUninstallDetails = Pick<
   IActivityDetails,
   "script_execution_id" | "host_display_name" | "software_title" | "status"
->;
+> & { deviceAuthToken?: string };
 // TODO - rely on activity created_at for timestamp? what else?
 
 interface IUninstallStatusMessage {
@@ -73,73 +74,80 @@ const StatusMessage = ({
   );
 };
 
+const SoftwareUninstallDetails = ({
+  script_execution_id = "",
+  host_display_name = "",
+  software_title = "",
+  status = "",
+  deviceAuthToken,
+}: ISoftwareUninstallDetails) => {
+  const { data: scriptResult, isLoading, isError, error } = useQuery<
+    IScriptResultResponse,
+    AxiosError
+  >(
+    ["uninstallResult", script_execution_id],
+    () => {
+      return deviceAuthToken
+        ? deviceUserAPI.getSoftwareUninstallResult(
+            deviceAuthToken,
+            script_execution_id
+          )
+        : scriptsAPI.getScriptResult(script_execution_id);
+    },
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+    }
+  );
+
+  if (isLoading) {
+    return <Spinner />;
+  } else if (isError && error?.status === 404) {
+    return (
+      <DataError
+        description="Uninstall details are no longer available for this activity."
+        excludeIssueLink
+      />
+    );
+  } else if (isError) {
+    return <DataError description="Close this modal and try again." />;
+  } else if (!scriptResult) {
+    // FIXME: Find a better solution for this.
+    return <DataError description="No data returned." />;
+  }
+  status = status === "failed" ? "failed_uninstall" : status;
+
+  return (
+    <>
+      <StatusMessage
+        host_display_name={host_display_name}
+        status={status}
+        software_title={software_title}
+        timestamp={scriptResult.created_at}
+      />
+      {!isPendingStatus(status) && scriptResult && (
+        <>
+          <Textarea label="Uninstall script content:" variant="code">
+            {scriptResult.script_contents}
+          </Textarea>
+          <Textarea label="Uninstall script output:" variant="code">
+            {scriptResult.output}
+          </Textarea>
+        </>
+      )}
+    </>
+  );
+};
+
 const SoftwareUninstallDetailsModal = ({
   details,
   onCancel,
+  deviceAuthToken,
 }: {
   details: ISoftwareUninstallDetails;
   onCancel: () => void;
+  deviceAuthToken?: string;
 }) => {
-  const SoftwareUninstallDetails = ({
-    script_execution_id = "",
-    host_display_name = "",
-    software_title = "",
-    status = "",
-  }: ISoftwareUninstallDetails) => {
-    const { data: scriptResult, isLoading, isError, error } = useQuery<
-      IScriptResultResponse,
-      AxiosError
-    >(
-      ["uninstallResult", details.script_execution_id],
-      () => {
-        return scriptsAPI.getScriptResult(script_execution_id);
-      },
-      {
-        ...DEFAULT_USE_QUERY_OPTIONS,
-        retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
-      }
-    );
-
-    if (isLoading) {
-      return <Spinner />;
-    } else if (isError && error?.status === 404) {
-      return (
-        <DataError
-          description="Uninstall details are no longer available for this activity."
-          excludeIssueLink
-        />
-      );
-    } else if (isError) {
-      return <DataError description="Close this modal and try again." />;
-    } else if (!scriptResult) {
-      // FIXME: Find a better solution for this.
-      return <DataError description="No data returned." />;
-    }
-
-    status = status === "failed" ? "failed_uninstall" : status;
-
-    return (
-      <>
-        <StatusMessage
-          host_display_name={host_display_name}
-          status={status}
-          software_title={software_title}
-          timestamp={scriptResult.created_at}
-        />
-        {!isPendingStatus(status) && scriptResult && (
-          <>
-            <Textarea label="Uninstall script content:" variant="code">
-              {scriptResult.script_contents}
-            </Textarea>
-            <Textarea label="Uninstall script output:" variant="code">
-              {scriptResult.output}
-            </Textarea>
-          </>
-        )}
-      </>
-    );
-  };
-
   return (
     <Modal
       title="Uninstall details"
@@ -150,7 +158,10 @@ const SoftwareUninstallDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <SoftwareUninstallDetails {...details} />
+          <SoftwareUninstallDetails
+            {...details}
+            deviceAuthToken={deviceAuthToken}
+          />
         </div>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>

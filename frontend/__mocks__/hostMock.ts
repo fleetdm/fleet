@@ -160,6 +160,7 @@ const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
     install_uuid: "123-abc",
     installed_at: "2022-01-01T12:00:00Z",
   },
+  last_uninstall: null,
 };
 
 export const createMockHostSoftwarePackage = (
