@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"path"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign"
@@ -13,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"golang.org/x/sync/errgroup"
 )
 
 const signedURLExpiresIn = 6 * time.Hour
@@ -130,13 +132,30 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 		return 0, nil
 	}
 
-	res, err := s.s3client.DeleteObjects(&s3.DeleteObjectsInput{
-		Bucket: &s.bucket,
-		Delete: &s3.Delete{
-			Objects: toDeleteKeys,
-		},
-	})
-	return len(res.Deleted), ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
+	var deleted atomic.Int32
+	var g errgroup.Group
+	g.SetLimit(10)
+
+	for _, obj := range toDeleteKeys {
+		obj := obj
+		g.Go(func() error {
+			_, err := s.s3client.DeleteObject(&s3.DeleteObjectInput{
+				Bucket: &s.bucket,
+				Key:    obj.Key,
+			})
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
+			}
+			deleted.Add(1)
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return int(deleted.Load()), ctxerr.Wrap(ctx, err, "errors occurred during S3 deletion")
+	}
+
+	return int(deleted.Load()), ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
 }
 
 func (s *commonFileStore) Sign(ctx context.Context, fileID string) (string, error) {
