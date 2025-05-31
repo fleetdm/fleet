@@ -254,7 +254,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			team.Config.Integrations.Jira = payload.Integrations.Jira
 			team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
 		}
-		// Only update the calendar integration if it's not nil
+
+		// Only update the calendar integration if it's not nil.
 		if payload.Integrations.GoogleCalendar != nil {
 			invalid := &fleet.InvalidArgumentError{}
 			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, false, invalid)
@@ -262,6 +263,18 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, invalid)
 			}
 			team.Config.Integrations.GoogleCalendar = payload.Integrations.GoogleCalendar
+		}
+
+		// Only update conditional_access_enabled if it's not nil.
+		if payload.Integrations.ConditionalAccessEnabled.Set {
+			if err := fleet.ValidateConditionalAccessIntegration(ctx,
+				svc,
+				team.Config.Integrations.ConditionalAccessEnabled.Value,
+				payload.Integrations.ConditionalAccessEnabled.Value,
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err)
+			}
+			team.Config.Integrations.ConditionalAccessEnabled = payload.Integrations.ConditionalAccessEnabled
 		}
 	}
 
@@ -1078,6 +1091,18 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
+	var conditionalAccessEnabled optjson.Bool
+	if spec.Integrations.ConditionalAccessEnabled != nil {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx,
+			svc,
+			false,
+			*spec.Integrations.ConditionalAccessEnabled,
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		conditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
+	}
+
 	if dryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
@@ -1118,7 +1143,8 @@ func (svc *Service) createTeamFromSpec(
 				HostStatusWebhook: hostStatusWebhook,
 			},
 			Integrations: fleet.TeamIntegrations{
-				GoogleCalendar: spec.Integrations.GoogleCalendar,
+				GoogleCalendar:           spec.Integrations.GoogleCalendar,
+				ConditionalAccessEnabled: conditionalAccessEnabled,
 			},
 			Software: spec.Software,
 		},
@@ -1334,6 +1360,17 @@ func (svc *Service) editTeamFromSpec(
 			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
 		}
 		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
+	}
+
+	if spec.Integrations.ConditionalAccessEnabled != nil {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx,
+			svc,
+			team.Config.Integrations.ConditionalAccessEnabled.Value,
+			*spec.Integrations.ConditionalAccessEnabled,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+		team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
 	}
 
 	if opts.DryRun {

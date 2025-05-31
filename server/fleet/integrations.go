@@ -19,6 +19,8 @@ type TeamIntegrations struct {
 	Jira           []*TeamJiraIntegration         `json:"jira"`
 	Zendesk        []*TeamZendeskIntegration      `json:"zendesk"`
 	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
+	// ConditionalAccessEnabled indicates whether the conditional access feature is enabled on this team.
+	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled,omitempty"`
 }
 
 // MatchWithIntegrations matches the team integrations to their corresponding
@@ -416,6 +418,46 @@ type Integrations struct {
 	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
 	NDESSCEPProxy   optjson.Any[NDESSCEPProxyIntegration]     `json:"ndes_scep_proxy"`
 	CustomSCEPProxy optjson.Slice[CustomSCEPProxyIntegration] `json:"custom_scep_proxy"`
+	// ConditionalAccessEnabled indicates whether conditional access is enabled/disabled for "No team".
+	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
+}
+
+// ValidateConditionalAccessIntegration validates "Conditional access" can be enabled on a team/"No team".
+// It checks the global setup of the feature has been made.
+func ValidateConditionalAccessIntegration(
+	ctx context.Context,
+	g interface {
+		ConditionalAccessMicrosoftGet(context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	},
+	currentConditionalAccessEnabled bool,
+	newConditionalAccessEnabled bool,
+) error {
+	switch {
+	case currentConditionalAccessEnabled == newConditionalAccessEnabled:
+		// No change, mothing to do.
+	case currentConditionalAccessEnabled && !newConditionalAccessEnabled:
+		// Disabling feature on team/no-team, nothing to do.
+	case !currentConditionalAccessEnabled && newConditionalAccessEnabled:
+		// Enabling feature on team/no-team.
+		var settings *ConditionalAccessSettings
+		conditionalAccessIntegration, err := g.ConditionalAccessMicrosoftGet(ctx)
+		if err != nil {
+			return fmt.Errorf("load conditional access microsoft: %w", err)
+		}
+		if conditionalAccessIntegration != nil {
+			settings = &ConditionalAccessSettings{
+				MicrosoftEntraTenantID:             conditionalAccessIntegration.TenantID,
+				MicrosoftEntraConnectionConfigured: conditionalAccessIntegration.SetupDone,
+			}
+		}
+		if settings == nil || !settings.MicrosoftEntraConnectionConfigured {
+			return NewInvalidArgumentError(
+				"integrations.conditional_access_enabled",
+				"Couldn't enable because the integration isn't configured",
+			)
+		}
+	}
+	return nil
 }
 
 func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {

@@ -15,6 +15,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -3017,4 +3018,64 @@ func TestGitOpsMDMAuthSettings(t *testing.T) {
 	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.Metadata)
 	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.MetadataURL)
 	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IDPName)
+}
+
+func TestGitOpsTeamConditionalAccess(t *testing.T) {
+	teamName := "TestTeamConditionalAccess"
+
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+	}
+
+	// Create integration with conditional access enabled.
+	_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: teamName, Config: fleet.TeamConfig{
+		Integrations: fleet.TeamIntegrations{
+			ConditionalAccessEnabled: optjson.SetBool(true),
+		},
+	}})
+	require.NoError(t, err)
+	require.NotNil(t, *savedTeams[teamName])
+
+	// Do a GitOps run with conditional access not set.
+	t.Setenv("TEST_TEAM_NAME", teamName)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_config_webhook.yml"})
+	require.NoError(t, err)
+
+	team, err := ds.TeamByName(context.Background(), teamName)
+	require.NoError(t, err)
+	require.NotNil(t, team)
+	require.True(t, team.Config.Integrations.ConditionalAccessEnabled.Set)
+	require.False(t, team.Config.Integrations.ConditionalAccessEnabled.Value)
+}
+
+func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+	}
+
+	appConfig := fleet.AppConfig{
+		Integrations: fleet.Integrations{
+			ConditionalAccessEnabled: optjson.SetBool(true),
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with conditional access not set.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+	require.True(t, appConfig.Integrations.ConditionalAccessEnabled.Set)
+	require.False(t, appConfig.Integrations.ConditionalAccessEnabled.Value)
 }

@@ -1071,3 +1071,13 @@ allow {
   subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }
+
+##
+# Microsoft Compliance Partner
+##
+# Global admins can configure Microsoft conditional access.
+allow {
+  object.type == "conditional_access_microsoft"
+  subject.global_role == admin
+  action == write
+}

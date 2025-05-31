@@ -149,7 +149,8 @@
       "google_calendar": null,
       "ndes_scep_proxy": null,
       "custom_scep_proxy": null,
-      "digicert": null
+      "digicert": null,
+      "conditional_access_enabled": null
     },
     "update_interval": {
       "osquery_detail": "1h0m0s",
@@ -168,7 +169,8 @@
     },
     "license": {
       "tier": "free",
-      "expiration": "0001-01-01T00:00:00Z"
+      "expiration": "0001-01-01T00:00:00Z",
+      "managed_cloud": false
     },
     "logging": {
       "debug": true,

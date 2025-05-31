@@ -20,19 +20,20 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamPolicyRequest struct {
-	TeamID                uint     `url:"team_id"`
-	QueryID               *uint    `json:"query_id"`
-	Query                 string   `json:"query"`
-	Name                  string   `json:"name"`
-	Description           string   `json:"description"`
-	Resolution            string   `json:"resolution"`
-	Platform              string   `json:"platform"`
-	Critical              bool     `json:"critical" premium:"true"`
-	CalendarEventsEnabled bool     `json:"calendar_events_enabled"`
-	SoftwareTitleID       *uint    `json:"software_title_id"`
-	ScriptID              *uint    `json:"script_id"`
-	LabelsIncludeAny      []string `json:"labels_include_any"`
-	LabelsExcludeAny      []string `json:"labels_exclude_any"`
+	TeamID                   uint     `url:"team_id"`
+	QueryID                  *uint    `json:"query_id"`
+	Query                    string   `json:"query"`
+	Name                     string   `json:"name"`
+	Description              string   `json:"description"`
+	Resolution               string   `json:"resolution"`
+	Platform                 string   `json:"platform"`
+	Critical                 bool     `json:"critical" premium:"true"`
+	CalendarEventsEnabled    bool     `json:"calendar_events_enabled"`
+	SoftwareTitleID          *uint    `json:"software_title_id"`
+	ScriptID                 *uint    `json:"script_id"`
+	LabelsIncludeAny         []string `json:"labels_include_any"`
+	LabelsExcludeAny         []string `json:"labels_exclude_any"`
+	ConditionalAccessEnabled bool     `json:"conditional_access_enabled"`
 }
 
 type teamPolicyResponse struct {
@@ -45,18 +46,19 @@ func (r teamPolicyResponse) Error() error { return r.Err }
 func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*teamPolicyRequest)
 	resp, err := svc.NewTeamPolicy(ctx, req.TeamID, fleet.NewTeamPolicyPayload{
-		QueryID:               req.QueryID,
-		Name:                  req.Name,
-		Query:                 req.Query,
-		Description:           req.Description,
-		Resolution:            req.Resolution,
-		Platform:              req.Platform,
-		Critical:              req.Critical,
-		CalendarEventsEnabled: req.CalendarEventsEnabled,
-		SoftwareTitleID:       req.SoftwareTitleID,
-		ScriptID:              req.ScriptID,
-		LabelsIncludeAny:      req.LabelsIncludeAny,
-		LabelsExcludeAny:      req.LabelsExcludeAny,
+		QueryID:                  req.QueryID,
+		Name:                     req.Name,
+		Query:                    req.Query,
+		Description:              req.Description,
+		Resolution:               req.Resolution,
+		Platform:                 req.Platform,
+		Critical:                 req.Critical,
+		CalendarEventsEnabled:    req.CalendarEventsEnabled,
+		SoftwareTitleID:          req.SoftwareTitleID,
+		ScriptID:                 req.ScriptID,
+		LabelsIncludeAny:         req.LabelsIncludeAny,
+		LabelsExcludeAny:         req.LabelsExcludeAny,
+		ConditionalAccessEnabled: req.ConditionalAccessEnabled,
 	})
 	if err != nil {
 		return teamPolicyResponse{Err: err}, nil
@@ -155,19 +157,20 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		return fleet.PolicyPayload{}, err
 	}
 	return fleet.PolicyPayload{
-		QueryID:               p.QueryID,
-		Name:                  p.Name,
-		Query:                 p.Query,
-		Critical:              p.Critical,
-		Description:           p.Description,
-		Resolution:            p.Resolution,
-		Platform:              p.Platform,
-		CalendarEventsEnabled: p.CalendarEventsEnabled,
-		SoftwareInstallerID:   softwareInstallerID,
-		VPPAppsTeamsID:        vppAppsTeamsID,
-		ScriptID:              p.ScriptID,
-		LabelsIncludeAny:      p.LabelsIncludeAny,
-		LabelsExcludeAny:      p.LabelsExcludeAny,
+		QueryID:                  p.QueryID,
+		Name:                     p.Name,
+		Query:                    p.Query,
+		Critical:                 p.Critical,
+		Description:              p.Description,
+		Resolution:               p.Resolution,
+		Platform:                 p.Platform,
+		CalendarEventsEnabled:    p.CalendarEventsEnabled,
+		SoftwareInstallerID:      softwareInstallerID,
+		VPPAppsTeamsID:           vppAppsTeamsID,
+		ScriptID:                 p.ScriptID,
+		LabelsIncludeAny:         p.LabelsIncludeAny,
+		LabelsExcludeAny:         p.LabelsExcludeAny,
+		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
 	}, nil
 }
 
@@ -524,6 +527,9 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	}
 	if p.CalendarEventsEnabled != nil {
 		policy.CalendarEventsEnabled = *p.CalendarEventsEnabled
+	}
+	if p.ConditionalAccessEnabled != nil {
+		policy.ConditionalAccessEnabled = *p.ConditionalAccessEnabled
 	}
 	if removeStats {
 		policy.FailingHostCount = 0
