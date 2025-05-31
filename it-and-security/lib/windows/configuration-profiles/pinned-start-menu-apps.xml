@@ -1,0 +1,22 @@
+<!-- An example profile for setting the pinned start menu items on Windows. 
+Use the powershell cmd Export-StartLayout -Path "C:\yourPath.json" to export a configuration -->
+
+<Replace>
+    <Item>
+        <Meta>
+            <Format xmlns="syncml:metinf">chr</Format>
+        </Meta>
+        <Target>
+            <LocURI>./Device/Vendor/MSFT/Policy/Config/Start/ConfigureStartPins</LocURI>
+        </Target>
+        <Data><![CDATA[{"pinnedList":[{"desktopAppLink":"%ALLUSERSPROFILE%\\Microsoft\\Windows\\Start Menu\\Programs\\Microsoft Edge.lnk"},
+            {"desktopAppLink":"%ALLUSERSPROFILE%\\Microsoft\\Windows\\Start Menu\\Programs\\Okta Verify.lnk"},
+            {"desktopAppLink":"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\File Explorer.lnk"},
+            {"desktopAppLink":"%ALLUSERSPROFILE%\\Microsoft\\Windows\\Start Menu\\Programs\\Slack Technologies Inc\\Slack.lnk"},
+            {"desktopAppLink":"%ALLUSERSPROFILE%\\Microsoft\\Windows\\Start Menu\\Programs\\Zoom\\Zoom Workplace.lnk"},{"packagedAppId":"Microsoft.ScreenSketch_8wekyb3d8bbwe!App"},{"packagedAppId":"Microsoft.WindowsCalculator_8wekyb3d8bbwe!App"},
+            {"desktopAppLink":"%ALLUSERSPROFILE%\\Microsoft\\Windows\\Start Menu\\Programs\\System Tools\\Task Manager.lnk"},
+            {"desktopAppLink":"%ALLUSERSPROFILE%\\Microsoft\\Windows\\Start Menu\\Programs\\Sublime Text.lnk"},
+            {"packagedAppId":"windows.immersivecontrolpanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel"},
+            {"packagedAppId":"Microsoft.WindowsTerminal_8wekyb3d8bbwe!App"}]}]]></Data>
+    </Item>
+</Replace>
