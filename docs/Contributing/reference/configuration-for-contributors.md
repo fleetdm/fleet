@@ -5,7 +5,7 @@
 
 This document includes Fleet server configuration settings that are helpful when developing or contributing to Fleet.
 
-Unlike the [fleetctl apply format](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/guides/fleetctl-apply.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
+Unlike the [fleetctl apply format](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/cli/fleetctl-apply.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
 
 ## Fleet server configuration
 
