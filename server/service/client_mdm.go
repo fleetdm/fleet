@@ -78,7 +78,7 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*flee
 	return responseBody.MDMAppleBootstrapPackage, err
 }
 
-func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint) error {
+func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint, dryRun bool) error {
 	_, err := c.GetBootstrapPackageMetadata(teamID, true)
 	switch {
 	case errors.As(err, &notFoundErr{}):
@@ -88,22 +88,22 @@ func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint) error {
 		return fmt.Errorf("getting bootstrap package metadata: %w", err)
 	}
 
-	err = c.DeleteBootstrapPackage(teamID)
+	err = c.DeleteBootstrapPackage(teamID, dryRun)
 	if err != nil {
 		return fmt.Errorf("deleting bootstrap package: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) DeleteBootstrapPackage(teamID uint) error {
+func (c *Client) DeleteBootstrapPackage(teamID uint, dryRun bool) error {
 	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d", teamID)
 	request := deleteBootstrapPackageRequest{}
 	var responseBody deleteBootstrapPackageResponse
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	err := c.authenticatedRequestWithQuery(request, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
 	return err
 }
 
-func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) error {
+func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dryRun bool) error {
 	verb, path := "POST", "/api/latest/fleet/mdm/bootstrap"
 
 	var b bytes.Buffer
@@ -125,7 +125,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 
 	w.Close()
 
-	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, "",
+	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
 		b.Bytes(),
 		map[string]string{
 			"Content-Type":  w.FormDataContentType(),
@@ -146,7 +146,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 	return nil
 }
 
-func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
+func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPackage, teamID uint, dryRun bool) error {
 	isFirstTime := false
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
@@ -164,14 +164,14 @@ func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPacka
 		}
 
 		// similar to the expected UI experience, delete the bootstrap package first
-		err = c.DeleteBootstrapPackage(teamID)
+		err = c.DeleteBootstrapPackage(teamID, dryRun)
 		if err != nil {
 			return fmt.Errorf("deleting old bootstrap package: %w", err)
 		}
 	}
 
 	bp.TeamID = teamID
-	if err := c.UploadBootstrapPackage(bp); err != nil {
+	if err := c.UploadBootstrapPackage(bp, dryRun); err != nil {
 		return err
 	}
 
