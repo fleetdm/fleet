@@ -192,6 +192,13 @@ func Errorf(ctx context.Context, format string, args ...interface{}) error {
 	return newError(ctx, msg, nil, nil)
 }
 
+// WrapFunc is an adapter for Wrap interface
+type WrapFunc func(ctx context.Context, cause error, msgs ...string) error
+
+func (w WrapFunc) Wrap(ctx context.Context, cause error, msgs ...string) error {
+	return w(ctx, cause, msgs...)
+}
+
 // Wrap creates a new error with the given message, wrapping another error.
 func Wrap(ctx context.Context, cause error, msgs ...string) error {
 	msg := strings.Join(msgs, " ")

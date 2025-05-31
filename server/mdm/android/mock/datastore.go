@@ -26,6 +26,14 @@ type DeleteAllEnterprisesFunc func(ctx context.Context) error
 
 type DeleteOtherEnterprisesFunc func(ctx context.Context, ID uint) error
 
+type NewAndroidHostFunc func(ctx context.Context, serverURL string, host *android.Host) (*android.Host, error)
+
+type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*android.Host, error)
+
+type UpdateAndroidHostFunc func(ctx context.Context, serverURL string, host *android.Host, fromEnroll bool) error
+
+type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
+
 type CreateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error)
 
 type UpdateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error
@@ -51,6 +59,18 @@ type Datastore struct {
 
 	DeleteOtherEnterprisesFunc        DeleteOtherEnterprisesFunc
 	DeleteOtherEnterprisesFuncInvoked bool
+
+	NewAndroidHostFunc        NewAndroidHostFunc
+	NewAndroidHostFuncInvoked bool
+
+	AndroidHostLiteFunc        AndroidHostLiteFunc
+	AndroidHostLiteFuncInvoked bool
+
+	UpdateAndroidHostFunc        UpdateAndroidHostFunc
+	UpdateAndroidHostFuncInvoked bool
+
+	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
+	BulkSetAndroidHostsUnenrolledFuncInvoked bool
 
 	CreateDeviceTxFunc        CreateDeviceTxFunc
 	CreateDeviceTxFuncInvoked bool
@@ -108,6 +128,34 @@ func (ds *Datastore) DeleteOtherEnterprises(ctx context.Context, ID uint) error 
 	ds.DeleteOtherEnterprisesFuncInvoked = true
 	ds.mu.Unlock()
 	return ds.DeleteOtherEnterprisesFunc(ctx, ID)
+}
+
+func (ds *Datastore) NewAndroidHost(ctx context.Context, serverURL string, host *android.Host) (*android.Host, error) {
+	ds.mu.Lock()
+	ds.NewAndroidHostFuncInvoked = true
+	ds.mu.Unlock()
+	return ds.NewAndroidHostFunc(ctx, serverURL, host)
+}
+
+func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*android.Host, error) {
+	ds.mu.Lock()
+	ds.AndroidHostLiteFuncInvoked = true
+	ds.mu.Unlock()
+	return ds.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
+}
+
+func (ds *Datastore) UpdateAndroidHost(ctx context.Context, serverURL string, host *android.Host, fromEnroll bool) error {
+	ds.mu.Lock()
+	ds.UpdateAndroidHostFuncInvoked = true
+	ds.mu.Unlock()
+	return ds.UpdateAndroidHostFunc(ctx, serverURL, host, fromEnroll)
+}
+
+func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
+	ds.mu.Lock()
+	ds.BulkSetAndroidHostsUnenrolledFuncInvoked = true
+	ds.mu.Unlock()
+	return ds.BulkSetAndroidHostsUnenrolledFunc(ctx)
 }
 
 func (ds *Datastore) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {

@@ -1314,19 +1314,19 @@ type DeleteAllEnterprisesFunc func(ctx context.Context) error
 
 type DeleteOtherEnterprisesFunc func(ctx context.Context, ID uint) error
 
+type NewAndroidHostFunc func(ctx context.Context, serverURL string, host *android.Host) (*android.Host, error)
+
+type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*android.Host, error)
+
+type UpdateAndroidHostFunc func(ctx context.Context, serverURL string, host *android.Host, fromEnroll bool) error
+
+type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
+
 type CreateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error)
 
 type UpdateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error
 
-type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
-
-type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
-
-type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
-
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
-
-type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -3301,26 +3301,26 @@ type DataStore struct {
 	DeleteOtherEnterprisesFunc        DeleteOtherEnterprisesFunc
 	DeleteOtherEnterprisesFuncInvoked bool
 
+	NewAndroidHostFunc        NewAndroidHostFunc
+	NewAndroidHostFuncInvoked bool
+
+	AndroidHostLiteFunc        AndroidHostLiteFunc
+	AndroidHostLiteFuncInvoked bool
+
+	UpdateAndroidHostFunc        UpdateAndroidHostFunc
+	UpdateAndroidHostFuncInvoked bool
+
+	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
+	BulkSetAndroidHostsUnenrolledFuncInvoked bool
+
 	CreateDeviceTxFunc        CreateDeviceTxFunc
 	CreateDeviceTxFuncInvoked bool
 
 	UpdateDeviceTxFunc        UpdateDeviceTxFunc
 	UpdateDeviceTxFuncInvoked bool
 
-	AndroidHostLiteFunc        AndroidHostLiteFunc
-	AndroidHostLiteFuncInvoked bool
-
-	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
-	BulkSetAndroidHostsUnenrolledFuncInvoked bool
-
-	NewAndroidHostFunc        NewAndroidHostFunc
-	NewAndroidHostFuncInvoked bool
-
 	SetAndroidEnabledAndConfiguredFunc        SetAndroidEnabledAndConfiguredFunc
 	SetAndroidEnabledAndConfiguredFuncInvoked bool
-
-	UpdateAndroidHostFunc        UpdateAndroidHostFunc
-	UpdateAndroidHostFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -7898,6 +7898,34 @@ func (s *DataStore) DeleteOtherEnterprises(ctx context.Context, ID uint) error {
 	return s.DeleteOtherEnterprisesFunc(ctx, ID)
 }
 
+func (s *DataStore) NewAndroidHost(ctx context.Context, serverURL string, host *android.Host) (*android.Host, error) {
+	s.mu.Lock()
+	s.NewAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewAndroidHostFunc(ctx, serverURL, host)
+}
+
+func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*android.Host, error) {
+	s.mu.Lock()
+	s.AndroidHostLiteFuncInvoked = true
+	s.mu.Unlock()
+	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
+}
+
+func (s *DataStore) UpdateAndroidHost(ctx context.Context, serverURL string, host *android.Host, fromEnroll bool) error {
+	s.mu.Lock()
+	s.UpdateAndroidHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateAndroidHostFunc(ctx, serverURL, host, fromEnroll)
+}
+
+func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
+	s.mu.Lock()
+	s.BulkSetAndroidHostsUnenrolledFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkSetAndroidHostsUnenrolledFunc(ctx)
+}
+
 func (s *DataStore) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {
 	s.mu.Lock()
 	s.CreateDeviceTxFuncInvoked = true
@@ -7912,39 +7940,11 @@ func (s *DataStore) UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, devi
 	return s.UpdateDeviceTxFunc(ctx, tx, device)
 }
 
-func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
-	s.mu.Lock()
-	s.AndroidHostLiteFuncInvoked = true
-	s.mu.Unlock()
-	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
-}
-
-func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
-	s.mu.Lock()
-	s.BulkSetAndroidHostsUnenrolledFuncInvoked = true
-	s.mu.Unlock()
-	return s.BulkSetAndroidHostsUnenrolledFunc(ctx)
-}
-
-func (s *DataStore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
-	s.mu.Lock()
-	s.NewAndroidHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewAndroidHostFunc(ctx, host)
-}
-
 func (s *DataStore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
 	s.mu.Lock()
 	s.SetAndroidEnabledAndConfiguredFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetAndroidEnabledAndConfiguredFunc(ctx, configured)
-}
-
-func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
-	s.mu.Lock()
-	s.UpdateAndroidHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

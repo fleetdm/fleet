@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type HostStatus string
@@ -381,28 +379,6 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
-}
-
-type AndroidHost struct {
-	*Host
-	*android.Device
-}
-
-func (ah *AndroidHost) SetNodeKey(enterpriseSpecificID string) {
-	if ah.Host == nil || ah.Device == nil {
-		return
-	}
-	ah.Device.EnterpriseSpecificID = ptr.String(enterpriseSpecificID)
-	// We use node_key as a unique identifier for the host table row.
-	// Since this key is used by other hosts, we use a prefix to avoid conflicts.
-	hostNodeKey := "android/" + enterpriseSpecificID
-	ah.Host.NodeKey = &hostNodeKey
-}
-
-func (ah *AndroidHost) IsValid() bool {
-	return !(ah == nil || ah.Host == nil || ah.Device == nil ||
-		ah.Host.NodeKey == nil || ah.Device.EnterpriseSpecificID == nil ||
-		*ah.Host.NodeKey != "android/"+*ah.Device.EnterpriseSpecificID)
 }
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
