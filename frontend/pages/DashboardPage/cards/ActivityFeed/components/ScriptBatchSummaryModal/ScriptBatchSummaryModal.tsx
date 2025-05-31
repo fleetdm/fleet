@@ -74,6 +74,7 @@ const ScriptBatchSummaryModal = ({
     return (
       <ScriptBatchStatusTable
         statusData={statusData}
+        batchExecutionId={details.batch_execution_id || ""}
         onClickCancel={toggleCancelModal}
       />
     );
