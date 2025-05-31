@@ -1906,7 +1906,8 @@ WHERE
 SELECT
 	script_id,
 	s.name as script_name,
-	s.team_id as team_id
+	s.team_id as team_id,
+	bse.created_at as created_at
 FROM
 	batch_script_executions bse
 JOIN

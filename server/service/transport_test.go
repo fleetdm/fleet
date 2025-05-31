@@ -159,7 +159,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified",
+				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified" +
+				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -193,6 +194,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				PopulatePolicies:                  true,
 				ProfileUUIDFilter:                 ptr.String("123-abc"),
 				ProfileStatusFilter:               &verified,
+				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
+				BatchScriptExecutionIDFilter:      ptr.String("some-cool-batch-script-execution-id"),
 			},
 		},
 		"policy_id and policy_response params (for coverage)": {
@@ -309,6 +312,10 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"error in os_name/os_version (os_version missing)": {
 			url:          "/foo?os_name=foo",
 			errorMessage: "Invalid os_version",
+		},
+		"error in script_batch_execution_status": {
+			url:          "/foo?script_batch_execution_id=abc123&script_batch_execution_status=foo",
+			errorMessage: "Invalid script_batch_execution_status: foo",
 		},
 		"negative software_id": {
 			url:          "/foo?software_id=-10",
