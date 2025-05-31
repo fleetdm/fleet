@@ -1,14 +1,18 @@
 package proxy
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-json-experiment/json"
@@ -27,6 +31,7 @@ var (
 	// Required env vars to use the proxy
 	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS")
 	androidProjectID          string
+	fleetServerSecret         string
 )
 
 type Proxy struct {
@@ -36,6 +41,10 @@ type Proxy struct {
 
 // Compile-time check to ensure that Proxy implements android.Proxy.
 var _ android.Proxy = &Proxy{}
+
+const proxyEndpoint = "https://fleetdm"
+const serverURL = "https://example"
+const fleetLicenseKey = "fleet-license-key"
 
 func NewProxy(ctx context.Context, logger kitlog.Logger) *Proxy {
 	if androidServiceCredentials == "" {
@@ -54,7 +63,13 @@ func NewProxy(ctx context.Context, logger kitlog.Logger) *Proxy {
 	}
 	androidProjectID = creds.ProjectID
 
-	mgmt, err := androidmanagement.NewService(ctx, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mgmt, err := androidmanagement.NewService(ctx,
+		option.WithEndpoint(proxyEndpoint),
+		option.WithLogger(slogLogger),
+		option.WithAPIKey("abc"),
+		option.WithHTTPClient(fleethttp.NewClient()),
+	)
 	if err != nil {
 		level.Error(logger).Log("msg", "creating android management service", "err", err)
 		return nil
@@ -69,8 +84,11 @@ func (p *Proxy) SignupURLsCreate(callbackURL string) (*android.SignupDetails, er
 	if p == nil || p.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
-	signupURL, err := p.mgmt.SignupUrls.Create().ProjectId(androidProjectID).CallbackUrl(callbackURL).Do()
+	call := p.mgmt.SignupUrls.Create().CallbackUrl(callbackURL)
+	call.Header().Set("Origin", serverURL)
+	signupURL, err := call.Do()
 	if err != nil {
+		// TODO: Return a meaningful error if response is 409, which means enterprise was already created for this server.
 		return nil, fmt.Errorf("creating signup url: %w", err)
 	}
 	return &android.SignupDetails{
@@ -84,26 +102,80 @@ func (p *Proxy) EnterprisesCreate(ctx context.Context, req android.ProxyEnterpri
 		return "", "", errors.New("android management service not initialized")
 	}
 
-	topicName, err := p.createPubSubTopic(ctx, req.PubSubPushURL)
-	if err != nil {
-		return "", "", fmt.Errorf("creating PubSub topic: %w", err)
+	// topicName, err := p.createPubSubTopic(ctx, req.PubSubPushURL)
+	// if err != nil {
+	// 	return "", "", fmt.Errorf("creating PubSub topic: %w", err)
+	// }
+	type proxyEnterprise struct {
+		FleetLicenseKey string `json:"fleetLicenseKey"`
+		PubSubPushURL   string `json:"pubsubPushUrl"`
+		EnterpriseToken string `json:"enterpriseToken"`
+		SignupURLName   string `json:"signupUrlName"`
+		Enterprise      androidmanagement.Enterprise
 	}
 
-	enterprise, err := p.mgmt.Enterprises.Create(&androidmanagement.Enterprise{
-		EnabledNotificationTypes: req.EnabledNotificationTypes,
-		PubsubTopic:              topicName,
-	}).
-		ProjectId(androidProjectID).
-		EnterpriseToken(req.EnterpriseToken).
-		SignupUrlName(req.SignupUrlName).
-		Do()
+	client := fleethttp.NewClient()
+	pe := proxyEnterprise{
+		FleetLicenseKey: fleetLicenseKey,
+		PubSubPushURL:   req.PubSubPushURL,
+		EnterpriseToken: req.EnterpriseToken,
+		SignupURLName:   req.SignupUrlName,
+		Enterprise: androidmanagement.Enterprise{
+			EnabledNotificationTypes: req.EnabledNotificationTypes,
+		},
+	}
+
+	url := proxyEndpoint + "v1/enterprises"
+	reqBody, err := json.Marshal(pe)
+	if err != nil {
+		return "", "", fmt.Errorf("marshaling enterprise request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return "", "", fmt.Errorf("creating enterprise request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Origin", serverURL)
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return "", "", fmt.Errorf("sending enterprise request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	type proxyEnterpriseResponse struct {
+		FleetServerSecret string `json:"fleetServerSecret"`
+		Name              string `json:"name"`
+	}
+	var per proxyEnterpriseResponse
+	if err := json.UnmarshalRead(resp.Body, &per); err != nil {
+		return "", "", fmt.Errorf("decoding enterprise response: %w", err)
+	}
+
+	/*
+		enterprise, err := p.mgmt.Enterprises.Create(&androidmanagement.Enterprise{
+			EnabledNotificationTypes: req.EnabledNotificationTypes,
+			PubsubTopic:              topicName,
+		}).
+			ProjectId(androidProjectID).
+			EnterpriseToken(req.EnterpriseToken).
+			SignupUrlName(req.SignupUrlName).
+			Do()
+	*/
 	switch {
 	case googleapi.IsNotModified(err):
 		return "", "", fmt.Errorf("android enterprise %s was already created", req.SignupUrlName)
 	case err != nil:
 		return "", "", fmt.Errorf("creating enterprise: %w", err)
 	}
-	return enterprise.Name, topicName, nil
+	topicName := "topicName"
+	fleetServerSecret = per.FleetServerSecret
+	return per.Name, topicName, nil
 }
 
 func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, error) {
@@ -154,7 +226,10 @@ func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, 
 
 func (p *Proxy) EnterprisesPoliciesPatch(enterpriseID string, policyName string, policy *androidmanagement.Policy) error {
 	fullPolicyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, policyName)
-	_, err := p.mgmt.Enterprises.Policies.Patch(fullPolicyName, policy).Do()
+	call := p.mgmt.Enterprises.Policies.Patch(fullPolicyName, policy)
+	call.Header().Set("Origin", serverURL)
+	call.Header().Set("Authorization", "Bearer "+fleetServerSecret)
+	_, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		p.logger.Log("msg", "Android policy not modified", "enterprise_id", enterpriseID, "policy_name", policyName)

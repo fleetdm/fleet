@@ -198,7 +198,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "inserting pubsub authentication token")
 	}
 
-	name, topicName, err := svc.proxy.EnterprisesCreate(
+	name, _, err := svc.proxy.EnterprisesCreate(
 		ctx,
 		android.ProxyEnterprisesCreateRequest{
 			Enterprise: androidmanagement.Enterprise{
@@ -220,11 +220,11 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 
 	enterpriseID := strings.TrimPrefix(name, "enterprises/")
 	enterprise.EnterpriseID = enterpriseID
-	topicID, err := topicIDFromName(topicName)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "parsing topic name")
-	}
-	enterprise.TopicID = topicID
+	// topicID, err := topicIDFromName(topicName)
+	// if err != nil {
+	// 	return ctxerr.Wrap(ctx, err, "parsing topic name")
+	// }
+	// enterprise.TopicID = topicID
 	err = svc.ds.UpdateEnterprise(ctx, enterprise)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
