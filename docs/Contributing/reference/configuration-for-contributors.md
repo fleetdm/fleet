@@ -154,6 +154,19 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
       -----END RSA PRIVATE KEY-----
   ```
 
+### mdm.sso_rate_limit_per_minute
+
+The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
+[Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
+
+- Default value: 10, shared with rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in); if overridden, a separate rate limit bucket is used for MDM SSO
+- Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`
+- Config file format:
+  ```yaml
+  mdm:
+    sso_rate_limit_per_minute: 200
+  ```
+
 ### license.enforce_host_limit
 
 Whether Fleet should enforce the host limit of the license, if true, attempting to enroll new hosts when the limit is reached will fail.
