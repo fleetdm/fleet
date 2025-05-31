@@ -169,3 +169,26 @@ make: *** [desktop-linux] Error 1
 ```
 
 Solution: In Docker Desktop go to Settings >> General >> Virtual Machine Options and choose the "Docker VMM (BETA)" option. Restart Docker Desktop.
+
+#### Running without ssl
+
+If you decide that you want to run your local fleet server with the `--server_tls=false` flag you will need to modify a few ENV variables when running the `./tools/tuf/test/main.sh` file.
+
+```
++ INSECURE=1 \
+- USE_FLEET_SERVER_CERTIFICATE=1 \
+
++ PKG_FLEET_URL=http://localhost:8080 \
+- PKG_FLEET_URL=https://localhost:8080 \
+
++ DEB_FLEET_URL=http://host.docker.internal:8080 \
+- DEB_FLEET_URL=https://host.docker.internal:8080 \
+
++ RPM_FLEET_URL=http://host.docker.internal:8080 \
+- RPM_FLEET_URL=https://host.docker.internal:8080 \
+
++ MSI_FLEET_URL=http://host.docker.internal:8080 \
+- MSI_FLEET_URL=https://host.docker.internal:8080 \
+```
+
+These flags change the way `tools/tuf/test/gen_pkgs.sh` builds the binaries to properly support a local server not running ssl.
