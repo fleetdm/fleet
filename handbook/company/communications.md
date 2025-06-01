@@ -1037,7 +1037,7 @@ Headings and titles should
 
 - give an accurate idea of a topic's content
 - help guide readers through your writing so they can quickly find what they need
-- [make good permalinks](handbook/company/communications#use-links-in-your-writing)
+- [make good permalinks](https://fleetdm.com/handbook/company/communications#use-links-in-your-writing)
 
 #### Static headings
 
