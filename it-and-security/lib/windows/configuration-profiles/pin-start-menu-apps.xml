@@ -1,4 +1,4 @@
-<!-- Use the powershell cmd Export-StartLayout -Path "C:\yourPath.json" to export a configuration -->
+<!-- Use the PowerShell command Export-StartLayout -Path "C:\yourPath.json" to export a configuration -->
 
 <Replace>
     <!-- Set the pinned start menu items on Windows. -->
