@@ -408,11 +408,6 @@ parasails.registerPage('configuration-builder', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickGotoNextStep: function() {
-      if(this.selectedPlatform){
-        this.step === 'configuration-builder';
-      }
-    },
     handleSubmittingPlatformSelectForm: async function() {
       this.selectedPlatform = this.platformSelectFormData.platform;
       this.step = 'configuration-builder';
