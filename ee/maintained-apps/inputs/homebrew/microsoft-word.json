@@ -4,5 +4,11 @@
   "unique_identifier": "com.microsoft.Word",
   "token": "microsoft-word",
   "installer_format": "pkg",
-  "default_categories": ["Productivity"]
+  "default_categories": [
+    "Productivity"
+  ],
+  "pre_uninstall_scripts": [
+    "remove_pkg_files() {\n  local PKGID=\"$1\"\n  local INSTALL_LOCATION\n  INSTALL_LOCATION=$(pkgutil --pkg-info-plist \"$PKGID\" | awk '/<key>install-location<\\/key>/ {getline; gsub(/.*<string>|<\\/string>.*/, \"\"); print}')\n  sudo pkgutil --files \"$PKGID\" | sed \"s|^|/${INSTALL_LOCATION}/|\" | tr '\\n' '\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf\n}\n",
+    "remove_pkg_files 'com.microsoft.package.Microsoft_Word.app'"
+  ]
 }
