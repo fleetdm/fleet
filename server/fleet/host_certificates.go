@@ -99,7 +99,7 @@ func NewHostCertificateRecord(
 		IssuerCountry:             firstOrEmpty(cert.Issuer.Country),            // TODO: confirm methodology
 		IssuerOrganization:        firstOrEmpty(cert.Issuer.Organization),       // TODO: confirm methodology
 		IssuerOrganizationalUnit:  firstOrEmpty(cert.Issuer.OrganizationalUnit), // TODO: confirm methodology
-		Source:                    SystemHostCertificate,                        // default to system host certificate
+		Source:                    SystemHostCertificate,                        // default to system host certificate, always 'system' for certs from MDM command for now
 	}
 }
 
@@ -129,6 +129,7 @@ func (r *HostCertificateRecord) ToPayload() *HostCertificatePayload {
 		KeyUsage:             r.KeyUsage,
 		Serial:               r.Serial,
 		SigningAlgorithm:     r.SigningAlgorithm,
+		Source:               r.Source,
 		Subject:              subject,
 		Issuer:               issuer,
 	}
@@ -136,16 +137,17 @@ func (r *HostCertificateRecord) ToPayload() *HostCertificatePayload {
 
 // HostCertificatePayload is the JSON model for API endpoints that return host certificates.
 type HostCertificatePayload struct {
-	ID                   uint      `json:"id"`
-	NotValidAfter        time.Time `json:"not_valid_after"`
-	NotValidBefore       time.Time `json:"not_valid_before"`
-	CertificateAuthority bool      `json:"certificate_authority"`
-	CommonName           string    `json:"common_name"`
-	KeyAlgorithm         string    `json:"key_algorithm"`
-	KeyStrength          int       `json:"key_strength"`
-	KeyUsage             string    `json:"key_usage"`
-	Serial               string    `json:"serial"`
-	SigningAlgorithm     string    `json:"signing_algorithm"`
+	ID                   uint                  `json:"id"`
+	NotValidAfter        time.Time             `json:"not_valid_after"`
+	NotValidBefore       time.Time             `json:"not_valid_before"`
+	CertificateAuthority bool                  `json:"certificate_authority"`
+	CommonName           string                `json:"common_name"`
+	KeyAlgorithm         string                `json:"key_algorithm"`
+	KeyStrength          int                   `json:"key_strength"`
+	KeyUsage             string                `json:"key_usage"`
+	Serial               string                `json:"serial"`
+	SigningAlgorithm     string                `json:"signing_algorithm"`
+	Source               HostCertificateSource `json:"source"`
 
 	Subject *HostCertificateNameDetails `json:"subject,omitempty"`
 	Issuer  *HostCertificateNameDetails `json:"issuer,omitempty"`
