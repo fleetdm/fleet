@@ -1,4 +1,5 @@
 <div id="configuration-builder" v-cloak>
+  <div class="d-lg-block d-none">
   <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
     <div purpose="header-background">
       <div purpose="configuration-builder-header">
@@ -44,7 +45,7 @@
           <div purpose="platforms" id="platform" class="d-flex flex-row">
             <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'macos' ? 'selected' : '' ]"  style="margin-right: 10px;" @click="platformSelectFormData.platform = 'macos'">
               <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
-              Apple
+              macOS
             </div>
             <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'windows' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'windows'">
               <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
@@ -191,7 +192,7 @@
                   <h2>{{category}}</h2>
                   <div purpose="download-and-remove-buttons">
                     <a purpose="form-button" @click="clickRemoveOneCategoryPayloadOptions(category)">Remove all</a>
-                    <ajax-button purpose="download-button" :syncing="syncing"><img src="/images/icon-download.png" style="height: 12px;"></a>
+                    <ajax-button purpose="download-button" :syncing="syncing"><img src="/images/icon-download.png" style="height: 12px;"></ajax-button>
                   </div>
                 </div>
 
@@ -200,16 +201,20 @@
                     <p class="mb-0"><strong>{{option.name}}</strong></p>
                     <div class="d-flex flex-column" v-if="selectedPlatform === 'windows'">
                       <select :class="[formErrors[option.uniqueSlug+'-access-type'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-access-type']" class="form-control" style="width: 120px">
-                        <option selected value="undefined">Access type</option>
-                        <option :value="accessType" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
+                        <option selected value="undefined" >Access type</option>
+                        <option :value="accessType" style="text-transform: uppercase;" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
                       </select>
-                      <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-access-type']">Please select an access type</div>
+                      <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-access-type']">Please select an<br> access type</div>
                     </div>
                   </div>
                   <% // Number input %>
                   <div purpose="option-value" v-if="['number'].includes(option.formInput.type)">
+                    <div class="d-flex flex-row align-items-center">
                     <input :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :type="option.formInput.type" placeholder="0" :min="option.formInput.minValue" :max="option.formInput.maxValue">
-                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please enter a value</div>
+                    <span purpose="unit-label" v-if="option.formInput.unitLabel">{{option.formInput.unitLabel}}</span>
+                    </div>
+                    <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] && option.formInput.unitLabel">Please enter a number of {{option.formInput.unitLabel}}</div>
+                    <div class="invalid-feedback d-block" v-else-if="formErrors[option.uniqueSlug+'-value']">Please enter a value</div>
                   </div>
                   <% // Text input %>
                   <div purpose="option-value" v-if="['text'].includes(option.formInput.type)">
@@ -239,7 +244,7 @@
             </div>
             <div purpose="bottom-download-bar" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
               <a purpose="new-button" @click="clickOpenResetFormModal()">Create new</a>
-              <ajax-button purpose="download-button" :syncing="syncing">Download <img class="d-inline-flex" src="/images/icon-download.png" style="height: 12px;"></a>
+              <ajax-button purpose="download-button" :syncing="syncing">Download <img class="d-inline-flex" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
             </div>
           </ajax-form>
 
@@ -254,6 +259,14 @@
 
         </div>
       </div>
+    </div>
+  </div>
+  </div>
+  <div purpose="page-container" class="container-fluid px-0 d-flex d-lg-none">
+    <div purpose="screen-unsupported" class="mx-auto pt-5 mt-5 text-center d-flex flex-column align-items-center">
+      <img style="width: 160px" class="mb-3" src="/images/config-editor-small-screen-160x80@2x.png">
+      <p class="mb-1">This screen size is not supported yet.</p>
+      <p>Please enlarge your browser or try again on a computer.</p>
     </div>
   </div>
   <modal v-if="modal === 'reset-form'" hide-close-button="true" @close="closeModal()">
