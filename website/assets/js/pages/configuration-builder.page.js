@@ -28,7 +28,6 @@ parasails.registerPage('configuration-builder', {
 
 
     // For UI demo with three options
-    // apple payloads (empty array)
     macOSPayloads: [
       {
         name: 'Require device password',
@@ -68,6 +67,25 @@ parasails.registerPage('configuration-builder', {
           falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
         },
       },
+      // {
+      //   name: 'Require alphanumeric password',
+      //   uniqueSlug: 'macos-require-alphanumeric-password',
+      //   tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
+      //   category: 'Device lock',
+      //   payload: 'Passcode',
+      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
+      //   formInput: {
+      //     type: 'boolean',
+      //     trueValue: 0,
+      //     falseValue: 1
+      //   },
+      //   formOutput: {// For the compiler
+      //     settingFormat: 'boolean',// Used to generate a configuration profile
+      //     settingKey: 'requireAlphanumeric',// Used to generate a configuration profile
+      //     trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+      //     falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+      //   },
+      // },
       {
         name: 'Max inactivity time before device locks',
         uniqueSlug: 'macos-max-inactivity',
@@ -104,6 +122,132 @@ parasails.registerPage('configuration-builder', {
           settingKey: 'minLength',// Used to generate a configuration profile
         },
       },
+      // {
+      //   name: 'Change passcode at next login',
+      //   uniqueSlug: 'macos-change-at-next-auth',
+      //   tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
+      //   category: 'Device lock',
+      //   payload: 'Passcode',
+      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
+      //   formInput: {
+      //     type: 'boolean',
+      //     trueValue: 0,
+      //     falseValue: 1
+      //   },
+      //   formOutput: {// For the compiler
+      //     settingFormat: 'boolean',// Used to generate a configuration profile
+      //     settingKey: 'changeAtNextAuth',// Used to generate a configuration profile
+      //     trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+      //     falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+      //   },
+      // },
+      // {
+      //   name: 'Maximum number of failed attempts',
+      //   uniqueSlug: 'macos-max-failed-attempts',
+      //   tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
+      //   category: 'Device lock',
+      //   payload: 'Passcode',
+      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
+      //   formInput: {
+      //     type: 'number',
+      //     defaultValue: 11,
+      //     minValue: 2,
+      //     maxValue: 11
+      //   },
+      //   formOutput: {// For the compiler
+      //     settingFormat: 'integer',// Used to generate a configuration profile
+      //     settingKey: 'maxFailedAttempts',// Used to generate a configuration profile
+      //   },
+      // },
+      // {
+      //   name: 'Max grace period',
+      //   uniqueSlug: 'macos-max-grace-period',
+      //   tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
+      //   category: 'Device lock',
+      //   payload: 'Passcode',
+      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
+      //   formInput: {
+      //     type: 'number',
+      //     defaultValue: 0,
+      //     minValue: 0,
+      //     maxValue: 999
+      //   },
+      //   formOutput: {// For the compiler
+      //     settingFormat: 'integer',// Used to generate a configuration profile
+      //     settingKey: 'maxGracePeriod',// Used to generate a configuration profile
+      //   },
+      // },
+      // {
+      //   name: 'Max passcode age',
+      //   uniqueSlug: 'macos-max-pin-age',
+      //   tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+      //   category: 'Device lock',
+      //   payload: 'Passcode',
+      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
+      //   formInput: {
+      //     type: 'number',
+      //     defaultValue: 0,
+      //     minValue: 0,
+      //     maxValue: 999
+      //   },
+      //   formOutput: {// For the compiler
+      //     settingFormat: 'integer',// Used to generate a configuration profile
+      //     settingKey: 'maxPINAgeInDays',// Used to generate a configuration profile
+      //   },
+      // },
+      // {
+      //   name: 'Minimum complex characters',
+      //   uniqueSlug: 'macos-min-complex-characters',
+      //   tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
+      //   category: 'Device lock',
+      //   payload: 'Passcode',
+      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
+      //   formInput: {
+      //     type: 'number',
+      //     defaultValue: 0,
+      //     minValue: 0,
+      //     maxValue: 4
+      //   },
+      //   formOutput: {// For the compiler
+      //     settingFormat: 'integer',// Used to generate a configuration profile
+      //     settingKey: 'minComplexChars',// Used to generate a configuration profile
+      //   },
+      // },
+      // {
+      //   name: 'Minutes until failed login reset',
+      //   uniqueSlug: 'macos-minutes-until-failed-login-reset',
+      //   tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
+      //   category: 'Device lock',
+      //   payload: 'Passcode',
+      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
+      //   formInput: {
+      //     type: 'number',
+      //     defaultValue: 0,
+      //     minValue: 0,
+      //     maxValue: 4
+      //   },
+      //   formOutput: {// For the compiler
+      //     settingFormat: 'integer',// Used to generate a configuration profile
+      //     settingKey: 'minutesUntilFailedLoginReset',// Used to generate a configuration profile
+      //   },
+      // },
+      // {
+      //   name: 'Passcode history',
+      //   uniqueSlug: 'macos-minutes-until-failed-login-reset',
+      //   tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
+      //   category: 'Device lock',
+      //   payload: 'Passcode',
+      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
+      //   formInput: {
+      //     type: 'number',
+      //     minValue: 1,
+      //     maxValue: 50
+      //   },
+      //   formOutput: {// For the compiler
+      //     settingFormat: 'integer',// Used to generate a configuration profile
+      //     settingKey: 'pinHistory',// Used to generate a configuration profile
+      //   },
+      // },
     ],
 
     // The current selected payload category, controls which options are shown in the middle section
@@ -358,9 +502,6 @@ parasails.registerPage('configuration-builder', {
         }
         dictionaryStringForThisPayload += `</dict>
 `;
-        // let payloadToAdd = _.clone(payload);
-        // Get the selected access type for this payload
-        // Get the selected value for this payload
         // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
         xmlString += dictionaryStringForThisPayload;
       }
@@ -478,7 +619,6 @@ parasails.registerPage('configuration-builder', {
         this.selectedPayloadSettings[payloadSlug] = true;
         // console.log(this.configurationBuilderFormData);
       } else {
-
         // Remove the payload option and all dependencies
         let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: payloadSlug});
         console.log(payloadSlug, payloadToRemove);
@@ -488,26 +628,6 @@ parasails.registerPage('configuration-builder', {
         if(this.selectedPlatform === 'windows') {
           delete this.configurationBuilderFormRules[payloadSlug+'-access-type'];
         }
-        // if (_.difference(_.uniq(_.pluck(this.selectedPayloads, 'alsoAutoSetWhenSelected')), _.uniq(_.pluck(this.newSelectedPayloads, 'alsoAutoSetWhenSelected'))).length === 0){
-        //   // dependencies are the same.
-        // } else {
-        //   // TODO: also handle cases where an auto selected payload is manually selected
-        //   // console.log(_.difference(_.uniq(_.pluck(this.selectedPayloads, 'alsoAutoSetWhenSelected')), _.uniq(_.pluck(this.newSelectedPayloads, 'alsoAutoSetWhenSelected'))));
-        //   let removedAutoSetSettings = _.difference(_.uniq(_.pluck(this.selectedPayloads, 'alsoAutoSetWhenSelected')), _.uniq(_.pluck(this.newSelectedPayloads, 'alsoAutoSetWhenSelected')));
-        //   console.log(removedAutoSetSettings);
-        //   // // Dependencies are different
-        //   for(let removedSetting in removedAutoSetSettings){
-        //     console.log('rms', removedSetting);
-        //     if(removedSetting){
-        //       let newPayloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: removedSetting.dependingOnSettingSlug});
-        //       delete this.configurationBuilderFormRules[removedSetting.dependingOnSettingSlug+'-value'];
-        //       delete this.configurationBuilderFormRules[removedSetting.dependingOnSettingSlug+'-access-type'];
-        //       this.selectedPayloadSettings[removedSetting.dependingOnSettingSlug] = false;
-        //       this.autoSelectedPayloadSettings[removedSetting.dependingOnSettingSlug] = false;
-        //       newSelectedPayloads = _.without(this.selectedPayloads, newPayloadToRemove);
-        //     }
-        //   }
-        // }
         this.selectedPayloadSettings[payloadSlug] = false;
         this.selectedPayloads = _.uniq(newSelectedPayloads);
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
