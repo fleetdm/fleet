@@ -287,7 +287,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	return nil
 }
 
-func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
+func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -340,6 +340,10 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		return err
 	}
 
+	if dryRun {
+		return nil
+	}
+
 	bp := &fleet.MDMAppleBootstrapPackage{
 		TeamID: teamID,
 		Name:   name,
@@ -389,7 +393,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 	return meta, nil
 }
 
-func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error {
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint, dryRun bool) error {
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
@@ -413,6 +417,10 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
