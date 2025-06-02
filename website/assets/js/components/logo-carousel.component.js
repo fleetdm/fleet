@@ -40,6 +40,7 @@ parasails.registerComponent('logoCarousel', {
         <img alt="Snowflake logo" src="/images/logo-snowflake-101x32@2x.png">
         <img alt="Uber logo" src="/images/logo-uber-65x32@2x.png">
         <img alt="Atlassian logo" src="/images/logo-atlassian-140x32@2x.png">
+        <img alt="Mr. Beast logo" src="/images/logo-mr-beast-muted-90x32@2x.png">
         <img alt="Fastly logo" src="/images/logo-fastly-60x32@2x.png">
         <img alt="Hashicorp logo" src="/images/logo-hashicorp-103x32@2x.png">
         <img alt="Dropbox logo" src="/images/logo-dropbox-122x32@2x.png">
@@ -56,6 +57,7 @@ parasails.registerComponent('logoCarousel', {
         <img alt="Snowflake logo" src="/images/logo-snowflake-101x32@2x.png">
         <img alt="Uber logo" src="/images/logo-uber-65x32@2x.png">
         <img alt="Atlassian logo" src="/images/logo-atlassian-140x32@2x.png">
+        <img alt="Mr. Beast logo" src="/images/logo-mr-beast-muted-90x32@2x.png">
         <img alt="Fastly logo" src="/images/logo-fastly-60x32@2x.png">
         <img alt="Hashicorp logo" src="/images/logo-hashicorp-103x32@2x.png">
         <img alt="Dropbox logo" src="/images/logo-dropbox-122x32@2x.png">

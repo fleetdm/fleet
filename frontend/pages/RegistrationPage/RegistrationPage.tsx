@@ -39,6 +39,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   const [page, setPage] = useState(1);
   const [pageProgress, setPageProgress] = useState(1);
   const [showSetupError, setShowSetupError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const { DASHBOARD } = paths;
@@ -57,6 +58,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   const onRegistrationFormSubmit = async (formData: any) => {
     const { DASHBOARD } = paths;
 
+    setIsLoading(true);
     try {
       const { token } = await usersAPI.setup(formData);
       local.setItem("auth_token", token);
@@ -68,6 +70,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
       router.push(DASHBOARD);
       window.location.reload();
     } catch (error) {
+      setIsLoading(false);
       setPage(1);
       setPageProgress(1);
       setShowSetupError(true);
@@ -98,6 +101,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
         page={page}
         onNextPage={onNextPage}
         onSubmit={onRegistrationFormSubmit}
+        isLoading={isLoading}
       />
       {showSetupError && (
         <FlashMessage

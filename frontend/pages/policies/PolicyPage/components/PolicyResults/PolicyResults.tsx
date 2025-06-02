@@ -188,7 +188,8 @@ const PolicyResults = ({
         <div className={`${baseClass}__results-table-header`}>
           <span className={`${baseClass}__results-meta`}>
             <span className={`${baseClass}__results-count`}>
-              {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+              {uiHostCounts.successful} result
+              {uiHostCounts.successful !== 1 && "s"}
             </span>
             {isQueryFinished && renderPassFailPcts()}
           </span>

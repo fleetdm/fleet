@@ -147,12 +147,6 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
     d. Verify the data is mapped to the correct Salesforce fields and start the Import.
 
 
-### Follow up after an event
-
-1. Email relevant information according to the event buying situation, but refer to the original lead list in [Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR) for those who asked for contact.
-2. If feedback is present in the original event CSV, manually add any worthwhile feedback to the contact description in Salesforce.
-
-
 ### Optimize ads through experimentation
 
 Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
