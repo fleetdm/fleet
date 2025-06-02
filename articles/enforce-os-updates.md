@@ -46,7 +46,7 @@ If the host was turned off when the deadline passed, the update will be schedule
 
 If you set a past date (ex. yesterday) as the deadline, the end user will immediately be prompted to install the update. If they don't, the update will automatically install in one hour. Similarly, if you set the deadline to today, end users will experience the same behavior if it's after 12 PM (end user local time).
 
-For hosts that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest version during ADE before device setup and enrollment can proceed. You can find the latest version in the Apple Software Lookup Service [here](https://gdmf.apple.com/v2/pmv).
+For hosts that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest version during ADE before device setup and enrollment can proceed. You can find the latest version in the Apple Software Lookup Service [here](https://gdmf.apple.com/v2/pmv). Apple's software updates are relatively large (up to several GBs) so ask your end users to connect to a Wi-Fi network that can handle large downloads during ADE.
 
 ### Windows
 
