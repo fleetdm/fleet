@@ -27,7 +27,41 @@ parasails.registerPage('configuration-builder', {
     // modal: 'multiple-payloads-selected',
 
 
-    // For UI demo with three options
+
+    // The current selected payload category, controls which options are shown in the middle section
+    selectedPayloadCategory: undefined,
+
+    // The current expanded list of subcategories
+    expandedCategory: undefined,
+
+    // A list of the payloads that the user selected.
+    // Used to build the inputs for the profile builder form.
+    selectedPayloads: [],
+
+    // A list of the payloads that are required to enforce a user selected paylaod.
+    // Used to build the inputs for the profile builder form.
+    autoSelectedPayloads: [],
+
+    // Used to keep payloads grouped by category in the profile builder.
+    selectedPayloadsGroupedByCategory: {},
+
+    // Used to keep track of which payloads have been added to the profile builder. (Essentially formData for the payload selector)
+    selectedPayloadSettings: {},
+
+    // Used to keep track of which payloads have been automatically added to the profile builder
+    autoSelectedPayloadSettings: {},
+
+    // For the profile builder
+    configurationBuilderFormData: {},
+    configurationBuilderFormRules: {},
+    // For the download modal
+    downloadProfileFormRules: {
+      name: {required: true},
+    },
+    downloadProfileFormData: {},
+    profileFilename: undefined,
+    profileDescription: undefined,
+    // mac OS payloads.
     macOSPayloads: [
       {
         name: 'Require device password',
@@ -105,186 +139,157 @@ parasails.registerPage('configuration-builder', {
           settingKey: 'minLength',// Used to generate a configuration profile
         },
       },
-      // {
-      //   name: 'Require alphanumeric password',
-      //   uniqueSlug: 'macos-require-alphanumeric-password',
-      //   tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
-      //   category: 'Device lock',
-      //   payload: 'Passcode',
-      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
-      //   formInput: {
-      //     type: 'boolean',
-      //     trueValue: 0,
-      //     falseValue: 1
-      //   },
-      //   formOutput: {// For the compiler
-      //     settingFormat: 'boolean',// Used to generate a configuration profile
-      //     settingKey: 'requireAlphanumeric',// Used to generate a configuration profile
-      //     trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
-      //     falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
-      //   },
-      // },
-      // {
-      //   name: 'Change passcode at next login',
-      //   uniqueSlug: 'macos-change-at-next-auth',
-      //   tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
-      //   category: 'Device lock',
-      //   payload: 'Passcode',
-      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
-      //   formInput: {
-      //     type: 'boolean',
-      //     trueValue: 0,
-      //     falseValue: 1
-      //   },
-      //   formOutput: {// For the compiler
-      //     settingFormat: 'boolean',// Used to generate a configuration profile
-      //     settingKey: 'changeAtNextAuth',// Used to generate a configuration profile
-      //     trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
-      //     falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
-      //   },
-      // },
-      // {
-      //   name: 'Maximum number of failed attempts',
-      //   uniqueSlug: 'macos-max-failed-attempts',
-      //   tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
-      //   category: 'Device lock',
-      //   payload: 'Passcode',
-      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
-      //   formInput: {
-      //     type: 'number',
-      //     defaultValue: 11,
-      //     minValue: 2,
-      //     maxValue: 11
-      //   },
-      //   formOutput: {// For the compiler
-      //     settingFormat: 'integer',// Used to generate a configuration profile
-      //     settingKey: 'maxFailedAttempts',// Used to generate a configuration profile
-      //   },
-      // },
-      // {
-      //   name: 'Max grace period',
-      //   uniqueSlug: 'macos-max-grace-period',
-      //   tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
-      //   category: 'Device lock',
-      //   payload: 'Passcode',
-      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
-      //   formInput: {
-      //     type: 'number',
-      //     defaultValue: 0,
-      //     minValue: 0,
-      //     maxValue: 999
-      //   },
-      //   formOutput: {// For the compiler
-      //     settingFormat: 'integer',// Used to generate a configuration profile
-      //     settingKey: 'maxGracePeriod',// Used to generate a configuration profile
-      //   },
-      // },
-      // {
-      //   name: 'Max passcode age',
-      //   uniqueSlug: 'macos-max-pin-age',
-      //   tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
-      //   category: 'Device lock',
-      //   payload: 'Passcode',
-      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
-      //   formInput: {
-      //     type: 'number',
-      //     defaultValue: 0,
-      //     minValue: 0,
-      //     maxValue: 999
-      //   },
-      //   formOutput: {// For the compiler
-      //     settingFormat: 'integer',// Used to generate a configuration profile
-      //     settingKey: 'maxPINAgeInDays',// Used to generate a configuration profile
-      //   },
-      // },
-      // {
-      //   name: 'Minimum complex characters',
-      //   uniqueSlug: 'macos-min-complex-characters',
-      //   tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
-      //   category: 'Device lock',
-      //   payload: 'Passcode',
-      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
-      //   formInput: {
-      //     type: 'number',
-      //     defaultValue: 0,
-      //     minValue: 0,
-      //     maxValue: 4
-      //   },
-      //   formOutput: {// For the compiler
-      //     settingFormat: 'integer',// Used to generate a configuration profile
-      //     settingKey: 'minComplexChars',// Used to generate a configuration profile
-      //   },
-      // },
-      // {
-      //   name: 'Minutes until failed login reset',
-      //   uniqueSlug: 'macos-minutes-until-failed-login-reset',
-      //   tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
-      //   category: 'Device lock',
-      //   payload: 'Passcode',
-      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
-      //   formInput: {
-      //     type: 'number',
-      //     defaultValue: 0,
-      //     minValue: 0,
-      //     maxValue: 4
-      //   },
-      //   formOutput: {// For the compiler
-      //     settingFormat: 'integer',// Used to generate a configuration profile
-      //     settingKey: 'minutesUntilFailedLoginReset',// Used to generate a configuration profile
-      //   },
-      // },
-      // {
-      //   name: 'Passcode history',
-      //   uniqueSlug: 'macos-minutes-until-failed-login-reset',
-      //   tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
-      //   category: 'Device lock',
-      //   payload: 'Passcode',
-      //   payloadType: 'com.apple.mobiledevice.passwordpolicy',
-      //   formInput: {
-      //     type: 'number',
-      //     minValue: 1,
-      //     maxValue: 50
-      //   },
-      //   formOutput: {// For the compiler
-      //     settingFormat: 'integer',// Used to generate a configuration profile
-      //     settingKey: 'pinHistory',// Used to generate a configuration profile
-      //   },
-      // },
+      {
+        name: 'Require alphanumeric password',
+        uniqueSlug: 'macos-require-alphanumeric-password',
+        tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'boolean',
+          trueValue: 0,
+          falseValue: 1
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'boolean',// Used to generate a configuration profile
+          settingKey: 'requireAlphanumeric',// Used to generate a configuration profile
+          trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+          falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+        },
+      },
+      {
+        name: 'Change passcode at next login',
+        uniqueSlug: 'macos-change-at-next-auth',
+        tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'boolean',
+          trueValue: 0,
+          falseValue: 1
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'boolean',// Used to generate a configuration profile
+          settingKey: 'changeAtNextAuth',// Used to generate a configuration profile
+          trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+          falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+        },
+      },
+      {
+        name: 'Maximum number of failed attempts',
+        uniqueSlug: 'macos-max-failed-attempts',
+        tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'number',
+          defaultValue: 11,
+          minValue: 2,
+          maxValue: 11,
+          unitLabel: 'attempts'
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'integer',// Used to generate a configuration profile
+          settingKey: 'maxFailedAttempts',// Used to generate a configuration profile
+        },
+      },
+      {
+        name: 'Max grace period',
+        uniqueSlug: 'macos-max-grace-period',
+        tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'number',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 999,
+          unitLabel: 'minutes'
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'integer',// Used to generate a configuration profile
+          settingKey: 'maxGracePeriod',// Used to generate a configuration profile
+        },
+      },
+      {
+        name: 'Max passcode age',
+        uniqueSlug: 'macos-max-pin-age',
+        tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'number',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 999,
+          unitLabel: 'days'
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'integer',// Used to generate a configuration profile
+          settingKey: 'maxPINAgeInDays',// Used to generate a configuration profile
+        },
+      },
+      {
+        name: 'Minimum complex characters',
+        uniqueSlug: 'macos-min-complex-characters',
+        tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'number',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 4,
+          unitLabel: 'characters'
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'integer',// Used to generate a configuration profile
+          settingKey: 'minComplexChars',// Used to generate a configuration profile
+        },
+      },
+      {
+        name: 'Minutes until failed login reset',
+        uniqueSlug: 'macos-minutes-until-failed-login-reset',
+        tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'number',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 4,
+          unitLabel: 'minutes'
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'integer',// Used to generate a configuration profile
+          settingKey: 'minutesUntilFailedLoginReset',// Used to generate a configuration profile
+        },
+      },
+      {
+        name: 'Passcode history',
+        uniqueSlug: 'macos-passcode-history',
+        tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'number',
+          minValue: 1,
+          maxValue: 50,
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'integer',// Used to generate a configuration profile
+          settingKey: 'pinHistory',// Used to generate a configuration profile
+        },
+      },
     ],
-
-    // The current selected payload category, controls which options are shown in the middle section
-    selectedPayloadCategory: undefined,
-
-    // The current expanded list of subcategories
-    expandedCategory: undefined,
-
-    // A list of the payloads that the user selected.
-    // Used to build the inputs for the profile builder form.
-    selectedPayloads: [],
-
-    // A list of the payloads that are required to enforce a user selected paylaod.
-    // Used to build the inputs for the profile builder form.
-    autoSelectedPayloads: [],
-
-    // Used to keep payloads grouped by category in the profile builder.
-    selectedPayloadsGroupedByCategory: {},
-
-    // Used to keep track of which payloads have been added to the profile builder. (Essentially formData for the payload selector)
-    selectedPayloadSettings: {},
-
-    // Used to keep track of which payloads have been automatically added to the profile builder
-    autoSelectedPayloadSettings: {},
-
-    // For the profile builder
-    configurationBuilderFormData: {},
-    configurationBuilderFormRules: {},
-    // For the download modal
-    downloadProfileFormRules: {
-      name: {required: true},
-    },
-    downloadProfileFormData: {},
-    profileFilename: undefined,
-    profileDescription: undefined,
     // windows payloads
     windowsPayloads: [
       {
@@ -364,7 +369,7 @@ parasails.registerPage('configuration-builder', {
         toolTip: 'The minimum number of characters a device\'s password must be',
         uniqueSlug: 'windows-device-lock-min-password-length',
         category: 'Device lock',
-        supportedAccessTypes: ['ADD', 'REPLACE'],
+        supportedAccessTypes: ['add', 'replace'],
         alsoAutoSetWhenSelected: [
           {
             dependingOnSettingSlug: 'windows-device-lock-enable-device-lock',
