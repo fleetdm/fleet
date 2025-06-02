@@ -159,6 +159,8 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
 [Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
 
+The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users setup their Macs simultaneously).
+
 - Default value: 10, shared with rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in); if overridden, a separate rate limit bucket is used for MDM SSO
 - Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`
 - Config file format:
