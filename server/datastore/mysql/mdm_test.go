@@ -8011,15 +8011,25 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 		want        fleet.MDMConfigProfileStatus
 	}{
 		{
-			desc:        "macOS no team profile A1 all pending",
+			desc:        "macOS no team profile A1 all pending/NULL",
 			profileUUID: profNameToProf["A1"].ProfileUUID,
 			setup: func(t *testing.T) {
 				appleA1 := test.ToMDMAppleConfigProfile(profNameToProf["A1"])
 				forceSetAppleHostProfileStatus(t, ds, host1.UUID, appleA1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 				forceSetAppleHostProfileStatus(t, ds, host2.UUID, appleA1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
-				forceSetAppleHostProfileStatus(t, ds, host3.UUID, appleA1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+				forceSetAppleHostProfileStatus(t, ds, host3.UUID, appleA1, fleet.MDMOperationTypeInstall, "")
 			},
 			want: fleet.MDMConfigProfileStatus{Pending: 3},
+		},
+		{
+			desc:        "windows no team profile W1 all pending/NULL",
+			profileUUID: profNameToProf["W1"].ProfileUUID,
+			setup: func(t *testing.T) {
+				winW1 := test.ToMDMWindowsConfigProfile(profNameToProf["W1"])
+				forceSetWindowsHostProfileStatus(t, ds, host6.UUID, winW1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+				forceSetWindowsHostProfileStatus(t, ds, host7.UUID, winW1, fleet.MDMOperationTypeInstall, "")
+			},
+			want: fleet.MDMConfigProfileStatus{Pending: 2},
 		},
 		{
 			desc:        "windows no team profile W1 pending failed",
