@@ -239,7 +239,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 			resp.StatusCode)})
 	}
 	// Make a transformer that converts MS-Win default to UTF8:
-	win16be := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)
+	win16be := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	// Make a transformer that is like win16be, but abides by BOM:
 	utf16bom := unicode.BOMOverride(win16be.NewDecoder())
 
