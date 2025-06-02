@@ -81,7 +81,12 @@ controls:
     deadline: "2025-06-08"
     minimum_version: "15.5"
   windows_settings:
-    custom_settings: null
+    custom_settings:
+      - path: ../lib/windows/configuration-profiles/Enable firewall.xml
+      - path: ../lib/windows/configuration-profiles/Password settings.xml
+      - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
+      - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
+      - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
