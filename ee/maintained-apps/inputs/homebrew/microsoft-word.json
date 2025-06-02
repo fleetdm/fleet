@@ -8,7 +8,13 @@
     "Productivity"
   ],
   "pre_uninstall_scripts": [
-    "remove_pkg_files() {\n  local PKGID=\"$1\"\n  local INSTALL_LOCATION\n  INSTALL_LOCATION=$(pkgutil --pkg-info-plist \"$PKGID\" | awk '/<key>install-location<\\/key>/ {getline; gsub(/.*<string>|<\\/string>.*/, \"\"); print}')\n  sudo pkgutil --files \"$PKGID\" | sed \"s|^|/${INSTALL_LOCATION}/|\" | tr '\\n' '\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf\n}\n",
-    "remove_pkg_files 'com.microsoft.package.Microsoft_Word.app'"
+    "remove_pkg_files_prepare() {\n  local PKGID=\"$1\"\n  local TMPFILE=\"$2\"\n  local INSTALL_LOCATION\n  INSTALL_LOCATION=$(pkgutil --pkg-info-plist \"$PKGID\" | awk '/<key>install-location<\\/key>/ {getline; gsub(/.*<string>|<\\/string>.*/, \"\"); print}')\n  echo sudo pkgutil --files \"$PKGID\"\n  sudo pkgutil --files \"$PKGID\" | sed \"s|^|/${INSTALL_LOCATION}/|\" | tr '\\n' '\\0' > \"$TMPFILE\"\n}\n",
+    "TMPFILE=$(mktemp /tmp/remove_pkg_files_microsoft_word_darwin)",
+    "remove_pkg_files_prepare 'com.microsoft.package.Microsoft_Word.app' \"$TMPFILE\""
+  ],
+  "post_uninstall_scripts": [
+    "remove_pkg_files_delete() {\n  local TMPFILE=\"$1\"\n  echo \"sudo -E -- /usr/bin/xargs -0 -- /bin/rm -rf < \\\"$TMPFILE\\\"\"\n  sudo -E -- /usr/bin/xargs -0 -- /bin/rm -rf < \"$TMPFILE\"\n}\n",
+    "remove_pkg_files_delete \"$TMPFILE\"",
+    "rm -f \"$TMPFILE\""
   ]
 }
