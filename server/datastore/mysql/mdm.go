@@ -1754,7 +1754,7 @@ SELECT
 			'verified'
 		ELSE
 			''
-	END AS status,
+	END AS final_status,
 	SUM(1) AS count
 FROM
 	hosts h
@@ -1768,7 +1768,7 @@ WHERE
 	hmdm.enrolled = 1 AND
 	hmwp.profile_uuid = :profile_uuid
 GROUP BY
-	status`
+	final_status`
 
 	stmt, args, err := sqlx.Named(stmt, map[string]any{
 		"status_failed":         fleet.MDMDeliveryFailed,
