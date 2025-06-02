@@ -67,6 +67,44 @@ parasails.registerPage('configuration-builder', {
           falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
         },
       },
+      {
+        name: 'Max inactivity time before device locks',
+        uniqueSlug: 'macos-max-inactivity',
+        tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'number',
+          defaultValue: 4,
+          minValue: 0,
+          maxValue: 60,
+          unitLabel: 'minutes'
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'integer',// Used to generate a configuration profile
+          settingKey: 'maxInactivity',// Used to generate a configuration profile
+        },
+      },
+      {
+        name: 'Minimum password length',
+        uniqueSlug: 'macos-min-length',
+        tooltip: 'The minimum overall length of the passcode.',
+        category: 'Device lock',
+        payload: 'Passcode',
+        payloadType: 'com.apple.mobiledevice.passwordpolicy',
+        formInput: {
+          type: 'number',
+          defaultValue: 0,
+          minValue: 0,
+          maxValue: 16,
+          unitLabel: 'characters'
+        },
+        formOutput: {// For the compiler
+          settingFormat: 'integer',// Used to generate a configuration profile
+          settingKey: 'minLength',// Used to generate a configuration profile
+        },
+      },
       // {
       //   name: 'Require alphanumeric password',
       //   uniqueSlug: 'macos-require-alphanumeric-password',
@@ -86,42 +124,6 @@ parasails.registerPage('configuration-builder', {
       //     falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
       //   },
       // },
-      {
-        name: 'Max inactivity time before device locks',
-        uniqueSlug: 'macos-max-inactivity',
-        tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
-        category: 'Device lock',
-        payload: 'Passcode',
-        payloadType: 'com.apple.mobiledevice.passwordpolicy',
-        formInput: {
-          type: 'number',
-          defaultValue: 4,
-          minValue: 0,
-          maxValue: 60
-        },
-        formOutput: {// For the compiler
-          settingFormat: 'integer',// Used to generate a configuration profile
-          settingKey: 'maxInactivity',// Used to generate a configuration profile
-        },
-      },
-      {
-        name: 'Minimum password length',
-        uniqueSlug: 'macos-min-length',
-        tooltip: 'The minimum overall length of the passcode.',
-        category: 'Device lock',
-        payload: 'Passcode',
-        payloadType: 'com.apple.mobiledevice.passwordpolicy',
-        formInput: {
-          type: 'number',
-          defaultValue: 0,
-          minValue: 0,
-          maxValue: 16
-        },
-        formOutput: {// For the compiler
-          settingFormat: 'integer',// Used to generate a configuration profile
-          settingKey: 'minLength',// Used to generate a configuration profile
-        },
-      },
       // {
       //   name: 'Change passcode at next login',
       //   uniqueSlug: 'macos-change-at-next-auth',
@@ -315,8 +317,9 @@ parasails.registerPage('configuration-builder', {
         ],
         formInput: {
           type: 'number',
-          maxValue: '9000',
-          minValue: '1',
+          maxValue: 9000,
+          minValue: 1,
+          unitLabel: 'seconds'
         },
         formOutput: {// For the compiler
           settingFormat: 'int',// Used to generate a configuration profile
@@ -372,7 +375,8 @@ parasails.registerPage('configuration-builder', {
           type: 'number',
           defaultValue: 4,
           minValue: 4,
-          maxValue: 16
+          maxValue: 16,
+          unitLabel: 'characters'
         },
         formOutput: {// For the compiler
           settingFormat: 'int',// Used to generate a configuration profile
@@ -508,6 +512,8 @@ parasails.registerPage('configuration-builder', {
       xmlString += `</array>
 <key>PayloadDisplayName</key>
 <string>${this.downloadProfileFormData.name}</string>
+<key>PayloadDescription</key>
+<string>${this.downloadProfileFormData.description}</string>
 <key>PayloadIdentifier</key>
 <string>Fleet-profile-generator.${uuidForThisProfile}</string>
 <key>PayloadType</key>
@@ -611,6 +617,8 @@ parasails.registerPage('configuration-builder', {
         if(selectedPayload.formInput.type === 'boolean'){
           // default boolean inputs to false.
           this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = false;
+        } else if(selectedPayload.formInput.type === 'number') {
+          this.configurationBuilderFormData[selectedPayload.uniqueSlug+'-value'] = selectedPayload.formInput.defaultValue;
         }
         if(this.selectedPlatform === 'windows') {
           this.configurationBuilderFormRules[selectedPayload.uniqueSlug+'-access-type'] = {required: true};
