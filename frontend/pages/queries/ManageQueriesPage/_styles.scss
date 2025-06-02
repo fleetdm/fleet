@@ -105,9 +105,6 @@
               .inherited-badge {
                 overflow: initial;
               }
-              .observer-can-run-badge {
-                @include tooltip5-arrow-styles;
-              }
             }
 
             @media (max-width: $break-md) {

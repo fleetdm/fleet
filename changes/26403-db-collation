@@ -1,0 +1,2 @@
+- Updated migrations to use the `utf8mb4_unicode_ci` collation across all tables and added a test to
+  validate that new migrations use this collation.

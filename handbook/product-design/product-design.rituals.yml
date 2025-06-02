@@ -72,13 +72,6 @@
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit?gid=0#gid=0" 
   dri: "noahtalerman"
 -
-  task: "🦢✅🎉Product confirm and celebrate" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
-  startedOn: "2024-02-27" 
-  frequency: "Triweekly" 
-  description: "Ahead of the call, Product Designers review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. During the call, Head of Product Design notifies the requester." 
-  moreInfoUrl: 
-  dri: "noahtalerman"
--
   task: "Pre-sprint prioritization" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-02-27" 
   frequency: "Triweekly"
