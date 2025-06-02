@@ -85,6 +85,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleetctl` docker image
 
+### [CVE-2025-48734](https://nvd.nist.gov/vuln/detail/CVE-2025-48734)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The fleetctl tool is used by IT admins to generate packages so the vulnerable code cannot be controlled by attackers.
+- **Products:**: `fleetctl`,`pkg:golang/github.com/goreleaser/nfpm/v2`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2025-06-02 07:33:44
+
 ### [CVE-2025-46569](https://nvd.nist.gov/vuln/detail/CVE-2025-46569)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
