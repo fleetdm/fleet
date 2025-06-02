@@ -192,7 +192,7 @@
                   <h2>{{category}}</h2>
                   <div purpose="download-and-remove-buttons">
                     <a purpose="form-button" @click="clickRemoveOneCategoryPayloadOptions(category)">Remove all</a>
-                    <ajax-button purpose="download-button" :syncing="syncing"><img src="/images/icon-download.png" style="height: 12px;"></ajax-button>
+                    <ajax-button purpose="download-button" :syncing="syncing"><img alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
                   </div>
                 </div>
 
@@ -244,7 +244,7 @@
             </div>
             <div purpose="bottom-download-bar" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
               <a purpose="new-button" @click="clickOpenResetFormModal()">Create new</a>
-              <ajax-button purpose="download-button" :syncing="syncing">Download <img class="d-inline-flex" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
+              <ajax-button purpose="download-button" :syncing="syncing">Download <img class="d-inline-flex" alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
             </div>
           </ajax-form>
 
@@ -319,7 +319,7 @@
           </div>
           <div purpose="modal-form-buttons">
             <ajax-button purpose="download-button" style="max-width: 130px; color: #FFF;" type="submit">
-              Download <img class="d-inline-flex" src="/images/icon-download.png" style="height: 12px;">
+              Download <img alt="download" class="d-inline-flex" src="/images/icon-download.png" style="height: 12px;">
             </ajax-button>
           </div>
         </ajax-form>
