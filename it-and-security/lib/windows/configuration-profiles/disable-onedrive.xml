@@ -1,5 +1,6 @@
 <Replace>
-  <!-- Disable OneDrive -->     
+  <!-- Disable OneDrive -->  
+  <CmdID>1</CmdID>   
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>

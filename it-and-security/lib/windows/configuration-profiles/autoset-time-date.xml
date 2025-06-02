@@ -1,5 +1,6 @@
 <Replace>
-  <!-- Disallows the user to change date and time settings -->     
+  <!-- Disallows the user to change date and time settings -->   
+  <CmdID>1</CmdID>  
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>

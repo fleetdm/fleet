@@ -1,4 +1,6 @@
-<Replace> 
+<Replace>
+  <!-- Disable Guest account -->
+  <CmdID>1</CmdID>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">int</Format>

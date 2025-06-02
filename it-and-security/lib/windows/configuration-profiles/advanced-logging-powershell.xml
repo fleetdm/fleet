@@ -1,5 +1,6 @@
 <Replace>
-  <!-- Powershell configs, modify the admx keys as needed for your env -->     
+  <!-- Powershell configs, modify the admx keys as needed for your env -->
+  <CmdID>1</CmdID>  
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
