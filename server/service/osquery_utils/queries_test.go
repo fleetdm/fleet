@@ -10,13 +10,14 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"regexp"
 	"slices"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -2005,6 +2006,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"not_valid_after":   "1822755797",
 		"not_valid_before":  "1770228826",
 		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31",
+		"source":            "user",
 	}
 
 	// row2 will not be ingeted because of the issue field containing an extra /
@@ -2021,6 +2023,7 @@ func TestDirectIngestHostCertificates(t *testing.T) {
 		"not_valid_after":   "1822755797",
 		"not_valid_before":  "1770228826",
 		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32",
+		"source":            "system",
 	}
 
 	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
