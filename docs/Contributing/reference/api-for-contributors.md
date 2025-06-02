@@ -3484,7 +3484,7 @@ Lists the certificates installed on the current device.
         "organizational_unit": "Fleet Device Management Inc.",
         "common_name": "FleetDM"
       },
-      "source": "User"
+      "source": "user"
     }
   ],
   "meta": {
