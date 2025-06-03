@@ -2,9 +2,11 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 )
 
 /*
@@ -28,5 +30,17 @@ func (ds *Datastore) CreateHostLifecycleEvent(ctx context.Context, event *fleet.
 		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for host lifecycle event")
 	}
 	event.ID = uint(eventID)
+	return event, nil
+}
+
+func (ds *Datastore) GetLastLifecycleEventForHost(ctx context.Context, hostUUID string) (*fleet.HostLifecycleEvent, error) {
+	query := `SELECT id, host_serial, host_uuid, host_id, event_type, created_at, activity_id FROM host_lifecycle_events WHERE host_uuid = ? ORDER BY created_at DESC LIMIT 1`
+	event := &fleet.HostLifecycleEvent{}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), event, query, hostUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound("host lifecycle event for host")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "selecting last lifecycle event for host")
+	}
 	return event, nil
 }

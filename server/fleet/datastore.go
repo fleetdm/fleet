@@ -2121,6 +2121,7 @@ type Datastore interface {
 	// Host Lifecycle Events
 	//
 	CreateHostLifecycleEvent(ctx context.Context, event *HostLifecycleEvent) (*HostLifecycleEvent, error)
+	GetLastLifecycleEventForHost(ctx context.Context, hostUUID string) (*HostLifecycleEvent, error)
 }
 
 type AndroidDatastore interface {

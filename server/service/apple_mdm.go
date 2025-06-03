@@ -3237,6 +3237,25 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		); err != nil {
 			return ctxerr.Wrap(r.Context, err, "creating activity for MDM enrollment")
 		}
+
+		lastLifecycleEvent, err := svc.ds.GetLastLifecycleEventForHost(r.Context, r.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(r.Context, err, "getting last lifecycle event for host")
+		}
+		if lastLifecycleEvent != nil && lastLifecycleEvent.EventType == fleet.HostLifecycleEventStartedMDMMigration {
+			// If the last lifecycle event was a migration, we want to create an activity
+			// for the end of the migration.
+			act := fleet.ActivityTypeCompletedMDMMigration{
+				HostSerial:      updatedInfo.HardwareSerial,
+				HostDisplayName: updatedInfo.DisplayName,
+				HostID:          lastLifecycleEvent.HostID,
+			}
+			host, err := svc.ds.HostByIdentifier(r.Context, r.ID)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "getting host by identifier")
+			}
+			_, err = newActivityWithHostLifecycleEvent(r.Context, nil, &act, host, svc.ds, svc.logger)
+		}
 	}
 
 	return nil

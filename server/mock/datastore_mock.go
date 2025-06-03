@@ -1364,6 +1364,8 @@ type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.Scim
 
 type CreateHostLifecycleEventFunc func(ctx context.Context, event *fleet.HostLifecycleEvent) (*fleet.HostLifecycleEvent, error)
 
+type GetLastLifecycleEventForHostFunc func(ctx context.Context, hostUUID string) (*fleet.HostLifecycleEvent, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3377,6 +3379,9 @@ type DataStore struct {
 
 	CreateHostLifecycleEventFunc 	  CreateHostLifecycleEventFunc
 	CreateHostLifecycleEventFuncInvoked bool
+
+	GetLastLifecycleEventForHostFunc 	  GetLastLifecycleEventForHostFunc
+	GetLastLifecycleEventForHostFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8076,4 +8081,11 @@ func (s *DataStore) CreateHostLifecycleEvent(ctx context.Context, event *fleet.H
 	s.CreateHostLifecycleEventFuncInvoked = true
 	s.mu.Unlock()
 	return s.CreateHostLifecycleEventFunc(ctx, event)
+}
+
+func (s *DataStore) GetLastLifecycleEventForHost(ctx context.Context, hostUUID string) (*fleet.HostLifecycleEvent, error) {
+	s.mu.Lock()
+	s.GetLastLifecycleEventForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetLastLifecycleEventForHostFunc(ctx, hostUUID)
 }
