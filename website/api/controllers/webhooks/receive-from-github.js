@@ -133,7 +133,78 @@ module.exports = {
     if (
       (ghNoun === 'issues' &&        ['opened','reopened'].includes(action))
     ) {
-      // no-op issue opened/reopened
+      //  ██╗███████╗███████╗██╗   ██╗███████╗
+      //  ██║██╔════╝██╔════╝██║   ██║██╔════╝
+      //  ██║███████╗███████╗██║   ██║█████╗
+      //  ██║╚════██║╚════██║██║   ██║██╔══╝
+      //  ██║███████║███████║╚██████╔╝███████╗
+      //  ╚═╝╚══════╝╚══════╝ ╚═════╝ ╚══════╝
+      //
+      //   ██╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██████╗         ██╗    ██████╗ ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██████╗ ██╗
+      //  ██╔╝██╔═══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝██╔══██╗       ██╔╝    ██╔══██╗██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝██╔══██╗╚██╗
+      //  ██║ ██║   ██║██████╔╝█████╗  ██╔██╗ ██║█████╗  ██║  ██║      ██╔╝     ██████╔╝█████╗  ██║   ██║██████╔╝█████╗  ██╔██╗ ██║█████╗  ██║  ██║ ██║
+      //  ██║ ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══╝  ██║  ██║     ██╔╝      ██╔══██╗██╔══╝  ██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██╔══╝  ██║  ██║ ██║
+      //  ╚██╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝    ██╔╝       ██║  ██║███████╗╚██████╔╝██║     ███████╗██║ ╚████║███████╗██████╔╝██╔╝
+      //   ╚═╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝     ╚═╝        ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝╚══════╝╚═════╝ ╚═╝
+      //
+      // // Handle opened/reopened issue by commenting on it.
+      // let owner = repository.owner.login;
+      // let repo = repository.name;
+      // let issueNumber = issueOrPr.number;
+      // let newBotComment;
+      // if (action === 'opened') {
+      //   if (issueOrPr.state !== 'open') {
+      //     newBotComment = '';// « checked below
+      //   } else {
+      //     newBotComment =
+      //     `@${issueOrPr.user.login} Thanks for posting!  We'll take a look as soon as possible.\n`+
+      //     `\n`+
+      //     `In the mean time, there are a few ways you can help speed things along:\n`+
+      //     ` - look for a workaround.  _(Even if it's just temporary, sharing your solution can save someone else a lot of time and effort.)_\n`+
+      //     ` - tell us why this issue is important to you and your team.  What are you trying to accomplish?  _(Submissions with a little bit of human context tend to be easier to understand and faster to resolve.)_\n`+
+      //     ` - make sure you've provided clear instructions on how to reproduce the bug from a clean install.\n`+
+      //     ` - double-check that you've provided all of the requested version and dependency information.  _(Some of this info might seem irrelevant at first, like which database adapter you're using, but we ask that you include it anyway.  Oftentimes an issue is caused by a confluence of unexpected factors, and it can save everybody a ton of time to know all the details up front.)_\n`+
+      //     ` - read the [code of conduct](https://sailsjs.com/documentation/contributing/code-of-conduct).\n`+
+      //     ` - if appropriate, ask your business to [spons  or your issue](https://sailsjs.com/support).   _(Open source is our passion, and our core maintainers volunteer many of their nights and weekends working on Sails.  But you only get so many nights and weekends in life, and stuff gets done a lot faster when you can work on it during normal daylight hours.)_\n`+
+      //     ` - let us know if you are using a 3rd party plugin; whether that's a database adapter, a non-standard view engine, or any other dependency maintained by someone other than our core team.  _(Besides the name of the 3rd party package, it helps to include the exact version you're using.  If you're unsure, check out [this list of all the core packages we maintain](https://sailsjs.com/architecture).)_ \n`+
+      //     `<hr/>\n`+
+      //     `\n`+
+      //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
+      //     `\n`+
+      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //   }
+      // } else {
+      //   let wasReopenedByBot = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase());
+      //   if (wasReopenedByBot) {
+      //     newBotComment = '';// « checked below
+      //   } else {
+      //     let greenLabels = _.filter(issueOrPr.labels, ({color}) => color === GREEN_LABEL_COLOR);
+      //     await sails.helpers.flow.simultaneouslyForEach(greenLabels, async(greenLabel)=>{
+      //       await sails.helpers.http.del('https://api.github.com/repos/'+encodeURIComponent(owner)+'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/labels/'+encodeURIComponent(greenLabel.name),
+      //         {},
+      //         {
+      //           'User-Agent': 'Fleetie pie',
+      //           'Authorization': 'token '+sails.config.custom.githubAccessToken
+      //         }
+      //       );
+      //     });//∞ß
+      //     newBotComment =
+      //     `Oh hey again, @${issueOrPr.user.login}.  Now that this issue is reopened, we'll take a fresh look as soon as we can!\n`+
+      //     `<hr/>\n`+
+      //     `\n`+
+      //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
+      //     `\n`+
+      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //   }
+      // }
+      // // Now that we know what to say, add our comment.
+      // if (newBotComment) {
+      //   await sails.helpers.http.post('https://api.github.com/repos/'+encodeURIComponent(owner)'/'+encodeURIComponent(repo)+'/issues/'+encodeURIComponent(issueNumber)+'/comments',
+      //     {'body': newBotComment},
+      //     {'Authorization': 'token '+sails.config.custom.githubAccessToken}
+      //   );
+      // }//ﬁ
+
     } else if (
       (ghNoun === 'issues' &&  ['closed'].includes(action))
     ) {
