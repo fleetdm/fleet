@@ -18,9 +18,6 @@ import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetail
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
-import SearchField from "components/forms/fields/SearchField";
-import CustomLink from "components/CustomLink";
-import ActionsDropdown from "components/ActionsDropdown";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
@@ -28,6 +25,7 @@ import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptD
 import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
 import VppDetailsModal from "./components/VPPDetailsModal";
 import ScriptBatchSummaryModal from "./components/ScriptBatchSummaryModal";
+import ActivityFeedFilters from "./components/ActivityFeedFilters";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -38,35 +36,6 @@ interface IActvityCardProps {
 }
 
 const DEFAULT_PAGE_SIZE = 8;
-
-const SORT_OPTIONS = [
-  { label: "Newest", value: "desc" },
-  { label: "Oldest", value: "asc" },
-];
-
-const TYPE_FILTER_OPTIONS: { label: string; value: string }[] = Object.values(
-  ActivityType
-)
-  .map((type) => ({
-    label: type.replace(/_/gi, " ").toLowerCase(),
-    value: type,
-  }))
-  .sort((a, b) => a.label.localeCompare(b.label));
-
-TYPE_FILTER_OPTIONS.unshift({
-  label: "all types",
-  value: "",
-});
-
-const DATE_FILTER_OPTIONS = [
-  { label: "All time", value: "all" },
-  { label: "Today", value: "today" },
-  { label: "Yesterday", value: "yesterday" },
-  { label: "Last 7 days", value: "7d" },
-  { label: "Last 30 days", value: "30d" },
-  { label: "Last 3 months", value: "3m" },
-  { label: "Last 12 months", value: "12m" },
-];
 
 const generateDateFilter = (dateFilter: string) => {
   const startDate = new Date();
@@ -310,65 +279,17 @@ const ActivityFeed = ({
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__search-filter`}>
-        <SearchField
-          placeholder="Search activities by user's name or email..."
-          defaultValue={searchQuery}
-          onChange={(value) => {
-            setSearchQuery(value);
-            setPageIndex(0);
-          }}
-          icon="search"
-        />
-        <div className={`${baseClass}__dropdown-filters`}>
-          <div className={`${baseClass}__filters`}>
-            <ActionsDropdown
-              className={`${baseClass}__type-filter-dropdown`}
-              options={TYPE_FILTER_OPTIONS}
-              placeholder={`Type: ${
-                typeFilter?.[0]?.replace(/_/g, " ") || "All"
-              }`}
-              onChange={(value: string) => {
-                setTypeFilter((prev) => {
-                  // TODO: multiple selections
-                  return [value];
-                });
-                setPageIndex(0); // Reset to first page on sort change
-              }}
-            />
-            <ActionsDropdown
-              className={`${baseClass}__date-filter-dropdown`}
-              options={DATE_FILTER_OPTIONS}
-              placeholder={`Date: ${
-                DATE_FILTER_OPTIONS.find(
-                  (option) => option.value === dateFilter
-                )?.label
-              }`}
-              onChange={(value: string) => {
-                if (value === createdAtDirection) {
-                  return; // No change in sort direction
-                }
-                setDateFilter(value);
-                setPageIndex(0); // Reset to first page on sort change
-              }}
-            />
-          </div>
-          <ActionsDropdown
-            className={`${baseClass}__sort-created-at-dropdown`}
-            options={SORT_OPTIONS}
-            placeholder={`Sort by: ${
-              createdAtDirection === "asc" ? "Oldest" : "Newest"
-            }`}
-            onChange={(value: string) => {
-              if (value === createdAtDirection) {
-                return; // No change in sort direction
-              }
-              setCreatedAtDirection(value);
-              setPageIndex(0); // Reset to first page on sort change
-            }}
-          />
-        </div>
-      </div>
+      <ActivityFeedFilters
+        searchQuery={searchQuery}
+        typeFilter={typeFilter}
+        dateFilter={dateFilter}
+        createdAtDirection={createdAtDirection}
+        setSearchQuery={setSearchQuery}
+        setTypeFilter={setTypeFilter}
+        setDateFilter={setDateFilter}
+        setCreatedAtDirection={setCreatedAtDirection}
+        setPageIndex={setPageIndex}
+      />
       {errorActivities && renderError()}
       {!errorActivities && !isFetchingActivities && isEmpty(activities) ? (
         renderNoActivities()
