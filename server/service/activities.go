@@ -70,7 +70,7 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return err
 }
 
-func (svc *Service) NewActivityWithHostLifecycleEvent(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) (*fleet.HostLifecycleEvent, error) {
+func (svc *Service) NewActivityWithHostLifecycleEvent(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, host *fleet.Host) (*fleet.HostLifecycleEvent, error) {
 	actID, err := newActivity(ctx, user, activity, svc.ds, svc.logger)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity")
@@ -85,9 +85,9 @@ func (svc *Service) NewActivityWithHostLifecycleEvent(ctx context.Context, user 
 	// TODO: populate the event
 	hle := fleet.HostLifecycleEvent{
 		ActivityID: &actID,
-		HostSerial: "some-serial", // TODO
-		HostUUID:   "some-uuid",   // TODO
-		HostID:     0,             // TODO
+		HostSerial: host.HardwareSerial,
+		HostUUID:   host.UUID,
+		HostID:     host.ID,
 		EventType:  et,
 	}
 

@@ -590,6 +590,10 @@ type Service interface {
 	// logins, running a live query, etc.
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
 
+	// NewActivityWithHostLifecycleEvent creates a new activity and an associated host lifecycle
+	// event entry.
+	NewActivityWithHostLifecycleEvent(ctx context.Context, user *User, activity ActivityDetails, host *Host) (*HostLifecycleEvent, error)
+
 	// ListActivities lists the activities stored in the datastore.
 	//
 	// What we call "Activities" are administrative operations,
