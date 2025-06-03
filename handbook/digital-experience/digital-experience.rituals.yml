@@ -253,4 +253,14 @@
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
+-
+  task: "Check for new versions of osquery schema"
+  startedOn: "2025-06-03"
+  frequency: "Monthly"
+  description: "Make sure the website is using the latest version of the osquery schema."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-for-new-versions-of-osquery-schema"
+  dri: "eashaw"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "fleet"
 
