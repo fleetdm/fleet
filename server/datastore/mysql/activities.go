@@ -154,8 +154,6 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	}
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 
-	fmt.Println("ListActivities: MatchQuery:", opt.ListOptions.MatchQuery)
-
 	if opt.ListOptions.MatchQuery != "" {
 		activitiesQ += " AND (a.user_name LIKE ? OR a.activity_type LIKE ? OR a.user_email LIKE ?)"
 		args = append(args, "%"+opt.ListOptions.MatchQuery+"%", "%"+opt.ListOptions.MatchQuery+"%", "%"+opt.ListOptions.MatchQuery+"%")

@@ -4,7 +4,7 @@
   flex-direction: column;
   position: relative;
   min-height: 500px;
-  gap: $pad-large;
+  gap: $pad-medium;
 
   &__header-wrap {
     .form-field {
@@ -54,6 +54,12 @@
     p {
       margin-top: 0;
     }
+  }
+
+  &__dropdown-filters {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
   }
 
   .spinner {

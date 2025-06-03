@@ -20,6 +20,7 @@ import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDet
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 import SearchField from "components/forms/fields/SearchField";
 import CustomLink from "components/CustomLink";
+import ActionsDropdown from "components/ActionsDropdown";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
@@ -37,6 +38,11 @@ interface IActvityCardProps {
 }
 
 const DEFAULT_PAGE_SIZE = 8;
+
+const SORT_OPTIONS = [
+  { label: "Newest", value: "desc" },
+  { label: "Oldest", value: "asc" },
+];
 
 const ActivityFeed = ({
   setShowActivityFeedTitle,
@@ -74,6 +80,7 @@ const ActivityFeed = ({
   ] = useState<IActivityDetails | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [createdAtDirection, setCreatedAtDirection] = useState("desc");
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -93,6 +100,7 @@ const ActivityFeed = ({
       pageIndex: number;
       perPage: number;
       query?: string;
+      orderDirection?: string;
     }>
   >(
     [
@@ -101,10 +109,11 @@ const ActivityFeed = ({
         pageIndex,
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
+        orderDirection: createdAtDirection,
       },
     ],
-    ({ queryKey: [{ pageIndex: page, perPage, query }] }) => {
-      return activitiesAPI.loadNext(page, perPage, query);
+    ({ queryKey: [{ pageIndex: page, perPage, query, orderDirection }] }) => {
+      return activitiesAPI.loadNext(page, perPage, query, orderDirection);
     },
     {
       keepPreviousData: true,
@@ -205,11 +214,14 @@ const ActivityFeed = ({
         <SearchField
           placeholder="Search activities..."
           defaultValue={searchQuery}
-          onChange={setSearchQuery}
+          onChange={(value) => {
+            setSearchQuery(value);
+            setPageIndex(0);
+          }}
           icon="search"
           tooltip={
             <>
-              Search by activity type, user name, or user email.
+              Search activities by activity type, user name, or user email.{" "}
               <br />
               The searchable activity types can be found{" "}
               <CustomLink
@@ -221,6 +233,22 @@ const ActivityFeed = ({
             </>
           }
         />
+        <div className={`${baseClass}__dropdown-filters`}>
+          <ActionsDropdown
+            className={`${baseClass}__sort-dropdown`}
+            options={SORT_OPTIONS}
+            placeholder={`Sort by: ${
+              createdAtDirection === "asc" ? "Oldest" : "Newest"
+            }`}
+            onChange={(value: string) => {
+              if (value === createdAtDirection) {
+                return; // No change in sort direction
+              }
+              setCreatedAtDirection(value);
+              setPageIndex(0); // Reset to first page on sort change
+            }}
+          />
+        </div>
       </div>
       {errorActivities && renderError()}
       {!errorActivities && !isFetchingActivities && isEmpty(activities) ? (

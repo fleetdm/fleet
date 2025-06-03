@@ -42,7 +42,8 @@ export default {
   loadNext: (
     page = DEFAULT_PAGE,
     perPage = DEFAULT_PAGE_SIZE,
-    searchQuery = DEFAULT_SEARCH_QUERY
+    searchQuery = DEFAULT_SEARCH_QUERY,
+    orderDirection = ORDER_DIRECTION
   ): Promise<IActivitiesResponse> => {
     const { ACTIVITIES } = endpoints;
 
@@ -50,7 +51,7 @@ export default {
       page,
       per_page: perPage,
       order_key: ORDER_KEY,
-      order_direction: ORDER_DIRECTION,
+      order_direction: orderDirection,
       query: searchQuery,
     };
 
