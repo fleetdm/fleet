@@ -1081,6 +1081,7 @@
 #  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
 - industryName: Webhooks
   friendlyName: Automations
+  description: Configure automations that send webhooks to specific URLs when Fleet detects changes to host, policy, and CVE statuses.
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
