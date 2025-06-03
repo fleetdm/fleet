@@ -3269,6 +3269,20 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	// TODO Add changes here to detect start of setup experience or end of MDM migration
 	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
+		host, err := svc.ds.HostByIdentifier(r.Context, r.ID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "getting host by identifier")
+		}
+		act := *&fleet.ActivityTypeStartedMDMSetup{
+			HostSerial:      info.HardwareSerial,
+			HostDisplayName: info.DisplayName,
+			HostID:          host.ID,
+		}
+		_, err = newActivityWithHostLifecycleEvent(r.Context, nil, &act, host, svc.ds, svc.logger)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "creating activity for MDM setup experience start")
+		}
+
 		// Enqueue setup experience items and mark the host as being in setup experience
 		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
 		if err != nil {
@@ -3520,10 +3534,19 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 	case "DeviceConfigured":
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
-			// TODO add event here for setup experience completion
 			if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, false); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
 			}
+			host, err := svc.ds.HostByIdentifier(r.Context, r.ID)
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "getting host by identifier")
+			}
+			act := &fleet.ActivityTypeCompletedMDMSetup{
+				HostSerial:      host.HardwareSerial,
+				HostDisplayName: host.DisplayName(),
+				HostID:          host.ID,
+			}
+			newActivityWithHostLifecycleEvent(r.Context, nil, act, host, svc.ds, svc.logger)
 		}
 	}
 

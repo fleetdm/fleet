@@ -70,8 +70,12 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 	return err
 }
 
-func (svc *Service) NewActivityWithHostLifecycleEvent(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) (*fleet.HostLifecycleEvent, error) {
-	actID, err := newActivity(ctx, user, activity, svc.ds, svc.logger)
+func (svc *Service) NewActivityWithHostLifecycleEvent(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, host *fleet.Host) (*fleet.HostLifecycleEvent, error) {
+	return newActivityWithHostLifecycleEvent(ctx, user, activity, host, svc.ds, svc.logger)
+}
+
+func newActivityWithHostLifecycleEvent(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, host *fleet.Host, ds fleet.Datastore, logger kitlog.Logger) (*fleet.HostLifecycleEvent, error) {
+	actID, err := newActivity(ctx, user, activity, ds, logger)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity")
 	}
@@ -85,13 +89,13 @@ func (svc *Service) NewActivityWithHostLifecycleEvent(ctx context.Context, user 
 	// TODO: populate the event
 	hle := fleet.HostLifecycleEvent{
 		ActivityID: &actID,
-		HostSerial: "some-serial", // TODO
-		HostUUID:   "some-uuid",   // TODO
-		HostID:     0,             // TODO
+		HostSerial: host.HardwareSerial,
+		HostUUID:   host.UUID,
+		HostID:     host.ID,
 		EventType:  et,
 	}
 
-	return svc.ds.CreateHostLifecycleEvent(ctx, &hle)
+	return ds.CreateHostLifecycleEvent(ctx, &hle)
 }
 
 var automationActivityAuthor = "Fleet"

@@ -73,13 +73,14 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		return &bre
 	}
 
-	hle := &fleet.HostLifecycleEvent{
-		HostID:     host.ID,
-		HostSerial: host.HardwareSerial,
-		HostUUID:   host.UUID,
-		EventType:  fleet.HostLifecycleEventStartedMDMMigration,
+	// Create an activity and associated lifecycle event for the MDM migration starting
+	activity := fleet.ActivityTypeStartedMDMMigration{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		HostSerial:      host.HardwareSerial,
 	}
-	hle, err = svc.ds.CreateHostLifecycleEvent(ctx, hle)
+
+	_, err = svc.NewActivityWithHostLifecycleEvent(ctx, nil, activity, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating host lifecycle event for MDM migration")
 	}
