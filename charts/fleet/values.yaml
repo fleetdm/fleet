@@ -55,10 +55,10 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-  tls:
-    - secretName: chart-example-tls
-      hosts:
-        - chart-example.local
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
 
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
