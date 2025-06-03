@@ -84,7 +84,7 @@ Select **Start** and Remote Management window will appear soon:` +
 var errorTemplate = template.Must(template.New("").Parse(`
 ### Something's gone wrong.
 
-Please contact your IT admin [here]({{ .ContactURL }}).
+Please [contact your IT admin]({{ .ContactURL }}).
 `))
 
 var unenrollBody = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n%s"
