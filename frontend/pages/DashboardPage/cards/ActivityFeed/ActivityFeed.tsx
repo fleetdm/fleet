@@ -289,8 +289,8 @@ const ActivityFeed = ({
           icon="search"
           tooltip={
             <>
-              Search activities by activity type, user name, or user email.{" "}
-              <br />
+              Search activities by activity type, the user&apos;s name, or
+              email. <br />
               The searchable activity types can be found{" "}
               <CustomLink
                 variant="tooltip-link"
