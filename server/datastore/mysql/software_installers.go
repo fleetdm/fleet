@@ -1060,7 +1060,7 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	return affectedHostIDs, nil
 }
 
-func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
+func (ds *Datastore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 	const (
 		getInstallerStmt = `SELECT title_id, COALESCE(st.name, '[deleted title]') title_name
 			FROM software_installers si LEFT JOIN software_titles st ON si.title_id = st.id WHERE si.id = ?`
@@ -1074,7 +1074,8 @@ VALUES
 			'installer_filename', '',
 			'version', 'unknown',
 			'software_title_name', ?,
-			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?),
+			'self_service', ?
 		)
 	)`
 
@@ -1123,6 +1124,7 @@ VALUES
 			executionID,
 			installerDetails.TitleName,
 			userID,
+			selfService,
 		)
 		if err != nil {
 			return err
@@ -2305,17 +2307,17 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	return hasInstallers, nil
 }
 
-func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
+func (ds *Datastore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error) {
 	stmt := `
-	SELECT st.name
+	SELECT COALESCE(st.name, hsi.software_title_name) name, hsi.self_service
 	FROM software_titles st
 	INNER JOIN software_installers si ON si.title_id = st.id
 	INNER JOIN host_software_installs hsi ON hsi.software_installer_id = si.id
-	WHERE hsi.execution_id = ?
+	WHERE hsi.execution_id = ? AND hsi.uninstall = TRUE
 
 	UNION
 
-	SELECT st.name
+	SELECT st.name, COALESCE(ua.payload->'$.self_service', FALSE) self_service
 	FROM
 		software_titles st
 		INNER JOIN software_installers si ON si.title_id = st.id
@@ -2324,14 +2326,17 @@ func (ds *Datastore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, ex
 		INNER JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
 	WHERE
 		ua.execution_id = ? AND
-		ua.activity_type IN ('software_install', 'software_uninstall')
+		ua.activity_type = 'software_uninstall'
 	`
-	var name string
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &name, stmt, executionID, executionID)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "get software title name from execution ID")
+	var result struct {
+		Name        string `db:"name"`
+		SelfService bool   `db:"self_service"`
 	}
-	return name, nil
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, executionID, executionID)
+	if err != nil {
+		return "", false, ctxerr.Wrap(ctx, err, "get software details for uninstall activity from execution ID")
+	}
+	return result.Name, result.SelfService, nil
 }
 
 func (ds *Datastore) GetSoftwareInstallersWithoutPackageIDs(ctx context.Context) (map[uint]string, error) {
