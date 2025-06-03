@@ -1047,6 +1047,8 @@ type Datastore interface {
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
 
+	IsFleetRunning(ctx context.Context) (bool, error)
+
 	// WindowsUpdates Store
 	ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]WindowsUpdate, error)
 	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
