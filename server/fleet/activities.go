@@ -2507,3 +2507,91 @@ func (a ActivityTypeRanScriptBatch) Documentation() (string, string, string) {
   "host_count": 12
 }`
 }
+
+type ActivityTypeStartedMDMSetup struct {
+	HostID          uint   `json:"host_id"`
+	HostSerial      string `json:"host_serial"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeStartedMDMSetup) ActivityName() string {
+	return "started_mdm_setup"
+}
+
+func (a ActivityTypeStartedMDMSetup) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an end user starts the MDM setup process for a host.`,
+		`This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_serial": The serial number of the host.
+- "host_display_name": The display name of the host.`, `{
+  "host_id": 1,
+  "host_serial": "C02X12345678",
+  "host_display_name": "Anna's MacBook Pro"
+}`
+}
+
+type ActivityTypeCompletedMDMSetup struct {
+	HostID          uint   `json:"host_id"`
+	HostSerial      string `json:"host_serial"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeCompletedMDMSetup) ActivityName() string {
+	return "completed_mdm_setup"
+}
+
+func (a ActivityTypeCompletedMDMSetup) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an end user completes the MDM setup process for a host.`,
+		`This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_serial": The serial number of the host.
+- "host_display_name": The display name of the host.`, `{
+  "host_id": 1,
+  "host_serial": "C02X12345678",
+  "host_display_name": "Anna's MacBook Pro"
+}`
+}
+
+type ActivityTypeStartedMDMMigration struct {
+	HostID          uint   `json:"host_id"`
+	HostSerial      string `json:"host_serial"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeStartedMDMMigration) ActivityName() string {
+	return "started_mdm_migration"
+}
+
+func (a ActivityTypeStartedMDMMigration) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an end user starts the MDM migration process for a host.`,
+		`This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_serial": The serial number of the host.
+- "host_display_name": The display name of the host.`, `{
+  "host_id": 1,
+  "host_serial": "C02X12345678",
+  "host_display_name": "Anna's MacBook Pro"
+}`
+}
+
+type ActivityTypeCompletedMDMMigration struct {
+	HostID          uint   `json:"host_id"`
+	HostSerial      string `json:"host_serial"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeCompletedMDMMigration) ActivityName() string {
+	return "completed_mdm_migration"
+}
+
+func (a ActivityTypeCompletedMDMMigration) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when an end user completes the MDM migration process for a host.`,
+		`This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_serial": The serial number of the host.
+- "host_display_name": The display name of the host.`, `{
+  "host_id": 1,
+  "host_serial": "C02X12345678",
+  "host_display_name": "Anna's MacBook Pro"
+}`
+}
