@@ -1784,6 +1784,82 @@ This activity contains the following fields:
 }
 ```
 
+## started_mdm_setup
+
+Generated when an end user starts the MDM setup process for a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_serial": The serial number of the host.
+- "host_display_name": The display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_serial": "C02X12345678",
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## completed_mdm_setup
+
+Generated when an end user completes the MDM setup process for a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_serial": The serial number of the host.
+- "host_display_name": The display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_serial": "C02X12345678",
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## started_mdm_migration
+
+Generated when an end user starts the MDM migration process for a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_serial": The serial number of the host.
+- "host_display_name": The display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_serial": "C02X12345678",
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## completed_mdm_migration
+
+Generated when an end user completes the MDM migration process for a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_serial": The serial number of the host.
+- "host_display_name": The display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_serial": "C02X12345678",
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

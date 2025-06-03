@@ -205,6 +205,11 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCanceledInstallSoftware{},
 	ActivityTypeCanceledUninstallSoftware{},
 	ActivityTypeCanceledInstallAppStoreApp{},
+
+	ActivityTypeStartedMDMSetup{},
+	ActivityTypeCompletedMDMSetup{},
+	ActivityTypeStartedMDMMigration{},
+	ActivityTypeCompletedMDMMigration{},
 }
 
 type ActivityDetails interface {
