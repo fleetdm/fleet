@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/snmp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1081,7 +1082,26 @@ func (r *orbitPostLUKSRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
+type orbitPostSnmpHostsRequest struct {
+	OrbitNodeKey string          `json:"orbit_node_key"`
+	Hosts        snmp.SnmpResult `json:"hosts"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostSnmpHostsRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitPostSnmpHostsRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
 type orbitPostLUKSResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+type orbitPostSnmpHostsResponse struct {
 	Err error `json:"error,omitempty"`
 }
 

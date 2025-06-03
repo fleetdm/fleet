@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/snmp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -717,5 +718,16 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 		return err
 	}
 
+	return nil
+}
+
+func (oc *OrbitClient) SendSnmpHostsResponse(snmpResponse snmp.SnmpResult) error {
+	verb, path := "POST", "/api/fleet/orbit/snmp"
+	var resp orbitPostSnmpHostsResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitPostSnmpHostsRequest{
+		Hosts: snmpResponse,
+	}, &resp); err != nil {
+		return err
+	}
 	return nil
 }

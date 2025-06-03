@@ -24,7 +24,7 @@ type SnmpHost struct {
 	IP       string `json:"ip,omitempty"`
 	Hostname string `json:"hostname,omitempty"`
 	OS       string `json:"os,omitempty"`
-	UUID     string `json:"id,omitempty"`
+	UUID     string `json:"uuid,omitempty"`
 }
 
 func (sr *SnmpRunner) Run(oc *fleet.OrbitConfig) error {
@@ -32,7 +32,7 @@ func (sr *SnmpRunner) Run(oc *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	subnet := "10.211.55.1/24"
+	subnet := "10.211.55.0/24"
 	community := "public"
 
 	fmt.Fprintln(os.Stderr, "Running fping to detect live hosts...")
