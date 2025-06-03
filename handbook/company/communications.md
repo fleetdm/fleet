@@ -66,7 +66,7 @@ Community members can [request a copy of Fleet's SOC 2 report](https://fleetdm.c
 | Features &amp; product adoption      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Feature prioritization               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Design system for [Fleet product](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=1328-1329) and fleetdm.com | <sup><sub>_See [🌐 Head of Design](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
+| Design system for the [Fleet product](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=1328-1329) and fleetdm.com | <sup><sub>_See [🌐 Head of Design](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🌐 Head of Design](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
