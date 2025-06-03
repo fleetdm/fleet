@@ -509,70 +509,72 @@ const PlatformWrapper = ({
         // "form" className applies the global form styling
         <div>
           <div className="form">
-            <div>
-              <div className="form-field">
-                <div className="form-field__label">Host type</div>
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="Workstation"
-                  id="workstation-host"
-                  checked={hostType === "workstation"}
-                  value="workstation"
-                  name="host-typ"
-                  onChange={() => setHostType("workstation")}
-                />
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="Server"
-                  id="server-host"
-                  checked={hostType === "server"}
-                  value="server"
-                  name="host-type"
-                  onChange={() => setHostType("server")}
-                />
-              </div>
-              <div className="form-field">
-                <div className="form-field__label">Package type</div>
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="deb"
-                  id="deb-type"
-                  checked={pkgType === "deb"}
-                  value="deb"
-                  name="pkg-type"
-                  onChange={() => setPkgType("deb")}
-                />
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="rpm"
-                  id="rpm-type"
-                  checked={pkgType === "rpm"}
-                  value="rpm"
-                  name="pkg-type"
-                  onChange={() => setPkgType("rpm")}
-                />
-              </div>
-              <div className="form-field">
-                <div className="form-field__label">Package architecture</div>
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="amd64"
-                  id="amd64-type"
-                  checked={archType === "amd64"}
-                  value="amd64"
-                  name="arch-type"
-                  onChange={() => setArchType("amd64")}
-                />
-                <Radio
-                  className={`${baseClass}__radio-input`}
-                  label="arm64"
-                  id="arm64-type"
-                  checked={archType === "arm64"}
-                  value="arm64"
-                  name="arch-type"
-                  onChange={() => setArchType("arm64")}
-                />
-              </div>
+            <div className="form-field">
+              <div className="form-field__label">Host type</div>
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label={
+                  <TooltipWrapper tipContent="Contains the Fleet Desktop tray application.">
+                    <span>Workstation</span>
+                  </TooltipWrapper>
+  }
+                id="workstation-host"
+                checked={hostType === "workstation"}
+                value="workstation"
+                name="host-typ"
+                onChange={() => setHostType("workstation")}
+              />
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="Server"
+                id="server-host"
+                checked={hostType === "server"}
+                value="server"
+                name="host-type"
+                onChange={() => setHostType("server")}
+              />
+            </div>
+            <div className="form-field">
+              <div className="form-field__label">Package type</div>
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="deb"
+                id="deb-type"
+                checked={pkgType === "deb"}
+                value="deb"
+                name="pkg-type"
+                onChange={() => setPkgType("deb")}
+              />
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="rpm"
+                id="rpm-type"
+                checked={pkgType === "rpm"}
+                value="rpm"
+                name="pkg-type"
+                onChange={() => setPkgType("rpm")}
+              />
+            </div>
+            <div className="form-field">
+              <div className="form-field__label">Package architecture</div>
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="amd64"
+                id="amd64-type"
+                checked={archType === "amd64"}
+                value="amd64"
+                name="arch-type"
+                onChange={() => setArchType("amd64")}
+              />
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="arm64"
+                id="arm64-type"
+                checked={archType === "arm64"}
+                value="arm64"
+                name="arch-type"
+                onChange={() => setArchType("arm64")}
+              />
             </div>
           </div>
           <div className="modal-cta-wrap">
