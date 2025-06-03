@@ -4,6 +4,7 @@ import React from "react";
 import { ActivityType, IActivity } from "interfaces/activity";
 import {
   AppleDisplayPlatform,
+  getPlatformDisplayName,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
 import { getInstallStatusPredicate } from "interfaces/software";
@@ -1167,6 +1168,50 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+
+  startedMdmSetup: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        started MDM setup for{" "}
+        {getPlatformDisplayName(activity.details?.host_platform)} host with
+        serial number <b>{activity.details?.host_serial}</b>.
+      </>
+    );
+  },
+
+  completedMdmSetup: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        completed MDM setup for{" "}
+        {getPlatformDisplayName(activity.details?.host_platform)} host with
+        serial number <b>{activity.details?.host_serial}</b>.
+      </>
+    );
+  },
+
+  startedMdmMigration: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        started MDM migration for{" "}
+        {getPlatformDisplayName(activity.details?.host_platform)} host with
+        serial number <b>{activity.details?.host_serial}</b>.
+      </>
+    );
+  },
+
+  completedMdmMigration: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        completed MDM migration for{" "}
+        {getPlatformDisplayName(activity.details?.host_platform)} host with
+        serial number <b>{activity.details?.host_serial}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1457,6 +1502,18 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.CanceledUninstallSoftware: {
       return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
+    }
+    case ActivityType.StartedMdmSetup: {
+      return TAGGED_TEMPLATES.startedMdmSetup(activity);
+    }
+    case ActivityType.CompletedMdmSetup: {
+      return TAGGED_TEMPLATES.completedMdmSetup(activity);
+    }
+    case ActivityType.StartedMdmMigration: {
+      return TAGGED_TEMPLATES.startedMdmMigration(activity);
+    }
+    case ActivityType.CompletedMdmMigration: {
+      return TAGGED_TEMPLATES.completedMdmMigration(activity);
     }
 
     default: {

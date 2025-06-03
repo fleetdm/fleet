@@ -15,6 +15,19 @@ export const PLATFORM_DISPLAY_NAMES = {
   ...APPLE_PLATFORM_DISPLAY_NAMES,
 } as const;
 
+export const getPlatformDisplayName = (
+  platform: string | undefined
+):
+  | typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES]
+  | undefined => {
+  if (!platform) {
+    return undefined;
+  }
+  return PLATFORM_DISPLAY_NAMES[
+    platform as keyof typeof PLATFORM_DISPLAY_NAMES
+  ];
+};
+
 export const QUERYABLE_PLATFORMS = [
   "darwin",
   "windows",
