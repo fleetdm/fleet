@@ -11,8 +11,10 @@ func init() {
 
 func Up_20250603105723(tx *sql.Tx) error {
 	stmt := `CREATE TABLE keep_alive (
-		last_server_instance_checkin DATETIME(6) NOT NULL DEFAULT NOW(6)
-	);`
+	last_server_instance_checkin DATETIME(6) NOT NULL DEFAULT NOW(6),
+	PRIMARY KEY (last_server_instance_checkin)
+);
+`
 
 	_, err := tx.Exec(stmt)
 	if err != nil {
