@@ -44,12 +44,19 @@ const SORT_OPTIONS = [
   { label: "Oldest", value: "asc" },
 ];
 
-const TYPE_FILTER_OPTIONS = Object.values(ActivityType).map((type) => ({
-  label: type.replace(/_/gi, " ").toLowerCase(),
-  value: type,
-}));
+const TYPE_FILTER_OPTIONS: { label: string; value: string }[] = Object.values(
+  ActivityType
+)
+  .map((type) => ({
+    label: type.replace(/_/gi, " ").toLowerCase(),
+    value: type,
+  }))
+  .sort((a, b) => a.label.localeCompare(b.label));
 
-console.log(TYPE_FILTER_OPTIONS);
+TYPE_FILTER_OPTIONS.unshift({
+  label: "all types",
+  value: "",
+});
 
 const DATE_FILTER_OPTIONS = [
   { label: "All time", value: "all" },
@@ -305,26 +312,13 @@ const ActivityFeed = ({
     <div className={baseClass}>
       <div className={`${baseClass}__search-filter`}>
         <SearchField
-          placeholder="Search activities..."
+          placeholder="Search activities by user's name or email..."
           defaultValue={searchQuery}
           onChange={(value) => {
             setSearchQuery(value);
             setPageIndex(0);
           }}
           icon="search"
-          tooltip={
-            <>
-              Search activities by activity type, the user&apos;s name, or
-              email. <br />
-              The searchable activity types can be found{" "}
-              <CustomLink
-                variant="tooltip-link"
-                text="here"
-                url="https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md#list-of-activities-and-their-specific-details"
-                newTab
-              />
-            </>
-          }
         />
         <div className={`${baseClass}__dropdown-filters`}>
           <div className={`${baseClass}__filters`}>

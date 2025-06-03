@@ -155,8 +155,13 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 
 	if opt.ListOptions.MatchQuery != "" {
-		activitiesQ += " AND (a.user_name LIKE ? OR a.activity_type LIKE ? OR a.user_email LIKE ?)"
-		args = append(args, "%"+opt.ListOptions.MatchQuery+"%", "%"+opt.ListOptions.MatchQuery+"%", "%"+opt.ListOptions.MatchQuery+"%")
+		activitiesQ += " AND (a.user_name LIKE ? OR a.user_email LIKE ?)"
+		args = append(args, "%"+opt.ListOptions.MatchQuery+"%", "%"+opt.ListOptions.MatchQuery+"%")
+	}
+
+	if opt.ActivityType != "" {
+		activitiesQ += " AND a.activity_type = ?"
+		args = append(args, opt.ActivityType)
 	}
 
 	fmt.Println("opt.StartCreatedAt:", opt.StartCreatedAt)
