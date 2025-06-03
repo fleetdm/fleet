@@ -4,10 +4,7 @@
   }
 
   &__header-wrap {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
+    @include normalize-team-header;
   }
 
   &__header {
@@ -27,18 +24,16 @@
 
   &__description {
     margin-bottom: 24px;
+    p {
+      color: $ui-fleet-black-75;
+      margin: 0;
+      font-size: $x-small;
+      font-style: italic;
+    }
   }
 
   &__action-button-container {
     display: flex;
     align-items: center;
-  }
-
-  &__table-placeholder {
-    background-color: #f5f5f5;
-    border-radius: 4px;
-    padding: 40px;
-    text-align: center;
-    color: #666;
   }
 }

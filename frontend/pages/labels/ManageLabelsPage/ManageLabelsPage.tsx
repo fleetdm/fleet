@@ -1,12 +1,15 @@
-import React, { useContext, useCallback, useState } from "react";
+import React, { useContext, useCallback } from "react";
 import { InjectedRouter } from "react-router";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
-import TeamsDropdown from "components/TeamsDropdown";
-import useTeamIdParam from "hooks/useTeamIdParam";
 import PATHS from "router/paths";
+import {
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isOnGlobalTeam,
+} from "utilities/permissions/permissions";
 
 const baseClass = "manage-labels-page";
 
@@ -15,7 +18,6 @@ interface IManageLabelsPageProps {
   location: {
     pathname: string;
     query: {
-      team_id?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -25,45 +27,28 @@ interface IManageLabelsPageProps {
   };
 }
 
-const ManageLabelsPage = ({
-  router,
-  location,
-}: IManageLabelsPageProps): JSX.Element => {
-  const {
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
-    isOnGlobalTeam,
-    isPremiumTier,
-    config,
-  } = useContext(AppContext);
+const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
+  const { currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const onCreateLabelClick = useCallback(() => {
     router.push(PATHS.NEW_LABEL);
   }, [router]);
 
-  // CTA button shows for all roles but global observers and current team's observers
-  const canCreateLabel =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  if (!currentUser) {
+    return <></>;
+  }
+  if (!isOnGlobalTeam(currentUser)) {
+    // handling like this here since there is existing redirect logic at router level that needs to
+    // be reconciled
+    router.push("/404");
+  }
+  const canWriteLabels =
+    isGlobalAdmin(currentUser) || isGlobalMaintainer(currentUser);
 
-  const renderHeader = () => {
-    if (isPremiumTier && userTeams && !config?.partnerships?.enable_primo) {
-      if (userTeams.length > 1 || isOnGlobalTeam) {
-        return (
-          <TeamsDropdown
-            currentUserTeams={userTeams}
-            selectedTeamId={currentTeamId}
-            onChange={onTeamChange}
-          />
-        );
-      }
-      if (userTeams.length === 1 && !isOnGlobalTeam) {
-        return <h1>{userTeams[0].name}</h1>;
-      }
-    }
-    return <h1>Labels</h1>;
+  const renderTable = () => {
+    // TODO
+    return <></>;
   };
 
   return (
@@ -72,11 +57,12 @@ const ManageLabelsPage = ({
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
-              <div className={`${baseClass}__title`}>{renderHeader()}</div>
+              <div className={`${baseClass}__title`}>
+                <h1>Labels</h1>
+              </div>
             </div>
           </div>
-
-          {canCreateLabel && (
+          {canWriteLabels && (
             <div className={`${baseClass}__action-button-container`}>
               <Button
                 className={`${baseClass}__create-button`}
@@ -88,12 +74,9 @@ const ManageLabelsPage = ({
           )}
         </div>
         <div className={`${baseClass}__description`}>
-          <p>Group hosts together to better organize your fleet.</p>
+          <p>Group hosts for targeting and filtering</p>
         </div>
-        {/* Labels table will be added here in future implementation */}
-        <div className={`${baseClass}__table-placeholder`}>
-          <p>Labels table will be implemented here.</p>
-        </div>
+        {renderTable()}
       </div>
     </MainContent>
   );
