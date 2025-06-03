@@ -439,8 +439,6 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 		return nil, errors.New("target is required")
 	}
 
-	fmt.Printf("u.opt.RootDirectory: %v\n", u.opt.RootDirectory)
-
 	localTarget, err := u.localTarget(target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load local path for target %s: %w", target, err)
