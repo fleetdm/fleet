@@ -71,7 +71,11 @@ func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity 
 }
 
 func (svc *Service) NewActivityWithHostLifecycleEvent(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, host *fleet.Host) (*fleet.HostLifecycleEvent, error) {
-	actID, err := newActivity(ctx, user, activity, svc.ds, svc.logger)
+	return newActivityWithHostLifecycleEvent(ctx, user, activity, host, svc.ds, svc.logger)
+}
+
+func newActivityWithHostLifecycleEvent(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, host *fleet.Host, ds fleet.Datastore, logger kitlog.Logger) (*fleet.HostLifecycleEvent, error) {
+	actID, err := newActivity(ctx, user, activity, ds, logger)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity")
 	}
@@ -91,7 +95,7 @@ func (svc *Service) NewActivityWithHostLifecycleEvent(ctx context.Context, user 
 		EventType:  et,
 	}
 
-	return svc.ds.CreateHostLifecycleEvent(ctx, &hle)
+	return ds.CreateHostLifecycleEvent(ctx, &hle)
 }
 
 var automationActivityAuthor = "Fleet"
