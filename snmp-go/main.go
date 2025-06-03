@@ -111,7 +111,10 @@ func scanHost(ip, community string, results *[]HostInfo, mu *sync.Mutex, wg *syn
 
 func main() {
 	// subnet := "10.0.200.0/24"
-	subnet := "172.21.0.0/21"
+	// subnet := "172.21.0.0/21"
+	subnet := "10.211.55.1/24"
+	// subnet := "172.20.24.0/21"
+
 	community := "public"
 	if len(os.Args) > 1 {
 		subnet = os.Args[1]

@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	setupexperience "github.com/fleetdm/fleet/v4/orbit/pkg/setup_experience"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/snmp"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
@@ -983,6 +984,8 @@ func main() {
 			RootDir: c.String("root-dir"),
 		})
 		orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
+
+		orbitClient.RegisterConfigReceiver(snmp.New())
 
 		if !c.Bool("disable-updates") {
 			serverOverridesReceiver := newServerOverridesReceiver(
