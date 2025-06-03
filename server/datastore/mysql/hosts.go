@@ -84,9 +84,12 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			config_tls_refresh,
 			refetch_requested,
 			hardware_serial,
-			refetch_critical_queries_until
+			refetch_critical_queries_until,
+			public_ip,
+			primary_ip,
+			cpu_type
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		result, err := tx.ExecContext(
 			ctx,
@@ -111,6 +114,9 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			host.RefetchRequested,
 			host.HardwareSerial,
 			host.RefetchCriticalQueriesUntil,
+			host.PublicIP,
+			host.PrimaryIP,
+			host.CPUType,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new host")

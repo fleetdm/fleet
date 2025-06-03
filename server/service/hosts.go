@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -2905,4 +2906,121 @@ func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts 
 		payload = append(payload, cert.ToPayload())
 	}
 	return payload, meta, nil
+}
+
+type createScannedHostRequest struct {
+	ScannedHosts []*fleet.ScannedHostPayload `json:"scanned_hosts"`
+}
+
+type createScannedHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r createScannedHostResponse) Error() error { return r.Err }
+
+func createScannedHostEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*createScannedHostRequest)
+	if err := svc.CreateScannedHosts(ctx, req.ScannedHosts); err != nil {
+		return createScannedHostResponse{Err: err}, nil
+	}
+	return createScannedHostResponse{}, nil
+}
+
+func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.ScannedHostPayload) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	// TODO(JVE): parse OS field
+	// #1
+	// Linux tim-ubuntu-noble 6.11.0-24-generic #24~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue Mar 25 19:25:57 UTC 2 aarch64
+	type parsedOSField struct {
+		Platform        string
+		PlatformVersion string
+		Arch            string
+		Kernel          string
+	}
+	parseOSField := func(osField string) parsedOSField {
+		var out parsedOSField
+
+		parts := strings.Split(osField, " ")
+
+		out.Arch = parts[len(parts)-1]
+
+		// get the platform and version
+		p := parts[3]
+		regex := regexp.MustCompile(`#[0-9]+~([0-9]+.[0-9]+.[0-9]+)-([[:alpha:]]+)`)
+		matches := regex.FindStringSubmatch(p)
+		out.PlatformVersion = fmt.Sprintf("%s %s", matches[2], matches[1])
+		out.Platform = strings.ToLower(matches[2])
+
+		return out
+	}
+	n := time.Now()
+	for _, p := range payloads {
+		f := parseOSField(p.OS)
+		_, err := svc.ds.NewHost(ctx, &fleet.Host{
+			UpdateCreateTimestamps:      fleet.UpdateCreateTimestamps{},
+			HostSoftware:                fleet.HostSoftware{},
+			OsqueryHostID:               new(string),
+			DetailUpdatedAt:             time.Now(),
+			LabelUpdatedAt:              time.Now(),
+			PolicyUpdatedAt:             time.Now(),
+			LastEnrolledAt:              time.Now(),
+			SeenTime:                    time.Now(),
+			RefetchRequested:            false,
+			NodeKey:                     new(string),
+			OrbitNodeKey:                new(string),
+			Hostname:                    p.Hostname,
+			UUID:                        p.UUID,
+			Platform:                    f.Platform,
+			OsqueryVersion:              "",
+			OrbitVersion:                new(string),
+			DesktopVersion:              new(string),
+			ScriptsEnabled:              new(bool),
+			OSVersion:                   f.PlatformVersion,
+			Build:                       "",
+			PlatformLike:                "",
+			CodeName:                    "",
+			Uptime:                      0,
+			Memory:                      0,
+			CPUType:                     f.Arch,
+			CPUSubtype:                  "",
+			CPUBrand:                    "",
+			CPUPhysicalCores:            0,
+			CPULogicalCores:             0,
+			HardwareVendor:              "",
+			HardwareModel:               "",
+			HardwareVersion:             "",
+			HardwareSerial:              "",
+			ComputerName:                "",
+			PrimaryNetworkInterfaceID:   new(uint),
+			NetworkInterfaces:           []*fleet.NetworkInterface{},
+			PrimaryIP:                   p.IPAddress,
+			PublicIP:                    p.IPAddress,
+			PrimaryMac:                  "",
+			DistributedInterval:         0,
+			ConfigTLSRefresh:            0,
+			LoggerTLSPeriod:             0,
+			TeamID:                      nil,
+			PackStats:                   []fleet.PackStats{},
+			TeamName:                    nil,
+			Additional:                  &json.RawMessage{},
+			Users:                       []fleet.HostUser{},
+			GigsDiskSpaceAvailable:      0,
+			PercentDiskSpaceAvailable:   0,
+			GigsTotalDiskSpace:          0,
+			DiskEncryptionEnabled:       new(bool),
+			HostIssues:                  fleet.HostIssues{},
+			DeviceMapping:               &json.RawMessage{},
+			MDM:                         fleet.MDMHostData{},
+			RefetchCriticalQueriesUntil: &n,
+			DEPAssignedToFleet:          new(bool),
+			LastRestartedAt:             time.Now(),
+			Policies:                    &[]*fleet.HostPolicy{},
+		})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create scanned host")
+		}
+	}
+	return nil
 }

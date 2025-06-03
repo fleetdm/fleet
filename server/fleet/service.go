@@ -74,6 +74,8 @@ type OsqueryService interface {
 type Service interface {
 	OsqueryService
 
+	CreateScannedHosts(ctx context.Context, payloads []*ScannedHostPayload) error
+
 	// GetTransparencyURL gets the URL to redirect to when an end user clicks About Fleet
 	GetTransparencyURL(ctx context.Context) (string, error)
 

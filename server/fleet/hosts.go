@@ -1342,3 +1342,10 @@ func IsMacOSMajorVersionOK(host *Host) (bool, error) {
 
 	return false, nil
 }
+
+type ScannedHostPayload struct {
+	Hostname  string `json:"hostname"`
+	OS        string `json:"os"`
+	IPAddress string `json:"ip_address"`
+	UUID      string `json:"uuid"`
+}
