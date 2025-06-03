@@ -53,6 +53,8 @@ export default {
       order_key: ORDER_KEY,
       order_direction: orderDirection,
       query: searchQuery,
+      start_created_at: "",
+      end_created_at: "",
     };
 
     const queryString = buildQueryStringFromParams(queryParams);

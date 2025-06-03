@@ -53,6 +53,16 @@ const SORT_OPTIONS = [
   { label: "Oldest", value: "asc" },
 ];
 
+const DATE_FILTER_OPTIONS = [
+  { label: "All time", value: "all" },
+  { label: "Today", value: "today" },
+  { label: "Yesterday", value: "yesterday" },
+  { label: "Last 7 days", value: "7d" },
+  { label: "Last 30 days", value: "30d" },
+  { label: "Last 3 months", value: "3m" },
+  { label: "Last 12 months", value: "12m" },
+];
+
 const ActivityFeed = ({
   setShowActivityFeedTitle,
   setRefetchActivities,
@@ -90,6 +100,7 @@ const ActivityFeed = ({
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
+  const [dateFilter, setDateFilter] = useState("all");
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -255,7 +266,22 @@ const ActivityFeed = ({
         />
         <div className={`${baseClass}__dropdown-filters`}>
           <ActionsDropdown
-            className={`${baseClass}__sort-dropdown`}
+            className={`${baseClass}__date-filter-dropdown`}
+            options={DATE_FILTER_OPTIONS}
+            placeholder={`Date: ${
+              DATE_FILTER_OPTIONS.find((option) => option.value === dateFilter)
+                ?.label
+            }`}
+            onChange={(value: string) => {
+              if (value === createdAtDirection) {
+                return; // No change in sort direction
+              }
+              setDateFilter(value);
+              setPageIndex(0); // Reset to first page on sort change
+            }}
+          />
+          <ActionsDropdown
+            className={`${baseClass}__sort-created-at-dropdown`}
             options={SORT_OPTIONS}
             placeholder={`Sort by: ${
               createdAtDirection === "asc" ? "Oldest" : "Newest"
