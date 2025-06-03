@@ -117,7 +117,7 @@ const ActivityFeed = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
   const [dateFilter, setDateFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([""]);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -274,8 +274,6 @@ const ActivityFeed = ({
 
   const activities = activitiesData?.activities;
   const meta = activitiesData?.meta;
-
-  console.log(typeFilter);
 
   return (
     <div className={baseClass}>
