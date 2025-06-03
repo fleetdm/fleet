@@ -867,6 +867,16 @@ the way that the Fleet server works.
 				}
 			}()
 
+			if true { // if config.Server.PreventDBMigrationWhenServerIsRunning
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return preventDBMigrationWhenServerIsRunning(ctx, instanceID, ds, logger)
+					},
+				); err != nil {
+					initFatal(err, fmt.Sprintf("failed to register %s", fleet.preventDBMigrationWhenServerIsRunning))
+				}
+			}
+
 			if softwareInstallStore != nil {
 				if err := cronSchedules.StartCronSchedule(
 					func() (fleet.CronSchedule, error) {

@@ -49,6 +49,37 @@ func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error
 	ctxerr.Handle(ctx, err)
 }
 
+func preventDBMigrationWhenServerIsRunning(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	interval := 5 * time.Second
+	const name = "CronPreventDBMigrationWhenServerIsRunning"
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("refresh_timestamp_for_preventing_db_migration",
+			func(ctx context.Context) error {
+				return refreshPreventDBMigrationTimestamp(ctx, ds, logger)
+			},
+		),
+	)
+
+	return s, nil
+}
+
+func refreshPreventDBMigrationTimestamp(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) error {
+	// Write the timestamp to the DB
+	return nil
+}
+
 func newVulnerabilitiesSchedule(
 	ctx context.Context,
 	instanceID string,
