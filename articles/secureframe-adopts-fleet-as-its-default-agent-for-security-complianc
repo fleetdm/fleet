@@ -1,31 +1,46 @@
 # Secureframe adopts Fleet as its default agent for security compliance
 
-We're excited to share some big news! Secureframe, a leader in security and compliance automation, has chosen **Fleet** as the default agent within their platform. This partnership is a significant step towards making device management and compliance simpler and more transparent for thousands of companies.
+**Big news:** [Secureframe](https://secureframe.com), a leader in compliance automation, has adopted [Fleet](https://fleetdm.com) as the **default agent** on their platform.
 
-Secureframe's platform is used by thousands of customers, including notable names like AngelList, Generali, Rand McNally, and Coda. By standardizing on Fleet as their default agent, Secureframe is bringing the benefits of open device management to this extensive customer base.
+This move brings open-source device visibility and control to thousands of Secureframe customers, including teams at **AngelList, Generali, Rand McNally**, and **Coda**. It’s a win for companies that want to simplify security and compliance at scale — without sacrificing transparency.
 
-## Open source breeds trust with customers
+> _“We chose Fleet because it is lightning fast and supports every computing platform,”_  
+> said **Shrav Mehta**, CEO at Secureframe.  
+> _“It gives security teams the access we need to do our jobs, while still giving employees complete visibility into what code is running on their computers.”_
 
-A key reason behind Secureframe's decision to choose Fleet was our open-source code base. In today's world, transparency is incredibly important, especially when it comes to software running on your computers. Fleet is built upon the widely adopted open-source osquery project, which was created by Fleet's co-founder, Zach.
+---
 
-Because Fleet is open source, customers and the wider community can audit and verify exactly what the software is doing. This openness helps build **trust with employees** and aligns with Secureframe's mission to empower businesses with trustworthy security and compliance solutions.
+## Why open source matters
 
-As Thomas Buley, CEO at Sightglass and a Secureframe customer, put it: "I was stoked to see the Fleet logo on my laptop. It's great to know the code that's running on our computers is open-source, and that it's the same code that folks like Stripe are using."
+Fleet is built on **osquery**, an open-source project created by Fleet co-founder **Zach Wasserman**. By using open tools, Secureframe helps customers avoid black-box software and instead gives them confidence in what’s running on their devices.
 
-Fleet's commitment to open source stewardship is a core part of our DNA. The osquery project, which powers Fleet's reporting engine, has been deployed across millions of devices and is even found inside popular security software like Crowdstrike. This existing base and Fleet being entirely open source contributes to a high level of trust.
+> _“I was stoked to see the Fleet logo on my laptop,”_  
+> said **Thomas Buley**, CEO at Sightglass and a Secureframe customer.  
+> _“It's great to know the code that's running on our computers is open-source, and that it's the same code that folks like Stripe are using.”_
 
-## Fleet lets Secureframe automate compliance at scale
+Fleet’s open design means teams can **audit and verify** exactly what the agent is doing. That builds trust with employees, auditors, and security teams — especially when compliance is a must-have for **winning customers or expanding globally**.
 
-As companies grow, managing and securing their computing devices can become really complicated. It gets harder to see what's going on, fix issues, and prove devices are secure, especially with distributed teams or multiple offices. Flexibility and control become increasingly important. Companies might need to support different operating systems, manage teams across the globe, or integrate acquired subsidiaries with their own IT setups.
+---
 
-This is where Fleet helps Secureframe. Fleet is designed to provide a single way for companies to see what's happening with their devices and fix issues across various operating systems, including Apple, Linux, and Windows. Unlike some other tools, Fleet is built to interact directly with each operating system, rather than forcing them all to talk the same language.
+## Built to scale with growing companies
 
-Fleet allows Secureframe to automate compliance tasks at scale. Fleet can push settings and controls onto computers, scope different devices with specific rules, and confirm that those changes worked. It can also collect detailed data from devices using osquery, providing a comprehensive inventory of software, hardware, and security configurations. This data collection can happen in real-time or be saved for devices that come back online later. This helps companies meet compliance standards and address security audits.
+Secureframe’s updated platform, powered by Fleet, gives teams a **scalable** way to automate compliance across every major OS: **macOS, Windows, and Linux**.
 
-Fleet also handles device management features like automated enrollment for new devices (Apple's AD and Microsoft Autopilot), installing apps, managing disk encryption (FileVault, BitLocker, Lux), and even remotely locking devices, including desktop Linux which is uniquely supported by Fleet. These capabilities make it much easier for Secureframe customers to manage their diverse fleet of devices and maintain compliance, no matter how complicated their setup.
+Fleet’s flexible design supports:
 
-Secureframe's CEO, Shrav Mehta, highlighted Fleet's performance and support for different platforms: "We chose Fleet because it is lightning fast and supports every computing platform... It gives security teams the access we need to do our jobs, while still giving employees complete visibility into what code is running on their computers."
+- ✅ Real-time and deferred device data collection via osquery  
+- ✅ Remote configuration and enforcement of security controls  
+- ✅ Disk encryption with FileVault, BitLocker, and LUKS  
+- ✅ Support for desktop Linux, Apple MDM, and Windows Autopilot  
+- ✅ Application installs, automated enrollment, and remote lock  
 
-Mike McNeil, CEO at Fleet, noted how this partnership helps companies future-proof their growth: "When companies grow, the growth can happen very suddenly... Secureframe gives companies the immediate compliance wins they need to run their business, while future-proofing the next chapter of their growth so they don't have to rebuild everything from scratch."
+As companies grow, their environments become more complex — multiple teams, new geographies, different device types, and even acquired subsidiaries with their own tooling. Secureframe, with Fleet, can support it all.
 
-By standardizing on Fleet, Secureframe enhances its ability to automate compliance for growing companies, offering a flexible and powerful solution that scales with their needs.
+> _“When companies grow, the growth can happen very suddenly,”_  
+> said **Mike McNeil**, CEO at Fleet.  
+> _“Secureframe gives companies the immediate compliance wins they need to run their business, while future-proofing the next chapter of their growth so they don't have to rebuild everything from scratch.”_
+
+---
+
+This partnership reflects a shared belief:  
+**Security and compliance work better when they’re built on openness, transparency, and tools people can actually trust.**
