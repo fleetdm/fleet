@@ -24,7 +24,9 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type listActivitiesRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
+	ListOptions    fleet.ListOptions `url:"list_options"`
+	StartCreatedAt string            `query:"start_created_at,optional"`
+	EndCreatedAt   string            `query:"end_created_at,optional"`
 }
 
 type listActivitiesResponse struct {
@@ -38,7 +40,9 @@ func (r listActivitiesResponse) Error() error { return r.Err }
 func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listActivitiesRequest)
 	activities, metadata, err := svc.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: req.ListOptions,
+		ListOptions:    req.ListOptions,
+		StartCreatedAt: req.StartCreatedAt,
+		EndCreatedAt:   req.EndCreatedAt,
 	})
 	if err != nil {
 		return listActivitiesResponse{Err: err}, nil

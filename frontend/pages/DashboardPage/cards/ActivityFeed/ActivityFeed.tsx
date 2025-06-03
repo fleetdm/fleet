@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 import { InjectedRouter } from "react-router";
@@ -54,6 +54,48 @@ const DATE_FILTER_OPTIONS = [
   { label: "Last 12 months", value: "12m" },
 ];
 
+const generateDateFilter = (dateFilter: string) => {
+  const startDate = new Date();
+  const endDate = new Date();
+
+  switch (dateFilter) {
+    case "all":
+      return {
+        startDate: "",
+        endDate: "",
+      };
+    case "today":
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    case "yesterday":
+      startDate.setDate(startDate.getDate() - 1);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setDate(endDate.getDate() - 1);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+    case "7d":
+      startDate.setDate(startDate.getDate() - 7);
+      break;
+    case "30d":
+      startDate.setDate(startDate.getDate() - 30);
+      break;
+    case "3m":
+      startDate.setMonth(startDate.getMonth() - 3);
+      break;
+    case "12m":
+      startDate.setMonth(startDate.getMonth() - 12);
+      break;
+    default:
+      break;
+  }
+
+  return {
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+  };
+};
+
 const ActivityFeed = ({
   setShowActivityFeedTitle,
   setRefetchActivities,
@@ -97,6 +139,10 @@ const ActivityFeed = ({
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
 
+  const { startDate, endDate } = useMemo(() => generateDateFilter(dateFilter), [
+    dateFilter,
+  ]);
+
   const {
     data: activitiesData,
     error: errorActivities,
@@ -112,6 +158,8 @@ const ActivityFeed = ({
       perPage: number;
       query?: string;
       orderDirection?: string;
+      startDate?: string;
+      endDate?: string;
     }>
   >(
     [
@@ -121,10 +169,19 @@ const ActivityFeed = ({
         perPage: DEFAULT_PAGE_SIZE,
         query: searchQuery,
         orderDirection: createdAtDirection,
+        startDate,
+        endDate,
       },
     ],
     ({ queryKey: [{ pageIndex: page, perPage, query, orderDirection }] }) => {
-      return activitiesAPI.loadNext(page, perPage, query, orderDirection);
+      return activitiesAPI.loadNext(
+        page,
+        perPage,
+        query,
+        orderDirection,
+        startDate,
+        endDate
+      );
     },
     {
       keepPreviousData: true,

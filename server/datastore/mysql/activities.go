@@ -159,6 +159,27 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 		args = append(args, "%"+opt.ListOptions.MatchQuery+"%", "%"+opt.ListOptions.MatchQuery+"%", "%"+opt.ListOptions.MatchQuery+"%")
 	}
 
+	fmt.Println("opt.StartCreatedAt:", opt.StartCreatedAt)
+	fmt.Println("opt.EndCreatedAt:", opt.EndCreatedAt)
+
+	if opt.StartCreatedAt != "" || opt.EndCreatedAt != "" {
+		start := opt.StartCreatedAt
+		end := opt.EndCreatedAt
+		if start == "" && end != "" {
+			// Only EndCreatedAt is set, so filter up to end
+			activitiesQ += " AND a.created_at <= ?"
+			args = append(args, end)
+		} else if start != "" && end == "" {
+			// Only StartCreatedAt is set, so filter from start to now
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, time.Now())
+		} else if start != "" && end != "" {
+			// Both are set
+			activitiesQ += " AND a.created_at >= ? AND a.created_at <= ?"
+			args = append(args, start, end)
+		}
+	}
+
 	activitiesQ, args = appendListOptionsWithCursorToSQL(activitiesQ, args, &opt.ListOptions)
 
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, activitiesQ, args...)

@@ -1199,8 +1199,9 @@ type ListQueryOptions struct {
 
 type ListActivitiesOptions struct {
 	ListOptions
-
-	Streamed *bool
+	StartCreatedAt string `query:"start_created_at,optional"`
+	EndCreatedAt   string `query:"end_created_at,optional"`
+	Streamed       *bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
