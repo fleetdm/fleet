@@ -17,6 +17,8 @@ import { ActivityType, IActivityDetails } from "interfaces/activity";
 
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -80,6 +82,8 @@ const ActivityFeed = ({
     setScriptBatchExecutionDetails,
   ] = useState<IActivityDetails | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
@@ -97,11 +101,19 @@ const ActivityFeed = ({
       scope: string;
       pageIndex: number;
       perPage: number;
+      query?: string;
     }>
   >(
-    [{ scope: "activities", pageIndex, perPage: DEFAULT_PAGE_SIZE }],
-    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
-      return activitiesAPI.loadNext(page, perPage);
+    [
+      {
+        scope: "activities",
+        pageIndex,
+        perPage: DEFAULT_PAGE_SIZE,
+        query: searchQuery,
+      },
+    ],
+    ({ queryKey: [{ pageIndex: page, perPage, query }] }) => {
+      return activitiesAPI.loadNext(page, perPage, query);
     },
     {
       keepPreviousData: true,
@@ -219,6 +231,14 @@ const ActivityFeed = ({
               <Spinner />
             </div>
           )}
+          <div className={`${baseClass}__search-filter`}>
+            <InputField
+              name="search activities"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={setSearchQuery} // TODO: add debounce
+            />
+          </div>
           <div style={opacity}>
             {activities?.map((activity) => (
               <GlobalActivityItem

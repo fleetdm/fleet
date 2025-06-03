@@ -11,6 +11,7 @@ const DEFAULT_PAGE = 0;
 const DEFAULT_PAGE_SIZE = 8;
 const ORDER_KEY = "created_at";
 const ORDER_DIRECTION = "desc";
+const DEFAULT_SEARCH_QUERY = "";
 
 export interface IActivitiesResponse {
   activities: IActivity[] | null;
@@ -40,7 +41,8 @@ export interface IHostUpcomingActivitiesResponse {
 export default {
   loadNext: (
     page = DEFAULT_PAGE,
-    perPage = DEFAULT_PAGE_SIZE
+    perPage = DEFAULT_PAGE_SIZE,
+    searchQuery = DEFAULT_SEARCH_QUERY
   ): Promise<IActivitiesResponse> => {
     const { ACTIVITIES } = endpoints;
 
@@ -49,6 +51,7 @@ export default {
       per_page: perPage,
       order_key: ORDER_KEY,
       order_direction: ORDER_DIRECTION,
+      query: searchQuery,
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
