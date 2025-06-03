@@ -873,7 +873,7 @@ the way that the Fleet server works.
 						return preventDBMigrationWhenServerIsRunning(ctx, instanceID, ds, logger)
 					},
 				); err != nil {
-					initFatal(err, fmt.Sprintf("failed to register %s", fleet.preventDBMigrationWhenServerIsRunning))
+					initFatal(err, fmt.Sprintf("failed to register %s", "preventDBMigrationWhenServerIsRunning"))
 				}
 			}
 
