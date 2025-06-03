@@ -66,7 +66,32 @@ type ActivityWebhookPayload struct {
 
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	_, err := newActivity(ctx, user, activity, svc.ds, svc.logger)
+
 	return err
+}
+
+func (svc *Service) NewActivityWithHostLifecycleEvent(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) (*fleet.HostLifecycleEvent, error) {
+	actID, err := newActivity(ctx, user, activity, svc.ds, svc.logger)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create activity")
+	}
+
+	// TODO: validate the activity is a host lifecycle event
+	et := fleet.HostLifecycleEventType(activity.ActivityName())
+	if !et.Valid() {
+		return nil, ctxerr.Wrap(ctx, fmt.Errorf("invalid host lifecycle event type %q", et))
+	}
+
+	// TODO: populate the event
+	hle := fleet.HostLifecycleEvent{
+		ActivityID: &actID,
+		HostSerial: "some-serial", // TODO
+		HostUUID:   "some-uuid",   // TODO
+		HostID:     0,             // TODO
+		EventType:  et,
+	}
+
+	return svc.ds.CreateHostLifecycleEvent(ctx, &hle)
 }
 
 var automationActivityAuthor = "Fleet"
@@ -138,6 +163,7 @@ func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityD
 	}
 	// We update the context to indicate that we processed the webhook.
 	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+
 	return ds.NewActivity(ctx, user, activity, detailsBytes, timestamp)
 }
 

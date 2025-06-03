@@ -14,4 +14,12 @@ This is useful for testing and local development.
 go run tools/mdm/migration/echo/main.go
 ```
 
-4. Configure Fleet to send a webhook to your web server.
+Output will be printed to stdout.
+
+```
+Server running at http://localhost:4648
+```
+
+2. Configure an https proxy (e.g., ngrok) to forward requests to localhost.
+
+3. Use the https address when configuring the Fleet migration webhook URL.

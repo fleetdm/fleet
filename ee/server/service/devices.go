@@ -73,6 +73,17 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		return &bre
 	}
 
+	hle := &fleet.HostLifecycleEvent{
+		HostID:     host.ID,
+		HostSerial: host.HardwareSerial,
+		HostUUID:   host.UUID,
+		EventType:  fleet.HostLifecycleEventStartedMDMMigration,
+	}
+	hle, err = svc.ds.CreateHostLifecycleEvent(ctx, hle)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "creating host lifecycle event for MDM migration")
+	}
+
 	p := fleet.MigrateMDMDeviceWebhookPayload{}
 	p.Timestamp = time.Now().UTC()
 	p.Host.ID = host.ID

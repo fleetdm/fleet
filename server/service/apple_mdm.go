@@ -3227,15 +3227,16 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 		}
-		_, err = newActivity(
+		if _, err = newActivity(
 			r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
 				HostSerial:       updatedInfo.HardwareSerial,
 				HostDisplayName:  updatedInfo.DisplayName,
 				InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
 				MDMPlatform:      fleet.MDMPlatformApple,
 			}, svc.ds, svc.logger,
-		)
-		return err
+		); err != nil {
+			return ctxerr.Wrap(r.Context, err, "creating activity for MDM enrollment")
+		}
 	}
 
 	return nil

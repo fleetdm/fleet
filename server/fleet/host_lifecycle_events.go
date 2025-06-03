@@ -9,6 +9,18 @@ const (
 	HostLifecycleEventCompletedMDMMigration HostLifecycleEventType = "completed_mdm_migration"
 )
 
+func (e HostLifecycleEventType) Valid() bool {
+	switch e {
+	case HostLifecycleEventStartedMDMSetup,
+		HostLifecycleEventCompletedMDMSetup,
+		HostLifecycleEventStartedMDMMigration,
+		HostLifecycleEventCompletedMDMMigration:
+		return true
+	default:
+		return false
+	}
+}
+
 type HostLifecycleEvent struct {
 	ID         uint                   `db:"id"`
 	HostSerial string                 `db:"host_serial"`
