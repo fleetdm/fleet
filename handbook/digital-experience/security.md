@@ -1784,7 +1784,7 @@ Fleet makes every effort to assure all third-party organizations are compliant a
 
 ### Anti-harassment policy
 
-> Fleet is committed to maintaing a harassment free workplace based on mutual respect and copmliance with the law.  All Fleeties are required to comply with the anti-harassment policy set forth [here](https://docs.google.com/document/d/1qalY5_OcnCbHOJYUOz8R5O92RLortYrKdxur6Ned7ac/edit?usp=sharing).
+> Fleet is committed to maintaining a harassment free workplace based on mutual respect and compliance with the law.  All Fleeties are required to comply with [Fleet's anti-harassment policy](https://docs.google.com/document/d/1qalY5_OcnCbHOJYUOz8R5O92RLortYrKdxur6Ned7ac/edit?usp=sharing).
 
 ### Investor policy
 

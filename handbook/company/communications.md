@@ -570,8 +570,8 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
 
 The [Audit logs doc page](https://fleetdm.com/docs/Using-Fleet/Audit-logs) has a page generator that is used to speed up doc writing when Fleet adds new activity types.
 
-- If you're making a copy change to an exiting activity type, edit the `activities.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/activities.go).
-- If you're making a change to the top section or meta tags, edit the `gen_activity_doc.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/gen_activity_doc.go).
+- If you're making a copy change to an exiting activity type, edit [the `activities.go` file](https://github.com/fleetdm/fleet/blob/main/server/fleet/activities.go).
+- If you're making a change to the top section or meta tags, edit [the `gen_activity_doc.go` file](https://github.com/fleetdm/fleet/blob/main/server/fleet/gen_activity_doc.go).
 - If you're adding a new activity type, add the activity to the `ActivityDetailsList` list in the `activities.go` file.
 
 After making your changes, save them and run `make generate-doc`. This will generate a new `Audit-logs.md` file. Make sure you run the command in the top level folder of your cloned, Fleet repo.
