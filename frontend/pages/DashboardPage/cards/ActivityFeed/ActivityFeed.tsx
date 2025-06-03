@@ -10,17 +10,16 @@ import activitiesAPI, {
 import { ActivityType, IActivityDetails } from "interfaces/activity";
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
-
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import SearchField from "components/forms/fields/SearchField";
+import CustomLink from "components/CustomLink";
 
 import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
@@ -202,6 +201,27 @@ const ActivityFeed = ({
 
   return (
     <div className={baseClass}>
+      <div className={`${baseClass}__search-filter`}>
+        <SearchField
+          placeholder="Search activities..."
+          defaultValue={searchQuery}
+          onChange={setSearchQuery}
+          icon="search"
+          tooltip={
+            <>
+              Search by activity type, user name, or user email.
+              <br />
+              The searchable activity types can be found{" "}
+              <CustomLink
+                variant="tooltip-link"
+                text="here"
+                url="https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md#list-of-activities-and-their-specific-details"
+                newTab
+              />
+            </>
+          }
+        />
+      </div>
       {errorActivities && renderError()}
       {!errorActivities && !isFetchingActivities && isEmpty(activities) ? (
         renderNoActivities()
@@ -212,14 +232,6 @@ const ActivityFeed = ({
               <Spinner />
             </div>
           )}
-          <div className={`${baseClass}__search-filter`}>
-            <InputField
-              name="search activities"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={setSearchQuery} // TODO: add debounce
-            />
-          </div>
           <div style={opacity}>
             {activities?.map((activity) => (
               <GlobalActivityItem
