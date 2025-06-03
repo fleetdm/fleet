@@ -625,7 +625,7 @@ For copy in the Fleet UI and Fleet documentation, use bold text when referencing
 
 This way, if a user is scanning instructions, the bold text tells them what UI element they should look for.
 
-In the docs, if a UI element is part of a section title (already bold) use double quotes, as shown in the [Fleet 4.55 release notes](https://fleetdm.com/releases/fleet-4-55-0#no-team-software-support).
+In the docs, if a UI element is part of a section title (already bold) use double quotes, as shown in the [explanation of MDM on/off in "Why this way"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-mdm-on-off-instead-of-mdm-enrolled-unenrolled).
 
 ### Copy in parentheses (additional information)
 
