@@ -1952,6 +1952,21 @@ INSERT INTO hosts (
 	})
 }
 
+func (ds *Datastore) GetNanoMDMEnrollmentByDeviceIDAndType(ctx context.Context, deviceId, enrollmentType string) (*fleet.NanoEnrollment, error) {
+	var nanoEnroll fleet.NanoEnrollment
+	// use writer as it is used just after creation in some cases
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
+		FROM nano_enrollments WHERE device_id = ? AND type = ? AND enabled=1`, deviceId, enrollmentType)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from nano_enrollments for id %s", id)
+	}
+
+	return &nanoEnroll, nil
+}
+
 func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
 	var nanoEnroll fleet.NanoEnrollment
 	// use writer as it is used just after creation in some cases
