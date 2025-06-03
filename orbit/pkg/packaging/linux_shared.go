@@ -19,7 +19,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
+func BuildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	// Initialize directories
 	tmpDir, err := initializeTempDir()
 	if err != nil {

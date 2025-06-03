@@ -508,6 +508,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Scim details
 	ue.GET("/api/_version_/fleet/scim/details", getScimDetailsEndpoint, nil)
+	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
+
+	// Automatic fleetd linux packages
+	ue.GET("/api/_version_/fleet/fleetd/linux", getLinuxPackageEndpoint, getLinuxPackageRequest{})
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update

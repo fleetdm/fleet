@@ -1244,6 +1244,11 @@ type Service interface {
 
 	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
 	ScimDetails(ctx context.Context) (ScimDetails, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Fleetd linux packages
+
+	GenerateFleetdLinuxPackage(ctx context.Context, packageType string) ([]byte, error)
 }
 
 type KeyValueStore interface {
