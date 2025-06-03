@@ -3264,6 +3264,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		return nil
 	}
 
+	// TODO Add changes here to detect start of setup experience or end of MDM migration
 	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
 		// Enqueue setup experience items and mark the host as being in setup experience
@@ -3515,8 +3516,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			}
 		}
 	case "DeviceConfigured":
-		if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, false); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
+			// TODO add event here for setup experience completion
+			if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, false); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
+			}
 		}
 	}
 
