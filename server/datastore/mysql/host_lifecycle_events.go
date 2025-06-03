@@ -29,7 +29,7 @@ func (ds *Datastore) CreateHostLifecycleEvent(ctx context.Context, event *fleet.
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for host lifecycle event")
 	}
-	event.ID = uint(eventID)
+	event.ID = uint(eventID) //nolint:gosec // dismiss G115
 	return event, nil
 }
 

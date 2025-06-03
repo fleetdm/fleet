@@ -3255,6 +3255,9 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 				return ctxerr.Wrap(r.Context, err, "getting host by identifier")
 			}
 			_, err = newActivityWithHostLifecycleEvent(r.Context, nil, &act, host, svc.ds, svc.logger)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "creating activity for MDM migration end")
+			}
 		}
 	}
 
@@ -3292,7 +3295,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "getting host by identifier")
 		}
-		act := *&fleet.ActivityTypeStartedMDMSetup{
+		act := fleet.ActivityTypeStartedMDMSetup{
 			HostSerial:      info.HardwareSerial,
 			HostDisplayName: info.DisplayName,
 			HostID:          host.ID,
@@ -3565,7 +3568,10 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				HostDisplayName: host.DisplayName(),
 				HostID:          host.ID,
 			}
-			newActivityWithHostLifecycleEvent(r.Context, nil, act, host, svc.ds, svc.logger)
+			_, err = newActivityWithHostLifecycleEvent(r.Context, nil, act, host, svc.ds, svc.logger)
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "creating activity for macOS setup experience end")
+			}
 		}
 	}
 

@@ -124,7 +124,7 @@ func (ds *Datastore) NewActivity(
 				if _, err := tx.ExecContext(ctx, stmt); err != nil {
 					return ctxerr.Wrap(ctx, err, "insert host activity")
 				}
-				insertedActivityID = uint(actID)
+				insertedActivityID = uint(actID) //nolint:gosec // dismiss G115
 			}
 		}
 		return nil
