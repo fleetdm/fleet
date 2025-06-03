@@ -25,11 +25,11 @@ var (
 // NewActivity stores an activity item that the user performed
 func (ds *Datastore) NewActivity(
 	ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-) error {
+) (uint, error) {
 	// Sanity check to ensure we processed activity webhook before storing the activity
 	processed, _ := ctx.Value(fleet.ActivityWebhookContextKey).(bool)
 	if !processed {
-		return ctxerr.New(
+		return 0, ctxerr.New(
 			ctx, "activity webhook not processed. Please use svc.NewActivity instead of ds.NewActivity. This is a Fleet server bug.",
 		)
 	}
@@ -94,11 +94,12 @@ func (ds *Datastore) NewActivity(
 		// (success or failure), which is exactly when we want to activate the next
 		// activity.
 		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+			return 0, ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
 		}
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	var insertedActivityID uint
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const insertActStmt = `INSERT INTO activities (%s) VALUES (%s)`
 		sql := fmt.Sprintf(insertActStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
 		res, err := tx.ExecContext(ctx, sql, args...)
@@ -123,10 +124,12 @@ func (ds *Datastore) NewActivity(
 				if _, err := tx.ExecContext(ctx, stmt); err != nil {
 					return ctxerr.Wrap(ctx, err, "insert host activity")
 				}
+				insertedActivityID = uint(actID)
 			}
 		}
 		return nil
 	})
+	return insertedActivityID, err
 }
 
 // ListActivities returns a slice of activities performed across the organization

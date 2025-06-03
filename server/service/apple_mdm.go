@@ -3227,7 +3227,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 		}
-		return newActivity(
+		_, err = newActivity(
 			r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
 				HostSerial:       updatedInfo.HardwareSerial,
 				HostDisplayName:  updatedInfo.DisplayName,
@@ -3235,6 +3235,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 				MDMPlatform:      fleet.MDMPlatformApple,
 			}, svc.ds, svc.logger,
 		)
+		return err
 	}
 
 	return nil
@@ -3314,13 +3315,14 @@ func (svc *MDMAppleCheckinAndCommandService) CheckOut(r *mdm.Request, m *mdm.Che
 		return err
 	}
 
-	return newActivity(
+	_, err = newActivity(
 		r.Context, nil, &fleet.ActivityTypeMDMUnenrolled{
 			HostSerial:       info.HardwareSerial,
 			HostDisplayName:  info.DisplayName,
 			InstalledFromDEP: info.InstalledFromDEP,
 		}, svc.ds, svc.logger,
 	)
+	return err
 }
 
 // SetBootstrapToken handles MDM [SetBootstrapToken][1] requests.
@@ -3511,7 +3513,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
 
-			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+			if _, err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
 		}

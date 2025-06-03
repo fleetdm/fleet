@@ -65,20 +65,21 @@ type ActivityWebhookPayload struct {
 }
 
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-	return newActivity(ctx, user, activity, svc.ds, svc.logger)
+	_, err := newActivity(ctx, user, activity, svc.ds, svc.logger)
+	return err
 }
 
 var automationActivityAuthor = "Fleet"
 
-func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error {
+func newActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) (uint, error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get app config")
+		return 0, ctxerr.Wrap(ctx, err, "get app config")
 	}
 
 	detailsBytes, err := json.Marshal(activity)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshaling activity details")
+		return 0, ctxerr.Wrap(ctx, err, "marshaling activity details")
 	}
 	timestamp := time.Now()
 

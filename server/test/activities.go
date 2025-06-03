@@ -148,7 +148,7 @@ func SetHostVPPAppInstallResult(t *testing.T, ds fleet.Datastore, nanods storage
 	}
 	err := nanods.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	_, err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      host.ID,
 		AppStoreID:  adamID,
 		CommandUUID: execID,
