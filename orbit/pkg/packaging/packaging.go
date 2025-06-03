@@ -197,6 +197,7 @@ func CopyCacheToPackage(cacheDir, cachedFile, rootDir string) error {
 		return fmt.Errorf("creating package directory for cache copy: %w", err)
 	}
 
+	// Hardlink instead of copying, faster and reduces waste
 	if err := os.Link(cachedFile, packageFile); err != nil {
 		return fmt.Errorf("linking cached file into package directory: %w", err)
 	}
