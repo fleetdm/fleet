@@ -324,7 +324,7 @@ You can confirm that the device has been ordered correctly by following these st
 On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
 - If you have physical access to the macOS host, [add it via Apple Configurator](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web).
 - If you do not have physical access to the device, the user will need to undertake the following steps:
-  - Install the fleetd package for your device from [the shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+  - Install the fleetd package for your device from the [shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
   - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
   - In Fleet desktop, follow the instructions to turn on MDM.
   - Once complete, follow instructions to reset disk encryption key.
