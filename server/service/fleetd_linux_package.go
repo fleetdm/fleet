@@ -54,7 +54,10 @@ func getLinuxPackageEndpoint(
 	if err != nil {
 		return getLinuxPackageResponse{Err: err}, nil
 	}
-	return getLinuxPackageResponse{packageBytes: packageBytes}, nil
+	return getLinuxPackageResponse{
+		packageName:  "fleet-osquery.deb",
+		packageBytes: packageBytes,
+	}, nil
 }
 
 func (svc *Service) GenerateFleetdLinuxPackage(ctx context.Context, packageType string) ([]byte, error) {
@@ -81,6 +84,7 @@ func (svc *Service) GenerateFleetdLinuxPackage(ctx context.Context, packageType 
 		return nil, ctxerr.Wrap(ctx, err, "no global enroll secrets")
 	}
 
+	// TODO(lucas): Wrap in singleflight.
 	packageFilePath, err := packaging.BuildNFPM(packaging.Options{
 		FleetURL:            appConfig.ServerSettings.ServerURL,
 		EnrollSecret:        enrollSecrets[0].Secret,

@@ -389,7 +389,6 @@ func packageCommand() *cli.Command {
 			}
 
 			fmt.Println("Generating your fleetd agent...")
-			fmt.Printf("WTF: %+v\n", opt)
 			path, err := buildFunc(opt)
 			if err != nil {
 				return err

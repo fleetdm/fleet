@@ -1241,7 +1241,8 @@ the way that the Fleet server works.
 					}
 				}
 
-				if (req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
+				if (req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/fleet/fleetd/linux")) ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package")) ||
 					(req.Method == http.MethodPatch && strings.HasSuffix(req.URL.Path, "/package") && strings.Contains(req.URL.Path,
 						"/fleet/software/titles/")) ||
 					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/bootstrap")) ||

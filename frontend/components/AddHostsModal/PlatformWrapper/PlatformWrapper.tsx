@@ -81,6 +81,7 @@ const PlatformWrapper = ({
   const [hostType, setHostType] = useState<"workstation" | "server">(
     "workstation"
   );
+  const [archType, setArchType] = useState<"amd64" | "arm64">("amd64");
   const [showPlainOsquery, setShowPlainOsquery] = useState(false);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0); // External link requires control in state
 
@@ -461,44 +462,63 @@ const PlatformWrapper = ({
         </>
       );
     }
+    const onDownloadFleetdLinuxPackage = useCallback(async () => {
+      // Jacob please help me.
+    }, [renderFlash, softwareId, name, teamId]);
 
     return (
       // "form" className applies the global form styling
-      <div className="form">
-        {packageType !== "pkg" && (
-          // Windows & Linux
-          <div className="form-field">
-            <div className="form-field__label">Type</div>
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label="Workstation"
-              id="workstation-host"
-              checked={hostType === "workstation"}
-              value="workstation"
-              name="host-typ"
-              onChange={() => setHostType("workstation")}
-            />
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label="Server"
-              id="server-host"
-              checked={hostType === "server"}
-              value="server"
-              name="host-type"
-              onChange={() => setHostType("server")}
-            />
-          </div>
-        )}
-        <InputField
-          readOnly
-          inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
-          name="installer"
-          enableCopy
-          label={renderLabel(packageType)}
-          type="textarea"
-          value={renderInstallerString(packageType)}
-          helpText={packageTypeHelpText}
-        />
+      <div>
+        <div className="form">
+          {packageType !== "pkg" && (
+            // Windows & Linux
+            <div>
+              <div className="form-field">
+                <div className="form-field__label">Host type</div>
+                <Radio
+                  className={`${baseClass}__radio-input`}
+                  label="Workstation"
+                  id="workstation-host"
+                  checked={hostType === "workstation"}
+                  value="workstation"
+                  name="host-typ"
+                  onChange={() => setHostType("workstation")}
+                />
+                <Radio
+                  className={`${baseClass}__radio-input`}
+                  label="Server"
+                  id="server-host"
+                  checked={hostType === "server"}
+                  value="server"
+                  name="host-type"
+                  onChange={() => setHostType("server")}
+                />
+              </div>
+              <div className="form-field__label">Package options</div>
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="amd64"
+                id="amd64-type"
+                checked={archType === "amd64"}
+                value="amd64"
+                name="arch-type"
+                onChange={() => setArchType("amd64")}
+              />
+              <Radio
+                className={`${baseClass}__radio-input`}
+                label="arm64"
+                id="arm64-type"
+                checked={archType === "arm64"}
+                value="arm64"
+                name="arm64"
+                onChange={() => setArchType("arm64")}
+              />
+            </div>
+          )}
+        </div>
+        <div className="modal-cta-wrap">
+          <Button onClick={onDownloadFleetdLinuxPackage}>Download</Button>
+        </div>
       </div>
     );
   };
