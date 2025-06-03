@@ -1248,7 +1248,7 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Fleetd linux packages
 
-	GenerateFleetdLinuxPackage(ctx context.Context, packageType string) ([]byte, error)
+	GenerateFleetdLinuxPackage(ctx context.Context, packageType, arch string, desktop bool) ([]byte, error)
 }
 
 type KeyValueStore interface {

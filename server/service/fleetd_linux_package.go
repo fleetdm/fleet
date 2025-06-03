@@ -18,7 +18,9 @@ import (
 )
 
 type getLinuxPackageRequest struct {
-	PackageType string `query:"type"`
+	Type    string `query:"type"`
+	Arch    string `query:"arch"`
+	Desktop bool   `query:"desktop"`
 }
 
 type getLinuxPackageResponse struct {
@@ -50,17 +52,17 @@ func getLinuxPackageEndpoint(
 	svc fleet.Service,
 ) (fleet.Errorer, error) {
 	r := request.(*getLinuxPackageRequest)
-	packageBytes, err := svc.GenerateFleetdLinuxPackage(ctx, r.PackageType)
+	packageBytes, err := svc.GenerateFleetdLinuxPackage(ctx, r.Type, r.Arch, r.Desktop)
 	if err != nil {
 		return getLinuxPackageResponse{Err: err}, nil
 	}
 	return getLinuxPackageResponse{
-		packageName:  "fleet-osquery.deb",
+		packageName:  fmt.Sprintf("fleet-osquery-%s.%s", r.Arch, r.Type),
 		packageBytes: packageBytes,
 	}, nil
 }
 
-func (svc *Service) GenerateFleetdLinuxPackage(ctx context.Context, packageType string) ([]byte, error) {
+func (svc *Service) GenerateFleetdLinuxPackage(ctx context.Context, packageType, arch string, desktop bool) ([]byte, error) {
 	// For now just re-using this.
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 		return nil, err
@@ -95,11 +97,11 @@ func (svc *Service) GenerateFleetdLinuxPackage(ctx context.Context, packageType 
 		DesktopChannel:      "stable",
 		UpdateURL:           "https://updates.fleetdm.com",
 		Debug:               true,
-		Desktop:             true,
+		Desktop:             desktop,
 		OrbitUpdateInterval: 15 * time.Minute,
 		EnableScripts:       true,
 		HostIdentifier:      "uuid",
-		Architecture:        "amd64",
+		Architecture:        arch,
 		NativePlatform:      "linux",
 	}, packager)
 	if err != nil {

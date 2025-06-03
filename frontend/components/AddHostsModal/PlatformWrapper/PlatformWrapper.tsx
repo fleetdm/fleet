@@ -468,11 +468,16 @@ const PlatformWrapper = ({
         </>
       );
     }
+
     const onDownloadFleetdLinuxPackage = async () => {
       setIsLoadingFleetdPkg(true);
       try {
-        const content = await fleetdPackageAPI.load(pkgType);
-        const filename = `fleet-osquery.${pkgType}`;
+        const content = await fleetdPackageAPI.load(
+          pkgType,
+          archType,
+          hostType === "workstation"
+        );
+        const filename = `fleet-osquery-${archType}.${pkgType}`;
         const file = new File([content], filename);
         FileSaver.saveAs(file);
       } catch {
@@ -482,12 +487,28 @@ const PlatformWrapper = ({
       }
     };
 
-    return (
-      // "form" className applies the global form styling
-      <div>
+    if (packageType === "pkg") {
+      return (
         <div className="form">
-          {packageType !== "pkg" && (
-            // Windows & Linux
+          <InputField
+            readOnly
+            inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
+            name="installer"
+            enableCopy
+            label={renderLabel(packageType)}
+            type="textarea"
+            value={renderInstallerString(packageType)}
+            helpText={packageTypeHelpText}
+          />
+        </div>
+      );
+    }
+
+    if (packageType === "deb" || packageType === "rpm") {
+      return (
+        // "form" className applies the global form styling
+        <div>
+          <div className="form">
             <div>
               <div className="form-field">
                 <div className="form-field__label">Host type</div>
@@ -532,7 +553,7 @@ const PlatformWrapper = ({
                 />
               </div>
               <div className="form-field">
-                <div className="form-field__label">Package options</div>
+                <div className="form-field__label">Package architecture</div>
                 <Radio
                   className={`${baseClass}__radio-input`}
                   label="amd64"
@@ -553,19 +574,58 @@ const PlatformWrapper = ({
                 />
               </div>
             </div>
-          )}
+          </div>
+          <div className="modal-cta-wrap">
+            <Button
+              onClick={onDownloadFleetdLinuxPackage}
+              isLoading={isLoadingFleetdPkg}
+              disabled={isLoadingFleetdPkg}
+            >
+              Download
+            </Button>
+          </div>
         </div>
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onDownloadFleetdLinuxPackage}
-            isLoading={isLoadingFleetdPkg}
-            disabled={isLoadingFleetdPkg}
-          >
-            Download
-          </Button>
+      );
+    }
+
+    if (packageType === "msi") {
+      return (
+        // "form" className applies the global form styling
+        <div className="form">
+          <div className="form-field">
+            <div className="form-field__label">Type</div>
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Workstation"
+              id="workstation-host"
+              checked={hostType === "workstation"}
+              value="workstation"
+              name="host-typ"
+              onChange={() => setHostType("workstation")}
+            />
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Server"
+              id="server-host"
+              checked={hostType === "server"}
+              value="server"
+              name="host-type"
+              onChange={() => setHostType("server")}
+            />
+          </div>
+          <InputField
+            readOnly
+            inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
+            name="installer"
+            enableCopy
+            label={renderLabel(packageType)}
+            type="textarea"
+            value={renderInstallerString(packageType)}
+            helpText={packageTypeHelpText}
+          />
         </div>
-      </div>
-    );
+      );
+    }
   };
 
   return (
@@ -599,9 +659,6 @@ const PlatformWrapper = ({
           })}
         </Tabs>
       </TabNav>
-      <div className="modal-cta-wrap">
-        <Button onClick={onCancel}>Done</Button>
-      </div>
     </div>
   );
 };
