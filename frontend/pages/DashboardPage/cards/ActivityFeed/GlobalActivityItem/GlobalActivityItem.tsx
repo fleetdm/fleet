@@ -1170,45 +1170,46 @@ const TAGGED_TEMPLATES = {
   },
 
   startedMdmSetup: (activity: IActivity) => {
+    const platform = getPlatformDisplayName(activity.details?.host_platform);
     return (
       <>
         {" "}
-        started MDM setup for{" "}
-        {getPlatformDisplayName(activity.details?.host_platform)} host with
-        serial number <b>{activity.details?.host_serial}</b>.
+        started {platform ? `${platform} ` : ""}setup for a host with serial
+        number <b>{activity.details?.host_serial}</b>.
       </>
     );
   },
 
   completedMdmSetup: (activity: IActivity) => {
+    const platform = getPlatformDisplayName(activity.details?.host_platform);
     return (
       <>
         {" "}
-        completed MDM setup for{" "}
-        {getPlatformDisplayName(activity.details?.host_platform)} host with
-        serial number <b>{activity.details?.host_serial}</b>.
+        configured a host with serial number{" "}
+        <b>{activity.details?.host_serial}</b> during{" "}
+        {platform ? `${platform} ` : ""}setup. The end user is ready to work.
       </>
     );
   },
 
   startedMdmMigration: (activity: IActivity) => {
+    const platform = getPlatformDisplayName(activity.details?.host_platform);
     return (
       <>
         {" "}
-        started MDM migration for{" "}
-        {getPlatformDisplayName(activity.details?.host_platform)} host with
-        serial number <b>{activity.details?.host_serial}</b>.
+        started {platform ? `${platform} ` : ""}MDM migration with serial number{" "}
+        <b>{activity.details?.host_serial}</b>.
       </>
     );
   },
 
   completedMdmMigration: (activity: IActivity) => {
+    const platform = getPlatformDisplayName(activity.details?.host_platform);
     return (
       <>
         {" "}
-        completed MDM migration for{" "}
-        {getPlatformDisplayName(activity.details?.host_platform)} host with
-        serial number <b>{activity.details?.host_serial}</b>.
+        finished {platform ? `${platform} ` : ""}MDM migration with serial
+        number <b>{activity.details?.host_serial}</b>.
       </>
     );
   },
