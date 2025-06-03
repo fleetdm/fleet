@@ -95,7 +95,7 @@ func CreateHostSoftwareUninstallUpcomingActivity(t *testing.T, ds fleet.Datastor
 	require.NoError(t, err)
 
 	execID := uuid.NewString()
-	err = ds.InsertSoftwareUninstallRequest(ctx, execID, host.ID, installerID)
+	err = ds.InsertSoftwareUninstallRequest(ctx, execID, host.ID, installerID, false)
 	require.NoError(t, err)
 	return execID
 }

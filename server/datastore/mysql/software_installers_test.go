@@ -43,7 +43,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
-		{"GetSoftwareTitleNameFromExecutionID", testGetSoftwareTitleNameFromExecutionID},
+		{"GetDetailsForUninstallFromExecutionID", testGetDetailsForUninstallFromExecutionID},
 		{"GetTeamsWithInstallerByHash", testGetTeamsWithInstallerByHash},
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
@@ -371,7 +371,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostPendingUninstall.ID, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostPendingUninstall.ID, si.InstallerID, false)
 			require.NoError(t, err)
 
 			// Host with failed uninstall
@@ -386,7 +386,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 			execID = "uuid" + tag + tc
-			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostFailedUninstall.ID, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostFailedUninstall.ID, si.InstallerID, false)
 			require.NoError(t, err)
 			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostFailedUninstall.ID,
@@ -407,7 +407,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 			execID = "uuid" + tag + tc
-			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostUninstalled.ID, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostUninstalled.ID, si.InstallerID, false)
 			require.NoError(t, err)
 			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostUninstalled.ID,
@@ -417,7 +417,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// Uninstall request with unknown host
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID, false)
 			assert.ErrorContains(t, err, "Host")
 
 			userTeamFilter := fleet.TeamFilter{
@@ -2290,7 +2290,7 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	require.Equal(t, "[Install software] Something2 (msi) 3", team3Policies[2].Name)
 }
 
-func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
+func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -2329,9 +2329,10 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// get software title for unknown exec id
-	title, err := ds.GetSoftwareTitleNameFromExecutionID(ctx, "unknown")
+	title, selfService, err := ds.GetDetailsForUninstallFromExecutionID(ctx, "unknown")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	require.Empty(t, title)
+	require.False(t, selfService)
 
 	// create a couple pending software install request, the first will be
 	// immediately present in host_software_installs too (activated)
@@ -2340,13 +2341,8 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	req2, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installer2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req1)
-	require.NoError(t, err)
-	require.Equal(t, "foobar", title)
-
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req2)
-	require.NoError(t, err)
-	require.Equal(t, "barfoo", title)
+	_, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// record a result for req1, will be deleted from upcoming_activities
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -2356,22 +2352,18 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req1)
-	require.NoError(t, err)
-	require.Equal(t, "foobar", title)
-
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req2)
-	require.NoError(t, err)
-	require.Equal(t, "barfoo", title)
+	_, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// create an uninstall request for installer1
 	req3 := uuid.NewString()
-	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1)
+	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1, true)
 	require.NoError(t, err)
 
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
+	title, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+	require.True(t, selfService)
 
 	// record a result for req2, will activate req3 so it is now in host_software_installs too
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -2381,9 +2373,10 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
+	title, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+	require.True(t, selfService)
 }
 
 func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
