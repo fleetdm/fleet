@@ -180,8 +180,8 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return appConfig, nil
 		}
-		ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
+		ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) (uint, error) {
+			return 0, nil
 		}
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			for _, team := range teamStore {

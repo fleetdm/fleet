@@ -7248,7 +7248,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	err = ds.NewActivity( // automatically creates the host_activities entry
+	_, err = ds.NewActivity( // automatically creates the host_activities entry
 		ctx,
 		user1,
 		activity,

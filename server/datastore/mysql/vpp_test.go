@@ -480,7 +480,7 @@ func createVPPAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cm
 
 	// inserting the activity is what marks the upcoming activity as completed
 	// (and activates the next one).
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	_, err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      host.ID,
 		CommandUUID: cmdUUID,
 	}, []byte(`{}`), time.Now())

@@ -92,8 +92,8 @@ func TestUserAuth(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 
 	testCases := []struct {
@@ -578,8 +578,8 @@ func TestMFAHandling(t *testing.T) {
 		user.ID = 4
 		return user, nil
 	}
-	ms.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
+	ms.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) (uint, error) {
+		return 0, nil
 	}
 	user, _, err := svc.CreateUser(ctx, payload)
 	require.NoError(t, err)

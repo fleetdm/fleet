@@ -128,8 +128,8 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) (uint, error) {
+		return 0, nil
 	}
 
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
@@ -1106,8 +1106,8 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMWindowsConfigProfile, error) {
 		var tid uint
@@ -1200,8 +1200,8 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		}
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
 		if bytes.Contains(cp.SyncML, []byte("duplicate")) {
@@ -1317,8 +1317,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string,
 		hostUUIDs []string,
@@ -2013,8 +2013,8 @@ func TestMDMResendConfigProfileAuthz(t *testing.T) {
 	ds.ResendHostMDMProfileFunc = func(ctx context.Context, hostUUID, profUUID string) error {
 		return nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.BatchResendMDMProfileToHostsFunc = func(ctx context.Context, profUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
 		return 0, nil

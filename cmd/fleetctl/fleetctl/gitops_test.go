@@ -64,10 +64,8 @@ func TestGitOpsBasicGlobalFree(t *testing.T) {
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
@@ -238,10 +236,8 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
@@ -467,10 +463,8 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.ListTeamPoliciesFunc = func(
 		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
@@ -668,10 +662,8 @@ func TestGitOpsFullGlobal(t *testing.T) {
 
 		return scriptResponses, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
@@ -955,10 +947,8 @@ func TestGitOpsFullTeam(t *testing.T) {
 
 		return scriptResponses, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
@@ -1404,10 +1394,8 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 
 	testing_utils.AddLabelMocks(ds)
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		job.ID = 1
@@ -1746,10 +1734,8 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	}
 	testing_utils.AddLabelMocks(ds)
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		job.ID = 1

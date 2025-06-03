@@ -768,8 +768,10 @@ func TestHostAuth(t *testing.T) {
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: id}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, u *fleet.User, a fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
 		return nil, nil
@@ -1103,8 +1105,8 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 
 	emptyRequest := &map[string]interface{}{}
@@ -1149,8 +1151,8 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 
 	filter := &map[string]interface{}{"label_id": expectedLabel}
@@ -1480,12 +1482,12 @@ func TestHostEncryptionKey(t *testing.T) {
 
 			ds.NewActivityFunc = func(
 				ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-			) error {
+			) (uint, error) {
 				act := activity.(fleet.ActivityTypeReadHostDiskEncryptionKey)
 				require.Equal(t, tt.host.ID, act.HostID)
 				require.Equal(t, []uint{tt.host.ID}, act.HostIDs())
 				require.EqualValues(t, act.HostDisplayName, tt.host.DisplayName())
-				return nil
+				return 0, nil
 			}
 
 			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
@@ -1558,8 +1560,8 @@ func TestHostEncryptionKey(t *testing.T) {
 
 		ds.NewActivityFunc = func(
 			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
-			return errors.New("activity error")
+		) (uint, error) {
+			return 0, errors.New("activity error")
 		}
 
 		_, err = svc.HostEncryptionKey(ctx, 1)
@@ -1601,8 +1603,8 @@ func TestHostEncryptionKey(t *testing.T) {
 				}
 				ds.NewActivityFunc = func(
 					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-				) error {
-					return nil
+				) (uint, error) {
+					return 0, nil
 				}
 				ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 					_ sqlx.QueryerContext,
@@ -1644,8 +1646,8 @@ func TestHostEncryptionKey(t *testing.T) {
 
 		ds.NewActivityFunc = func(
 			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
-			return nil
+		) (uint, error) {
+			return 0, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { // needed for new activity
 			return &fleet.AppConfig{}, nil
@@ -1879,8 +1881,8 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, platform string, ts time.Time) error {
 		return nil

@@ -127,9 +127,9 @@ func Test_logRoleChangeActivities(t *testing.T) {
 	var activities []string
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		activities = append(activities, activity.ActivityName())
-		return nil
+		return 0, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -164,7 +164,7 @@ func Test_logRoleChangeActivities(t *testing.T) {
 func TestActivityWebhooks(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
-	var webhookBody = ActivityWebhookPayload{}
+	webhookBody := ActivityWebhookPayload{}
 	webhookChannel := make(chan struct{}, 1)
 	fail429 := false
 	startMockServer := func(t *testing.T) string {
@@ -226,12 +226,12 @@ func TestActivityWebhooks(t *testing.T) {
 	var activityUser *fleet.User
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		activityUser = user
 		assert.NotEmpty(t, details)
 		assert.True(t, createdAt.After(time.Now().Add(-10*time.Second)))
 		assert.False(t, createdAt.After(time.Now()))
-		return nil
+		return 0, nil
 	}
 
 	tests := []struct {
@@ -348,12 +348,12 @@ func TestActivityWebhooksDisabled(t *testing.T) {
 	var activityUser *fleet.User
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		activityUser = user
 		assert.NotEmpty(t, details)
 		assert.True(t, createdAt.After(time.Now().Add(-10*time.Second)))
 		assert.False(t, createdAt.After(time.Now()))
-		return nil
+		return 0, nil
 	}
 	activity := ActivityTypeTest{Name: "no webhook"}
 	user := &fleet.User{

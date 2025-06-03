@@ -638,8 +638,8 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.GetMDMAppleProfilesSummaryFunc = func(context.Context, *uint) (*fleet.MDMProfilesSummary, error) {
 		return nil, nil
@@ -750,8 +750,8 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
 		return &cp, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -805,8 +805,8 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		return d, nil
 	}
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -1010,8 +1010,8 @@ func TestMDMCommandAuthz(t *testing.T) {
 		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
 	}
 
-	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) error {
 		return nil
@@ -1156,7 +1156,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
 		require.True(t, ok)
 		require.Nil(t, user)
@@ -1165,7 +1165,7 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.False(t, a.InstalledFromDEP)
 		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
-		return nil
+		return 0, nil
 	}
 
 	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
@@ -1221,7 +1221,7 @@ func TestMDMAuthenticateADE(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
 		require.True(t, ok)
 		require.Nil(t, user)
@@ -1230,7 +1230,7 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.True(t, a.InstalledFromDEP)
 		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
-		return nil
+		return 0, nil
 	}
 
 	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
@@ -1277,8 +1277,8 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
 		require.Equal(t, uuid, hostUUID)
@@ -1420,7 +1420,7 @@ func TestMDMCheckout(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		a, ok := activity.(*fleet.ActivityTypeMDMUnenrolled)
 		require.True(t, ok)
 		require.Nil(t, user)
@@ -1428,7 +1428,7 @@ func TestMDMCheckout(t *testing.T) {
 		require.Equal(t, serial, a.HostSerial)
 		require.Equal(t, displayName, a.HostDisplayName)
 		require.True(t, a.InstalledFromDEP)
-		return nil
+		return 0, nil
 	}
 
 	err := svc.CheckOut(
@@ -1601,8 +1601,8 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -1949,8 +1949,8 @@ func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, profileUUIDs, uuids []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
@@ -1989,8 +1989,8 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -2145,8 +2145,8 @@ func TestUpdateMDMAppleSetup(t *testing.T) {
 		}
 		ds.NewActivityFunc = func(
 			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
-			return nil
+		) (uint, error) {
+			return 0, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
@@ -3446,8 +3446,8 @@ func TestMDMAppleSetupAssistant(t *testing.T) {
 
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.NewJobFunc = func(ctx context.Context, j *fleet.Job) (*fleet.Job, error) {
 		return j, nil

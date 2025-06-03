@@ -39,9 +39,9 @@ func TestUserDelete(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		assert.Equal(t, fleet.ActivityTypeDeletedUser{}.ActivityName(), activity.ActivityName())
-		return nil
+		return 0, nil
 	}
 
 	assert.Equal(t, "", RunAppForTest(t, []string{"user", "delete", "--email", "user1@test.com"}))
@@ -73,8 +73,8 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		if email == "bar@example.com" {
@@ -170,8 +170,8 @@ func TestCreateBulkUsers(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
 		team1 := &fleet.TeamSummary{
@@ -203,8 +203,8 @@ func TestDeleteBulkUsers(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	csvFilePath := writeTmpCsv(t,
 		`Email

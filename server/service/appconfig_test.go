@@ -1357,8 +1357,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
@@ -1608,9 +1608,9 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
 		createdAt time.Time,
-	) error {
+	) (uint, error) {
 		assert.IsType(t, fleet.ActivityAddedNDESSCEPProxy{}, activity)
-		return nil
+		return 0, nil
 	}
 	ac, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
@@ -1658,9 +1658,9 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, "")
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
 		createdAt time.Time,
-	) error {
+	) (uint, error) {
 		assert.IsType(t, fleet.ActivityEditedNDESSCEPProxy{}, activity)
-		return nil
+		return 0, nil
 	}
 	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
@@ -1733,9 +1733,9 @@ func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
 	appConfig.Integrations.NDESSCEPProxy.Valid = true
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
 		createdAt time.Time,
-	) error {
+	) (uint, error) {
 		assert.IsType(t, fleet.ActivityDeletedNDESSCEPProxy{}, activity)
-		return nil
+		return 0, nil
 	}
 	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
 		return nil

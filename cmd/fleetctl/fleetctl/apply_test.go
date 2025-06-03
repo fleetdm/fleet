@@ -181,10 +181,8 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
@@ -599,10 +597,8 @@ func TestApplyAppConfig(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
@@ -780,10 +776,8 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 
 	currentAppConfig := &fleet.AppConfig{
@@ -1152,10 +1146,8 @@ func TestApplyPolicies(t *testing.T) {
 		}
 		return nil, errors.New("unexpected team name!")
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 
 	name := writeTmpYml(t, policySpec)
@@ -1246,10 +1238,8 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return gitOps, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 
 	currentAppConfig := &fleet.AppConfig{
@@ -1835,10 +1825,8 @@ func TestApplyPacks(t *testing.T) {
 	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 
 	var appliedPacks []*fleet.PackSpec
@@ -1887,10 +1875,8 @@ func TestApplyQueries(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+		return 0, nil
 	}
 
 	name := writeTmpYml(t, queriesSpec)
@@ -2019,10 +2005,8 @@ func TestApplyMacosSetup(t *testing.T) {
 		teamsByID := map[uint]*fleet.Team{
 			tm1.ID: tm1,
 		}
-		ds.NewActivityFunc = func(
-			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
-			return nil
+		ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+			return 0, nil
 		}
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
@@ -2863,10 +2847,8 @@ func TestApplySpecs(t *testing.T) {
 		}
 
 		// activities
-		ds.NewActivityFunc = func(
-			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-		) error {
-			return nil
+		ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) (uint, error) {
+			return 0, nil
 		}
 
 		// app config

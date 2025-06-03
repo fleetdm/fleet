@@ -59,9 +59,9 @@ func TestHostsTransferByHosts(t *testing.T) {
 
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
-		return nil
+		return 0, nil
 	}
 
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
@@ -131,9 +131,9 @@ func TestHostsTransferByLabel(t *testing.T) {
 
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
-		return nil
+		return 0, nil
 	}
 
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
@@ -202,9 +202,9 @@ func TestHostsTransferByStatus(t *testing.T) {
 
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
-		return nil
+		return 0, nil
 	}
 
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
@@ -262,9 +262,9 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	) (uint, error) {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
-		return nil
+		return 0, nil
 	}
 
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {

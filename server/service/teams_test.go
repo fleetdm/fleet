@@ -29,8 +29,8 @@ func TestTeamAuth(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
@@ -281,10 +281,10 @@ func TestApplyTeamSpecs(t *testing.T) {
 
 				ds.NewActivityFunc = func(
 					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-				) error {
+				) (uint, error) {
 					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
 					require.Len(t, act.Teams, 1)
-					return nil
+					return 0, nil
 				}
 
 				_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{{Name: "team1", Features: tt.spec}}, fleet.ApplyTeamSpecOptions{})
@@ -364,10 +364,10 @@ func TestApplyTeamSpecs(t *testing.T) {
 
 				ds.NewActivityFunc = func(
 					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-				) error {
+				) (uint, error) {
 					act := activity.(fleet.ActivityTypeAppliedSpecTeam)
 					require.Len(t, act.Teams, 1)
-					return nil
+					return 0, nil
 				}
 
 				idsByTeam, err := svc.ApplyTeamSpecs(
@@ -399,8 +399,8 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 
 	ds.NewActivityFunc = func(
 		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	) (uint, error) {
+		return 0, nil
 	}
 
 	t.Run("creates enroll secret when not included for a new team spec", func(t *testing.T) {
