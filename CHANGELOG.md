@@ -4737,7 +4737,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 ## Fleet 3.13.0 (Jun 3, 2021)
 
-* Improved performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that [the `/api/v1/fleet/hosts` API endpoint](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/1-Using-Fleet/3-REST-API.md#list-hosts) now only returns the requested `additional` columns.
+* Improved performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that the [`/api/v1/fleet/hosts` API endpoint](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/1-Using-Fleet/3-REST-API.md#list-hosts) now only returns the requested `additional` columns.
 
 * Fixed a bug in which running a live query in the Fleet UI would return no results and the query would seem "hung" on a small number of devices.
 
