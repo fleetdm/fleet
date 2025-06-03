@@ -16,15 +16,11 @@ import (
 
 type SnmpRunner struct{}
 
-type SnmpResult struct {
-	Hosts []SnmpHost `json:"snmp_hosts,omitempty"`
-}
-
 type SnmpHost struct {
-	IP       string `json:"ip,omitempty"`
-	Hostname string `json:"hostname,omitempty"`
-	OS       string `json:"os,omitempty"`
-	UUID     string `json:"uuid,omitempty"`
+	IP       string `json:"ip_address"`
+	Hostname string `json:"hostname"`
+	OS       string `json:"os"`
+	UUID     string `json:"uuid"`
 }
 
 func (sr *SnmpRunner) Run(oc *fleet.OrbitConfig) error {

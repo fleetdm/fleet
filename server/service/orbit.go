@@ -1084,7 +1084,7 @@ func (r *orbitPostLUKSRequest) orbitHostNodeKey() string {
 
 type orbitPostSnmpHostsRequest struct {
 	OrbitNodeKey string          `json:"orbit_node_key"`
-	Hosts        snmp.SnmpResult `json:"hosts"`
+	Hosts        []snmp.SnmpHost `json:"scanned_hosts"`
 }
 
 // interface implementation required by the OrbitClient
