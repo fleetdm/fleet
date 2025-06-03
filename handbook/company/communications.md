@@ -1031,7 +1031,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 ### Headings and titles
 
-Headings and titles should
+Headings and titles should:
 
 - give an accurate idea of a topic's content
 - help guide readers through your writing so they can quickly find what they need
