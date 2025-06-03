@@ -1,6 +1,14 @@
 # This file adds teams (Fleet Premium), scripts, policies, and queries to all new Fleet instances.
 
 apiVersion: v1
+kind: config
+spec:
+  scripts:
+    - it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
+    - it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
+    - it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh
+---
+apiVersion: v1
 kind: team
 spec:
   team:
