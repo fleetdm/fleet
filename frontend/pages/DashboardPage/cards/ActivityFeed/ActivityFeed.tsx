@@ -44,6 +44,13 @@ const SORT_OPTIONS = [
   { label: "Oldest", value: "asc" },
 ];
 
+const TYPE_FILTER_OPTIONS = Object.values(ActivityType).map((type) => ({
+  label: type.replace(/_/gi, " ").toLowerCase(),
+  value: type,
+}));
+
+console.log(TYPE_FILTER_OPTIONS);
+
 const DATE_FILTER_OPTIONS = [
   { label: "All time", value: "all" },
   { label: "Today", value: "today" },
@@ -134,6 +141,7 @@ const ActivityFeed = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
   const [dateFilter, setDateFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -160,6 +168,7 @@ const ActivityFeed = ({
       orderDirection?: string;
       startDate?: string;
       endDate?: string;
+      typeFilter?: string[];
     }>
   >(
     [
@@ -171,16 +180,30 @@ const ActivityFeed = ({
         orderDirection: createdAtDirection,
         startDate,
         endDate,
+        typeFilter,
       },
     ],
-    ({ queryKey: [{ pageIndex: page, perPage, query, orderDirection }] }) => {
+    ({
+      queryKey: [
+        {
+          pageIndex: page,
+          perPage,
+          query,
+          orderDirection,
+          startDate: queryStartDate,
+          endDate: queryEndDate,
+          typeFilter: queryTypeFilter,
+        },
+      ],
+    }) => {
       return activitiesAPI.loadNext(
         page,
         perPage,
         query,
         orderDirection,
-        startDate,
-        endDate
+        queryStartDate,
+        queryEndDate,
+        queryTypeFilter
       );
     },
     {
@@ -276,6 +299,8 @@ const ActivityFeed = ({
   const activities = activitiesData?.activities;
   const meta = activitiesData?.meta;
 
+  console.log(typeFilter);
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__search-filter`}>
@@ -302,21 +327,38 @@ const ActivityFeed = ({
           }
         />
         <div className={`${baseClass}__dropdown-filters`}>
-          <ActionsDropdown
-            className={`${baseClass}__date-filter-dropdown`}
-            options={DATE_FILTER_OPTIONS}
-            placeholder={`Date: ${
-              DATE_FILTER_OPTIONS.find((option) => option.value === dateFilter)
-                ?.label
-            }`}
-            onChange={(value: string) => {
-              if (value === createdAtDirection) {
-                return; // No change in sort direction
-              }
-              setDateFilter(value);
-              setPageIndex(0); // Reset to first page on sort change
-            }}
-          />
+          <div className={`${baseClass}__filters`}>
+            <ActionsDropdown
+              className={`${baseClass}__type-filter-dropdown`}
+              options={TYPE_FILTER_OPTIONS}
+              placeholder={`Type: ${
+                typeFilter?.[0]?.replace(/_/g, " ") || "All"
+              }`}
+              onChange={(value: string) => {
+                setTypeFilter((prev) => {
+                  // TODO: multiple selections
+                  return [value];
+                });
+                setPageIndex(0); // Reset to first page on sort change
+              }}
+            />
+            <ActionsDropdown
+              className={`${baseClass}__date-filter-dropdown`}
+              options={DATE_FILTER_OPTIONS}
+              placeholder={`Date: ${
+                DATE_FILTER_OPTIONS.find(
+                  (option) => option.value === dateFilter
+                )?.label
+              }`}
+              onChange={(value: string) => {
+                if (value === createdAtDirection) {
+                  return; // No change in sort direction
+                }
+                setDateFilter(value);
+                setPageIndex(0); // Reset to first page on sort change
+              }}
+            />
+          </div>
           <ActionsDropdown
             className={`${baseClass}__sort-created-at-dropdown`}
             options={SORT_OPTIONS}
