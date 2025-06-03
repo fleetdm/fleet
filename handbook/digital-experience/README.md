@@ -333,7 +333,7 @@ On occasion there will be a need to manually enroll a macOS host in dogfood. Thi
 
 ### Enroll a Windows or Ubuntu Linux device in dogfood
 
-To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from [the internal shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from the [internal shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
 Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
 
 
