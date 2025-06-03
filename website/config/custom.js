@@ -417,6 +417,9 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
-  //…
+  // Android proxy
+  // androidEnterpriseProjectId: '…',
+  // androidEnterpriseServiceAccountEmailAddress: '…',
+  // androidEnterpriseServiceAccountPrivateKey: '…',
 
 };
