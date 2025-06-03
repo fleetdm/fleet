@@ -1033,9 +1033,9 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 Headings and titles should:
 
-- give an accurate idea of a topic's content
-- help guide readers through your writing so they can quickly find what they need
-- [make good permalinks](https://fleetdm.com/handbook/company/communications#use-links-in-your-writing)
+- Give an accurate idea of a topic's content.
+- Help guide readers through your writing so they can quickly find what they need.
+- [Make good permalinks](https://fleetdm.com/handbook/company/communications#use-links-in-your-writing).
 
 #### Static headings
 
