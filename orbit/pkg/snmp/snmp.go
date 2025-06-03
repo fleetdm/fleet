@@ -29,8 +29,11 @@ type SnmpHost struct {
 
 func (sr *SnmpRunner) Run(oc *fleet.OrbitConfig) error {
 	if !oc.Notifications.ScanNetwork {
+		fmt.Fprintln(os.Stderr, "Network scan is disabled in Orbit configuration.")
 		return nil
 	}
+
+	fmt.Fprintln(os.Stderr, "Starting SNMP network scan...")
 
 	subnet := "10.211.55.0/24"
 	community := "public"
