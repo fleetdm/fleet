@@ -43,7 +43,9 @@ export default {
     page = DEFAULT_PAGE,
     perPage = DEFAULT_PAGE_SIZE,
     searchQuery = DEFAULT_SEARCH_QUERY,
-    orderDirection = ORDER_DIRECTION
+    orderDirection = ORDER_DIRECTION,
+    startDate = "",
+    endDate = ""
   ): Promise<IActivitiesResponse> => {
     const { ACTIVITIES } = endpoints;
 
@@ -53,8 +55,8 @@ export default {
       order_key: ORDER_KEY,
       order_direction: orderDirection,
       query: searchQuery,
-      start_created_at: "",
-      end_created_at: "",
+      start_created_at: startDate,
+      end_created_at: endDate,
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
