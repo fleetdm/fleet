@@ -56,29 +56,6 @@
     }
   }
 
-  &__dropdown-filters {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  &__filters {
-    display: flex;
-    align-items: center;
-    gap: $pad-small;
-
-
-
-  }
-
-  // want to  limit the height of the dropdown menu for the activty type filter
-  &__type-filter-dropdown {
-    .actions-dropdown-select__menu > * {
-      max-height: 250px ;
-      overflow-y: auto;
-    }
-  }
-
   .spinner {
     z-index: 11;
     opacity: 1;
