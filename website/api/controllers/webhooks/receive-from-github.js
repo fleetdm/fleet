@@ -292,6 +292,23 @@ module.exports = {
       let repo = repository.name;
       let prNumber = issueOrPr.number;
 
+      // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+      // Want to do more?
+      //
+      // For some working, recent, easily-tweaked example code that manages a conversation with the GitHub bot
+      // to get help submitters of PRs/issues get them up to spec, see:
+      // https://github.com/fleetdm/fleet/blob/0a59adc2dd65bce5c1201a752e9c218faea7be35/website/api/controllers/webhooks/receive-from-github.js#L145-L216
+      //
+      // To potentially reuse:
+      //     let newBotComment =
+      //     `Oh hey again, @${issueOrPr.user.login}.  Now that this pull request is reopened, it's on our radar.  Please let us know if there's any new information we should be aware of!\n`+
+      //     `<hr/>\n`+
+      //     `\n`+
+      //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
+      //     `\n`+
+      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
       if (action === 'edited' && pr.state !== 'open') {// PR edited ‡
         // This is an edit to an already-closed pull request.
         // (Do nothing.)
