@@ -78,11 +78,11 @@ In the `decorators` key, you can specify queries to include additional informati
 
 ### yara
 
-You can use Fleet to configure the `yara` and `yara_events` osquery tables. Learn more about YARA configuration and continuous monitoring [here](https://fleetdm.com/guides/remote-yara-rules#basic-article).
+You can use Fleet to configure the `yara` and `yara_events` osquery tables, used to administer [YARA rules]((https://fleetdm.com/guides/remote-yara-rules) for continuous monitoring.
 
 ## extensions
 
-> This feature requires a custom TUF auto-update server (available in Fleet Premium). Learn more [here](https://fleetdm.com/guides/fleetd-updates).
+> This feature requires a custom TUF [auto-update server](https://fleetdm.com/guides/fleetd-updates) (available in Fleet Premium).
 
 The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
 
@@ -179,7 +179,7 @@ In the above example:
 
 _Available in Fleet Premium_
 
-Users can configure fleetd component TUF auto-update channels from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component. Available options for update channels can be viewed [here](https://fleetdm.com/docs/using-fleet/enroll-hosts#specifying-update-channels).
+Users can configure fleetd component TUF [auto-update channels](https://fleetdm.com/docs/using-fleet/enroll-hosts#specifying-update-channels) from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component.
 
 #### Examples
 
