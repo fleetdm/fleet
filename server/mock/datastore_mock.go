@@ -1362,6 +1362,8 @@ type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, erro
 
 type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
 
+type CreateHostLifecycleEventFunc func(ctx context.Context, event *fleet.HostLifecycleEvent) (*fleet.HostLifecycleEvent, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -3372,6 +3374,9 @@ type DataStore struct {
 
 	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
 	UpdateScimLastRequestFuncInvoked bool
+
+	CreateHostLifecycleEventFunc 	  CreateHostLifecycleEventFunc
+	CreateHostLifecycleEventFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8064,4 +8069,11 @@ func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *flee
 	s.UpdateScimLastRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
+}
+
+func (s *DataStore) CreateHostLifecycleEvent(ctx context.Context, event *fleet.HostLifecycleEvent) (*fleet.HostLifecycleEvent, error) {
+	s.mu.Lock()
+	s.CreateHostLifecycleEventFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateHostLifecycleEventFunc(ctx, event)
 }

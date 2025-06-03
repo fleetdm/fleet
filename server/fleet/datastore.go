@@ -2116,6 +2116,11 @@ type Datastore interface {
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
 	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Host Lifecycle Events
+	//
+	CreateHostLifecycleEvent(ctx context.Context, event *HostLifecycleEvent) (*HostLifecycleEvent, error)
 }
 
 type AndroidDatastore interface {
