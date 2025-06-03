@@ -1235,18 +1235,19 @@ func batchProcessDB[T any](
 func (ds *Datastore) IsFleetRunning(ctx context.Context) (bool, error) {
 	// read latest keepalive.value
 	stmt := `
-		SELECT last_write FROM keepalive
+		SELECT last_server_instance_checkin FROM keep_alive
 	`
-	var lastWrite time.Time
-	if err := sqlx.GetContext(ctx, ds.writer(ctx), &lastWrite, stmt); err != nil {
+	var lastCheckin time.Time
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &lastCheckin, stmt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// Server may in fact be running, but this database has not yet been migrated to contain the table
 			// that enables this feature yet, so default to not blocking
-			return false, err
+			return false, nil
 		}
+		return false, nil
 	}
 
-	if time.Since(lastWrite) < 10*time.Second {
+	if time.Since(lastCheckin) < 10*time.Second {
 		return true, nil
 	}
 	return false, nil
