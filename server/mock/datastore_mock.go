@@ -746,6 +746,8 @@ type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
 
+type IsFleetRunningFunc func(ctx context.Context) (bool, error)
+
 type ListWindowsUpdatesByHostIDFunc func(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error)
 
 type InsertWindowsUpdatesFunc func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error
@@ -2448,6 +2450,9 @@ type DataStore struct {
 
 	ProcessListFunc        ProcessListFunc
 	ProcessListFuncInvoked bool
+
+	IsFleetRunningFunc        IsFleetRunningFunc
+	IsFleetRunningFuncInvoked bool
 
 	ListWindowsUpdatesByHostIDFunc        ListWindowsUpdatesByHostIDFunc
 	ListWindowsUpdatesByHostIDFuncInvoked bool
@@ -5908,6 +5913,13 @@ func (s *DataStore) ProcessList(ctx context.Context) ([]fleet.MySQLProcess, erro
 	s.ProcessListFuncInvoked = true
 	s.mu.Unlock()
 	return s.ProcessListFunc(ctx)
+}
+
+func (s *DataStore) IsFleetRunning(ctx context.Context) (bool, error) {
+	s.mu.Lock()
+	s.IsFleetRunningFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsFleetRunningFunc(ctx)
 }
 
 func (s *DataStore) ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]fleet.WindowsUpdate, error) {
