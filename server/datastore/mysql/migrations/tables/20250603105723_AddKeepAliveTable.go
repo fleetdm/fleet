@@ -14,7 +14,9 @@ func Up_20250603105723(tx *sql.Tx) error {
 	last_server_instance_checkin DATETIME(6) NOT NULL DEFAULT NOW(6),
 	PRIMARY KEY (last_server_instance_checkin)
 );
+	INSERT INTO keep_alive VALUE (NOW());
 `
+	// TODO - initial value NULL
 
 	_, err := tx.Exec(stmt)
 	if err != nil {
