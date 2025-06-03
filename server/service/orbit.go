@@ -324,6 +324,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingSoftwareInstallerIDs = pendingInstalls
 	}
 
+	if host.RefetchRequested {
+		notifs.ScanNetwork = true
+	}
+
 	// team ID is not nil, get team specific flags and options
 	if host.TeamID != nil {
 		teamAgentOptions, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)

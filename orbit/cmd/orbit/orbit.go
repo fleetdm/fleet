@@ -985,7 +985,7 @@ func main() {
 		})
 		orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
 
-		orbitClient.RegisterConfigReceiver(snmp.New())
+		orbitClient.RegisterConfigReceiver(snmp.New(orbitClient))
 
 		if !c.Bool("disable-updates") {
 			serverOverridesReceiver := newServerOverridesReceiver(

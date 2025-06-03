@@ -14,7 +14,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-type SnmpRunner struct{}
+type SnmpRunner struct {
+	sender SnmpHostsSender
+}
 
 type SnmpHost struct {
 	IP       string `json:"ip_address"`
@@ -68,11 +70,21 @@ func (sr *SnmpRunner) Run(oc *fleet.OrbitConfig) error {
 	wg.Wait()
 	_ = cmd.Wait()
 
+	if err := sr.sender.SendSnmpHostsResponse(results); err != nil {
+		fmt.Fprintln(os.Stderr, "Error sending SNMP hosts response:", err)
+	}
+
 	return nil
 }
 
-func New() *SnmpRunner {
-	return &SnmpRunner{}
+func New(sender SnmpHostsSender) *SnmpRunner {
+	return &SnmpRunner{
+		sender: sender,
+	}
+}
+
+type SnmpHostsSender interface {
+	SendSnmpHostsResponse([]SnmpHost) error
 }
 
 func scanHost(ip, community string, results *[]SnmpHost, mu *sync.Mutex, wg *sync.WaitGroup, sem chan struct{}) {
@@ -125,7 +137,7 @@ func scanHost(ip, community string, results *[]SnmpHost, mu *sync.Mutex, wg *syn
 }
 
 func isSNMPPortOpen(ip string) (bool, error) {
-	cmd := exec.Command("nmap", "-sU", "-p", "161", "--host-timeout", "2s", "--max-retries", "1", ip)
+	cmd := exec.Command("/opt/homebrew/bin/nmap", "-sU", "-p", "161", "--host-timeout", "2s", "--max-retries", "1", ip)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out

@@ -2930,6 +2930,9 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
 		return err
 	}
+
+	fmt.Println("Received payloads for scanned hosts:", payloads)
+
 	// TODO(JVE): parse OS field
 	// #1
 	// Linux tim-ubuntu-noble 6.11.0-24-generic #24~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue Mar 25 19:25:57 UTC 2 aarch64
