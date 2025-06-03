@@ -30,6 +30,9 @@ To setup Fleet infrastructure, use one of the available commands.
 	// Whether to enable developer options
 	dev := false
 
+	// If ignoreServerAlive is true, migration will run even if there is/are live fleet server/s instance/s
+	ignoreServerAlive := false
+
 	dbCmd := &cobra.Command{
 		Use:   "db",
 		Short: "Given correct database configurations, prepare the databases for use",
@@ -47,13 +50,15 @@ To setup Fleet infrastructure, use one of the available commands.
 				initFatal(err, "creating db connection")
 			}
 
-			fleetIsRunning, err := ds.IsFleetRunning(cmd.Context())
-			if err != nil {
-				initFatal(err, "checking for active Fleet server")
-			}
-			if fleetIsRunning == true {
-				printFleetIsRunningMessage()
-				os.Exit(1)
+			if !ignoreServerAlive {
+				fleetIsRunning, err := ds.IsFleetRunning(cmd.Context())
+				if err != nil {
+					initFatal(err, "checking for active Fleet server")
+				}
+				if fleetIsRunning == true {
+					printFleetIsRunningMessage()
+					os.Exit(1)
+				}
 			}
 
 			status, err := ds.MigrationStatus(cmd.Context())
@@ -92,6 +97,7 @@ To setup Fleet infrastructure, use one of the available commands.
 
 	dbCmd.PersistentFlags().BoolVar(&noPrompt, "no-prompt", false, "disable prompting before migrations (for use in scripts)")
 	dbCmd.PersistentFlags().BoolVar(&dev, "dev", false, "Enable developer options")
+	dbCmd.PersistentFlags().BoolVar(&ignoreServerAlive, "ignore-server-alive", false, "Force migration when fleet server is running.")
 
 	prepareCmd.AddCommand(dbCmd)
 	return prepareCmd
@@ -126,6 +132,7 @@ func printFleetIsRunningMessage() {
 		"# WARNING:\n" +
 		"# Performing database migrations while the Fleet server is running can cause issues.\n" +
 		"# Please stop Fleet before performing migrations.\n" +
+		"# In order to force DB migration use with --ignore-server-alive.\n" +
 		"################################################################################\n",
 	)
 }

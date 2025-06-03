@@ -1048,6 +1048,7 @@ type Datastore interface {
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
 
 	IsFleetRunning(ctx context.Context) (bool, error)
+	UpdateKeepAlive(ctx context.Context) error
 
 	// WindowsUpdates Store
 	ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]WindowsUpdate, error)

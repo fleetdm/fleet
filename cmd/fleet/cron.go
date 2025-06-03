@@ -76,7 +76,7 @@ func refreshPreventDBMigrationTimestamp(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 ) error {
-	// Write the timestamp to the DB
+	ds.UpdateKeepAlive(ctx)
 	return nil
 }
 
