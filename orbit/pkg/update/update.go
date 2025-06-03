@@ -529,7 +529,6 @@ func (u *Updater) download(target, repoPath, localPath string, customCheckExec f
 	}
 
 	downloadFilePath := filepath.Join(staging, filepath.Base(localPath))
-	fmt.Printf("downloadFilePath: %v\n", downloadFilePath)
 
 	tmp, err := secure.OpenFile(
 		downloadFilePath,
