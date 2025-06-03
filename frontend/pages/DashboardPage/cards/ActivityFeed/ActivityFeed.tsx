@@ -291,7 +291,7 @@ const ActivityFeed = ({
     return (
       <div className={`${baseClass}__no-activities`}>
         <p>
-          <b>Fleet has not recorded any activity.</b>
+          <b>No activities match the current criteria</b>
         </p>
         <p>
           Try editing a query, updating your policies, or running a live query.
