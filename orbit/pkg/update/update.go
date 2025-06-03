@@ -528,18 +528,17 @@ func (u *Updater) download(target, repoPath, localPath string, customCheckExec f
 		return err
 	}
 
+	downloadFilePath := filepath.Join(staging, filepath.Base(localPath))
+
 	tmp, err := secure.OpenFile(
-		filepath.Join(staging, filepath.Base(localPath)),
+		downloadFilePath,
 		os.O_CREATE|os.O_WRONLY,
 		constant.DefaultExecutableMode,
 	)
 	if err != nil {
 		return fmt.Errorf("open temp file for download: %w", err)
 	}
-	defer func() {
-		tmp.Close()
-		os.Remove(tmp.Name())
-	}()
+
 	if err := platform.ChmodExecutable(tmp.Name()); err != nil {
 		return fmt.Errorf("chmod download: %w", err)
 	}
