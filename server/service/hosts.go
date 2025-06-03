@@ -2909,7 +2909,18 @@ func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts 
 }
 
 type createScannedHostRequest struct {
+	OrbitNodeKey string                      `json:"orbit_node_key"`
 	ScannedHosts []*fleet.ScannedHostPayload `json:"scanned_hosts"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *createScannedHostRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by the OrbitClient
+func (r *createScannedHostRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
 }
 
 type createScannedHostResponse struct {
@@ -2927,14 +2938,9 @@ func createScannedHostEndpoint(ctx context.Context, request any, svc fleet.Servi
 }
 
 func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.ScannedHostPayload) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	fmt.Println("Received payloads for scanned hosts:", payloads)
-
+	// orbit-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
 	// TODO(JVE): parse OS field
-	// #1
 	// Linux tim-ubuntu-noble 6.11.0-24-generic #24~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue Mar 25 19:25:57 UTC 2 aarch64
 	type parsedOSField struct {
 		Platform        string
@@ -2942,7 +2948,7 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 		Arch            string
 		Kernel          string
 	}
-	parseOSField := func(osField string) parsedOSField {
+	parseOSField := func(osField string) (parsedOSField, *fleet.Software) {
 		var out parsedOSField
 
 		parts := strings.Split(osField, " ")
@@ -2956,12 +2962,28 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 		out.PlatformVersion = fmt.Sprintf("%s %s", matches[2], matches[1])
 		out.Platform = strings.ToLower(matches[2])
 
-		return out
+		// get the kernel so we can make a software entry
+		// FIXME: this shouldn't be hardcoded to linux
+		s, _ := fleet.SoftwareFromOsqueryRow(
+			fmt.Sprintf("linux-image-%s", parts[2]),
+			strings.Trim(parts[2], "-generic"),
+			"deb_packages",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
+			"",
+			fmt.Sprintf("%d", time.Now().UTC().Unix()),
+		)
+
+		return out, s
 	}
 	n := time.Now()
 	for _, p := range payloads {
-		f := parseOSField(p.OS)
-		_, err := svc.ds.NewHost(ctx, &fleet.Host{
+		f, s := parseOSField(p.OS)
+		h, err := svc.ds.NewHost(ctx, &fleet.Host{
 			UpdateCreateTimestamps:      fleet.UpdateCreateTimestamps{},
 			HostSoftware:                fleet.HostSoftware{},
 			OsqueryHostID:               new(string),
@@ -3024,6 +3046,12 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create scanned host")
 		}
+
+		_, err = svc.ds.UpdateHostSoftware(ctx, h.ID, []fleet.Software{*s})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "creating software for scanned host kernel")
+		}
+
 	}
 	return nil
 }
