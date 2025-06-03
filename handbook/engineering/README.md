@@ -207,7 +207,7 @@ Once a product group completes its QA process during the release candidate perio
 
 ### Prepare Fleet release
 
-See [the "Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md).
+See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md).
 
 ### Prepare fleetd agent release
 
