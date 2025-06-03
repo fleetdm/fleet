@@ -517,7 +517,7 @@ const PlatformWrapper = ({
                   <TooltipWrapper tipContent="Contains the Fleet Desktop tray application.">
                     <span>Workstation</span>
                   </TooltipWrapper>
-  }
+                }
                 id="workstation-host"
                 checked={hostType === "workstation"}
                 value="workstation"
