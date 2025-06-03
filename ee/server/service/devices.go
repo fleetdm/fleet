@@ -86,6 +86,8 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	// if the webhook was successfully triggered, we update the host to
 	// constantly run the query to check if it has been unenrolled from its
 	// existing third-party MDM.
+
+	// TODO Add event here for MDM migration started
 	refetchUntil := svc.clock.Now().Add(fleet.RefetchMDMUnenrollCriticalQueryDuration)
 	host.RefetchCriticalQueriesUntil = &refetchUntil
 	if err := svc.ds.UpdateHostRefetchCriticalQueriesUntil(ctx, host.ID, &refetchUntil); err != nil {
