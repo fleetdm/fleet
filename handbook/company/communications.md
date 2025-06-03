@@ -942,13 +942,15 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
     - Disarm puffery for engineers by replacing puffery with real data.
     - Disarm puffery for the business by replacing puffery with ROI/RTO  (how much time and/or money is it going save the business?  Forget the details.  When will it pay itself back?)
   - Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). 
-  - Create headings that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). 
-  - Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. 
-  - A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built. 
   - Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). 
   - Read your PRs, check it carefully with each change and edit until the diff looks good.
   - Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional changes, remove them.
 
+#### Use links in your writing
+
+Don’t duplicate content. Link to existing places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. Linking to existing material when something comes up is a gentle way to remind and train using the foundation we've already built.
+
+Create headings that make good permalinks, use links and add missing links. Don't anchor links with `[here]` or `[click here]`; [linking relevant words is better for accessibility](https://granicus.com/blog/why-click-here-links-are-bad/) and better for SEO.
 
 ### What would Mister Rogers say?
 
@@ -1029,7 +1031,11 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 ### Headings and titles
 
-Headings and titles should give an accurate idea of a topic's content and help guide readers through your writing so they can quickly find what they need.
+Headings and titles should:
+
+- Give an accurate idea of a topic's content.
+- Help guide readers through your writing so they can quickly find what they need.
+- [Make good permalinks](https://fleetdm.com/handbook/company/communications#use-links-in-your-writing).
 
 #### Static headings
 
