@@ -439,6 +439,8 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 		return nil, errors.New("target is required")
 	}
 
+	fmt.Printf("u.opt.RootDirectory: %v\n", u.opt.RootDirectory)
+
 	localTarget, err := u.localTarget(target)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load local path for target %s: %w", target, err)
@@ -528,18 +530,18 @@ func (u *Updater) download(target, repoPath, localPath string, customCheckExec f
 		return err
 	}
 
+	downloadFilePath := filepath.Join(staging, filepath.Base(localPath))
+	fmt.Printf("downloadFilePath: %v\n", downloadFilePath)
+
 	tmp, err := secure.OpenFile(
-		filepath.Join(staging, filepath.Base(localPath)),
+		downloadFilePath,
 		os.O_CREATE|os.O_WRONLY,
 		constant.DefaultExecutableMode,
 	)
 	if err != nil {
 		return fmt.Errorf("open temp file for download: %w", err)
 	}
-	defer func() {
-		tmp.Close()
-		os.Remove(tmp.Name())
-	}()
+
 	if err := platform.ChmodExecutable(tmp.Name()); err != nil {
 		return fmt.Errorf("chmod download: %w", err)
 	}

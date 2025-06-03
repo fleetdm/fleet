@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -173,12 +174,51 @@ func (u UpdatesData) String() string {
 	)
 }
 
+func CacheDirectory() (string, error) {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", fmt.Errorf("getting cache directory: %w", err)
+	}
+
+	cacheDir = filepath.Join(cacheDir, "fleetdm", "packaging")
+
+	if err := os.MkdirAll(cacheDir, os.ModePerm); err != nil {
+		return "", fmt.Errorf("creating cache directory: %w", err)
+	}
+
+	return cacheDir, nil
+}
+
+func CopyCacheToPackage(cacheDir, cachedFile, rootDir string) error {
+	packagePath := strings.TrimPrefix(cachedFile, cacheDir)
+	packageFile := filepath.Join(rootDir, packagePath)
+
+	if err := os.MkdirAll(filepath.Dir(packageFile), os.ModePerm); err != nil {
+		return fmt.Errorf("creating package directory for cache copy: %w", err)
+	}
+
+	if err := os.Link(cachedFile, packageFile); err != nil {
+		return fmt.Errorf("linking cached file into package directory: %w", err)
+	}
+
+	return nil
+}
+
 func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
-	localStore, err := filestore.New(filepath.Join(updateOpt.RootDirectory, update.MetadataFileName))
+	cacheDir, err := CacheDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("creating package cache: %w", err)
+	}
+
+	localStore, err := filestore.New(filepath.Join(cacheDir, update.MetadataFileName))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create local metadata store: %w", err)
 	}
 	updateOpt.LocalStore = localStore
+	// Download TUF binaries to cache directory
+	// The options struct is copied by value, so this override is only in this function
+	originalUpdateRootDirectory := updateOpt.RootDirectory
+	updateOpt.RootDirectory = cacheDir
 
 	updater, err := update.NewUpdater(updateOpt)
 	if err != nil {
@@ -193,6 +233,9 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to get %s: %w", constant.OsqueryTUFTargetName, err)
 	}
 	osquerydPath := osquerydLocalTarget.ExecPath
+	if err := CopyCacheToPackage(cacheDir, osquerydPath, originalUpdateRootDirectory); err != nil {
+		return nil, fmt.Errorf("failed to copy cached package file: %s: %w", osquerydPath, err)
+	}
 	osquerydMeta, err := updater.Lookup(constant.OsqueryTUFTargetName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %s metadata: %w", constant.OsqueryTUFTargetName, err)
@@ -210,6 +253,9 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to get %s: %w", constant.OrbitTUFTargetName, err)
 	}
 	orbitPath := orbitLocalTarget.ExecPath
+	if err := CopyCacheToPackage(cacheDir, orbitPath, originalUpdateRootDirectory); err != nil {
+		return nil, fmt.Errorf("failed to copy cached package file: %s: %w", orbitPath, err)
+	}
 	orbitMeta, err := updater.Lookup(constant.OrbitTUFTargetName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %s metadata: %w", constant.OrbitTUFTargetName, err)
@@ -229,6 +275,9 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 			return nil, fmt.Errorf("failed to get %s: %w", constant.DesktopTUFTargetName, err)
 		}
 		desktopPath = desktopLocalTarget.ExecPath
+		if err := CopyCacheToPackage(cacheDir, desktopPath, originalUpdateRootDirectory); err != nil {
+			return nil, fmt.Errorf("failed to copy cached package file: %s: %w", desktopPath, err)
+		}
 		desktopMeta, err := updater.Lookup(constant.DesktopTUFTargetName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get %s metadata: %w", constant.DesktopTUFTargetName, err)
