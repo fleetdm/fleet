@@ -47,6 +47,7 @@ const SearchField = ({
         position="top"
         showArrow
         underline={false}
+        tooltipClass={`${baseClass}__tooltip-text`}
         className={`${baseClass}__tooltip-container`}
       >
         <InputFieldWithIcon

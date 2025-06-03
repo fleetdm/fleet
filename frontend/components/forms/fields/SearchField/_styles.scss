@@ -6,6 +6,10 @@
     display: block;
   }
 
+  &__tooltip-text {
+    text-align: center;
+  }
+
   &__input-wrapper.form-field {
     margin-bottom: 0;
   }
