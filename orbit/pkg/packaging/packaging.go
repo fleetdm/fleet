@@ -299,6 +299,10 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to create %s copy: %w", oldMetadataPath, err)
 	}
 
+	if err := CopyCacheToPackage(cacheDir, newMetadataPath, originalUpdateRootDirectory); err != nil {
+		return nil, fmt.Errorf("failed to copy cached package file: %s: %w", osquerydPath, err)
+	}
+
 	return &UpdatesData{
 		OrbitPath:    orbitPath,
 		OrbitVersion: orbitCustom.Version,
