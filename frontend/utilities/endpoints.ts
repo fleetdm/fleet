@@ -1,3 +1,5 @@
+import { FleetdPackageLinux } from "services/entities/fleetd_package";
+
 const API_VERSION = "latest";
 
 export default {
@@ -282,4 +284,7 @@ export default {
   CONFIG_PROFILE_STATUS: (uuid: string) =>
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
+
+  // fleetd package
+  FLEETD_PACKAGE: `/${API_VERSION}/fleet/fleetd/linux`,
 };

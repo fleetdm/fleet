@@ -1,6 +1,10 @@
-import React, { useContext, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import FileSaver from "file-saver";
+
+import fleetdPackageAPI, {
+  FleetdPackageLinux,
+} from "services/entities/fleetd_package";
 
 import { NotificationContext } from "context/notification";
 import { IConfig } from "interfaces/config";
@@ -82,8 +86,10 @@ const PlatformWrapper = ({
     "workstation"
   );
   const [archType, setArchType] = useState<"amd64" | "arm64">("amd64");
+  const [pkgType, setPkgType] = useState<FleetdPackageLinux>("deb");
   const [showPlainOsquery, setShowPlainOsquery] = useState(false);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0); // External link requires control in state
+  const [isLoadingFleetdPkg, setIsLoadingFleetdPkg] = useState(false);
 
   let tlsHostname = config?.server_settings.server_url || "";
 
@@ -462,9 +468,19 @@ const PlatformWrapper = ({
         </>
       );
     }
-    const onDownloadFleetdLinuxPackage = useCallback(async () => {
-      // Jacob please help me.
-    }, [renderFlash, softwareId, name, teamId]);
+    const onDownloadFleetdLinuxPackage = async () => {
+      setIsLoadingFleetdPkg(true);
+      try {
+        const content = await fleetdPackageAPI.load(pkgType);
+        const filename = `fleet-osquery.${pkgType}`;
+        const file = new File([content], filename);
+        FileSaver.saveAs(file);
+      } catch {
+        renderFlash("error", "Couldn't download. Please try again.");
+      } finally {
+        setIsLoadingFleetdPkg(false);
+      }
+    };
 
     return (
       // "form" className applies the global form styling
@@ -494,30 +510,59 @@ const PlatformWrapper = ({
                   onChange={() => setHostType("server")}
                 />
               </div>
-              <div className="form-field__label">Package options</div>
-              <Radio
-                className={`${baseClass}__radio-input`}
-                label="amd64"
-                id="amd64-type"
-                checked={archType === "amd64"}
-                value="amd64"
-                name="arch-type"
-                onChange={() => setArchType("amd64")}
-              />
-              <Radio
-                className={`${baseClass}__radio-input`}
-                label="arm64"
-                id="arm64-type"
-                checked={archType === "arm64"}
-                value="arm64"
-                name="arm64"
-                onChange={() => setArchType("arm64")}
-              />
+              <div className="form-field">
+                <div className="form-field__label">Package type</div>
+                <Radio
+                  className={`${baseClass}__radio-input`}
+                  label="deb"
+                  id="deb-type"
+                  checked={pkgType === "deb"}
+                  value="deb"
+                  name="pkg-type"
+                  onChange={() => setPkgType("deb")}
+                />
+                <Radio
+                  className={`${baseClass}__radio-input`}
+                  label="rpm"
+                  id="rpm-type"
+                  checked={pkgType === "rpm"}
+                  value="rpm"
+                  name="pkg-type"
+                  onChange={() => setPkgType("rpm")}
+                />
+              </div>
+              <div className="form-field">
+                <div className="form-field__label">Package options</div>
+                <Radio
+                  className={`${baseClass}__radio-input`}
+                  label="amd64"
+                  id="amd64-type"
+                  checked={archType === "amd64"}
+                  value="amd64"
+                  name="arch-type"
+                  onChange={() => setArchType("amd64")}
+                />
+                <Radio
+                  className={`${baseClass}__radio-input`}
+                  label="arm64"
+                  id="arm64-type"
+                  checked={archType === "arm64"}
+                  value="arm64"
+                  name="arch-type"
+                  onChange={() => setArchType("arm64")}
+                />
+              </div>
             </div>
           )}
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onDownloadFleetdLinuxPackage}>Download</Button>
+          <Button
+            onClick={onDownloadFleetdLinuxPackage}
+            isLoading={isLoadingFleetdPkg}
+            disabled={isLoadingFleetdPkg}
+          >
+            Download
+          </Button>
         </div>
       </div>
     );
