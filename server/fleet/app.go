@@ -1225,6 +1225,7 @@ type ListQueryOptions struct {
 
 type ListActivitiesOptions struct {
 	ListOptions
+	ActivityType   string `query:"activity_type,optional"`
 	StartCreatedAt string `query:"start_created_at,optional"`
 	EndCreatedAt   string `query:"end_created_at,optional"`
 	Streamed       *bool

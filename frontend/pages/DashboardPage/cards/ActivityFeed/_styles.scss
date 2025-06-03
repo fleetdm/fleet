@@ -67,6 +67,12 @@
     align-items: center;
     gap: $pad-small;
 
+
+
+  }
+
+  // want to  limit the height of the dropdown menu for the activty type filter
+  &__type-filter-dropdown {
     .actions-dropdown-select__menu > * {
       max-height: 250px ;
       overflow-y: auto;

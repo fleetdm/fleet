@@ -46,7 +46,7 @@ export default {
     orderDirection = ORDER_DIRECTION,
     startDate = "",
     endDate = "",
-    typeFilter = []
+    typeFilter = [""]
   ): Promise<IActivitiesResponse> => {
     const { ACTIVITIES } = endpoints;
 
@@ -58,7 +58,7 @@ export default {
       query: searchQuery,
       start_created_at: startDate,
       end_created_at: endDate,
-      activity_type: typeFilter?.[0] || "",
+      activity_type: typeFilter[0],
     };
 
     const queryString = buildQueryStringFromParams(queryParams);

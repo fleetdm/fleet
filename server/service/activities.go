@@ -25,6 +25,7 @@ import (
 
 type listActivitiesRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
+	ActivityType   string            `query:"activity_type,optional"`
 	StartCreatedAt string            `query:"start_created_at,optional"`
 	EndCreatedAt   string            `query:"end_created_at,optional"`
 }
@@ -41,6 +42,7 @@ func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.
 	req := request.(*listActivitiesRequest)
 	activities, metadata, err := svc.ListActivities(ctx, fleet.ListActivitiesOptions{
 		ListOptions:    req.ListOptions,
+		ActivityType:   req.ActivityType,
 		StartCreatedAt: req.StartCreatedAt,
 		EndCreatedAt:   req.EndCreatedAt,
 	})
