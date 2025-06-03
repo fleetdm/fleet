@@ -4,6 +4,7 @@
   flex-direction: column;
   position: relative;
   min-height: 500px;
+  gap: $pad-large;
 
   &__header-wrap {
     .form-field {
