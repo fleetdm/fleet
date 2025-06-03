@@ -19,9 +19,14 @@ import (
 
 func (ds *Datastore) CreateHostLifecycleEvent(ctx context.Context, event *fleet.HostLifecycleEvent) (*fleet.HostLifecycleEvent, error) {
 	createStmt := `INSERT INTO host_lifecycle_events (host_serial, host_uuid, host_id, event_type, activity_id) VALUES (?, ?, ?, ?, ?)`
-	_, err := ds.writer(ctx).ExecContext(ctx, createStmt, event.HostSerial, event.HostUUID, event.HostID, event.EventType, event.ActivityID)
+	res, err := ds.writer(ctx).ExecContext(ctx, createStmt, event.HostSerial, event.HostUUID, event.HostID, event.EventType, event.ActivityID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting host lifecycle event")
 	}
-	return nil, nil
+	eventID, err := res.LastInsertId()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting last insert id for host lifecycle event")
+	}
+	event.ID = uint(eventID)
+	return event, nil
 }
