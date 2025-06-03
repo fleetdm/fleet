@@ -176,6 +176,7 @@ export default {
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
   MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
+  MANAGE_LABELS: `${URL_PREFIX}/labels`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
   NEW_QUERY: `${URL_PREFIX}/queries/new`,

@@ -1,0 +1,44 @@
+.manage-labels-page {
+  &__wrapper {
+    padding: 20px;
+  }
+
+  &__header-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+  }
+
+  &__text {
+    margin-right: 16px;
+  }
+
+  &__title {
+    h1 {
+      margin: 0;
+    }
+  }
+
+  &__description {
+    margin-bottom: 24px;
+  }
+
+  &__action-button-container {
+    display: flex;
+    align-items: center;
+  }
+
+  &__table-placeholder {
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    padding: 40px;
+    text-align: center;
+    color: #666;
+  }
+}
