@@ -194,7 +194,7 @@ module.exports = {
       //     `\n`+
       //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
       //     `\n`+
-      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //     `For help with questions about Sails, see the [Sails support page](http://sailsjs.com/support).\n`;
       //   }
       // }
       // // Now that we know what to say, add our comment.
