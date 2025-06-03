@@ -1151,6 +1151,9 @@ type Service interface {
 	// GetScriptResult returns the result of a script run
 	GetScriptResult(ctx context.Context, execID string) (*HostScriptResult, error)
 
+	// GetSelfServiceUninstallScriptResult returns the result of a script run if it's a self-service uninstall for the specified host
+	GetSelfServiceUninstallScriptResult(ctx context.Context, host *Host, execID string) (*HostScriptResult, error)
+
 	// NewScript creates a new (saved) script with its content provided by the
 	// io.Reader r.
 	NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*Script, error)

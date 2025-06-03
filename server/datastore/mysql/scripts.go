@@ -230,7 +230,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 
 		if n, _ := res.RowsAffected(); n > 0 {
 			// it did update, so return the updated result
-			hsr, err = ds.getHostScriptExecutionResultDB(ctx, tx, result.ExecutionID, true)
+			hsr, err = ds.getHostScriptExecutionResultDB(ctx, tx, result.ExecutionID, scriptExecutionSearchOpts{IncludeCanceled: true})
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "load updated host script result")
 			}
@@ -351,15 +351,35 @@ func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint,
 	return len(results) > 0, nil
 }
 
-func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID, false)
+type scriptExecutionSearchOpts struct {
+	IncludeCanceled            bool
+	SelfServiceUninstallHostID uint
 }
 
-func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string, includeCanceled bool) (*fleet.HostScriptResult, error) {
+func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID, scriptExecutionSearchOpts{})
+}
+
+func (ds *Datastore) GetSelfServiceUninstallScriptExecutionResult(ctx context.Context, execID string, hostID uint) (*fleet.HostScriptResult, error) {
+	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID, scriptExecutionSearchOpts{SelfServiceUninstallHostID: hostID})
+}
+
+func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string, opts scriptExecutionSearchOpts) (*fleet.HostScriptResult, error) {
+	var activeParams []any
+
 	canceledCondition := ""
-	if !includeCanceled {
+	if !opts.IncludeCanceled {
 		canceledCondition = " AND hsr.canceled = 0"
 	}
+
+	uninstallCondition := ""
+	if opts.SelfServiceUninstallHostID > 0 {
+		uninstallCondition = `JOIN host_software_installs hsi ON hsi.execution_id = hsr.execution_id
+			AND hsi.uninstall = TRUE AND hsi.self_service = TRUE AND hsr.host_id = ?`
+		activeParams = append(activeParams, opts.SelfServiceUninstallHostID)
+	}
+
+	activeParams = append(activeParams, execID)
 
 	getActiveStmt := fmt.Sprintf(`
 	SELECT
@@ -383,12 +403,14 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		host_script_results hsr
 	JOIN
 		script_contents sc
+	%s
 	WHERE
 		hsr.execution_id = ? AND
 		hsr.script_content_id = sc.id
 		%s
-`, canceledCondition)
+`, uninstallCondition, canceledCondition)
 
+	// We don't include upcoming uninstall script executions in results (different activity type, and they're blank anyway)
 	const getUpcomingStmt = `
 	SELECT
 		0 as id,
@@ -420,7 +442,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 `
 
 	var result fleet.HostScriptResult
-	if err := sqlx.GetContext(ctx, q, &result, getActiveStmt, execID); err != nil {
+	if err := sqlx.GetContext(ctx, q, &result, getActiveStmt, activeParams...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// try with upcoming activities
 			err = sqlx.GetContext(ctx, q, &result, getUpcomingStmt, execID)
@@ -1365,7 +1387,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 	case "windows", "linux":
 		// lock and unlock references are scripts
 		if mdmActions.LockRef != nil {
-			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef, true)
+			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference script result")
 			}
@@ -1373,7 +1395,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		}
 
 		if mdmActions.UnlockRef != nil {
-			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef, true)
+			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get unlock reference script result")
 			}
@@ -1390,7 +1412,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				status.WipeMDMCommand = cmd
 				status.WipeMDMCommandResult = cmdRes
 			} else {
-				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef, true)
+				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef, scriptExecutionSearchOpts{IncludeCanceled: true})
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get wipe reference script result")
 				}

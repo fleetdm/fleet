@@ -1710,6 +1710,12 @@ type Datastore interface {
 	// received, it is the caller's responsibility to check if that was the case
 	// (with ExitCode being null).
 	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
+	// GetSelfServiceUninstallScriptExecutionResult returns the result of a host script
+	// execution if it was for the specified host and the script was for a self-service uninstall.
+	// It returns the host script results if no results have been received as long as the script
+	// has been activated in the unified queue (will return Not Found if the execution is still in
+	// upcoming_activities). It is the caller's responsibility to check if ExitCode is null.
+	GetSelfServiceUninstallScriptExecutionResult(ctx context.Context, execID string, hostID uint) (*HostScriptResult, error)
 	// ListPendingHostScriptExecutions returns all the pending host script executions, which are those that have yet
 	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
 	// globally disabled (uninstall/lock/unlock/wipe).

@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -382,8 +383,35 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		return getScriptResultResponse{Err: err}, nil
 	}
 
-	// TODO: move this logic out of the endpoint function and consolidate in either the service
-	// method or the fleet package
+	return setUpGetScriptResultResponse(scriptResult), nil
+}
+
+type getDeviceSoftwareUninstallResultsRequest struct {
+	Token       string `url:"token"`
+	ExecutionID string `url:"execution_id"`
+}
+
+func (r *getDeviceSoftwareUninstallResultsRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func getDeviceSoftwareUninstallResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getSoftwareInstallResultsResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceSoftwareUninstallResultsRequest)
+	scriptResult, err := svc.GetSelfServiceUninstallScriptResult(ctx, host, req.ExecutionID)
+	if err != nil {
+		return getScriptResultResponse{Err: err}, nil
+	}
+
+	return setUpGetScriptResultResponse(scriptResult), nil
+}
+
+func setUpGetScriptResultResponse(scriptResult *fleet.HostScriptResult) *getScriptResultResponse {
 	hostTimeout := scriptResult.HostTimeout(scripts.MaxServerWaitTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout, scriptResult.Timeout)
 
@@ -399,7 +427,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		ExecutionID:    scriptResult.ExecutionID,
 		Runtime:        scriptResult.Runtime,
 		CreatedAt:      scriptResult.CreatedAt,
-	}, nil
+	}
 }
 
 func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
@@ -438,6 +466,18 @@ func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.
 			return nil, err
 		}
 	}
+
+	return scriptResult, nil
+}
+
+func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, host *fleet.Host, execID string) (*fleet.HostScriptResult, error) {
+	scriptResult, err := svc.ds.GetSelfServiceUninstallScriptExecutionResult(ctx, execID, host.ID)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get script result")
+	}
+
+	scriptResult.Hostname = host.DisplayName()
 
 	return scriptResult, nil
 }

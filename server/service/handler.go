@@ -826,6 +826,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	).GET("/api/_version_/fleet/device/{token}/software/install/{install_uuid}/results", getDeviceSoftwareInstallResultsEndpoint,
 		getDeviceSoftwareInstallResultsRequest{})
 	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_software_uninstall_results", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/software/uninstall/{execution_id}/results", getDeviceSoftwareUninstallResultsEndpoint, getDeviceSoftwareUninstallResultsRequest{})
+	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_certificates", desktopQuota),
 	).GET("/api/_version_/fleet/device/{token}/certificates", listDeviceCertificatesEndpoint, listDeviceCertificatesRequest{})
 
