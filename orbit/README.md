@@ -58,7 +58,7 @@ go build \
 
 ## Bugs
 
-To report a bug or request a feature, [click here](https://github.com/fleetdm/fleet/issues).
+To report a bug or request a feature, [create an issue in the `fleet` GitHub repository](https://github.com/fleetdm/fleet/issues).
 
 ## Orbit Development
 
