@@ -1017,9 +1017,10 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText((content, node) => {
+        console.log(node?.innerHTML);
         return (
           node?.innerHTML ===
-          "<b>Test User </b>An end user turned on MDM features on<b> Test Host</b> (serial number <b>ABCD</b>)."
+          "<b>Test User </b>An end user turned on MDM features on <b>Test Host</b> (serial number <b>ABCD</b>)."
         );
       })
     ).toBeInTheDocument();
