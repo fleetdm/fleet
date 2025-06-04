@@ -2538,6 +2538,10 @@ func (a ActivityTypeStartedMDMSetup) Documentation() (activity string, details s
 }`
 }
 
+func (a ActivityTypeStartedMDMSetup) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeCompletedMDMSetup struct {
 	HostID          uint   `json:"host_id"`
 	HostSerial      string `json:"host_serial"`
@@ -2561,6 +2565,10 @@ func (a ActivityTypeCompletedMDMSetup) Documentation() (activity string, details
   "host_display_name": "Anna's MacBook Pro",
   "host_platform": "darwin"
 }`
+}
+
+func (a ActivityTypeCompletedMDMSetup) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 type ActivityTypeStartedMDMMigration struct {
@@ -2588,6 +2596,10 @@ func (a ActivityTypeStartedMDMMigration) Documentation() (activity string, detai
 }`
 }
 
+func (a ActivityTypeStartedMDMMigration) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 type ActivityTypeCompletedMDMMigration struct {
 	HostID          uint   `json:"host_id"`
 	HostSerial      string `json:"host_serial"`
@@ -2611,4 +2623,8 @@ func (a ActivityTypeCompletedMDMMigration) Documentation() (activity string, det
   "host_display_name": "Anna's MacBook Pro",
   "host_platform": "darwin"
 }`
+}
+
+func (a ActivityTypeCompletedMDMMigration) HostIDs() []uint {
+	return []uint{a.HostID}
 }
