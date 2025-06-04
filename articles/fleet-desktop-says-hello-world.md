@@ -29,7 +29,7 @@ This page explains what Fleet and osquery can and cannot see on their computers.
 Fleet Premium users can point this link to an internal resource to customize the content for their organization’s situation.
 
 ## Deploying Fleet Desktop
-To install Fleet Desktop on your end users' machines, you will need to generate a new osquery installer and run it on end users’ machines. Learn more [here](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop). 
+To install Fleet Desktop on your end users' machines, you will need to [generate a new osquery installer](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop) and run it on end users’ machines.
 
 Once installed, Fleet Desktop’s versioning is thereafter managed by our agent manager, Orbit.
 
