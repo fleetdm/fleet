@@ -63,8 +63,8 @@ controls:
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
-      - path: ../lib/macos/declaration-profiles/passcode-settings.json
-      - path: ../lib/macos/declaration-profiles/software-update-settings.json
+      - path: ../lib/macos/declaration-profiles/Passcode settings.json
+      - path: ../lib/macos/declaration-profiles/Software Update settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
@@ -81,7 +81,12 @@ controls:
     deadline: "2025-06-08"
     minimum_version: "15.5"
   windows_settings:
-    custom_settings: null
+    custom_settings:
+      - path: ../lib/windows/configuration-profiles/Enable firewall.xml
+      - path: ../lib/windows/configuration-profiles/Password settings.xml
+      - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
+      - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
+      - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
