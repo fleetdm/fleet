@@ -1586,10 +1586,12 @@ var baseStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("240"))
 
 type model struct {
-	table        table.Model
-	textInput    textinput.Model
-	currIndex    int
-	editingTitle bool
+	table         table.Model
+	textInput     textinput.Model
+	currIndex     int
+	editingTitle  bool
+	altScreen     bool
+	altScreenText string
 }
 
 func (m model) Init() tea.Cmd {
@@ -1598,6 +1600,7 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd, c tea.Cmd
+
 	if m.editingTitle == true {
 
 		switch msg := msg.(type) {
@@ -1629,8 +1632,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		case "enter":
+			if !m.editingTitle {
+				m.altScreen = !m.altScreen
+			}
+			cm := tea.EnterAltScreen
+			if !m.altScreen {
+				cm = tea.ExitAltScreen
+			}
+
+			if m.altScreen {
+				m.altScreenText = fmt.Sprintf("\n\nResult:\n%s\n", m.table.SelectedRow()[len(m.table.Columns())-1])
+			}
 			return m, tea.Batch(
-				tea.Printf("Result:\n%s\n", m.table.SelectedRow()[len(m.table.Columns())-1]),
+				cm,
+				// tea.Printf("\n\nResult:\n%s\n", m.table.SelectedRow()[len(m.table.Columns())-1]),
 			)
 		case tea.KeyLeft.String():
 			m.currIndex--
@@ -1638,8 +1653,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currIndex = 0
 			}
 		case "p":
+
+			if !m.editingTitle {
+				m.altScreen = !m.altScreen
+			}
+			cm := tea.EnterAltScreen
+			if !m.altScreen {
+				cm = tea.ExitAltScreen
+			}
+
+			if m.altScreen {
+				m.altScreenText = fmt.Sprintf("\n\nCommand payload: \n%s\n", m.table.SelectedRow()[len(m.table.Columns())-2])
+			}
+
 			return m, tea.Batch(
-				tea.Printf("Command payload: \n%s\n", m.table.SelectedRow()[len(m.table.Columns())-2]),
+				cm,
 			)
 		case "s":
 			m.editingTitle = true
@@ -1651,6 +1679,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	if m.altScreen {
+		return m.altScreenText
+	}
+
 	if m.editingTitle == false {
 		return baseStyle.Render(m.table.View())
 	}
@@ -1662,6 +1694,8 @@ func printTableWithBubbleTea(c *cli.Context, columns []string, data [][]string) 
 	for _, c := range columns {
 		btCols = append(btCols, table.Column{Title: c, Width: len(c) + 20})
 	}
+
+	btCols[0].Width += 20
 
 	var btRows []table.Row
 	for _, d := range data {
@@ -1687,7 +1721,7 @@ func printTableWithBubbleTea(c *cli.Context, columns []string, data [][]string) 
 		Bold(false)
 	t.SetStyles(s)
 
-	m := model{t, textinput.New(), 0, false}
+	m := model{t, textinput.New(), 0, false, false, ""}
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)

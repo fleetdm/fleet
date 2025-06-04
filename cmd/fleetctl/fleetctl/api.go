@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/fleetdm/fleet/v4/server/version"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
 )
@@ -65,24 +64,24 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	fleetClient.SetToken(token)
 
 	// Check if version matches fleet server. Also ensures that the token is valid.
-	clientInfo := version.Version()
+	// clientInfo := version.Version()
 
-	serverInfo, err := fleetClient.Version()
-	if err != nil {
-		if errors.Is(err, service.ErrUnauthenticated) {
-			fmt.Fprintln(os.Stderr, "Token invalid or session expired. Please log in with: fleetctl login")
-		}
-		return nil, err
-	}
+	// serverInfo, err := fleetClient.Version()
+	// if err != nil {
+	// 	if errors.Is(err, service.ErrUnauthenticated) {
+	// 		fmt.Fprintln(os.Stderr, "Token invalid or session expired. Please log in with: fleetctl login")
+	// 	}
+	// 	return nil, err
+	// }
 
-	if clientInfo.Version != serverInfo.Version {
-		fmt.Fprintf(
-			os.Stderr,
-			"Warning: Version mismatch.\nClient Version:   %s\nServer Version:  %s\n",
-			clientInfo.Version, serverInfo.Version,
-		)
-		// This is just a warning, continue ...
-	}
+	// if clientInfo.Version != serverInfo.Version {
+	// 	fmt.Fprintf(
+	// 		os.Stderr,
+	// 		"Warning: Version mismatch.\nClient Version:   %s\nServer Version:  %s\n",
+	// 		clientInfo.Version, serverInfo.Version,
+	// 	)
+	// 	// This is just a warning, continue ...
+	// }
 
 	// check that AppConfig's Apple BM terms are not expired.
 	var sce kithttp.StatusCoder
