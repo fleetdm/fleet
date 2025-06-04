@@ -229,6 +229,21 @@ const ActionsDropdown = ({
         fontStyle: "italic",
       }),
     }),
+    input: (provided) => ({
+      ...provided,
+      color: COLORS["core-fleet-black"],
+      fontSize: "14px",
+      lineHeight: "normal",
+      margin: 0,
+    }),
+    noOptionsMessage: (provided) => ({
+      ...provided,
+      color: COLORS["core-fleet-black"],
+      fontSize: "14px",
+      lineHeight: "normal",
+      padding: "8px 12px",
+      minWidth: "175px",
+    }),
   };
 
   return (
@@ -254,6 +269,7 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
+        noOptionsMessage={() => "No activity types matched your search."}
         {...{ variant }} // Allows CustomDropdownIndicator to be blue for variant: "button"
       />
     </div>

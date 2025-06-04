@@ -91,6 +91,7 @@ const ActivityFeedFilters = ({
               });
               setPageIndex(0); // Reset to first page on sort change
             }}
+            isSearchable
           />
           <ActionsDropdown
             className={`${baseClass}__date-filter-dropdown`}
