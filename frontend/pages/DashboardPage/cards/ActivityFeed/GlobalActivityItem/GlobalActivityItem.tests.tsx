@@ -1036,7 +1036,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
+          "<b>Test User </b>MDM features were turned on for <b>ABCD</b>."
         );
       })
     ).toBeInTheDocument();
