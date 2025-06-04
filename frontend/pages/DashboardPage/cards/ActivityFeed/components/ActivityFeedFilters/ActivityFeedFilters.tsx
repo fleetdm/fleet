@@ -68,7 +68,7 @@ const ActivityFeedFilters = ({
   return (
     <div className={baseClass}>
       <SearchField
-        placeholder="Search activities by user's name or email..."
+        placeholder="Search activities by user's name or email"
         defaultValue={searchQuery}
         onChange={(value) => {
           setSearchQuery(value);
