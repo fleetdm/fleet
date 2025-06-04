@@ -950,7 +950,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 Don’t duplicate content. Link to existing places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. Linking to existing material when something comes up is a gentle way to remind and train using the foundation we've already built.
 
-Create headings that make good permalinks, use links and add missing links. Don't anchor links with `[here]` or `[click here]`; [linking relevant words is better for accessibility](https://granicus.com/blog/why-click-here-links-are-bad/) and better for SEO.
+Create headings that make good permalinks, use links and add missing links. Don't anchor links with "here" or "click here"; [linking relevant words is better for accessibility](https://granicus.com/blog/why-click-here-links-are-bad/) and better for SEO.
 
 ### What would Mister Rogers say?
 
