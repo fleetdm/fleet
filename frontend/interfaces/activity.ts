@@ -261,8 +261,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   changed_user_global_role: "Edited user's role - global",
   changed_user_team_role: "Edited user's role - team",
   created_declaration_profile: "Added declaration (DDM) profile",
-  created_macos_profile:
-    "Added configuration profile - Apple (macOS, iOS, iPadOS)",
+  created_macos_profile: "Added configuration profile - Apple",
   created_pack: "Created pack",
   created_policy: "Created policy",
   created_saved_query: "Added query",
@@ -276,8 +275,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   deleted_custom_scep_proxy: "Deleted certificate authority (CA) - custom SCEP",
   deleted_declaration_profile: "Deleted declaration (DDM) profile",
   deleted_digicert: "Deleted certificate authority (CA) - DigiCert",
-  deleted_macos_profile:
-    "Deleted configuration profile - Apple (macOS, iOS, iPadOS)",
+  deleted_macos_profile: "Deleted configuration profile - Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_multiple_saved_query: "Bulk deleted queries",
   deleted_ndes_scep_proxy: "Deleted certificate authority (CA) - NDES",
@@ -312,8 +310,7 @@ export const ACTIVITY_DISPLAY_NAME_MAP: Record<ActivityType, string> = {
   edited_ios_min_version: "OS updates - edited iOS",
   edited_ipados_min_version: "OS updates - edited iPadOS",
   edited_macos_min_version: "OS updates - edited macOS",
-  edited_macos_profile:
-    "GitOps - edited configuration profiles - Apple (macOS, iOS, iPadOS)",
+  edited_macos_profile: "GitOps - edited configuration profiles - Apple",
   edited_ndes_scep_proxy: "Edited certificate authority (CA) - NDES",
   edited_pack: "Edited pack",
   edited_policy: "Edited policy",
