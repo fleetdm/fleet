@@ -262,6 +262,7 @@ const PlatformWrapper = ({
     );
   };
 
+
   const renderPanel = (packageType: string) => {
     const CHROME_OS_INFO = {
       extensionId: "fleeedmmihkfkeemmipgmhhjemlljidg",
@@ -586,6 +587,16 @@ const PlatformWrapper = ({
               Download
             </Button>
           </div>
+          <InputField
+            readOnly
+            inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
+            name="installer-linux"
+            enableCopy
+            label={renderLabel(packageType)}
+            type="textarea"
+            value={renderInstallerString(packageType)}
+            helpText={packageTypeHelpText}
+          />
         </div>
       );
     }
