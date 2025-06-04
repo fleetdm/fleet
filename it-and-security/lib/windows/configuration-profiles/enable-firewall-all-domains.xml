@@ -1,5 +1,6 @@
 <Replace>
-  <!-- Enable Firewall for Domain Profile -->     
+  <!-- Enable Firewall for Domain Profile -->
+  <CmdID>1</CmdID> 
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">bool</Format>
@@ -11,7 +12,8 @@
   </Item>
 </Replace>
 <Replace>
-  <!-- Disable ability for user to override at domain level  -->   
+  <!-- Disable ability for user to override at domain level  -->
+  <CmdID>2</CmdID>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">bool</Format>
@@ -23,7 +25,8 @@
   </Item>
 </Replace>
 <Replace>
-  <!-- Enable Firewall for Private Profile -->     
+  <!-- Enable Firewall for Private Profile -->   
+  <CmdID>3</CmdID>  
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">bool</Format>
@@ -36,6 +39,7 @@
 </Replace>
 <Replace>  
   <!-- Disable ability for user to override at private profile level  -->  
+  <CmdID>4</CmdID>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">bool</Format>
@@ -47,7 +51,8 @@
   </Item>
 </Replace>
 <Replace>
-  <!-- Enable Firewall for Public Profile -->     
+  <!-- Enable Firewall for Public Profile -->    
+  <CmdID>5</CmdID> 
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">bool</Format>
@@ -60,6 +65,7 @@
 </Replace>
 <Replace>
   <!-- Disable ability for user to override at public profile level  -->    
+  <CmdID>6</CmdID>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">bool</Format>
