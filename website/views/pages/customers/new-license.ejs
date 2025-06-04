@@ -46,7 +46,7 @@
       <ajax-form :handle-submitting="handleSubmittingCheckoutForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="checkoutFormRules" v-if="!cloudError || cloudError === 'couldNotSaveBillingInfo' || cloudError === 'cardVerificationRequired'">
         <div class="form-group" purpose="self-hosted-checkbox">
           <input type="checkbox" id="self-hosted-acknowledgment"  v-model.trim="formData.selfHostedAcknowledgment" @input="clickClearOneFormError('selfHostedAcknowledgment')">
-          <label purpose="self-hosted-note" :class="[formErrors.selfHostedAcknowledgment ? 'is-invalid' : '']"  for="self-hosted-acknowledgment">I understand that managed cloud hosting is not available for less than 300 hosts. I will host Fleet myself.</label>
+          <label purpose="self-hosted-note" :class="[formErrors.selfHostedAcknowledgment ? 'is-invalid' : '']"  for="self-hosted-acknowledgment">I understand that managed cloud hosting is not available for less than 700 hosts. I will host Fleet myself.</label>
           <div class="invalid-feedback" v-if="formErrors.selfHostedAcknowledgment"><p>Please confirm that you will be hosting Fleet yourself.</p></div>
 
         </div>
