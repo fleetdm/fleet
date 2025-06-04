@@ -3,8 +3,8 @@ package snmp
 import (
 	"bufio"
 	"bytes"
-	"crypto/md5"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"os/exec"
@@ -119,14 +119,13 @@ func scanHost(ip, community string, results *[]SnmpHost, mu *sync.Mutex, wg *syn
 	}
 
 	hash := sha256.Sum256([]byte(osVal))
-	hashString := fmt.Sprintf("%x", hash)
-	id := md5.Sum([]byte(fmt.Sprintf("%s:%s", ip, hashString)))
+	hashString := hex.EncodeToString(hash[:])
 
 	info := SnmpHost{
 		IP:       ip,
 		Hostname: hostname,
 		OS:       osVal,
-		UUID:     string(id[:]),
+		UUID:     hashString,
 	}
 
 	mu.Lock()

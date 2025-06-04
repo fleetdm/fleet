@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/snmp"
 	"github.com/fleetdm/fleet/v4/server"
@@ -324,7 +325,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingSoftwareInstallerIDs = pendingInstalls
 	}
 
-	if host.RefetchRequested {
+	if host.RefetchRequested || host.DetailUpdatedAt.Before(time.Now().Add(-5*time.Second)) {
 		notifs.ScanNetwork = true
 	}
 

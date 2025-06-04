@@ -723,7 +723,7 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 
 func (oc *OrbitClient) SendSnmpHostsResponse(hosts []snmp.SnmpHost) error {
 	log.Debug().Any("hosts", hosts).Msg("Sending SNMP hosts response")
-	verb, path := "POST", "/api/hackathon/fleet/hosts/scanned"
+	verb, path := "POST", "/api/fleet/orbit/hosts/scanned"
 	var resp orbitPostSnmpHostsResponse
 	if err := oc.authenticatedRequest(verb, path, &orbitPostSnmpHostsRequest{
 		Hosts: hosts,

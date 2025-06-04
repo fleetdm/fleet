@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -3052,6 +3053,23 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 			return ctxerr.Wrap(ctx, err, "creating software for scanned host kernel")
 		}
 
+		err = svc.ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
+			Name:          Capitalize(f.Platform),
+			Arch:          f.Arch,
+			Version:       strings.TrimPrefix(f.PlatformVersion, "Ubuntu "),
+			KernelVersion: strings.TrimPrefix(f.PlatformVersion, "Ubuntu "),
+			Platform:      f.Platform,
+		})
+
 	}
 	return nil
+}
+
+func Capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	runes := []rune(s)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }

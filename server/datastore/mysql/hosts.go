@@ -64,7 +64,7 @@ func defaultHostColumnTableAlias(s string) string {
 func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		sqlStatement := `
-		INSERT INTO hosts (
+		INSERT IGNORE INTO hosts (
 			osquery_host_id,
 			detail_updated_at,
 			label_updated_at,
