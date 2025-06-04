@@ -4,14 +4,13 @@ import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
 import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
-import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 
 const baseClass = "install-status-cell";
 
-type IStatusValue = SoftwareInstallStatus | "avaiableForInstall";
+type IStatusValue = SoftwareInstallStatus;
 interface TootipArgs {
   softwareName?: string | null;
   // this field is used in My device > Self-service
@@ -20,18 +19,13 @@ interface TootipArgs {
 }
 
 export type IStatusDisplayConfig = {
-  iconName:
-    | "success"
-    | "pending-outline"
-    | "error"
-    | "install"
-    | "install-self-service";
+  iconName?: "success" | "pending-outline" | "error" | "install";
   displayText: string | JSX.Element;
   tooltip: (args: TootipArgs) => ReactNode;
 };
 
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
-  Exclude<IStatusValue, "uninstalled"> | "selfService",
+  Exclude<IStatusValue, "uninstalled">,
   IStatusDisplayConfig
 > = {
   installed: {
@@ -95,35 +89,22 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       </>
     ),
   },
-  avaiableForInstall: {
-    iconName: "install",
-    displayText: "Available for install",
-    tooltip: ({ softwareName, isAppStoreApp }) =>
-      isAppStoreApp ? (
-        <>
-          App Store app can be installed on the host. <br />
-          Select <b>Actions {">"} Install</b> to install.
-        </>
-      ) : (
-        <>
-          {softwareName ? <b>{softwareName}</b> : "Software"} can be installed
-          on the host.
-          <br /> Select <b>Actions &gt; Install</b> to install.
-        </>
-      ),
-  },
-  selfService: {
-    iconName: "install-self-service",
-    displayText: "Self-service",
-    tooltip: ({ softwareName }) => (
-      <>
-        {softwareName ? <b>{softwareName}</b> : "Software"} can be installed on
-        the host.
-        <br />
-        {SELF_SERVICE_TOOLTIP}
-      </>
-    ),
-  },
+  // avaiableForInstall: {
+  //   displayText: "---",
+  //   tooltip: ({ softwareName, isAppStoreApp }) =>
+  //     isAppStoreApp ? (
+  //       <>
+  //         App Store app can be installed on the host. <br />
+  //         Select <b>Actions {">"} Install</b> to install.
+  //       </>
+  //     ) : (
+  //       <>
+  //         {softwareName ? <b>{softwareName}</b> : "Software"} can be installed
+  //         on the host.
+  //         <br /> Select <b>Actions &gt; Install</b> to install.
+  //       </>
+  //     ),
+  // },
 };
 
 type IInstallStatusCellProps = Pick<IHostSoftware, "status"> &
@@ -135,19 +116,39 @@ const InstallStatusCell = ({
   app_store_app,
 }: IInstallStatusCellProps) => {
   // FIXME: Improve the way we handle polymophism of software_package and app_store_app
-  const hasPackage = !!software_package;
+  // const hasPackage = !!software_package;
   const hasAppStoreApp = !!app_store_app;
 
   let displayStatus: keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS;
 
   if (status !== null) {
     displayStatus = status;
-  } else if (software_package?.self_service || app_store_app?.self_service) {
-    displayStatus = "selfService";
-  } else if (hasPackage || hasAppStoreApp) {
-    displayStatus = "avaiableForInstall";
   } else {
-    return <TextCell value="---" grey italic />;
+    return (
+      <TextCell
+        value={undefined}
+        grey
+        italic
+        emptyCellTooltipText={
+          hasAppStoreApp ? (
+            <>
+              App Store app can be installed on the host. <br />
+              Select <b>Actions {">"} Install</b> to install.
+            </>
+          ) : (
+            <>
+              {software_package?.name ? (
+                <b>{software_package.name}</b>
+              ) : (
+                "Software"
+              )}{" "}
+              can be installed on the host.
+              <br /> Select <b>Actions &gt; Install</b> to install.
+            </>
+          )
+        }
+      />
+    );
   }
 
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
@@ -161,7 +162,7 @@ const InstallStatusCell = ({
         data-tip
         data-for={tooltipId}
       >
-        <Icon name={displayConfig.iconName} />{" "}
+        {displayConfig.iconName && <Icon name={displayConfig.iconName} />}
         <span>{displayConfig.displayText}</span>
       </div>
       <ReactTooltip

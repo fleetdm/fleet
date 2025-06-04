@@ -1,7 +1,13 @@
-.software-card {
+.host-software-library-card {
   .table-container {
     .stackable-header {
       min-width: initial; // Fix card overflow on low widths
+    }
+
+    .children-wrapper {
+      display: flex;
+      gap: $pad-small;
+      align-items: center;
     }
   }
 
@@ -27,7 +33,18 @@
     }
   }
 
-  .host-software-table {
+  &__item-actions {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-large;
+    align-items: center;
+  }
+
+  &__item-action {
+    min-width: 82px;
+  }
+
+  .host-sw-library-table {
     &__software-filter {
       min-width: 240px;
       width: 240px; // Override .form-field 100%
@@ -56,6 +73,7 @@
           .status__header {
             display: table-cell;
             width: auto;
+            min-width: 125px;
           }
           .Version__header {
             display: table-cell;
@@ -70,7 +88,7 @@
           }
           // this is called `id` only due to typing concerns in the table config – it is for the
           // "Actions" column
-          .id__header {
+          .Actions__header {
             width: px-to-rem(72);
           }
         }
@@ -93,6 +111,11 @@
             }
             .Vulnerabilities__cell {
               display: table-cell;
+            }
+
+            .Actions__cell {
+              display: table-cell;
+              display: flex;
             }
 
             // Very little real estate at 768px

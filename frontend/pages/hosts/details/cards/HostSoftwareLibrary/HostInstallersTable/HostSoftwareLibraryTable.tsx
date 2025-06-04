@@ -6,47 +6,22 @@ import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 import { getNextLocationPath } from "utilities/helpers";
 import { QueryParams } from "utilities/url";
 
-import {
-  buildSoftwareVulnFiltersQueryParams,
-  getVulnFilterRenderDetails,
-  IHostSoftwareDropdownFilterVal,
-  ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
-
-import {
-  ApplePlatform,
-  APPLE_PLATFORM_DISPLAY_NAMES,
-  HostPlatform,
-  isIPadOrIPhone,
-  isAndroid,
-} from "interfaces/platform";
+import { HostPlatform, isAndroid } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { SingleValue } from "react-select-5";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
-import { Row } from "react-table";
-import { IHostSoftware } from "interfaces/software";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import { SUPPORT_LINK } from "utilities/constants";
 
 const DEFAULT_PAGE_SIZE = 20;
 
-const baseClass = "host-software-table";
+const baseClass = "host-sw-library-table";
 
-interface IHostSoftwareRowProps extends Row {
-  original: IHostSoftware;
-}
-interface IHostSoftwareTableProps {
+interface IHostSoftwareLibraryTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
   platform: HostPlatform;
@@ -57,15 +32,9 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
-  routeTemplate?: string;
-  pathPrefix: string;
-  vulnFilters: ISoftwareVulnFiltersParams;
-  onAddFiltersClick: () => void;
-  isMyDevicePage?: boolean;
-  onShowSoftwareDetails: (software: IHostSoftware) => void;
 }
 
-const HostSoftwareTable = ({
+const HostSoftwareLibraryTable = ({
   tableConfig,
   data,
   platform,
@@ -76,52 +45,7 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
-  routeTemplate,
-  pathPrefix,
-  vulnFilters,
-  onAddFiltersClick,
-  isMyDevicePage,
-  onShowSoftwareDetails,
-}: IHostSoftwareTableProps) => {
-  const handleFilterDropdownChange = useCallback(
-    (selectedFilter: SingleValue<CustomOptionType>) => {
-      const newParams: QueryParams = {
-        query: searchQuery,
-        order_key: sortHeader,
-        order_direction: sortDirection,
-        page: 0,
-        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
-      };
-
-      if (selectedFilter?.value === "installableSoftware") {
-        newParams.available_for_install = true.toString();
-      }
-      const nextPath = getNextLocationPath({
-        pathPrefix,
-        routeTemplate,
-        queryParams: newParams,
-      });
-
-      const prevYScroll = window.scrollY;
-      setTimeout(() => {
-        window.scroll({
-          top: prevYScroll,
-          behavior: "smooth",
-        });
-      }, 0);
-      router.replace(nextPath);
-    },
-    [
-      pathPrefix,
-      routeTemplate,
-      router,
-      searchQuery,
-      sortDirection,
-      sortHeader,
-      vulnFilters,
-    ]
-  );
-
+}: IHostSoftwareLibraryTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -150,11 +74,11 @@ const HostSoftwareTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
-        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
+
       return newQueryParam;
     },
-    [vulnFilters]
+    []
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -193,63 +117,28 @@ const HostSoftwareTable = ({
   }, [count, isSoftwareNotDetected]);
 
   const memoizedEmptyComponent = useCallback(() => {
-    const vulnFilterAndNotSupported = isIPadOrIPhone(platform);
-    return vulnFilterAndNotSupported ? (
-      <VulnsNotSupported
-        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
-      />
-    ) : (
-      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
-    );
-  }, [platform, searchQuery]);
+    return <EmptySoftwareTable noSearchQuery={searchQuery === ""} />;
+  }, [searchQuery]);
 
   // Determines if a user should be able to filter or search in the table
   const hasData = data && data.software.length > 0;
   const hasQuery = searchQuery !== "";
-  const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
-  const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
-  const showFilterHeaders = hasData || hasQuery || hasVulnFilters;
-
-  const onClickMyDeviceRow = useCallback(
-    (row: IHostSoftwareRowProps) => {
-      onShowSoftwareDetails(row.original);
-    },
-    [onShowSoftwareDetails]
-  );
+  const showFilterHeaders = hasData || hasQuery;
 
   if (isAndroid(platform)) {
     return (
       <EmptyTable
-        header="Software is not supported for this host"
+        header="Installers are not supported for this host"
         info={
           <>
-            Interested in viewing software for Android hosts?{" "}
+            Interested in installing software on Android hosts?{" "}
             <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
           </>
         }
       />
     );
   }
-
-  const renderCustomFiltersButton = () => {
-    return (
-      <TooltipWrapper
-        className={`${baseClass}__filters`}
-        position="left"
-        underline={false}
-        showArrow
-        tipOffset={12}
-        tipContent={vulnFilterDetails.tooltipText}
-        disableTooltip={!hasVulnFilters}
-      >
-        <Button variant="text-link" onClick={onAddFiltersClick}>
-          <Icon name="filter" color="core-fleet-blue" />
-          <span>{vulnFilterDetails.buttonText}</span>
-        </Button>
-      </TooltipWrapper>
-    );
-  };
 
   return (
     <div className={baseClass}>
@@ -264,24 +153,18 @@ const HostSoftwareTable = ({
         pageIndex={page}
         disableNextPage={data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
-        inputPlaceHolder="Search by name or vulnerability (CVE)"
+        inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
-        customFiltersButton={
-          showFilterHeaders ? renderCustomFiltersButton : undefined
-        }
         stackControls
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
         manualSortBy
         keyboardSelectableRows
-        // my device page row clickability
-        disableMultiRowSelect={isMyDevicePage}
-        onClickRow={isMyDevicePage ? onClickMyDeviceRow : undefined}
       />
     </div>
   );
 };
 
-export default HostSoftwareTable;
+export default HostSoftwareLibraryTable;
