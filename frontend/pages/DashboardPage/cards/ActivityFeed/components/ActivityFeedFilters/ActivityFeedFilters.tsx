@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ActivityType } from "interfaces/activity";
+import { ACTIVITY_DISPLAY_NAME_MAP, ActivityType } from "interfaces/activity";
 
 import SearchField from "components/forms/fields/SearchField";
 import ActionsDropdown from "components/ActionsDropdown";
@@ -17,11 +17,13 @@ const DATE_FILTER_OPTIONS = [
   { label: "Last 12 months", value: "12m" },
 ];
 
+// Generate type filter options from ActivityType enum, sort them, and add
+// "All types" option at the beginning of the list
 const TYPE_FILTER_OPTIONS: { label: string; value: string }[] = Object.values(
   ActivityType
 )
   .map((type) => ({
-    label: type.replace(/_/gi, " ").toLowerCase(),
+    label: ACTIVITY_DISPLAY_NAME_MAP[type],
     value: type,
   }))
   .sort((a, b) => a.label.localeCompare(b.label));
@@ -59,8 +61,8 @@ const ActivityFeedFilters = ({
   setCreatedAtDirection,
   setPageIndex,
 }: ActivityFeedFiltersProps) => {
-  const generateTypeFilterLabel = (type: string) => {
-    return type ? type.replace(/_/g, " ") : "All types";
+  const generateTypeFilterLabel = (type: ActivityType) => {
+    return type ? ACTIVITY_DISPLAY_NAME_MAP[type] : "All types";
   };
 
   return (
@@ -79,11 +81,13 @@ const ActivityFeedFilters = ({
           <ActionsDropdown
             className={`${baseClass}__type-filter-dropdown`}
             options={TYPE_FILTER_OPTIONS}
-            placeholder={`Type: ${generateTypeFilterLabel(typeFilter[0])}`}
+            placeholder={`Type: ${generateTypeFilterLabel(
+              typeFilter[0] as ActivityType
+            )}`}
             onChange={(value: string) => {
               setTypeFilter((prev) => {
                 // TODO: multiple selections
-                return [value];
+                return [value as ActivityType];
               });
               setPageIndex(0); // Reset to first page on sort change
             }}
