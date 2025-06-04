@@ -27,30 +27,30 @@ type SnmpHost struct {
 
 func (sr *SnmpRunner) Run(oc *fleet.OrbitConfig) error {
 	if !oc.Notifications.ScanNetwork {
-		fmt.Fprintln(os.Stderr, "Network scan is disabled in Orbit configuration.")
+		fmt.Fprintln(os.Stderr, "Network scan: is disabled in Orbit configuration.")
 		return nil
 	}
 
-	fmt.Fprintln(os.Stderr, "Starting SNMP network scan...")
+	fmt.Fprintln(os.Stderr, "Network scan: Starting SNMP network scan...")
 
 	subnet := "10.211.55.0/24"
 	community := "public"
 
-	fmt.Fprintln(os.Stderr, "Running fping to detect live hosts...")
+	fmt.Fprintln(os.Stderr, "Network scan: Running fping to detect live hosts...")
 
 	cmd := exec.Command("fping", "-a", "-g", subnet)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to run fping:", err)
+		fmt.Fprintln(os.Stderr, "Network scan: Failed to run fping:", err)
 		os.Exit(1)
 	}
 
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to start fping:", err)
+		fmt.Fprintln(os.Stderr, "Network scan: Failed to start fping:", err)
 		os.Exit(1)
 	}
 
-	fmt.Fprintln(os.Stderr, "fping completed, processing results...")
+	fmt.Fprintln(os.Stderr, "Network scan: fping completed, processing results...")
 
 	scanner := bufio.NewScanner(stdout)
 	var wg sync.WaitGroup
@@ -58,7 +58,7 @@ func (sr *SnmpRunner) Run(oc *fleet.OrbitConfig) error {
 	var results []SnmpHost
 	sem := make(chan struct{}, 20) // limit concurrency
 
-	fmt.Println("Starting SNMP scans...")
+	fmt.Println("Network scan: Starting SNMP scans...")
 
 	for scanner.Scan() {
 		ip := scanner.Text()
@@ -71,7 +71,7 @@ func (sr *SnmpRunner) Run(oc *fleet.OrbitConfig) error {
 	_ = cmd.Wait()
 
 	if err := sr.sender.SendSnmpHostsResponse(results); err != nil {
-		fmt.Fprintln(os.Stderr, "Error sending SNMP hosts response:", err)
+		fmt.Fprintln(os.Stderr, "Network scan: Error sending SNMP hosts response:", err)
 	}
 
 	return nil
@@ -93,15 +93,15 @@ func scanHost(ip, community string, results *[]SnmpHost, mu *sync.Mutex, wg *syn
 
 	open, err := isSNMPPortOpen(ip)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error checking SNMP port for", ip, ":", err)
+		fmt.Fprintln(os.Stderr, "Network scan: Error checking SNMP port for", ip, ":", err)
 		return
 	}
 	if !open {
-		fmt.Println("SNMP port not open for", ip)
+		fmt.Println("Network scan: SNMP port not open for", ip)
 		return
 	}
 
-	fmt.Println("Scanning host:", ip)
+	fmt.Println("Network scan: Scanning host:", ip)
 	get := func(oid string) string {
 		out, _ := snmpGet(ip, community, oid)
 		if strings.Contains(out, "No Such Object") || strings.Contains(out, "No Such Instance") {
@@ -114,7 +114,7 @@ func scanHost(ip, community string, results *[]SnmpHost, mu *sync.Mutex, wg *syn
 	osVal := get("1.3.6.1.2.1.1.1.0")
 
 	if hostname == "" && osVal == "" {
-		fmt.Println("No valid SNMP data found for", ip)
+		fmt.Println("Network scan: No valid SNMP data found for", ip)
 		return
 	}
 
@@ -132,7 +132,7 @@ func scanHost(ip, community string, results *[]SnmpHost, mu *sync.Mutex, wg *syn
 	*results = append(*results, info)
 	mu.Unlock()
 
-	fmt.Println("scan completed for", ip)
+	fmt.Println("Network scan: scan completed for", ip)
 }
 
 func isSNMPPortOpen(ip string) (bool, error) {
@@ -144,7 +144,7 @@ func isSNMPPortOpen(ip string) (bool, error) {
 	err := cmd.Run()
 	if err != nil {
 		// Non-zero exit can still include useful output
-		return false, fmt.Errorf("nmap error: %v\noutput:\n%s", err, out.String())
+		return false, fmt.Errorf("Network scan: nmap error: %v\noutput:\n%s", err, out.String())
 	}
 
 	output := out.String()
