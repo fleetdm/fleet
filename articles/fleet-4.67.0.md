@@ -14,7 +14,7 @@ Fleet 4.67.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Foreign vitals
 
-Fleet now pulls end user details from your identity provider (IdP)—like IdP email, full name, and group memberships—into host vitals. This makes it easier to identify who is using each host to speed up troubleshooting and audits. Learn more [here](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts).
+Fleet now pulls end user details from your identity provider (IdP)—like IdP email, full name, and group memberships—into host vitals. This makes it easier to identify who is using each host to speed up troubleshooting and audits. Learn more with our [foreign vitals documentation](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts).
 
 ### Policy targets
 
