@@ -266,7 +266,7 @@ const TAGGED_TEMPLATES = {
     if (activity.details?.mdm_platform === "microsoft") {
       return (
         <>
-          MDM features were turned on for{" "}
+          MDM features were turned on for
           <b> {activity.details?.host_display_name}</b>.
         </>
       );
