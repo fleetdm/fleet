@@ -987,15 +987,17 @@ describe("Activity Feed", () => {
       type: ActivityType.MdmEnrolled,
       details: {
         host_serial: "ABCD",
+        host_display_name: "Test Host",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText((content, node) => {
+        console.log(node?.innerHTML);
         return (
           node?.innerHTML ===
-          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (manual)</b>."
+          "<b>Test User </b>An end user turned on MDM features on <b>Test Host</b> (serial number <b>ABCD</b>)."
         );
       })
     ).toBeInTheDocument();
@@ -1008,6 +1010,7 @@ describe("Activity Feed", () => {
         host_serial: "ABCD",
         installed_from_dep: true,
         mdm_platform: "apple",
+        host_display_name: "Test Host",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -1016,7 +1019,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
+          "<b>Test User </b>An end user turned on MDM features on<b> Test Host</b> (serial number <b>ABCD</b>)."
         );
       })
     ).toBeInTheDocument();
@@ -1034,6 +1037,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText((content, node) => {
+        console.log(node?.innerHTML);
         return (
           node?.innerHTML ===
           "<b>Test User </b>MDM features were turned on for <b>ABCD</b>."
