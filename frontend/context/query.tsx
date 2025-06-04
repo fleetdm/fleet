@@ -4,7 +4,7 @@ import { find } from "lodash";
 import { osqueryTables } from "utilities/osquery_tables";
 import { DEFAULT_QUERY } from "utilities/constants";
 import { DEFAULT_OSQUERY_TABLE, IOsQueryTable } from "interfaces/osquery_table";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { QueryLoggingOption } from "interfaces/schedulable_query";
 import {
   DEFAULT_TARGETS,
@@ -26,7 +26,7 @@ type InitialStateType = {
   lastEditedQueryObserverCanRun: boolean;
   lastEditedQueryFrequency: number;
   lastEditedQueryAutomationsEnabled: boolean;
-  lastEditedQueryPlatforms: SelectedPlatformString;
+  lastEditedQueryPlatforms: CommaSeparatedPlatformString;
   lastEditedQueryMinOsqueryVersion: string;
   lastEditedQueryLoggingType: QueryLoggingOption;
   lastEditedQueryDiscardData: boolean;
@@ -40,7 +40,7 @@ type InitialStateType = {
   setLastEditedQueryObserverCanRun: (value: boolean) => void;
   setLastEditedQueryFrequency: (value: number) => void;
   setLastEditedQueryAutomationsEnabled: (value: boolean) => void;
-  setLastEditedQueryPlatforms: (value: SelectedPlatformString) => void;
+  setLastEditedQueryPlatforms: (value: CommaSeparatedPlatformString) => void;
   setLastEditedQueryMinOsqueryVersion: (value: string) => void;
   setLastEditedQueryLoggingType: (value: string) => void;
   setLastEditedQueryDiscardData: (value: boolean) => void;

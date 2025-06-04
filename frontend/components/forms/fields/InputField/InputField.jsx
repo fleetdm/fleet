@@ -42,8 +42,9 @@ class InputField extends Component {
       PropTypes.arrayOf(PropTypes.string),
       PropTypes.object,
     ]),
+    /** Use in conjunction with type "password" and enableCopy to see eye icon to view */
+    enableShowSecret: PropTypes.bool,
     enableCopy: PropTypes.bool,
-    copyButtonPosition: PropTypes.oneOf(["inside", "outside"]),
     ignore1password: PropTypes.bool,
   };
 
@@ -63,7 +64,7 @@ class InputField extends Component {
     labelTooltipPosition: undefined,
     helpText: "",
     enableCopy: false,
-    copyButtonPosition: "outside",
+    enableShowSecret: false,
     ignore1password: false,
   };
 
@@ -99,55 +100,56 @@ class InputField extends Component {
     return onChange(value);
   };
 
-  renderCopyButton = () => {
-    const { value, copyButtonPosition } = this.props;
+  onToggleSecret = (evt) => {
+    evt.preventDefault();
 
-    const copyValue = (e) => {
-      e.preventDefault();
-      stringToClipboard(value).then(() => {
-        this.setState({ copied: true });
-        setTimeout(() => {
-          this.setState({ copied: false });
-        }, 2000);
-      });
-    };
+    this.setState({ showSecret: !this.state.showSecret });
+    return false;
+  };
 
-    const copyButtonValue =
-      copyButtonPosition === "outside" ? (
-        <>
-          <Icon name="copy" />
-          <span>Copy</span>
-        </>
-      ) : (
-        <Icon name="copy" />
-      );
+  onClickCopy = (e) => {
+    e.preventDefault();
+    stringToClipboard(this.props.value).then(() => {
+      this.setState({ copied: true });
+      setTimeout(() => {
+        this.setState({ copied: false });
+      }, 2000);
+    });
+  };
 
-    const wrapperClasses = classnames(
-      `${baseClass}__copy-wrapper`,
-      copyButtonPosition === "outside"
-        ? `${baseClass}__copy-wrapper-outside`
-        : `${baseClass}__copy-wrapper-inside`
+  renderShowSecretButton = () => {
+    const { onToggleSecret } = this;
+
+    return (
+      <Button
+        variant="icon"
+        className={`${baseClass}__show-secret-icon`}
+        onClick={onToggleSecret}
+      >
+        <Icon name="eye" />
+      </Button>
     );
+  };
+
+  renderCopyButton = () => {
+    const { onClickCopy } = this;
+
+    const copyButtonValue = <Icon name="copy" />;
+    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
 
     const copiedConfirmationClasses = classnames(
-      `${baseClass}__copied-confirmation`,
-      copyButtonPosition === "outside"
-        ? `${baseClass}__copied-confirmation-outside`
-        : `${baseClass}__copied-confirmation-inside`
+      `${baseClass}__copied-confirmation`
     );
 
     return (
       <div className={wrapperClasses}>
-        <Button
-          variant="text-icon"
-          onClick={copyValue}
-          className={`${baseClass}__copy-value-button`}
-        >
-          {copyButtonValue}
-        </Button>
         {this.state.copied && (
           <span className={copiedConfirmationClasses}>Copied!</span>
         )}
+        <Button variant={"icon"} onClick={onClickCopy} iconStroke>
+          {copyButtonValue}
+        </Button>
+        {this.props.enableShowSecret && this.renderShowSecretButton()}
       </div>
     );
   };
@@ -169,11 +171,12 @@ class InputField extends Component {
       value,
       ignore1password,
       enableCopy,
-      copyButtonPosition,
+      enableShowSecret,
     } = this.props;
 
     const { onInputChange } = this;
-    const shouldShowPasswordClass = type === "password";
+    const shouldShowPasswordClass =
+      type === "password" && !this.state.showSecret;
     const inputClasses = classnames(baseClass, inputClassName, {
       [`${baseClass}--password`]: shouldShowPasswordClass,
       [`${baseClass}--read-only`]: readOnly || disabled,
@@ -196,6 +199,13 @@ class InputField extends Component {
       "labelTooltipPosition",
     ]);
 
+    // FIXME: Why doesn't this pass onBlur and other props down if the type is textarea. Do we want
+    // to change that? What might break if we do?
+
+    const inputContainerClasses = classnames(`${baseClass}__input-container`, {
+      "copy-enabled": enableCopy,
+    });
+
     if (type === "textarea") {
       return (
         <FormField
@@ -203,29 +213,28 @@ class InputField extends Component {
           type="textarea"
           className={inputWrapperClasses}
         >
-          <textarea
-            name={name}
-            id={name}
-            onChange={onInputChange}
-            className={inputClasses}
-            disabled={readOnly || disabled}
-            placeholder={placeholder}
-            ref={(r) => {
-              this.input = r;
-            }}
-            type={type}
-            {...inputOptions}
-            value={value}
-          />
+          <div className={inputContainerClasses}>
+            <textarea
+              name={name}
+              id={name}
+              onChange={onInputChange}
+              className={inputClasses}
+              disabled={readOnly || disabled}
+              placeholder={placeholder}
+              ref={(r) => {
+                this.input = r;
+              }}
+              type={type}
+              {...inputOptions}
+              value={value}
+            />
+            {enableCopy && this.renderCopyButton()}
+          </div>
         </FormField>
       );
     }
 
-    const inputContainerClasses = classnames(`${baseClass}__input-container`, {
-      "copy-enabled": enableCopy,
-      "copy-outside": enableCopy && copyButtonPosition === "outside",
-      "copy-inside": enableCopy && copyButtonPosition === "inside",
-    });
+    const inputType = this.state.showSecret ? "text" : type;
 
     return (
       <FormField
@@ -246,7 +255,7 @@ class InputField extends Component {
             ref={(r) => {
               this.input = r;
             }}
-            type={type}
+            type={inputType}
             {...inputOptions}
             value={value}
             autoComplete={blockAutoComplete ? "new-password" : ""}

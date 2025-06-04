@@ -72,6 +72,8 @@ func ExtractPEMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		}
 		if productVersion != "" {
 			version = productVersion
+		} else if strings.TrimSpace(e["FileVersion"]) != "" {
+			version = strings.TrimSpace(e["FileVersion"])
 		}
 	}
 	if name == "" && sfxName != "" {

@@ -24,6 +24,7 @@ import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
 import { DOCUMENT_TITLE_SUFFIX, LIVE_POLICY_STEPS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -74,6 +75,8 @@ const PolicyPage = ({
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
+    setLastEditedQueryLabelsIncludeAny,
+    setLastEditedQueryLabelsExcludeAny,
     setPolicyTeamId,
   } = useContext(PolicyContext);
 
@@ -172,6 +175,12 @@ const PolicyPage = ({
         setLastEditedQueryResolution(returnedQuery.resolution);
         setLastEditedQueryCritical(returnedQuery.critical);
         setLastEditedQueryPlatform(returnedQuery.platform);
+        setLastEditedQueryLabelsIncludeAny(
+          returnedQuery.labels_include_any || []
+        );
+        setLastEditedQueryLabelsExcludeAny(
+          returnedQuery.labels_exclude_any || []
+        );
         // TODO(sarah): What happens if the team id in the policy response doesn't match the
         // url param? In theory, the backend should ensure this doesn't happen.
         setPolicyTeamId(
@@ -212,10 +221,13 @@ const PolicyPage = ({
     !isOnGlobalTeam &&
     !isStoredPolicyLoading &&
     storedPolicy?.team_id !== undefined &&
+    storedPolicy?.team_id !== null &&
     !(storedPolicy?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
-      `${location.pathname}?team_id=${storedPolicy?.team_id?.toString()}`
+      getPathWithQueryParams(location.pathname, {
+        team_id: storedPolicy?.team_id?.toString(),
+      })
     );
   }
 
@@ -304,6 +316,7 @@ const PolicyPage = ({
       goToSelectTargets: () => setStep(LIVE_POLICY_STEPS[2]),
       onOpenSchemaSidebar,
       renderLiveQueryWarning,
+      teamIdForApi,
     };
 
     const step2Opts = {

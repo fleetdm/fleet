@@ -53,6 +53,13 @@ func (s *CertAuth) DeclarativeManagement(r *mdm.Request, m *mdm.DeclarativeManag
 	return s.next.DeclarativeManagement(r, m)
 }
 
+func (s *CertAuth) GetToken(r *mdm.Request, m *mdm.GetToken) (*mdm.GetTokenResponse, error) {
+	if err := s.validateOrAssociateForExistingEnrollment(r, &m.Enrollment); err != nil {
+		return nil, err
+	}
+	return s.next.GetToken(r, m)
+}
+
 func (s *CertAuth) CommandAndReportResults(r *mdm.Request, results *mdm.CommandResults) (*mdm.Command, error) {
 	if err := s.validateOrAssociateForExistingEnrollment(r, &results.Enrollment); err != nil {
 		return nil, err

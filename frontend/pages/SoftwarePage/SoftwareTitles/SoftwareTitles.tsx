@@ -44,7 +44,6 @@ interface ISoftwareTitlesProps {
   vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
-  resetPageIndex: boolean;
   addedSoftwareToken: string | null;
   onAddFiltersClick: () => void;
 }
@@ -60,7 +59,6 @@ const SoftwareTitles = ({
   vulnFilters,
   currentPage,
   teamId,
-  resetPageIndex,
   addedSoftwareToken,
   onAddFiltersClick,
 }: ISoftwareTitlesProps) => {
@@ -125,6 +123,7 @@ const SoftwareTitles = ({
         teamId,
         addedSoftwareToken,
         ...vulnFilters,
+        ...(showVersions ? { without_vulnerability_details: true } : {}),
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -175,7 +174,7 @@ const SoftwareTitles = ({
   }
 
   if (isTitlesError || isVersionsError || isTitlesAFIError) {
-    return <TableDataError className={`${baseClass}__table-error`} />;
+    return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (
@@ -196,7 +195,6 @@ const SoftwareTitles = ({
         isLoading={
           isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
         }
-        resetPageIndex={resetPageIndex}
         onAddFiltersClick={onAddFiltersClick}
         vulnFilters={vulnFilters}
       />

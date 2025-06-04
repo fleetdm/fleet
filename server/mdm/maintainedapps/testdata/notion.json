@@ -6,7 +6,7 @@
 	"name": [
 		"Notion"
 	],
-	"desc": "App to write, plan, collaborate, and get organised",
+	"desc": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing.",
 	"homepage": "https://www.notion.so/",
 	"url": "https://desktop-release.notion-static.com/Notion-3.14.0-arm64.dmg",
 	"url_specs": {

@@ -129,6 +129,8 @@ This switch disables MDM client capability. This effecitvely turns this running 
 
 Specifies the "base" URL to send Declarative Management requests to. The full URL is constructed from this base URL appended with the type of Declarative Management ["Endpoint" request](https://developer.apple.com/documentation/devicemanagement/declarativemanagementrequest?language=objc) such as "status" or "declaration-items". Each HTTP request includes the NanoMDM enrollment ID as the HTTP header "X-Enrollment-ID". See [this blog post](https://micromdm.io/blog/wwdc21-declarative-management/) for more details.
 
+Note that the URL should likely have a trailing slash. Otherwise path elements of the URL may to be cut off but by Golang's relative URL path resolver.
+
 ### -migration
 
 * HTTP endpoint for enrollment migrations
@@ -156,6 +158,20 @@ Print version and exit.
 * URL to send requests to
 
 NanoMDM supports a MicroMDM-compatible [webhook callback](https://github.com/micromdm/micromdm/blob/main/docs/user-guide/api-and-webhooks.md) option. This switch turns on the webhook and specifies the URL.
+
+### -auth-proxy-url string
+
+* Reverse proxy URL target for MDM-authenticated HTTP requests
+
+Enables the authentication proxy and reverse proxies HTTP requests from the server's `/authproxy/` endpoint to this URL if the client provides the device's enrollment authentication. See below for more information.
+
+### -ua-zl-dc
+
+* reply with zero-length DigestChallenge for UserAuthenticate
+
+By default NanoMDM will respond to a `UserAuthenticate` message with an HTTP 410. This effectively declines management of that the user channel for that MDM user. Enabling this option turns on the "zero-length" Digest Challenge mode where NanoMDM replies with an empty Digest Challenge to enable management each time a client enrolls.
+
+Note that the `UserAuthenticate` message is only for "directory" MDM users and not the "primary" MDM user enrollment. See also [Apple's discussion of UserAthenticate](https://developer.apple.com/documentation/devicemanagement/userauthenticate#discussion) for more information.
 
 ## HTTP endpoints & APIs
 
@@ -306,6 +322,16 @@ The migration endpoint (as talked about above under the `-migration` switch) is 
 * Endpoint: `/version`
 
 Returns a JSON response with the version of the running NanoMDM server.
+
+### Authentication Proxy
+
+* Endpoint: `/authproxy/`
+
+If the `-auth-proxy-url` flag is provided then URLs that begin with `/authproxy/` will be reverse-proxied to the given target URL. Importantly this endpoint will authenticate the incoming request in the same way as other MDM endpoints (i.e. Check-In or Command Report and Response) — including whether we're using TLS client configuration or not (the `-cert-header` flag). Put together this allow you to have MDM-authenticated content retrieval.
+
+This feature is ostensibly to support Declarative Device Management and in particular the ability for some "Asset" declarations to use "MDM" authentication for their content. For example the `com.apple.asset.data` declaration supports an [Authentication key](https://github.com/apple/device-management/blob/2bb1726786047949b5b1aa923be33b9ba0f83e37/declarative/declarations/assets/data.yaml#L40-L54) for configuring this ability.
+
+As an example example if this feature is enabled and a request comes to the server as `/authproxy/foo/bar` and the `-auth-proxy-url` was set to, say, `http://[::1]:9008` then NanoMDM will reverse proxy this URL to `http://[::1]:9008/foo/bar`. An HTP 502 Bad Gateway response is sent back to the client for any issues proxying.
 
 # Enrollment Migration (nano2nano)
 

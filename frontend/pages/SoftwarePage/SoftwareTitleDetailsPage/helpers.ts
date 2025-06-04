@@ -4,10 +4,9 @@ import {
   isSoftwarePackage,
   aggregateInstallStatusCounts,
 } from "interfaces/software";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 /**
- * Generates the data needed to render the package card. It differentiates between
+ * Generates the data needed to render the installer card. It differentiates between
  * software packages and app store apps and returns the appropriate data.
  *
  * FIXME: This function ought to be refactored or renamed to better reflect its purpose.
@@ -15,26 +14,28 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
  * package or app information, as applicable).
  */
 // eslint-disable-next-line import/prefer-default-export
-export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
+export const getInstallerCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
   // we know at this point that softwareTitle.software_package or
   // softwareTitle.app_store_app is not null so we will do a type assertion.
-  const packageData = softwareTitle.software_package
+  const installerData = softwareTitle.software_package
     ? softwareTitle.software_package
     : (softwareTitle.app_store_app as IAppStoreApp);
 
-  const isPackage = isSoftwarePackage(packageData);
+  const isPackage = isSoftwarePackage(installerData);
 
   return {
-    softwarePackage: isPackage ? packageData : undefined,
-    name: (isPackage && packageData.name) || softwareTitle.name,
+    softwareTitleName: softwareTitle.name,
+    softwarePackage: installerData,
+    name: (isPackage && installerData.name) || softwareTitle.name,
     version:
-      (isSoftwarePackage(packageData)
-        ? packageData.version
-        : packageData.latest_version) || DEFAULT_EMPTY_CELL_VALUE,
-    uploadedAt: isSoftwarePackage(packageData) ? packageData.uploaded_at : "",
-    status: isSoftwarePackage(packageData)
-      ? aggregateInstallStatusCounts(packageData.status)
-      : packageData.status,
-    isSelfService: packageData.self_service,
+      (isPackage ? installerData.version : installerData.latest_version) ||
+      null,
+    addedTimestamp: isPackage
+      ? installerData.uploaded_at
+      : installerData.created_at,
+    status: isPackage
+      ? aggregateInstallStatusCounts(installerData.status)
+      : installerData.status,
+    isSelfService: installerData.self_service,
   };
 };

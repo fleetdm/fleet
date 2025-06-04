@@ -4,8 +4,9 @@ import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
 import MainContent from "components/MainContent";
+import TabText from "components/TabText";
 import classnames from "classnames";
 
 interface ISettingSubNavItem {
@@ -77,7 +78,7 @@ const AdminWrapper = ({
   return (
     <MainContent className={classNames}>
       <div className={`${baseClass}_wrapper`}>
-        <TabsWrapper>
+        <TabNav sticky>
           <h1>Settings</h1>
           <Tabs
             selectedIndex={getTabIndex(pathname)}
@@ -89,13 +90,13 @@ const AdminWrapper = ({
                 // so we add a hidden pseudo element with the same text string
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
-                    {navItem.name}
+                    <TabText>{navItem.name}</TabText>
                   </Tab>
                 );
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {children}
       </div>
     </MainContent>

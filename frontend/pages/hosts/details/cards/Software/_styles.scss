@@ -1,56 +1,75 @@
 .software-card {
+  .table-container {
+    .stackable-header {
+      min-width: initial; // Fix card overflow on low widths
+    }
+  }
+
   .table-container__search-input {
-    width: 325px; // Custom to fit placeholder text
+    width: 100%;
+  }
+
+  @media (min-width: ($break-md)) {
+    min-width: 305px; // Custom to fit placeholder text
+  }
+
+  .table-container__search {
+    width: 100%;
   }
 
   .host-software-table {
-    .controls {
-      // software filter
-      .Select {
-        .Select-menu-outer {
-          width: 364px;
-          max-height: min-content;
+    &__software-filter {
+      min-width: 240px;
+      width: 240px; // Override .form-field 100%
+    }
 
-          .Select-menu {
-            max-height: none;
-          }
-        }
-        .Select-value {
-          padding-left: $pad-medium;
-          padding-right: $pad-medium;
-        }
+    &__filters {
+      display: flex;
+      align-items: center;
 
-        .dropdown__custom-value-label {
-          width: 155px; // Override 105px for longer text options
-        }
+      .children-wrapper {
+        gap: $pad-small;
       }
+    }
+
+    .table-container__search-input .input-with-icon {
+      min-width: 305px; // Fit placeholder text
     }
 
     .data-table-block {
       .data-table__table {
         thead {
+          .name__header {
+            display: table-cell;
+            width: auto;
+          }
           .status__header {
             display: table-cell;
+            width: auto;
+          }
+          .Version__header {
+            display: table-cell;
+            width: auto;
           }
           .source__header {
             display: table-cell;
           }
           .Vulnerabilities__header {
             display: table-cell;
+            max-width: px-to-rem(140);
           }
-          @media (max-width: $break-xl) {
+          // this is called `id` only due to typing concerns in the table config – it is for the
+          // "Actions" column
+          .id__header {
+            width: px-to-rem(72);
+          }
+          @media (max-width: ($break-xl - 1)) {
             .source__header {
               display: none;
               width: 0;
             }
           }
-          @media (max-width: $break-lg) {
-            .Vulnerabilities__header {
-              display: none;
-              width: 0;
-            }
-          }
-          @media (max-width: $break-sm) {
+          @media (max-width: ($break-lg - 1)) {
             .status__header {
               display: none;
               width: 0;
@@ -59,8 +78,17 @@
         }
         tbody {
           tr {
+            .name__cell {
+              display: table-cell;
+              width: auto;
+            }
             .status__cell {
               display: table-cell;
+              width: auto;
+            }
+            .Version__cell {
+              display: table-cell;
+              width: auto;
             }
             .source__cell {
               display: table-cell;
@@ -68,24 +96,43 @@
             .Vulnerabilities__cell {
               display: table-cell;
             }
-            @media (max-width: $break-xl) {
+            @media (max-width: ($break-xl - 1)) {
               .source__cell {
                 display: none;
                 width: 0;
               }
             }
-            @media (max-width: $break-lg) {
-              .Vulnerabilities__cell {
-                display: none;
-                width: 0;
-              }
-            }
-            @media (max-width: $break-sm) {
+            @media (max-width: ($break-lg - 1)) {
               .status__cell {
                 display: none;
                 width: 0;
               }
             }
+
+            // Very little real estate at 768px
+            @media (max-width: ($break-sm - 1)) {
+              .name__cell {
+                .software-name {
+                  max-width: 190px;
+                }
+              }
+
+              .Version__cell {
+                .text-cell {
+                  max-width: 95px;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      @media (max-width: ($break-sm - 1)) {
+        .data-table__table {
+          th,
+          td {
+            padding-left: $pad-medium;
+            padding-right: $pad-medium;
           }
         }
       }

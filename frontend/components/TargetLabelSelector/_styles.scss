@@ -1,0 +1,43 @@
+.target-label-selector {
+  width: 100%;
+  font-size: $x-small;
+
+  &__custom-label-chooser {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__checkboxes {
+    display: flex;
+    max-height: 187px;
+    flex-direction: column;
+    border-radius: $border-radius;
+    border: 1px solid $ui-fleet-black-10;
+    overflow-y: auto;
+
+    .loading-spinner {
+      margin: 69.5px auto;
+    }
+  }
+
+  &__label {
+    width: 100%;
+    padding: $pad-small $pad-medium;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+
+    .form-field--checkbox {
+      width: auto;
+    }
+  }
+
+  &__label-name {
+    padding-left: $pad-large;
+  }
+}

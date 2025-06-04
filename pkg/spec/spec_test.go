@@ -137,18 +137,18 @@ func TestEscapeString(t *testing.T) {
 	}
 }
 
-func TestExpandEnv(t *testing.T) {
-	checkMultiErrors := func(errs ...string) func(err error) {
-		return func(err error) {
-			me, ok := err.(*multierror.Error)
-			require.True(t, ok)
-			require.Len(t, me.Errors, len(errs))
-			for i, err := range me.Errors {
-				require.Equal(t, errs[i], err.Error())
-			}
+func checkMultiErrors(t *testing.T, errs ...string) func(err error) {
+	return func(err error) {
+		me, ok := err.(*multierror.Error)
+		require.True(t, ok)
+		require.Len(t, me.Errors, len(errs))
+		for i, err := range me.Errors {
+			require.Equal(t, errs[i], err.Error())
 		}
 	}
+}
 
+func TestExpandEnv(t *testing.T) {
 	for _, tc := range []struct {
 		environment map[string]string
 		s           string
@@ -159,13 +159,14 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "1"}, `$foo $FLEET_VAR_BAR ${FLEET_VAR_BAR}x ${foo}`, `1 $FLEET_VAR_BAR ${FLEET_VAR_BAR}x 1`, nil},
 		{map[string]string{"foo": ""}, `$foo`, ``, nil},
 		{map[string]string{"foo": "", "bar": "", "zoo": ""}, `$foo${bar}$zoo`, ``, nil},
-		{map[string]string{}, `$foo`, ``, checkMultiErrors("environment variable \"foo\" not set")},
-		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors("environment variable \"bar\" not set")},
-		{map[string]string{"bar": "1"}, `$foo $bar $zoo`, ``, checkMultiErrors("environment variable \"foo\" not set", "environment variable \"zoo\" not set")},
+		{map[string]string{}, `$foo`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
+		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors(t, "environment variable \"bar\" not set")},
+		{map[string]string{"bar": "1"}, `$foo $bar $zoo`, ``,
+			checkMultiErrors(t, "environment variable \"foo\" not set", "environment variable \"zoo\" not set")},
 		{map[string]string{"foo": "4", "bar": "2"}, `$foo$bar`, `42`, nil},
 		{map[string]string{"foo": "42", "bar": ""}, `$foo$bar`, `42`, nil},
-		{map[string]string{}, `$$`, ``, checkMultiErrors("environment variable \"$\" not set")},
-		{map[string]string{"foo": "1"}, `$$foo`, ``, checkMultiErrors("environment variable \"$\" not set")},
+		{map[string]string{}, `$$`, ``, checkMultiErrors(t, "environment variable \"$\" not set")},
+		{map[string]string{"foo": "1"}, `$$foo`, ``, checkMultiErrors(t, "environment variable \"$\" not set")},
 		{map[string]string{"foo": "1"}, `\$${foo}`, `$1`, nil},
 		{map[string]string{}, `\$foo`, `$foo`, nil},                     // escaped
 		{map[string]string{"foo": "1"}, `\\$foo`, `\\1`, nil},           // not escaped
@@ -177,7 +178,7 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "1"}, `\${foo}var`, `${foo}var`, nil}, // escaped
 		{map[string]string{"foo": ""}, `${foo}var`, `var`, nil},
 		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil},
-		{map[string]string{}, `${foo}var`, ``, checkMultiErrors("environment variable \"foo\" not set")},
+		{map[string]string{}, `${foo}var`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
 		{map[string]string{}, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, nil}, // nothing to replace
 		{map[string]string{"foo": "BAR"}, `\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
 			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil}, // nested variables
@@ -193,5 +194,83 @@ func TestExpandEnv(t *testing.T) {
 			tc.checkErr(err)
 		}
 		require.Equal(t, tc.expResult, result)
+	}
+}
+
+func TestLookupEnvSecrets(t *testing.T) {
+	for _, tc := range []struct {
+		environment map[string]string
+		s           string
+		expResult   map[string]string
+		checkErr    func(error)
+	}{
+		{map[string]string{"foo": "1"}, `$foo`, map[string]string{}, nil},
+		{map[string]string{"FLEET_SECRET_foo": "1"}, `$FLEET_SECRET_foo`, map[string]string{"FLEET_SECRET_foo": "1"}, nil},
+		{map[string]string{"foo": "1"}, `$FLEET_SECRET_foo`, map[string]string{},
+			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set")},
+	} {
+		os.Clearenv()
+		for k, v := range tc.environment {
+			_ = os.Setenv(k, v)
+		}
+		secretsMap := make(map[string]string)
+		err := LookupEnvSecrets(tc.s, secretsMap)
+		if tc.checkErr == nil {
+			require.NoError(t, err)
+		} else {
+			tc.checkErr(err)
+		}
+		require.Equal(t, tc.expResult, secretsMap)
+	}
+}
+
+func TestGetExclusionZones(t *testing.T) {
+	testCases := []struct {
+		fixturePath []string
+		expected    map[[2]int]string
+	}{
+		{
+			[]string{"testdata", "policies", "policies.yml"},
+			map[[2]int]string{
+				[2]int{46, 106}:  "  description: This policy should always fail.\n  resolution:",
+				[2]int{93, 155}:  "  resolution: There is no resolution for this policy.\n  query:",
+				[2]int{268, 328}: "  description: This policy should always pass.\n  resolution:",
+				[2]int{315, 678}: "  resolution: |\n    Automated method:\n    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n  query:",
+			},
+		},
+		{
+			[]string{"testdata", "global_config_no_paths.yml"},
+			map[[2]int]string{
+				[2]int{866, 949}:   "    description: Collect osquery performance stats directly from osquery\n    query:", //
+				[2]int{1754, 1818}: "    description: This policy should always fail.\n    resolution:",                    //
+				[2]int{1803, 1869}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				[2]int{1986, 2050}: "    description: This policy should always pass.\n    resolution:",                    //
+				[2]int{2035, 2101}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				[2]int{2394, 2458}: "    description: This policy should always fail.\n    resolution:",                    //
+				[2]int{2443, 2509}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				[2]int{2613, 2677}: "    description: This policy should always fail.\n    resolution:",                    //
+				[2]int{2662, 3035}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
+				[2]int{6102, 6149}: "    description: A cool global label\n    query:", //
+				[2]int{6246, 6292}: "    description: A fly global label\n    hosts:",  //
+			},
+		},
+	}
+
+	for _, tC := range testCases {
+		fPath := filepath.Join(tC.fixturePath...)
+
+		t.Run(fPath, func(t *testing.T) {
+			fContents, err := os.ReadFile(fPath)
+			require.NoError(t, err)
+
+			contents := string(fContents)
+			actual := getExclusionZones(contents)
+			require.Equal(t, len(tC.expected), len(actual))
+
+			for pos, text := range tC.expected {
+				require.Contains(t, actual, pos)
+				require.Equal(t, contents[pos[0]:pos[1]], text, pos)
+			}
+		})
 	}
 }

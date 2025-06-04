@@ -5,7 +5,7 @@
   .data-table__wrapper {
     overflow-x: auto;
   }
-  .component__tabs-wrapper .table-container__header {
+  .tab-nav .table-container__header {
     display: none;
   }
   .data-table-block {
@@ -21,7 +21,6 @@
           padding-right: 0;
         }
         .hosts_count__header {
-          border-right: 0;
           padding-right: 0;
           width: 9%;
         }
@@ -29,9 +28,6 @@
           padding: 0;
           border-left: 0;
           width: 40px;
-        }
-        .linkToFilteredHosts__header {
-          width: 140px;
         }
       }
 

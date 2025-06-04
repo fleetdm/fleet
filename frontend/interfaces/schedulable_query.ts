@@ -3,7 +3,12 @@ import PropTypes from "prop-types";
 
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
-import { SelectedPlatformString, QueryablePlatform } from "./platform";
+import {
+  CommaSeparatedPlatformString,
+  QueryablePlatform,
+  SelectedPlatform,
+} from "./platform";
+import { ILabelQuery } from "./label";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -15,7 +20,7 @@ export interface ISchedulableQuery {
   query: string;
   team_id: number | null;
   interval: number;
-  platform: SelectedPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
+  platform: CommaSeparatedPlatformString; // Might more accurately be called `platforms_to_query` or `targeted_platforms` – comma-separated string of platforms to query, default all platforms if omitted
   min_osquery_version: string;
   automations_enabled: boolean;
   logging: QueryLoggingOption;
@@ -28,11 +33,12 @@ export interface ISchedulableQuery {
   packs: IPack[];
   stats: ISchedulableQueryStats;
   editingExistingQuery?: boolean;
+  labels_include_any?: ILabelQuery[];
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {
   performance: string;
-  platforms: QueryablePlatform[];
+  targetedPlatforms: QueryablePlatform[];
 }
 export interface ISchedulableQueryStats {
   user_time_p50?: number | null;
@@ -67,7 +73,14 @@ export interface IListQueriesResponse {
 
 export interface IQueryKeyQueriesLoadAll {
   scope: "queries";
-  teamId: number | undefined;
+  teamId?: number;
+  page?: number;
+  perPage?: number;
+  query?: string;
+  orderDirection?: "asc" | "desc";
+  orderKey?: string;
+  mergeInherited?: boolean;
+  targetedPlatform?: SelectedPlatform;
 }
 // Create a new query
 /** POST /api/v1/fleet/queries */
@@ -79,10 +92,11 @@ export interface ICreateQueryRequestBody {
   discard_data?: boolean;
   team_id?: number; // global query if ommitted
   interval?: number; // default 0 means never run
-  platform?: SelectedPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
+  platform?: CommaSeparatedPlatformString; // Might more accurately be called `platforms_to_query` – comma-separated string of platforms to query, default all platforms if omitted
   min_osquery_version?: string; // default all versions if ommitted
   automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`. Default false if ommitted.
   logging?: QueryLoggingOption;
+  labels_include_any?: string[];
 }
 
 // response is ISchedulableQuery
@@ -98,7 +112,7 @@ export interface IModifyQueryRequestBody
   observer_can_run?: boolean;
   discard_data?: boolean;
   frequency?: number;
-  platform?: SelectedPlatformString;
+  platform?: CommaSeparatedPlatformString;
   min_osquery_version?: string;
   automations_enabled?: boolean;
 }
@@ -133,7 +147,7 @@ export interface IEditQueryFormFields {
   discard_data: IFormField<boolean>;
   frequency: IFormField<number>;
   automations_enabled: IFormField<boolean>;
-  platforms: IFormField<SelectedPlatformString>;
+  platforms: IFormField<CommaSeparatedPlatformString>;
   min_osquery_version: IFormField<string>;
   logging: IFormField<QueryLoggingOption>;
 }

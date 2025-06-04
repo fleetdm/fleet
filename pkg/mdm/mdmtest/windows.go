@@ -98,7 +98,7 @@ func (c *TestWindowsMDMClient) StartManagementSession() (map[string]fleet.ProtoC
 <SyncHdr>
 	<VerDTD>1.2</VerDTD>
 	<VerProto>DM/1.2</VerProto>
-	<SessionID>` + fmt.Sprint(sessionIDInt+1) + `</SessionID>
+	<SessionID>` + fmt.Sprint(sessionIDInt) + `</SessionID>
 	<MsgID>1</MsgID>
 	<Target>
 	<LocURI>` + c.fleetServerURL + microsoft_mdm.MDE2ManagementPath + `</LocURI>

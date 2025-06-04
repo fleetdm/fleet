@@ -1,4 +1,4 @@
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useState } from "react";
 
 import softwareAPI from "services/entities/software";
 import { NotificationContext } from "context/notification";
@@ -18,7 +18,7 @@ const DELETE_SW_INSTALLED_DURING_SETUP_ERROR_MSG =
 interface IDeleteSoftwareModalProps {
   softwareId: number;
   teamId: number;
-  softwarePackageName?: string;
+  softwareInstallerName?: string;
   onExit: () => void;
   onSuccess: () => void;
 }
@@ -26,15 +26,17 @@ interface IDeleteSoftwareModalProps {
 const DeleteSoftwareModal = ({
   softwareId,
   teamId,
-  softwarePackageName,
+  softwareInstallerName,
   onExit,
   onSuccess,
 }: IDeleteSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const onDeleteSoftware = useCallback(async () => {
+    setIsDeleting(true);
     try {
-      await softwareAPI.deleteSoftwarePackage(softwareId, teamId);
+      await softwareAPI.deleteSoftwareInstaller(softwareId, teamId);
       renderFlash("success", "Software deleted successfully!");
       onSuccess();
     } catch (error) {
@@ -47,18 +49,24 @@ const DeleteSoftwareModal = ({
         renderFlash("error", "Couldn't delete. Please try again.");
       }
     }
+    setIsDeleting(false);
     onExit();
   }, [softwareId, teamId, renderFlash, onSuccess, onExit]);
 
   return (
-    <Modal className={baseClass} title="Delete software" onExit={onExit}>
+    <Modal
+      className={baseClass}
+      title="Delete software"
+      onExit={onExit}
+      isContentDisabled={isDeleting}
+    >
       <>
         <p>
           Software won&apos;t be uninstalled from existing hosts, but any
-          pending pending installs and uninstalls{" "}
-          {softwarePackageName ? (
+          pending installs and uninstalls{" "}
+          {softwareInstallerName ? (
             <>
-              for <b> {softwarePackageName}</b>{" "}
+              for <b> {softwareInstallerName}</b>{" "}
             </>
           ) : (
             ""
@@ -67,11 +75,15 @@ const DeleteSoftwareModal = ({
         </p>
         <p>
           Installs or uninstalls currently running on a host will still
-          complete, but results won’t appear in Fleet.
+          complete, but results won&apos;t appear in Fleet.
         </p>
         <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
-          <Button variant="alert" onClick={onDeleteSoftware}>
+          <Button
+            variant="alert"
+            onClick={onDeleteSoftware}
+            isLoading={isDeleting}
+          >
             Delete
           </Button>
           <Button variant="inverse-alert" onClick={onExit}>

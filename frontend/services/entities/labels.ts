@@ -21,14 +21,14 @@ export interface ICreateLabelResponse {
 export type IUpdateLabelResponse = ICreateLabelResponse;
 export type IGetLabelResonse = ICreateLabelResponse;
 
+export interface IGetHostsInLabelResponse {
+  hosts: IHost[];
+}
+
 const isManualLabelFormData = (
   formData: IDynamicLabelFormData | IManualLabelFormData
 ): formData is IManualLabelFormData => {
   return "targetedHosts" in formData;
-};
-
-const getUniqueHostIdentifier = (host: IHost) => {
-  return host.hardware_serial || host.uuid || host.hostname;
 };
 
 const generateCreateLabelBody = (
@@ -39,9 +39,7 @@ const generateCreateLabelBody = (
     return {
       name: formData.name,
       description: formData.description,
-      hosts: formData.targetedHosts.map((host) =>
-        getUniqueHostIdentifier(host)
-      ),
+      host_ids: formData.targetedHosts.map((host) => host.id),
     };
   }
   return formData;
@@ -122,5 +120,10 @@ export default {
   getLabel: (labelId: number): Promise<IGetLabelResonse> => {
     const { LABEL } = endpoints;
     return sendRequest("GET", LABEL(labelId));
+  },
+
+  getHostsInLabel: (labelId: number): Promise<IGetHostsInLabelResponse> => {
+    const { LABEL_HOSTS } = endpoints;
+    return sendRequest("GET", LABEL_HOSTS(labelId));
   },
 };

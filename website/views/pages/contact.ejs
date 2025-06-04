@@ -3,15 +3,33 @@
     <div class="d-flex flex-lg-row flex-column justify-content-center">
     <div purpose="form-container" v-if="!cloudSuccess">
       <h2>Get in touch</h2>
-      <p v-if="psychologicalStage === '4 - Has use case'">Let us help you deploy and evaluate Fleet quickly for yourself. We’d love to save you some time.</p>
+      <p v-if="userHasPremiumSubscription" style="margin-bottom: 40px;">Dedicated professional support from the Fleet team.</p>
+      <p v-else-if="psychologicalStage === '4 - Has use case'">Let us help you deploy and evaluate Fleet quickly for yourself. We’d love to save you some time.</p>
       <p v-else-if="psychologicalStage === '5 - Personally confident'">Schedule a personalized demo for your team and get support or training.</p>
       <p v-else>Schedule a personalized demo, or ask us anything. We’d love to chat.</p>
-      <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto">
-        <div purpose="switch-option" :class="[formToDisplay === 'talk-to-us' ? 'selected' : '']" @click="clickSwitchForms('talk-to-us')">Talk to us</div>
+      <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto" v-if="!userHasPremiumSubscription">
+        <div purpose="switch-option" :class="[formToDisplay === 'talk-to-us' ? 'selected' : '']" @click="clickSwitchForms('talk-to-us')">Talk to an engineer</div>
         <div purpose="switch-option" :class="[formToDisplay === 'contact' ? 'selected' : '']" @click="clickSwitchForms('contact')">Send a message</div>
         <div purpose="switch" :class="formToDisplay+'-selected'"></div>
       </div>
       <div v-if="formToDisplay === 'contact'">
+
+
+        <div purpose="note" v-if="!userIsLoggedIn">
+          <div>
+            <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+          </div>
+          <p>Already a Fleet customer? <a href="/login#contact">Sign in</a> for Premium support</p>
+        </div>
+
+        <div purpose="note" v-if="userIsLoggedIn && !userHasPremiumSubscription">
+          <div>
+            <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+          </div>
+          <p>Already a Premium customer? Reach out to us directly or use the form below.</p>
+        </div>
+
+
         <ajax-form action="deliverContactFormMessage" class="contact" :form-errors.sync="formErrors" :form-data="formData" :form-rules="contactFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedContactForm()">
           <div class="form-group">
             <label for="contact-email-address">Work email *</label>
@@ -120,22 +138,7 @@
       <p class="mt-3">A member of our team will get back to you soon.<br>Usually within one business day (or less!)</p>
     </div>
     <div purpose="quote-and-logos">
-      <div purpose="quote" v-if="!primaryBuyingSituation || primaryBuyingSituation === 'mdm'">
-        <div purpose="logo" class="mb-4"><img height="32" alt="Stripe logo" src="/images/social-proof-logo-stripe-67x32@2x.png"></div>
-        <p purpose="quote-text">
-          We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
-        </p>
-        <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-          <div purpose="profile-picture">
-            <img alt="Scott MacVicar" style="border-radius: 50%" src="/images/testimonial-author-scott-macvicar-100x100@2x.png">
-          </div>
-          <div class="d-flex flex-column align-self-top">
-            <p purpose="name" class="font-weight-bold m-0">Scott MacVicar</p>
-            <p purpose="job-title" class="m-0">Head of Developer Infrastructure &amp; Corporate Technology</p>
-          </div>
-        </div>
-      </div>
-      <div purpose="quote" v-else-if="primaryBuyingSituation === 'vm'">
+      <div purpose="quote" v-if="primaryBuyingSituation === 'security-vm'">
         <div purpose="logo" class="mb-4"><img height="32" alt="Rivian logo" src="/images/logo-rivian-dark-120x32@2x.png"></div>
         <p purpose="quote-text">
           The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
@@ -150,7 +153,7 @@
           </div>
         </div>
       </div>
-      <div purpose="quote" v-else-if="primaryBuyingSituation === 'eo-it'">
+      <div purpose="quote" v-else-if="primaryBuyingSituation === 'it-misc'">
         <div purpose="logo" class="mb-4"><img height="32" alt="Deputy logo" src="/images/social-proof-logo-stripe-67x32@2x.png"></div>
         <p purpose="quote-text">
           Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
@@ -165,7 +168,7 @@
           </div>
         </div>
       </div>
-      <div purpose="quote" v-else-if="primaryBuyingSituation === 'eo-security'">
+      <div purpose="quote" v-else-if="primaryBuyingSituation === 'security-misc'">
         <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
         <p purpose="quote-text">
           Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
@@ -177,6 +180,21 @@
           <div class="d-flex flex-column align-self-top">
             <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
             <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
+          </div>
+        </div>
+      </div>
+      <div purpose="quote" v-else-if>
+        <div purpose="logo" class="mb-4"><img height="32" alt="Stripe logo" src="/images/social-proof-logo-stripe-67x32@2x.png"></div>
+        <p purpose="quote-text">
+          We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
+        </p>
+        <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+          <div purpose="profile-picture">
+            <img alt="Scott MacVicar" style="border-radius: 50%" src="/images/testimonial-author-scott-macvicar-100x100@2x.png">
+          </div>
+          <div class="d-flex flex-column align-self-top">
+            <p purpose="name" class="font-weight-bold m-0">Scott MacVicar</p>
+            <p purpose="job-title" class="m-0">Head of Developer Infrastructure &amp; Corporate Technology</p>
           </div>
         </div>
       </div>
@@ -205,5 +223,6 @@
     </div>
   </div>
   </div>
+  <p style="opacity: 0; line-height: 0px; font-size: 0px; margin: 0;">537c652d-cb1a-440e-ae35-0f0bf5743e75</p>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

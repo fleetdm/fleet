@@ -71,7 +71,7 @@ const ManualLabelForm = ({
   }, [debounceSearch, searchQuery]);
 
   const {
-    data: hostTargets,
+    data: searchResults,
     isLoading: isLoadingSearchResults,
     isError: isErrorSearchResults,
   } = useQuery<ITargetsSearchResponse, Error, IHost[], ITargetsQueryKey[]>(
@@ -139,7 +139,7 @@ const ManualLabelForm = ({
             selectedHostsTableConifg={selectedHostsTableConfig}
             isTargetsLoading={isLoadingSearchResults || isDebouncing}
             hasFetchError={isErrorSearchResults}
-            searchResults={hostTargets ?? []}
+            searchResults={searchResults ?? []}
             targetedHosts={targetedHosts}
             setSearchText={onChangeSearchQuery}
             handleRowSelect={onHostSelect}

@@ -1,4 +1,14 @@
 -
+  task: "Rotate the TUF root keys"
+  startedOn: "2024-09-01" 
+  frequency: "Annually"
+  description: https://fleetdm.com/handbook/engineering/tuf#rotate-the-root-keys
+  moreInfoUrl: https://fleetdm.com/handbook/engineering/tuf#rotate-the-root-keys
+  dri: "lukeheath"
+  autoIssue: 
+    labels: [ "~engineering-initiated", "P2" ]
+    repo: "fleet"
+-
   task: "Renew Apple certificate signing request (CSR)"
   startedOn: "2024-09-01" 
   frequency: "Annually"
@@ -83,7 +93,7 @@
   startedOn: "2023-10-02"
   frequency: "Daily"
   description: "Check 📃 Planned articles and complete steps in each issue"
-  moreInfoUrl: "https://fleetdm.com/handbook/demand#review-ongoing-articles"
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#review-ongoing-articles"
   dri: "rachaelshaw"
 
 

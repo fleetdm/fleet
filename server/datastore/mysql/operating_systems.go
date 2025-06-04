@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -44,6 +45,11 @@ func (ds *Datastore) UpdateHostOperatingSystem(ctx context.Context, hostID uint,
 	}
 	if !updateNeeded {
 		return nil
+	}
+
+	const maxDisplayVersionLength = 10 // per DB schema
+	if len(hostOS.DisplayVersion) > maxDisplayVersionLength {
+		return ctxerr.Errorf(ctx, "host OS display version too long: %s", hostOS.DisplayVersion)
 	}
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		os, err := getOrGenerateOperatingSystemDB(ctx, tx, hostOS)
@@ -93,7 +99,7 @@ func newOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.
 	case err == nil:
 		return storedOS, nil
 	case errors.Is(err, sql.ErrNoRows):
-		return nil, doRetryErr
+		return nil, common_mysql.DoRetryErr
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "get new operating system")
 	}

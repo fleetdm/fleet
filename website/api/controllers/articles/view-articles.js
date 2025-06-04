@@ -26,12 +26,13 @@ module.exports = {
   },
 
 
-  fn: async function ({category}) {
+  fn: async function () {
 
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.markdownPages) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
       throw {badConfig: 'builtStaticContent.markdownPages'};
     }
     let articles = [];
+    let category = this.req.path.split('/')[1];
     if (category === 'articles') {
       // If the category is `/articles` we'll show all articles
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
@@ -39,8 +40,6 @@ module.exports = {
           return page;
         }
       });
-      // setting the category to all
-      category = 'all';
     } else {
       // if the user navigates to a URL for a specific category, we'll only display articles in that category
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
@@ -48,8 +47,9 @@ module.exports = {
           return page;
         }
       });
-      articles = _.sortBy(articles, 'meta.publishedOn');
     }
+    // Sort articles in descending order by publish date.
+    articles = _.sortByOrder(articles, 'meta.publishedOn', 'DESC');
 
     let pageTitleForMeta = 'Fleet blog';
     let pageDescriptionForMeta = 'Read the latest articles written by Fleet.';
@@ -95,6 +95,10 @@ module.exports = {
       case 'podcasts':
         pageTitleForMeta = 'Podcasts';
         pageDescriptionForMeta = 'Listen to the Future of Device Management podcast.';
+        break;
+      case 'articles':
+        pageTitleForMeta = 'Articles';
+        pageDescriptionForMeta = 'Read the latest articles from the Fleet team and community.';
         break;
     }
 

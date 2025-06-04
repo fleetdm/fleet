@@ -6,6 +6,7 @@ package platform
 import (
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -131,20 +132,23 @@ func SignalProcessBeforeTerminate(processName string) error {
 		return ErrComChannelNotFound
 	}
 
-	foundProcess, err := GetProcessByName(processName)
+	foundProcesses, err := GetProcessesByName(processName)
 	if err != nil {
 		return fmt.Errorf("get process: %w", err)
 	}
 
-	if err := foundProcess.Kill(); err != nil {
-		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
+	for _, foundProcess := range foundProcesses {
+		if err := foundProcess.Kill(); err != nil {
+			return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
+		}
 	}
+
 	return nil
 }
 
-// GetProcessByName gets a single running process object by its name.
+// GetProcessesByName returns a list of running process object by name.
 // Returns ErrProcessNotFound if the process was not found running.
-func GetProcessByName(name string) (*gopsutil_process.Process, error) {
+func GetProcessesByName(name string) ([]*gopsutil_process.Process, error) {
 	if name == "" {
 		return nil, errors.New("process name should not be empty")
 	}
@@ -164,7 +168,7 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	// Closing the handle to avoid handle leaks.
 	defer windows.CloseHandle(snapshot) //nolint:errcheck
 
-	var foundProcessID uint32 = 0
+	var foundProcessIDs []uint32
 
 	// Initializing work structure PROCESSENTRY32W
 	// https://learn.microsoft.com/en-us/windows/win32/api/tlhelp32/ns-tlhelp32-processentry32w
@@ -180,10 +184,8 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	// Process32First() is going to return ERROR_NO_MORE_FILES when no more threads present
 	// it will return FALSE/nil otherwise
 	for err == nil {
-
 		if strings.HasPrefix(syscall.UTF16ToString(procEntry.ExeFile[:]), name) {
-			foundProcessID = procEntry.ProcessID
-			break
+			foundProcessIDs = append(foundProcessIDs, procEntry.ProcessID)
 		}
 
 		// Process32Next() is calling to keep iterating the snapshot
@@ -191,17 +193,35 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 		err = windows.Process32Next(snapshot, &procEntry)
 	}
 
-	process, err := gopsutil_process.NewProcess(int32(foundProcessID))
-	if err != nil {
-		return nil, fmt.Errorf("NewProcess: %w", err)
+	var processes []*gopsutil_process.Process
+
+	for _, foundProcessID := range foundProcessIDs {
+		// This should never happen because Windows reuses PIDs and it should never approach overflow
+		// however there is a disconnect between the API in gopsutil which expects an int32 and the
+		// Windows PID which is a uint32 and which Microsoft documentation places no firm limit on,
+		// so we must ultimately check for overflow before casting the PID below
+		if foundProcessID > math.MaxInt32 {
+			log.Warn().Msgf("found process ID in GetProcessesByName is too big: %d, skipping", foundProcessID)
+			continue
+		}
+		process, err := gopsutil_process.NewProcess(int32(foundProcessID)) // nolint:gosec
+		if err != nil {
+			continue
+		}
+
+		isRunning, err := process.IsRunning()
+		if err != nil || !isRunning {
+			continue
+		}
+
+		processes = append(processes, process)
 	}
 
-	isRunning, err := process.IsRunning()
-	if err != nil || !isRunning {
+	if len(processes) == 0 {
 		return nil, ErrProcessNotFound
 	}
 
-	return process, nil
+	return processes, nil
 }
 
 // It obtains the BIOS UUID by calling "cmd.exe /c wmic csproduct get UUID" and parsing the results
@@ -311,7 +331,7 @@ func hardwareGetSMBiosUUID() (string, error) {
 
 			// As of version 2.6 of the SMBIOS specification, the first 3 fields of the UUID are
 			// supposed to be encoded in little-endian (section 7.2.1)
-			var smBiosUUID string = ""
+			var smBiosUUID string
 			if (biosMajor >= revMajorVersion) || (biosMajor >= minLegacyMajorVersion && biosMinor >= minLegacyMinorVersion) {
 				smBiosUUID = fmt.Sprintf("%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
 					uuidBytes[3], uuidBytes[2], uuidBytes[1], uuidBytes[0], uuidBytes[5], uuidBytes[4], uuidBytes[7], uuidBytes[6], uuidBytes[8], uuidBytes[9], uuidBytes[10], uuidBytes[11], uuidBytes[12], uuidBytes[13], uuidBytes[14], uuidBytes[15])
@@ -542,7 +562,7 @@ func PreUpdateQuirks() {
 	if shouldQuirksRun() {
 		// Fixing the symlink not present quirk
 		// This is a best-effort fix, any error in fixSymlinkNotPresent is ignored
-		fixSymlinkNotPresent()
+		_ = fixSymlinkNotPresent()
 	}
 }
 

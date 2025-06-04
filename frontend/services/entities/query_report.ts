@@ -12,6 +12,13 @@ export interface ISortOption {
 export interface ILoadQueryReportOptions {
   id: number;
   sortBy: ISortOption[];
+  teamId?: number;
+}
+
+interface ILoadQueryReportQueryParams {
+  order_key: string | undefined;
+  order_direction: string | undefined;
+  team_id?: number;
 }
 
 const getSortParams = (sortOptions?: ISortOption[]) => {
@@ -27,13 +34,16 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
 };
 
 export default {
-  load: ({ id, sortBy }: ILoadQueryReportOptions) => {
+  load: ({ id, sortBy, teamId }: ILoadQueryReportOptions) => {
     const sortParams = getSortParams(sortBy);
 
-    const queryParams = {
+    const queryParams: ILoadQueryReportQueryParams = {
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
     };
+    if (teamId && teamId > 0) {
+      queryParams.team_id = teamId;
+    }
 
     const queryString = buildQueryStringFromParams(queryParams);
 

@@ -40,6 +40,10 @@ jobs:
       with:
         go-version-file: 'go.mod'
 
+    - name: Update orbit/old-TUF.md
+      run: |
+        make fleetd-old-tuf
+    
     - name: Update orbit/TUF.md
       run: |
         make fleetd-tuf

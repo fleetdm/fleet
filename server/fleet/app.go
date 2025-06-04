@@ -189,10 +189,11 @@ type MDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
-	MacOSSettings         MacOSSettings            `json:"macos_settings"`
-	MacOSSetup            MacOSSetup               `json:"macos_setup"`
-	MacOSMigration        MacOSMigration           `json:"macos_migration"`
-	EndUserAuthentication MDMEndUserAuthentication `json:"end_user_authentication"`
+	MacOSSettings           MacOSSettings            `json:"macos_settings"`
+	MacOSSetup              MacOSSetup               `json:"macos_setup"`
+	MacOSMigration          MacOSMigration           `json:"macos_migration"`
+	WindowsMigrationEnabled bool                     `json:"windows_migration_enabled"`
+	EndUserAuthentication   MDMEndUserAuthentication `json:"end_user_authentication"`
 
 	// WindowsEnabledAndConfigured indicates if Fleet MDM is enabled for Windows.
 	// There is no other configuration required for Windows other than enabling
@@ -206,10 +207,18 @@ type MDM struct {
 
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
+	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
+	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
+
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+type UIGitOpsModeConfig struct {
+	GitopsModeEnabled bool   `json:"gitops_mode_enabled"`
+	RepositoryURL     string `json:"repository_url"`
 }
 
 func (c *AppConfig) MDMUrl() string {
@@ -341,12 +350,23 @@ type MacOSSettings struct {
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
 
+func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return s.CustomSettings
+}
+
 func (s MacOSSettings) ToMap() map[string]interface{} {
 	return map[string]interface{}{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
 	}
 }
+
+type WithMDMProfileSpecs interface {
+	GetMDMProfileSpecs() []MDMProfileSpec
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = MacOSSettings{}
 
 // FromMap sets the macOS settings from the provided map, which is the map type
 // from the ApplyTeams spec struct. It returns a map of fields that were set in
@@ -427,6 +447,37 @@ type MacOSSetup struct {
 	EnableReleaseDeviceManually optjson.Bool                       `json:"enable_release_device_manually"`
 	Script                      optjson.String                     `json:"script"`
 	Software                    optjson.Slice[*MacOSSetupSoftware] `json:"software"`
+	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install"`
+}
+
+func (mos *MacOSSetup) SetDefaultsIfNeeded() {
+	if mos == nil {
+		return
+	}
+	if !mos.BootstrapPackage.Valid {
+		mos.BootstrapPackage = optjson.SetString("")
+	}
+	if !mos.MacOSSetupAssistant.Valid {
+		mos.MacOSSetupAssistant = optjson.SetString("")
+	}
+	if !mos.EnableReleaseDeviceManually.Valid {
+		mos.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !mos.Script.Valid {
+		mos.Script = optjson.SetString("")
+	}
+	if !mos.Software.Valid {
+		mos.Software = optjson.SetSlice([]*MacOSSetupSoftware{})
+	}
+	if !mos.ManualAgentInstall.Valid {
+		mos.ManualAgentInstall = optjson.SetBool(false)
+	}
+}
+
+func NewMacOSSetupWithDefaults() *MacOSSetup {
+	mos := &MacOSSetup{}
+	mos.SetDefaultsIfNeeded()
+	return mos
 }
 
 // MacOSSetupSoftware represents a VPP app or a software package to install
@@ -512,6 +563,8 @@ type AppConfig struct {
 	Integrations    Integrations    `json:"integrations"`
 
 	MDM MDM `json:"mdm"`
+
+	UIGitOpsMode UIGitOpsModeConfig `json:"gitops"`
 
 	// Scripts is a slice of script file paths.
 	//
@@ -634,6 +687,16 @@ func (c *AppConfig) Copy() *AppConfig {
 			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
+	if len(c.Integrations.DigiCert.Value) > 0 {
+		digicert := make([]DigiCertIntegration, len(c.Integrations.DigiCert.Value))
+		copy(digicert, c.Integrations.DigiCert.Value)
+		clone.Integrations.DigiCert = optjson.SetSlice(digicert)
+	}
+	if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
+		customSCEP := make([]CustomSCEPProxyIntegration, len(c.Integrations.CustomSCEPProxy.Value))
+		copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
+		clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
+	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
@@ -685,6 +748,8 @@ func (c *AppConfig) Copy() *AppConfig {
 		}
 		clone.MDM.MacOSSetup.Software = optjson.SetSlice(sw)
 	}
+
+	// UIGitOpsMode: nothing needs cloning
 
 	if c.YaraRules != nil {
 		rules := make([]YaraRule, len(c.YaraRules))
@@ -1065,6 +1130,9 @@ type FleetDesktopSettings struct {
 // DefaultTransparencyURL is the default URL used for the “About Fleet” link in the Fleet Desktop menu.
 const DefaultTransparencyURL = "https://fleetdm.com/transparency"
 
+// SecureframeTransparencyURL is the URL used for the "About Fleet" link in Fleet Desktop when the Secureframe partnership config value is enabled
+const SecureframeTransparencyURL = "https://fleetdm.com/better?utm_content=secureframe"
+
 type OrderDirection int
 
 const (
@@ -1124,6 +1192,9 @@ type ListQueryOptions struct {
 	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
 	// is set.
 	MergeInherited bool
+	// Return queries that are scheduled to run on this platform. One of "macos",
+	// "windows", or "linux"
+	Platform *string
 }
 
 type ListActivitiesOptions struct {
@@ -1142,6 +1213,13 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+	// NoCache indicates that cached_mysql calls should be bypassed on the server.
+	// This is needed where related data was just updated and we need that latest data from the DB.
+	NoCache bool
+	// Indicate whether or not the spec should be applied in overwrite mode.
+	// This means that any missing fields in the spec will be set to their default values.
+	// GitOps uses this mode.
+	Overwrite bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1174,6 +1252,12 @@ func (o *ApplySpecOptions) RawQuery() string {
 	if o.DryRun {
 		query.Set("dry_run", "true")
 	}
+	if o.NoCache {
+		query.Set("no_cache", "true")
+	}
+	if o.Overwrite {
+		query.Set("overwrite", "true")
+	}
 	return query.Encode()
 }
 
@@ -1187,6 +1271,13 @@ type EnrollSecret struct {
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
 	TeamID *uint `json:"team_id,omitempty" db:"team_id"`
+}
+
+func (e *EnrollSecret) GetTeamID() *uint {
+	if e == nil {
+		return nil
+	}
+	return e.TeamID
 }
 
 func (e *EnrollSecret) AuthzType() string {
@@ -1210,7 +1301,7 @@ const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
 	// Maximum number of enroll secrets that can be set per team, or globally.
-	// Make sure to change the documentation in docs/Contributing/API-for-Contributors.md
+	// Make sure to change the documentation in docs/Contributing/reference/api-for-contributors.md
 	// if you change that value (look for the string `secrets`).
 	MaxEnrollSecretsCount = 50
 )
@@ -1235,6 +1326,11 @@ const (
 	TierTrial = "trial"
 )
 
+// Partnerships contains specialized configuration options for Fleet partners.
+type Partnerships struct {
+	EnablePrimo bool `json:"enable_primo,omitempty"`
+}
+
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
 	// Tier is the license tier (currently "free" or "premium")
@@ -1247,6 +1343,8 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+	// AllowDisableTelemetry allows specific customers to not send analytics
+	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {
@@ -1261,6 +1359,11 @@ func (l *LicenseInfo) ForceUpgrade() {
 	if l.Tier == tierBasicDeprecated {
 		l.Tier = TierPremium
 	}
+}
+
+// Both free and specific premium users are allowed to disable telemetry
+func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
+	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
 const (
@@ -1314,6 +1417,10 @@ type LoggingPlugin struct {
 
 type FilesystemConfig struct {
 	config.FilesystemConfig
+}
+
+type WebhookConfig struct {
+	config.WebhookConfig
 }
 
 type PubSubConfig struct {
@@ -1386,6 +1493,13 @@ type WindowsSettings struct {
 	// (The source of truth for profiles is in MySQL.)
 	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
 }
+
+func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return ws.CustomSettings.Value
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = WindowsSettings{}
 
 type YaraRuleSpec struct {
 	Path string `json:"path"`

@@ -12,6 +12,7 @@ module.exports.policies = {
 
   '*': 'is-logged-in',
   'admin/*': 'is-super-admin',
+  'query-generator/*': 'has-query-generator-access',
 
   // Bypass the `is-logged-in` policy for:
   'entrance/*': true,
@@ -25,7 +26,10 @@ module.exports.policies = {
   'legal/view-privacy': true,
   'deliver-contact-form-message': true,
   'view-query-detail': true,
+  'view-policy-details': true,
   'view-query-library': true,
+  'view-policy-library': true,
+  'view-vital-details': true,
   'docs/*': true,
   'handbook/*': true,
   'download-sitemap': true,
@@ -45,8 +49,8 @@ module.exports.policies = {
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
   'download-rss-feed': true,
-  'view-endpoint-ops': true,
-  'view-vulnerability-management': true,
+  'view-observability': true,
+  'view-software-management': true,
   'deliver-mdm-demo-email': true,
   'view-support': true,
   'view-integrations': true,
@@ -58,4 +62,12 @@ module.exports.policies = {
   'deliver-deal-registration-submission': true,
   'get-est-device-certificate': true,
   'view-testimonials': true,
+  'view-app-library': true,
+  'view-app-details': true,
+  'view-meetups': true,
+  'view-os-settings': true,
+  'view-fleetctl-preview': true,
+  'get-llm-generated-configuration-profile': true,
+  'account/update-start-cta-visibility': true,
+  'view-configuration-builder': true,
 };

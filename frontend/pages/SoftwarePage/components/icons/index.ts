@@ -35,6 +35,7 @@ import WindowsDefender from "./WindowsDefender";
 import WhatsApp from "./WhatsApp";
 import Postman from "./Postman";
 import OnePassword from "./OnePassword";
+import AmazonDCV from "./AmazonDCV";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -45,7 +46,7 @@ const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
-const SOFTWARE_NAME_TO_ICON_MAP = {
+export const SOFTWARE_NAME_TO_ICON_MAP = {
   appStore: AppStore,
   "adobe acrobat reader": AcrobatReader,
   "microsoft excel": Excel,
@@ -77,12 +78,13 @@ const SOFTWARE_NAME_TO_ICON_MAP = {
   "windows defender": WindowsDefender,
   postman: Postman,
   "1password": OnePassword,
+  "amazon dcv": AmazonDCV,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
 // icon.
-const SOFTWARE_SOURCE_TO_ICON_MAP = {
+export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   package: Package,
   apt_sources: Package,
   deb_packages: Package,

@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -78,6 +80,14 @@ GROUP BY
 	return &title, nil
 }
 
+func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, name string) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, "UPDATE software_titles SET name = ? WHERE id = ? AND bundle_identifier != ''", name, titleID); err != nil {
+		return ctxerr.Wrap(ctx, err, "update software title name")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
@@ -111,13 +121,16 @@ func (ds *Datastore) ListSoftwareTitles(
 		PackageSelfService        *bool   `db:"package_self_service"`
 		PackageName               *string `db:"package_name"`
 		PackageVersion            *string `db:"package_version"`
+		PackagePlatform           *string `db:"package_platform"`
 		PackageURL                *string `db:"package_url"`
 		PackageInstallDuringSetup *bool   `db:"package_install_during_setup"`
 		VPPAppSelfService         *bool   `db:"vpp_app_self_service"`
 		VPPAppAdamID              *string `db:"vpp_app_adam_id"`
 		VPPAppVersion             *string `db:"vpp_app_version"`
+		VPPAppPlatform            *string `db:"vpp_app_platform"`
 		VPPAppIconURL             *string `db:"vpp_app_icon_url"`
 		VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
+		FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
 	}
 	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
@@ -142,21 +155,28 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	// grab all the IDs to find matching versions below
 	titleIDs := make([]uint, len(softwareList))
-	// build an index to quickly access a title by it's ID
+	// build an index to quickly access a title by its ID
 	titleIndex := make(map[uint]int, len(softwareList))
 	for i, title := range softwareList {
-		// promote the package name and version to the proper destination fields
+		// promote software installer properties to their proper destination fields
 		if title.PackageName != nil {
 			var version string
 			if title.PackageVersion != nil {
 				version = *title.PackageVersion
 			}
+			var platform string
+			if title.PackagePlatform != nil {
+				platform = *title.PackagePlatform
+			}
+
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
-				Name:               *title.PackageName,
-				Version:            version,
-				SelfService:        title.PackageSelfService,
-				PackageURL:         title.PackageURL,
-				InstallDuringSetup: title.PackageInstallDuringSetup,
+				Name:                 *title.PackageName,
+				Version:              version,
+				Platform:             platform,
+				SelfService:          title.PackageSelfService,
+				PackageURL:           title.PackageURL,
+				InstallDuringSetup:   title.PackageInstallDuringSetup,
+				FleetMaintainedAppID: title.FleetMaintainedAppID,
 			}
 		}
 
@@ -166,9 +186,14 @@ func (ds *Datastore) ListSoftwareTitles(
 			if title.VPPAppVersion != nil {
 				version = *title.VPPAppVersion
 			}
+			var platform string
+			if title.VPPAppPlatform != nil {
+				platform = *title.VPPAppPlatform
+			}
 			title.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:         *title.VPPAppAdamID,
 				Version:            version,
+				Platform:           platform,
 				SelfService:        title.VPPAppSelfService,
 				IconURL:            title.VPPAppIconURL,
 				InstallDuringSetup: title.VPPInstallDuringSetup,
@@ -179,22 +204,48 @@ func (ds *Datastore) ListSoftwareTitles(
 		titleIndex[title.ID] = i
 	}
 
+	// Grab the automatic install policies, if any exist
+	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, titleIDs, opt.TeamID)
+	if err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
+	}
+
+	for _, p := range policies {
+		if i, ok := titleIndex[p.TitleID]; ok {
+			if softwareList[i].AppStoreApp != nil {
+				softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(softwareList[i].AppStoreApp.AutomaticInstallPolicies, p)
+			} else {
+				softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p)
+			}
+		}
+	}
+
 	// we grab matching versions separately and build the desired object in
 	// the application logic. This is because we need to support MySQL 5.7
 	// and there's no good way to do an aggregation that builds a structure
 	// (like a JSON) object for nested arrays.
-	getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
-		titleIDs,
-		opt.TeamID,
-		tmFilter,
-		false,
-	)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "build get versions stmt")
-	}
+	batchSize := 32000
 	var versions []fleet.SoftwareVersion
-	if err := sqlx.SelectContext(ctx, dbReader, &versions, getVersionsStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software versions")
+	err = common_mysql.BatchProcessSimple(titleIDs, batchSize, func(titleIDsToProcess []uint) error {
+		getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
+			titleIDsToProcess,
+			opt.TeamID,
+			tmFilter,
+			false,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build get versions stmt")
+		}
+		var versionsBatch []fleet.SoftwareVersion
+		if err := sqlx.SelectContext(ctx, dbReader, &versions, getVersionsStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get software versions")
+		}
+		versions = append(versions, versionsBatch...)
+
+		return nil
+	})
+	if err != nil {
+		return nil, 0, nil, err
 	}
 
 	// append matching versions to titles
@@ -268,12 +319,16 @@ SELECT
 	si.self_service as package_self_service,
 	si.filename as package_name,
 	si.version as package_version,
+	si.platform as package_platform,
 	si.url AS package_url,
 	si.install_during_setup as package_install_during_setup,
+	si.storage_id as package_storage_id,
+	si.fleet_maintained_app_id,
 	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vat.install_during_setup as vpp_install_during_setup,
 	vap.latest_version as vpp_app_version,
+	vap.platform as vpp_app_platform,
 	vap.icon_url as vpp_app_icon_url
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
@@ -286,7 +341,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, package_self_service, package_name, package_version, package_url, package_install_during_setup, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url, vpp_install_during_setup`
+GROUP BY st.id, package_self_service, package_name, package_version, package_platform, package_url, package_install_during_setup, package_storage_id, fleet_maintained_app_id, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_platform, vpp_app_icon_url, vpp_install_during_setup`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {
@@ -366,8 +421,17 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 	}
 
 	if opt.Platform != "" {
-		additionalWhere += ` AND ( si.platform = ? OR vap.platform = ? )`
-		args = append(args, opt.Platform, opt.Platform)
+		platforms := strings.Split(strings.ReplaceAll(opt.Platform, "macos", "darwin"), ",")
+		platformPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(platforms)), ",")
+
+		additionalWhere += fmt.Sprintf(` AND (si.platform IN (%s) OR vap.platform IN (%s))`, platformPlaceholders, platformPlaceholders)
+		args = slices.Grow(args, len(platformPlaceholders)*2)
+		for _, platform := range platforms { // for software installers
+			args = append(args, platform)
+		}
+		for _, platform := range platforms { // for VPP apps; could micro-optimize later by dropping non-Apple platforms
+			args = append(args, platform)
+		}
 	}
 
 	// default to "a software installer or VPP app exists", and see next condition.

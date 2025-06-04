@@ -1,35 +1,72 @@
 .software-self-service {
-  &__card-header {
-    margin: 0 0 8px 0;
-  }
-
-  &__card-subheader {
-    margin: 0 0 24px 0;
-    color: $ui-fleet-black-75;
-    font-size: $x-small;
-  }
-
-  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?g
+  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
   .empty-table__container {
     margin: 64px 0;
   }
 
-  &__items-count {
-    margin: 0 0 24px 0;
-    font-size: $x-small;
-    font-weight: $bold;
-  }
-
-  &__items {
-    display: grid;
-    gap: $pad-large;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  }
-
-  &__pagination {
+  &__header-filters {
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 16px;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: $pad-medium;
+    align-items: center;
+    margin: 0 0 24px 0;
+  }
+
+  &__table {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-large;
+
+    > *:nth-child(2) {
+      flex-grow: 1;
+    }
+
+    .data-table-block .data-table__wrapper {
+      margin-top: 0;
+    }
+
+    .self-service-table__status-content,
+    .table-container .children-wrapper {
+      display: flex;
+      align-items: center;
+      gap: $pad-small;
+    }
+
+    // No column shift when changed statuses
+    // min-width longest status: "Failed (uninstall)"
+    .self-service-table__status-content {
+      min-width: 138px;
+    }
+
+    .self-service-table__item-status-button {
+      height: auto;
+    }
+
+    .self-service-table__item-actions {
+      display: flex;
+      flex-direction: row;
+      gap: $pad-large;
+    }
+
+    .self-service-table__item-action {
+      min-width: 82px; // Second action buttons align between rows
+    }
+  }
+
+  .categories-menu {
+    display: none;
+  }
+
+  @media (min-width: $break-md) {
+    .categories-menu {
+      display: flex;
+      flex-direction: column;
+      width: 300px;
+    }
+
+    &__categories-dropdown {
+      display: none;
+    }
   }
 }

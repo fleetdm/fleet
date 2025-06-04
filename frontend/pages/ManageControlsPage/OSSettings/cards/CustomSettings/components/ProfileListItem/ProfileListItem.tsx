@@ -12,6 +12,7 @@ import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 
 import strUtils from "utilities/strings";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "profile-list-item";
 
@@ -72,7 +73,8 @@ const createFileContent = async (profile: IMdmProfile) => {
 interface IProfileListItemProps {
   isPremium: boolean;
   profile: IMdmProfile;
-  onDelete: (profile: IMdmProfile) => void;
+  onClickInfo: (profile: IMdmProfile) => void;
+  onClickDelete: (profile: IMdmProfile) => void;
   setProfileLabelsModalData: React.Dispatch<
     React.SetStateAction<IMdmProfile | null>
   >;
@@ -81,7 +83,8 @@ interface IProfileListItemProps {
 const ProfileListItem = ({
   isPremium,
   profile,
-  onDelete,
+  onClickInfo,
+  onClickDelete,
   setProfileLabelsModalData,
 }: IProfileListItemProps) => {
   const {
@@ -119,6 +122,7 @@ const ProfileListItem = ({
   };
 
   return (
+    // TODO - refactor to use ListItem
     <div className={classnames(subClass, baseClass)}>
       <div className={`${subClass}__main-content`}>
         <Graphic name="file-configuration-profile" />
@@ -136,6 +140,13 @@ const ProfileListItem = ({
       <div className={`${subClass}__actions-wrap`}>
         {renderLabelInfo()}
         <div className={`${subClass}__actions`}>
+          <Button
+            className={`${subClass}__action-button`}
+            variant="text-icon"
+            onClick={() => onClickInfo(profile)}
+          >
+            <Icon name="info" color="ui-fleet-black-75" size="medium" />
+          </Button>
           {isPremium && labels !== undefined && labels.length && (
             <Button
               className={`${subClass}__action-button`}
@@ -152,13 +163,18 @@ const ProfileListItem = ({
           >
             <Icon name="download" />
           </Button>
-          <Button
-            className={`${subClass}__action-button`}
-            variant="text-icon"
-            onClick={() => onDelete(profile)}
-          >
-            <Icon name="trash" color="ui-fleet-black-75" />
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                disabled={disableChildren}
+                className={`${subClass}__action-button`}
+                variant="text-icon"
+                onClick={() => onClickDelete(profile)}
+              >
+                <Icon name="trash" color="ui-fleet-black-75" />
+              </Button>
+            )}
+          />
         </div>
       </div>
     </div>

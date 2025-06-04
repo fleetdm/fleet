@@ -3,9 +3,6 @@ parasails.registerPage('basic-documentation', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-
-    isDocsLandingPage: false,
-
     inputTextValue: '',
     inputTimers: {},
     searchString: '',
@@ -19,6 +16,7 @@ parasails.registerPage('basic-documentation', {
     scrollDistance: 0,
     navSectionsByDocsSectionSlug: {},
     lastScrollTop: 0,
+    modal: undefined,
   },
 
   computed: {
@@ -31,9 +29,6 @@ parasails.registerPage('basic-documentation', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    if (this.thisPage.url === '/docs') {
-      this.isDocsLandingPage = true;
-    }
 
     this.breadcrumbs = _.trim(this.thisPage.url, /\//).split(/\//);
 
@@ -80,31 +75,13 @@ parasails.registerPage('basic-documentation', {
       return pagesBySectionSlug;
     })();
     // Adding a scroll event listener for scrolling sidebars and showing the back to top button.
-    if(!this.isDocsLandingPage){
-      window.addEventListener('scroll', this.handleScrollingInDocumentation);
-    }
+    window.addEventListener('scroll', this.handleScrollingInDocumentation);
   },
 
   mounted: async function() {
 
     // Set a currentDocsSection value to display different Fleet premium CTAs based on what section is being viewed.
-    if(!this.isDocsLandingPage){
-      this.currentDocsSection = this.thisPage.url.split(/\//).slice(-2)[0];
-    }
-
-    // Algolia DocSearch
-    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: (this.isDocsLandingPage ? '#docsearch-query-landing' : '#docsearch-query'),
-        clickAnalytics: true,
-        searchParameters: {
-          'facetFilters': ['section:docs']
-        },
-      });
-    }
+    this.currentDocsSection = this.thisPage.url.split(/\//).slice(-2)[0];
 
     // Handle hashes in urls when coming from an external page.
     if(window.location.hash){
@@ -221,13 +198,13 @@ parasails.registerPage('basic-documentation', {
   methods: {
 
     clickSwagRequestCTA: function () {
-      if(typeof gtag !== 'undefined') {
+      if(window.gtag !== undefined){
         gtag('event','fleet_website__swag_request');
       }
-      if(typeof window.lintrk !== 'undefined') {
+      if(window.lintrk !== undefined) {
         window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
       }
-      if(typeof analytics !== 'undefined'){
+      if(window.analytics !== undefined) {
         analytics.track('fleet_website__swag_request');
       }
       this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0#from_page=docs');
@@ -308,6 +285,7 @@ parasails.registerPage('basic-documentation', {
 
     handleScrollingInDocumentation: function () {
       let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
+      let swagCta = document.querySelector('div[purpose="swag-cta"].left-cta');
       let backToTopButton = document.querySelector('div[purpose="back-to-top-button"]');
       let scrollTop = window.pageYOffset;
       let windowHeight = window.innerHeight;
@@ -315,9 +293,15 @@ parasails.registerPage('basic-documentation', {
       if (rightNavBar) {
         if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
           rightNavBar.classList.add('header-hidden');
+          if (swagCta) {
+            swagCta.classList.add('header-hidden');
+          }
           this.lastScrollTop = scrollTop;
         } else if(scrollTop < this.lastScrollTop - 60) {
           rightNavBar.classList.remove('header-hidden');
+          if (swagCta) {
+            swagCta.classList.remove('header-hidden');
+          }
           this.lastScrollTop = scrollTop;
         }
       }
@@ -337,6 +321,16 @@ parasails.registerPage('basic-documentation', {
         left: 0,
         behavior: 'smooth',
       });
+    },
+    clickOpenMobileSubtopicsNav: function() {
+      this.modal = 'subtopics';
+    },
+    clickOpenMobileDocsNav: function() {
+      this.modal = 'table-of-contents';
+    },
+    closeModal: async function() {
+      this.modal = '';
+      await this.forceRender();
     }
   }
 

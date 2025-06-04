@@ -19,7 +19,7 @@ func Up_20230425105727(tx *sql.Tx) error {
             created_at   datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
             PRIMARY KEY (id)
-          )`)
+          ) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("creating eulas table: %w", err)
 	}

@@ -131,7 +131,7 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
           }`}
           accept=".p7m"
           message="ABM token (.p7m)"
-          graphicName={"file-p7m"}
+          graphicName="file-p7m"
           buttonType="link"
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
           fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
@@ -139,7 +139,6 @@ const AddAbmModal = ({ onCancel, onAdded }: IAddAbmModalProps) => {
         />
         <div className="modal-cta-wrap">
           <Button
-            variant="brand"
             onClick={uploadAbmToken}
             isLoading={isUploading}
             disabled={!tokenFile || isUploading}

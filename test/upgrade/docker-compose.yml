@@ -1,0 +1,49 @@
+services:
+  mysql:
+    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    image: mysql:8.0.36
+    environment:
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: fleet
+      MYSQL_USER: fleet
+      MYSQL_PASSWORD: fleet
+    ports:
+      - "3306"
+
+  redis:
+    image: redis:6
+
+  fleet:
+    image: fleetdm/fleet:${FLEET_VERSION:-latest}
+    environment:
+      FLEET_MYSQL_ADDRESS: mysql:3306
+      FLEET_MYSQL_DATABASE: fleet
+      FLEET_MYSQL_USERNAME: fleet
+      FLEET_MYSQL_PASSWORD: fleet
+      FLEET_REDIS_ADDRESS: redis:6379
+      FLEET_SERVER_ADDRESS: 0.0.0.0:8080
+      FLEET_SERVER_CERT: /fleet.crt
+      FLEET_SERVER_KEY: /fleet.key
+      FLEET_LOGGING_JSON: "true"
+      FLEET_OSQUERY_LABEL_UPDATE_INTERVAL: 1m
+      FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS: "yes"
+      FLEET_VULNERABILITIES_DATABASES_PATH: /fleet/vulndb
+      FLEET_VULNERABILITIES_PERIODICITY: 5m
+      FLEET_LOGGING_DEBUG: "true"
+    volumes:
+      - ./fleet.crt:/fleet.crt
+      - ./fleet.key:/fleet.key
+    ports:
+      - "8080"
+    depends_on:
+      - mysql
+      - redis
+
+  osquery:
+    image: "osquery/osquery:4.7.0-ubuntu20.04"
+    volumes:
+      - ./fleet.crt:/etc/osquery/fleet.crt
+      - ./osquery.flags:/etc/osquery/osquery.flags
+    environment:
+      ENROLL_SECRET: "${ENROLL_SECRET:-foobar}"
+    command: osqueryd --flagfile=/etc/osquery/osquery.flags

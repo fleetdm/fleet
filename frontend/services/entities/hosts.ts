@@ -23,6 +23,8 @@ import {
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
+import { IHostCertificate } from "interfaces/certificates";
+import { IListOptions } from "interfaces/list_options";
 
 export interface ISortOption {
   key: string;
@@ -88,6 +90,8 @@ export interface ILoadHostsOptions {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
+  configProfileStatus?: string;
+  configProfileUUID?: string;
 }
 
 export interface IExportHostsOptions {
@@ -120,6 +124,8 @@ export interface IExportHostsOptions {
   bootstrapPackageStatus?: BootstrapPackageStatus;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
+  configProfileUUID?: string;
+  configProfileStatus?: string;
 }
 
 export interface IActionByFilter {
@@ -157,12 +163,30 @@ export interface IGetHostSoftwareResponse {
   };
 }
 
+export interface IHostSoftwareApiParams extends QueryParams {
+  page?: number;
+  perPage?: number;
+  query?: string;
+  orderKey?: string;
+  orderDirection?: "asc" | "desc";
+  availableForInstall?: boolean;
+  vulnerable?: boolean;
+  maxCvssScore?: string;
+  minCvssScore?: string;
+  exploit?: boolean;
+}
+
 export interface IHostSoftwareQueryParams extends QueryParams {
   page: number;
   per_page: number;
   query: string;
   order_key: string;
   order_direction: "asc" | "desc";
+  available_for_install?: boolean;
+  vulnerable?: boolean;
+  min_cvss_score?: number;
+  max_cvss_score?: number;
+  exploit?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -171,7 +195,19 @@ export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   softwareUpdatedAt?: string;
 }
 
-export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+export interface IGetHostCertsRequestParams extends IListOptions {
+  host_id: number;
+}
+
+export interface IGetHostCertificatesResponse {
+  certificates: IHostCertificate[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export type ILoadHostDetailsExtension = "macadmins";
 
 const LABEL_PREFIX = "labels/";
 
@@ -303,6 +339,8 @@ export default {
     const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
     const vulnerability = options?.vulnerability;
+    const configProfileUUID = options?.configProfileUUID;
+    const configProfileStatus = options?.configProfileStatus;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -338,6 +376,8 @@ export default {
         bootstrapPackageStatus,
         diskEncryptionStatus,
         vulnerability,
+        configProfileUUID,
+        configProfileStatus,
       }),
       status,
       label_id: label,
@@ -350,17 +390,6 @@ export default {
     const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
-  },
-  // TODO: change/remove this when backend implments way for client to get
-  // a collection of hosts based on ho  st ids
-  getHosts: (hostIds: number[]) => {
-    return Promise.all(
-      hostIds.map((hostId) => {
-        const { HOSTS } = endpoints;
-        const path = `${HOSTS}/${hostId}`;
-        return sendRequest("GET", path);
-      })
-    );
   },
 
   loadHosts: ({
@@ -390,6 +419,8 @@ export default {
     osSettings,
     diskEncryptionStatus,
     bootstrapPackageStatus,
+    configProfileStatus,
+    configProfileUUID,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -428,6 +459,8 @@ export default {
         diskEncryptionStatus,
         osSettings,
         bootstrapPackageStatus,
+        configProfileStatus,
+        configProfileUUID,
       }),
     };
 
@@ -590,11 +623,30 @@ export default {
       HOST_SOFTWARE_PACKAGE_INSTALL(hostId, softwareId)
     );
   },
+
   uninstallHostSoftwarePackage: (hostId: number, softwareId: number) => {
     const { HOST_SOFTWARE_PACKAGE_UNINSTALL } = endpoints;
     return sendRequest(
       "POST",
       HOST_SOFTWARE_PACKAGE_UNINSTALL(hostId, softwareId)
     );
+  },
+
+  getHostCertificates: ({
+    host_id,
+    page,
+    per_page,
+    order_key,
+    order_direction,
+  }: IGetHostCertsRequestParams): Promise<IGetHostCertificatesResponse> => {
+    const { HOST_CERTIFICATES } = endpoints;
+    const path = `${HOST_CERTIFICATES(host_id)}?${buildQueryStringFromParams({
+      page,
+      per_page,
+      order_key,
+      order_direction,
+    })}`;
+
+    return sendRequest("GET", path);
   },
 };

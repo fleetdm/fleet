@@ -2,9 +2,8 @@ import React from "react";
 
 import { formatScriptNameForActivityItem } from "utilities/helpers";
 
-import HostActivityItem from "../../HostActivityItem";
+import ActivityItem from "components/ActivityItem";
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
-import ShowDetailsButton from "../../ShowDetailsButton";
 
 const baseClass = "ran-script-activity-item";
 
@@ -12,20 +11,32 @@ const RanScriptActivityItem = ({
   tab,
   activity,
   onShowDetails,
+  onCancel,
+  isSoloActivity,
+  hideCancel,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
-  const ranScriptPrefix = tab === "past" ? "ran" : "told Fleet to run";
+  let ranScriptPrefix = tab === "past" ? "ran" : "told Fleet to run";
+  if (tab !== "past" && activity.fleet_initiated) {
+    ranScriptPrefix = "will run";
+  }
 
   return (
-    <HostActivityItem className={baseClass} activity={activity}>
-      <b>{activity.actor_full_name}</b>
+    <ActivityItem
+      className={baseClass}
+      activity={activity}
+      onShowDetails={onShowDetails}
+      onCancel={onCancel}
+      isSoloActivity={isSoloActivity}
+      hideCancel={hideCancel}
+    >
+      <b>{activity.actor_full_name ?? "Fleet"}</b>
       <>
         {" "}
         {ranScriptPrefix}{" "}
         {formatScriptNameForActivityItem(activity.details?.script_name)} on this
         host.{" "}
-        <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
       </>
-    </HostActivityItem>
+    </ActivityItem>
   );
 };
 

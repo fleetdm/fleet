@@ -1,5 +1,15 @@
 #query-library {
 
+
+  [purpose='page-container'] {
+    padding: 48px;
+  }
+  [purpose='page-content'] {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 1104px;
+  }
+
   a {
     color: #515774;
     font-family: Inter;
@@ -51,6 +61,7 @@
     }
     .DocSearch-Button-Placeholder {
       font-size: 16px;
+      line-height: 16px;
       font-weight: 400;
       padding-left: 0px;
     }
@@ -109,24 +120,44 @@
       color: @core-fleet-black-50;
     }
   }
-  [purpose='page-container'] {
-    padding: 64px;
-  }
-  [purpose='page-content'] {
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 1072px;
-  }
+
   [purpose='search-and-headline'] {
     margin-bottom: 64px;
   }
   [purpose='page-headline'] {
-    max-width: 662px;
+    max-width: 664px;
     margin-right: 16px;
+    h2 {
+      color: #192147;
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 120%;
+      margin-bottom: 16px;
+    }
+    p {
+      color: #515774;
+      font-size: 15px;
+      font-weight: 400;
+      line-height: 24px; /* 160% */
+    }
+  }
+  .header-hidden { // For scrolling the sidebars with the sticky header
+    transform: translateY(-81px);
   }
   [purpose='platform-filters'] {
+    &.detected-windows {
+      flex-direction: row-reverse;
+    }
+    flex-direction: row;
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 48px;
+    position: sticky;
+    top: 81px;
+    background: #FFF;
+    z-index: 4;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
     [purpose='platform-filter'] {
       width: 33%;
       display: flex;
@@ -138,7 +169,7 @@
         height: 20px;
         margin-right: 10px;
       }
-      p {
+      h1 {
         color: #192147;
         text-align: center;
         margin-bottom: 0px;
@@ -151,7 +182,7 @@
       }
       &.selected {
         border-bottom: 2px solid var(--text-text-brand, #192147);
-        p {
+        h1 {
           font-weight: 700;
         }
       }
@@ -304,7 +335,7 @@
 
   @media (max-width: 991px) {
     [purpose='page-container'] {
-      padding: 64px 32px;
+      padding: 32px;
     }
     [purpose='policy-name-and-description'] {
       max-width: unset;
@@ -319,6 +350,9 @@
       margin-top: 32px;
       width: 100%;
       .input-group {
+        width: 100%;
+      }
+      .DocSearch-Button {
         width: 100%;
       }
     }

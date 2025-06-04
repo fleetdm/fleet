@@ -1,141 +1,111 @@
-import React from "react";
-import { Meta, Story } from "@storybook/react";
-import { noop } from "lodash";
+import type { Meta, StoryObj } from "@storybook/react";
+import { action } from "@storybook/addon-actions";
 
 // @ts-ignore
 import InputFieldWithIcon from ".";
 
-import "../../../../index.scss";
-
-interface IInputFieldWithIconProps {
-  autofocus?: boolean;
-  error?: string;
-  helpText?: string | string[];
-  iconName?: string;
-  label?: string;
-  name?: string;
-  placeholder?: string;
-  tabIndex?: number;
-  type?: string;
-  className?: string;
-  disabled?: boolean;
-  iconPosition?: "start" | "end";
-  onChange?: () => void;
-}
-
-export default {
+// Define metadata for the story
+const meta: Meta<typeof InputFieldWithIcon> = {
+  title: "Components/FormFields/InputFieldWithIcon",
   component: InputFieldWithIcon,
-  title: "Components/FormFields/InputWithIcon",
   argTypes: {
-    iconPosition: {
-      options: ["start", "end"],
-      control: "radio",
+    type: {
+      options: ["text", "password", "email", "number"],
+      control: "select",
     },
-    iconName: {
-      options: [
-        "chevrondown",
-        "chevronleft",
-        "chevronright",
-        "chevronup",
-        "cpu",
-        "downcaret",
-        "filter",
-        "mac",
-        "memory",
-        "storage",
-        "upcaret",
-        "uptime",
-        "world",
-        "osquery",
-        "join",
-        "add-button",
-        "packs",
-        "help",
-        "admin",
-        "config",
-        "success-check",
-        "offline",
-        "windows-original",
-        "centos-original",
-        "ubuntu-original",
-        "apple-original",
-        "search",
-        "all-hosts",
-        "alerts",
-        "logout",
-        "account",
-        "clipboard",
-        "list-select",
-        "grid-select",
-        "label",
-        "docker",
-        "cloud",
-        "self-hosted",
-        "help-solid",
-        "help-stroke",
-        "warning-filled",
-        "delete-cloud",
-        "pdf",
-        "credit-card-small",
-        "billing-card",
-        "lock-big",
-        "link-big",
-        "briefcase",
-        "name-card",
-        "business",
-        "clock",
-        "host-large",
-        "single-host",
-        "username",
-        "password",
-        "email",
-        "hosts",
-        "query",
-        "import",
-        "pencil",
-        "add-plus",
-        "x",
-        "right-arrow",
-        "camera",
-        "plus-minus",
-        "bold-plus",
-        "linux-original",
-        "clock2",
-        "trash",
-        "laptop-plus",
-        "wrench-hand",
-        "external-link",
-        "fullscreen",
-        "windowed",
-        "heroku",
-        "ubuntu",
-        "windows",
-        "centos",
-        "apple",
-        "linux",
-      ],
+    value: {
+      control: "text",
+    },
+    disabled: {
+      control: "boolean",
+    },
+    error: {
+      control: "text",
+    },
+    helpText: {
+      control: "text",
+    },
+    tooltip: {
+      control: "text",
+    },
+    iconSvg: {
+      options: ["search", "filter"], // Add more icons as needed
       control: "select",
     },
   },
+};
+
+export default meta;
+
+type Story = StoryObj<typeof InputFieldWithIcon>;
+
+// Default story
+export const Default: Story = {
   args: {
-    autofocus: false,
-    iconPosition: "start",
-    iconName: "email",
-    disabled: false,
     label: "Email",
-    placeholder: "Type here...",
-    error: "",
-    helpText: "",
-    name: "",
-    tabIndex: "",
-    type: "",
-    className: "",
-    onChange: noop,
+    placeholder: "Enter your email",
+    type: "email",
+    onChange: action("onChange"),
   },
-} as Meta;
+};
 
-const Template: Story<IInputFieldWithIconProps> = (props) => (
-  <InputFieldWithIcon {...props} />
-);
+// Password input story
+export const PasswordInput: Story = {
+  args: {
+    ...Default.args,
+    label: "Password",
+    placeholder: "Enter your password",
+    type: "password",
+  },
+};
 
-export const Default = Template.bind({});
+// With error story
+export const WithError: Story = {
+  args: {
+    ...Default.args,
+    error: "Invalid email address",
+  },
+};
+
+// With help text story
+export const WithHelpText: Story = {
+  args: {
+    ...Default.args,
+    helpText: "We'll never share your email with anyone else.",
+  },
+};
+
+// Disabled story
+export const Disabled: Story = {
+  args: {
+    ...Default.args,
+    disabled: true,
+  },
+};
+
+// With tooltip story
+export const WithTooltip: Story = {
+  args: {
+    ...Default.args,
+    tooltip: "Enter the email address associated with your account",
+  },
+};
+
+// With clear button story
+export const WithClearButton: Story = {
+  args: {
+    ...Default.args,
+    clearButton: action("clearButton"),
+    value: "example@email.com",
+  },
+};
+
+// Custom icon story
+export const CustomIcon: Story = {
+  args: {
+    ...Default.args,
+    iconSvg: "search", // Use an appropriate icon SVG name
+    label: "Search",
+    placeholder: "Search...",
+  },
+};

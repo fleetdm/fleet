@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -17,6 +18,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -94,13 +98,14 @@ type ServerConfig struct {
 	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
 	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
 	FrequentCleanupsEnabled     bool   `yaml:"frequent_cleanups_enabled"`
+	ForceH2C                    bool   `yaml:"force_h2c"`
 	PrivateKey                  string `yaml:"private_key"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
-	return &http.Server{
+	// Create the base server configuration
+	server := &http.Server{
 		Addr:        s.Address,
-		Handler:     handler,
 		ReadTimeout: 25 * time.Second,
 		// WriteTimeout is set for security purposes.
 		// If we don't set it, (bugy or malignant) clients making long running
@@ -113,6 +118,21 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 			return ctx
 		},
 	}
+
+	// Check if H2C (HTTP/2 without TLS) is enabled
+	if s.ForceH2C && !s.TLS {
+		// Create an HTTP/2 server
+		h2s := &http2.Server{}
+
+		// Wrap the original handler with h2c handler
+		// This allows both HTTP/1.1 and HTTP/2 requests without TLS
+		server.Handler = h2c.NewHandler(handler, h2s)
+	} else {
+		// Use regular HTTP/1.1 handler
+		server.Handler = handler
+	}
+
+	return server
 }
 
 // AuthConfig defines configs related to user authorization
@@ -316,16 +336,49 @@ type S3Config struct {
 	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
 	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
 
-	SoftwareInstallersBucket           string `yaml:"software_installers_bucket"`
-	SoftwareInstallersPrefix           string `yaml:"software_installers_prefix"`
-	SoftwareInstallersRegion           string `yaml:"software_installers_region"`
-	SoftwareInstallersEndpointURL      string `yaml:"software_installers_endpoint_url"`
-	SoftwareInstallersAccessKeyID      string `yaml:"software_installers_access_key_id"`
-	SoftwareInstallersSecretAccessKey  string `yaml:"software_installers_secret_access_key"`
-	SoftwareInstallersStsAssumeRoleArn string `yaml:"software_installers_sts_assume_role_arn"`
-	SoftwareInstallersStsExternalID    string `yaml:"software_installers_sts_external_id"`
-	SoftwareInstallersDisableSSL       bool   `yaml:"software_installers_disable_ssl"`
-	SoftwareInstallersForceS3PathStyle bool   `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersBucket                          string        `yaml:"software_installers_bucket"`
+	SoftwareInstallersPrefix                          string        `yaml:"software_installers_prefix"`
+	SoftwareInstallersRegion                          string        `yaml:"software_installers_region"`
+	SoftwareInstallersEndpointURL                     string        `yaml:"software_installers_endpoint_url"`
+	SoftwareInstallersAccessKeyID                     string        `yaml:"software_installers_access_key_id"`
+	SoftwareInstallersSecretAccessKey                 string        `yaml:"software_installers_secret_access_key"`
+	SoftwareInstallersStsAssumeRoleArn                string        `yaml:"software_installers_sts_assume_role_arn"`
+	SoftwareInstallersStsExternalID                   string        `yaml:"software_installers_sts_external_id"`
+	SoftwareInstallersDisableSSL                      bool          `yaml:"software_installers_disable_ssl"`
+	SoftwareInstallersForceS3PathStyle                bool          `yaml:"software_installers_force_s3_path_style"`
+	SoftwareInstallersCloudFrontURL                   string        `yaml:"software_installers_cloudfront_url"`
+	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
+	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
+	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
+}
+
+func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
+	if s.SoftwareInstallersCloudFrontURL != "" {
+		cloudfrontURL, err := url.Parse(s.SoftwareInstallersCloudFrontURL)
+		if err != nil {
+			initFatal(err, "S3 software installers cloudfront URL")
+			return
+		}
+		if cloudfrontURL.Scheme != "https" {
+			initFatal(errors.New("cloudfront url scheme must be https"), "S3 software installers cloudfront URL")
+			return
+		}
+		if s.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" && s.SoftwareInstallersCloudFrontURLSigningPublicKeyID == "" ||
+			s.SoftwareInstallersCloudFrontURLSigningPrivateKey == "" && s.SoftwareInstallersCloudFrontURLSigningPublicKeyID != "" {
+			initFatal(errors.New("Couldn't configure. Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set for URL signing."),
+				"S3 software installers cloudfront URL")
+			return
+		}
+		if s.SoftwareInstallersCloudFrontURLSigningPrivateKey == "" && s.SoftwareInstallersCloudFrontURLSigningPublicKeyID == "" {
+			initFatal(errors.New("Couldn't configure. Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set when CloudFront distribution URL is set."),
+				"S3 software installers cloudfront URL")
+			return
+		}
+	} else if s.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" || s.SoftwareInstallersCloudFrontURLSigningPublicKeyID != "" {
+		initFatal(errors.New("Couldn't configure. `s3_software_installers_cloudfront_url` must be set to use `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key`."),
+			"S3 software installers cloudfront URL")
+		return
+	}
 }
 
 func (s S3Config) BucketsAndPrefixesMatch() bool {
@@ -343,7 +396,7 @@ func (s S3Config) BucketsAndPrefixesMatch() bool {
 }
 
 func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
-	return S3ConfigInternal{
+	configInternal := S3ConfigInternal{
 		Bucket:           s.SoftwareInstallersBucket,
 		Prefix:           s.SoftwareInstallersPrefix,
 		Region:           s.SoftwareInstallersRegion,
@@ -355,6 +408,14 @@ func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 		DisableSSL:       s.SoftwareInstallersDisableSSL,
 		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
 	}
+	if s.SoftwareInstallersCloudFrontSigner != nil {
+		configInternal.CloudFrontConfig = &S3CloudFrontConfig{
+			BaseURL:            s.SoftwareInstallersCloudFrontURL,
+			SigningPublicKeyID: s.SoftwareInstallersCloudFrontURLSigningPublicKeyID,
+			Signer:             s.SoftwareInstallersCloudFrontSigner,
+		}
+	}
+	return configInternal
 }
 
 // CarvesToInternalCfg creates an internal S3 config struct from the ingested S3 config. Note: we
@@ -418,6 +479,13 @@ type S3ConfigInternal struct {
 	StsExternalID    string
 	DisableSSL       bool
 	ForceS3PathStyle bool
+	CloudFrontConfig *S3CloudFrontConfig
+}
+
+type S3CloudFrontConfig struct {
+	BaseURL            string
+	SigningPublicKeyID string
+	Signer             crypto.Signer
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -439,6 +507,11 @@ type FilesystemConfig struct {
 	MaxSize              int    `json:"max_size" yaml:"max_size"`
 	MaxAge               int    `json:"max_age" yaml:"max_age"`
 	MaxBackups           int    `json:"max_backups" yaml:"max_backups"`
+}
+
+type WebhookConfig struct {
+	StatusURL string `json:"status_url" yaml:"status_url"`
+	ResultURL string `json:"result_url" yaml:"result_url"`
 }
 
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
@@ -469,6 +542,7 @@ type VulnerabilitiesConfig struct {
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
+	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
 // UpgradesConfig defines configs related to fleet server upgrades.
@@ -532,6 +606,7 @@ type FleetConfig struct {
 	SES              SESConfig
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
+	Webhook          WebhookConfig
 	KafkaREST        KafkaRESTConfig
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
@@ -542,6 +617,12 @@ type FleetConfig struct {
 	Packaging        PackagingConfig
 	MDM              MDMConfig
 	Calendar         CalendarConfig
+	Partnerships     PartnershipsConfig
+}
+
+type PartnershipsConfig struct {
+	EnableSecureframe bool `yaml:"enable_secureframe"`
+	EnablePrimo       bool `yaml:"enable_primo"`
 }
 
 type MDMConfig struct {
@@ -614,6 +695,8 @@ type MDMConfig struct {
 	microsoftWSTEP        *tls.Certificate
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
+
+	SSORateLimitPerMinute int `yaml:"sso_rate_limit_per_minute"`
 }
 
 type CalendarConfig struct {
@@ -956,7 +1039,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.connect_timeout", 5*time.Second, "Timeout at connection time")
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
-	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
+	man.addConfigBool("redis.cluster_follow_redirections", true, "Automatically follow Redis Cluster redirections")
 	man.addConfigBool("redis.cluster_read_from_replica", false, "Prefer reading from a replica when possible (for Redis Cluster)")
 	man.addConfigString("redis.tls_cert", "", "Redis TLS client certificate path")
 	man.addConfigString("redis.tls_key", "", "Redis TLS client key path")
@@ -991,6 +1074,7 @@ func (man Manager) addConfigs() {
 		"When enabled, Fleet limits some features for the Sandbox")
 	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
+	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
@@ -1088,6 +1172,7 @@ func (man Manager) addConfigs() {
 
 	// Email
 	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
+
 	// SES
 	man.addConfigString("ses.region", "", "AWS Region to use")
 	man.addConfigString("ses.endpoint_url", "", "AWS Service Endpoint to use (leave empty for default service endpoints)")
@@ -1197,6 +1282,9 @@ func (man Manager) addConfigs() {
 	man.addConfigString("s3.software_installers_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
 	man.addConfigBool("s3.software_installers_disable_ssl", false, "Disable SSL (typically for local testing)")
 	man.addConfigBool("s3.software_installers_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigString("s3.software_installers_cloudfront_url", "", "CloudFront URL for software installers")
+	man.addConfigString("s3.software_installers_cloudfront_url_signing_public_key_id", "", "CloudFront public key ID for URL signing")
+	man.addConfigString("s3.software_installers_cloudfront_url_signing_private_key", "", "CloudFront private key for URL signing")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -1219,6 +1307,10 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("filesystem.max_size", 500, "Maximum size in megabytes log files will grow until rotated (only valid if enable_log_rotation is true) default is 500MB")
 	man.addConfigInt("filesystem.max_age", 28, "Maximum number of days to retain old log files based on the timestamp encoded in their filename. Setting to zero wil retain old log files indefinitely (only valid if enable_log_rotation is true) default is 28 days")
 	man.addConfigInt("filesystem.max_backups", 3, "Maximum number of old log files to retain. Setting to zero will retain all old log files (only valid if enable_log_rotation is true) default is 3")
+
+	// Webhook
+	man.addConfigString("webhook.status_url", "", "Webhook URL for osquery status logs")
+	man.addConfigString("webhook.result_url", "", "Webhook URL for osquery result logs")
 
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
@@ -1256,6 +1348,11 @@ func (man Manager) addConfigs() {
 		"vulnerabilities.disable_win_os_vulnerabilities",
 		false,
 		"Don't sync installed Windows updates nor perform Windows OS vulnerability processing.",
+	)
+	man.addConfigInt(
+		"vulnerabilities.max_concurrency",
+		1,
+		"Maximum number of concurrent database queries to use for processing vulnerabilities.",
 	)
 
 	// Upgrades
@@ -1310,6 +1407,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
+	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1317,18 +1415,9 @@ func (man Manager) addConfigs() {
 		"How much time to wait between processing calendar integration.",
 	)
 
-	// Hide Microsoft/Windows MDM flags as we don't want it to be discoverable for users for now
-	betaMDMFlags := []string{
-		"mdm.windows_wstep_identity_cert",
-		"mdm.windows_wstep_identity_key",
-		"mdm.windows_wstep_identity_cert_bytes",
-		"mdm.windows_wstep_identity_key_bytes",
-	}
-	for _, mdmFlag := range betaMDMFlags {
-		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
-			flag.Hidden = true
-		}
-	}
+	// Partnerships
+	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
+	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1402,6 +1491,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
 			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
 			FrequentCleanupsEnabled:     man.getConfigBool("server.frequent_cleanups_enabled"),
+			ForceH2C:                    man.getConfigBool("server.force_h2c"),
 			PrivateKey:                  man.getConfigString("server.private_key"),
 		},
 		Auth: AuthConfig{
@@ -1518,6 +1608,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxAge:               man.getConfigInt("filesystem.max_age"),
 			MaxBackups:           man.getConfigInt("filesystem.max_backups"),
 		},
+		Webhook: WebhookConfig{
+			StatusURL: man.getConfigString("webhook.status_url"),
+			ResultURL: man.getConfigString("webhook.result_url"),
+		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
 			ResultTopic:      man.getConfigString("kafkarest.result_topic"),
@@ -1541,6 +1635,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
+			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
 		},
 		Upgrades: UpgradesConfig{
 			AllowMissingMigrations: man.getConfigBool("upgrades.allow_missing_migrations"),
@@ -1597,9 +1692,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			SSORateLimitPerMinute:           man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
+		},
+		Partnerships: PartnershipsConfig{
+			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
+			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
 		},
 	}
 
@@ -1635,16 +1735,19 @@ func (man Manager) loadS3Config() S3Config {
 		DisableSSL:       man.getConfigBool("s3.disable_ssl"),
 		ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
 
-		SoftwareInstallersBucket:           man.getConfigString("s3.software_installers_bucket"),
-		SoftwareInstallersPrefix:           man.getConfigString("s3.software_installers_prefix"),
-		SoftwareInstallersRegion:           man.getConfigString("s3.software_installers_region"),
-		SoftwareInstallersEndpointURL:      man.getConfigString("s3.software_installers_endpoint_url"),
-		SoftwareInstallersAccessKeyID:      man.getConfigString("s3.software_installers_access_key_id"),
-		SoftwareInstallersSecretAccessKey:  man.getConfigString("s3.software_installers_secret_access_key"),
-		SoftwareInstallersStsAssumeRoleArn: man.getConfigString("s3.software_installers_sts_assume_role_arn"),
-		SoftwareInstallersStsExternalID:    man.getConfigString("s3.software_installers_sts_external_id"),
-		SoftwareInstallersDisableSSL:       man.getConfigBool("s3.software_installers_disable_ssl"),
-		SoftwareInstallersForceS3PathStyle: man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersBucket:                          man.getConfigString("s3.software_installers_bucket"),
+		SoftwareInstallersPrefix:                          man.getConfigString("s3.software_installers_prefix"),
+		SoftwareInstallersRegion:                          man.getConfigString("s3.software_installers_region"),
+		SoftwareInstallersEndpointURL:                     man.getConfigString("s3.software_installers_endpoint_url"),
+		SoftwareInstallersAccessKeyID:                     man.getConfigString("s3.software_installers_access_key_id"),
+		SoftwareInstallersSecretAccessKey:                 man.getConfigString("s3.software_installers_secret_access_key"),
+		SoftwareInstallersStsAssumeRoleArn:                man.getConfigString("s3.software_installers_sts_assume_role_arn"),
+		SoftwareInstallersStsExternalID:                   man.getConfigString("s3.software_installers_sts_external_id"),
+		SoftwareInstallersDisableSSL:                      man.getConfigBool("s3.software_installers_disable_ssl"),
+		SoftwareInstallersForceS3PathStyle:                man.getConfigBool("s3.software_installers_force_s3_path_style"),
+		SoftwareInstallersCloudFrontURL:                   man.getConfigString("s3.software_installers_cloudfront_url"),
+		SoftwareInstallersCloudFrontURLSigningPublicKeyID: man.getConfigString("s3.software_installers_cloudfront_url_signing_public_key_id"),
+		SoftwareInstallersCloudFrontURLSigningPrivateKey:  man.getConfigString("s3.software_installers_cloudfront_url_signing_private_key"),
 	}
 }
 

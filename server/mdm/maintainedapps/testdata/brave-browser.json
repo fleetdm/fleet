@@ -6,7 +6,7 @@
 	"name": [
 		"Brave"
 	],
-	"desc": "Web browser focusing on privacy",
+	"desc": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed.",
 	"homepage": "https://brave.com/",
 	"url": "https://updates-cdn.bravesoftware.com/sparkle/Brave-Browser/stable-arm64/169.162/Brave-Browser-arm64.dmg",
 	"url_specs": {

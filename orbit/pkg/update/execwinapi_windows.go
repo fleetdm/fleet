@@ -157,7 +157,7 @@ func improveWindowsAPIError(apiFunc, discoURL string, code uintptr, err error) e
 	// results in a 404 not found, the error code will be 0x80190194 which
 	// means windows.HTTP_E_STATUS_NOT_FOUND). In this case, translate the
 	// message to something more useful.
-	if httpCode := code - uintptr(windows.HTTP_E_STATUS_BAD_REQUEST); httpCode >= 0 && httpCode < 200 {
+	if httpCode := code - uintptr(windows.HTTP_E_STATUS_BAD_REQUEST); httpCode < 200 {
 		// status bad request is 400, so if error code is between 400 and < 600.
 		if discoURL != "" {
 			err = fmt.Errorf("using discovery URL %q: HTTP error code %d", discoURL, http.StatusBadRequest+httpCode)
@@ -175,7 +175,8 @@ func generateWindowsMDMAccessTokenPayload(args WindowsMDMEnrollmentArgs) ([]byte
 	return json.Marshal(pld)
 }
 
-// IsRunningOnWindowsServer determines if the process is running on a Windows server. Exported so it can be used across packages.
+// IsRunningOnWindowsServer determines if the process is running on a Windows
+// server. Exported so it can be used across packages.
 func IsRunningOnWindowsServer() (bool, error) {
 	installType, err := readInstallationType()
 	if err != nil {

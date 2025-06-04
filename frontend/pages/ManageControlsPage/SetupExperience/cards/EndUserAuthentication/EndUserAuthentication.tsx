@@ -14,6 +14,7 @@ import Spinner from "components/Spinner";
 import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
 import EndUserExperiencePreview from "./components/EndUserExperiencePreview";
+import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 
 const baseClass = "end-user-authentication";
 
@@ -39,7 +40,9 @@ const getEnabledEndUserAuth = (
 const isIdPConfigured = ({
   end_user_authentication: idp,
 }: Pick<IMdmConfig, "end_user_authentication">) => {
-  return !!idp.entity_id && !!idp.metadata_url && !!idp.idp_name;
+  return (
+    !!idp.entity_id && !!idp.idp_name && (!!idp.metadata_url || !!idp.metadata)
+  );
 };
 
 interface IEndUserAuthenticationProps {
@@ -81,12 +84,12 @@ const EndUserAuthentication = ({
   };
 
   return (
-    <div className={baseClass}>
+    <section className={baseClass}>
       <SectionHeader title="End user authentication" />
       {isLoadingGlobalConfig || isLoadingTeamConfig ? (
         <Spinner />
       ) : (
-        <div className={`${baseClass}__content`}>
+        <SetupExperienceContentContainer>
           {!globalConfig || !isIdPConfigured(globalConfig.mdm) ? (
             <RequireEndUserAuth onClickConnect={onClickConnect} />
           ) : (
@@ -96,9 +99,9 @@ const EndUserAuthentication = ({
             />
           )}
           <EndUserExperiencePreview />
-        </div>
+        </SetupExperienceContentContainer>
       )}
-    </div>
+    </section>
   );
 };
 

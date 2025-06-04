@@ -1,9 +1,0 @@
-# License
-
-By contributing to kubequery you agree that your contributions will be licensed
-under the terms of both the [LICENSE-Apache-2.0](LICENSE-Apache-2.0) and the
-[LICENSE-GPL-2.0](LICENSE-GPL-2.0) files in the root of this source tree.
-
-If you're using kubequery you are free to choose one of the provided licenses.
-
-`SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-only`

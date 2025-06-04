@@ -43,28 +43,28 @@ const BootstrapPackageTable = ({
   if (isError) return <DataError />;
 
   return (
-    <div className={baseClass}>
-      <TableContainer
-        columnConfigs={COLUMN_CONFIGS}
-        data={tableData}
-        resultsTitle=""
-        isLoading={isLoading}
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        defaultSortHeader={DEFAULT_SORT_HEADER}
-        defaultSortDirection={DEFAULT_SORT_DIRECTION}
-        disableTableHeader
-        disablePagination
-        disableCount
-        emptyComponent={() => (
-          <EmptyTable
-            header="No bootstrap package status"
-            info="Expecting to status data? Try again in a few seconds as the system
+    <TableContainer
+      className={baseClass}
+      columnConfigs={COLUMN_CONFIGS}
+      data={tableData}
+      resultsTitle=""
+      isLoading={isLoading}
+      showMarkAllPages={false}
+      isAllPagesSelected={false}
+      defaultSortHeader={DEFAULT_SORT_HEADER}
+      defaultSortDirection={DEFAULT_SORT_DIRECTION}
+      disableTableHeader
+      disablePagination
+      disableCount
+      hideFooter
+      emptyComponent={() => (
+        <EmptyTable
+          header="No bootstrap package status"
+          info="Expecting to status data? Try again in a few seconds as the system
               catches up."
-          />
-        )}
-      />
-    </div>
+        />
+      )}
+    />
   );
 };
 

@@ -13,43 +13,9 @@
         }
         .response__header {
           width: 0;
-          border-right: none;
         }
         .linkToFilteredHosts__header {
           width: 140px;
-        }
-      }
-      tbody {
-        tr {
-          .name__cell {
-            max-width: 0; // sets ellipsis
-          }
-
-          .policy-link {
-            opacity: 0;
-            transition: 250ms;
-            text-overflow: none;
-          }
-          &:hover {
-            .policy-link {
-              opacity: 1;
-            }
-          }
-          .policy-info {
-            width: 100%; // sets ellipsis
-            justify-content: left;
-
-            .policy-info-text {
-              overflow: hidden;
-              white-space: nowrap;
-              text-overflow: ellipsis;
-            }
-
-            &::after {
-              content: url("../assets/images/icon-arrow-right-vibrant-blue-10x18@2x.png");
-              transform: scale(0.5);
-            }
-          }
         }
       }
     }

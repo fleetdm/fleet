@@ -1,1 +1,0 @@
-Fixed issue with fleetd not able to connect to Fleet server after Fleet MDM profiles have been removed.

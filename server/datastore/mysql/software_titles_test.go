@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"sort"
 	"testing"
 	"time"
@@ -28,9 +29,11 @@ func TestSoftwareTitles(t *testing.T) {
 		{"TeamFilterSoftwareTitles", testTeamFilterSoftwareTitles},
 		{"ListSoftwareTitlesInstallersOnly", testListSoftwareTitlesInstallersOnly},
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
+		{"ListSoftwareTitlesOverflow", testListSoftwareTitlesOverflow},
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
+		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -300,12 +303,13 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a software installer not installed on any host
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer1",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer1.pkg",
-		UserID:        user1.ID,
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "installer1",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer1.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -315,15 +319,16 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 		return err
 	})
 	// create a software installer with an install request on host1
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer2",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer2.pkg",
-		UserID:        user1.ID,
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "installer2",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer2.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
@@ -631,7 +636,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create a software installer for team1
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "installer1",
 		Source:           "apps",
 		InstallScript:    "echo",
@@ -639,6 +644,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "foo.bar",
 		TeamID:           &team1.ID,
 		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -648,13 +654,14 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		return err
 	})
 	// create a software installer for team2
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer2",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer2.pkg",
-		TeamID:        &team2.ID,
-		UserID:        user1.ID,
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "installer2",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer2.pkg",
+		TeamID:          &team2.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -875,21 +882,23 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create a couple software installers not installed on any host
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer1",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer1.pkg",
-		UserID:        user1.ID,
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "installer1",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer1.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer2",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer2.pkg",
-		UserID:        user1.ID,
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "installer2",
+		Source:          "apps",
+		InstallScript:   "echo",
+		Filename:        "installer2.pkg",
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -980,21 +989,25 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	// create 2 software installers
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer1",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer1.pkg",
-		UserID:        user1.ID,
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "installer1",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer1.pkg",
+		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		BundleIdentifier: "com.example.installer1",
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer2",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer2.pkg",
-		UserID:        user1.ID,
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "installer2",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer2.pkg",
+		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		BundleIdentifier: "com.example.installer2",
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -1015,10 +1028,20 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
 	}, nil)
 	require.NoError(t, err)
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.example.vpp2",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IOSPlatform}},
 	}, nil)
+	require.NoError(t, err)
+
+	// insert a policy referring to one of the VPP apps
+	vpp2Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, ptr.Uint(0), vpp2.TitleID)
+	require.NoError(t, err)
+	vppPolicy, err := ds.NewTeamPolicy(ctx, fleet.PolicyNoTeamID, nil, fleet.PolicyPayload{
+		Name:           "VPP Policy",
+		Query:          "SELECT 1;",
+		VPPAppsTeamsID: &vpp2Meta.VPPAppsTeamsID,
+	})
 	require.NoError(t, err)
 
 	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
@@ -1026,8 +1049,8 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
-		{Name: "vpp1", Version: "0.0.1", Source: "apps"},
-		{Name: "installer1", Version: "0.0.1", Source: "apps"},
+		{Name: "vpp1", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.vpp1"},
+		{Name: "installer1", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.installer1"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -1057,6 +1080,11 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	names := make([]nameSource, 0, len(titles))
 	for _, title := range titles {
 		names = append(names, nameSource{name: title.Name, source: title.Source})
+		if title.ID == vpp2.TitleID {
+			assert.Len(t, title.AppStoreApp.AutomaticInstallPolicies, 1)
+			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].Name, "VPP Policy")
+			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].ID, vppPolicy.ID)
+		}
 	}
 	assert.ElementsMatch(t, []nameSource{
 		{name: "bar", source: "deb_packages"},
@@ -1157,6 +1185,47 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	}, names)
 }
 
+func testListSoftwareTitlesOverflow(t *testing.T, ds *Datastore) {
+	t.Skip("This test is too slow to run in CI")
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host", "", "hostkey1", "hostuuid1", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "hostkey2", "hostuuid2", time.Now())
+
+	var software []fleet.Software
+	for i := uint(0); i < 40_000; i++ {
+		software = append(software,
+			fleet.Software{Name: fmt.Sprintf("%dname", i), Version: fmt.Sprintf("0.0.%d", i), Source: "deb_packages"},
+		)
+		// UpdateHostSoftware blows up on a similar placeholder limit if we don't break it up
+		if i == 20_000 {
+			_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+			require.NoError(t, err)
+			software = []fleet.Software{}
+		}
+		if i == 39_999 {
+			_, err := ds.UpdateHostSoftware(ctx, host2.ID, software)
+			require.NoError(t, err)
+		}
+	}
+
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	_, counts, _, err := ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID: nil,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	assert.EqualValues(t, 40000, counts)
+}
+
 func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -1170,7 +1239,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	// Create a macOS software foobar installer on "No team".
-	macOSInstallerNoTeam, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	macOSInstallerNoTeam, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "foobar",
 		BundleIdentifier: "com.foo.bar",
 		Source:           "apps",
@@ -1178,6 +1247,8 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 		Filename:         "foobar.pkg",
 		TeamID:           nil,
 		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		StorageID:        "abc123",
 	})
 	require.NoError(t, err)
 
@@ -1239,6 +1310,7 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	type nameSource struct {
 		name   string
 		source string
+		hash   *string
 	}
 	names := make([]nameSource, 0, len(titles))
 	for _, title := range titles {
@@ -1266,12 +1338,13 @@ func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
 	assert.Len(t, titles, 3)
 	names = make([]nameSource, 0, len(titles))
 	for _, title := range titles {
-		names = append(names, nameSource{name: title.Name, source: title.Source})
+		names = append(names, nameSource{name: title.Name, source: title.Source, hash: title.HashSHA256})
 	}
+	expectedHash := "abc123"
 	assert.ElementsMatch(t, []nameSource{
 		{name: "bar", source: "deb_packages"},
 		{name: "foo", source: "chrome_extensions"},
-		{name: "foobar", source: "apps"},
+		{name: "foobar", source: "apps", hash: &expectedHash},
 	}, names)
 
 	// List software for "team1". Should list Canva for iOS and macOS.
@@ -1354,17 +1427,18 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
-	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "installer1",
 		Source:           "apps",
 		InstallScript:    "echo",
 		Filename:         "installer1.pkg",
 		BundleIdentifier: "com.foo.installer1",
 		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
-	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "installer2",
 		Source:           "apps",
 		InstallScript:    "echo",
@@ -1372,6 +1446,7 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 		TeamID:           &tm.ID,
 		BundleIdentifier: "com.foo.installer2",
 		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
@@ -1394,16 +1469,16 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
 
 	software := []fleet.Software{
-		{Name: "chrome", Version: "0.0.1", Source: "apps"},
-		{Name: "chrome", Version: "0.0.3", Source: "apps"},
-		{Name: "safari", Version: "0.0.3", Source: "apps"},
-		{Name: "safari", Version: "0.0.1", Source: "apps"},
-		{Name: "firefox", Version: "0.0.3", Source: "apps"},
-		{Name: "edge", Version: "0.0.3", Source: "apps"},
-		{Name: "brave", Version: "0.0.3", Source: "apps"},
-		{Name: "opera", Version: "0.0.3", Source: "apps"},
-		{Name: "internet explorer", Version: "0.0.3", Source: "apps"},
-		{Name: "netscape", Version: "0.0.3", Source: "apps"},
+		{Name: "chrome", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.chrome"},
+		{Name: "chrome", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.chrome"},
+		{Name: "safari", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.safari"},
+		{Name: "safari", Version: "0.0.1", Source: "apps", BundleIdentifier: "com.example.safari"},
+		{Name: "firefox", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.firefox"},
+		{Name: "edge", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.edge"},
+		{Name: "brave", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.brave"},
+		{Name: "opera", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.opera"},
+		{Name: "internet explorer", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.ie"},
+		{Name: "netscape", Version: "0.0.3", Source: "apps", BundleIdentifier: "com.example.netscape"},
 	}
 
 	sw, err := ds.UpdateHostSoftware(ctx, host.ID, software)
@@ -1673,4 +1748,47 @@ func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
 			assertTitles(t, titles, tt.expectedTitles)
 		})
 	}
+}
+
+func testUpdateSoftwareTitleName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Foo"})
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "installer1",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer1.pkg",
+		BundleIdentifier: "com.foo.installer1",
+		UserID:           user1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer1)
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "installer2",
+		Source:          "programs",
+		InstallScript:   "echo",
+		Filename:        "installer2.msi",
+		TeamID:          &tm.ID,
+		UserID:          user1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer2)
+
+	// Changes name with bundle ID
+	require.NoError(t, ds.UpdateSoftwareTitleName(ctx, installer1, "A new name"))
+	title1, err := ds.SoftwareTitleByID(ctx, installer1, nil, fleet.TeamFilter{User: user1})
+	require.NoError(t, err)
+	require.Equal(t, "A new name", title1.Name)
+
+	// Doesn't change name with no bundle ID
+	require.NoError(t, ds.UpdateSoftwareTitleName(ctx, installer2, "A newer name"))
+	title2, err := ds.SoftwareTitleByID(ctx, installer2, &tm.ID, fleet.TeamFilter{User: user1})
+	require.NoError(t, err)
+	require.Equal(t, "installer2", title2.Name)
 }

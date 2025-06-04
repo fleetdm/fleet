@@ -1,8 +1,19 @@
 .fleet-checkbox {
   @include clearfix;
   position: relative;
+  // inline-flex would prevents clickable white space right of the checkbox,
+  // but we need that clickable in some "rows" using checkbox
   display: flex;
   align-items: center;
+
+  &:hover {
+    // Using selectors to avoid pointer cursor on  clickable white space right of checkbox
+    .fleet-checkbox__label,
+    .fleet-checkbox__icon,
+    .fleet-checkbox__label-tooltip {
+      cursor: pointer;
+    }
+  }
 
   &:hover:not(.fleet-checkbox__label--disabled) {
     svg {
@@ -36,7 +47,7 @@
     svg {
       outline: 2px solid $ui-vibrant-blue-25;
       outline-offset: 1px;
-      border-radius: 4px;
+      border-radius: $border-radius;
     }
   }
 
@@ -68,6 +79,16 @@
         }
         .checkbox-unchecked-state {
           stroke: $ui-fleet-black-25;
+          fill: $ui-fleet-black-25;
+        }
+      }
+
+      &:hover {
+        // Using selectors to avoid not allowed cursor on  clickable white space right of checkbox
+        .fleet-checkbox__label,
+        .fleet-checkbox__icon,
+        .fleet-checkbox__label-tooltip {
+          cursor: not-allowed;
         }
       }
     }

@@ -129,6 +129,7 @@ func TestListOptionsFromRequest(t *testing.T) {
 }
 
 func TestHostListOptionsFromRequest(t *testing.T) {
+	verified := fleet.OSSettingsVerified
 	hostListOptionsTests := map[string]struct {
 		// url string to parse
 		url string
@@ -158,7 +159,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true",
+				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -190,6 +191,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				LowDiskSpaceFilter:                ptr.Int(99),
 				VulnerabilityFilter:               ptr.String("CVE-2023-42887"),
 				PopulatePolicies:                  true,
+				ProfileUUIDFilter:                 ptr.String("123-abc"),
+				ProfileStatusFilter:               &verified,
 			},
 		},
 		"policy_id and policy_response params (for coverage)": {
@@ -352,6 +355,20 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"invalid populate_policies": {
 			url:          "/foo?populate_policies=foo",
 			errorMessage: "populate_policies",
+		},
+		"invalid combination profile_uuid wihtout profile_status": {
+			url: "/foo?profile_uuid=123-abc",
+			hostListOptions: fleet.HostListOptions{
+				ProfileUUIDFilter: ptr.String("123-abc"),
+			},
+			errorMessage: "Missing profile_status (it must be present when profile_uuid is specified)",
+		},
+		"invalid combination profile_status wihtout profile_uuid": {
+			url: "/foo?profile_status=verified",
+			hostListOptions: fleet.HostListOptions{
+				ProfileStatusFilter: &verified,
+			},
+			errorMessage: "Missing profile_uuid (it must be present when profile_status is specified)",
 		},
 	}
 

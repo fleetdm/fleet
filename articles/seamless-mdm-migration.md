@@ -1,5 +1,7 @@
 # Seamless macOS MDM migration
 
+> NOTE: Please contact Fleet here https://fleetdm.com/contact or reach out to the Fleet Customer Success team if you are a current Fleet customer for consultation when considering this migration path. We'd love to help!
+
 ![Seamless macOS MDM migrations to Fleet](../website/assets/images/articles/seamless-mdm-migration-1600x900@2x.png)
 
 Migrating macOS devices between Mobile Device Management (MDM) solutions is often fraught with challenges, including potential gaps in device management, user disruption, and compliance issues. Traditional MDM migrations typically require end-user interaction and leave devices unmanaged for a period, leading to problems like Wi-Fi disconnections due to certificate profile removal and incomplete migrations. These challenges can force organizations to stay with outdated MDM solutions that no longer meet their needs. But there’s a better way.

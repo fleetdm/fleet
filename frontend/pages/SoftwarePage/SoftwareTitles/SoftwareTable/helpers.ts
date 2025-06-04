@@ -43,19 +43,11 @@ export const SEVERITY_DROPDOWN_OPTIONS = [
   },
   {
     disabled: false,
-    label: "Low severity",
-    value: "low",
-    helpText: "CVSS score 0.1-3.9",
-    minSeverity: 0.1,
-    maxSeverity: 3.9,
-  },
-  {
-    disabled: false,
-    label: "Medium severity",
-    value: "medium",
-    helpText: "CVSS score 4.0-6.9",
-    minSeverity: 4.0,
-    maxSeverity: 6.9,
+    label: "Critical severity",
+    value: "critical",
+    helpText: "CVSS score 9.0-10",
+    minSeverity: 9.0,
+    maxSeverity: 10,
   },
   {
     disabled: false,
@@ -67,11 +59,19 @@ export const SEVERITY_DROPDOWN_OPTIONS = [
   },
   {
     disabled: false,
-    label: "Critical severity",
-    value: "critical",
-    helpText: "CVSS score 9.0-10",
-    minSeverity: 9.0,
-    maxSeverity: 10,
+    label: "Medium severity",
+    value: "medium",
+    helpText: "CVSS score 4.0-6.9",
+    minSeverity: 4.0,
+    maxSeverity: 6.9,
+  },
+  {
+    disabled: false,
+    label: "Low severity",
+    value: "low",
+    helpText: "CVSS score 0.1-3.9",
+    minSeverity: 0.1,
+    maxSeverity: 3.9,
   },
 ];
 
@@ -88,6 +88,7 @@ export const buildSoftwareFilterQueryParams = (
   }
 };
 
+// TODO: Consider parsing SoftwarePage query params to change from type string
 export const getSoftwareFilterFromQueryParams = (queryParams: QueryParams) => {
   const { available_for_install, self_service } = queryParams;
   switch (true) {

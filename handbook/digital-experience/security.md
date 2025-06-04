@@ -362,7 +362,7 @@ Because they are the only type of Two-Factor Authentication (2FA) that protects 
 phishing, we will make them **mandatory for everyone** soon. 
 
 See the [Google Workspace security
-section](https://fleetdm.com/handbook/digital-experience/security#google-workspace-security-authentication) for more
+section](https://fleetdm.com/handbook/digital-experience/security#2-step-verification) for more
 information on the security of different types of 2FA.
 
 
@@ -858,8 +858,19 @@ Please also see [privacy](https://fleetdm.com/legal/privacy)
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Does Fleet possess an APEC PRP certification issued by a certification body (or Accountability Agent)? If not, is Fleet able to provide any evidence that the PRP requirements are being met as it relates to the Scoped Services provided to its customers? | Fleet has not undergone APEC PRP certification but has undergone an external security audit that included pen testing. For a complete list of subprocessors, please refer to our [trust page](https://trust.fleetdm.com/subprocessors). |
 
+## Use of AI
 
+| Question | Answer |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Do your systems or staff use artificial intelligence, machine learning, or automated decision making  (ChatGPT, Google Bard, etc.) to provide the in-scope services? | Yes. All AI functionality is opt-in. Fleet only uses AI in one place to help create descriptions of queries. |
 
+| Question | Answer |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Is client scoped data processed, aggregated, appended, profiled, or modeled using artificial intelligence, machine learning, or automated decision making (ChatGPT, Google Bard, etc.)? | No. |
+
+## Other questions
+
+Other commonly asked questions of Fleet can be found in our [SIG Lite](https://docs.google.com/spreadsheets/d/1XiGv_M6w2pcfe9zWp-Q9ssXi2A-vnTgs/edit?usp=sharing&ouid=113668214024041155485&rtpof=true&sd=true) or in [recently answered questionnaires](https://drive.google.com/drive/folders/1lP_YX7lGWOofjOISdTd15gJax_pn0cjY?usp=drive_link).  Other information sometimes asked about includes [customer support SLAs](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas) and [release testing](https://fleetdm.com/handbook/company/product-groups#release-testing). Technical information can often be found in [Fleet docs](https://fleetdm.com/docs/get-started/why-fleet). 
 
 ## Security policies
 
@@ -1021,6 +1032,23 @@ Fleet policy requires that:
 - All company-owned computer purchases must be tracked.
 
 
+### Bring-Your-Own-Device (BYOD)
+
+As a general rule, non-company devices are not permitted to access company assets. While there are some exceptions listed below, access to customer data is still prohibited.
+
+
+#### Exceptions
+
+##### Personal mobile phones and tablets
+
+All personal mobile computing devices used to access Fleet-managed data, including but not limited to email and fleetdm.com, must be passcode-enabled. 2FA will be enforced by the security team for all employee and contractor accounts. Mobile computing best practices dictate that these devices should be running the latest version of the operating system available, and all new patches applied. 
+
+
+##### Unavailability of a company-issued laptop
+
+For new employees who have not received a company laptop or in cases where a company laptop is unavailable or unusable, an exception to this policy must be obtained directly from the CEO. These devices will be enrolled into Fleet's own MDM instance and will still need to meet the standards of company-owned devices.
+
+
 ### Business continuity and disaster recovery policy
 
 | Question | Answer                                                                                                                                                 |
@@ -1048,7 +1076,7 @@ Fleet policy requires that:
 ## Business continuity plan
 
 
-#### Line of Succession
+#### Line of succession
 
 
 The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Executive Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate.
@@ -1754,6 +1782,14 @@ Fleet makes every effort to assure all third-party organizations are compliant a
 > Fleet is committed to ethical business practices and compliance with the law.  All Fleeties are required to comply with the "Foreign Corrupt Practices Act" and anti-bribery laws and regulations in applicable jurisdictions including, but not limited to, the "UK Bribery Act 2010", "European Commission on Anti-Corruption" and others.  The policies set forth in [this document](https://docs.google.com/document/d/16iHhLhAV0GS2mBrDKIBaIRe_pmXJrA1y7-gTWNxSR6c/edit?usp=sharing) go over Fleet's anti-corruption policy in detail.
 
 
+### Anti-harassment policy
+
+> Fleet is committed to maintaing a harassment free workplace based on mutual respect and copmliance with the law.  All Fleeties are required to comply with the anti-harassment policy set forth [here](https://docs.google.com/document/d/1qalY5_OcnCbHOJYUOz8R5O92RLortYrKdxur6Ned7ac/edit?usp=sharing).
+
+### Investor policy
+
+> Fleet is committed to being open and transparent in communications and expectations with its investors and keeping the best interests of all stakeholders in mind while protecting confidential business information, complying with applicable laws, and practicing good ethics, in accordance with [these guidelines](https://docs.google.com/document/d/1cFB3b3XD9O6FAOeSy_F4L9ajrteJBhbkdelMUEbUXCo/edit?usp=sharing).
+
 ## Application security
 
 The Fleet community follows best practices when coding. Here are some of the ways we mitigate against the OWASP top 10 issues:
@@ -1926,7 +1962,7 @@ We publish a trust report that includes automated checking of controls, answers 
 questions and more on [https://fleetdm.com/trust](https://fleetdm.com/trust)
 
 
-## Securtiy audits
+## Security audits
 
 This section contains explanations of the latest external security audits performed on Fleet software.
 

@@ -10,6 +10,7 @@ type InvitePayload struct {
 	Name       *string     `json:"name"`
 	Position   *string     `json:"position"`
 	SSOEnabled *bool       `json:"sso_enabled"`
+	MFAEnabled *bool       `json:"mfa_enabled"`
 	GlobalRole null.String `json:"global_role"`
 	Teams      []UserTeam  `json:"teams"`
 }
@@ -24,6 +25,7 @@ type Invite struct {
 	Position   string      `json:"position,omitempty"`
 	Token      string      `json:"-"`
 	SSOEnabled bool        `json:"sso_enabled" db:"sso_enabled"`
+	MFAEnabled bool        `json:"mfa_enabled" db:"mfa_enabled"`
 	GlobalRole null.String `json:"global_role" db:"global_role"`
 	Teams      []UserTeam  `json:"teams"`
 }

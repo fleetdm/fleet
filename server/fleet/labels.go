@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -13,7 +14,8 @@ type ModifyLabelPayload struct {
 	// valid for manual labels. If it is nil (not just len() == 0, but == nil),
 	// then the list of hosts is not modified. If it is not nil and len == 0,
 	// then all members are removed.
-	Hosts []string `json:"hosts"`
+	Hosts   []string `json:"hosts"`
+	HostIDs []uint   `json:"host_ids"`
 }
 
 type LabelPayload struct {
@@ -29,7 +31,8 @@ type LabelPayload struct {
 	// supported by HostByIdentifier) that are part of the label. This defines a
 	// manual label. Can be empty for a manual label that doesn't target any
 	// host. Must be empty for a dynamic label.
-	Hosts []string `json:"hosts"`
+	Hosts   []string `json:"hosts"`
+	HostIDs []uint   `json:"host_ids"`
 }
 
 // LabelType is used to catagorize the kind of label
@@ -103,6 +106,7 @@ func (t *LabelMembershipType) UnmarshalJSON(b []byte) error {
 type Label struct {
 	UpdateCreateTimestamps
 	ID                  uint                `json:"id"`
+	AuthorID            *uint               `json:"author_id" db:"author_id"`
 	Name                string              `json:"name"`
 	Description         string              `json:"description"`
 	Query               string              `json:"query"`
@@ -159,6 +163,7 @@ const (
 	BuiltinLabelIOS             = "iOS"
 	BuiltinLabelIPadOS          = "iPadOS"
 	BuiltinLabelFedoraLinux     = "Fedora Linux"
+	BuiltinLabelNameAndroid     = "Android"
 )
 
 // ReservedLabelNames returns a map of label name strings
@@ -177,5 +182,79 @@ func ReservedLabelNames() map[string]struct{} {
 		BuiltinLabelIOS:             {},
 		BuiltinLabelIPadOS:          {},
 		BuiltinLabelFedoraLinux:     {},
+		BuiltinLabelNameAndroid:     {},
 	}
+}
+
+// DetectMissingLabels returns a list of labels present in the unvalidatedLabels list that could not be found in the validLabelMap.
+func DetectMissingLabels(validLabelMap map[string]uint, unvalidatedLabels []string) []string {
+	missingLabels := make([]string, 0, len(unvalidatedLabels))
+
+	for _, rawLabel := range unvalidatedLabels {
+		label := strings.TrimSpace(rawLabel)
+		if _, ok := validLabelMap[label]; len(label) > 0 && !ok {
+			missingLabels = append(missingLabels, label)
+		}
+	}
+
+	return missingLabels
+}
+
+// LabelIdent is a simple struct to hold the ID and Name of a label
+type LabelIdent struct {
+	LabelID   uint   `json:"id"`
+	LabelName string `json:"name"`
+}
+
+// LabelScope identifies the manner by which labels may be used to scope entities, such as MDM
+// profiles and software installers, to subsets of hosts.
+type LabelScope string
+
+const (
+	// LabelScopeExcludeAny indicates that a label-scoped entity (e.g., MDM profiles, software
+	// installers) should NOT be applied to a host if the host is a mamber of any of the associated labels.
+	LabelScopeExcludeAny LabelScope = "exclude_any"
+	// LabelScopeIncludeAny indicates that a label-scoped entity (e.g., MDM profiles, software
+	// installers) should be applied to a host that if the host is a member of all of the associated labels.
+	LabelScopeIncludeAny LabelScope = "include_any"
+	// LabelScopeIncludeAll indicates that a label-scoped entity (e.g., MDM profiles, software
+	// installers) should be applied to a host if the host is a member of all of the associated labels.
+	LabelScopeIncludeAll LabelScope = "include_all"
+)
+
+type LabelIdentsWithScope struct {
+	LabelScope LabelScope
+	ByName     map[string]LabelIdent
+}
+
+// Equal returns whether or not 2 LabelIdentsWithScope pointers point to equivalent values.
+func (l *LabelIdentsWithScope) Equal(other *LabelIdentsWithScope) bool {
+	if l == nil || other == nil {
+		return l == other
+	}
+
+	if l.LabelScope != other.LabelScope {
+		return false
+	}
+
+	if l.ByName == nil && other.ByName == nil {
+		return true
+	}
+
+	if len(l.ByName) != len(other.ByName) {
+		return false
+	}
+
+	for k, v := range l.ByName {
+		otherV, ok := other.ByName[k]
+		if !ok {
+			return false
+		}
+
+		if v != otherV {
+			return false
+		}
+	}
+
+	return true
 }

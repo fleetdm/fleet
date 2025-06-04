@@ -5,6 +5,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import SectionHeader from "components/SectionHeader";
 
 import CustomLink from "components/CustomLink";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
@@ -46,6 +48,9 @@ const Statistics = ({
     handleSubmit(formDataToSubmit);
   };
 
+  const telemetryAlwaysEnabled =
+    isPremiumTier && !appConfig.license.allow_disable_telemetry;
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
@@ -70,20 +75,25 @@ const Statistics = ({
           <Checkbox
             onChange={onInputChange}
             name="enableUsageStatistics"
-            value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
+            value={telemetryAlwaysEnabled ? true : enableUsageStatistics} // Set to true for all premium customers
             parseTarget
-            disabled={isPremiumTier}
+            disabled={telemetryAlwaysEnabled}
           >
             Enable usage statistics
           </Checkbox>
-          <Button
-            type="submit"
-            variant="brand"
-            className="button-wrap"
-            isLoading={isUpdatingSettings}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={-8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={disableChildren}
+                className="button-wrap"
+                isLoading={isUpdatingSettings}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       </div>
     </div>

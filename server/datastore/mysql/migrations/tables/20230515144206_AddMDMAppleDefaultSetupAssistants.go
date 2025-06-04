@@ -29,7 +29,7 @@ CREATE TABLE mdm_apple_default_setup_assistants (
     PRIMARY KEY (id),
     UNIQUE KEY idx_mdm_default_setup_assistant_global_or_team_id (global_or_team_id),
     FOREIGN KEY fk_mdm_default_setup_assistant_team_id (team_id) REFERENCES teams (id) ON DELETE CASCADE ON UPDATE CASCADE
-);
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 `)
 	if err != nil {
 		return fmt.Errorf("failed to create mdm_apple_default_setup_assistants table: %w", err)

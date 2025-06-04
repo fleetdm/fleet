@@ -55,11 +55,7 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
             />
             .
           </p>
-          <Button
-            variant="brand"
-            onClick={onBackToLogin}
-            className={`${baseClass}__btn`}
-          >
+          <Button onClick={onBackToLogin} className={`${baseClass}__btn`}>
             Back to login
           </Button>
         </>

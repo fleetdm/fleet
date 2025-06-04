@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
-import { SelectedPlatformString } from "interfaces/platform";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { IScript } from "./script";
+import { ILabelPolicy } from "./label";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -36,14 +37,17 @@ export interface IPolicy {
   author_name: string;
   author_email: string;
   resolution: string;
-  platform: SelectedPlatformString;
+  platform: CommaSeparatedPlatformString;
   team_id: number | null;
   created_at: string;
   updated_at: string;
   critical: boolean;
   calendar_events_enabled: boolean;
+  conditional_access_enabled: boolean;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
+  labels_include_any?: ILabelPolicy[];
+  labels_exclude_any?: ILabelPolicy[];
 }
 export interface IPolicySoftwareToInstall {
   name: string;
@@ -99,16 +103,18 @@ export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
   critical?: boolean;
-  platform?: SelectedPlatformString;
+  platform?: CommaSeparatedPlatformString;
   name?: string | number | boolean | undefined;
   query?: string | number | boolean | undefined;
   team_id?: number | null;
   id?: number;
   calendar_events_enabled?: boolean;
-  // undefined from GET/LIST when not set, null for PATCH to unset
+  conditional_access_enabled?: boolean;
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
 }
 
 export interface IPolicyNew {
@@ -119,6 +125,6 @@ export interface IPolicyNew {
   query: string;
   resolution: string;
   critical: boolean;
-  platform: SelectedPlatformString;
+  platform: CommaSeparatedPlatformString;
   mdm_required?: boolean;
 }

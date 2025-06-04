@@ -1128,7 +1128,7 @@ describe("Host Actions Dropdown", () => {
           hostStatus="online"
           hostPlatform="chrome"
           hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus={"unlocked"}
+          hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
         />
       );
@@ -1214,7 +1214,7 @@ describe("Host Actions Dropdown", () => {
           hostPlatform="ios"
           hostMdmEnrollmentStatus="On (automatic)"
           isConnectedToFleetMdm
-          hostMdmDeviceStatus={"unlocked"}
+          hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
         />
       );
@@ -1230,7 +1230,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
 
@@ -1254,7 +1253,7 @@ describe("Host Actions Dropdown", () => {
           hostPlatform="ipados"
           hostMdmEnrollmentStatus="On (automatic)"
           isConnectedToFleetMdm
-          hostMdmDeviceStatus={"unlocked"}
+          hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
         />
       );
@@ -1270,7 +1269,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
   });

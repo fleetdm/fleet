@@ -1,11 +1,14 @@
 import { IDeviceUserResponse } from "interfaces/host";
+import { IListOptions } from "interfaces/list_options";
 import { IDeviceSoftware } from "interfaces/software";
+import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
+
 import { IHostSoftwareQueryParams } from "./hosts";
 
-export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+export type ILoadHostDetailsExtension = "macadmins";
 
 export interface IDeviceSoftwareQueryKey extends IHostSoftwareQueryParams {
   scope: "device_software";
@@ -25,6 +28,18 @@ export interface IGetDeviceSoftwareResponse {
 interface IGetDeviceDetailsRequest {
   token: string;
   exclude_software?: boolean;
+}
+
+export interface IGetDeviceCertificatesResponse {
+  certificates: IHostCertificate[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface IGetDeviceCertsRequestParams extends IListOptions {
+  token: string;
 }
 
 export default {
@@ -73,5 +88,50 @@ export default {
     const path = DEVICE_SOFTWARE_INSTALL(deviceToken, softwareTitleId);
 
     return sendRequest("POST", path);
+  },
+
+  uninstallSelfServiceSoftware: (
+    deviceToken: string,
+    softwareTitleId: number
+  ) => {
+    const { DEVICE_SOFTWARE_UNINSTALL } = endpoints;
+    return sendRequest(
+      "POST",
+      DEVICE_SOFTWARE_UNINSTALL(deviceToken, softwareTitleId)
+    );
+  },
+
+  /** Gets more info on FMA/custom package install for device user */
+  getSoftwareInstallResult: (deviceToken: string, uuid: string) => {
+    const { DEVICE_SOFTWARE_INSTALL_RESULTS } = endpoints;
+    const path = DEVICE_SOFTWARE_INSTALL_RESULTS(deviceToken, uuid);
+
+    return sendRequest("GET", path);
+  },
+
+  /** Gets more info on VPP install for device user */
+  getVppCommandResult: (deviceToken: string, uuid: string) => {
+    const { DEVICE_VPP_COMMAND_RESULTS } = endpoints;
+    const path = DEVICE_VPP_COMMAND_RESULTS(deviceToken, uuid);
+
+    return sendRequest("GET", path);
+  },
+
+  getDeviceCertificates: ({
+    token,
+    page,
+    per_page,
+    order_key,
+    order_direction,
+  }: IGetDeviceCertsRequestParams): Promise<IGetDeviceCertificatesResponse> => {
+    const { DEVICE_CERTIFICATES } = endpoints;
+    const path = `${DEVICE_CERTIFICATES(token)}?${buildQueryStringFromParams({
+      page,
+      per_page,
+      order_key,
+      order_direction,
+    })}`;
+
+    return sendRequest("GET", path);
   },
 };

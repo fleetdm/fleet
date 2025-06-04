@@ -1,3 +1,5 @@
+version: 2
+
 project_name: orbit
 
 #################################################################################################
@@ -36,7 +38,7 @@ checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ .Tag }}-untagged"
+  version_template: "{{ .Tag }}-untagged"
 
 changelog:
-  skip: true
+  disable: true

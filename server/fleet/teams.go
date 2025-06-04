@@ -183,8 +183,12 @@ type TeamSpecSoftwareAsset struct {
 }
 
 type TeamSpecAppStoreApp struct {
-	AppStoreID  string `json:"app_store_id"`
-	SelfService bool   `json:"self_service"`
+	AppStoreID       string   `json:"app_store_id"`
+	SelfService      bool     `json:"self_service"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	// Categories is the list of names of software categories associated with this VPP app.
+	Categories []string `json:"categories"`
 }
 
 type TeamMDM struct {
@@ -463,7 +467,8 @@ type TeamSpec struct {
 }
 
 type TeamSpecWebhookSettings struct {
-	HostStatusWebhook *HostStatusWebhookSettings `json:"host_status_webhook"`
+	HostStatusWebhook      *HostStatusWebhookSettings      `json:"host_status_webhook"`
+	FailingPoliciesWebhook *FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
 // TeamSpecIntegrations contains the configuration for external services'

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log/level"
@@ -16,6 +18,8 @@ const (
 	statsScheduledQueryType = iota
 	statsLiveQueryType
 )
+
+var querySearchColumns = []string{"q.name"}
 
 func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
 	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
@@ -37,90 +41,115 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 }
 
 func (ds *Datastore) applyQueriesInTx(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
-	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "begin applyQueriesInTx")
-	}
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		insertSql := `
+			INSERT INTO queries (
+				name,
+				description,
+				query,
+				author_id,
+				saved,
+				observer_can_run,
+				team_id,
+				team_id_char,
+				platform,
+				min_osquery_version,
+				schedule_interval,
+				automations_enabled,
+				logging_type,
+				discard_data
+			) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			ON DUPLICATE KEY UPDATE
+				name = VALUES(name),
+				description = VALUES(description),
+				query = VALUES(query),
+				author_id = VALUES(author_id),
+				saved = VALUES(saved),
+				observer_can_run = VALUES(observer_can_run),
+				team_id = VALUES(team_id),
+				team_id_char = VALUES(team_id_char),
+				platform = VALUES(platform),
+				min_osquery_version = VALUES(min_osquery_version),
+				schedule_interval = VALUES(schedule_interval),
+				automations_enabled = VALUES(automations_enabled),
+				logging_type = VALUES(logging_type),
+				discard_data = VALUES(discard_data)
+		`
+		for _, q := range queries {
+			if err := q.Verify(); err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
+			stmt, args, err := sqlx.In(insertSql,
+				q.Name,
+				q.Description,
+				q.Query,
+				authorID,
+				q.ObserverCanRun,
+				q.TeamID,
+				q.TeamIDStr(),
+				q.Platform,
+				q.MinOsqueryVersion,
+				q.Interval,
+				q.AutomationsEnabled,
+				q.Logging,
+				q.DiscardData,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "exec queries prepare")
+			}
 
-	defer func() {
-		if err != nil {
-			rbErr := tx.Rollback()
-			// It seems possible that there might be a case in
-			// which the error we are dealing with here was thrown
-			// by the call to tx.Commit(), and the docs suggest
-			// this call would then result in sql.ErrTxDone.
-			if rbErr != nil && rbErr != sql.ErrTxDone {
-				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			var result sql.Result
+			if result, err = tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "exec queries insert")
+			}
+
+			// Get the ID of the row, if it was a new query.
+			id, _ := result.LastInsertId()
+			// If the ID is 0, it was an update, so we need to get the ID.
+			if id == 0 {
+				var (
+					rows *sql.Rows
+					err  error
+				)
+				// Get the query that was updated.
+				if q.TeamID == nil {
+					rows, err = tx.QueryContext(ctx, "SELECT id FROM queries WHERE name = ? AND team_id is NULL", q.Name)
+				} else {
+					rows, err = tx.QueryContext(ctx, "SELECT id FROM queries WHERE name = ? AND team_id = ?", q.Name, q.TeamID)
+				}
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "select queries id")
+				}
+				// Get the ID from the rows
+				if rows.Next() {
+					if err := rows.Scan(&id); err != nil {
+						return ctxerr.Wrap(ctx, err, "scan queries id")
+					}
+				} else {
+					return ctxerr.Wrap(ctx, err, "could not find query after update")
+				}
+				if err = rows.Err(); err != nil {
+					return ctxerr.Wrap(ctx, err, "err queries id")
+				}
+				if err := rows.Close(); err != nil {
+					return ctxerr.Wrap(ctx, err, "close queries id")
+				}
+
+			}
+			//nolint:gosec // dismiss G115
+			q.ID = uint(id)
+
+			err = ds.updateQueryLabelsInTx(ctx, q, tx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "exec queries update labels")
 			}
 		}
-	}()
-
-	insertSql := `
-		INSERT INTO queries (
-			name,
-			description,
-			query,
-			author_id,
-			saved,
-			observer_can_run,
-			team_id,
-			team_id_char,
-			platform,
-			min_osquery_version,
-			schedule_interval,
-			automations_enabled,
-			logging_type,
-			discard_data
-		) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )
-		ON DUPLICATE KEY UPDATE
-			name = VALUES(name),
-			description = VALUES(description),
-			query = VALUES(query),
-			author_id = VALUES(author_id),
-			saved = VALUES(saved),
-			observer_can_run = VALUES(observer_can_run),
-			team_id = VALUES(team_id),
-			team_id_char = VALUES(team_id_char),
-			platform = VALUES(platform),
-			min_osquery_version = VALUES(min_osquery_version),
-			schedule_interval = VALUES(schedule_interval),
-			automations_enabled = VALUES(automations_enabled),
-			logging_type = VALUES(logging_type),
-			discard_data = VALUES(discard_data)
-	`
-	stmt, err := tx.PrepareContext(ctx, insertSql)
+		return nil
+	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare queries insert")
+		return ctxerr.Wrap(ctx, err, "apply queries in tx")
 	}
-	defer stmt.Close()
-
-	for _, q := range queries {
-		if err := q.Verify(); err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		_, err := stmt.ExecContext(
-			ctx,
-			q.Name,
-			q.Description,
-			q.Query,
-			authorID,
-			q.ObserverCanRun,
-			q.TeamID,
-			q.TeamIDStr(),
-			q.Platform,
-			q.MinOsqueryVersion,
-			q.Interval,
-			q.AutomationsEnabled,
-			q.Logging,
-			q.DiscardData,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "exec queries insert")
-		}
-	}
-
-	err = tx.Commit()
-	return ctxerr.Wrap(ctx, err, "commit queries tx")
+	return nil
 }
 
 func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) (err error) {
@@ -145,7 +174,7 @@ func (ds *Datastore) QueryByName(
 	name string,
 ) (*fleet.Query, error) {
 	stmt := `
-		SELECT 
+		SELECT
 			id,
 			team_id,
 			name,
@@ -197,7 +226,7 @@ func (ds *Datastore) NewQuery(
 	if err := query.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
-	sqlStatement := `
+	queryStatement := `
 		INSERT INTO queries (
 			name,
 			description,
@@ -215,9 +244,10 @@ func (ds *Datastore) NewQuery(
 			discard_data
 		) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )
 	`
+
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
-		sqlStatement,
+		queryStatement,
 		query.Name,
 		query.Description,
 		query.Query,
@@ -243,7 +273,76 @@ func (ds *Datastore) NewQuery(
 	id, _ := result.LastInsertId()
 	query.ID = uint(id) //nolint:gosec // dismiss G115
 	query.Packs = []fleet.Pack{}
+
+	if err := ds.updateQueryLabels(ctx, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "saving labels for query")
+	}
+
 	return query, nil
+}
+
+func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.updateQueryLabelsInTx(ctx, query, tx)
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating query labels")
+	}
+	return nil
+}
+
+// updates the LabelsIncludeAny for a query, using the string value of
+// the label. Labels IDs are populated
+func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, query *fleet.Query, tx sqlx.ExtContext) error {
+	if tx == nil {
+		return ctxerr.New(ctx, "updateQueryLabelsInTx called with nil tx")
+	}
+
+	var err error
+
+	insertLabelSql := `
+		INSERT INTO query_labels (
+			query_id,
+			label_id
+		)
+		SELECT ?, id
+		FROM labels
+		WHERE name IN (?)
+	`
+
+	deleteLabelStmt := `
+		DELETE FROM query_labels
+		WHERE query_id = ?
+	`
+
+	_, err = tx.ExecContext(ctx, deleteLabelStmt, query.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "removing old query labels")
+	}
+
+	if len(query.LabelsIncludeAny) == 0 {
+		return nil
+	}
+
+	labelNames := []string{}
+	for _, label := range query.LabelsIncludeAny {
+		labelNames = append(labelNames, label.LabelName)
+	}
+
+	labelStmt, args, err := sqlx.In(insertLabelSql, query.ID, labelNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "creating query label update statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating query labels")
+	}
+
+	if err := loadLabelsForQueries(ctx, tx, []*fleet.Query{query}); err != nil {
+		return ctxerr.Wrap(ctx, err, "loading label names for inserted query")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) (err error) {
@@ -311,6 +410,10 @@ func (ds *Datastore) SaveQuery(ctx context.Context, q *fleet.Query, shouldDiscar
 		if err := ds.deleteQueryResults(ctx, q.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting query_results")
 		}
+	}
+
+	if err := ds.updateQueryLabels(ctx, q); err != nil {
+		return ctxerr.Wrap(ctx, err, "updaing query labels")
 	}
 
 	return nil
@@ -419,58 +522,11 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 
 // Query returns a single Query identified by id, if such exists.
 func (ds *Datastore) Query(ctx context.Context, id uint) (*fleet.Query, error) {
-	sqlQuery := `
-		SELECT 
-			q.id,
-			q.team_id,
-			q.name,
-			q.description,
-			q.query,
-			q.author_id,
-			q.saved,
-			q.observer_can_run,
-			q.schedule_interval,
-			q.platform,
-			q.min_osquery_version,
-			q.automations_enabled,
-			q.logging_type,
-			q.discard_data,
-			q.created_at,
-			q.updated_at,
-			q.discard_data,
-			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name, 
-			COALESCE(u.email, '') AS author_email,
-			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
-			JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
-			JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
-			JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
-			JSON_EXTRACT(json_value, '$.total_executions') as total_executions
-		FROM queries q
-		LEFT JOIN users u
-			ON q.author_id = u.id
-		LEFT JOIN aggregated_stats ag
-			ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
-		WHERE q.id = ?
-	`
-	query := &fleet.Query{}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "selecting query")
-	}
-
-	if err := ds.loadPacksForQueries(ctx, []*fleet.Query{query}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
-	}
-
-	return query, nil
+	return query(ctx, ds.reader(ctx), id)
 }
 
-// ListQueries returns a list of queries with sort order and results limit
-// determined by passed in fleet.ListOptions
-func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, error) {
-	sql := `
+func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, error) {
+	sqlQuery := `
 		SELECT
 			q.id,
 			q.team_id,
@@ -489,6 +545,61 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 			q.created_at,
 			q.updated_at,
 			q.discard_data,
+			COALESCE(NULLIF(u.name, ''), u.email, '') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
+			JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
+			JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
+			JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
+			JSON_EXTRACT(json_value, '$.total_executions') as total_executions
+		FROM queries q
+		LEFT JOIN users u
+			ON q.author_id = u.id
+		LEFT JOIN aggregated_stats ag
+			ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
+		WHERE q.id = ?
+	`
+	query := &fleet.Query{}
+	if err := sqlx.GetContext(ctx, db, query, sqlQuery, false, fleet.AggregatedStatsTypeScheduledQuery, id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Query").WithID(id))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "selecting query")
+	}
+
+	if err := loadPacksForQueries(ctx, db, []*fleet.Query{query}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
+	}
+
+	if err := loadLabelsForQueries(ctx, db, []*fleet.Query{query}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "loading labels for query")
+	}
+
+	return query, nil
+}
+
+// ListQueries returns a list of queries with sort order and results limit
+// determined by passed in fleet.ListOptions, count of total queries returned without limits, and
+// pagination metadata
+func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	getQueriesStmt := `
+		SELECT
+			q.id,
+			q.team_id,
+			q.name,
+			q.description,
+			q.query,
+			q.author_id,
+			q.saved,
+			q.observer_can_run,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type,
+			q.discard_data,
+			q.created_at,
+			q.updated_at,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
 			JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
@@ -523,28 +634,63 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		}
 	}
 
-	if opt.MatchQuery != "" {
-		whereClauses += " AND q.name = ?"
-		args = append(args, opt.MatchQuery)
+	if opt.Platform != nil {
+		qs := fmt.Sprintf("%%%s%%", *opt.Platform)
+		args = append(args, qs)
+		whereClauses += ` AND (q.platform LIKE ? OR q.platform = '')`
 	}
 
-	sql += whereClauses
-	sql, args = appendListOptionsWithCursorToSQL(sql, args, &opt.ListOptions)
+	// normalize the name for full Unicode support (Unicode equivalence).
+	normMatch := norm.NFC.String(opt.MatchQuery)
+	whereClauses, args = searchLike(whereClauses, args, normMatch, querySearchColumns...)
 
-	results := []*fleet.Query{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing queries")
+	getQueriesStmt += whereClauses
+
+	// build the count statement before adding pagination constraints
+	getQueriesCountStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", getQueriesStmt)
+
+	getQueriesStmt, args = appendListOptionsWithCursorToSQL(getQueriesStmt, args, &opt.ListOptions)
+
+	dbReader := ds.reader(ctx)
+	queries := []*fleet.Query{}
+	if err := sqlx.SelectContext(ctx, dbReader, &queries, getQueriesStmt, args...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "listing queries")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, results); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
+	// perform a second query to grab the count
+	var count int
+	if err := sqlx.GetContext(ctx, dbReader, &count, getQueriesCountStmt, args...); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
 	}
 
-	return results, nil
+	if err := ds.loadPacksForQueries(ctx, queries); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
+	}
+
+	if err := ds.loadLabelsForQueries(ctx, queries); err != nil {
+		return nil, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
+	}
+
+	var meta *fleet.PaginationMetadata
+	if opt.ListOptions.IncludeMetadata {
+		meta = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this
+		// discrepancy
+		if len(queries) > int(opt.ListOptions.PerPage) { //nolint:gosec // dismiss G115
+			meta.HasNextResults = true
+			queries = queries[:len(queries)-1]
+		}
+	}
+
+	return queries, count, meta, nil
 }
 
 // loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.
 func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
+	return loadPacksForQueries(ctx, ds.reader(ctx), queries)
+}
+
+func loadPacksForQueries(ctx context.Context, db sqlx.QueryerContext, queries []*fleet.Query) error {
 	if len(queries) == 0 {
 		return nil
 	}
@@ -578,7 +724,7 @@ func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Q
 		fleet.Pack
 	}{}
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, args...)
+	err = sqlx.SelectContext(ctx, db, &rows, query, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
 	}
@@ -586,6 +732,59 @@ func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Q
 	for _, row := range rows {
 		q := name_queries[row.QueryName]
 		q.Packs = append(q.Packs, row.Pack)
+	}
+
+	return nil
+}
+
+func (ds *Datastore) loadLabelsForQueries(ctx context.Context, queries []*fleet.Query) error {
+	return loadLabelsForQueries(ctx, ds.reader(ctx), queries)
+}
+
+func loadLabelsForQueries(ctx context.Context, db sqlx.QueryerContext, queries []*fleet.Query) error {
+	if len(queries) == 0 {
+		return nil
+	}
+
+	sql := `
+		SELECT
+			ql.query_id AS query_id,
+			ql.label_id AS label_id,
+			l.name AS label_name
+		FROM query_labels ql
+		INNER JOIN labels l ON l.id = ql.label_id
+		WHERE ql.query_id IN (?)
+	`
+
+	queryIDs := []uint{}
+	for _, query := range queries {
+		query.LabelsIncludeAny = nil
+		queryIDs = append(queryIDs, query.ID)
+	}
+
+	stmt, args, err := sqlx.In(sql, queryIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query to load labels for queries")
+	}
+
+	queryMap := make(map[uint]*fleet.Query, len(queries))
+	for _, query := range queries {
+		queryMap[query.ID] = query
+	}
+
+	rows := []struct {
+		QueryID   uint   `db:"query_id"`
+		LabelID   uint   `db:"label_id"`
+		LabelName string `db:"label_name"`
+	}{}
+
+	err = sqlx.SelectContext(ctx, db, &rows, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting labels for queries")
+	}
+
+	for _, row := range rows {
+		queryMap[row.QueryID].LabelsIncludeAny = append(queryMap[row.QueryID].LabelsIncludeAny, fleet.LabelIdent{LabelID: row.LabelID, LabelName: row.LabelName})
 	}
 
 	return nil
@@ -606,7 +805,7 @@ func (ds *Datastore) ObserverCanRunQuery(ctx context.Context, queryID uint) (boo
 	return observerCanRun, nil
 }
 
-func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 	sqlStmt := `
 		SELECT
 			q.name,
@@ -619,17 +818,16 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			q.logging_type,
 			q.discard_data
 		FROM queries q
-		WHERE q.saved = true 
-			AND (
-				q.schedule_interval > 0 AND
-				%s AND
-				(
-					q.automations_enabled
-					OR
-					(NOT q.discard_data AND NOT ? AND q.logging_type = ?)
-				)
+		WHERE q.saved = true
+		AND (
+			q.schedule_interval > 0 AND
+			%s AND
+			(
+				q.automations_enabled
+				OR
+				(NOT q.discard_data AND NOT ? AND q.logging_type = ?)
 			)
-	`
+		)%s`
 
 	args := []interface{}{}
 	teamSQL := " team_id IS NULL"
@@ -637,8 +835,25 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 		args = append(args, *teamID)
 		teamSQL = " team_id = ?"
 	}
-	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL)
 	args = append(args, queryReportsDisabled, fleet.LoggingSnapshot)
+	labelSQL := ""
+	if hostID != nil {
+		labelSQL = `
+		-- Query has a tag in common with the host
+		AND (EXISTS (
+			SELECT 1
+			FROM query_labels ql
+			JOIN label_membership hl ON (hl.host_id = ? AND hl.label_id = ql.label_id)
+			WHERE ql.query_id = q.id
+		-- Query has no tags
+		) OR NOT EXISTS (
+			SELECT 1
+			FROM query_labels ql
+			WHERE ql.query_id = q.id
+		))`
+		args = append(args, hostID)
+	}
+	sqlStmt = fmt.Sprintf(sqlStmt, teamSQL, labelSQL)
 
 	results := []*fleet.Query{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, sqlStmt, args...); err != nil {
@@ -713,4 +928,16 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, sta
 		return ctxerr.Wrap(ctx, err, "update live query stats")
 	}
 	return nil
+}
+
+func numSavedQueriesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var count int
+	const stmt = `
+		SELECT count(*) FROM queries WHERE saved
+  	`
+	if err := sqlx.GetContext(ctx, db, &count, stmt); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }

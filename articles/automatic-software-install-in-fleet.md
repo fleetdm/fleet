@@ -1,71 +1,63 @@
 # Automatically install software
 
-Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) introduces the ability to automatically and remotely install software on hosts based on predefined policy failures. This guide will walk you through the process of configuring fleet for automatic installation of software on hosts using uploaded installation images and based on programmed policies.  You'll learn how to configure and use this feature, as well as understand how the underlying mechanism works.
-
-Fleet allows its users to upload trusted software installation files to be installed and used on hosts. This installation could be conditioned on a failure of a specific Fleet Policy.
-
-> Currently, Fleet-maintained apps can be automatically installed on macOS hosts and custom packages can be automatically installed on macOS, Windows, and Linux hosts. (macOS App Store apps [coming soon](https://github.com/fleetdm/fleet/issues/23115))
-
-## Prerequisites
-
-* Fleet premium with Admin permissions.
-* Fleet [v4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) or greater.
+In Fleet, you can automatically and remotely install software on hosts. This guide will walk you through the process of configuring Fleet to install software on your hosts.
 
 ## Step-by-step instructions
 
-1. **Adding software**: Add any software to be available for installation. Follow the [deploying software](https://fleetdm.com/guides/deploy-security-agents) document with instructions how to do it. Note that all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
-
-
-![Add software](../website/assets/images/articles/automatic-software-install-add-software.png)
+1. **Adding software**: Follow the [deploying software](https://fleetdm.com/guides/deploy-software-packages) guide to make a software title available for installation. Note that for Fleet maintained Apps and custom packages all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
 
 Current supported software deployment formats:
-- macOS: .pkg
-- Windows: .msi, .exe
+- macOS: .pkg, App Store (VPP) apps, and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
+- Windows: .msi, .exe, and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
 - Linux: .deb, .rpm
 
-Coming soon:
-- VPP for iOS and iPadOS
+> If you check the "Automatic install" box when adding software, you do not have to create your own policy, so you can skip the remaining steps of this process.
 
-2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go to Policies tab --> Press the "Add policy" button --> Click "create your own policy" --> Enter your policy SQL --> Save --> Fill in details in the Save modal and Save.
+2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go the **Policies** tab, select a team, then press the **Add policy** button. Next, click **Create your own policy**, enter your policy SQL, click **Save**, fill in remaining details in the Save modal, then and click **Save** again.
 
 ```sql
-SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
+SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
 ```
 
-Note: In order to know the exact application name to put in the query (e.g. "Adobe Acrobat Reader.app" in the query above) you can manually install it on a canary/test host and then query SELECT * from apps;
+> The bundle ID for a macOS installer or VPP app can be found in the `bundle_identifier` field when [viewing the associated software title via the API](https://fleetdm.com/docs/rest-api/rest-api#get-software).
 
-
-3. **Manage automation**: Open Manage Automations: Policies Tab --> top right "Manage automations" --> "Install software".
+3. **Open the software install automation modal**: In the **Policies** tab, click the **Manage automations** button on the top-right, then select **Install software** from the context menu that pops up.
 
 ![Manage policies](../website/assets/images/articles/automatic-software-install-policies-manage.png)
 
-4. **Select policy**: Select (click the check box of) your newly created policy. To the right of it select from the
+4. **Select policy**: Click the checkbox next to your newly created policy's name. To the right of it select from the
    drop-down list the software you would like to be installed upon failure of this policy.
 
 ![Install software modal](../website/assets/images/articles/automatic-software-install-install-software.png)
 
-Upon failure of the selected policy, the selected software installation will be triggered.
+When a host fails the selected policy, this will trigger the software to be installed on the host.
 
-> Adding software to a policy will reset the policy's host counts.
+If the software install fails, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
 
 ## How does it work?
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
-* The policy check mechanism runs on a typical 1 hour cadence on all online hosts. 
-* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". On this iteration it will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
+* The policy check mechanism runs on a typical one-hour cadence on all online hosts. 
+* Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". Currently, Fleet will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*
 
+App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
+
+Currently, App Store apps (VPP) are not installed as [Managed Apps](https://support.apple.com/guide/deployment/distribute-managed-apps-dep575bfed86/web). Uninstalling VPP apps is [coming soon](https://github.com/fleetdm/fleet/issues/25497).
+
 ## Templates for policy queries
 
-Following are some templates for the policy SQL queries for each package type.
+Use the following policy templates to see if the software is already installed at at least the desired version.
 
-### macOS (pkg)
+### macOS (pkg and VPP)
 
 ```sql
-SELECT 1 FROM apps WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(bundle_short_version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
+SELECT 1 FROM apps WHERE bundle_identifier = '<YOUR_APP_BUNDLE_ID>' AND version_compare(bundle_short_version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
 ```
+
+> You can also use the `name` column for matching (e.g. "Google Chrome.app"), but using `bundle_identifier` is more reliable for macOS apps that have bundle identifiers.
 
 ### Windows (msi and exe)
 
@@ -73,7 +65,9 @@ SELECT 1 FROM apps WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(bund
 SELECT 1 FROM programs WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<VERSION>') >= 0;
 ```
 
-### Ubuntu (deb)
+> Currently, automatic install policies generated by Fleet for MSIs use `identifying_number` in the `programs` table, which corresponds to an application's ProductCode. ProductCode only refers to a specific version of a specific application, so the policy will fail (triggering an install) if any other version, newer or older, of the application is installed instead. The UpgradeCode attribute ties together multiple versions of the same application, and will be used for MSI auto-install policies [in a future release of Fleet](https://github.com/fleetdm/fleet/issues/27447) [once supported in osquery](https://github.com/fleetdm/fleet/issues/27759).
+
+### Debian-based (deb)
 
 ```sql
 SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
@@ -82,15 +76,15 @@ SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_comp
 If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
-   -- This will mark the policies as successful on RHEL hosts.
-   -- This is only required if RHEL-based and Debian based system share a team.
-   SELECT 1 FROM os_version WHERE platform = 'rhel'
+   -- This will mark the policies as successful on non-Debian-based hosts.
+   -- This is only required if Debian-based and RPM-based hosts share a team.
+   SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0
 );
 ```
 
-### RHEL-based (rpm)
+### RPM-based (rpm)
 
 ```sql
 SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
@@ -99,21 +93,21 @@ SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_comp
 If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
-   -- This will mark the policies as successfull on non-RHEL hosts.
-   -- This is only required if RHEL-based and Debian based system share a team.
-   SELECT 1 FROM os_version WHERE platform != 'rhel'
+   -- This will mark the policies as successful on non-RPM-based hosts.
+   -- This is only required if Debian-based and RPM-based hosts share a team.
+   SELECT 1 WHERE (SELECT COUNT(*) FROM rpm_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, 'SOFTWARE_PACKAGE_VERSION') >= 0
 );
 ```
 
-## Using the REST API for self-service software packages
+## Via the API
 
-Fleet provides a REST API for managing software packages, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy).
+Fleet provides a REST API for managing policies, including software install automations. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy).
 
-## Managing self-service software packages with GitOps
+## Via GitOps
 
-To manage self-service software packages using Fleet's best practice GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies).
+To manage software automations using Fleet's best practice GitOps, check out the `install_software` key in the [policies section of the GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies).
 
 ## Conclusion
 
@@ -127,5 +121,5 @@ By automating software deployment, you can gain greater control over what's inst
 <meta name="authorFullName" value="Sharon Katz">
 <meta name="authorGitHubUsername" value="sharon-fdm">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-09-23">
+<meta name="publishedOn" value="2025-02-28">
 <meta name="description" value="A guide to workflows using automatic software installation in Fleet.">

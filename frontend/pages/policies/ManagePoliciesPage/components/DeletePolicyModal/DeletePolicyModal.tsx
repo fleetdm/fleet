@@ -24,7 +24,8 @@ const DeletePolicyModal = ({
       className={baseClass}
     >
       <div className={baseClass}>
-        Are you sure you want to delete the selected policies?
+        Deleting these policies will disable any associated automations, such as
+        automatic software install or automatic script run.
         <div className="modal-cta-wrap">
           <Button
             type="button"

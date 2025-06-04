@@ -5,15 +5,17 @@
   var me;
   var isHomepage;
   var currentSection;
+  var showHeaderCTA;
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
   var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
   var hideStartCTA;
+  var showConfigurationProfileLayout;
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
-  var defaultMetaDescription = 'Open-source '+(['mdm'].includes(primaryBuyingSituation) ? 'IT' : ['eo-security','vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(primaryBuyingSituation === 'mdm' ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
-  var corporationDisplayName = 'Fleet' + (primaryBuyingSituation === 'mdm' ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
+  var defaultMetaDescription = 'Open-source '+(['it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(primaryBuyingSituation) ? 'IT' : ['security-misc','security-vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
+  var corporationDisplayName = 'Fleet' + (['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
 %><!DOCTYPE html>
 <html>
   <head>
@@ -130,8 +132,9 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %>">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : showConfigurationProfileLayout ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
+      <% if(!showConfigurationProfileLayout) {%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
         <div purpose="header-background">
           <% if(!hideHeaderLinks) { %>
@@ -146,7 +149,7 @@
                   <img class="align-self-center" alt="An icon indicating that interacting with this button will open the navigation menu." src="/images/icon-hamburger-blue-16x14@2x.png"/>
                 </a>
               </div>
-              <div purpose="mobile-nav" always-visible-when-shown class="collapse" id="navbarToggleExternalContent">
+              <div purpose="mobile-nav" always-visible-when-shown>
                 <div purpose="mobile-nav-header" class="d-flex justify-content-between align-items-center">
                   <a purpose="mobile-header-logo" href="/">
                     <img purpose="mobile-nav-logo" alt="Fleet logo" src="/images/logo-blue-118x41@2x.png" />
@@ -159,39 +162,22 @@
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
                   <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
                     <a purpose="mobile-dropdown-link" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/endpoint-ops">Observability &nbsp; <small>(+ scripting)</small></a>
-                    <a purpose="mobile-dropdown-link" href="/vulnerability-management">Software management &nbsp; <small>(+ CVEs)</small></a>
+                    <a purpose="mobile-dropdown-link" href="/observability">Orchestration &nbsp; <small>(+ monitoring)</small></a>
+                    <a purpose="mobile-dropdown-link" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
                     <a purpose="mobile-dropdown-link" href="/integrations">Integrations</a>
                   </div>
                   <hr>
-                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed"  data-toggle="collapse" data-target="#mobileNavbarToggleDocumentation" aria-haspopup="true" aria-expanded="false">Docs</a>
-                  <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/docs">Get started</a>
-                    <a purpose="mobile-dropdown-link" href="/queries">Built-in checks</a>
-                    <a purpose="mobile-dropdown-link" href="/tables">Raw data</a>
-                    <a purpose="mobile-dropdown-link" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
-                    <a purpose="mobile-dropdown-link" href="/docs/rest-api">API</a>
-                    <span class="mt-2 mb-2">SUPPORT</span>
-                    <div purpose="indented-mobile-links">
-                      <a purpose="mobile-dropdown-link" href="/support">Chat</a>
-                      <a purpose="mobile-dropdown-link" href="/contribute">Contribute</a>
-                      <a purpose="mobile-dropdown-link" href="/releases">Release notes</a>
-                      <a purpose="mobile-dropdown-link" href="/better">"Why is Fleet on my computer?"</a>
-                      <a purpose="mobile-dropdown-link" href="/new-license">Get your license</a>
-                    </div>
-                  </div>
+                  <a purpose="mobile-dropdown-link" class="d-flex align-items-center" href="/docs">Docs</a>
                   <hr>
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Stories</a>
                   <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" href="/testimonials">What people are saying</a>
                     <a purpose="mobile-dropdown-link" href="/announcements">News</a>
                     <a purpose="mobile-dropdown-link" href="/support">Ask around</a>
+                    <a purpose="mobile-dropdown-link" target="_blank" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml">Share your story</a>
                     <span class="mt-2 mb-2">COMPANY</span>
                     <div purpose="indented-mobile-links">
-                      <a purpose="mobile-dropdown-link" href="/handbook/company#history">Origins &nbsp; <small>(Fleet &amp; osquery)</small></a>
                       <a purpose="mobile-dropdown-link" href="/handbook">The handbook</a>
-                      <a purpose="mobile-dropdown-link" href="/logos">Logos & artwork</a>
-                      <a purpose="mobile-dropdown-link" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
+                      <a purpose="mobile-dropdown-link" href="/testimonials">What people are saying</a>
                     </div>
                   </div>
                   <hr>
@@ -204,60 +190,46 @@
                     <hr>
                     <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleAdmin">Admin</a>
                     <div id="mobileNavbarToggleAdmin" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                      <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
                       <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
                       <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
                     </div>
                   <%}%>
                   <%if(!hideGetStartedButton){%>
-                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 110px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/contact">Take a tour</a>
+                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 152px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/contact">Schedule a demo</a>
                   <% }%>
                 </div>
               </div>
               <%/* Desktop Navigation bar */%>
               <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
                 <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Multi platform</a>
+                  <a purpose="header-nav-btn" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" href="/device-management" >Multi platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item" href="/device-management">Device management <small>+ MDM</small></a>
-                    <a class="dropdown-item" href="/endpoint-ops">Observability <small>+ scripting, monitoring</small></a>
-                    <a class="dropdown-item" href="/vulnerability-management">Software management <small>+ CVEs, usage, app library</small></a>
+                    <a class="dropdown-item" href="/observability">Orchestration <small>+ monitoring</small></a>
+                    <a class="dropdown-item" href="/software-management">Software management <small>+ CVEs, usage, app library</small></a>
                     <a class="dropdown-item" href="/integrations">Integrations</a>
                   </div>
                 </div>
                 <div purpose="dropdown-button" class="btn-group" style="width: 74px;">
-                  <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Docs</a>
-                  <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/docs">Get started</a>
-                    <a class="dropdown-item" href="/queries">Built-in checks</a><!-- «« FUTURE: consider different menu label such as 'Off the shelf', because i'm just casually a hover menu here and so it's less intentional.  I didn't click "docs" first, like I did on mobile-->
-                    <a class="dropdown-item" href="/tables">Raw data</a>
-                    <a class="dropdown-item" href="/docs/get-started/tutorials-and-guides">Tutorials &amp; guides</a>
-                    <a class="dropdown-item" href="/docs/rest-api">API</a>
-                    <span class="muted dropdown-header">SUPPORT</span>
-                    <a class="dropdown-item" href="/support">Chat</a>
-                    <a class="dropdown-item" href="/contribute">Contribute</a>
-                    <a class="dropdown-item" href="/releases">Release notes</a>
-                    <a class="dropdown-item" href="/better">"Why is Fleet on my computer?"</a>
-                    <a class="dropdown-item" href="/new-license">Get your license</a>
-                  </div>
+                  <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" href="/docs">Docs</a>
                 </div>
                 <div purpose="dropdown-button" class="btn-group" style="width: 89px;">
-                  <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Stories</a>
+                  <a purpose="header-nav-btn" button-text="Community" href="/testimonials" class="dropdown-toggle  align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" >Stories</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item" href="/testimonials">What people are saying</a>
                     <a class="dropdown-item" href="/announcements">News</a>
                     <a class="dropdown-item" href="/support">Ask around</a>
-                    <a class="dropdown-item" href="/contact">Take a tour</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
+                    <a class="dropdown-item" href="/contact">Schedule a demo</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
+                    <a class="dropdown-item" target="_blank" href="https://github.com/fleetdm/fleet/edit/main/handbook/company/testimonials.yml">Share your story</a>
                     <span class="muted dropdown-header">COMPANY</span>
-                    <a class="dropdown-item" href="/handbook/company#history">Origins &nbsp; <small>(Fleet &amp; osquery)</small></a>
                     <a class="dropdown-item" href="/handbook">The handbook</a>
-                    <a class="dropdown-item" href="/logos">Logos/artwork</a>
-                    <a class="dropdown-item" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
+                    <a class="dropdown-item" href="/testimonials">What people are saying</a>
                   </div>
                 </div>
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
                 <span purpose="gh-button" class="d-flex align-items-center">
                   <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
-                  allowtransparency="true" frameborder="0" scrolling="0" width="100" height="20"></iframe>
+                  allowtransparency="true" frameborder="0" scrolling="0" width="140" height="20"></iframe>
                 </span>
                 <%if(!hideGetStartedButton){%>
                   <a purpose="glass-header-btn" class="align-items-center d-flex" href="/register">Try it yourself</a>
@@ -285,6 +257,7 @@
                 <span>Admin pages</span>
               </div>
               <div class="d-flex flex-row align-self-end justify-content-between">
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/query-generator">Generate queries</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
               </div>
@@ -292,9 +265,10 @@
           <%} %>
         </div>
       </div>
+      <% } %>
 
       <%- body %>
-
+      <% if(!showConfigurationProfileLayout) {%>
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
       <% if(!hideFooterLinks) { %>
         <div class="invisible container-fluid" purpose="page-footer" data-hide-until-rendered data-nosnippet>
@@ -308,8 +282,8 @@
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Multi platform</strong>
               <a href="/device-management">Device management</a>
-              <a href="/endpoint-ops">Observability</a>
-              <a href="/vulnerability-management">Software management</a>
+              <a href="/observability">Orchestration</a>
+              <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
             </div>
@@ -334,10 +308,11 @@
           <div purpose="footer-bottom">
             <div purpose="legal-and-social-nav" class="d-flex flex-lg-row flex-column align-items-lg-center justify-content-lg-between">
 
-              <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start flex-sm-row pr-sm-0">
+              <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
+                  <img purpose="iso-27001-badge" src="/images/icon-iso27001-coming-soon-48x48@2x.png" alt="ISO 27001 coming soon">
+                  <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                   <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
-                  <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                 </div>
                 <div class="text-sm-nowrap d-block d-sm-inline">
                   © <%= (new Date()).getFullYear() %> <a href="/handbook/company"><%= corporationDisplayName %></a>
@@ -348,22 +323,22 @@
               </div>
 
               <div purpose="footer-socials" class="flex-row d-inline-flex font-weight-bold order-first order-lg-last justify-content-start justify-content-lg-end pl-lg-3">
-                <a target="_blank" href="/slack" class="mr-4">
+                <a target="_blank" href="/slack" class="mr-4" no-icon>
                   <img alt="Slack logo" src="/images/logo-slack-dark-20x20@2x.png"/>
                 </a>
-                <a target="_blank" href="https://github.com/fleetdm/fleet" class="mr-4">
+                <a target="_blank" href="https://github.com/fleetdm/fleet" class="mr-4" no-icon>
                   <img alt="GitHub logo" src="/images/logo-github-dark-24x24@2x.png" />
                 </a>
-                <a target="_blank" href="https://www.linkedin.com/company/fleetdm" class="mr-4">
+                <a target="_blank" href="https://www.linkedin.com/company/fleetdm" class="mr-4" no-icon>
                   <img alt="LinkedIn logo" src="/images/logo-linkedin-24x24@2x.png" />
                 </a>
-                <a target="_blank" href="https://twitter.com/fleetctl" class="mr-4">
+                <a target="_blank" href="https://twitter.com/fleetctl" class="mr-4" no-icon>
                   <img alt="X (Twitter) logo" src="/images/logo-x-24x24@2x.png"/>
                 </a>
-                <a target="_blank" href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ" class="mr-4">
+                <a target="_blank" href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ" class="mr-4" no-icon>
                   <img alt="Youtube logo" src="/images/logo-youtube-29x20@2x.png" />
                 </a>
-                <a target="_blank" href="https://mastodon.social/@Fleet@discuss.systems" class="mr-4">
+                <a target="_blank" href="https://mastodon.social/@Fleet@discuss.systems" class="mr-4" no-icon>
                   <img alt="Mastadon logo" src="/images/logo-mastadon-24x23@2x.png"/>
                 </a>
               </div>
@@ -373,12 +348,13 @@
         </div>
       <% } else { %>
         <div purpose="reduced-nav-footer" data-nosnippet>
-            <div purpose="legal-and-social-nav" class="d-flex flex-md-row flex-column align-items-lg-center justify-content-md-between">
+            <div purpose="legal-and-social-nav" class="d-flex flex-md-row flex-column align-items-md-center justify-content-md-between">
 
-              <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start flex-sm-row pr-sm-0">
+              <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
+                  <img purpose="iso-27001-badge" src="/images/icon-iso27001-coming-soon-48x48@2x.png" alt="ISO 27001 coming soon">
+                  <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                   <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
-                  <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                 </div>
                 <div purpose="copyright-and-legal-link" class="text-sm-nowrap d-block d-sm-inline">
                   © <%= (new Date()).getFullYear() %> <a href="/handbook/company"><%= corporationDisplayName %></a>
@@ -389,27 +365,28 @@
               </div>
 
               <div purpose="footer-socials" class="flex-row d-inline-flex font-weight-bold order-first order-md-last justify-content-start justify-content-lg-end pl-lg-3">
-                <a target="_blank" href="/slack" class="mr-4">
+                <a target="_blank" href="/slack" class="mr-4" no-icon>
                   <img alt="Slack logo" src="/images/logo-slack-dark-20x20@2x.png"/>
                 </a>
-                <a target="_blank" href="https://github.com/fleetdm/fleet" class="mr-4">
+                <a target="_blank" href="https://github.com/fleetdm/fleet" class="mr-4" no-icon>
                   <img alt="GitHub logo" src="/images/logo-github-dark-24x24@2x.png" />
                 </a>
-                <a target="_blank" href="https://www.linkedin.com/company/fleetdm" class="mr-4">
+                <a target="_blank" href="https://www.linkedin.com/company/fleetdm" class="mr-4" no-icon>
                   <img alt="LinkedIn logo" src="/images/logo-linkedin-24x24@2x.png" />
                 </a>
-                <a target="_blank" href="https://twitter.com/fleetctl" class="mr-4">
+                <a target="_blank" href="https://twitter.com/fleetctl" class="mr-4" no-icon>
                   <img alt="X (Twitter) logo" src="/images/logo-x-24x24@2x.png"/>
                 </a>
-                <a target="_blank" href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ" class="mr-4">
+                <a target="_blank" href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ" class="mr-4" no-icon>
                   <img alt="Youtube logo" src="/images/logo-youtube-29x20@2x.png" />
                 </a>
-                <a target="_blank" href="https://mastodon.social/@Fleet@discuss.systems" class="mr-4">
+                <a target="_blank" href="https://mastodon.social/@Fleet@discuss.systems" class="mr-4" no-icon>
                   <img alt="Mastadon logo" src="/images/logo-mastadon-24x23@2x.png"/>
                 </a>
               </div>
             </div>
           </div>
+      <% } %>
       <% } %>
     <%if(!hideStartCTA){%>
       <%- partial('../partials/continue.partial.ejs') %>
@@ -436,6 +413,9 @@
     <script src="/dependencies/jquery.min.js"></script>
     <script src="/dependencies/vue.js"></script>
     <script src="/dependencies/vue-router.js"></script>
+    <script src="/dependencies/ace-editor/ace-editor.js"></script>
+    <script src="/dependencies/ace-editor/mode-xml.js"></script>
+    <script src="/dependencies/ace-editor/worker-xml.js"></script>
     <script src="/dependencies/bootstrap-4/bootstrap-4.bundle.js"></script>
     <script src="/dependencies/chart.min.js"></script>
     <script src="/dependencies/cloud.js"></script>
@@ -451,6 +431,7 @@
     <script src="/js/components/bar-chart.component.js"></script>
     <script src="/js/components/call-to-action.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
+    <script src="/js/components/docs-nav-and-search.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/logo-carousel.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
@@ -466,9 +447,13 @@
     <script src="/js/pages/admin/email-preview.page.js"></script>
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
+    <script src="/js/pages/admin/query-generator.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
+    <script src="/js/pages/app-details.page.js"></script>
+    <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
@@ -477,7 +462,6 @@
     <script src="/js/pages/deals.page.js"></script>
     <script src="/js/pages/device-management.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
-    <script src="/js/pages/endpoint-ops.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>
@@ -490,12 +474,18 @@
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/meetups.page.js"></script>
+    <script src="/js/pages/observability.page.js"></script>
+    <script src="/js/pages/os-settings.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
+    <script src="/js/pages/policy-details.page.js"></script>
+    <script src="/js/pages/policy-library.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/testimonials.page.js"></script>
@@ -504,7 +494,7 @@
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
-    <script src="/js/pages/vulnerability-management.page.js"></script>
+    <script src="/js/pages/vital-details.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.

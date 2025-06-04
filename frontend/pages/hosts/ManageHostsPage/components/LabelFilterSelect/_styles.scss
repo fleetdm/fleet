@@ -1,5 +1,5 @@
 .label-filter-select {
-  width: 300px;
+  width: 305px;
 
   svg {
     transition: transform 0.25s ease;
@@ -103,18 +103,28 @@
 
   .label-filter-select__option {
     padding: 10px 1rem;
+    border-radius: $border-radius;
 
     &:hover {
       cursor: pointer;
     }
 
-    &--is-selected,
-    &:active {
-      background-color: $ui-vibrant-blue-25;
+    &--is-selected {
+      background-color: transparent;
+
+      .option-label {
+        span {
+          font-weight: $bold;
+        }
+      }
     }
 
     &--is-focused {
       background-color: $ui-vibrant-blue-10;
+
+      &:active {
+        background-color: $ui-vibrant-blue-25;
+      }
     }
 
     &--is-disabled {
@@ -155,7 +165,7 @@
 
 @media (min-width: $table-controls-break) {
   .label-filter-select {
-    min-width: 220px;
+    min-width: 305px;
 
     &__single-value {
       max-width: 210px !important; // Must override default styling of .css-qc6sy-singleValue

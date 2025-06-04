@@ -1,10 +1,4 @@
 .org-settings {
-  &__page-description {
-    font-size: $x-small;
-    color: $core-fleet-black;
-    @include sticky-settings-description;
-  }
-
   &__sandbox-demo-message {
     margin-top: 3.5rem;
   }
@@ -58,18 +52,6 @@
           em {
             font-style: normal;
           }
-
-          &--configured {
-            em {
-              color: $ui-success;
-            }
-          }
-
-          &--notconfigured {
-            em {
-              color: $ui-error;
-            }
-          }
         }
       }
 
@@ -93,6 +75,31 @@
         width: calc(90% - 50px);
         margin-bottom: $pad-medium;
       }
+      &__ses-enabled {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: $pad-medium;
+        padding: 97px;
+
+        &__content {
+          text-align: center;
+
+          p {
+            margin: 0;
+          }
+        }
+
+        &__title {
+          font-size: $small;
+          font-weight: $bold;
+          margin-bottom: $pad-small;
+        }
+      }
     }
+  }
+
+  .disabled-by-gitops-mode {
+    @include disabled;
   }
 }

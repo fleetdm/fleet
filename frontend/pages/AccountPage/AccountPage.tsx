@@ -24,7 +24,7 @@ import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 
-import SecretField from "./APITokenModal/TokenSecretField/SecretField";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import AccountSidePanel from "./AccountSidePanel";
 import { getErrorMessage } from "./helpers";
 
@@ -189,18 +189,20 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
               &nbsp;instead.
             </p>
           </InfoBanner>
-          <div className={`${baseClass}__secret-wrapper`}>
-            <SecretField secret={authToken()} />
-          </div>
-          <p className="token-message">
-            This token is intended for SSO users to authenticate in the fleetctl
-            CLI. It expires based on the{" "}
-            <CustomLink
-              url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_campaign=get-api-token#session-duration"
-              text="session duration configuration"
-              newTab
-            />
-          </p>
+          <InputFieldHiddenContent
+            value={authToken() || ""}
+            helpText={
+              <>
+                This token is intended for SSO users to authenticate in the
+                fleetctl CLI. It expires based on the{" "}
+                <CustomLink
+                  url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_campaign=get-api-token#session-duration"
+                  text="session duration configuration"
+                  newTab
+                />
+              </>
+            }
+          />
           <div className="modal-cta-wrap">
             <Button onClick={onToggleApiTokenModal} type="button">
               Done

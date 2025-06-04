@@ -218,7 +218,7 @@ For the address of the Redis server that Fleet should connect to, include the ho
 - Config file format:
   ```yaml
   redis:
-    address: 127.0.0.1:7369
+    address: 127.0.0.1:6379
   ```
 
 ### redis_username
@@ -327,7 +327,7 @@ cluster is unstable and reorganizing the data. With this configuration option
 set to true, those (typically short and transient) redirection errors can be
 handled transparently instead of ending in an error.
 
-- Default value: false
+- Default value: true
 - Environment variable: `FLEET_REDIS_CLUSTER_FOLLOW_REDIRECTIONS`
 - Config file format:
   ```yaml
@@ -604,6 +604,19 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
+### server_force_h2c
+
+Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
+is serving TLS, this setting is ignored if TLS is enabled. This configuration might be required if Fleet is hosted in certain
+cloud providers that have limitations on their API gateways, such as GCP Cloud Run.
+- Default value: false
+- Environment variable: FLEET_SERVER_FORCE_H2C
+- Config file format:
+  ```yaml
+  server:
+    force_h2c: true
+  ```
+
 ### server_private_key
 
 This key is required for enabling macOS MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
@@ -692,6 +705,8 @@ If set to `false`, stats are still collected for live queries.
 
 ## License
 
+*Available in Fleet Premium.*
+
 ### license_key
 
 The license key provided to Fleet customers which provides access to Fleet Premium features.
@@ -703,6 +718,8 @@ The license key provided to Fleet customers which provides access to Fleet Premi
   license:
     key: foobar
   ```
+
+> Wondering where to get a license key?  You can [grab a license](https://fleetdm.com/new-license) or if you have questions, [schedule a demo](https://fleetdm.com/contact).
 
 ## Session
 
@@ -756,7 +773,7 @@ This setting works in combination with the `--host_identifier` flag in osquery. 
 
 Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
 
-> If you are enrolling your hosts using Fleet generated packages, it is reccommended to use `uuid` as your indentifier. This prevents potential issues with duplicate host enrollments.
+> If you are enrolling your hosts using Fleet generated packages, it is recommended to use `uuid` as your identifier. This prevents potential issues with duplicate host enrollments.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -1029,7 +1046,7 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ## External activity audit logging
 
-> Applies only to Fleet Premium. Activity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+> Available in Fleet Premium. Activity information is available for all Fleet Free and Fleet Premium instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
 Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
@@ -1856,6 +1873,9 @@ By default, the SMTP backend is enabled and no additional configuration is requi
 SMTP through the [Fleet console UI](https://fleetdm.com/docs/using-fleet/configuration-files#smtp-settings). However, you can also
 configure Fleet to use AWS SES natively rather than through SMTP.
 
+A configured email backend is required for sending user invites, resetting passwords, verifying user email address changes,
+and multi-factor authentication within Fleet (without using an SSO identity provider).
+
 ### backend
 
 Enable SES support for Fleet. You must also configure the ses configurations such as `ses.source_arn`
@@ -1971,6 +1991,8 @@ for the email address specified in the Source parameter of SendRawEmail.
 
 ### s3_software_installers_bucket
 
+*Available in Fleet Premium.*
+
 Name of the S3 bucket for storing software and bootstrap package.
 
 - Default value: none
@@ -1978,10 +2000,12 @@ Name of the S3 bucket for storing software and bootstrap package.
 - Config file format:
   ```yaml
   s3:
-    software_intallers_bucket: some-bucket
+    software_installers_bucket: some-bucket
   ```
 
 ### s3_software_installers_prefix
+
+*Available in Fleet Premium.*
 
 Prefix to prepend to software.
 
@@ -1990,10 +2014,12 @@ Prefix to prepend to software.
 - Config file format:
   ```yaml
   s3:
-    software_intallers_prefix: prefix-here/
+    software_installers_prefix: prefix-here/
   ```
 
 ### s3_software_installers_access_key_id
+
+*Available in Fleet Premium.*
 
 AWS access key ID to use for S3 authentication.
 
@@ -2007,10 +2033,12 @@ The IAM identity used in this context must be allowed to perform the following a
 - Config file format:
   ```yaml
   s3:
-    software_intallers_access_key_id: AKIAIOSFODNN7EXAMPLE
+    software_installers_access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
 ### s3_software_installers_secret_access_key
+
+*Available in Fleet Premium.*
 
 AWS secret access key to use for S3 authentication.
 
@@ -2019,10 +2047,12 @@ AWS secret access key to use for S3 authentication.
 - Config file format:
   ```yaml
   s3:
-    software_intallers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    software_installers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
 ### s3_software_installers_sts_assume_role_arn
+
+*Available in Fleet Premium.*
 
 AWS STS role ARN to use for S3 authentication.
 
@@ -2031,10 +2061,12 @@ AWS STS role ARN to use for S3 authentication.
 - Config file format:
   ```yaml
   s3:
-    software_intallers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    software_installers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
 ### s3_software_installers_sts_external_id
+
+*Available in Fleet Premium.*
 
 AWS STS External ID to use for S3 authentication. This is typically used in
 conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
@@ -2044,23 +2076,27 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 - Config file format:
   ```yaml
   s3:
-   software_intallers_sts_external_id: your_unique_id
+   software_installers_sts_external_id: your_unique_id
   ```
 
 ### s3_software_installers_endpoint_url
 
+*Available in Fleet Premium.*
+
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
-or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
+or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`
 - Config file format:
   ```yaml
   s3:
-    software_intallers_endpoint_url: http://localhost:9000
+    software_installers_endpoint_url: http://localhost:9000
   ```
 
 ### s3_software_installers_force_s3_path_style
+
+*Available in Fleet Premium.*
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
@@ -2074,10 +2110,12 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
 - Config file format:
   ```yaml
   s3:
-    software_intallers_force_s3_path_style: false
+    software_installers_force_s3_path_style: false
   ```
 
 ### s3_software_installers_region
+
+*Available in Fleet Premium.*
 
 AWS S3 Region. Leave blank to enable region discovery.
 
@@ -2088,7 +2126,52 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 - Config file format:
   ```yaml
   s3:
-    software_intallers_region: us-east-1
+    software_installers_region: us-east-1
+  ```
+
+### s3_software_installers_cloudfront_url
+
+*Available in Fleet Premium.*
+
+CloudFront URL. Leave blank if you don't use CloudFront distribution.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_cloudfront_url: https://jkl8dxv87sdh.cloudfront.net
+  ```
+
+### s3_software_installers_cloudfront_url_signing_public_key_id
+
+*Available in Fleet Premium.*
+
+Public key ID for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL_SIGNING_PUBLIC_KEY_ID`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_cloudfront_url_signing_public_key_id: K1HFGXOMBB6TFF
+  ```
+
+### s3_software_installers_cloudfront_url_signing_private_key
+
+*Available in Fleet Premium.*
+
+Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, this is required.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_CLOUDFRONT_URL_SIGNING_PRIVATE_KEY`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_cloudfront_url_signing_private_key: |
+      ------BEGIN BEGIN RSA PRIVATE KEY-----
+      3126756bd0c54fbc90c9928ef59e7037af8983afd10048929ae5
+      7473e62c7aed...
   ```
 
 ### s3_carves_bucket
@@ -2622,7 +2705,7 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/Configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ### mdm.apple_scep_signer_validity_days
 
@@ -2688,6 +2771,20 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+## Partnerships
+
+### partnerships_enable_secureframe
+
+When enabled, end user's who select **Fleet Desktop > About Fleet** will be navigated to the fleetdm.com/better page with [Secureframe](https://secureframe.com/) branding. See the page here: https://fleetdm.com/better?utm_content=secureframe
+
+- Default value: `false`
+- Environment variable: `FLEET_PARTNERSHIPS_ENABLE_SECUREFRAME`
+- Config file format:
+  ```
+  partnerships:
+    enable_secureframe: true
   ```
 
 <h2 id="running-with-systemd">Running with systemd</h2>

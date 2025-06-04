@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -140,8 +141,16 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
 				got := extractAppCfgMacOSCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
+				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				require.True(t, ok)
+				mdm["macos_settings"] = fleet.MacOSSettings{CustomSettings: c.want}
+				got = extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}
@@ -274,8 +283,18 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
 				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
+				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				require.True(t, ok)
+				windowsSettings := fleet.WindowsSettings{}
+				windowsSettings.CustomSettings = optjson.SetSlice(c.want)
+				mdm["windows_settings"] = windowsSettings
+				got = extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}
@@ -775,12 +794,14 @@ func TestGitOpsErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			config := &spec.GitOps{}
 			config.OrgSettings = make(map[string]interface{})
+			// Signal that we don't want to send any labels.
+			// This avoids this test attempting to make a request to the GetLabels endpoint.
+			config.Labels = make([]*fleet.LabelSpec, 0)
 			err = json.Unmarshal([]byte(tt.rawJSON), &config.OrgSettings)
 			require.NoError(t, err)
 			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
-			_, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil)
+			_, _, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
-
 }

@@ -1,5 +1,4 @@
 import React, { useContext, useState, useCallback, useEffect } from "react";
-import classNames from "classnames";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -9,55 +8,52 @@ import { pick } from "lodash";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
   IHostPastActivitiesResponse,
   IHostUpcomingActivitiesResponse,
 } from "services/entities/activities";
-import hostAPI from "services/entities/hosts";
-import queryAPI from "services/entities/queries";
+import hostAPI, {
+  IGetHostCertificatesResponse,
+  IGetHostCertsRequestParams,
+} from "services/entities/hosts";
 import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 
 import {
   IHost,
-  IDeviceMappingResponse,
   IMacadminsResponse,
   IHostResponse,
   IHostMdmData,
   IPackStats,
 } from "interfaces/host";
 import { ILabel } from "interfaces/label";
+import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IQueryStats } from "interfaces/query_stats";
 import { IHostSoftware } from "interfaces/software";
-import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { ITeam } from "interfaces/team";
+import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
 import {
-  IListQueriesResponse,
-  IQueryKeyQueriesLoadAll,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
-import { IHostScript } from "interfaces/script";
+  IHostCertificate,
+  CERTIFICATES_DEFAULT_SORT,
+} from "interfaces/certificates";
 
-import {
-  normalizeEmptyValues,
-  wrapFleetHelper,
-  TAGGED_TEMPLATES,
-} from "utilities/helpers";
+import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_SUMMARY_DATA,
   HOST_ABOUT_DATA,
   HOST_OSQUERY_DATA,
+  DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
-import { isIPadOrIPhone } from "interfaces/platform";
+import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
 
 import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
@@ -70,32 +66,34 @@ import {
   IPackageInstallDetails,
 } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
+import UserCard from "../cards/User";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
 import SoftwareCard from "../cards/Software";
-import UsersCard from "../cards/Users";
+import LocalUserAccountsCard from "../cards/LocalUserAccounts";
 import PoliciesCard from "../cards/Policies";
 import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import UnenrollMdmModal from "./modals/UnenrollMdmModal";
+import CertificatesCard from "../cards/Certificates";
+
 import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
 import SelectQueryModal from "./modals/SelectQueryModal";
-import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
-import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 import LockModal from "./modals/LockModal";
 import UnlockModal from "./modals/UnlockModal";
 import {
@@ -106,8 +104,21 @@ import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import { getErrorMessage } from "./helpers";
+import CancelActivityModal from "./modals/CancelActivityModal";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import AddEndUserModal from "../cards/User/components/AddEndUserModal";
+import {
+  generateChromeProfilesValues,
+  generateOtherEmailsValues,
+  generateUsernameValues,
+} from "../cards/User/helpers";
+import HostHeader from "../cards/HostHeader";
 
 const baseClass = "host-details";
+
+const defaultCardClass = `${baseClass}__card`;
+const fullWidthCardClass = `${baseClass}__card--full-width`;
+const doubleHeightCardClass = `${baseClass}__card--double-height`;
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -136,9 +147,12 @@ interface IHostDetailsSubNavItem {
   name: string | JSX.Element;
   title: string;
   pathname: string;
+  count?: number;
 }
 
 const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
+const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
+const DEFAULT_CERTIFICATES_PAGE = 0;
 
 const HostDetailsPage = ({
   router,
@@ -151,13 +165,13 @@ const HostDetailsPage = ({
     config,
     currentUser,
     isGlobalAdmin = false,
+    isGlobalMaintainer,
     isGlobalObserver,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
   } = useContext(AppContext);
-  const { setSelectedQueryTargetsByType } = useContext(QueryContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
@@ -176,6 +190,7 @@ const HostDetailsPage = ({
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
+
   // Used in activities to show run script details modal
   const [scriptExecutionId, setScriptExecutiontId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
@@ -209,6 +224,10 @@ const HostDetailsPage = ({
     selectedSoftwareDetails,
     setSelectedSoftwareDetails,
   ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedCancelActivity,
+    setSelectedCancelActivity,
+  ] = useState<IHostUpcomingActivity | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -216,19 +235,18 @@ const HostDetailsPage = ({
   >("past");
   const [activityPage, setActivityPage] = useState(0);
 
-  const { data: fleetQueries, error: fleetQueriesError } = useQuery<
-    IListQueriesResponse,
-    Error,
-    ISchedulableQuery[],
-    IQueryKeyQueriesLoadAll[]
-  >([{ scope: "queries", teamId: undefined }], () => queryAPI.loadAll(), {
-    enabled: !!hostIdFromURL,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    refetchOnWindowFocus: false,
-    retry: false,
-    select: (data: IListQueriesResponse) => data.queries,
+  // certificates states
+  const [
+    selectedCertificate,
+    setSelectedCertificate,
+  ] = useState<IHostCertificate | null>(null);
+  const [certificatePage, setCertificatePage] = useState(
+    DEFAULT_CERTIFICATES_PAGE
+  );
+  const [sortCerts, setSortCerts] = useState<IListSort>({
+    ...CERTIFICATES_DEFAULT_SORT,
   });
+  const [showAddEndUserModal, setShowAddEndUserModal] = useState(false);
 
   const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
     "teams",
@@ -240,19 +258,6 @@ const HostDetailsPage = ({
       refetchOnWindowFocus: false,
       retry: false,
       select: (data: ILoadTeamsResponse) => data.teams,
-    }
-  );
-
-  const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
-    ["deviceMapping", hostIdFromURL],
-    () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "device_mapping"),
-    {
-      enabled: !!hostIdFromURL,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping,
     }
   );
 
@@ -276,7 +281,7 @@ const HostDetailsPage = ({
     ["macadmins", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
     {
-      enabled: !!hostIdFromURL,
+      enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -285,10 +290,42 @@ const HostDetailsPage = ({
     }
   );
 
+  const {
+    data: hostCertificates,
+    isError: isErrorHostCertificates,
+    refetch: refetchHostCertificates,
+  } = useQuery<
+    IGetHostCertificatesResponse,
+    Error,
+    IGetHostCertificatesResponse,
+    Array<IGetHostCertsRequestParams & { scope: "host-certificates" }>
+  >(
+    [
+      {
+        scope: "host-certificates",
+        host_id: hostIdFromURL,
+        page: certificatePage,
+        per_page: DEFAULT_CERTIFICATES_PAGE_SIZE,
+        order_key: sortCerts.order_key,
+        order_direction: sortCerts.order_direction,
+      },
+    ],
+    ({ queryKey }) => hostAPI.getHostCertificates(queryKey[0]),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      // FIXME: is it worth disabling for unsupported platforms? we'd have to workaround the a
+      // catch-22 where we need to know the platform to know if it's supported but we also need to
+      // be able to include the cert refetch in the hosts query hook.
+      enabled: !!hostIdFromURL,
+      keepPreviousData: true,
+      staleTime: 15000,
+    }
+  );
+
   const refetchExtensions = () => {
-    deviceMapping !== null && refetchDeviceMapping();
     macadmins !== null && refetchMacadmins();
     mdm?.enrollment_status !== null && refetchMdm();
+    hostCertificates && refetchHostCertificates();
   };
 
   const {
@@ -313,7 +350,10 @@ const HostDetailsPage = ({
             returnedHost.mdm.pending_action
           )
         );
-        if (returnedHost.refetch_requested) {
+        if (
+          returnedHost.refetch_requested &&
+          !isAndroid(returnedHost.platform)
+        ) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
           // fullyReloadHost. We will repeat this process with each onSuccess cycle for a total of
@@ -465,6 +505,7 @@ const HostDetailsPage = ({
       );
     },
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
       staleTime: 2000,
     }
@@ -632,26 +673,14 @@ const HostDetailsPage = ({
     [host?.display_name]
   );
 
+  const onCancelActivity = (activity: IHostUpcomingActivity) => {
+    setSelectedCancelActivity(activity);
+  };
+
   const onLabelClick = (label: ILabel) => {
     return label.name === "All Hosts"
       ? router.push(PATHS.MANAGE_HOSTS)
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
-  };
-
-  const onQueryHostCustom = () => {
-    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-    router.push(
-      PATHS.NEW_QUERY() +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
-    );
-  };
-
-  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
-    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
-    router.push(
-      PATHS.EDIT_QUERY(selectedQuery.id) +
-        TAGGED_TEMPLATES.queryByHostRoute(host?.id, currentTeam?.id)
-    );
   };
 
   const onCancelRunScriptDetailsModal = useCallback(() => {
@@ -740,10 +769,9 @@ const HostDetailsPage = ({
     }
   };
 
-  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
-  //   host.mdm.device_status,
-  //   host.mdm.pending_action
-  // );
+  const onSelectCertificate = (certificate: IHostCertificate) => {
+    setSelectedCertificate(certificate);
+  };
 
   const renderActionDropdown = () => {
     if (!host) {
@@ -763,6 +791,20 @@ const HostDetailsPage = ({
         hostScriptsEnabled={host.scripts_enabled}
       />
     );
+  };
+
+  const onSuccessCancelActivity = (activity: IHostUpcomingActivity) => {
+    if (!host) return;
+
+    // only for windows and linux hosts we want to refetch host details
+    // after cancelling ran script activity. This is because lock and wipe
+    // activites are run as scripts on windows and linux hosts.
+    if (
+      activity.type === ActivityType.RanScript &&
+      (host.platform === "windows" || isLinuxLike(host.platform))
+    ) {
+      refetchHostDetails();
+    }
   };
 
   if (
@@ -792,16 +834,10 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
-      name: (
-        <>
-          {failingPoliciesCount > 0 && (
-            <span className="count">{failingPoliciesCount}</span>
-          )}
-          Policies
-        </>
-      ),
+      name: "Policies",
       title: "policies",
       pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+      count: failingPoliciesCount,
     },
   ];
 
@@ -816,6 +852,12 @@ const HostDetailsPage = ({
     const navPath = hostDetailsSubNav[i].pathname;
     router.push(navPath);
   };
+
+  const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.team_id);
+  const isHostTeamMaintainer = permissions.isTeamMaintainer(
+    currentUser,
+    host?.team_id
+  );
 
   /*  Context team id might be different that host's team id
   Observer plus must be checked against host's team id  */
@@ -840,21 +882,34 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  const isIosOrIpadosHost =
-    host.platform === "ios" || host.platform === "ipados";
+  // host.platform = "windows";
 
-  const detailsPanelClass = classNames(`${baseClass}__details-panel`, {
-    [`${baseClass}__details-panel--ios-grid`]: isIosOrIpadosHost,
-  });
+  const isDarwinHost = host.platform === "darwin";
+  const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
+  const isAndroidHost = isAndroid(host.platform);
+
+  const showUsersCard =
+    isDarwinHost ||
+    generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
+    generateOtherEmailsValues(host.end_users ?? []).length > 0;
+  const showActivityCard = !isAndroidHost;
+  const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
+  const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
+  const showCertificatesCard =
+    (isIosOrIpadosHost || isDarwinHost) &&
+    !!hostCertificates?.certificates.length;
 
   return (
     <MainContent className={baseClass}>
       <>
         <HostDetailsBanners
-          hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
+          mdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
-          diskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
+          macDiskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
           connectedToFleetMdm={host?.mdm.connected_to_fleet}
+          diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
+          diskIsEncrypted={host?.disk_encryption_enabled}
+          diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
         />
         <div className={`${baseClass}__header-links`}>
           <BackLink
@@ -862,24 +917,16 @@ const HostDetailsPage = ({
             path={filteredHostsPath || PATHS.MANAGE_HOSTS}
           />
         </div>
-        <HostSummaryCard
-          summaryData={summaryData}
-          bootstrapPackageData={bootstrapPackageData}
-          isPremiumTier={isPremiumTier}
-          toggleOSSettingsModal={toggleOSSettingsModal}
-          toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-          hostMdmProfiles={host?.mdm.profiles ?? []}
-          isConnectedToFleetMdm={host?.mdm?.connected_to_fleet}
-          showRefetchSpinner={showRefetchSpinner}
-          onRefetchHost={onRefetchHost}
-          renderActionDropdown={renderActionDropdown}
-          osSettings={host?.mdm.os_settings}
-          osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-            host.platform
-          )}
-          hostMdmDeviceStatus={hostMdmDeviceStatus}
-        />
-        <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
+        <div className={`${baseClass}__header-summary`}>
+          <HostHeader
+            summaryData={summaryData}
+            showRefetchSpinner={showRefetchSpinner}
+            onRefetchHost={onRefetchHost}
+            renderActionDropdown={renderActionDropdown}
+            hostMdmDeviceStatus={hostMdmDeviceStatus}
+          />
+        </div>
+        <TabNav className={`${baseClass}__tab-nav`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
@@ -888,57 +935,127 @@ const HostDetailsPage = ({
               {hostDetailsSubNav.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
-                return <Tab key={navItem.title}>{navItem.name}</Tab>;
+                return (
+                  <Tab key={navItem.title}>
+                    <TabText count={navItem.count} isErrorCount>
+                      {navItem.name}
+                    </TabText>
+                  </Tab>
+                );
               })}
             </TabList>
-            <TabPanel className={detailsPanelClass}>
+            <TabPanel className={`${baseClass}__details-panel`}>
+              <HostSummaryCard
+                summaryData={summaryData}
+                bootstrapPackageData={bootstrapPackageData}
+                isPremiumTier={isPremiumTier}
+                toggleOSSettingsModal={toggleOSSettingsModal}
+                toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+                hostSettings={host?.mdm.profiles ?? []}
+                osSettings={host?.mdm.os_settings}
+                osVersionRequirement={getOSVersionRequirementFromMDMConfig(
+                  host.platform
+                )}
+                className={fullWidthCardClass}
+              />
               <AboutCard
+                className={
+                  showUsersCard ? defaultCardClass : fullWidthCardClass
+                }
                 aboutData={aboutData}
-                deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              <ActivityCard
-                activeTab={activeActivityTab}
-                activities={
-                  activeActivityTab === "past"
-                    ? pastActivities
-                    : upcomingActivities
-                }
-                isLoading={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsFetching
-                    : upcomingActivitiesIsFetching
-                }
-                isError={
-                  activeActivityTab === "past"
-                    ? pastActivitiesIsError
-                    : upcomingActivitiesIsError
-                }
-                upcomingCount={upcomingActivities?.count || 0}
-                onChangeTab={onChangeActivityTab}
-                onNextPage={() => setActivityPage(activityPage + 1)}
-                onPreviousPage={() => setActivityPage(activityPage - 1)}
-                onShowDetails={onShowActivityDetails}
-              />
-              {!isIosOrIpadosHost && (
+              {showUsersCard && (
+                <UserCard
+                  className={defaultCardClass}
+                  platform={host.platform}
+                  endUsers={host.end_users ?? []}
+                  enableAddEndUser={
+                    isDarwinHost &&
+                    generateUsernameValues(host.end_users ?? []).length === 0
+                  }
+                  onAddEndUser={() => setShowAddEndUserModal(true)}
+                />
+              )}
+              {showActivityCard && (
+                <ActivityCard
+                  className={
+                    showAgentOptionsCard
+                      ? doubleHeightCardClass
+                      : defaultCardClass
+                  }
+                  activeTab={activeActivityTab}
+                  activities={
+                    activeActivityTab === "past"
+                      ? pastActivities
+                      : upcomingActivities
+                  }
+                  isLoading={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsFetching
+                      : upcomingActivitiesIsFetching
+                  }
+                  isError={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsError
+                      : upcomingActivitiesIsError
+                  }
+                  canCancelActivities={
+                    isGlobalAdmin ||
+                    isGlobalMaintainer ||
+                    isHostTeamAdmin ||
+                    isHostTeamMaintainer
+                  }
+                  upcomingCount={upcomingActivities?.count || 0}
+                  onChangeTab={onChangeActivityTab}
+                  onNextPage={() => setActivityPage(activityPage + 1)}
+                  onPreviousPage={() => setActivityPage(activityPage - 1)}
+                  onShowDetails={onShowActivityDetails}
+                  onCancel={onCancelActivity}
+                />
+              )}
+              {showAgentOptionsCard && (
                 <AgentOptionsCard
+                  className={defaultCardClass}
                   osqueryData={osqueryData}
                   wrapFleetHelper={wrapFleetHelper}
                   isChromeOS={host?.platform === "chrome"}
                 />
               )}
               <LabelsCard
+                className={
+                  !showActivityCard && !showAgentOptionsCard
+                    ? fullWidthCardClass
+                    : defaultCardClass
+                }
                 labels={host?.labels || []}
                 onLabelClick={onLabelClick}
               />
-              {!isIosOrIpadosHost && (
-                <UsersCard
+              {showLocalUserAccountsCard && (
+                <LocalUserAccountsCard
+                  className={fullWidthCardClass}
                   users={host?.users || []}
                   usersState={usersState}
                   isLoading={isLoadingHost}
                   onUsersTableSearchChange={onUsersTableSearchChange}
                   hostUsersEnabled={featuresConfig?.enable_host_users}
+                />
+              )}
+              {showCertificatesCard && (
+                <CertificatesCard
+                  className={fullWidthCardClass}
+                  data={hostCertificates}
+                  hostPlatform={host.platform}
+                  onSelectCertificate={onSelectCertificate}
+                  isError={isErrorHostCertificates}
+                  page={certificatePage}
+                  pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                  onNextPage={() => setCertificatePage(certificatePage + 1)}
+                  onPreviousPage={() => setCertificatePage(certificatePage - 1)}
+                  sortDirection={sortCerts.order_direction}
+                  sortHeader={sortCerts.order_key}
+                  onSortChange={setSortCerts}
                 />
               )}
             </TabPanel>
@@ -957,7 +1074,7 @@ const HostDetailsPage = ({
                 hostTeamId={host.team_id || 0}
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
               />
-              {host?.platform === "darwin" && macadmins?.munki?.version && (
+              {isDarwinHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
@@ -990,7 +1107,7 @@ const HostDetailsPage = ({
               />
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {showDeleteHostModal && (
           <DeleteHostModal
             onCancel={() => setShowDeleteHostModal(false)}
@@ -1002,12 +1119,11 @@ const HostDetailsPage = ({
         {showSelectQueryModal && host && (
           <SelectQueryModal
             onCancel={() => setShowSelectQueryModal(false)}
-            queries={fleetQueries || []}
-            queryErrors={fleetQueriesError}
             isOnlyObserver={isOnlyObserver}
-            onQueryHostCustom={onQueryHostCustom}
-            onQueryHostSaved={onQueryHostSaved}
-            hostsTeamId={host?.team_id}
+            hostId={hostIdFromURL}
+            hostTeamId={host?.team_id}
+            router={router}
+            currentTeamId={currentTeam?.id}
           />
         )}
         {showScriptModalGroup && (
@@ -1015,6 +1131,7 @@ const HostDetailsPage = ({
             host={host}
             currentUser={currentUser}
             onCloseScriptModalGroup={onCloseScriptModalGroup}
+            teamIdForApi={currentTeam?.id}
           />
         )}
         {!!host && showTransferHostModal && (
@@ -1034,7 +1151,7 @@ const HostDetailsPage = ({
         )}
         {showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles
+            canResendProfiles={host.platform === "darwin"}
             hostId={host.id}
             platform={host.platform}
             hostMDMData={host.mdm}
@@ -1043,17 +1160,20 @@ const HostDetailsPage = ({
           />
         )}
         {showUnenrollMdmModal && !!host && (
-          <UnenrollMdmModal hostId={host.id} onClose={toggleUnenrollMdmModal} />
+          <UnenrollMdmModal
+            hostId={host.id}
+            hostPlatform={host.platform}
+            hostName={host.display_name}
+            onClose={toggleUnenrollMdmModal}
+          />
         )}
-        {showDiskEncryptionModal &&
-          host &&
-          isSupportedPlatform(host.platform) && (
-            <DiskEncryptionKeyModal
-              platform={host.platform}
-              hostId={host.id}
-              onCancel={() => setShowDiskEncryptionModal(false)}
-            />
-          )}
+        {showDiskEncryptionModal && host && (
+          <DiskEncryptionKeyModal
+            platform={host.platform}
+            hostId={host.id}
+            onCancel={() => setShowDiskEncryptionModal(false)}
+          />
+        )}
         {showBootstrapPackageModal &&
           bootstrapPackageData.details &&
           bootstrapPackageData.name && (
@@ -1122,7 +1242,25 @@ const HostDetailsPage = ({
             onExit={() => setSelectedSoftwareDetails(null)}
           />
         )}
+        {selectedCancelActivity && (
+          <CancelActivityModal
+            hostId={host.id}
+            activity={selectedCancelActivity}
+            onCancelActivity={() => refetchUpcomingActivities()}
+            onSuccessCancel={onSuccessCancelActivity}
+            onExit={() => setSelectedCancelActivity(null)}
+          />
+        )}
+        {selectedCertificate && (
+          <CertificateDetailsModal
+            certificate={selectedCertificate}
+            onExit={() => setSelectedCertificate(null)}
+          />
+        )}
       </>
+      {showAddEndUserModal && (
+        <AddEndUserModal onExit={() => setShowAddEndUserModal(false)} />
+      )}
     </MainContent>
   );
 };

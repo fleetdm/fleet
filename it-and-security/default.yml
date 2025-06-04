@@ -1,5 +1,5 @@
 agent_options:
-  path: ./lib/agent-options.yml
+  path: ./lib/all/agent-options/agent-options.yml
 org_settings:
   features:
     enable_host_users: true
@@ -18,21 +18,23 @@ org_settings:
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
       idp_name: Google Workspace
-      metadata_url: $DOGFOOD_MDM_SSO_METADATA_URL
+      metadata: |-
+        $DOGFOOD_END_USER_SSO_METADATA
+      metadata_url: ""
     apple_business_manager:
     - organization_name: Fleet Device Management Inc.
       macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Company-owned iPhones"
-      ipados_team: "🔳🏢 Company-owned iPads"
+      ios_team: "📱🏢 Company-owned mobile devices"
+      ipados_team: "📱🏢 Company-owned mobile devices"
     volume_purchasing_program:
     - location: Fleet Device Management Inc.
       teams:
       - "💻 Workstations"
       - "💻🐣 Workstations (canary)"
-      - "📱🏢 Company-owned iPhones"
-      - "🔳🏢 Company-owned iPads"
+      - "📱🏢 Company-owned mobile devices"
+      - "📱🔐 Personal mobile devices"
   org_info:
-    contact_url: https://fleetdm.com/company/contact
+    contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: Fleet
@@ -50,13 +52,11 @@ org_settings:
     server_url: https://dogfood.fleetdm.com
   sso_settings:
     enable_jit_provisioning: true
-    enable_jit_role_sync: false
     enable_sso: true
-    enable_sso_idp_login: false
+    enable_sso_idp_login: true
     entity_id: dogfood.fleetdm.com
     idp_image_url: ""
-    idp_name: Google
-    issuer_uri: $DOGFOOD_SSO_ISSUER_URI
+    idp_name: Google Workspace
     metadata: |-
       $DOGFOOD_SSO_METADATA
     metadata_url: ""
@@ -65,17 +65,40 @@ org_settings:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids: []
+      policy_ids: [ ]
     host_status_webhook:
-      days_count: 1
-      destination_url: ""
-      enable_host_status_webhook: false
-      host_percentage: 25
-    interval: 1m0s
+      days_count: 5
+      destination_url: $DOGFOOD_HOST_STATUS_WEBHOOK_URL
+      enable_host_status_webhook: true
+      host_percentage: 20
+    interval: 360m0s
     vulnerabilities_webhook:
       destination_url: $DOGFOOD_VULNERABILITIES_WEBHOOK_URL
       enable_vulnerabilities_webhook: true
       host_batch_size: 0
+    activities_webhook:
+      destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
+      enable_activities_webhook: true
 policies:
 queries:
-  - path: ./lib/collect-fleetd-update-channels.queries.yml
+  - path: ./lib/all/queries/collect-fleetd-information.yml
+  - path: ./lib/all/queries/collect-operating-system-information.yml
+  - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
+  - path: ./lib/macos/queries/detect-apns-certificate.yml
+controls: 
+  enable_disk_encryption: true
+  macos_migration:
+    enable: true
+    mode: voluntary
+    webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
+  windows_enabled_and_configured: true
+  windows_migration_enabled: true
+labels:
+  - path: ./lib/all/labels/arm-based-windows-hosts.yml
+  - path: ./lib/all/labels/debian-based-linux-hosts.yml
+  - path: ./lib/all/labels/macs-with-1password-installed.yml
+  - path: ./lib/all/labels/rpm-based-linux-hosts.yml
+  - path: ./lib/all/labels/virtual-machines.yml
+  - path: ./lib/all/labels/santa-test-devices.yml
+  - path: ./lib/all/labels/x86-based-windows-hosts.yml
+  - path: ./lib/all/labels/apple-silicon-macos-hosts.yml

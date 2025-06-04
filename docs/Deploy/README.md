@@ -12,7 +12,7 @@ Includes a guide for how to update and run new versions of Fleet.
 ### [Reference architecture](./reference-architectures.md)
 An opinionated view of running Fleet in a production environment, and configuration strategies to enable high availability.
 
-### [Monitoring Fleet](./monitoring-fleet.md)
+### [Monitoring Fleet](./reference-architectures.md#monitoring-fleet)
 Learn about monitoring and scaling Fleet servers with health checks, metrics, and alerting
 
 ### [Deploying to Cloud.gov](./cloudgov.md)

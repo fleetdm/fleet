@@ -11,7 +11,7 @@ In today's mobile-driven workplace, the health of a device's battery plays a cru
 - osquery v.5.12.0+ on Windows
 - osquery v3.2.7+ on macOS
 
-## Step-by-Step Instructions
+## Step-by-step instructions
 
 ### Accessing battery health
 

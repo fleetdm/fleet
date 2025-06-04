@@ -1,0 +1,32 @@
+- name: Linux - Fleet Desktop extensions enabled
+  critical: false
+  description: This policy checks if the extension required for Fleet Desktop is installed and enabled.
+  resolution: |
+    Install and enable the "appindicatorsupport@rgcjonas.gmail.com" extension by running the following commands on a terminal (as user, not root):
+    gdbus call --session \
+      --dest org.gnome.Shell.Extensions \
+      --object-path /org/gnome/Shell/Extensions \
+      --method org.gnome.Shell.Extensions.InstallRemoteExtension \
+      "appindicatorsupport@rgcjonas.gmail.com"
+    gnome-extensions enable "appindicatorsupport@rgcjonas.gmail.com"
+  platform: linux
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      -- Policy succeeds on Linux distributions that are not Fedora or Debian.
+      SELECT 1 FROM os_version WHERE name = 'Fedora Linux' OR platform = 'debian'
+    ) OR NOT EXISTS (
+      -- Policy succeeds on Linux hosts that do not have Fleet Desktop enabled or
+      -- Fleet Desktop is not running (e.g. logged out from GUI).
+      SELECT 1 FROM processes WHERE name = 'fleet-desktop' LIMIT 1
+    ) OR EXISTS (
+      WITH fleet_desktop AS (SELECT TRIM(cwd, '/home/') AS username, cwd AS home FROM processes WHERE name = 'fleet-desktop' LIMIT 1)
+      SELECT 1 WHERE EXISTS (
+        -- Check if the extension is installed (an extension can be enabled but not installed, and viceversa).
+        SELECT 1 FROM file WHERE path = CONCAT((SELECT home FROM fleet_desktop), '/.local/share/gnome-shell/extensions/appindicatorsupport@rgcjonas.gmail.com') AND type = 'directory'
+      ) AND EXISTS (
+        -- Check if the extension is enabled (an extension can be enabled but not installed, and viceversa).
+        SELECT 1 FROM dconf_read WHERE username = (SELECT fleet_desktop.username FROM fleet_desktop) AND key = '/org/gnome/shell/enabled-extensions' AND value like '%appindicatorsupport@rgcjonas.gmail.com%'
+      )
+    );
+  run_script:
+    path: ../scripts/install-fleet-desktop-required-extension.sh

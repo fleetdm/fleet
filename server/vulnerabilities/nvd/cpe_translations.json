@@ -12,6 +12,16 @@
   },
   {
     "software": {
+      "name": ["pass"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["simple_password_store"],
+      "vendor": ["simple_password_store_project"]
+    }
+  },
+  {
+    "software": {
       "name": ["/^ruby(@.*)?$/"],
       "source": ["homebrew_packages"]
     },
@@ -62,6 +72,16 @@
   },
   {
     "software": {
+      "name": ["/^Python 3\\.\\d{1,2}/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["python"],
+      "vendor": ["python"]
+    }
+  },
+  {
+    "software": {
       "name": ["Docs"],
       "source": ["chrome_extensions"]
     },
@@ -90,6 +110,15 @@
     "filter": {
       "product": ["docker_desktop"],
       "vendor": ["docker"]
+    }
+  },
+  {
+    "software": {
+      "name": ["jira"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
     }
   },
   {
@@ -142,6 +171,16 @@
   },
   {
     "software": {
+      "name": ["/^IntelliJ IDEA Community Edition/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["intellij_idea"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["/^com\\.jetbrains\\.pycharm/"],
       "source": ["apps"]
     },
@@ -157,6 +196,116 @@
     },
     "filter": {
       "product": ["pycharm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.PhpStorm/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["phpstorm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.aqua/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["aqua"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.CLion/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["clion"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.datagrip/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["datagrip"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.dataspell/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["dataspell"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.goland/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["goland"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rider/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rider"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rubymine/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rubymine"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.rustrover/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["rustrover"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.WebStorm/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["webstorm"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.jetbrains\\.mps/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["mps"],
       "vendor": ["jetbrains"]
     }
   },
@@ -332,6 +481,15 @@
   },
   {
     "software": {
+      "name": ["docker.docker"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["oracle.mysql-shell-for-vs-code"],
       "source": ["vscode_extensions"]
     },
@@ -425,6 +583,25 @@
     "filter": {
       "product": ["virtualbox"],
       "vendor": ["oracle"]
+    }
+  },
+  {
+    "software": {
+      "name": ["gh"]
+    },
+    "filter": {
+      "product": ["cli"],
+      "vendor": ["github"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.googlecode\\.iterm2/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["iterm2"],
+      "vendor": ["iterm2"]
     }
   }
 ]

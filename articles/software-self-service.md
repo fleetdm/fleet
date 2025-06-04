@@ -10,7 +10,7 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 
 > Software packages can be added to a specific team or to the "No team" category. The "No team" category is the default assignment for hosts that are not part of any specific team.
 
-## Step-by-Step Instructions
+## Step-by-step instructions
 
 ### Adding a self-service software package
 
@@ -18,11 +18,12 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 2. **Select a team**: Click the dropdown in the upper left corner of the page and click on the team to which you want to add the software package.
 3. **Open the “Add software” modal**: Click the “Add software” button in the upper right corner of the page.
 4. **Select a software package to upload**: Click “Choose file” in the “Add software” modal and select a software package from your computer.
-5. **Advanced options**: If desired, click “Advanced options” to add a pre-install condition or post-install script to your software package.
+5. **Select the hosts that you want to target**: Select "All hosts" if you want the software to be available to all your hosts. Select "Custom" to scope the software to specific groups of hosts based on label membership. You can select "Include any", which will scope the software to hosts that have any of the labels you select, or "Exclude any", which will scope the software to hosts that do _not_ have the selected labels.
+6. **Advanced options**: If desired, click “Advanced options” to add a pre-install condition or post-install script to your software package.
     * **Pre-install condition**: This is an osquery query that results in true. For example, you might require a specific software title to exist before installing additional extensions.
     * **Post-install script**: This might be used to apply a license key, perform configuration tasks, or execute cleanup tasks after the software installation.
-6. **Make the software package self-service**: Check the “Self-service” checkbox to mark the software package as self-service.
-7. **Finish the upload**: Click the “Add software” button to finish the upload process.
+7. **Make the software package self-service**: Check the “Self-service” checkbox to mark the software package as self-service.
+8. **Finish the upload**: Click the “Add software” button to finish the upload process.
 
 ### Editing a self-service software package
 
@@ -31,6 +32,16 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 3. **Filter by self-service**: To make it easier to find your software package, click on the dropdown to the left of the search bar and select “Self-service”. This will filter the results in the table to only show self-service software packages. If you still don’t see your software package, you can page through the results or search for your software package’s name in the search bar.
 4. **Open the details page**: Click on the software package’s name. 
 5. **Open the actions dropdown**: Click on the “Actions” dropdown on the far right of the page. From here, you can download the software package, delete the software package, or click “Advanced options” to see the options you configured when adding the software package. 
+
+### Enable self-service on an existing software package
+Self-service is supported on custom packages, App Store apps, and Fleet-maintained apps. To enable self-service on a software package that is already added to Fleet:
+1. **Navigate to the software details page for the software package**: Click “Software” in the main navigation menu.
+2. **Select a team**: Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
+3. **Find your package**: To make it easier to find your software package, click on the dropdown to the left of the search bar and select "Available for install". This will filter the results in the table to only show software packages that are able to be installed on hosts. If you still don’t see your software package, you can page through the results or search for your software package’s name in the search bar. Once you find the software package, click its the row in the table.
+4. **Edit the package**: Click the "Actions" dropdown on the far right of the page, then click "Edit". In the "Edit software" modal, under "Options", check "Self-service".
+5. **Select categories**: Optionally, you can assign the software package to one or more categories. Categories are used to group software on the end user's **My device > Self-service** page, which can make your self-service software easier to find for end users. Fleet-maintained apps have default categories that will be pre-selected when you enable self-service. These default categories can be changed when editing the app.
+
+> Note: editing a software package's categories will _not_ cancel pending installs or uninstalls.
 
 ### Downloading a self-service software package
 

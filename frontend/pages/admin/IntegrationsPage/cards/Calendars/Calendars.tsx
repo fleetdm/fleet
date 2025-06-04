@@ -5,8 +5,6 @@ import { IConfig } from "interfaces/config";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
-// @ts-ignore
-import { stringToClipboard } from "utilities/copy_text";
 import paths from "router/paths";
 
 // @ts-ignore
@@ -17,8 +15,9 @@ import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
-import Icon from "components/Icon";
 import Card from "components/Card";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { getPathWithQueryParams } from "utilities/url";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -74,7 +73,7 @@ const baseClass = "calendars-integration";
 
 const Calendars = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { currentTeam, isPremiumTier } = useContext(AppContext);
 
   const [formData, setFormData] = useState<ICalendarsFormData>({
     domain: "",
@@ -82,9 +81,9 @@ const Calendars = (): JSX.Element => {
   });
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<ICalendarsFormErrors>({});
-  const [copyMessage, setCopyMessage] = useState<string>("");
 
   const {
+    data: config,
     isLoading: isLoadingAppConfig,
     refetch: refetchConfig,
     error: errorAppConfig,
@@ -104,6 +103,8 @@ const Calendars = (): JSX.Element => {
       }
     },
   });
+
+  const gomEnabled = config?.gitops.gitops_mode_enabled;
 
   const { apiKeyJson, domain } = formData;
 
@@ -140,6 +141,8 @@ const Calendars = (): JSX.Element => {
     [formData]
   );
 
+  if (!isPremiumTier) return <PremiumFeatureMessage />;
+
   const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     setIsUpdatingSettings(true);
 
@@ -175,36 +178,6 @@ const Calendars = (): JSX.Element => {
     } finally {
       setIsUpdatingSettings(false);
     }
-  };
-
-  const renderOauthLabel = () => {
-    const onCopyOauthScopes = (evt: React.MouseEvent) => {
-      evt.preventDefault();
-
-      stringToClipboard(OAUTH_SCOPES)
-        .then(() => setCopyMessage(() => "Copied!"))
-        .catch(() => setCopyMessage(() => "Copy failed"));
-
-      // Clear message after 1 second
-      setTimeout(() => setCopyMessage(() => ""), 1000);
-
-      return false;
-    };
-
-    return (
-      <span className={`${baseClass}__oauth-scopes-copy-icon-wrapper`}>
-        <Button
-          variant="unstyled"
-          className={`${baseClass}__oauth-scopes-copy-icon`}
-          onClick={onCopyOauthScopes}
-        >
-          <Icon name="copy" />
-        </Button>
-        {copyMessage && (
-          <span className={`${baseClass}__copy-message`}>{copyMessage}</span>
-        )}
-      </span>
-    );
   };
 
   const renderForm = () => {
@@ -312,6 +285,7 @@ const Calendars = (): JSX.Element => {
                       ignore1password
                       inputClassName={`${baseClass}__api-key-json`}
                       error={formErrors.apiKeyJson}
+                      disabled={gomEnabled}
                     />
                     <InputField
                       label="Primary domain"
@@ -331,16 +305,21 @@ const Calendars = (): JSX.Element => {
                         </>
                       }
                       error={formErrors.domain}
+                      disabled={gomEnabled}
                     />
-                    <Button
-                      type="submit"
-                      variant="brand"
-                      disabled={Object.keys(formErrors).length > 0}
-                      className="save-loading"
-                      isLoading={isUpdatingSettings}
-                    >
-                      Save
-                    </Button>
+                    <GitOpsModeTooltipWrapper
+                      tipOffset={8}
+                      renderChildren={(dC) => (
+                        <Button
+                          type="submit"
+                          disabled={Object.keys(formErrors).length > 0 || dC}
+                          className="save-loading"
+                          isLoading={isUpdatingSettings}
+                        >
+                          Save
+                        </Button>
+                      )}
+                    />
                   </form>
                 </Card>
               </li>
@@ -378,7 +357,7 @@ const Calendars = (): JSX.Element => {
                   readOnly
                   inputWrapperClass={`${baseClass}__oauth-scopes`}
                   name="oauth-scopes"
-                  label={renderOauthLabel()}
+                  enableCopy
                   type="textarea"
                   value={OAUTH_SCOPES}
                 />
@@ -412,7 +391,9 @@ const Calendars = (): JSX.Element => {
           <p>
             Now head over to{" "}
             <CustomLink
-              url={paths.MANAGE_POLICIES}
+              url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
+                team_id: currentTeam?.id,
+              })}
               text="Policies &gt; Manage automations"
             />{" "}
             to finish setup.
@@ -421,8 +402,6 @@ const Calendars = (): JSX.Element => {
       </>
     );
   };
-
-  if (!isPremiumTier) return <PremiumFeatureMessage />;
 
   if (isLoadingAppConfig) {
     <div className={baseClass}>

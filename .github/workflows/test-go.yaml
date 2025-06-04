@@ -42,21 +42,85 @@ jobs:
   test-go:
     strategy:
       matrix:
-        suite: ["integration", "core"]
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fast", "fleetctl", "main", "mysql", "scripts", "service", "vuln"]
         os: [ubuntu-latest]
-        mysql: ["mysql:8.0.36", "mysql:8.4.3"] # make sure to update supported versions docs when this changes
-    continue-on-error: ${{ matrix.suite == 'integration' }} # Since integration tests have a higher chance of failing, often for unrelated reasons, we don't want to fail the whole job if they fail
+        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.5", "mysql:9.3.0"] # make sure to update supported versions docs when this changes
+        isCron:
+          - ${{ github.event_name == 'schedule' }}
+        exclude:
+          - isCron: false
+            mysql: "mysql:8.4.5" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
+          - isCron: false
+            mysql: "mysql:8.0.32" # Run MySQL 8.0.32 tests on cron schedule and not every time.
+          # The suites below do not need MySQL, so we exclude additional MySQL options from the above matrix.
+          - suite: "fast"
+            mysql: "mysql:8.0.32" # We must make sure that at least 1 instance of this suite will run, which is 8.0.36 in this case
+          - suite: "fast"
+            mysql: "mysql:8.4.5"
+          - suite: "fast"
+            mysql: "mysql:9.3.0"
+          - suite: "scripts"
+            mysql: "mysql:8.0.32"
+          - suite: "scripts"
+            mysql: "mysql:8.4.5"
+          - suite: "scripts"
+            mysql: "mysql:9.3.0"
+    # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
+    # to an unrelated issue in another product area.
+    continue-on-error: true
     runs-on: ${{ matrix.os }}
 
     env:
       RACE_ENABLED: false
       GO_TEST_TIMEOUT: 20m
+      DOCKER_COMMAND: docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test
 
     steps:
     - name: Harden Runner
       uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
       with:
         egress-policy: audit
+
+    - name: Configure job
+      run: |
+        echo "RUN_TESTS_ARG=" >> $GITHUB_ENV
+        if [[ "${{ matrix.suite }}" == "main" ]]; then
+          echo "CI_TEST_PKG=main" >> $GITHUB_ENV
+          echo "NEED_DOCKER=1" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "fast" ]]; then
+          # DO NOT add any dependencies in this test suite.
+          echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "service" ]]; then
+          echo "CI_TEST_PKG=service" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=-skip=^TestIntegrations" >> $GITHUB_ENV
+          echo "NEED_DOCKER=1" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
+          echo "CI_TEST_PKG=service" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=-run=^TestIntegrations -skip '^(TestIntegrationsMDM|TestIntegrationsEnterprise)'" >> $GITHUB_ENV
+          # We re-generate test schema just in case there is an issue with the schema. We only do this for one test.
+          echo "GENERATE_TEST_SCHEMA=1" >> $GITHUB_ENV
+          echo "NEED_DOCKER=1" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "integration-mdm" ]]; then
+          echo "CI_TEST_PKG=service" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=-run=^TestIntegrationsMDM" >> $GITHUB_ENV
+          echo "NEED_DOCKER=1" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "integration-enterprise" ]]; then
+          echo "CI_TEST_PKG=service" >> $GITHUB_ENV
+          echo "RUN_TESTS_ARG=-run=^TestIntegrationsEnterprise" >> $GITHUB_ENV
+          echo "NEED_DOCKER=1" >> $GITHUB_ENV
+        elif [[ "${{ matrix.suite }}" == "scripts" ]]; then
+          echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
+          echo "NEED_ZSH=1" >> $GITHUB_ENV
+        else
+          echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
+          echo "NEED_DOCKER=1" >> $GITHUB_ENV
+        fi
+
+    - name: Set Go race setting on schedule
+      if: github.event.schedule == '0 4 * * *'
+      run: |
+        echo "RACE_ENABLED=true" >> $GITHUB_ENV
+        echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
 
     - name: Checkout Code
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
@@ -68,19 +132,18 @@ jobs:
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
+      if: ${{ env.NEED_DOCKER }}
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND &
 
     - name: Add TLS certificate for SMTP Tests
+      if: ${{ env.NEED_DOCKER }}
       run: |
         sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
         sudo update-ca-certificates
 
-    # It seems faster not to cache Go dependencies
-    - name: Install Go Dependencies
-      run: make deps-go
-
     - name: Install ZSH
+      if: ${{ env.NEED_ZSH }}
       run: sudo apt update && sudo apt install -y zsh
 
     - name: Generate static files
@@ -88,37 +151,100 @@ jobs:
         export PATH=$PATH:~/go/bin
         make generate-go
 
-    - name: Set Go race setting on schedule
-      if: github.event.schedule == '0 4 * * *'
-      run: |
-        echo "RACE_ENABLED=true" >> $GITHUB_ENV
-        echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
-
     - name: Wait for mysql
+      if: ${{ env.NEED_DOCKER }}
       run: |
-        echo "waiting for mysql..."
-        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+        # Function to wait for MySQL with timeout
+        wait_for_mysql() {
+          local container_name=$1
+          local timeout_seconds=60  # 1 minute
+          local start_time=$(date +%s)
+          local attempt_logs=""
+          
+          echo "waiting for ${container_name}..."
+          while true; do
+            # Check if timeout has been reached
+            current_time=$(date +%s)
+            elapsed_time=$((current_time - start_time))
+            if [ $elapsed_time -ge $timeout_seconds ]; then
+              echo "Timeout reached (${timeout_seconds}s) while waiting for ${container_name}"
+              echo "Connection attempt logs:"
+              echo "$attempt_logs"
+              # Dump MySQL container logs
+              echo "Dumping ${container_name} logs:"
+              docker compose logs ${container_name}
+              return 1
+            fi
+            
+            # Try to connect to MySQL
+            output=$(docker compose exec -T $container_name sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" 2>&1)
+            exit_code=$?
+            
+            # Log the attempt
+            timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+            attempt_logs="${attempt_logs}$(printf "\n%s - Exit code: %s - Output: %s" "$timestamp" "$exit_code" "$output")"
+        
+            # If connection successful, break the loop
+            if [ $exit_code -eq 0 ]; then
+              echo "${container_name} is ready"
+              return 0
+            fi
+            
             echo "."
             sleep 1
+          done
+        }
+        
+        # Function to restart containers
+        restart_containers() {
+          echo "Stopping all containers..."
+          docker compose down
+          
+          echo "Restarting containers..."
+          FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND &
+          
+          # Give containers a moment to start
+          sleep 10
+        }
+        
+        # Try up to 5 times to connect to MySQL
+        max_attempts=5
+        attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts"
+          
+          # Try to connect to MySQL
+          if wait_for_mysql "mysql_test"; then
+            # If MySQL is ready, try to connect to MySQL replica
+            if wait_for_mysql "mysql_replica_test"; then
+              # Both are ready, we're done
+              echo "All MySQL connections successful"
+              exit 0
+            fi
+          fi
+          
+          # If we get here, at least one connection failed
+          echo "Failed to connect to MySQL on attempt $attempt"
+          
+          if [ $attempt -lt $max_attempts ]; then
+            echo "Restarting containers and trying again..."
+            restart_containers
+          else
+            echo "Maximum attempts reached. Failing the job."
+            exit 1
+          fi
+          
+          attempt=$((attempt + 1))
         done
-        echo "mysql is ready"
-        echo "waiting for mysql replica..."
-        until docker compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
-            echo "."
-            sleep 1
-        done
-        echo "mysql replica is ready"
+
+    - name: Generate test schema
+      if: ${{ env.GENERATE_TEST_SCHEMA }}
+      run: make test-schema
 
     - name: Run Go Tests
       run: |
-        if [[ "${{ matrix.suite }}" == "core" ]]; then
-          RUN_TESTS_ARG='-skip=^TestIntegrations'
-        elif [[ "${{ matrix.suite }}" == "integration" ]]; then
-          RUN_TESTS_ARG='-run=^TestIntegrations'
-        else
-          RUN_TESTS_ARG=''
-        fi
-        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
+        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT ${{ env.RUN_TESTS_ARG }}" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           TEST_CRON_NO_RECOVER=1 \
           NETWORK_TEST=1 \
@@ -129,6 +255,7 @@ jobs:
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
+          CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Create mysql identifier without colon
@@ -186,11 +313,131 @@ jobs:
         name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
         path: /tmp/summary.txt
 
+    - name: Set fail status
+      if: failure()
+      run: |
+        echo "fail" > /tmp/fail
+
+    - name: Upload fail indicator
+      if: failure()
+      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+      with:
+        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-fail
+        path: /tmp/fail
+
+  # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
+  test-go-nanomdm:
+    runs-on: 'ubuntu-latest'
+    services:
+      mysql:
+        image: mysql:8.0.36
+        env:
+          MYSQL_RANDOM_ROOT_PASSWORD: yes
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpw
+        ports:
+          - 3800:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=2s --health-retries=3
+    env:
+      MYSQL_PWD: testpw
+      PORT: 3800
+      RACE_ENABLED: true
+      GO_TEST_TIMEOUT: 20m
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Install Go
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          go-version-file: 'go.mod'
+
+      - name: verify mysql
+        run: |
+          while ! mysqladmin ping --host=localhost --port=$PORT --protocol=TCP --silent; do
+            sleep 1
+          done
+
+      - name: mysql schema
+        run: |
+          mysql --version
+          mysql --user=testuser --host=localhost --port=$PORT --protocol=TCP testdb < ./server/mdm/nanomdm/storage/mysql/schema.sql
+
+      - name: set test dsn
+        run: echo "NANOMDM_MYSQL_STORAGE_TEST_DSN=testuser:testpw@tcp(localhost:$PORT)/testdb" >> $GITHUB_ENV
+
+      - name: Run Go tests
+        run: |
+          go test -v -parallel 8 -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT \
+            -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/server/mdm/nanomdm/... \
+          ./server/mdm/nanomdm/storage/mysql 2>&1 | tee /tmp/gotest.log
+
+      - name: Save coverage
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: nanomdm-coverage
+          path: ./coverage.txt
+          if-no-files-found: error
+
+      - name: Generate summary of errors
+        if: failure()
+        run: |
+          c1grep() { grep "$@" || test $? = 1; }
+          c1grep -oP 'FAIL: .*$' /tmp/gotest.log > /tmp/summary.txt
+          c1grep 'test timed out after' /tmp/gotest.log >> /tmp/summary.txt
+          c1grep 'fatal error:' /tmp/gotest.log >> /tmp/summary.txt
+          c1grep -A 10 'panic: runtime error: ' /tmp/gotest.log >> /tmp/summary.txt
+          c1grep ' FAIL\t' /tmp/gotest.log >> /tmp/summary.txt
+          GO_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
+          echo "GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY"
+          if [[ -z "$GO_FAIL_SUMMARY" ]]; then
+            GO_FAIL_SUMMARY="unknown, please check the build URL"
+          fi
+          GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_template.json > ./payload.json
+
+      - name: Slack Notification
+        if: github.event.schedule == '0 4 * * *' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ./payload.json
+        env:
+          JOB_STATUS: ${{ job.status }}
+          EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+        with:
+          name: nanomdm-test-log
+          path: /tmp/gotest.log
+          if-no-files-found: error
+
+      - name: Upload summary test log
+        if: always()
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+        with:
+          name: nanomdm-summary-test-log
+          path: /tmp/summary.txt
+
   # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
-    needs: [test-go]
+    needs: [test-go, test-go-nanomdm]
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       - name: Download artifacts
@@ -202,3 +449,28 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: backend
+
+  # Our Go matrix test suites are run with continue-on-error: true, so they don't contribute to the workflow pass/fail.
+  # This job explicitly checks if any Go matrix test suites have failed and marks the overall workflow with the proper pass/fail status.
+  aggregate-result:
+    needs: test-go
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Download artifacts
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        with:
+          pattern: '*-fail'
+
+      - name: Check for failures
+        run: |
+          for dir in $(find ./ -type d -name '*-fail'); do
+            echo "Found $dir"
+            echo "❌ One or more test jobs failed."
+            exit 1
+          done
+          echo "✅ All test jobs succeeded."

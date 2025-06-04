@@ -142,6 +142,8 @@ export const createMockOSVersionsResponse = (
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   name: "test app",
   app_store_id: 1,
+  created_at: "2020-01-01T00:00:00.000Z",
+  platform: "darwin",
   icon_url: "https://via.placeholder.com/512",
   latest_version: "1.2.3",
   self_service: true,
@@ -150,6 +152,8 @@ const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
     pending: 2,
     failed: 3,
   },
+  labels_include_any: null,
+  labels_exclude_any: null,
 };
 
 export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {
@@ -197,9 +201,11 @@ export const createMockSoftwareVersionResponse = (
 
 const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   name: "TestPackage-1.2.3.pkg",
+  title_id: 2,
   version: "1.2.3",
   uploaded_at: "2020-01-01T00:00:00.000Z",
   install_script: "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+  uninstall_script: "sudo rm -rf /Applications/Falcon.app",
   pre_install_query: "SELECT 1 FROM macos_profiles WHERE uuid='abc123';",
   post_install_script:
     "sudo /Applications/Falcon.app/Contents/Resources/falconctl license abc123",
@@ -212,6 +218,13 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
     pending_uninstall: 1,
     failed_uninstall: 1,
   },
+  automatic_install_policies: [],
+  last_install: null,
+  last_uninstall: null,
+  url: "https://fakeurl.testpackageurlforfalconapp.fake/test/package",
+  hash_sha256: "abcd1234",
+  labels_include_any: null,
+  labels_exclude_any: null,
 };
 
 export const createMockSoftwarePackage = (
@@ -283,6 +296,9 @@ const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
   post_install_script: 'echo "Installed"',
   uninstall_script:
     "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+  slug: "applications/test-app",
+  url: "http://www.testurl1234abcd.com/testapp",
+  categories: ["Browsers"],
 };
 
 export const createMockFleetMaintainedAppDetails = (

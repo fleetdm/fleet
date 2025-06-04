@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+
+import { AppContext } from "context/app";
+
+import { ISchedulableQuery } from "interfaces/schedulable_query";
+import { LogDestination } from "interfaces/config";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox/Checkbox";
 import QueryFrequencyIndicator from "components/QueryFrequencyIndicator/QueryFrequencyIndicator";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
-
-import { ISchedulableQuery } from "interfaces/schedulable_query";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import { CONTACT_FLEET_LINK } from "utilities/constants";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
@@ -20,7 +22,8 @@ interface IManageQueryAutomationsModalProps {
   togglePreviewDataModal: () => void;
   availableQueries?: ISchedulableQuery[];
   automatedQueryIds: number[];
-  logDestination: string;
+  logDestination: LogDestination;
+  webhookDestination?: string;
 }
 
 interface ICheckedQuery {
@@ -65,9 +68,13 @@ const ManageQueryAutomationsModal = ({
   togglePreviewDataModal,
   availableQueries,
   logDestination,
+  webhookDestination,
 }: IManageQueryAutomationsModalProps): JSX.Element => {
   // TODO: Error handling, if any
   // const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   // Client side sort queries alphabetically
   const sortedAvailableQueries =
@@ -114,8 +121,9 @@ const ManageQueryAutomationsModal = ({
     >
       <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
-          Query automations let you send data to your log destination on a
-          schedule. Data is sent according to a query’s frequency.
+          Query automations let you send data gathered from macOS, Windows, and
+          Linux hosts to a log destination. Data is sent according to a
+          query&apos;s interval.
         </div>
         {availableQueries?.length ? (
           <div className={`${baseClass}__select form-field`}>
@@ -133,9 +141,8 @@ const ManageQueryAutomationsModal = ({
                         name={name}
                         onChange={() => {
                           updateQueryItems(id);
-                          // !isChecked &&
-                          //   setErrors((errs) => omit(errs, "queryItems"));
                         }}
+                        disabled={gitOpsModeEnabled}
                       >
                         <TooltipTruncatedText value={name} />
                       </Checkbox>
@@ -157,7 +164,10 @@ const ManageQueryAutomationsModal = ({
         <div className={`${baseClass}__log-destination form-field`}>
           <div className="form-field__label">Log destination:</div>
           <div className={`${baseClass}__selection`}>
-            <LogDestinationIndicator logDestination={logDestination} />
+            <LogDestinationIndicator
+              logDestination={logDestination}
+              webhookDestination={webhookDestination}
+            />
           </div>
           <div className={`${baseClass}__configure form-field__help-text`}>
             Users with the admin role can&nbsp;
@@ -168,13 +178,6 @@ const ManageQueryAutomationsModal = ({
             />
           </div>
         </div>
-        <InfoBanner className={`${baseClass}__supported-platforms`}>
-          <p>Automations currently run on macOS, Windows, and Linux hosts.</p>
-          <p>
-            Interested in query automations for your Chromebooks? &nbsp;
-            <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
-          </p>
-        </InfoBanner>
         <Button
           type="button"
           variant="text-link"
@@ -184,15 +187,20 @@ const ManageQueryAutomationsModal = ({
           Preview data
         </Button>
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onSubmitQueryAutomations}
-            className="save-loading"
-            isLoading={isUpdatingAutomations}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={6}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                onClick={onSubmitQueryAutomations}
+                className="save-loading"
+                isLoading={isUpdatingAutomations}
+                disabled={disableChildren}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>

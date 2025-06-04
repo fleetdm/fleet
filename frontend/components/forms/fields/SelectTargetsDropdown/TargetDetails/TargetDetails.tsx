@@ -4,9 +4,7 @@ import AceEditor from "react-ace";
 import classnames from "classnames";
 
 import { humanHostMemory } from "utilities/helpers";
-// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-// @ts-ignore
 import PlatformIcon from "components/icons/PlatformIcon";
 import { ISelectHost, ISelectLabel, ISelectTeam } from "interfaces/target";
 
@@ -25,27 +23,6 @@ const TargetDetails = ({
   className = "",
   handleBackToResults = noop,
 }: ITargetDetailsProps): JSX.Element => {
-  const onlineHosts = (
-    labelBaseClass: string,
-    count: number,
-    online: number
-  ) => {
-    const offline = count - online;
-    const percentCount = ((count - offline) / count) * 100;
-    const percentOnline = parseFloat(percentCount.toFixed(2));
-
-    if (online > 0) {
-      return (
-        <span className={`${labelBaseClass}__hosts-online`}>
-          {" "}
-          ({percentOnline}% ONLINE)
-        </span>
-      );
-    }
-
-    return false;
-  };
-
   const renderHost = (hostTarget: ISelectHost) => {
     const {
       display_text: displayText,
@@ -142,12 +119,10 @@ const TargetDetails = ({
       count,
       description,
       display_text: displayText,
-      label_type: labelType,
-      // online,
       query,
     } = labelTarget;
+
     const labelBaseClass = "label-target";
-    console.log("ERROR 1: labelTarget", labelTarget);
     return (
       <div className={`${labelBaseClass} ${className}`}>
         <button
@@ -166,7 +141,6 @@ const TargetDetails = ({
           <span className={`${labelBaseClass}__hosts-count`}>
             <strong>{count}</strong>HOSTS
           </span>
-          {/* {onlineHosts(labelBaseClass, count, online)} */}
         </p>
 
         <p className={`${labelBaseClass}__description`}>

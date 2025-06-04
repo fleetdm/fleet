@@ -2,6 +2,7 @@
 
   a {
     color: @core-vibrant-blue;
+    text-decoration: none;
   }
   ul {
     list-style: none;
@@ -180,37 +181,43 @@
         margin-left: -2px;
       }
     }
-    [purpose='sidebar-cta'] {
-      margin-top: 24px;
-      display: flex;
-      width: 200px;
-      padding: 16px;
-      align-items: center;
-      border-radius: 8px;
-      border: 1px solid #E2E4EA;
-      background: #FFF;
-      font-size: 14px;
-      line-height: 150%;
-      color: @core-fleet-black;
-      p {
-        line-height: 120%;
-        margin-bottom: 0px;
-        font-weight: 800;
-      }
-      [parasails-component='animated-arrow-button'] {
-        line-height: 150%;
-      }
-      img {
-        width: 20px;
-        height: 18.947px;
-        margin-right: 10px;
-      }
-      &:hover {
-        box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
-        text-decoration: none;
-      }
-    }
 
+  }
+  [purpose='sidebar-cta'] {
+    margin-top: 24px;
+    position: sticky;
+    top: 104px;
+    display: flex;
+    width: 200px;
+    padding: 16px;
+    align-items: center;
+    border-radius: 8px;
+    border: 1px solid #E2E4EA;
+    background: #FFF;
+    font-size: 14px;
+    line-height: 150%;
+    a {
+      color: @core-fleet-black;
+
+    }
+    p {
+      color: @core-fleet-black;
+      line-height: 120%;
+      margin-bottom: 0px;
+      font-weight: 800;
+    }
+    [parasails-component='animated-arrow-button'] {
+      line-height: 150%;
+    }
+    img {
+      width: 20px;
+      height: 18.947px;
+      margin-right: 10px;
+    }
+    &:hover {
+      box-shadow: 0px 0px 0px 3px rgba(0, 0, 0, 0.03);
+      text-decoration: none;
+    }
   }
   [purpose='🫧 Marketing'] {
     h2 {
@@ -576,10 +583,20 @@
   // only on larger screens (>900px)
   @media (min-width: 992px) {
 
+    .header-hidden { // For scrolling the sidebar CTA with the sticky header
+      transform: translateY(-80px);
+    }
+    [purpose='sidebar-cta'] {
+      transition-property: all;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 500ms;
+    }
+
     [purpose='back-to-top-button-container'] {
       position: sticky;
       bottom: 107px;
       overflow-x: hidden;
+      pointer-events: none;
     }
     [purpose='back-to-top-button'] {
       display: inline-block;
@@ -593,6 +610,7 @@
       cursor: pointer;
       border: 1px solid #E2E4EA;
       border-radius: 16px 0px 0px 16px;
+      pointer-events: auto;
       p {
         color: #515774;
         font-size: 11px;

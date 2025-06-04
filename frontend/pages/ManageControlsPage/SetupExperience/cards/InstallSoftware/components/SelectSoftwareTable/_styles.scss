@@ -4,4 +4,8 @@
     max-height: 343px;
     overflow-y: auto;
   }
+
+  &__help-text {
+    font-size: $xx-small;
+  }
 }

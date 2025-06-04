@@ -414,6 +414,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 
 	if teamOptions != nil {
 		if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, teamOptions, true); err != nil {
+			err = fleet.SuggestAgentOptionsCorrection(err)
 			err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 			if applyOptions.Force && !applyOptions.DryRun {
 				level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
@@ -925,6 +926,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
 			if err := fleet.ValidateJSONAgentOptions(ctx, svc.ds, spec.AgentOptions, true); err != nil {
+				err = fleet.SuggestAgentOptionsCorrection(err)
 				err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 				if applyOpts.Force && !applyOpts.DryRun {
 					level.Info(svc.logger).Log("err", err, "msg", "force-apply team agent options with validation errors")
@@ -1031,7 +1033,8 @@ func (svc *Service) createTeamFromSpec(
 	if !macOSSetup.EnableReleaseDeviceManually.Valid {
 		macOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
-	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" || macOSSetup.EnableReleaseDeviceManually.Value {
+	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" ||
+		macOSSetup.EnableReleaseDeviceManually.Value || macOSSetup.ManualAgentInstall.Value {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
@@ -1046,13 +1049,9 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	invalid := &fleet.InvalidArgumentError{}
-	if enableDiskEncryption && !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
-		invalid.Append(
-			"mdm",
-			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`,
-		)
+	if enableDiskEncryption && svc.config.Server.PrivateKey == "" {
+		return nil, ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
-
 	validateTeamCustomSettings(invalid, "macos", macOSSettings.CustomSettings)
 	validateTeamCustomSettings(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
 
@@ -1210,16 +1209,15 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.EnableDiskEncryption = *de
 	}
 	didUpdateDiskEncryption := team.Config.MDM.EnableDiskEncryption != oldEnableDiskEncryption
-	if !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() && didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
-			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
-	}
 
+	if didUpdateDiskEncryption && team.Config.MDM.EnableDiskEncryption && svc.config.Server.PrivateKey == "" {
+		return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
 	if !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 	oldMacOSSetup := team.Config.MDM.MacOSSetup
-	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually bool
+	var didUpdateSetupAssistant, didUpdateBootstrapPackage, didUpdateEnableReleaseManually, didUpdateManualAgentInstall bool
 	if spec.MDM.MacOSSetup.MacOSSetupAssistant.Set {
 		didUpdateSetupAssistant = oldMacOSSetup.MacOSSetupAssistant.Value != spec.MDM.MacOSSetup.MacOSSetupAssistant.Value
 		team.Config.MDM.MacOSSetup.MacOSSetupAssistant = spec.MDM.MacOSSetup.MacOSSetupAssistant
@@ -1232,13 +1230,18 @@ func (svc *Service) editTeamFromSpec(
 		didUpdateEnableReleaseManually = oldMacOSSetup.EnableReleaseDeviceManually.Value != spec.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 		team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = spec.MDM.MacOSSetup.EnableReleaseDeviceManually
 	}
+	if spec.MDM.MacOSSetup.ManualAgentInstall.Valid {
+		didUpdateManualAgentInstall = oldMacOSSetup.ManualAgentInstall.Value != spec.MDM.MacOSSetup.ManualAgentInstall.Value
+		team.Config.MDM.MacOSSetup.ManualAgentInstall = spec.MDM.MacOSSetup.ManualAgentInstall
+	}
 	// TODO(mna): doesn't look like we create an activity for macos updates when
 	// modified via spec? Doing the same for Windows, but should we?
 
 	if !appCfg.MDM.EnabledAndConfigured &&
 		((didUpdateSetupAssistant && team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value != "") ||
 			(didUpdateBootstrapPackage && team.Config.MDM.MacOSSetup.BootstrapPackage.Value != "") ||
-			(didUpdateEnableReleaseManually && team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)) {
+			(didUpdateEnableReleaseManually && team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) ||
+			(didUpdateManualAgentInstall && team.Config.MDM.MacOSSetup.ManualAgentInstall.Value)) {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 			`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
@@ -1320,6 +1323,11 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.WebhookSettings.HostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
 
+	if spec.WebhookSettings.FailingPoliciesWebhook != nil {
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(*spec.WebhookSettings.FailingPoliciesWebhook, fleet.TeamIntegrations{}, invalid)
+		team.Config.WebhookSettings.FailingPoliciesWebhook = *spec.WebhookSettings.FailingPoliciesWebhook
+	}
+
 	if spec.Integrations.GoogleCalendar != nil {
 		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {
@@ -1391,7 +1399,7 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.MacOSSetup.BootstrapPackage.Set &&
 		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
 		oldMacOSSetup.BootstrapPackage.Value != "" {
-		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID); err != nil {
+		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID, opts.DryRun); err != nil {
 			return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
 		}
 	}
@@ -1521,12 +1529,15 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 }
 
 func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool) error {
-	var didUpdate, didUpdateMacOSDiskEncryption bool
+	var didUpdate bool
 	if enable != nil {
 		if tm.Config.MDM.EnableDiskEncryption != *enable {
+			if *enable && svc.config.Server.PrivateKey == "" {
+				return ctxerr.New(ctx, "Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+			}
+
 			tm.Config.MDM.EnableDiskEncryption = *enable
 			didUpdate = true
-			didUpdateMacOSDiskEncryption = true
 		}
 	}
 
@@ -1539,13 +1550,7 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 		if err != nil {
 			return err
 		}
-
-		// macOS-specific stuff. For legacy reasons we check if apple is configured
-		// via `appCfg.MDM.EnabledAndConfigured`
-		//
-		// TODO: is there a missing bitlocker activity feed item? (see same TODO on
-		// other methods that deal with disk encryption)
-		if appCfg.MDM.EnabledAndConfigured && didUpdateMacOSDiskEncryption {
+		if appCfg.MDM.EnabledAndConfigured {
 			var act fleet.ActivityDetails
 			if tm.Config.MDM.EnableDiskEncryption {
 				act = fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name}
@@ -1579,6 +1584,13 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 	if payload.EnableReleaseDeviceManually != nil {
 		if tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
 			tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
+			didUpdate = true
+		}
+	}
+
+	if payload.ManualAgentInstall != nil {
+		if tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
+			tm.Config.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
 			didUpdate = true
 		}
 	}

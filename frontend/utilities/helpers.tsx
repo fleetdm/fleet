@@ -2,10 +2,8 @@ import React from "react";
 import {
   isEmpty,
   flatMap,
-  find,
   omit,
   pick,
-  size,
   memoize,
   reduce,
   trim,
@@ -22,13 +20,11 @@ import {
   isAfter,
   addDays,
 } from "date-fns";
-import yaml from "js-yaml";
 
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
-import { IQueryTableColumn } from "interfaces/osquery_table";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -41,11 +37,8 @@ import {
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
-import PATHS from "router/paths";
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
-import { checkTable } from "utilities/sql_tools";
-import { osqueryTables } from "utilities/osquery_tables";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -55,11 +48,10 @@ import {
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
-  PolicyResponse,
 } from "utilities/constants";
 import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IActivityDetails } from "interfaces/activity";
+import CustomLink from "components/CustomLink";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -91,18 +83,6 @@ export const addGravatarUrlToResource = (resource: any): any => {
     gravatar_url,
     gravatar_url_dark,
   };
-};
-
-export const createHostsByPolicyPath = (
-  policyId: number,
-  policyResponse: PolicyResponse,
-  teamId?: number | null
-) => {
-  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
-    policy_id: policyId,
-    policy_response: policyResponse,
-    team_id: teamId,
-  })}`;
 };
 
 /** Removes Apple OS Prefix from host.os_version. */
@@ -170,87 +150,6 @@ const filterTarget = (targetType: string) => {
       default:
         return [];
     }
-  };
-};
-
-export const formatConfigDataForServer = (config: any): any => {
-  const orgInfoAttrs = pick(config, ["org_logo_url", "org_name"]);
-  const serverSettingsAttrs = pick(config, [
-    "server_url",
-    "osquery_enroll_secret",
-    "live_query_disabled",
-    "enable_analytics",
-  ]);
-  const smtpSettingsAttrs = pick(config, [
-    "authentication_method",
-    "authentication_type",
-    "domain",
-    "enable_ssl_tls",
-    "enable_start_tls",
-    "password",
-    "port",
-    "sender_address",
-    "server",
-    "user_name",
-    "verify_ssl_certs",
-    "enable_smtp",
-  ]);
-  const ssoSettingsAttrs = pick(config, [
-    "entity_id",
-    "idp_image_url",
-    "metadata",
-    "metadata_url",
-    "idp_name",
-    "enable_sso",
-    "enable_sso_idp_login",
-  ]);
-  const hostExpirySettingsAttrs = pick(config, [
-    "host_expiry_enabled",
-    "host_expiry_window",
-  ]);
-  const webhookSettingsAttrs = pick(config, [
-    "enable_host_status_webhook",
-    "destination_url",
-    "host_percentage",
-    "days_count",
-  ]);
-  // because agent_options is already an object
-  const agentOptionsSettingsAttrs = config.agent_options;
-
-  const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
-  const serverSettings = size(serverSettingsAttrs) && {
-    server_settings: serverSettingsAttrs,
-  };
-  const smtpSettings = size(smtpSettingsAttrs) && {
-    smtp_settings: smtpSettingsAttrs,
-  };
-  const ssoSettings = size(ssoSettingsAttrs) && {
-    sso_settings: ssoSettingsAttrs,
-  };
-  const hostExpirySettings = size(hostExpirySettingsAttrs) && {
-    host_expiry_settings: hostExpirySettingsAttrs,
-  };
-  const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
-    agent_options: yaml.load(agentOptionsSettingsAttrs),
-  };
-  const webhookSettings = size(webhookSettingsAttrs) && {
-    webhook_settings: { host_status_webhook: webhookSettingsAttrs }, // nested to server
-  };
-
-  if (hostExpirySettings) {
-    hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
-      hostExpirySettings.host_expiry_settings.host_expiry_window
-    );
-  }
-
-  return {
-    ...orgInfo,
-    ...serverSettings,
-    ...smtpSettings,
-    ...ssoSettings,
-    ...hostExpirySettings,
-    ...agentOptionsSettings,
-    ...webhookSettings,
   };
 };
 
@@ -698,6 +597,10 @@ export const internationalTimeFormat = (date: number | Date): string => {
   );
 };
 
+export const internationalNumberFormat = (number: number): string => {
+  return new Intl.NumberFormat(navigator.language).format(number);
+};
+
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
     return "No team";
@@ -722,6 +625,13 @@ export const humanQueryLastRun = (lastRun: string): string => {
 export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
+
+// just a rename of hasLicenseExpired so that it can be used in other contexts.
+// TODO: change hasLicenseExpired instances to hasExpired
+/**
+ * determines if a date has expired. This will check against the current date and time.
+ */
+export const hasExpired = hasLicenseExpired;
 
 /**
  * determines if a date will expire within "x" number of days. If the date has
@@ -932,17 +842,6 @@ export const getSoftwareBundleTooltipJSX = (bundle: string) => (
   </span>
 );
 
-export const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId?: number | null, teamId?: number | null) => {
-    const queryString = buildQueryStringFromParams({
-      host_id: hostId || undefined,
-      team_id: teamId,
-    });
-
-    return queryString && `?${queryString}`;
-  },
-};
-
 export const internallyTruncateText = (
   original: string,
   prefixLength = 280,
@@ -954,61 +853,35 @@ export const internallyTruncateText = (
   </>
 );
 
-export const getUniqueColumnNamesFromRows = <
+/** Generates a mapping of unique column names present in the data to
+ * whether or not each of those columns contains exclusively number values. This allows the calling
+ * config generator to determine both which unique columns are present, and whether to sort each of them as
+ * alphanumeric (number type columns) or case-insensitive (everything else) */
+export const getUniqueColsAreNumTypeFromRows = <
   T extends Record<keyof T, unknown>
 >(
   rows: T[]
-) =>
-  // rows of type {col:val, col:val, ...}[]
-  // cannot type more narrowly due to loose typing of websocket API and use of this function
-  // by QueryResultsTableConfig, where results come from that API
-  // TODO – narrow this entire chain down to the websocket API level
-  Array.from(
-    rows.reduce(
-      (accOuter, row) =>
-        Object.keys(row).reduce((accInner, colNameInRow) => {
-          return accInner.add(colNameInRow as keyof T);
-        }, accOuter),
-      new Set<keyof T>()
-    )
-  );
+) => {
+  const m = new Map<keyof T, boolean>();
+  rows.forEach((row) => {
+    Object.entries(row).forEach(([name, val]) => {
+      const isNum = !isNaN(Number(val));
+      // keyof T will always actually be a string. This generic is helpful for upstream typing,
+      // but we can safely consider them interchangeagle.
+      const castName = name as keyof T;
+      if (!m.has(castName)) {
+        m.set(castName, isNum);
+      } else if (!isNum) {
+        // column name has already been seen and current val isn't a number
+        m.set(castName, false);
+      }
+    });
+  });
+  return m;
+};
 
 // can allow additional dropdown value types in the future
 type DropdownOptionValue = IDropdownOption["value"];
-
-/** Generates the column schema for a sql query */
-export const getTableColumnsFromSql = (
-  sql: string
-): IQueryTableColumn[] | [] => {
-  const tableNames = (sql && checkTable(sql).tables) || [];
-
-  let sqlColumns: IQueryTableColumn[] | [] = [];
-  tableNames.forEach((tableName: string) => {
-    const tableColumns =
-      find(osqueryTables, { name: tableName })?.columns || [];
-    sqlColumns = [...sqlColumns, ...tableColumns];
-  });
-  // TODO: Edge case of tables sharing column names with different typing not considered
-
-  return sqlColumns;
-};
-
-/** Sorts sql results numerical columns correctly while perserving case insensitive sort for text columns */
-export const getSortTypeFromColumnType = (
-  colName: string | number | symbol,
-  tableColumns?: IQueryTableColumn[] | []
-) => {
-  if (typeof colName === "string") {
-    const numberTypes = ["integer", "bigint", "unsigned_bigint", "double"];
-
-    const type = find(tableColumns, { name: colName })?.type;
-
-    if (type && numberTypes.includes(type)) {
-      return "alphanumeric";
-    }
-  }
-  return "caseInsensitive";
-};
 
 export function getCustomDropdownOptions(
   defaultOptions: IDropdownOption[],
@@ -1023,12 +896,21 @@ export function getCustomDropdownOptions(
       ];
 }
 
+export const getGitOpsModeTipContent = (repoURL: string) => (
+  <>
+    <span>
+      Manage in{" "}
+      <CustomLink newTab text="YAML" variant="tooltip-link" url={repoURL} />
+      <br />
+    </span>
+    <span>GitOps mode enabled</span>
+  </>
+);
+
 export default {
   addGravatarUrlToResource,
   removeOSPrefix,
   compareVersions,
-  createHostsByPolicyPath,
-  formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
   formatSeverity,
@@ -1043,9 +925,7 @@ export default {
   formatPackTargetsForApi,
   generateRole,
   generateTeam,
-  getUniqueColumnNamesFromRows,
-  getTableColumnsFromSql,
-  getSortTypeFromColumnType,
+  getUniqueColsAreNumTypeFromRows,
   getCustomDropdownOptions,
   greyCell,
   humanHostLastSeen,
@@ -1069,5 +949,4 @@ export default {
   normalizeEmptyValues,
   wait,
   wrapFleetHelper,
-  TAGGED_TEMPLATES,
 };

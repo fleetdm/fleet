@@ -857,6 +857,43 @@ type SyncML struct {
 	Raw []byte `xml:"-"`
 }
 
+type EnrichedSyncML struct {
+	*SyncML
+	CmdRefUUIDToStatus  map[string]SyncMLCmd
+	CmdRefUUIDToResults map[string]SyncMLCmd
+	CmdRefUUIDs         []string
+}
+
+func (e EnrichedSyncML) HasCommands() bool {
+	return len(e.CmdRefUUIDs) > 0
+}
+
+func NewEnrichedSyncML(syncML *SyncML) EnrichedSyncML {
+	result := EnrichedSyncML{
+		SyncML:              syncML,
+		CmdRefUUIDToStatus:  make(map[string]SyncMLCmd),
+		CmdRefUUIDToResults: make(map[string]SyncMLCmd),
+	}
+	for _, protoOp := range result.SyncML.GetOrderedCmds() {
+		// results and status should contain a command they're referencing
+		cmdRef := protoOp.Cmd.CmdRef
+		if !protoOp.Cmd.ShouldBeTracked(protoOp.Verb) || cmdRef == nil {
+			continue
+		}
+
+		switch protoOp.Verb {
+		case CmdStatus:
+			result.CmdRefUUIDToStatus[*cmdRef] = protoOp.Cmd
+		case CmdResults:
+			result.CmdRefUUIDToResults[*cmdRef] = protoOp.Cmd
+		default:
+			continue
+		}
+		result.CmdRefUUIDs = append(result.CmdRefUUIDs, *cmdRef)
+	}
+	return result
+}
+
 type SyncHdr struct {
 	VerDTD    string   `xml:"VerDTD"`
 	VerProto  string   `xml:"VerProto"`
@@ -1509,19 +1546,20 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 //   - The detail of the resulting command should be an aggregate of all the
 //     status responses of every nested `Replace` operation
 func BuildMDMWindowsProfilePayloadFromMDMResponse(
-	cmd MDMWindowsCommand,
+	// IMPORTANT: The cmdWithSecret.RawCommand may contain a Fleet secret variable value, so it should never be exposed or saved.
+	cmdWithSecret MDMWindowsCommand,
 	statuses map[string]SyncMLCmd,
 	hostUUID string,
 ) (*MDMWindowsProfilePayload, error) {
-	status, ok := statuses[cmd.CommandUUID]
+	status, ok := statuses[cmdWithSecret.CommandUUID]
 	if !ok {
-		return nil, fmt.Errorf("missing status for root command %s", cmd.CommandUUID)
+		return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
 	}
 	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
 	var details []string
 	if status.Data != nil && commandStatus == MDMDeliveryFailed {
 		syncML := new(SyncMLCmd)
-		if err := xml.Unmarshal(cmd.RawCommand, syncML); err != nil {
+		if err := xml.Unmarshal(cmdWithSecret.RawCommand, syncML); err != nil {
 			return nil, err
 		}
 		for _, nested := range syncML.ReplaceCommands {
@@ -1542,7 +1580,7 @@ func BuildMDMWindowsProfilePayloadFromMDMResponse(
 		Status:        &commandStatus,
 		OperationType: "",
 		Detail:        detail,
-		CommandUUID:   cmd.CommandUUID,
+		CommandUUID:   cmdWithSecret.CommandUUID,
 	}, nil
 }
 

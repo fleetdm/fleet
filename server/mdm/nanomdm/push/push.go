@@ -24,7 +24,7 @@ type Pusher interface {
 // The non-error return type maps the string value of the push token
 // (that is, the hex encoding of the bytes) to a pointer to a Response.
 type PushProvider interface {
-	Push([]*mdm.Push) (map[string]*Response, error)
+	Push(context.Context, []*mdm.Push) (map[string]*Response, error)
 }
 
 // PushProviderFactory generates a new PushProvider given a tls keypair

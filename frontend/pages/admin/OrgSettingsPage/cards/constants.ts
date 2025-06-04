@@ -27,7 +27,7 @@ export const authMethodOptions = [
 ];
 
 export const authTypeOptions = [
-  { label: "Username and Password", value: "authtype_username_password" },
+  { label: "Username and password", value: "authtype_username_password" },
   { label: "None", value: "authtype_none" },
 ];
 

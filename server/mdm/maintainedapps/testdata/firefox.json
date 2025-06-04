@@ -6,7 +6,7 @@
 	"name": [
 		"Mozilla Firefox"
 	],
-	"desc": "Web browser",
+	"desc": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization.",
 	"homepage": "https://www.mozilla.org/firefox/",
 	"url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/130.0/mac/en-US/Firefox%20130.0.dmg",
 	"url_specs": {

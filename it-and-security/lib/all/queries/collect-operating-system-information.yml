@@ -1,0 +1,8 @@
+- name: Collect operating system information
+  description: "Collects operating system information from all devices enrolled in Fleet"
+  query: SELECT * FROM os_version;
+  interval: 3600 # Every 1 hour
+  observer_can_run: true
+  automations_enabled: true
+  logging: snapshot
+  platform: darwin,linux,windows

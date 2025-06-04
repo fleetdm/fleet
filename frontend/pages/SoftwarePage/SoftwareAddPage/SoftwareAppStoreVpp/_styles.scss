@@ -1,12 +1,35 @@
 .software-app-store-vpp {
-
-  &__premium-message, &__error {
-    margin-top: $pad-xxxlarge;
-  }
-
   &__content {
     margin-top: $pad-xxlarge;
     display: flex;
     flex-direction: column;
+  }
+
+  &__premium-message,
+  &__error {
+    margin-top: $pad-xxxlarge;
+  }
+
+  // enable and no vpp message styles
+  &__enable-vpp-message,
+  &__no-vpp-message {
+    margin-top: $pad-xxxlarge;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    align-items: center;
+  }
+
+  &__enable-vpp-title,
+  &__no-vpp-title {
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__enable-vpp-description,
+  &__no-vpp-description {
+    margin: 0;
+    color: $ui-fleet-black-75;
+    text-align: center;
   }
 }

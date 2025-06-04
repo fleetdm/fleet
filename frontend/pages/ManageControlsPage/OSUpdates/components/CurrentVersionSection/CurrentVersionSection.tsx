@@ -81,7 +81,17 @@ const CurrentVersionSection = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data?.counts_updated_at}
-        whatToRetrieve="operating systems"
+        customTooltipText={
+          <>
+            Fleet periodically queries all hosts to
+            <br />
+            retrieve operating systems. Click to
+            <br />
+            view hosts for the most up-to-date
+            <br />
+            lists.
+          </>
+        }
       />
     );
   };
@@ -94,7 +104,7 @@ const CurrentVersionSection = ({
     if (isError) {
       return (
         <DataError
-          className={`${baseClass}__error`}
+          verticalPaddingSize="pad-xxxlarge"
           description="Refresh the page to try again."
           excludeIssueLink
         />
@@ -135,8 +145,8 @@ const CurrentVersionSection = ({
     <div className={baseClass}>
       <SectionHeader
         title="Current versions"
-        subTitle={generateSubTitleText()}
-        className={`${baseClass}__header`}
+        subTitle={isLoadingOsVersions ? null : generateSubTitleText()}
+        wrapperCustomClass={`${baseClass}__header`}
       />
       {renderTable()}
     </div>

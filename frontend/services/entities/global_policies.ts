@@ -1,5 +1,4 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import { snakeCase, reduce } from "lodash";
 
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
@@ -8,7 +7,10 @@ import {
   ILoadAllPoliciesResponse,
   IPoliciesCountResponse,
 } from "interfaces/policy";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
 
 interface IPoliciesApiParams {
   page?: number;
@@ -29,17 +31,6 @@ export interface IPoliciesCountQueryKey
 
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
-
-const convertParamsToSnakeCase = (params: IPoliciesApiParams) => {
-  return reduce<typeof params, QueryParams>(
-    params,
-    (result, val, key) => {
-      result[snakeCase(key)] = val;
-      return result;
-    },
-    {}
-  );
-};
 
 export default {
   // TODO: How does the frontend need to support legacy policies?
@@ -71,7 +62,7 @@ export default {
 
     return sendRequest("GET", GLOBAL_POLICIES);
   },
-  loadAllNew: async ({
+  loadAllNew: ({
     page,
     perPage,
     orderKey = ORDER_KEY,
@@ -94,7 +85,7 @@ export default {
 
     return sendRequest("GET", path);
   },
-  getCount: async ({
+  getCount: ({
     query,
   }: Pick<IPoliciesApiParams, "query">): Promise<IPoliciesCountResponse> => {
     const { GLOBAL_POLICIES } = endpoints;

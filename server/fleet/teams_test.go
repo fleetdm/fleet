@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -295,7 +296,10 @@ func TestTeamMDMCopy(t *testing.T) {
 		clone := tm.Copy()
 		require.NotSame(t, tm, clone)
 		require.Equal(t, tm, clone)
-		require.NotSame(t, tm.MacOSSettings.CustomSettings, clone.MacOSSettings.CustomSettings)
+		require.NotEqual(t,
+			reflect.ValueOf(tm.MacOSSettings.CustomSettings).Pointer(),
+			reflect.ValueOf(clone.MacOSSettings.CustomSettings).Pointer(),
+		)
 		require.NotSame(t, tm.MacOSSettings.DeprecatedEnableDiskEncryption, clone.MacOSSettings.DeprecatedEnableDiskEncryption)
 	})
 }

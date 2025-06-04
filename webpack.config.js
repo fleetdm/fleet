@@ -24,6 +24,14 @@ let plugins = [
   new WebpackNotifierPlugin({
     excludeWarnings: true,
   }),
+  new webpack.DefinePlugin({
+    featureFlags: {
+      // e.g.: allowGitOpsMode: JSON.stringify(process.env.ALLOW_GITOPS_MODE),
+      allowConditionalAccess: JSON.stringify(
+        process.env.ALLOW_CONDITIONAL_ACCESS
+      ),
+    },
+  }),
 ];
 
 if (process.env.NODE_ENV === "production") {
@@ -132,6 +140,12 @@ const config = {
     extensions: [".tsx", ".ts", ".js", ".jsx", ".json"],
     modules: [path.resolve(path.join(repo, "./frontend")), "node_modules"],
     fallback: { path: require.resolve("path-browserify") },
+    alias: {
+      "node-sql-parser": path.resolve(
+        __dirname,
+        "node_modules/node-sql-parser/umd/sqlite.umd.js"
+      ),
+    },
   },
 };
 

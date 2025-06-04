@@ -3,13 +3,13 @@
 You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq#can-you-host-fleet-for-me).  Deploy to Render for an easy one-click proof of concept. Or, choose AWS with Terraform to deploy at scale. Just need to kick the tires? [Try Fleet locally](https://fleetdm.com/try-fleet) on your device.
 
 <div purpose="deploying-guide-buttons" class="d-flex flex-md-row flex-column">
-    <a href="#render">
+    <a href="#render" id="deploy-render">
         <div>
             <img src="/images/docs/render-logo-147x80@2x.png">
             <p>Deploy to Render in 5 minutes</p>
         </div>
     </a>
-    <a href="#aws">
+    <a href="#aws" id="deploy-aws">
         <div>
         <img src="/images/docs/aws-logo-133x80@2x.png">
         <p>Scale on AWS with Terraform</p>
@@ -17,10 +17,12 @@ You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq
     </a>
 </div>
 
+Want to enable premium features?  You can easily [configure your license key](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key) as an environment variable.
+
 Looking for other deployment options? Check out the [guides](https://fleetdm.com/guides).
 
-<h2 class="d-none markdown-heading">Render</h2>
-<h2 id="render">Deploy to Render in 5 minutes</h2>
+<h2 style="display: none;" class="markdown-heading"><a href="#render" class="markdown-link">Render</a></h2>
+<h2 id="render">Deploy to Render in 5 minutes</a></h2>
 
 
 Render is a cloud hosting service that makes it easy to get up and running fast, without the typical configuration headaches of larger enterprise hosting providers.
@@ -33,13 +35,13 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 - A Render account with payment information.
 
->The Fleet Render Blueprint will provision a web service, a MySQL database, and a Redis in-memory data store. At current pricing this will total **$62/month**.
+>The Fleet Render Blueprint will provision a web service, a MySQL database, and a Redis in-memory data store. At current pricing this will total **$65/month**.
 
 
 ### Instructions
 
 <div purpose="deploy-to-render-button">
-    <a href="https://render.com/deploy?repo=https://github.com/fleetdm/fleet">
+    <a href="https://render.com/deploy?repo=https://github.com/fleetdm/fleet" id="render-button">
         <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render">
     </a>
 </div>
@@ -50,20 +52,22 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 3. Click "**Deploy Blueprint.**" Render will provision your services, which should take less than five minutes. 
 
-4. Click the "**Dashboard**" tab in Render when provisioning is complete to see your new services. 
+4. Click the "**Dashboard**" tab in Render when provisioning is complete to see your new services.
 
-5. Click on the "**Fleet**" service to reveal the Fleet URL.
+5. From the "**Fleet**" service, click on the Fleet URL to open your Fleet instance. Then follow the on-screen instructions to set up your Fleet account.
 
-6. Click on the URL to open your Fleet instance, then follow the on-screen instructions to set up your Fleet account.
+> **Add a license key:** After successful deployment, navigate to the environment variables section of the Render blueprint to manually add your license key. 
 
-Support for add/install software features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
+> Support for add/install software features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
 
-<h2 class="d-none markdown-heading">AWS</h2>
+
+<h2 style="display: none;" class="markdown-heading"><a href="#aws" class="markdown-link">AWS</a></h2>
 <h2 id="aws">Deploy at scale with AWS and Terraform</h2>
 
 The simplest way to get started with Fleet at scale is to use AWS with Terraform.
 
 This workflow takes about 30 minutes to complete and supports between 10 and 350,000 hosts.
+
 
 ### Prerequisites
 
@@ -79,7 +83,7 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 ### Instructions
 
-1. [Download](https://github.com/fleetdm/fleet/blob/main/terraform/example/main.tf) the Fleet `main.tf` Terraform file.
+1. [Download](https://github.com/fleetdm/fleet-terraform/blob/main/example/main.tf) the Fleet `main.tf` Terraform file.
 
 2. Edit the following variables in the `main.tf` Terraform file you just downloaded to match your environment:
     
@@ -87,12 +91,11 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
     # Change these to match your environment.
     domain_name = "fleet.example.com"
     vpc_name = "fleet-vpc"
-    osquery_carve_bucket_name   = "fleet-osquery-carve"
-    osquery_results_bucket_name = "fleet-osquery-results"
-    osquery_status_bucket_name  = "fleet-osquery-status"
     ```
 
-    > Terraform modules for Fleet features can be enabled and disabled by commenting or uncommenting sections of the code as needed. To learn more about the modules, check out our [AWS with Terraform advanced guide](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform).
+    > **Note:** Terraform modules for Fleet features can be enabled and disabled by commenting or uncommenting sections of the code as needed. To learn more about the modules, check out our [AWS with Terraform advanced guide](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform).
+
+    > **Add a license key:** You can include your license key as an environment variable during this step.
 
 3. Log in to [your AWS account](https://aws.amazon.com/iam/) using your IAM identity.
 
@@ -143,3 +146,4 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="Learn how to easily deploy Fleet on Render or AWS with Terraform.">
+<meta name="title" value="Hosting Fleet">

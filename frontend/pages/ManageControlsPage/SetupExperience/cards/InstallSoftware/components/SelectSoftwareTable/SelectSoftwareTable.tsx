@@ -72,6 +72,12 @@ const SelectSoftwareTable = ({
       searchQueryColumn="name"
       isClientSideFilter
       onClearSelection={() => onChangeSelectAll(false)}
+      renderTableHelpText={() => (
+        <p className={`${baseClass}__help-text`}>
+          Software will be installed on all hosts. Currently, custom targets
+          (labels) don&apos;t apply during set up experience.
+        </p>
+      )}
     />
   );
 };

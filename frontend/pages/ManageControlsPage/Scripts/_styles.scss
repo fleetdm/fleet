@@ -8,4 +8,27 @@
   &__premium-feature-message {
     margin-top: $pad-xxxlarge;
   }
+
+  .list-item {
+    &__actions {
+      display: none;
+    }
+  }
+  .upload-list__list-item {
+    // move default padding to ScriptListItem to allow for onClick functionality covering entire ScriptListItem
+    padding: 0;
+    .script-list-item {
+      padding: 1rem 1.5rem;
+      &:hover {
+        // currently this behavior has only been specified for Script list items
+        background-color: $ui-fleet-blue-10;
+        cursor: pointer;
+        .list-item__actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: $pad-medium;
+        }
+      }
+    }
+  }
 }

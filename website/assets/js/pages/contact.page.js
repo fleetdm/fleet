@@ -55,8 +55,9 @@ parasails.registerPage('contact', {
     }
     if(this.primaryBuyingSituation){ // If the user has a priamry buying situation set in their sesssion, pre-fill the form.
       // Note: this will be overriden if the user is logged in and has a primaryBuyingSituation set in the database.
-      this.formData.primaryBuyingSituation = this.primaryBuyingSituation;
+      this.$set(this.formData, 'primaryBuyingSituation', this.primaryBuyingSituation);
     }
+
     if(this.me){// prefill from database
       this.formDataToPrefillForLoggedInUsers.emailAddress = this.me.emailAddress;
       this.formDataToPrefillForLoggedInUsers.firstName = this.me.firstName;

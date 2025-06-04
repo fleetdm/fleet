@@ -114,17 +114,17 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 		{
 			testName:     "AllFileVaultScreened",
 			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect"},
-			shouldFail:   []string{"com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryRedirect"},
+			shouldFail:   []string{mobileconfig.DiskEncryptionProfileRestrictionErrMsg},
 		},
 		{
 			testName:     "FileVault2Screened",
-			payloadTypes: []string{"com.apple.MCX.FileVault2"},
-			shouldFail:   []string{"com.apple.MCX.FileVault2"},
+			payloadTypes: []string{"com.apple.security.firewall", "com.apple.MCX.FileVault2"},
+			shouldFail:   []string{mobileconfig.DiskEncryptionProfileRestrictionErrMsg},
 		},
 		{
 			testName:     "FDERecoveryKeyEscrowScreened",
 			payloadTypes: []string{"com.apple.security.FDERecoveryKeyEscrow"},
-			shouldFail:   []string{"com.apple.security.FDERecoveryKeyEscrow"},
+			shouldFail:   []string{mobileconfig.DiskEncryptionProfileRestrictionErrMsg},
 		},
 		{
 			testName:     "FDERecoveryRedirectScreened",
@@ -139,7 +139,7 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 		{
 			testName:     "FileVaultMixedWithOtherPayloadTypes",
 			payloadTypes: []string{"com.apple.MCX.FileVault2", "com.apple.security.firewall", "com.apple.security.FDERecoveryKeyEscrow", "com.apple.MCX"},
-			shouldFail:   []string{"com.apple.MCX.FileVault2", "com.apple.security.FDERecoveryKeyEscrow"},
+			shouldFail:   []string{mobileconfig.DiskEncryptionProfileRestrictionErrMsg},
 		},
 		{
 			testName:     "NoPayloadContent",
@@ -160,6 +160,9 @@ func TestMDMAppleConfigProfileScreenPayloadContent(t *testing.T) {
 			for _, pt := range c.shouldFail {
 				require.Error(t, err)
 				require.ErrorContains(t, err, pt)
+			}
+			if len(c.shouldFail) == 0 {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -468,9 +471,11 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	fieldsInEqualMethod++
 	items[1].Detail = items[0].Detail
 	fieldsInEqualMethod++
-	items[1].Checksum = items[0].Checksum
+	items[1].Token = items[0].Token
 	fieldsInEqualMethod++
 	items[1].Status = &status1
+	fieldsInEqualMethod++
+	items[1].SecretsUpdatedAt = items[0].SecretsUpdatedAt
 	fieldsInEqualMethod++
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleHostDeclaration.Equal needs to be updated for new/updated field(s)")
 	assert.True(t, items[0].Equal(items[1]))
@@ -481,83 +486,119 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	assert.True(t, items[0].Equal(items[1]))
 }
 
-func TestMDMAppleProfilePayloadEqual(t *testing.T) {
+func TestMDMManagedCertificateEqual(t *testing.T) {
 	t.Parallel()
 
-	// This test is intended to ensure that the Equal method on MDMAppleProfilePayload is updated when new fields are added.
-	// The Equal method is used to identify whether database update is needed.
+	// Create two different time values for testing
+	now := time.Now().Truncate(time.Second)
+	later := now.Add(1 * time.Hour)
 
-	items := [...]MDMAppleProfilePayload{{}, {}}
+	// Create a serial string for testing
+	serial1 := "serial1"
+	serial2 := "serial2"
 
-	numberOfFields := 0
-	for i := 0; i < len(items); i++ {
-		rValue := reflect.ValueOf(&items[i]).Elem()
-		numberOfFields = rValue.NumField()
-		for j := 0; j < numberOfFields; j++ {
-			field := rValue.Field(j)
-			switch field.Kind() {
-			case reflect.String:
-				valueToSet := fmt.Sprintf("test %d", i)
-				field.SetString(valueToSet)
-			case reflect.Int:
-				field.SetInt(int64(i))
-			case reflect.Bool:
-				field.SetBool(i%2 == 0)
-			case reflect.Pointer:
-				field.Set(reflect.New(field.Type().Elem()))
-			case reflect.Slice:
-				switch field.Type().Elem().Kind() {
-				case reflect.Uint8:
-					valueToSet := []byte("test")
-					field.Set(reflect.ValueOf(valueToSet))
-				default:
-					t.Fatalf("unhandled slice type %s", field.Type().Elem().Kind())
-				}
-			default:
-				t.Fatalf("unhandled field type %s", field.Kind())
-			}
-		}
+	// Create two instances with different values for all fields
+	cert1 := MDMManagedCertificate{
+		ProfileUUID:          "profile1",
+		HostUUID:             "host1",
+		ChallengeRetrievedAt: &now,
+		NotValidBefore:       &now,
+		NotValidAfter:        &later,
+		Type:                 "type1",
+		CAName:               "ca1",
+		Serial:               &serial1,
 	}
 
-	status0 := MDMDeliveryStatus("status")
-	status1 := MDMDeliveryStatus("status")
-	items[0].Status = &status0
-	checksum0 := []byte("checksum")
-	checksum1 := []byte("checksum")
-	items[0].Checksum = checksum0
-	assert.False(t, items[0].Equal(items[1]))
+	cert2 := MDMManagedCertificate{
+		ProfileUUID:          "profile2",
+		HostUUID:             "host2",
+		ChallengeRetrievedAt: &later,
+		NotValidBefore:       &later,
+		NotValidAfter:        &now,
+		Type:                 "type2",
+		CAName:               "ca2",
+		Serial:               &serial2,
+	}
 
-	// Set known fields to be equal
-	fieldsInEqualMethod := 0
-	items[1].ProfileUUID = items[0].ProfileUUID
-	fieldsInEqualMethod++
-	items[1].ProfileIdentifier = items[0].ProfileIdentifier
-	fieldsInEqualMethod++
-	items[1].ProfileName = items[0].ProfileName
-	fieldsInEqualMethod++
-	items[1].HostUUID = items[0].HostUUID
-	fieldsInEqualMethod++
-	items[1].HostPlatform = items[0].HostPlatform
-	fieldsInEqualMethod++
-	items[1].Checksum = checksum1
-	fieldsInEqualMethod++
-	items[1].Status = &status1
-	fieldsInEqualMethod++
-	items[1].OperationType = items[0].OperationType
-	fieldsInEqualMethod++
-	items[1].Detail = items[0].Detail
-	fieldsInEqualMethod++
-	items[1].CommandUUID = items[0].CommandUUID
-	fieldsInEqualMethod++
-	assert.Equal(t, fieldsInEqualMethod, numberOfFields, "MDMAppleProfilePayload.Equal needs to be updated for new/updated field(s)")
-	assert.True(t, items[0].Equal(items[1]))
+	// Initial assertion - should not be equal
+	assert.False(t, cert1.Equal(cert2))
 
-	// Set pointers and slices to nil
-	items[0].Status = nil
-	items[1].Status = nil
-	items[0].Checksum = nil
-	items[1].Checksum = nil
-	assert.True(t, items[0].Equal(items[1]))
+	// Make fields equal one by one and test
+	cert2.ProfileUUID = cert1.ProfileUUID
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.HostUUID = cert1.HostUUID
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.Type = cert1.Type
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.CAName = cert1.CAName
+	assert.False(t, cert1.Equal(cert2))
+
+	// Make time pointers equal
+	cert2.ChallengeRetrievedAt = cert1.ChallengeRetrievedAt
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.NotValidBefore = cert1.NotValidBefore
+	assert.False(t, cert1.Equal(cert2))
+
+	cert2.NotValidAfter = cert1.NotValidAfter
+	assert.False(t, cert1.Equal(cert2))
+
+	// Make serial equal
+	cert2.Serial = cert1.Serial
+	assert.True(t, cert1.Equal(cert2))
+
+	// Test nil pointer scenarios
+	cert1.ChallengeRetrievedAt = nil
+	assert.False(t, cert1.Equal(cert2))
+	cert2.ChallengeRetrievedAt = nil
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.NotValidBefore = nil
+	assert.False(t, cert1.Equal(cert2))
+	cert2.NotValidBefore = nil
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.NotValidAfter = nil
+	assert.False(t, cert1.Equal(cert2))
+	cert2.NotValidAfter = nil
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.Serial = nil
+	assert.False(t, cert1.Equal(cert2))
+	cert2.Serial = nil
+	assert.True(t, cert1.Equal(cert2))
+
+	// Test time fields with same value but different memory addresses
+	time1 := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	time2 := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	// Verify these are different objects with the same value
+	assert.NotSame(t, &time1, &time2)
+	assert.True(t, time1.Equal(time2))
+
+	cert1.ChallengeRetrievedAt = &time1
+	cert2.ChallengeRetrievedAt = &time2
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.NotValidBefore = &time1
+	cert2.NotValidBefore = &time2
+	assert.True(t, cert1.Equal(cert2))
+
+	cert1.NotValidAfter = &time1
+	cert2.NotValidAfter = &time2
+	assert.True(t, cert1.Equal(cert2))
+
+	// Test serial with same value but different memory addresses
+	serialStr1 := "same-serial"
+	serialStr2 := "same-serial"
+	assert.NotSame(t, &serialStr1, &serialStr2)
+
+	cert1.Serial = &serialStr1
+	cert2.Serial = &serialStr2
+	assert.True(t, cert1.Equal(cert2))
 }
 
 func TestConfigurationProfileLabelEqual(t *testing.T) {

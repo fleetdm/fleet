@@ -1,0 +1,2956 @@
+#  
+#  ██╗   ██╗██╗████████╗ █████╗ ██╗     ███████╗
+#  ██║   ██║██║╚══██╔══╝██╔══██╗██║     ██╔════╝
+#  ██║   ██║██║   ██║   ███████║██║     ███████╗
+#  ╚██╗ ██╔╝██║   ██║   ██╔══██║██║     ╚════██║
+#   ╚████╔╝ ██║   ██║   ██║  ██║███████╗███████║
+#    ╚═══╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝
+#                                               
+# Host vital queries (from `server/service/osquery_utils/queries.go`)
+apiVersion: v1
+kind: built-in
+spec:
+  name: Battery
+  platform: windows, darwin
+  description: Determines battery health based on the cycle count, designed capacity, and max capacity of the battery.
+  query: |
+    SELECT 
+      serial_number, cycle_count, designed_capacity, max_capacity 
+    FROM battery
+  powershell: >-
+    $battery = Get-CimInstance Win32_Battery
+
+    if (-not $battery) {
+        Write-Output "No battery information available."
+        exit
+    }
+
+    $battery | Select-Object `
+        @{Name='serial_number';Expression={$_.SerialNumber}}, `
+        @{Name='cycle_count';Expression={$_.CycleCount}}, `
+        @{Name='designed_capacity';Expression={$_.DesignCapacity}}, `
+        @{Name='max_capacity';Expression={$_.FullChargeCapacity}} | Format-Table -AutoSize
+  bash: echo "serial_number,cycle_count,designed_capacity,max_capacity" && ioreg -rn AppleSmartBattery -w0 | awk -F' = ' '/BatterySerialNumber/ {gsub(/"/,"",$2); sn=$2} /CycleCount/ {cc=$2} /DesignCapacity/ {dc=$2} /MaxCapacity/ {mc=$2} END {print sn","cc","dc","mc}'
+  purpose: Informational
+  tags: built-in
+  discovery: battery
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: ChromeOS profile user info
+  platform: chrome
+  description: Retrieves information about profiles on ChromeOS devices
+  query: SELECT email FROM users
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk encryption (macOS)
+  platform: darwin
+  description: Retrieves the disk encryption status of a macOS device.
+  query: |
+    SELECT 
+      1 
+    FROM disk_encryption 
+    WHERE user_uuid IS NOT "" 
+    AND filevault_status = 'on' LIMIT 1
+  bash: fdesetup status | grep -q "FileVault is On" && echo 1 || echo 0
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk encryption (Linux)
+  platform: linux
+  description: "Retrieves the default disk's (/) encryption status of a device running Linux."
+  query: |
+    SELECT 
+      de.encrypted, m.path 
+    FROM disk_encryption de 
+    JOIN mounts m ON m.device_alias = de.name
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk encryption (Windows)
+  platform: windows
+  description: Retrieves the disk encryption status of a Windows device.
+  query: |
+    WITH encrypted(enabled) AS (
+        SELECT CASE WHEN
+          NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+          OR
+          (SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+        THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
+      END)
+      SELECT 1 FROM encrypted WHERE enabled IS NOT NULL
+  powershell: >-
+    $bitlockerFeature = Get-WindowsOptionalFeature -Online -FeatureName
+    "BitLocker" -ErrorAction SilentlyContinue
+
+    if (-not $bitlockerFeature -or $bitlockerFeature.State -eq "Enabled") {
+        $bitlockerVolume = Get-BitLockerVolume -MountPoint "C:" -ErrorAction SilentlyContinue
+        if ($bitlockerVolume -and ($bitlockerVolume.ProtectionStatus -eq 1 -or $bitlockerVolume.ProtectionStatus -eq "On")) {
+            Write-Output "1"
+        }
+    }
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk space
+  platform: linux, darwin
+  description: Retrieves total amount of free disk space on a host.
+  query: |
+    SELECT 
+      (blocks_available * 100 / blocks) AS percent_disk_space_available,
+      round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+      round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+    FROM mounts
+    WHERE path = '/' LIMIT 1
+  bash: df -P / | awk 'NR==2 { blocks=$2; blocks_available=$4; blocks_size=$2/$3 } END { printf "percent_disk_space_available=%.2f\n", (blocks_available * 100 / blocks); printf "gigs_disk_space_available=%.2f\n", (blocks_available * blocks_size * 10e-10); printf "gigs_total_disk_space=%.2f\n", (blocks * blocks_size * 10e-10) }'
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Disk space (Windows)
+  platform: windows
+  description: Retrieves total amount of free disk space on a Windows host.
+  query: |
+    SELECT 
+      ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
+      ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available,
+      ROUND(sum(size)       * 10e-10) AS gigs_total_disk_space
+    FROM logical_drives
+    WHERE file_system = 'NTFS' LIMIT 1
+  powershell: >-
+    $drives = Get-CimInstance Win32_LogicalDisk | Where-Object { $_.FileSystem
+    -eq 'NTFS' }
+
+    if (!$drives) {
+        Write-Output "No NTFS drives found."
+        exit
+    }
+
+    $totalFreeSpace = ($drives | Measure-Object -Property FreeSpace -Sum).Sum
+
+    $totalSize = ($drives | Measure-Object -Property Size -Sum).Sum
+
+
+    $percentDiskAvailable = [math]::Round(($totalFreeSpace / $totalSize) * 100, 0)
+
+    $gigsDiskAvailable = [math]::Round($totalFreeSpace * 1e-9, 0)
+
+    $gigsTotal = [math]::Round($totalSize * 1e-9, 0)
+
+
+    Write-Output "percent_disk_space_available: $percentDiskAvailable"
+
+    Write-Output "gigs_disk_space_available: $gigsDiskAvailable"
+
+    Write-Output "gigs_total_disk_space: $gigsTotal"
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Google Chrome profiles
+  platform: windows, darwin, linux, chrome
+  description: Retrieves the email address of Google Chrome profile on a host.
+  query: |
+    SELECT 
+      email 
+    FROM google_chrome_profiles 
+    WHERE NOT ephemeral AND email <> ''
+  powershell: |-
+    $chromeLocalState = "$env:LOCALAPPDATA\Google\Chrome\User Data\Local State"
+    if (-not (Test-Path $chromeLocalState)) { exit }
+    $json = Get-Content $chromeLocalState -Raw | ConvertFrom-Json
+    $profiles = $json.profile.info_cache
+    foreach ($prop in $profiles.PSObject.Properties.Value) {
+        $isEphemeral = $false
+        if ($prop.PSObject.Properties.Name -contains "ephemeral") {
+            $isEphemeral = $prop.ephemeral
+        } elseif ($prop.PSObject.Properties.Name -contains "is_ephemeral") {
+            $isEphemeral = $prop.is_ephemeral
+        }
+        $email = $prop.email
+        if (-not $isEphemeral -and -not [string]::IsNullOrEmpty($email)) {
+            Write-Output $email
+        }
+    }
+  bash: cat "$HOME/Library/Application Support/Google/Chrome/Local State" | jq -r '.profile.info_cache|to_entries[]|select(.value.is_ephemeral==false and .value.email != "")|.value.email'
+  discovery: google_chrome_profiles
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Host certificates (macOS)
+  platform: darwin
+  description: Retrieves certificates from an Apple device.
+  query: |
+    SELECT
+        ca, common_name, subject, issuer,
+        key_algorithm, key_strength, key_usage, signing_algorithm,
+        not_valid_after, not_valid_before,
+        serial, sha1
+      FROM
+        certificates
+      WHERE
+        path = '/Library/Keychains/System.keychain';
+  purpose: Informational
+  tags: built-in
+# --- # Note: this vital is commented out because it requires the kubequery osquery extension.
+# apiVersion: v1
+# kind: built-in
+# spec:
+#   name: Kubequery info
+#   platform: windows, darwin, linux, chrome
+#   description: Retrieves information about Kubernetes clusters running kubequery.
+#   query: SELECT * FROM kubernetes_info
+#   # discovery: kubernetes_info # Note: this value is commented out because this table is from kubequery and does not exist in the osquery schema.
+#   purpose: Informational
+#   tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM (macOS)
+  platform: darwin
+  description: Retrieves information about the mobile device management (MDM) solution this host is enrolled in.
+  query: |
+    SELECT 
+      enrolled, server_url, installed_from_dep, payload_identifier 
+    FROM mdm
+  discovery: mdm
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM configuration profiles
+  platform: darwin
+  description: Retrieves information about mobile device management (MDM) configuration profiles installed on a macOS device.
+  query: |
+    SELECT 
+      display_name, identifier, install_date 
+    FROM macos_profiles 
+    WHERE type = "Configuration"
+  discovery: macos_profiles
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM Disk encryption key file
+  platform: darwin
+  description: Retrieves the encrypted FileVault recovery key for managed macOS devices.
+  query: |
+    WITH
+        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+        fv AS (SELECT base64_encrypted as filevault_key FROM filevault_prk)
+      SELECT encrypted, filevault_key FROM de LEFT JOIN fv
+  discovery: filevault_prk
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM Disk encryption key file lines
+  platform: darwin
+  description: Retrieves the encrypted FileVault recovery key and checks for related file data on managed macOS devices.
+  query: |
+    WITH
+        de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
+        fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
+      SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
+  discovery: filevault_prk # TODO: this query's discovery query also checks for file_lines.
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: MDM (Windows)
+  platform: windows
+  description: Retrieves information about the mobile device management (MDM) solution a windows device is enrolled in.
+  query: |
+    WITH registry_keys AS (
+                SELECT *
+                FROM registry
+                WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+              ),
+              enrollment_info AS (
+                SELECT
+                  MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+                  MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+                  MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+                  MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                  MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+                FROM registry_keys
+                GROUP BY key
+              ),
+              installation_info AS (
+                SELECT data AS installation_type
+                FROM registry
+                WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+                LIMIT 1
+              )
+              SELECT
+                e.aad_resource_id,
+                e.discovery_service_url,
+                e.provider_id,
+                i.installation_type
+              FROM installation_info i
+              LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+          -- coalesce to 'unknown' and keep that state in the list
+          -- in order to account for hosts that might not have this
+          -- key, and servers
+              WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+          -- old enrollments that aren't completely cleaned up may still be aronud
+          -- in the registry so we want to make sure we return the one with an actual
+          -- discovery URL set if there is one. LENGTH is used here to prefer those
+          -- with actual URLs over empty string/null if there are multiple
+              ORDER BY LENGTH(e.discovery_service_url) DESC
+              LIMIT 1;
+  powershell: >-
+    $installationKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
+
+    try {
+        $installProps = Get-ItemProperty -Path $installationKey -ErrorAction Stop
+        $installationType = $installProps.InstallationType
+    }
+
+    catch {
+        $installationType = $null
+    }
+
+
+    $enrollmentsPath = "HKLM:\SOFTWARE\Microsoft\Enrollments"
+
+    $enrollmentKeys = Get-ChildItem -Path $enrollmentsPath -ErrorAction SilentlyContinue
+
+
+    foreach ($key in $enrollmentKeys) {
+        try {
+            $props = Get-ItemProperty -Path $key.PSPath -ErrorAction Stop
+        }
+        catch {
+            continue
+        }
+        
+        $upn = $props.UPN
+        $discoveryServiceUrl = $props.DiscoveryServiceFullURL
+        $providerId = $props.ProviderID
+        $state = $props.EnrollmentState
+        $aadResourceId = $props.AADResourceID
+
+        if (-not $state) { $state = "0" }
+
+        if ($upn -and @("0","1","2","3") -contains $state) {
+            $result = [PSCustomObject]@{
+                AADResourceID         = $aadResourceId
+                DiscoveryServiceURL   = $discoveryServiceUrl
+                ProviderID            = $providerId
+                InstallationType      = $installationType
+            }
+            $result | ConvertTo-Json -Compress
+            break
+        }
+    }
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Munki info
+  platform: darwin
+  description: Retrives information about the last Munki run on a macOS device.
+  query: |
+    SELECT 
+      version, errors, warnings 
+    FROM munki_info
+  bash: printf "version,errors,warnings\n%s,%s,%s\n" "$(cat /Library/ManagedInstalls/ManagedInstallVersion 2>/dev/null || echo 'N/A')" "$(/usr/libexec/PlistBuddy -c \"Print Errors\" /Library/ManagedInstalls/ManagedInstallReport.plist 2>/dev/null | grep -E '^[[:space:]]*[0-9]+:' | wc -l | tr -d ' ')" "$(/usr/libexec/PlistBuddy -c \"Print Warnings\" /Library/ManagedInstalls/ManagedInstallReport.plist 2>/dev/null | grep -E '^[[:space:]]*[0-9]+:' | wc -l | tr -d ' ')"
+  discovery: munki_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Network interfaces (Chrome)
+  platform: chrome
+  description: Retrives information about a ChromeOS device's current network.
+  query: |
+    SELECT 
+    ipv4 AS address, mac 
+    FROM network_interfaces LIMIT 1
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Network interfaces (macOS/Linux)
+  platform: darwin, linux
+  description: Retrieves information about network interfaces on macOS and Linux devices
+  query: |
+    SELECT
+        ia.address,
+        id.mac
+    FROM
+        interface_addresses ia
+        JOIN interface_details id ON id.interface = ia.interface
+        JOIN routes r ON r.interface = ia.interface
+    WHERE
+        (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
+        AND r.type = 'gateway'
+        AND (
+        inet_aton(ia.address) IS NOT NULL AND (
+          split(ia.address, '.', 0) = '10'
+          OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+          OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+        )
+        OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+      )
+    ORDER BY
+        r.metric ASC,
+      inet_aton(ia.address) IS NOT NULL DESC
+    LIMIT 1;
+  bash: iface=$(netstat -rn | awk '$1=="default"{print $NF; exit}'); mac=$(ifconfig "$iface" | awk '/ether/{print $2; exit}'); ip=$(ifconfig "$iface" | awk '/inet / {split($2,a,"."); if(a[1]=="10" || (a[1]=="172" && a[2]>=16 && a[2]<=31) || (a[1]=="192" && a[2]=="168")) print $2}' | head -n1); [ -z "$ip" ] && ip=$(ifconfig "$iface" | awk '/inet6 / {print $2}' | grep -Ei '^f[cd][0-9a-f]{2}:' | head -n1); echo "$ip $mac"
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Network interfaces (Windows)
+  platform: windows
+  description: Retrieves information about network interfaces on devices running windows.
+  query: |
+    SELECT
+        ia.address,
+        id.mac
+    FROM
+        interface_addresses ia
+        JOIN interface_details id ON id.interface = ia.interface
+        JOIN routes r ON r.interface = ia.address
+    WHERE
+        (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
+        AND r.type = 'remote'
+        AND (
+        inet_aton(ia.address) IS NOT NULL AND (
+          split(ia.address, '.', 0) = '10'
+          OR (split(ia.address, '.', 0) = '172' AND (CAST(split(ia.address, '.', 1) AS INTEGER) & 0xf0) = 16)
+          OR (split(ia.address, '.', 0) = '192' AND split(ia.address, '.', 1) = '168')
+        )
+        OR (inet_aton(ia.address) IS NULL AND regex_match(lower(ia.address), '^f[cd][0-9a-f][0-9a-f]:[0-9a-f:]+', 0) IS NOT NULL)
+      )
+    ORDER BY
+        r.metric ASC,
+      inet_aton(ia.address) IS NOT NULL DESC
+    LIMIT 1;
+  powershell: >-
+    $defaultRoutes = Get-NetRoute | Where-Object {
+        ($_.DestinationPrefix -eq '0.0.0.0/0' -or $_.DestinationPrefix -eq '::/0') -and
+        ($_.NextHop -ne '0.0.0.0' -and $_.NextHop -ne '::')
+    }
+
+
+    function Test-PrivateIPv4 {
+        param ([string]$ip)
+        $parts = $ip.Split('.')
+        if ($parts.Count -ne 4) { return $false }
+        if ($parts[0] -eq '10') { return $true }
+        if ($parts[0] -eq '172') {
+            # Convert second octet to integer and perform bitwise AND with 240. 
+            $octet2 = 0
+            if ([int]::TryParse($parts[1], [ref]$octet2)) {
+                if ( ($octet2 -band 240) -eq 16 ) { return $true }
+            }
+        }
+        if (($parts[0] -eq '192') -and ($parts[1] -eq '168')) { return $true }
+        return $false
+    }
+
+
+    function Test-PrivateIPv6 {
+        param ([string]$ip)
+        # Match IPv6 ULA: fc00::/7, but osquery regex enforces fc or fd then two hex digits then colon.
+        if ($ip.ToLower() -match '^f[cd][0-9a-f]{2}:[0-9a-f:]+') { return $true }
+        return $false
+    }
+
+
+    $results = @()
+
+
+    foreach ($route in $defaultRoutes) {
+        # Get the adapter for current route by InterfaceIndex
+        $adapter = Get-NetAdapter -InterfaceIndex $route.InterfaceIndex -ErrorAction SilentlyContinue
+        if (-not $adapter) { continue }
+        # Get all IP addresses for this interface
+        $ips = Get-NetIPAddress -InterfaceIndex $route.InterfaceIndex -ErrorAction SilentlyContinue
+        if (-not $ips) { continue }
+        foreach ($ipObj in $ips) {
+            $address = $ipObj.IPAddress
+            $isIPv4 = $address.Contains('.')
+            $isValid = $false
+            if ($isIPv4) {
+                $isValid = Test-PrivateIPv4 -ip $address
+            }
+            else {
+                $isValid = Test-PrivateIPv6 -ip $address
+            }
+            if (-not $isValid) { continue }
+            $results += [PSCustomObject]@{
+                Address     = $address
+                MAC         = $adapter.MacAddress
+                RouteMetric = $route.RouteMetric
+                IsIPv4      = $isIPv4
+            }
+        }
+    }
+
+
+    if ($results.Count -gt 0) {
+        # Order by route metric ascending, then prioritize IPv4 addresses over IPv6
+        $selected = $results | Sort-Object RouteMetric, @{Expression = {$_.IsIPv4 -eq $true} ; Descending = $true} | Select-Object -First 1
+        Write-Output ("Address: {0}" -f $selected.Address)
+        Write-Output ("MAC: {0}" -f $selected.MAC)
+    } else {
+        Write-Output "No matching interface found."
+    }
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Orbit information
+  platform: darwin, linux, windows
+  description: Retreives configuration information the osquery version and configuration manager running on a device.
+  query: SELECT * FROM orbit_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system information (Chrome)
+  platform: chrome
+  description: Retrieves information about a ChromeOS device's operating system.
+  query: |
+    SELECT
+        os.name,
+        os.major,
+        os.minor,
+        os.patch,
+        os.build,
+        os.arch,
+        os.platform,
+        os.version AS version,
+        os.version AS kernel_version
+      FROM
+        os_version os;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system information (macOS/Linux)
+  platform: darwin, linux
+  description: Retrieves information about a Unix-based device's operating system.
+  query: |
+    SELECT
+        os.name,
+        os.major,
+        os.minor,
+        os.patch,
+        os.extra,
+        os.build,
+        os.arch,
+        os.platform,
+        os.version AS version,
+        k.version AS kernel_version
+      FROM
+        os_version os,
+        kernel_info k
+  bash: product_name=$(sw_vers -productName); product_version=$(sw_vers -productVersion); build_version=$(sw_vers -buildVersion); IFS='.' read -r major minor patch <<< "$product_version"; arch=$(uname -m); platform=$(uname -s); kernel_version=$(uname -r); extra=""; printf "name\tmajor\tminor\tpatch\tbuild\tarch\tplatform\tversion\tkernel_version\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$product_name" "$major" "$minor" "${patch:-}" "$build_version" "$arch" "$platform" "$product_version" "$kernel_version"
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system information (Windows)
+  platform: windows
+  description: Retrieves information about a Windows device's operating system.
+  query: |
+    WITH display_version_table AS (
+        SELECT data as display_version
+        FROM registry
+        WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+      ),
+      ubr_table AS (
+      SELECT data AS ubr
+      FROM registry
+      WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+      )
+      SELECT
+        os.name,
+        os.platform,
+        os.arch,
+        k.version as kernel_version,
+        COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+        COALESCE(d.display_version, '') AS display_version
+      FROM
+        os_version os,
+        kernel_info k
+      LEFT JOIN
+        display_version_table d
+      LEFT JOIN
+        ubr_table u
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Operating system version (Windows)
+  platform: windows
+  description: Retrieves operating system version information from a Windows device.
+  query: |
+    WITH display_version_table AS (
+          SELECT data as display_version
+          FROM registry
+          WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+        ),
+        ubr_table AS (
+          SELECT data AS ubr
+          FROM registry
+          WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+        )
+        SELECT
+          os.name,
+          COALESCE(d.display_version, '') AS display_version,
+          COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+        FROM
+          os_version os,
+          kernel_info k
+        LEFT JOIN
+          display_version_table d
+        LEFT JOIN
+          ubr_table u
+  powershell: >-
+    $os = Get-CimInstance -ClassName Win32_OperatingSystem
+
+    $osName = $os.Caption
+
+    $osVersion = $os.Version
+
+
+    $regPath = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+
+
+    try {
+        $displayVersionObj = Get-ItemProperty -Path $regPath -Name 'DisplayVersion' -ErrorAction Stop
+        $displayVersion = $displayVersionObj.DisplayVersion
+    } catch {
+        $displayVersion = ""
+    }
+
+
+    try {
+        $ubrObj = Get-ItemProperty -Path $regPath -Name 'UBR' -ErrorAction Stop
+        $ubr = $ubrObj.UBR
+    } catch {
+        $ubr = $null
+    }
+
+
+    $kernelVersion = [System.Environment]::OSVersion.Version.ToString()
+
+
+    if ($ubr) {
+        $finalVersion = "$osVersion.$ubr"
+    } else {
+        $finalVersion = $kernelVersion
+    }
+
+
+    Write-Output "Name: $osName"
+
+    Write-Output "DisplayVersion: $displayVersion"
+
+    Write-Output "Version: $finalVersion"
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Osquery flags
+  platform: darwin, linux, windows
+  description: Retrieves the values of osquery configuration flags related to query scheduling, configuration updates, and logging intervals for active processes.
+  query: |
+    SELECT 
+      name, value
+    FROM osquery_flags
+    WHERE name IN ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")
+  powershell: >-
+    $service = Get-CimInstance Win32_Service -Filter "Name='osqueryd'"
+
+    if (-not $service) {
+        Write-Error "osqueryd service not found."
+        exit 1
+    }
+
+
+    $cmdLine = $service.CommandLine
+
+
+    $flagNames = @("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")
+
+    $result = @()
+
+
+    foreach ($flag in $flagNames) {
+        # Match a flag of the form --flag=value or --flag value
+        $pattern = "--" + [regex]::Escape($flag) + "(?:=|\s+)(\S+)"
+        $match = [regex]::Match($cmdLine, $pattern)
+        if ($match.Success) {
+            $value = $match.Groups[1].Value
+        }
+        else {
+            $value = ""
+        }
+        $result += [pscustomobject]@{
+            Name  = $flag
+            Value = $value
+        }
+    }
+
+
+    $result | Format-Table -AutoSize
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Osquery information
+  platform: darwin, windows, linux
+  description: Gathers information about the osquery process running on a device.
+  query: SELECT * FROM osquery_info LIMIT 1
+  powershell: |-
+    $process = Get-Process -Id $PID
+    $result = [PSCustomObject]@{
+        version     = $PSVersionTable.PSVersion.ToString()
+        pid         = $PID
+        start_time  = $process.StartTime
+        config_hash = "N/A"
+    }
+    $result | Format-Table -AutoSize | Out-String | Write-Output
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Scheduled osquery statistics
+  platform: darwin, windows, linux
+  description: Retrieves statistics about queries that are scheduled on a device.
+  query: |
+    SELECT *,
+            (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+          FROM osquery_schedule
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (Chrome)
+  platform: chrome
+  description: Gathers information about software installed on a ChromeOS device.
+  query: |
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS vendor,
+      '' AS installed_path
+    FROM chrome_extensions
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (macOS)
+  platform: darwin
+  description: Gathers information about software installed on a device running macOS.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
+      COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
+      bundle_identifier AS bundle_identifier,
+      '' AS extension_id,
+      '' AS browser,
+      'apps' AS source,
+      '' AS vendor,
+      last_opened_time AS last_opened_at,
+      path AS installed_path
+    FROM apps
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS bundle_identifier,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS vendor,
+      0 AS last_opened_at,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS bundle_identifier,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS vendor,
+      0 AS last_opened_at,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name As name,
+      version AS version,
+      '' AS bundle_identifier,
+      '' AS extension_id,
+      '' AS browser,
+      'safari_extensions' AS source,
+      '' AS vendor,
+      0 AS last_opened_at,
+      path AS installed_path
+    FROM cached_users CROSS JOIN safari_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS bundle_identifier,
+      '' AS extension_id,
+      '' AS browser,
+      'homebrew_packages' AS source,
+      '' AS vendor,
+      0 AS last_opened_at,
+      path AS installed_path
+    FROM homebrew_packages
+    WHERE type = 'formula'
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS bundle_identifier,
+      '' AS extension_id,
+      '' AS browser,
+      'homebrew_packages' AS source,
+      '' AS vendor,
+      0 AS last_opened_at,
+      path AS installed_path
+    FROM homebrew_packages
+    WHERE type = 'cask'
+    AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%') AND file.path LIKE '%.app%' LIMIT 1);
+  bash: bash -c 'echo "name,version,extension_id,browser,source,release,vendor,arch,installed_path"; npm list -g --depth=0 --json 2>/dev/null | python3 -c "import sys, json; deps = json.load(sys.stdin).get(\"dependencies\", {}); [print(f\"{name},{info.get(\"version\",\"\")},,,npm_packages,,,\") for name, info in deps.items()]" ; pip3 freeze 2>/dev/null | awk -F== '\''{print $1\",\"$2\",,,,python_packages,,,\"}'\'''
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (Linux)
+  platform: linux
+  description: Gathers information about software installed on a device running linux.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'deb_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM deb_packages
+    WHERE status LIKE '% ok installed'
+    UNION
+    SELECT
+      package AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'portage_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      '' AS installed_path
+    FROM portage_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'rpm_packages' AS source,
+      release AS release,
+      vendor AS vendor,
+      arch AS arch,
+      '' AS installed_path
+    FROM rpm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'npm_packages' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM npm_packages
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS release,
+      '' AS vendor,
+      '' AS arch,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid);
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software codesign
+  platform: darwin
+  description: A software override query to append codesign information to macOS software entries. Requires fleetd
+  query: |
+    SELECT c.*
+        FROM apps a
+        JOIN codesign c ON a.path = c.path
+  discovery: codesign
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software Firefox
+  platform: darwin
+  description: A software override query to differentiate between Firefox and Firefox ESR on macOS. Requires fleetd
+  query: |
+    WITH app_paths AS (
+            SELECT path
+            FROM apps
+            WHERE bundle_identifier = 'org.mozilla.firefox'
+          ),
+          remoting_name AS (
+            SELECT value, path
+            FROM parse_ini
+            WHERE key = 'RemotingName'
+            AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
+          )
+          SELECT
+            CASE
+              WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
+              ELSE 'Firefox.app'
+            END AS name,
+            COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
+            apps.bundle_identifier AS bundle_identifier,
+            '' AS extension_id,
+            '' AS browser,
+            'apps' AS source,
+            '' AS vendor,
+            apps.last_opened_time AS last_opened_at,
+            apps.path AS installed_path
+          FROM apps
+          LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
+          WHERE apps.bundle_identifier = 'org.mozilla.firefox'
+  discovery: parse_ini
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software Python packages
+  platform: darwin, windows, linux
+  description: Retrieves python packages installed on a host.
+  query: |
+    SELECT
+          name AS name,
+          version AS version,
+          '' AS extension_id,
+          '' AS browser,
+          'python_packages' AS source,
+          '' AS vendor,
+          path AS installed_path
+        FROM python_packages;
+  discovery: osquery_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software Python packages including user directory
+  platform: darwin, windows, linux
+  description: Retrieves python packages installed on a host. As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See <a href="https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table">this guide</a> for more information.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+        SELECT
+          name AS name,
+          version AS version,
+          '' AS extension_id,
+          '' AS browser,
+          'python_packages' AS source,
+          '' AS vendor,
+          path AS installed_path
+        FROM cached_users CROSS JOIN python_packages USING (uid);
+  discovery: osquery_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: VScode extensions
+  platform: darwin, windows, linux
+  description: Gathers information about Visual Studio Code extensions installed on a device.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name,
+      version,
+      '' AS bundle_identifier,
+      uuid AS extension_id,
+      '' AS browser,
+      'vscode_extensions' AS source,
+      publisher AS vendor,
+      '' AS last_opened_at,
+      path AS installed_path
+    FROM cached_users CROSS JOIN vscode_extensions USING (uid)
+  powershell: >-
+    $groups = @{}
+
+    if (Test-Path "/etc/group") {
+        foreach ($line in Get-Content "/etc/group") {
+            if ($line -match "^\s*#") { continue }
+            $parts = $line -split ":"
+            if ($parts.Count -ge 3) {
+                $gid = $parts[2]
+                $groupName = $parts[0]
+                $groups[$gid] = $groupName
+            }
+        }
+    }
+
+
+    $users = @()
+
+    if (Test-Path "/etc/passwd") {
+        foreach ($line in Get-Content "/etc/passwd") {
+            if ($line -match "^\s*#") { continue }
+            $parts = $line -split ":"
+            if ($parts.Count -ge 7) {
+                $username = $parts[0]
+                $password = $parts[1]
+                $uid = [int]$parts[2]
+                $gid = $parts[3]
+                $gecos = $parts[4]
+                $directory = $parts[5]
+                $shell = $parts[6]
+                # Approximate type determination: treat users with uid < 1000 as "special"
+                $type = if ($uid -lt 1000) { "special" } else { "normal" }
+                # Filter out "special" users
+                if ($type -eq "special") { continue }
+                # Exclude users with shells containing /false, /nologin, /shutdown, or /halt
+                if ($shell -like "*\/false*") { continue }
+                if ($shell -like "*\/nologin*") { continue }
+                if ($shell -like "*\/shutdown*") { continue }
+                if ($shell -like "*\/halt*") { continue }
+                # Exclude usernames ending with '$' or beginning with '_'
+                if ($username.EndsWith('$')) { continue }
+                if ($username.StartsWith('_')) { continue }
+                # Exclude the sync user with specific shell and non-empty directory
+                if (($username -eq "sync") -and ($shell -eq "/bin/sync") -and ($directory -ne "")) { continue }
+                $groupname = $null
+                if ($groups.ContainsKey($gid)) { $groupname = $groups[$gid] }
+                $users += [pscustomobject]@{
+                    uid       = $uid
+                    username  = $username
+                    type      = $type
+                    groupname = $groupname
+                    shell     = $shell
+                    directory = $directory
+                }
+            }
+        }
+    }
+
+
+    $results = @()
+
+
+    foreach ($user in $users) {
+        # Assume VSCode extensions are installed under the user's home directory in ".vscode/extensions"
+        $extDir = Join-Path $user.directory ".vscode/extensions"
+        if (Test-Path $extDir) {
+            $extensionDirs = Get-ChildItem -Path $extDir -Directory -ErrorAction SilentlyContinue
+            foreach ($ext in $extensionDirs) {
+                $packageJsonPath = Join-Path $ext.FullName "package.json"
+                if (Test-Path $packageJsonPath) {
+                    try {
+                        $package = Get-Content $packageJsonPath -Raw | ConvertFrom-Json
+                    } catch {
+                        continue
+                    }
+                    $name = $package.name
+                    $version = $package.version
+                    # Use the "uuid" from package.json if it exists; otherwise, use the extension folder name as an identifier.
+                    $uuid = if ($package.uuid) { $package.uuid } else { $ext.Name }
+                    $publisher = $package.publisher
+                    $results += [pscustomobject]@{
+                        name              = $name
+                        version           = $version
+                        bundle_identifier = ""
+                        extension_id      = $uuid
+                        browser           = ""
+                        source            = "vscode_extensions"
+                        vendor            = $publisher
+                        last_opened_at    = ""
+                        installed_path    = $ext.FullName
+                    }
+                }
+            }
+        }
+    }
+
+
+    # Write the comparable result to stdout
+
+    $results | Format-Table -AutoSize
+  bash: bash -c "sqlite3 -header -csv /path/to/database.db \"WITH cached_users AS (WITH cached_groups AS (SELECT * FROM groups) SELECT uid, username, type, groupname, shell FROM users LEFT JOIN cached_groups USING(gid) WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%\$' AND username NOT LIKE '\\_%' ESCAPE '\\' AND NOT (username = 'sync' AND shell = '/bin/sync' AND directory <> '')) SELECT name, version, '' AS bundle_identifier, uuid AS extension_id, '' AS browser, 'vscode_extensions' AS source, publisher AS vendor, '' AS last_opened_at, path AS installed_path FROM cached_users CROSS JOIN vscode_extensions USING(uid)\""
+  discovery: vscode_extensions
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software (Windows)
+  platform: windows
+  description: Gathers information about software installed on a device running Windows.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'programs' AS source,
+      publisher AS vendor,
+      install_location AS installed_path
+    FROM programs
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'ie_extensions' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM ie_extensions
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      browser_type AS browser,
+      'chrome_extensions' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      identifier AS extension_id,
+      'firefox' AS browser,
+      'firefox_addons' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM cached_users CROSS JOIN firefox_addons USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS extension_id,
+      '' AS browser,
+      'chocolatey_packages' AS source,
+      '' AS vendor,
+      path AS installed_path
+    FROM chocolatey_packages
+  powershell: >-
+    # Get installed Windows programs from registry
+
+    $programs = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*", "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName } | ForEach-Object {
+        [PSCustomObject]@{
+            name    = $_.DisplayName
+            version = $_.DisplayVersion
+            type    = "Program (Windows)"
+            source  = "programs"
+        }
+    }
+
+
+    # Get installed Python packages (if pip is available)
+
+    $python_pkgs = @()
+
+    try {
+        $pipOutput = & pip list --format=freeze 2>$null
+        if ($pipOutput) {
+            foreach ($line in $pipOutput) {
+                if ($line -match "^(.*?)==(.*)$") {
+                    $python_pkgs += [PSCustomObject]@{
+                        name    = $matches[1]
+                        version = $matches[2]
+                        type    = "Package (Python)"
+                        source  = "python_packages"
+                    }
+                }
+            }
+        }
+    } catch {
+        # pip not found or error occurred
+    }
+
+
+    # Get Internet Explorer extensions from registry
+
+    $ie_extensions = @()
+
+    $ieRegKey = "HKLM:\SOFTWARE\Microsoft\Internet Explorer\Extensions"
+
+    if (Test-Path $ieRegKey) {
+        $ieData = Get-ItemProperty -Path $ieRegKey -ErrorAction SilentlyContinue
+        if ($ieData) {
+            foreach ($prop in $ieData.PSObject.Properties) {
+                # Using property name as the identifier; version info is not normally stored
+                $ie_extensions += [PSCustomObject]@{
+                    name    = $prop.Name
+                    version = ""
+                    type    = "Browser plugin (IE)"
+                    source  = "ie_extensions"
+                }
+            }
+        }
+    }
+
+
+    # Get Chrome extensions by reading installed extension manifests
+
+    $chrome_extensions = @()
+
+    $chromeExtPath = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data\Default\Extensions"
+
+    if (Test-Path $chromeExtPath) {
+        $extDirs = Get-ChildItem -Path $chromeExtPath -Directory -ErrorAction SilentlyContinue
+        foreach ($ext in $extDirs) {
+            $versionDirs = Get-ChildItem -Path $ext.FullName -Directory -ErrorAction SilentlyContinue
+            foreach ($verDir in $versionDirs) {
+                $manifestPath = Join-Path $verDir.FullName "manifest.json"
+                if (Test-Path $manifestPath) {
+                    try {
+                        $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+                        $extName = $manifest.name
+                        $extVersion = $manifest.version
+                    } catch {
+                        $extName = $ext.Name
+                        $extVersion = $verDir.Name
+                    }
+                } else {
+                    $extName = $ext.Name
+                    $extVersion = $verDir.Name
+                }
+                $chrome_extensions += [PSCustomObject]@{
+                    name    = $extName
+                    version = $extVersion
+                    type    = "Browser plugin (Chrome)"
+                    source  = "chrome_extensions"
+                }
+            }
+        }
+    }
+
+
+    # Get Firefox add-ons by locating extensions.json in profile directories and parsing it
+
+    $firefox_addons = @()
+
+    $firefoxProfilesPath = Join-Path $env:APPDATA "Mozilla\Firefox\Profiles"
+
+    if (Test-Path $firefoxProfilesPath) {
+        $profiles = Get-ChildItem -Path $firefoxProfilesPath -Directory -ErrorAction SilentlyContinue
+        foreach ($profile in $profiles) {
+            $extensionsJson = Join-Path $profile.FullName "extensions.json"
+            if (Test-Path $extensionsJson) {
+                try {
+                    $json = Get-Content $extensionsJson -Raw | ConvertFrom-Json
+                    if ($json.addons) {
+                        foreach ($addon in $json.addons) {
+                            if ($addon.type -eq "extension") {
+                                $firefox_addons += [PSCustomObject]@{
+                                    name    = $addon.name
+                                    version = $addon.version
+                                    type    = "Browser plugin (Firefox)"
+                                    source  = "firefox_addons"
+                                }
+                            }
+                        }
+                    }
+                } catch {
+                    # Skip profiles with parsing issues
+                }
+            }
+        }
+    }
+
+
+    # Get installed Chocolatey packages (if choco is available)
+
+    $chocolatey_packages = @()
+
+    try {
+        $chocoOutput = & choco list --local-only --limit-output 2>$null
+        if ($chocoOutput) {
+            foreach ($line in $chocoOutput) {
+                if ($line -match "^(.*?)\|(.*)$") {
+                    $chocolatey_packages += [PSCustomObject]@{
+                        name    = $matches[1]
+                        version = $matches[2]
+                        type    = "Package (Chocolatey)"
+                        source  = "chocolatey_packages"
+                    }
+                }
+            }
+        }
+    } catch {
+        # choco not found or error occurred
+    }
+
+
+    # Combine all results
+
+    $result = $programs + $python_pkgs + $ie_extensions + $chrome_extensions + $firefox_addons + $chocolatey_packages
+
+
+    # Output the result to stdout in table format
+
+    $result | Format-Table -AutoSize
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: System information
+  platform: windows
+  description: Retrieves information about a device's hardware.
+  query: SELECT * FROM system_info LIMIT 1
+  powershell: |-
+    $hostname = $env:COMPUTERNAME
+    $cpu = Get-WmiObject Win32_Processor
+    $cpu_brand = $cpu[0].Name
+    $logical_cpus = $cpu[0].NumberOfLogicalProcessors
+    $physical_cpus = (Get-WmiObject Win32_ComputerSystem).NumberOfProcessors
+    $hardware_model = (Get-WmiObject Win32_ComputerSystem).Model
+    $hardware_serial = (Get-WmiObject Win32_BIOS).SerialNumber
+    $computer_name = $hostname
+    $osInfo = Get-CimInstance Win32_OperatingSystem
+    $os_name = $osInfo.Caption
+    $os_build = $osInfo.BuildNumber
+    $os_version = $osInfo.Version
+    $os_distribution = ""
+    $platform = "windows"
+
+    $result = [pscustomobject]@{
+        hostname        = $hostname
+        cpu_brand       = $cpu_brand
+        physical_cpus   = $physical_cpus
+        logical_cpus    = $logical_cpus
+        hardware_model  = $hardware_model
+        hardware_serial = $hardware_serial
+        computer_name   = $computer_name
+        os_name         = $os_name
+        os_build        = $os_build
+        os_distribution = $os_distribution
+        os_version      = $os_version
+        platform        = $platform
+    }
+
+    $result
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Uptime
+  platform: darwin, linux, windows
+  description: Retrieves the amount time passed since a device's last boot.
+  query: SELECT * FROM uptime LIMIT 1
+  powershell: >-
+    $os = Get-CimInstance -ClassName 'Win32_OperatingSystem'
+    $lastBoot = $os.LastBootUpTime
+    $uptimeSpan = (Get-Date) - $lastBoot
+    $seconds = [math]::Floor($uptimeSpan.TotalSeconds)
+    $pretty = ''
+    if ($uptimeSpan.Days -gt 0) { $pretty += "$($uptimeSpan.Days) days, " }
+    $pretty += "$($uptimeSpan.Hours) hours, $($uptimeSpan.Minutes) minutes, $($uptimeSpan.Seconds) seconds"
+    [PSCustomObject]@{
+        seconds = $seconds
+        pretty  = $pretty
+    } | Format-Table -AutoSize
+  bash: uptime
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Users
+  platform: darwin, linux, windows
+  description: Retrieves information about user accounts.
+  query: |
+    WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
+  powershell: >-
+    $users = Get-LocalUser -ErrorAction SilentlyContinue
+    if ($users) {
+        $filtered = $users | Where-Object {
+            ($_.Name -notmatch '\$$') -and ($_.Name -notmatch '^_')
+        }
+        $filtered | ForEach-Object {
+            [PSCustomObject]@{
+                # 'uid': No direct uid; using SID instead.
+                uid       = $_.SID.Value
+                # 'username': Direct mapping from Name.
+                username  = $_.Name
+                # 'type': No 'type' property; using a fixed value 'Local' for local accounts.
+                type      = 'Local'
+                # 'groupname': No equivalent primary group info; set as 'N/A'.
+                groupname = 'N/A'
+                # 'shell': Not applicable on Windows; set as 'N/A'.
+                shell     = 'N/A'
+            }
+        } | Format-Table -AutoSize
+    } else {
+        Write-Output 'No local users found.'
+    }
+  bash: "awk -F: 'BEGIN{while((getline<\"/etc/group\")>0){g[$3]=$1}} {uid=$3+0; if(uid<1000) next; if($7 ~ /\\/(false|nologin|shutdown|halt)$/) next; if($1 ~ /\\$$/) next; if($1 ~ /^_/) next; if($1==\"sync\" && $7==\"/bin/sync\" && $6!=\"\") next; print $3, $1, \"user\", ($4 in g ? g[$4] : \"\"), $7}' /etc/passwd"
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Users (Chrome)
+  platform: chrome
+  description: Retrieves information about user accounts on a ChromeOS device.
+  query: |
+    SELECT 
+      uid, username, email 
+    FROM users;
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Windows update history
+  platform: windows
+  description: Retrieves the history of the update events on a Windows host.
+  query: |
+    SELECT 
+      date, title
+    FROM windows_update_history
+    WHERE result_code = 'Succeeded';
+  powershell: >-
+    $updateSession = New-Object -ComObject Microsoft.Update.Session
+
+    $updateSearcher = $updateSession.CreateUpdateSearcher()
+
+    $totalHistoryCount = $updateSearcher.GetTotalHistoryCount()
+
+    $updateHistory = $updateSearcher.QueryHistory(0, $totalHistoryCount)
+
+    $updateHistory | Where-Object { $_.ResultCode -eq 2 } | Format-Table Date, Title -AutoSize
+  discovery: windows_update_history
+  purpose: Informational
+  tags: built-in
+#  
+#   ██████╗ ██╗   ██╗███████╗██████╗ ██╗███████╗███████╗
+#  ██╔═══██╗██║   ██║██╔════╝██╔══██╗██║██╔════╝██╔════╝
+#  ██║   ██║██║   ██║█████╗  ██████╔╝██║█████╗  ███████╗
+#  ██║▄▄ ██║██║   ██║██╔══╝  ██╔══██╗██║██╔══╝  ╚════██║
+#  ╚██████╔╝╚██████╔╝███████╗██║  ██║██║███████╗███████║
+#   ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝
+#                                                       
+# From docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect if Apple Intelligence is enabled
+  platform: darwin
+  description: Detects if Apple Intelligence has been enabled. Value = 1 is on, 0 is off.
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
+  purpose: Informational
+  tags: inventory
+  contributors: allenhouchins
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get OpenSSL versions
+  platform: linux
+  description: Retrieves the OpenSSL version.
+  query: SELECT name AS name, version AS version, 'deb_packages' AS source FROM deb_packages WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'apt_sources' AS source FROM apt_sources WHERE name LIKE 'openssl%' UNION SELECT name AS name, version AS version, 'rpm_packages' AS source FROM rpm_packages WHERE name LIKE 'openssl%';
+  purpose: Informational
+  tags: inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get authorized SSH keys
+  platform: darwin, linux
+  description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
+  query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
+  bash: echo "username,authorized_key" && find /Users -maxdepth 2 -type f -name "authorized_keys" -exec sh -c 'for f in "$@"; do u=$(basename "$(dirname "$f")"); while IFS= read -r line; do echo "$u,$line"; done < "$f"; done' sh {} +
+  purpose: Informational
+  remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
+  tags: built-in, ssh
+  contributors: mike-j-thomas
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get authorized keys for Domain Joined Accounts
+  platform: darwin, linux
+  description: List authorized_keys for each user on the system.
+  query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
+  bash: echo "Username,UniqueID,PrimaryGroupID,NFSHomeDirectory,UserShell,Authorized_Key"; for u in $(last | awk '$1!="wtmp" && $1!="reboot" {print $1}' | sort -u); do home=$(dscl . -read /Users/$u NFSHomeDirectory 2>/dev/null | awk '{print $2}'); uid=$(dscl . -read /Users/$u UniqueID 2>/dev/null | awk '{print $2}'); gid=$(dscl . -read /Users/$u PrimaryGroupID 2>/dev/null | awk '{print $2}'); shell=$(dscl . -read /Users/$u UserShell 2>/dev/null | awk '{print $2}'); [ -z "$home" ] && home="/Users/$u"; if [ -f "$home/.ssh/authorized_keys" ]; then while IFS= read -r key; do echo "$u,$uid,$gid,$home,$shell,$key"; done < "$home/.ssh/authorized_keys"; fi; done
+  purpose: Informational
+  tags: active directory, ssh
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get crashes
+  platform: darwin
+  description: Retrieve application, system, and mobile app crash logs.
+  query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
+  bash: echo "uid, datetime, responsible, exception_type, identifier, version, crash_path"; find /Library/Logs/DiagnosticReports ~/Library/Logs/DiagnosticReports -type f -name "*.crash" 2>/dev/null | while IFS= read -r f; do uid=$(stat -f "%u" "$f"); datetime=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$f"); responsible=$(grep -m1 "^Process:" "$f" | cut -d ':' -f2- | xargs); exception=$(grep -m1 "^Exception Type:" "$f" | cut -d ':' -f2- | xargs); identifier=$(grep -m1 "^Identifier:" "$f" | cut -d ':' -f2- | xargs); version=$(grep -m1 "^Version:" "$f" | cut -d ':' -f2- | xargs); echo "$uid, $datetime, $responsible, $exception, $identifier, $version, $f"; done
+  purpose: Informational
+  tags: troubleshooting
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Chrome Extensions
+  platform: darwin, linux, windows
+  description: List installed Chrome Extensions for all users.
+  query: SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
+  bash: printf 'uid,username,extension_id,version\n'; for d in /Users/*; do [ -d "$d" ] && user=$(basename "$d") && uid=$(id -u "$user" 2>/dev/null) && ext_path="$d/Library/Application Support/Google/Chrome/Default/Extensions" && [ -d "$ext_path" ] && for ext in "$ext_path"/*; do ext_id=$(basename "$ext"); for ver in "$ext"/*; do version=$(basename "$ver"); printf "%s,%s,%s,%s\n" "$uid" "$user" "$ext_id" "$version"; done; done; done
+  powershell: >-
+    $users = Get-CimInstance -ClassName Win32_UserAccount -Filter
+    "LocalAccount=True"
+
+    $profileList = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList" | ForEach-Object {
+        $sid = $_.PSChildName
+        try {
+            $profilePath = (Get-ItemProperty $_.PSPath).ProfileImagePath
+        }
+        catch {
+            $profilePath = $null
+        }
+        [PSCustomObject]@{
+            SID = $sid
+            ProfilePath = $profilePath
+        }
+    }
+
+
+    $results = @()
+
+
+    foreach ($user in $users) {
+        # Match user with profile path using SID as uid
+        $profile = $profileList | Where-Object { $_.SID -eq $user.SID }
+        if (-not $profile -or -not $profile.ProfilePath) {
+            continue
+        }
+
+        # Construct the expected Chrome extensions directory path
+        $chromeExtensionsDir = Join-Path $profile.ProfilePath "AppData\Local\Google\Chrome\User Data\Default\Extensions"
+        if (-not (Test-Path $chromeExtensionsDir)) {
+            continue
+        }
+
+        # Get each extension folder (each folder name is the extension id)
+        Get-ChildItem -Path $chromeExtensionsDir -Directory | ForEach-Object {
+            $extensionID = $_.Name
+            # Each extension folder may contain one or more version folders
+            Get-ChildItem -Path $_.FullName -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+                $versionFolder = $_
+                $manifestPath = Join-Path $versionFolder.FullName "manifest.json"
+                if (Test-Path $manifestPath) {
+                    try {
+                        $raw = Get-Content -Path $manifestPath -Raw
+                        $manifest = $raw | ConvertFrom-Json
+                    }
+                    catch {
+                        $manifest = $null
+                    }
+                }
+                else {
+                    $manifest = $null
+                }
+                $extensionName = $null
+                $extensionVersion = $null
+                if ($manifest) {
+                    $extensionName = $manifest.name
+                    $extensionVersion = $manifest.version
+                }
+                else {
+                    $extensionVersion = $versionFolder.Name
+                }
+                $results += [PSCustomObject]@{
+                    uid               = $user.SID
+                    username          = $user.Name
+                    extension_id      = $extensionID
+                    extension_name    = $extensionName
+                    extension_version = $extensionVersion
+                    extension_path    = $versionFolder.FullName
+                }
+            }
+        }
+    }
+
+
+    $results | Format-Table -AutoSize
+
+    Write-Output $results
+  purpose: Informational
+  tags: browser, built-in, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Linux software
+  platform: linux
+  description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.
+  query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed macOS software
+  platform: darwin
+  description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
+  query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
+  bash: echo "name,version,type,source"; for app in /Applications/*.app; do appName="$(basename "$app" .app)"; version=$(defaults read "$app/Contents/Info" CFBundleShortVersionString 2>/dev/null); echo "$appName,$version,Application (macOS),apps"; done; pip3 freeze 2>/dev/null | awk -F'==' '{print $1 "," $2 ",Package (Python),python_packages"}'; for d in "$HOME/Library/Application Support/Google/Chrome/Default/Extensions/"*; do [ -d "$d" ] && for ver in "$d"/*; do echo "$(basename "$d"),$(basename "$ver"),Browser plugin (Chrome),chrome_extensions"; done; done; for profile in "$HOME/Library/Application Support/Firefox/Profiles/"*; do [ -d "$profile" ] && [ -d "$profile/extensions" ] && for ext in "$profile/extensions"/*; do echo "$(basename "$ext" .xpi),N/A,Browser plugin (Firefox),firefox_addons"; done; done; [ -d "$HOME/Library/Safari/Extensions" ] && for ext in "$HOME/Library/Safari/Extensions"/*.safariextz; do echo "$(basename "$ext" .safariextz),N/A,Browser plugin (Safari),safari_extensions"; done; which brew >/dev/null 2>&1 && brew list --versions | awk '{print $1 "," $2 ",Package (Homebrew),homebrew_packages"}'
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Safari extensions
+  platform: darwin
+  description: Retrieves the list of installed Safari Extensions for all users in the target system.
+  query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
+  bash: echo "User,Extension" ; for user in /Users/*; do [ -d "$user/Library/Safari/Extensions" ] && for ext in "$user/Library/Safari/Extensions"/*.safariextz; do [ -e "$ext" ] && echo "$(basename "$user"),$(basename "$ext")"; done; done
+  purpose: Informational
+  tags: browser, built-in, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get installed Windows software
+  platform: windows
+  description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
+  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages;
+  powershell: >-
+    # Get installed Windows programs from registry
+
+    $programs = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*", "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName } | ForEach-Object {
+        [PSCustomObject]@{
+            name    = $_.DisplayName
+            version = $_.DisplayVersion
+            type    = "Program (Windows)"
+            source  = "programs"
+        }
+    }
+
+
+    # Get installed Python packages (if pip is available)
+
+    $python_pkgs = @()
+
+    try {
+        $pipOutput = & pip list --format=freeze 2>$null
+        if ($pipOutput) {
+            foreach ($line in $pipOutput) {
+                if ($line -match "^(.*?)==(.*)$") {
+                    $python_pkgs += [PSCustomObject]@{
+                        name    = $matches[1]
+                        version = $matches[2]
+                        type    = "Package (Python)"
+                        source  = "python_packages"
+                    }
+                }
+            }
+        }
+    } catch {
+        # pip not found or error occurred
+    }
+
+
+    # Get Internet Explorer extensions from registry
+
+    $ie_extensions = @()
+
+    $ieRegKey = "HKLM:\SOFTWARE\Microsoft\Internet Explorer\Extensions"
+
+    if (Test-Path $ieRegKey) {
+        $ieData = Get-ItemProperty -Path $ieRegKey -ErrorAction SilentlyContinue
+        if ($ieData) {
+            foreach ($prop in $ieData.PSObject.Properties) {
+                # Using property name as the identifier; version info is not normally stored
+                $ie_extensions += [PSCustomObject]@{
+                    name    = $prop.Name
+                    version = ""
+                    type    = "Browser plugin (IE)"
+                    source  = "ie_extensions"
+                }
+            }
+        }
+    }
+
+
+    # Get Chrome extensions by reading installed extension manifests
+
+    $chrome_extensions = @()
+
+    $chromeExtPath = Join-Path $env:LOCALAPPDATA "Google\Chrome\User Data\Default\Extensions"
+
+    if (Test-Path $chromeExtPath) {
+        $extDirs = Get-ChildItem -Path $chromeExtPath -Directory -ErrorAction SilentlyContinue
+        foreach ($ext in $extDirs) {
+            $versionDirs = Get-ChildItem -Path $ext.FullName -Directory -ErrorAction SilentlyContinue
+            foreach ($verDir in $versionDirs) {
+                $manifestPath = Join-Path $verDir.FullName "manifest.json"
+                if (Test-Path $manifestPath) {
+                    try {
+                        $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+                        $extName = $manifest.name
+                        $extVersion = $manifest.version
+                    } catch {
+                        $extName = $ext.Name
+                        $extVersion = $verDir.Name
+                    }
+                } else {
+                    $extName = $ext.Name
+                    $extVersion = $verDir.Name
+                }
+                $chrome_extensions += [PSCustomObject]@{
+                    name    = $extName
+                    version = $extVersion
+                    type    = "Browser plugin (Chrome)"
+                    source  = "chrome_extensions"
+                }
+            }
+        }
+    }
+
+
+    # Get Firefox add-ons by locating extensions.json in profile directories and parsing it
+
+    $firefox_addons = @()
+
+    $firefoxProfilesPath = Join-Path $env:APPDATA "Mozilla\Firefox\Profiles"
+
+    if (Test-Path $firefoxProfilesPath) {
+        $profiles = Get-ChildItem -Path $firefoxProfilesPath -Directory -ErrorAction SilentlyContinue
+        foreach ($profile in $profiles) {
+            $extensionsJson = Join-Path $profile.FullName "extensions.json"
+            if (Test-Path $extensionsJson) {
+                try {
+                    $json = Get-Content $extensionsJson -Raw | ConvertFrom-Json
+                    if ($json.addons) {
+                        foreach ($addon in $json.addons) {
+                            if ($addon.type -eq "extension") {
+                                $firefox_addons += [PSCustomObject]@{
+                                    name    = $addon.name
+                                    version = $addon.version
+                                    type    = "Browser plugin (Firefox)"
+                                    source  = "firefox_addons"
+                                }
+                            }
+                        }
+                    }
+                } catch {
+                    # Skip profiles with parsing issues
+                }
+            }
+        }
+    }
+
+
+    # Get installed Chocolatey packages (if choco is available)
+
+    $chocolatey_packages = @()
+
+    try {
+        $chocoOutput = & choco list --local-only --limit-output 2>$null
+        if ($chocoOutput) {
+            foreach ($line in $chocoOutput) {
+                if ($line -match "^(.*?)\|(.*)$") {
+                    $chocolatey_packages += [PSCustomObject]@{
+                        name    = $matches[1]
+                        version = $matches[2]
+                        type    = "Package (Chocolatey)"
+                        source  = "chocolatey_packages"
+                    }
+                }
+            }
+        }
+    } catch {
+        # choco not found or error occurred
+    }
+
+
+    # Combine all results
+
+    $result = $programs + $python_pkgs + $ie_extensions + $chrome_extensions + $firefox_addons + $chocolatey_packages
+
+
+    # Output the result to stdout in table format
+
+    $result | Format-Table -AutoSize
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get laptops with failing batteries
+  platform: darwin
+  description: Lists all laptops with under-performing or failing batteries.
+  query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
+  bash: "h=$(system_profiler SPPowerDataType | awk -F\": \" '/Battery Health/{print $2; exit}'); c=$(system_profiler SPPowerDataType | awk -F\": \" '/Condition:/{print $2; exit}'); if [[ \"$h\" != \"Good\" && -n \"$c\" && \"$c\" != \"Normal\" ]]; then echo \"Battery Health,Condition\"; echo \"$h,$c\"; fi"
+  purpose: Informational
+  tags: troubleshooting, hardware, inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get current users with active shell/console on the system
+  platform: darwin, linux, windows
+  description: Get current users with active shell/console on the system and associated process
+  query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
+  bash: echo "User,Host,Time,Name,Cmdline,Cwd,Root"; while read u tty d t r; do host=$(echo "$r" | sed -E 's/^\((.*)\)$/\1/'); pid=$(ps -t "$tty" -o pid= | head -n1 | awk '{print $1}'); if [ -n "$pid" ]; then name=$(ps -p "$pid" -o comm= | xargs); cmd=$(ps -p "$pid" -o command= | cut -d' ' -f2-); else name="N/A"; cmd="N/A"; fi; if [ -z "$host" ]; then host="N/A"; fi; echo "$u,$host,$d $t,$name,$cmd,N/A,N/A"; done < <(who)
+  powershell: >-
+    $computerName = $env:COMPUTERNAME
+
+    $results = @()
+
+    Get-CimInstance Win32_Process | ForEach-Object {
+        $proc = $_
+        # Get owner information
+        $ownerInfo = $proc | Invoke-CimMethod -MethodName GetOwner
+        if ($ownerInfo.ReturnValue -eq 0 -and -not [string]::IsNullOrEmpty($ownerInfo.User)) {
+            # Create a custom object with the desired fields.
+            # Note: Windows does not expose current working directory (cwd) or process root via WMI,
+            # so these fields will be returned empty.
+            $results += [PSCustomObject]@{
+                user    = $ownerInfo.User
+                host    = $computerName
+                time    = $proc.CreationDate
+                name    = $proc.Name
+                cmdline = $proc.CommandLine
+                cwd     = ""
+                root    = ""
+            }
+        }
+    }
+
+    # Sort the results by time (process creation date) and output to stdout.
+
+    $results | Sort-Object time | Format-Table -AutoSize
+  purpose: Informational
+  tags: hunting, built-in
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get unencrypted SSH keys for local accounts
+  platform: darwin, linux, windows
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
+  bash: echo "uid,username,description,path,encrypted"; for u in /Users/*; do [ -d "$u/.ssh" ] || continue; user=$(basename "$u"); uid=$(id -u "$user" 2>/dev/null); desc=$(dscl . -read /Users/"$user" RealName 2>/dev/null | sed '1d;s/^ *//'); for f in "$u"/.ssh/*; do [ -f "$f" ] || continue; grep -q "ENCRYPTED" "$f" 2>/dev/null || echo "$uid,$user,$desc,$f,0"; done; done
+  powershell: >-
+    $results = @()
+
+
+    # Get a list of user directories in C:\Users
+
+    $usersDirs = Get-ChildItem "C:\Users" -Directory -ErrorAction SilentlyContinue
+
+
+    foreach ($userDir in $usersDirs) {
+        $username = $userDir.Name
+        $sshFolder = Join-Path $userDir.FullName ".ssh"
+        if (Test-Path $sshFolder) {
+            # Attempt to retrieve local user information; if not found, leave empty
+            $localUser = Get-LocalUser -Name $username -ErrorAction SilentlyContinue
+            $uid = if ($localUser) { $localUser.SID.Value } else { "" }
+            $description = if ($localUser) { $localUser.Description } else { "" }
+
+            # Get all files in the .ssh folder that are not public-key files
+            $keyFiles = Get-ChildItem -Path $sshFolder -File | Where-Object { $_.Extension -ne ".pub" }
+            foreach ($key in $keyFiles) {
+                # Read the key file; if it contains "ENCRYPTED" assume it is encrypted
+                $content = Get-Content $key.FullName -ErrorAction SilentlyContinue
+                if ($content -match "ENCRYPTED") {
+                    $enc = 1
+                }
+                else {
+                    $enc = 0
+                }
+                if ($enc -eq 0) {
+                    $results += [pscustomobject]@{
+                        uid         = $uid
+                        username    = $username
+                        description = $description
+                        path        = $key.FullName
+                        encrypted   = $enc
+                    }
+                }
+            }
+        }
+    }
+
+
+    $results | Format-Table -AutoSize
+  purpose: Informational
+  tags: inventory, compliance, ssh, built-in
+  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get unencrypted SSH keys for domain-joined accounts
+  platform: darwin, linux, windows
+  description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
+  query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
+  bash: "printf \"uid,username,description,path,encrypted\\n\"; for u in $(last | awk '{print $1}' | grep -vE '^(wtmp|reboot)$' | sort -u); do [ -d \"/Users/$u/.ssh\" ] && for f in $(find \"/Users/$u/.ssh\" -type f -name \"authorized_keys*\" 2>/dev/null); do uid=$(id -u \"$u\"); desc=$(dscl . -read /Users/\"$u\" RealName 2>/dev/null | cut -d: -f2- | sed 's/^ //'); echo \"$uid,$u,$desc,$f,0\"; done; done"
+  powershell: >-
+    $lastOutput = & last
+
+    $lastUsernames = $lastOutput | ForEach-Object {
+        if ($_ -match '^\s*(\S+)') { $matches[1] }
+    } | Select-Object -Unique
+
+
+    $passwdFile = "/etc/passwd"
+
+    if (Test-Path $passwdFile) {
+        $lines = Get-Content $passwdFile
+        foreach ($line in $lines) {
+            # /etc/passwd format: username:password:UID:GID:GECOS:home_directory:shell
+            $fields = $line -split ":"
+            if ($fields.Length -ge 7) {
+                $username = $fields[0]
+                $uid = $fields[2]
+                $description = $fields[4]
+                $homeDir = $fields[5]
+
+                if ($lastUsernames -contains $username) {
+                    # Assume the user's SSH authorized_keys file is in .ssh/authorized_keys in their home directory
+                    $sshKeyPath = Join-Path $homeDir ".ssh/authorized_keys"
+                    if (Test-Path $sshKeyPath) {
+                        $keyLines = Get-Content $sshKeyPath
+                        foreach ($keyLine in $keyLines) {
+                            if ([string]::IsNullOrWhiteSpace($keyLine)) {
+                                continue
+                            }
+                            # Determine if the key is encrypted by looking for the keyword "ENCRYPTED"
+                            $encrypted = if ($keyLine -match "ENCRYPTED") { 1 } else { 0 }
+                            if ($encrypted -eq 0) {
+                                $result = [PSCustomObject]@{
+                                    uid         = $uid
+                                    username    = $username
+                                    description = $description
+                                    path        = $sshKeyPath
+                                    encrypted   = $encrypted
+                                }
+                                Write-Output $result
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+  purpose: Informational
+  tags: inventory, compliance, ssh, active directory
+  remediation: First, make the user aware about the impact of SSH keys.  Then rotate the unencrypted keys detected.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get dynamic linker hijacking on Linux (MITRE. T1574.006)
+  platform: linux
+  description: Detect any processes that run with LD_PRELOAD environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='LD_PRELOAD';
+  purpose: Informational
+  tags: hunting, ATTACK, t1574
+  remediation: Identify the process/binary detected and confirm with the system's owner.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get dynamic linker hijacking on macOS (MITRE. T1574.006)
+  platform: darwin
+  description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
+  query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
+  bash: echo "PID,KEY,VALUE,NAME,PATH,CMDLINE,CWD"; for pid in $(ps -axo pid | tail -n +2); do envline=$(ps eww -p "$pid" 2>/dev/null); if echo "$envline" | grep -q "DYLD_INSERT_LIBRARIES="; then value=$(echo "$envline" | grep -o "DYLD_INSERT_LIBRARIES=[^ ]*" | sed 's/DYLD_INSERT_LIBRARIES=//'); cmd=$(ps -p "$pid" -o command= 2>/dev/null); txt=$(lsof -p "$pid" 2>/dev/null | awk '$4=="txt" {print $9; exit}'); cwd=$(lsof -p "$pid" 2>/dev/null | awk '$4=="cwd" {print $9; exit}'); name=$(basename "$txt"); echo "$pid,DYLD_INSERT_LIBRARIES,$value,$name,$txt,$cmd,$cwd"; fi; done
+  purpose: Informational
+  tags: hunting, ATTACK, t1574
+  remediation: Identify the process/binary detected and confirm with the system's owner.
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get etc hosts entries
+  platform: darwin, linux
+  description: Line-parsed /etc/hosts
+  query: SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');
+  bash: echo "address hostname aliases"; grep -vE '^[[:space:]]*#' /etc/hosts | awk '$1!="127.0.0.1" && $1!="::1" && NF'
+  purpose: informational
+  tags: hunting, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get network interfaces
+  platform: darwin, linux, windows
+  description: Network interfaces MAC address
+  query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
+  bash: (echo "interface,address,mac"; for iface in $(ifconfig -l); do mac=$(ifconfig "$iface" | awk '/ether/{print $2; exit}'); for ip in $(ifconfig "$iface" | awk '/inet /{if ($2!="127.0.0.1") print $2} /inet6 /{if ($2!="::1") print $2}'); do echo "$iface,$ip,$mac"; done; done)
+  powershell: >-
+    $ipInfo = Get-NetIPAddress -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notin ('127.0.0.1','::1') }
+    $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Select-Object ifIndex, MacAddress
+    $results = foreach ($ip in $ipInfo) {
+        $adapter = $adapters | Where-Object { $_.ifIndex -eq $ip.InterfaceIndex } | Select-Object -First 1
+        [PSCustomObject]@{
+            interface = $ip.InterfaceAlias
+            address   = $ip.IPAddress
+            mac       = if ($adapter) { $adapter.MacAddress } else { 'N/A' }
+        }
+    }
+    $results | Format-Table -AutoSize
+  purpose: informational
+  tags: hunting, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get local user accounts
+  platform: darwin, linux, windows
+  description: Local user accounts (including domain accounts that have logged on locally (Windows)).
+  query: SELECT uid, gid, username, description, directory, shell FROM users;
+  bash: echo "uid,gid,username,description,directory,shell"; dscl . -list /Users | while read user; do uid=$(dscl . -read /Users/"$user" UniqueID 2>/dev/null | awk '{print $2}'); gid=$(dscl . -read /Users/"$user" PrimaryGroupID 2>/dev/null | awk '{print $2}'); desc=$(dscl . -read /Users/"$user" RealName 2>/dev/null | cut -d' ' -f2-); dir=$(dscl . -read /Users/"$user" NFSHomeDirectory 2>/dev/null | awk '{print $2}'); shell=$(dscl . -read /Users/"$user" UserShell 2>/dev/null | awk '{print $2}'); echo "$uid,$gid,$user,\"$desc\",$dir,$shell"; done
+  bash: echo "uid,username,type,groupname"; for u in $(dscl . list /Users); do uid=$(dscl . read /Users/"$u" UniqueID 2>/dev/null | awk '{print $2}'); pgrp=$(dscl . read /Users/"$u" PrimaryGroupID 2>/dev/null | awk '{print $2}'); grp=$(dscl . list /Groups PrimaryGroupID | awk -v id="$pgrp" '$2==id{print $1}'); type=$( [ "$uid" -lt 500 ] && echo system || echo local); echo "$uid,$u,$type,$grp"; done
+  powershell: |-
+    $groupMapping = @{}
+    $localGroups = Get-LocalGroup -ErrorAction SilentlyContinue
+    foreach ($group in $localGroups) {
+        $members = Get-LocalGroupMember -Group $group.Name -ErrorAction SilentlyContinue
+        foreach ($member in $members) {
+            if ($member.ObjectClass -eq 'User') {
+                if (-not $groupMapping.ContainsKey($member.SID.Value)) {
+                    $groupMapping[$member.SID.Value] = @()
+                }
+                $groupMapping[$member.SID.Value] += $group.Name
+            }
+        }
+    }
+
+    $users = Get-LocalUser -ErrorAction SilentlyContinue
+    $results = foreach ($user in $users) {
+        $userGroups = $groupMapping[$user.SID.Value]
+        [PSCustomObject]@{
+            uid       = $user.SID.Value
+            username  = $user.Name
+            type      = 'Local'
+            groupname = if ($userGroups) { $userGroups -join ',' } else { 'N/A' }
+        }
+    }
+    $results | Format-Table -AutoSize
+  purpose: informational
+  tags: hunting, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get active user accounts on servers
+  platform: linux
+  description: Domain Joined environments normally have root or other service only accounts and users are SSH-ing using their Domain Accounts.
+  query: SELECT * FROM shadow WHERE password_status='active' and username!='root';
+  purpose: informational
+  tags: hunting, inventory, Active Directory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Nmap scanner
+  platform: darwin, linux, windows
+  description: Get Nmap scanner process, as well as its user, parent, and process details.
+  query: SELECT p.pid, name, p.path, cmdline, cwd, start_time, parent,
+    (SELECT name FROM processes WHERE pid=p.parent) AS parent_name,
+    (SELECT username FROM users WHERE uid=p.uid) AS username
+    FROM processes as p WHERE cmdline like 'nmap%';
+  bash: echo "pid,name,path,cmdline,cwd,start_time,parent,parent_name,username"; for pid in $(ps -axo pid,args | awk '$0 ~ /^[[:space:]]*[0-9]+ nmap/ {print $1}'); do cmd=$(ps -p $pid -o args=); name=$(ps -p $pid -o comm=); path=$(lsof -p $pid | awk '$4=="txt" {print $9; exit}'); cwd=$(lsof -a -p $pid -d cwd 2>/dev/null | awk 'NR==2 {print $9}'); start_time=$(ps -p $pid -o lstart=); parent=$(ps -p $pid -o ppid=); parent_name=$(ps -p $parent -o comm= 2>/dev/null); user=$(ps -p $pid -o user=); echo "$pid,$name,$path,$cmd,$cwd,$start_time,$parent,$parent_name,$user"; done
+  powershell: >-
+    $processes = Get-WmiObject -Query "SELECT * FROM Win32_Process WHERE
+    CommandLine LIKE 'nmap%'"  
+
+    foreach ($proc in $processes) {  
+        # Get parent's name  
+        $parentName = ""  
+        if ($proc.ParentProcessId) {  
+            $parentProc = Get-WmiObject Win32_Process -Filter "ProcessId=$($proc.ParentProcessId)" -ErrorAction SilentlyContinue  
+            if ($parentProc) {  
+                $parentName = $parentProc.Name  
+            }  
+        }  
+
+        # Get username from process owner  
+        $username = ""  
+        $ownerInfo = $proc.GetOwner()  
+        if ($ownerInfo.ReturnValue -eq 0) {  
+            $username = "$($ownerInfo.Domain)\$($ownerInfo.User)"  
+        }  
+
+        # Convert WMI creation date to readable time  
+        $startTime = $null  
+        if ($proc.CreationDate) {  
+            $startTime = [Management.ManagementDateTimeConverter]::ToDateTime($proc.CreationDate)  
+        }  
+
+        # cwd is not available from Win32_Process; use placeholder  
+        $cwd = "N/A"  
+
+        # Create a custom object with the desired fields  
+        $result = [PSCustomObject]@{  
+            pid         = $proc.ProcessId  
+            name        = $proc.Name  
+            path        = $proc.ExecutablePath  
+            cmdline     = $proc.CommandLine  
+            cwd         = $cwd  
+            start_time  = $startTime  
+            parent      = $proc.ParentProcessId  
+            parent_name = $parentName  
+            username    = $username  
+        }  
+
+        Write-Output $result  
+    }
+  purpose: Informational
+  tags: hunting, ATTACK, t1046
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Docker contained processes on a system
+  platform: darwin, linux
+  description: Docker containers Processes, can be used on normal systems or a kubenode.
+  query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
+  bash: echo "id,name,image,image_id,command,created,state,status,cmdline"; for id in $(docker ps -q); do cont=$(docker inspect --format='{{.Id}},{{.Name}},{{.Config.Image}},{{.Image}},{{.Path}} {{range .Args}}{{.}} {{end}},{{.Created}},{{.State.Status}},{{.State.ExitCode}}' "$id"); docker top "$id" aux | sed '1d' | while IFS= read -r proc; do echo "$cont,\"$proc\""; done; done
+  purpose: Informational
+  tags: built-in, containers, inventory
+  contributors: anelshaer
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Windows print spooler remote code execution vulnerability
+  platform: windows
+  description: Detects devices that are potentially vulnerable to CVE-2021-1675 because the print spooler service is not disabled.
+  query: SELECT CASE cnt WHEN 2 THEN "TRUE" ELSE "FALSE" END "Vulnerable" FROM (SELECT name start_type, COUNT(name) AS cnt FROM services WHERE name = 'NTDS' or (name = 'Spooler' and start_type <> 'DISABLED')) WHERE cnt = 2;
+  powershell: >-
+    $processes = Get-WmiObject -Query "SELECT * FROM Win32_Process WHERE
+    CommandLine LIKE 'nmap%'"  
+
+    foreach ($proc in $processes) {  
+        # Get parent's name  
+        $parentName = ""  
+        if ($proc.ParentProcessId) {  
+            $parentProc = Get-WmiObject Win32_Process -Filter "ProcessId=$($proc.ParentProcessId)" -ErrorAction SilentlyContinue  
+            if ($parentProc) {  
+                $parentName = $parentProc.Name  
+            }  
+        }  
+
+        # Get username from process owner  
+        $username = ""  
+        $ownerInfo = $proc.GetOwner()  
+        if ($ownerInfo.ReturnValue -eq 0) {  
+            $username = "$($ownerInfo.Domain)\$($ownerInfo.User)"  
+        }  
+
+        # Convert WMI creation date to readable time  
+        $startTime = $null  
+        if ($proc.CreationDate) {  
+            $startTime = [Management.ManagementDateTimeConverter]::ToDateTime($proc.CreationDate)  
+        }  
+
+        # cwd is not available from Win32_Process; use placeholder  
+        $cwd = "N/A"  
+
+        # Create a custom object with the desired fields  
+        $result = [PSCustomObject]@{  
+            pid         = $proc.ProcessId  
+            name        = $proc.Name  
+            path        = $proc.ExecutablePath  
+            cmdline     = $proc.CommandLine  
+            cwd         = $cwd  
+            start_time  = $startTime  
+            parent      = $proc.ParentProcessId  
+            parent_name = $parentName  
+            username    = $username  
+        }  
+
+        Write-Output $result  
+    }
+  purpose: Informational
+  tags: vulnerability
+  contributors: maravedi
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get local users and their privileges
+  platform: darwin, linux, windows
+  description: Collects the local user accounts and their respective user group.
+  query: SELECT uid, username, type, groupname FROM users u JOIN groups g ON g.gid = u.gid;
+  powershell: |-
+    $groupMapping = @{}
+    $localGroups = Get-LocalGroup -ErrorAction SilentlyContinue
+    foreach ($group in $localGroups) {
+        $members = Get-LocalGroupMember -Group $group.Name -ErrorAction SilentlyContinue
+        foreach ($member in $members) {
+            if ($member.ObjectClass -eq 'User') {
+                if (-not $groupMapping.ContainsKey($member.SID.Value)) {
+                    $groupMapping[$member.SID.Value] = @()
+                }
+                $groupMapping[$member.SID.Value] += $group.Name
+            }
+        }
+    }
+
+    $users = Get-LocalUser -ErrorAction SilentlyContinue
+    $results = foreach ($user in $users) {
+        $userGroups = $groupMapping[$user.SID.Value]
+        [PSCustomObject]@{
+            uid       = $user.SID.Value
+            username  = $user.Name
+            type      = 'Local'
+            groupname = if ($userGroups) { $userGroups -join ',' } else { 'N/A' }
+        }
+    }
+    $results | Format-Table -AutoSize
+  purpose: informational
+  tags: inventory
+  contributors: noahtalerman
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get processes that no longer exist on disk
+  platform: linux, darwin, windows
+  description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching a process to mask presence.
+  query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
+  bash: echo "name, path, pid"; ps -e -o pid= | while read pid; do path=$(lsof -p "$pid" 2>/dev/null | awk '$4=="txt" {print $9; exit}'); if [ -n "$path" ] && [ ! -e "$path" ]; then echo "$(basename "$path"), $path, $pid"; fi; done
+  purpose: Incident response
+  tags: hunting, built-in
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get user files matching a specific hash
+  platform: darwin, linux
+  description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
+  query: SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';
+  bash: r=$(find /Users -type f -path "/Users/*/Documents/*" -size -50M -print0 | xargs -0 -I {} sh -c 's=$(shasum -a 256 "{}" | awk "{print \$1}"); [ "$s" = "16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75" ] && echo "{},$s"'); [ -n "$r" ] && echo "path,sha256" && echo "$r" || echo "$r"
+  purpose: Informational
+  tags: hunting, built-in
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get local administrator accounts on macOS
+  platform: darwin
+  description: The query allows you to check macOS systems for local administrator accounts.
+  query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
+  printf "uid,username,type\n"; for u in $(dscl . -list /Users); do uid=$(dscl . -read /Users/"$u" UniqueID 2>/dev/null | awk '{print $2}'); pgid=$(dscl . -read /Users/"$u" PrimaryGroupID 2>/dev/null | awk '{print $2}'); grp=$(dscl . -list /Groups PrimaryGroupID | awk -v id="$pgid" '$2==id{print $1}'); [ -n "$uid" ] && [ -n "$pgid" ] && [ -n "$grp" ] && echo "$uid,$u,$grp"; done
+  bash: dscl . -read /Groups/admin GroupMembership
+  purpose: Informational
+  tags: hunting, inventory
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get all listening ports, by process
+  platform: linux, darwin, windows
+  description: List ports that are listening on all interfaces, along with the process to which they are attached.
+  query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
+  bash: echo "address,pid,port,protocol,name,path,cmdline"; lsof -nP -iTCP -sTCP:LISTEN | awk 'NR>1 && $9 ~ /^0\.0\.0\.0:/ {split($9,a,":"); print $2","a[2]","$1}' | while IFS=',' read pid port name; do path=$(ps -p "$pid" -o comm= 2>/dev/null); cmdline=$(ps -p "$pid" -o command= 2>/dev/null | sed 's/^ *//'); echo "0.0.0.0,$pid,$port,TCP,$name,$path,$cmdline"; done
+  powershell: >-
+    # Retrieve listening TCP connections with LocalAddress "0.0.0.0"
+    $tcpConnections = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalAddress -eq '0.0.0.0' }
+
+    # Retrieve process details (includes name, executable path, and command line)
+    $procDetails = Get-CimInstance -ClassName Win32_Process
+
+    # Build a lookup table for processes keyed by ProcessId
+    $procLookup = @{}
+    foreach ($proc in $procDetails) {
+        $procLookup[$proc.ProcessId] = $proc
+    }
+
+    $results = foreach ($conn in $tcpConnections) {
+        $proc = $procLookup[$conn.OwningProcess]
+        [PSCustomObject]@{
+            address  = $conn.LocalAddress
+            pid      = $conn.OwningProcess
+            port     = $conn.LocalPort
+            protocol = 'TCP'
+            name     = if ($proc) { $proc.Name } else { 'N/A' }
+            path     = if ($proc) { $proc.ExecutablePath } else { 'N/A' }
+            cmdline  = if ($proc) { $proc.CommandLine } else { 'N/A' }
+        }
+    }
+
+    $results | Format-Table -AutoSize
+  purpose: Informational
+  tags: hunting, network
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get whether TeamViewer is installed/running
+  platform: windows
+  description: Looks for the TeamViewer service running on machines. This is often used when attackers gain access to a machine, running TeamViewer to allow them to access a machine.
+  query: SELECT display_name,status,s.pid,p.path FROM services AS s JOIN processes AS p USING(pid) WHERE s.name LIKE "%teamviewer%";
+  powershell: >-
+    $services = Get-CimInstance -ClassName Win32_Service | Where-Object { $_.Name -like '*teamviewer*' }
+    $results = foreach ($svc in $services) {
+        $proc = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $($svc.ProcessId)" -ErrorAction SilentlyContinue
+        [PSCustomObject]@{
+            display_name = $svc.DisplayName
+            status       = $svc.State
+            pid          = $svc.ProcessId
+            path         = if ($proc) { $proc.ExecutablePath } else { 'N/A' }
+        }
+    }
+    $results | Format-Table -AutoSize
+  purpose: Informational
+  tags: hunting, inventory
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get malicious Python backdoors
+  platform: darwin, linux, windows
+  description: Watches for the backdoored Python packages installed on the system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)
+  query: SELECT CASE cnt WHEN 0 THEN "NONE_INSTALLED" ELSE "INSTALLED" END AS "Malicious Python Packages", package_name, package_version FROM (SELECT COUNT(name) AS cnt, name AS package_name, version AS package_version, path AS package_path FROM python_packages WHERE package_name IN ('acquisition', 'apidev-coop', 'bzip', 'crypt', 'django-server', 'pwd', 'setup-tools', 'telnet', 'urlib3', 'urllib'));
+  powershell: >-
+    $maliciousPackages =
+    @('acquisition','apidev-coop','bzip','crypt','django-server','pwd','setup-tools','telnet','urlib3','urllib')
+
+    try {
+        # Use pip to list installed packages in JSON format.
+        $pipList = & pip list --format=json 2>$null
+        if (-not $pipList) {
+            Write-Output "Failed to retrieve package list. Ensure pip is installed and in your PATH."
+            exit 1
+        }
+        $installedPackages = $pipList | ConvertFrom-Json
+    }
+
+    catch {
+        Write-Output "Error executing pip list: $_"
+        exit 1
+    }
+
+
+    $found = $installedPackages | Where-Object { $maliciousPackages -contains ($_.name).ToLower() }
+
+
+    if (-not $found) {
+        Write-Output "Malicious Python Packages: NONE_INSTALLED"
+    }
+
+    else {
+        foreach ($pkg in $found) {
+            Write-Output ("Malicious Python Packages: INSTALLED, package_name: {0}, package_version: {1}" -f $pkg.name, $pkg.version)
+        }
+    }
+  purpose: Informational
+  tags: hunting, inventory, malware
+  contributors: alphabrevity
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Check for artifacts of the Floxif trojan
+  platform: windows
+  description: Checks for artifacts from the Floxif trojan on Windows machines.
+  query: SELECT * FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Piriform\\Agomo%';
+  powershell: >-
+    $base = "HKLM:\SOFTWARE\Piriform"
+
+    $searchPrefix = "HKEY_LOCAL_MACHINE\SOFTWARE\Piriform\Agomo"
+
+
+    # Recursively get all registry keys under the base path
+
+    Get-ChildItem -Path $base -Recurse | ForEach-Object {
+        if ($_.Name -like "$searchPrefix*") {
+            # Open the registry key to enumerate its values.
+            $regKey = Get-Item -LiteralPath $_.PSPath
+            $valueNames = $regKey.GetValueNames()
+            foreach ($valName in $valueNames) {
+                $valData = $regKey.GetValue($valName)
+                $valType = $regKey.GetValueKind($valName)
+                if ($valName -eq "") {
+                    $nameDisplay = "(Default)"
+                }
+                else {
+                    $nameDisplay = $valName
+                }
+                Write-Output "Path: $($_.Name) | Name: $nameDisplay | Type: $valType | Data: $valData"
+            }
+        }
+    }
+  purpose: Informational
+  tags: hunting, malware
+  contributors: micheal-o
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Shimcache table
+  platform: windows
+  description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
+  query: select * from shimcache
+  purpose: Informational
+  tags: hunting
+  contributors: puffyCid
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get running docker containers
+  platform: darwin, linux
+  description: Returns the running Docker containers
+  query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
+  bash: printf 'id\tname\timage\timage_id\tstate\tstatus\n'; docker ps --filter 'status=running' --format '{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}' | while IFS=$'\t' read -r id name image dstatus; do image_id=$(docker inspect --format='{{.Image}}' "$id"); state=$(docker inspect --format='{{.State.Status}}' "$id"); printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$id" "$name" "$image" "$image_id" "$state" "$dstatus"; done
+  purpose: Informational
+  tags: containers, inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications hogging memory
+  platform: darwin, linux, windows
+  description: Returns top 10 applications or processes hogging memory the most.
+  query: SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;
+  bash: echo "pid name memory_used"; ps -axo pid,comm,rss | sed 1d | sort -k3 -nr | head -n 10 | awk '{mem = $3*1024/1000000; printf "%s %s %.2f\n", $1, $2, mem}'
+  powershell: >-
+    $processes = Get-Process | Sort-Object WorkingSet64 -Descending |
+    Select-Object -First 10
+
+    $results = $processes | Select-Object @{Name="pid";Expression={$_.Id}},
+                                   @{Name="name";Expression={$_.ProcessName}},
+                                   @{Name="memory_used";Expression={[math]::Round($_.WorkingSet64 * 10e-7, 2)}}
+    $results | Format-Table -AutoSize
+  purpose: Informational
+  tags: troubleshooting
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get servers with root login in the last 24 hours
+  platform: darwin, linux, windows
+  description: Returns servers with root login in the last 24 hours and the time the users were logged in.
+  query: SELECT * FROM last WHERE username = "root" AND time > (( SELECT unix_time FROM time ) - 86400 );
+  purpose: Informational
+  tags: hunting
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect active processes with Log4j running
+  platform: darwin, linux
+  description: "Returns a list of active processes and the Jar paths which are using Log4j. Version numbers are usually within the Jar filename. Note: This query is resource intensive and has caused problems on systems with limited swap space. Test on some systems before running this widely."
+  query: |
+    WITH target_jars AS (
+      SELECT DISTINCT path
+      FROM (
+          WITH split(word, str) AS(
+            SELECT '', cmdline || ' '
+            FROM processes
+            UNION ALL
+            SELECT substr(str, 0, instr(str, ' ')), substr(str, instr(str, ' ') + 1)
+            FROM split
+            WHERE str != '')
+          SELECT word AS path
+          FROM split
+          WHERE word LIKE '%.jar'
+        UNION ALL
+          SELECT path
+          FROM process_open_files
+          WHERE path LIKE '%.jar'
+      )
+    )
+    SELECT path, matches
+    FROM yara
+    WHERE path IN (SELECT path FROM target_jars)
+      AND count > 0
+      AND sigrule IN (
+        'rule log4jJndiLookup {
+          strings:
+            $jndilookup = "JndiLookup"
+          condition:
+            $jndilookup
+        }',
+        'rule log4jJavaClass {
+          strings:
+            $javaclass = "org/apache/logging/log4j"
+          condition:
+            $javaclass
+        }'
+      );
+  purpose: Detection
+  tags: vulnerability
+  contributors: zwass,tgauda
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications that were opened within the last 24 hours
+  platform: darwin
+  description: Returns applications that were opened within the last 24 hours starting with the last opened application.
+  query: SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;
+  bash: boundary=$(( $(date +%s) - 86400 )); printf "name,last_opened_time\n"; mdfind "kMDItemContentType == \"com.apple.application-bundle\"" | while IFS= read -r app; do last=$(mdls -raw -name kMDItemLastUsedDate "$app" 2>/dev/null); [ "$last" = "(null)" ] && continue; epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$last" +"%s" 2>/dev/null); [ "$epoch" -gt "$boundary" ] 2>/dev/null && printf "%s,%s\n" "$(basename "$app")" "$epoch"; done | sort -t, -k2,2nr
+  purpose: Informational
+  tags: inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get applications that are not in the Applications directory
+  platform: darwin
+  description: Returns applications that are not in the `/Applications` directory
+  query: SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';
+  bash: mdfind "kMDItemContentType == 'com.apple.application-bundle'" | grep -vE '^/Applications/|^/System/Applications/'
+  purpose: Informational
+  tags: hunting, inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get subscription-based applications that have not been opened for the last 30 days
+  platform: darwin
+  description: Returns applications that are subscription-based and have not been opened for the last 30 days. You can replace the list of applications with those specific to your use case.
+  query: SELECT * FROM apps WHERE path LIKE '/Applications/%' AND name IN ("Photoshop.app", "Adobe XD.app", "Sketch.app", "Illustrator.app") AND last_opened_time < (( SELECT unix_time FROM time ) - 2592000000000 );
+  purpose: Informational
+  tags: inventory
+  contributors: DominusKelvin
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get operating system information
+  platform: darwin, windows, linux
+  description: Returns the operating system name and version on the device.
+  query: SELECT name, version FROM os_version;
+  bash: "echo \"name, version\" && sw_vers | awk -F: '/ProductName/ {gsub(/^[ \\t]+/, \"\", $2); name=$2} /ProductVersion/ {gsub(/^[ \\t]+/, \"\", $2); version=$2} END {print name\", \"version}'"
+  powershell: |-
+    $os = Get-CimInstance Win32_OperatingSystem
+    [PSCustomObject]@{
+        name = $os.Caption
+        version = $os.Version
+    } | Format-Table -AutoSize
+  purpose: Informational
+  tags: inventory, built-in
+  contributors: noahtalerman
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get built-in antivirus status on macOS
+  platform: darwin
+  query: SELECT path, value AS version FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist') OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist');
+  bash: echo "path,version"; for f in "/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist" "/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist"; do v=$(defaults read "$f" CFBundleShortVersionString 2>/dev/null); [ -n "$v" ] && echo "$f,$v"; done
+  description: Reads the version numbers from the Malware Removal Tool (MRT) and built-in antivirus (XProtect) plists
+  purpose: Informational
+  tags: compliance, malware, hardening, built-in
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get antivirus status from the Windows Security Center
+  platform: windows
+  query: SELECT antivirus, signatures_up_to_date from windows_security_center CROSS JOIN windows_security_products WHERE type = 'Antivirus';
+  powershell: >-
+    $avProducts = Get-CimInstance -Namespace 'root\SecurityCenter2' -ClassName AntiVirusProduct -ErrorAction SilentlyContinue
+    $results = foreach ($av in $avProducts) {
+        # Extract signature status from productState. Note: this interpretation may vary between AV products.
+        # The productState is a 32-bit integer. Shifting right 16 bits isolates the signature status.
+        $sigStatus = ($av.productState -shr 16) -band 0xFF
+        # Conventionally, a value of 16 (0x10) indicates signatures are up to date.
+        $signaturesUpToDate = ($sigStatus -eq 16)
+        [PSCustomObject]@{
+            antivirus              = $av.displayName
+            signatures_up_to_date  = $signaturesUpToDate
+        }
+    }
+    $results | Format-Table -AutoSize
+  description: Selects the antivirus and signatures status from Windows Security Center.
+  purpose: Informational
+  tags: compliance, malware, hardening, built-in
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get antivirus (ClamAV/clamd) and updater (freshclam) process status
+  platform: linux
+  query: SELECT pid, state, cmdline, name FROM processes WHERE name='clamd' OR name='freshclam';
+  description: Selects the clamd and freshclam processes to ensure AV and its updater are running
+  purpose: Informational
+  tags: compliance, malware, hardening, built-in
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Discover TLS certificates
+  platform: linux, windows, darwin
+  description: Retrieves metadata about TLS certificates for servers listening on the local machine. Enables mTLS adoption analysis and cert expiration notifications.
+  query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
+  bash: echo "Hostname,Subject,Issuer"; netstat -an | grep LISTEN | grep -v '127.0.0.1' | grep -v '::1' | awk '{print $4}' | sed -E 's/.*\.//' | sort -u | while read port; do cert=$(echo | openssl s_client -connect localhost:$port -servername localhost 2>/dev/null | openssl x509 -noout -subject -issuer 2>/dev/null); subject=$(echo "$cert" | grep '^subject=' | sed 's/subject=//'); issuer=$(echo "$cert" | grep '^issuer=' | sed 's/issuer=//'); echo "localhost:$port,$subject,$issuer"; done
+  powershell: >-
+    function Get-CurlCertificate {
+        param(
+            [string]$hostname,
+            [int]$port
+        )
+        try {
+            $tcpClient = New-Object System.Net.Sockets.TcpClient
+            $tcpClient.Connect($hostname, $port)
+            $networkStream = $tcpClient.GetStream()
+            $sslStream = New-Object System.Net.Security.SslStream($networkStream, $false, { return $true })
+            $sslStream.ReadTimeout = 5000
+            $sslStream.WriteTimeout = 5000
+            $sslStream.AuthenticateAsClient($hostname)
+            $remoteCert = $sslStream.RemoteCertificate
+            if ($remoteCert) {
+                $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $remoteCert
+                [PSCustomObject]@{
+                    Hostname   = "$hostname`:$port"
+                    Subject    = $cert.Subject
+                    Issuer     = $cert.Issuer
+                    NotBefore  = $cert.NotBefore
+                    NotAfter   = $cert.NotAfter
+                    Thumbprint = $cert.Thumbprint
+                }
+            }
+            else {
+                [PSCustomObject]@{
+                    Hostname   = "$hostname`:$port"
+                    Error      = "No certificate returned"
+                }
+            }
+            $sslStream.Close()
+            $tcpClient.Close()
+        }
+        catch {
+            [PSCustomObject]@{
+                Hostname = "$hostname`:$port"
+                Error    = "Failed to retrieve certificate - $_"
+            }
+        }
+    }
+
+
+    # Get distinct TCP listening ports where local address is not 127.0.0.1 or ::1
+
+    $ports = Get-NetTCPConnection -State Listen -Protocol TCP |
+        Where-Object { $_.LocalAddress -ne "127.0.0.1" -and $_.LocalAddress -ne "::1" } |
+        Select-Object -ExpandProperty LocalPort -Unique
+
+    foreach ($port in $ports) {
+        # Use "localhost" as the hostname to match the pattern "localhost:port"
+        $result = Get-CurlCertificate -hostname "localhost" -port $port
+        $result
+    }
+  purpose: Informational
+  tags: network, tls
+  contributors: nabilschear
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Discover Python Packages from Running Python Interpreters
+  platform: linux, darwin
+  description: Attempt to discover Python environments (in cwd, path to the python binary, and process command line) from running python interpreters and collect Python packages from those environments.
+  query: SELECT * FROM python_packages WHERE directory IN (SELECT DISTINCT directory FROM (SELECT SUBSTR(path,0,INSTR(path,'/bin/'))||'/lib' AS directory FROM processes WHERE path LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT SUBSTR(cmdline,0,INSTR(cmdline,'/bin/'))||'/lib' AS directory FROM processes WHERE cmdline LIKE '%python%' AND cmdline LIKE '%/bin/%' AND path LIKE '%python%' UNION SELECT cwd||'/lib' AS directory FROM processes WHERE path LIKE '%python%'));
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: nabilschear
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Identify the default mail, http and ftp applications
+  platforms: macOS
+  platform: darwin
+  description: Lists the currently enabled applications configured to handle mailto, http and ftp schemes.
+  query: SELECT * FROM app_schemes WHERE (scheme='mailto' OR scheme='http' OR scheme='ftp') AND enabled='1';
+  bash: plist=~/Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist; echo "scheme,handler"; /usr/libexec/PlistBuddy -c "Print :LSHandlers" "$plist" 2>/dev/null | awk '/LSHandlerURLScheme/ {split($0,a," = "); scheme=a[2]} /LSHandlerRoleAll/ {split($0,a," = "); handler=a[2]; if(scheme ~ /^(mailto|http|ftp)$/) print scheme","handler}'
+  purpose: Informational
+  tags: compliance, hunting
+  contributors: brunerd
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Identify Apple development secrets (macOS)
+  query: SELECT * FROM keychain_items WHERE label LIKE '%ABCDEFG%';
+  description: "Identifies certificates associated with Apple development signing and notarization. Replace ABCDEFG with your company's identifier."
+  tags: compliance, inventory, built-in
+  platform: darwin
+  contributors: GuillaumeRoss
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Geolocate via ipapi.co
+  platform: darwin, linux, windows
+  description: Geolocate a host using the [ipapi.co](https://ipapi.co) in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
+  query: >-
+    SELECT JSON_EXTRACT(result, '$.ip') AS ip,
+    JSON_EXTRACT(result, '$.city') AS city,
+    JSON_EXTRACT(result, '$.region') AS region,
+    JSON_EXTRACT(result, '$.country') AS country,
+    JSON_EXTRACT(result, '$.latitude') AS latitude,
+    JSON_EXTRACT(result, '$.longitude') AS longitude
+    FROM curl
+    WHERE url = 'http://ipapi.co/json';
+  powershell: |-
+    $uri = 'http://ipapi.co/json'
+    try {
+        $response = Invoke-RestMethod -Uri $uri
+        $result = [PSCustomObject]@{
+            ip        = $response.ip
+            city      = $response.city
+            region    = $response.region
+            country   = $response.country
+            latitude  = $response.latitude
+            longitude = $response.longitude
+        }
+        $result | Format-Table -AutoSize
+    }
+    catch {
+        Write-Error "Failed to retrieve data from $uri`n$($_.Exception.Message)"
+    }
+  purpose: inventory
+  tags: inventory
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get Crowdstrike Falcon network content filter status
+  platform: darwin
+  description: Get the status of the Crowdstrike Falcon network content filter (as in "System Settings" > "Network > "Filters").
+  query: /* Load up the plist */ WITH extensions_plist AS (SELECT *, rowid FROM plist WHERE path = '/Library/Preferences/com.apple.networkextension.plist') /* Find the first "Enabled" key after the key indicating the crowdstrike app */ SELECT value AS enabled FROM extensions_plist WHERE subkey = 'Enabled' AND rowid > (SELECT rowid FROM extensions_plist WHERE value = 'com.crowdstrike.falcon.App') LIMIT 1;
+  purpose: Informational
+  tags: crowdstrike, plist, network, content filter
+  contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get a list of Visual Studio Code extensions
+  platform: darwin, linux, windows
+  description: Get a list of installed VS Code extensions (requires osquery > 5.11.0).
+  query: |
+    SELECT u.username, vs.* FROM users u CROSS JOIN vscode_extensions vs USING (uid);
+  bash: echo "username,extension_name" && for u in /Users/*; do [ -d "$u/.vscode/extensions" ] && for ext in "$u/.vscode/extensions"/*; do [ -d "$ext" ] && echo "$(basename "$u"),$(basename "$ext")"; done; done
+  powershell: >
+    $users = @(
+        [PSCustomObject]@{ uid = 1001; username = 'Alice' },
+        [PSCustomObject]@{ uid = 1002; username = 'Bob' }
+    )
+
+
+    $vscode_extensions = @(
+        [PSCustomObject]@{ uid = 1001; extension = 'ms-python.python'; version = '2023.10.0' },
+        [PSCustomObject]@{ uid = 1002; extension = 'ms-vscode.cpptools'; version = '1.15.0' },
+        [PSCustomObject]@{ uid = 1001; extension = 'ms-vscode.PowerShell'; version = '2023.9.0' }
+    )
+
+
+    $result = foreach ($user in $users) {
+        foreach ($ext in $vscode_extensions | Where-Object { $_.uid -eq $user.uid }) {
+            [PSCustomObject]@{
+                username  = $user.username
+                uid       = $user.uid
+                extension = $ext.extension
+                version   = $ext.version
+            }
+        }
+    }
+
+
+    $result | Format-Table -AutoSize
+  purpose: Informational
+  tags: inventory
+  contributors: lucasmrod,sharon-fdm,zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: List osquery table names
+  platform: darwin, linux, windows
+  description: List all table names in the schema of the currently installed version of osquery
+  query: SELECT DISTINCT name FROM osquery_registry;
+  purpose: Informational
+  tags: fleet, osquery, table, schema
+  contributors: nonpunctual

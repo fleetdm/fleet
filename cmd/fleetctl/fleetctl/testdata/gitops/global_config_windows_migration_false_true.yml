@@ -1,0 +1,75 @@
+controls:
+  macos_settings:
+  windows_settings:
+  scripts:
+  enable_disk_encryption: false
+  macos_migration:
+    enable: false
+    mode: ""
+    webhook_url: ""
+  macos_setup:
+    bootstrap_package: null
+    enable_end_user_authentication: false
+    macos_setup_assistant: null
+  macos_updates:
+    deadline: null
+    minimum_version: null
+  windows_enabled_and_configured: false
+  windows_migration_enabled: true
+  windows_updates:
+    deadline_days: null
+    grace_period_days: null
+queries:
+policies:
+agent_options:
+  command_line_flags:
+    distributed_denylist_duration: 0
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/v1/osquery/log
+      pack_delimiter: /
+org_settings:
+  server_settings:
+    deferred_save_host: false
+    enable_analytics: true
+    live_query_disabled: false
+    query_report_cap: 2000
+    query_reports_disabled: false
+    scripts_disabled: false
+    server_url: $FLEET_SERVER_URL
+    ai_features_disabled: true
+  org_info:
+    contact_url: https://fleetdm.com/company/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: $ORG_NAME
+  smtp_settings:
+  sso_settings:
+  integrations:
+  mdm:
+    end_user_authentication:
+  webhook_settings:
+  fleet_desktop: # Applies to Fleet Premium only
+    transparency_url: https://fleetdm.com/transparency
+  host_expiry_settings: # Applies to all teams
+    host_expiry_enabled: false
+  activity_expiry_settings:
+    activity_expiry_enabled: true
+    activity_expiry_window: 60
+  features: # Features added to all teams
+    enable_host_users: true
+    enable_software_inventory: true
+  vulnerability_settings:
+    databases_path: ""
+  secrets: # These secrets are used to enroll hosts to the "All teams" team
+    - secret: SampleSecret123
+    - secret: ABC
+software:

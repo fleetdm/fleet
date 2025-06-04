@@ -143,6 +143,15 @@ func (dc *DeviceClient) BrowserDeviceURL(token string) string {
 	return deviceURL.String()
 }
 
+// BrowserPoliciesURL returns the "Policies" URL for the browser.
+func (dc *DeviceClient) BrowserPoliciesURL(token string) string {
+	deviceURL := dc.baseClient.url(fmt.Sprintf(`/device/%s/policies`, token), "")
+	if dc.fleetAlternativeBrowserHost != "" {
+		deviceURL.Host = dc.fleetAlternativeBrowserHost
+	}
+	return deviceURL.String()
+}
+
 // CheckToken checks if a token is valid by making an authenticated request to
 // the server
 func (dc *DeviceClient) CheckToken(token string) error {

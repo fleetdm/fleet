@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -154,6 +155,36 @@ func insertQuery(t *testing.T, db *sqlx.DB) uint {
 	return uint(id) //nolint:gosec // dismiss G115
 }
 
+func checkCollation(t *testing.T, db *sqlx.DB) {
+	type collationData struct {
+		CollationName    string `db:"COLLATION_NAME"`
+		TableName        string `db:"TABLE_NAME"`
+		ColumnName       string `db:"COLUMN_NAME"`
+		CharacterSetName string `db:"CHARACTER_SET_NAME"`
+	}
+
+	stmt := `
+SELECT
+	TABLE_NAME, COLLATION_NAME, COLUMN_NAME, CHARACTER_SET_NAME 
+FROM information_schema.columns
+WHERE
+	TABLE_SCHEMA = (SELECT DATABASE()) 
+	AND (CHARACTER_SET_NAME != ? OR COLLATION_NAME != ?)`
+
+	var nonStandardCollations []collationData
+	err := db.Select(&nonStandardCollations, stmt, "utf8mb4", "utf8mb4_unicode_ci")
+	require.NoError(t, err)
+
+	exceptions := []collationData{
+		{"utf8mb4_bin", "enroll_secrets", "secret", "utf8mb4"},
+		{"utf8mb4_bin", "hosts", "node_key", "utf8mb4"},
+		{"utf8mb4_bin", "hosts", "orbit_node_key", "utf8mb4"},
+		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
+	}
+
+	require.ElementsMatch(t, exceptions, nonStandardCollations)
+}
+
 func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
 	// Insert a minimal record into hosts table
 	insertHostStmt := `
@@ -190,9 +221,167 @@ func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
 	return uint(id) //nolint:gosec // dismiss G115
 }
 
+// insertHosts inserts the specified number of hosts per platform. Note that
+// macOS hosts will have their enrollment information inserted as well in the
+// nano tables. It returns the host IDs of each platform, and the map of IDs to
+// host UUIDs.
+func insertHosts(t *testing.T, db *sqlx.DB, numMacOS, numWin, numLinux int) (macIDs, winIDs, linuxIDs []uint, idsToUUIDs map[uint]string) {
+	const insertHostStmt = `
+		INSERT INTO hosts (
+			hostname, uuid, platform, osquery_version, os_version, build, platform_like, code_name,
+			cpu_type, cpu_subtype, cpu_brand, hardware_vendor, hardware_model, hardware_version,
+			hardware_serial, computer_name, team_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	perPlatformCounts := map[string]int{"darwin": numMacOS, "windows": numWin, "linux": numLinux}
+	perPlatformOS := map[string]string{"darwin": "macOS 15.1", "windows": "Windows 11", "linux": "Ubuntu 24.04"}
+	perPlatformIDs := map[string][]uint{"darwin": macIDs, "windows": winIDs, "linux": linuxIDs}
+	perPlatformUUIDs := make(map[string][]string)
+	idsToUUIDs = make(map[uint]string, numMacOS+numWin+numLinux)
+
+	for platform, count := range perPlatformCounts {
+		for i := 0; i < count; i++ {
+			// Insert a minimal record into hosts table
+			hostName := fmt.Sprintf("host-%s-%d", platform, i)
+			hostUUID := uuid.NewString()
+			hostPlatform := platform
+			osqueryVer := "5.9.1"
+			osVersion := perPlatformOS[platform]
+			buildVersion := "10.0.19042.1234"
+			platformLike := platform
+			codeName := "20H2"
+			cpuType := "x86_64"
+			cpuSubtype := "x86_64"
+			cpuBrand := "Intel"
+			hwVendor := "Dell Inc."
+			hwModel := "OptiPlex 7090"
+			hwVersion := "1.0"
+			hwSerial := uuid.NewString()
+			computerName := fmt.Sprintf("DESKTOP-%s-%d", platform, i)
+
+			id := execNoErrLastID(t, db, insertHostStmt, hostName, hostUUID, hostPlatform, osqueryVer,
+				osVersion, buildVersion, platformLike, codeName, cpuType, cpuSubtype, cpuBrand,
+				hwVendor, hwModel, hwVersion, hwSerial, computerName, nil)
+
+			perPlatformIDs[platform] = append(perPlatformIDs[platform], uint(id)) // nolint:gosec
+			perPlatformUUIDs[platform] = append(perPlatformUUIDs[platform], hostUUID)
+			idsToUUIDs[uint(id)] = hostUUID // nolint:gosec
+		}
+	}
+
+	for _, uid := range perPlatformUUIDs["darwin"] {
+		execNoErr(t, db, `INSERT INTO nano_devices (id, authenticate)
+			VALUES (?, ?)`, uid, "auth")
+		execNoErr(t, db, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, uid, uid, "device", "topic", "magic", "hex", time.Now())
+	}
+
+	return perPlatformIDs["darwin"], perPlatformIDs["windows"], perPlatformIDs["linux"], idsToUUIDs
+}
+
+func insertScriptContents(t *testing.T, db *sqlx.DB, count int) []uint {
+	ids := make([]uint, 0, count)
+	for i := 0; i < count; i++ {
+		content := fmt.Sprintf(`echo %d`, i)
+		csum := md5ChecksumScriptContent(content)
+		id := execNoErrLastID(t, db, `INSERT INTO script_contents
+			(md5_checksum, contents) VALUES (UNHEX(?), ?)`, csum, content)
+		ids = append(ids, uint(id)) //nolint:gosec
+	}
+	return ids
+}
+
+// returns the installer IDs and the title IDs
+func insertSoftwareInstallers(t *testing.T, db *sqlx.DB, count int) (installerIDs, titleIDs []uint) {
+	installerIDs = make([]uint, 0, count)
+	titleIDs = make([]uint, 0, count)
+
+	for i := 0; i < count; i++ {
+		content := fmt.Sprintf(`install %d`, i)
+		csum := md5ChecksumScriptContent(content)
+		installID := execNoErrLastID(t, db, `INSERT INTO script_contents
+			(md5_checksum, contents) VALUES (UNHEX(?), ?)`, csum, content)
+
+		content = fmt.Sprintf(`uninstall %d`, i)
+		csum = md5ChecksumScriptContent(content)
+		uninstallID := execNoErrLastID(t, db, `INSERT INTO script_contents
+			(md5_checksum, contents) VALUES (UNHEX(?), ?)`, csum, content)
+
+		titleID := execNoErrLastID(t, db, `INSERT INTO software_titles
+			(name, source, browser) VALUES (?, 'apps', '')`, fmt.Sprintf("Foo%d.app", i))
+		installerID := execNoErrLastID(t, db, `INSERT INTO software_installers
+			(title_id, filename, version, platform, install_script_content_id, storage_id, package_ids, uninstall_script_content_id)
+			VALUES (?, ?, '1.1', 'darwin', ?, ?, '', ?)`, titleID, fmt.Sprintf("foo-%d.pkg", i), installID, fmt.Sprintf("storage-%d", i), uninstallID)
+
+		installerIDs = append(installerIDs, uint(installerID)) //nolint:gosec
+		titleIDs = append(titleIDs, uint(titleID))             //nolint:gosec
+	}
+
+	return installerIDs, titleIDs
+}
+
+func insertVPPApps(t *testing.T, db *sqlx.DB, count int, platform string) (adamIDs []string, titleIDs []uint) {
+	adamIDs = make([]string, 0, count)
+	titleIDs = make([]uint, 0, count)
+
+	for i := 0; i < count; i++ {
+		titleID := execNoErrLastID(t, db, `INSERT INTO software_titles
+			(name, source, browser) VALUES (?, 'apps', '')`, fmt.Sprintf("Bar%d.app", i))
+		adamID := fmt.Sprintf("adam-%d", i)
+		execNoErr(t, db, `INSERT INTO vpp_apps (adam_id, platform, title_id)
+			VALUES (?, ?, ?)`, adamID, platform, titleID)
+
+		adamIDs = append(adamIDs, adamID)
+		titleIDs = append(titleIDs, uint(titleID)) //nolint:gosec
+	}
+
+	return adamIDs, titleIDs
+}
+
 func assertRowCount(t *testing.T, db *sqlx.DB, table string, count int) {
 	var n int
 	err := db.Get(&n, fmt.Sprintf("SELECT COUNT(*) FROM %s", table))
 	require.NoError(t, err)
 	assert.Equal(t, count, n)
+}
+
+func insertAppleConfigProfile(t *testing.T, db *sqlx.DB, name, identifier string, vars ...string) string {
+	contents := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+							%s
+            </dict>
+        </array>
+        <key>PayloadDisplayName</key>
+        <string>%s</string>
+        <key>PayloadIdentifier</key>
+        <string>%s</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>%s</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+    </dict>
+</plist>`
+	var varDict strings.Builder
+	for i, v := range vars {
+		// add some vars with "${...}" and some with "$..."
+		if i%2 == 0 {
+			v = fmt.Sprintf("{%s}", v)
+		}
+		varDict.WriteString(fmt.Sprintf(`
+						<key>Var%d</key>
+						<string>$%s</string>`, i, v))
+	}
+	profileUUID := uuid.NewString()
+	contents = fmt.Sprintf(contents, varDict.String(), name, identifier, profileUUID)
+
+	execNoErr(t, db, `INSERT INTO mdm_apple_configuration_profiles (profile_uuid, identifier, name, mobileconfig, checksum)
+		VALUES (?, ?, ?, ?, UNHEX(MD5(?)))`, profileUUID, identifier, name, contents, contents)
+	return profileUUID
 }

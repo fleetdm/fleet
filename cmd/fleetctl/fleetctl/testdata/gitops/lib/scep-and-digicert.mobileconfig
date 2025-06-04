@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+                <key>PayloadContent</key>
+                <dict>
+                    <key>Challenge</key>
+                    <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CustomScepProxy</string>
+                    <key>URL</key>
+                    <string>${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CustomScepProxy}</string>
+                    <key>Key Type</key>
+                    <string>RSA</string>
+                    <key>Key Usage</key>
+                    <integer>5</integer>
+                    <key>Keysize</key>
+                    <integer>2048</integer>
+                    <key>Subject</key>
+                    <array>
+                        <array>
+                            <array>
+                                <string>CN</string>
+                                <string>%SerialNumber% WIFI ${FLEET_VAR_SCEP_RENEWAL_ID}</string>
+                            </array>
+                        </array>
+                        <array>
+                            <array>
+                                <string>OU</string>
+                                <string>FLEET DEVICE MANAGEMENT</string>
+                            </array>
+                        </array>
+                    </array>
+                </dict>
+                <key>PayloadDisplayName</key>
+                <string>SCEP</string>
+                <key>PayloadIdentifier</key>
+                <string>com.fleetdm.custom.scep</string>
+                <key>PayloadType</key>
+                <string>com.apple.security.scep</string>
+                <key>PayloadUUID</key>
+                <string>9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AC</string>
+                <key>PayloadVersion</key>
+                <integer>1</integer>
+            </dict>
+            <dict>
+                <key>Password</key>
+                <string>$FLEET_VAR_DIGICERT_PASSWORD_DigiCert</string>
+                <key>PayloadContent</key>
+                <data>${FLEET_VAR_DIGICERT_DATA_DigiCert}</data>
+                <key>PayloadDisplayName</key>
+                <string>CertificatePKCS12</string>
+                <key>PayloadIdentifier</key>
+                <string>com.fleetdm.pkcs12</string>
+                <key>PayloadType</key>
+                <string>com.apple.security.pkcs12</string>
+                <key>PayloadUUID</key>
+                <string>ee86cfcb-2409-42c2-9394-1f8113412e04</string>
+                <key>PayloadVersion</key>
+                <integer>1</integer>
+            </dict>
+        </array>
+        <key>PayloadDisplayName</key>
+        <string>Demo DigiCert</string>
+        <key>PayloadIdentifier</key>
+        <string>TopPayloadIdentifier</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>TopPayloadUUID</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+    </dict>
+</plist>

@@ -1,6 +1,8 @@
 # Fleet 4.56.0 | Enhanced MDM migration, Exact CVE Search, and Self-Service VPP Apps.
 
-![Fleet 4.56.0](../website/assets/images/articles/fleet-4.56.0-1600x900@2x.png)
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/aQyePPQ0uXA?si=w9FB7AvxbOrun76O" frameborder="0" allowfullscreen></iframe>
+</div>
 
 Fleet 4.56.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.56.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.

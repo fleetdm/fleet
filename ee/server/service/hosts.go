@@ -91,18 +91,6 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 				return "", ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 			}
 		}
-		// on windows and linux, a script is used to lock the host so scripts must
-		// be enabled
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "get app config")
-		}
-		if appCfg.ServerSettings.ScriptsDisabled {
-			return "", ctxerr.Wrap(
-				ctx,
-				fleet.NewInvalidArgumentError("host_id", "Can't lock host because running scripts is disabled in organization settings."),
-			)
-		}
 		hostOrbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
 		switch {
 		case err != nil:
@@ -181,8 +169,8 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		// is currently locked.
 
 	case "windows", "linux":
-		// on windows and linux, a script is used to lock the host so scripts must
-		// be enabled
+		// on Windows and Linux, a script is used to unlock the host so scripts must
+		// be enabled on the host
 		if host.FleetPlatform() == "windows" {
 			if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
 				if errors.Is(err, fleet.ErrMDMNotConfigured) {
@@ -190,13 +178,6 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 				}
 				return "", ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 			}
-		}
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "get app config")
-		}
-		if appCfg.ServerSettings.ScriptsDisabled {
-			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't unlock host because running scripts is disabled in organization settings."))
 		}
 		hostOrbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
 		switch {
@@ -286,14 +267,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 		requireMDM = true
 
 	case "linux":
-		// on linux, a script is used to wipe the host so scripts must be enabled
-		appCfg, err := svc.ds.AppConfig(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get app config")
-		}
-		if appCfg.ServerSettings.ScriptsDisabled {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe host because running scripts is disabled in organization settings."))
-		}
+		// on linux, a script is used to wipe the host so scripts must be enabled on the host
 		hostOrbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
 		switch {
 		case err != nil:
@@ -515,12 +489,6 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 	return nil
 }
 
-// TODO(mna): ideally we'd embed the scripts from the scripts/mdm/windows/..
-// and scripts/mdm/linux/.. directories where they currently exist, but this is
-// not possible (not a Go package) and I don't know if those script locations
-// are used elsewhere, so for now I just copied the contents under
-// embedded_scripts directory. We'll have to make sure they are kept in sync,
-// or better yet find a way to maintain a single copy.
 var (
 	//go:embed embedded_scripts/windows_lock.ps1
 	windowsLockScript []byte

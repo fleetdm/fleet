@@ -2,13 +2,15 @@
 
 In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi etc., on your your macOS, iOS, iPadOS, and Windows hosts using configuration profiles.
 
-## Enforce OS settings
+Currently, Fleet only supports system (device) level configuration profiles.
+
+## Enforce
 
 You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
-For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles.
+For macOS, iOS, and iPadOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles. Fleet signs these profiles for you. If you have self-signed profiles, run this command to unsign them: `usr/bin/security cms -D -i  /path/to/profile/profile.mobileconfig | xmllint --format -`
 
-For Windows hosts, copy out this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any configuration service providers (CSPs) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
+For Windows hosts, copy this [Windows configuration profile template](https://fleetdm.com/example-windows-profile) and update the profile using any configuration service providers (CSPs) from [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/). Learn more about Windows CSPs [here](https://fleetdm.com/guides/creating-windows-csps).
 
 Fleet UI:
 
@@ -18,27 +20,27 @@ Fleet UI:
 
 3. Select **Upload** and choose your configuration profile.
 
-4. To modify the OS setting, first remove the old configuration profile and then add the new one.
-
-> On macOS, iOS, and iPadOS, removing a configuration profile will remove enforcement of the OS setting.
+4. To edit the OS setting, first remove the old configuration profile and then add the new one. On macOS, iOS, and iPadOS, removing a configuration profile will remove enforcement of the OS setting.
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile)
 
-### OS settings status
+### See status
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
 
 In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts:
 
-* Verified: hosts that installed all configuration profiles. Fleet has verified with osquery.
+* **Verified**: hosts that applied all OS settings. Fleet verified by running an osquery query on Windows and macOS hosts (declarations profiles are verified with a [DDM StatusReport](https://developer.apple.com/documentation/devicemanagement/statusreport)). Currently, iOS and iPadOS hosts are "Verified" after they acknowledge all MDM commands to apply OS settings.
 
-* Verifying: hosts that have acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery. If the profile wasn't installed, Fleet will redeliver the profile.
+* **Verifying**: hosts that acknowledged all MDM commands to apply OS settings. Fleet is verifying. If the profile wasn't delivered, Fleet will redeliver the profile.
 
-* Pending: hosts that will receive MDM commands to install configuration profiles when the hosts come online.
+* **Pending**: hosts that are running MDM commands or will run MDM commands to apply OS settings when they come online.
 
-* Failed: hosts that failed to install configuration profiles. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
+* **Failed**: hosts that failed to apply OS settings. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
 In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
+
+Currently, when editing a profile using Fleet's GitOps workflow, it can take 30 seconds for the profile's status to update to "Pending."
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

@@ -30,7 +30,6 @@ type Service struct {
 	ds             fleet.Datastore
 	task           *async.Task
 	carveStore     fleet.CarveStore
-	installerStore fleet.InstallerStore
 	resultStore    fleet.QueryResultStore
 	liveQueryStore fleet.LiveQueryStore
 	logger         kitlog.Logger
@@ -61,7 +60,9 @@ type Service struct {
 
 	cronSchedulesService fleet.CronSchedulesService
 
-	wstepCertManager microsoft_mdm.CertManager
+	wstepCertManager  microsoft_mdm.CertManager
+	scepConfigService fleet.SCEPConfigService
+	digiCertService   fleet.DigiCertService
 }
 
 func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -98,7 +99,6 @@ func NewService(
 	sso sso.SessionStore,
 	lq fleet.LiveQueryStore,
 	carveStore fleet.CarveStore,
-	installerStore fleet.InstallerStore,
 	failingPolicySet fleet.FailingPolicySet,
 	geoIP fleet.GeoIP,
 	enrollHostLimiter fleet.EnrollHostLimiter,
@@ -107,6 +107,8 @@ func NewService(
 	mdmPushService nanomdm_push.Pusher,
 	cronSchedulesService fleet.CronSchedulesService,
 	wstepCertManager microsoft_mdm.CertManager,
+	scepConfigService fleet.SCEPConfigService,
+	digiCertService fleet.DigiCertService,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -117,7 +119,6 @@ func NewService(
 		ds:                ds,
 		task:              task,
 		carveStore:        carveStore,
-		installerStore:    installerStore,
 		resultStore:       resultStore,
 		liveQueryStore:    lq,
 		logger:            logger,
@@ -141,6 +142,8 @@ func NewService(
 		mdmAppleCommander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 		cronSchedulesService: cronSchedulesService,
 		wstepCertManager:     wstepCertManager,
+		scepConfigService:    scepConfigService,
+		digiCertService:      digiCertService,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

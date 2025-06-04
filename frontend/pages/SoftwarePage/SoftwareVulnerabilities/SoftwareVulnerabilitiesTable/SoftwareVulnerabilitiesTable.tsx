@@ -13,21 +13,22 @@ import {
 } from "utilities/constants";
 import { isIncompleteQuoteQuery } from "utilities/strings/stringUtils";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
-import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/EmptyVulnerabilitiesTable";
+import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/EmptyVulnerabilitiesTable";
 
 import {
   IVulnerabilitiesResponse,
   IVulnerabilitiesEmptyStateReason,
 } from "services/entities/vulnerabilities";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
 import generateTableConfig from "./VulnerabilitiesTableConfig";
@@ -54,7 +55,6 @@ interface ISoftwareVulnerabilitiesTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  resetPageIndex: boolean;
 }
 
 const SoftwareVulnerabilitiesTable = ({
@@ -70,7 +70,6 @@ const SoftwareVulnerabilitiesTable = ({
   currentPage,
   teamId,
   isLoading,
-  resetPageIndex,
 }: ISoftwareVulnerabilitiesTableProps) => {
   const { isPremiumTier } = useContext(AppContext);
 
@@ -165,7 +164,7 @@ const SoftwareVulnerabilitiesTable = ({
   }, [data, router, teamId]);
 
   const handleExploitedVulnFilterDropdownChange = (
-    isFilterExploited: boolean
+    isFilterExploited: string
   ) => {
     router.replace(
       getNextLocationPath({
@@ -176,7 +175,7 @@ const SoftwareVulnerabilitiesTable = ({
           team_id: teamId,
           order_direction: orderDirection,
           order_key: orderKey,
-          exploit: isFilterExploited.toString(),
+          exploit: isFilterExploited,
           page: 0, // resets page index
         },
       })
@@ -184,16 +183,18 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsByVulnerabilityParams = {
-      vulnerability: row.original.cve,
-      team_id: teamId,
-    };
+    if (row.original.cve) {
+      const cveName = row.original.cve.toString();
 
-    const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsByVulnerabilityParams
-    )}`;
+      const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_VULNERABILITY_DETAILS(cveName),
+        {
+          team_id: teamId,
+        }
+      );
 
-    router.push(path);
+      router.push(softwareVulnerabilityDetailsPath);
+    }
   };
 
   const renderVulnerabilityCount = () => {
@@ -236,13 +237,15 @@ const SoftwareVulnerabilitiesTable = ({
   // Exploited vulnerabilities is a premium feature
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
-      <Dropdown
-        value={showExploitedVulnerabilitiesOnly}
-        className={`${baseClass}__exploited-vulnerabilities-dropdown`}
+      <DropdownWrapper
+        name="exploited-vuln-filter"
+        value={showExploitedVulnerabilitiesOnly.toString()}
+        className={`${baseClass}__exploited-vulnerabilities-filter`}
         options={getExploitedVulnerabilitiesDropdownOptions(isPremiumTier)}
-        searchable={false}
-        onChange={handleExploitedVulnFilterDropdownChange}
-        iconName="filter"
+        onChange={(newValue: SingleValue<CustomOptionType>) =>
+          newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
+        }
+        variant="table-filter"
       />
     );
   };
@@ -253,7 +256,7 @@ const SoftwareVulnerabilitiesTable = ({
         columnConfigs={vulnerabilitiesTableHeaders}
         data={data?.vulnerabilities || []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptyVulnerabilitiesTable
             isPremiumTier={isPremiumTier}
@@ -266,7 +269,7 @@ const SoftwareVulnerabilitiesTable = ({
         defaultSearchQuery={query}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        pageIndex={currentPage}
         manualSortBy
         pageSize={perPage}
         showMarkAllPages={false}
@@ -280,11 +283,11 @@ const SoftwareVulnerabilitiesTable = ({
         customControl={
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined
         }
+        stackControls
         renderCount={renderVulnerabilityCount}
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

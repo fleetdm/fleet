@@ -12,7 +12,6 @@ import TableContainer from "components/TableContainer";
 import { ITargestInputHostTableConfig } from "./TargetsInputHostsTableConfig";
 
 interface ITargetsInputProps {
-  tabIndex?: number;
   searchText: string;
   searchResults: IHost[];
   isTargetsLoading: boolean;
@@ -35,7 +34,6 @@ const baseClass = "targets-input";
 const DEFAULT_LABEL = "Target specific hosts";
 
 const TargetsInput = ({
-  tabIndex,
   searchText,
   searchResults,
   isTargetsLoading,
@@ -52,7 +50,7 @@ const TargetsInput = ({
 }: ITargetsInputProps): JSX.Element => {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const dropdownHosts =
-    searchResults && pullAllBy(searchResults, targetedHosts, "display_name");
+    searchResults && pullAllBy(searchResults, targetedHosts, "id");
 
   const [isActiveSearch, setIsActiveSearch] = useState(false);
 
@@ -108,7 +106,7 @@ const TargetsInput = ({
               emptyComponent={() => (
                 <div className="empty-search">
                   <div className="empty-search__inner">
-                    <h4>No hosts match the current search criteria.</h4>
+                    <h4>No matching hosts.</h4>
                     <p>
                       Expecting to see hosts? Try again in a few seconds as the
                       system catches up.
@@ -122,6 +120,7 @@ const TargetsInput = ({
               disablePagination
               disableMultiRowSelect
               onClickRow={handleRowSelect}
+              keyboardSelectableRows
             />
           </div>
         )}

@@ -1,0 +1,27 @@
+.android-mdm-page {
+  &__back-to-mdm {
+    margin-bottom: $pad-xlarge;
+  }
+
+  h1 {
+    margin-bottom: $pad-large;
+    font-size: $x-large;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $pad-large;
+  }
+
+  &__turn-on-description {
+    display: flex;
+    gap: $pad-small;
+    align-items: center;
+
+    p {
+      margin: 0;
+    }
+  }
+}

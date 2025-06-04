@@ -163,7 +163,8 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
 
-	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	// filevault profile is a fleet-controlled profile that doesn't use any Fleet variables
+	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp, nil)
 	return ctxerr.Wrap(ctx, err, "enabling FileVault")
 }
 
@@ -216,6 +217,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.ManualAgentInstall != nil {
+		if ac.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
+			ac.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
@@ -255,7 +263,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return err
 	}
 	if !ac.MDM.EnabledAndConfigured {
-		return &fleet.MDMNotConfiguredError{}
+		return fleet.ErrMDMNotConfigured
 	}
 
 	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
@@ -279,7 +287,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	return nil
 }
 
-func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
+func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -295,8 +303,14 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		ptrTeamId = &teamID
 	}
 
-	hashBuf := bytes.NewBuffer(nil)
-	if err := file.CheckPKGSignature(io.TeeReader(pkg, hashBuf)); err != nil {
+	// Read the pkg into a buffer
+	buff := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buff, pkg); err != nil {
+		return err
+	}
+	buffReader := bytes.NewReader(buff.Bytes())
+
+	if err := file.CheckPKGSignature(buffReader); err != nil {
 		msg := "invalid package"
 		if errors.Is(err, file.ErrInvalidType) || errors.Is(err, file.ErrNotSigned) {
 			msg = err.Error()
@@ -308,10 +322,26 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		}
 	}
 
-	pkgBuf := bytes.NewBuffer(nil)
+	buffReader.Reset(buff.Bytes())
+	hasDistribution, err := file.XARHasDistribution(buffReader)
+	if err != nil {
+		return &fleet.BadRequestError{
+			Message:     err.Error(),
+			InternalErr: err,
+		}
+	}
+	if !hasDistribution {
+		return &fleet.BadRequestError{Message: fleet.BootstrapPkgNotDistributionErrMsg}
+	}
+
+	buffReader.Reset(buff.Bytes())
 	hash := sha256.New()
-	if _, err := io.Copy(hash, io.TeeReader(hashBuf, pkgBuf)); err != nil {
+	if _, err := io.Copy(hash, buffReader); err != nil {
 		return err
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	bp := &fleet.MDMAppleBootstrapPackage{
@@ -319,7 +349,7 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		Name:   name,
 		Token:  uuid.New().String(),
 		Sha256: hash.Sum(nil),
-		Bytes:  pkgBuf.Bytes(),
+		Bytes:  buff.Bytes(),
 	}
 	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp, svc.bootstrapPackageStore); err != nil {
 		return err
@@ -363,7 +393,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 	return meta, nil
 }
 
-func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error {
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint, dryRun bool) error {
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
@@ -387,6 +417,10 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
@@ -652,8 +686,8 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
-	// For now, until we get to #10999, we assume that SSO is disabled if
-	// no settings are provided.
+	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
+	// Note: enable_end_user_authentication is a team-specific setting. This means some teams may not use SSO even if it is configured.
 	if settings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
@@ -704,7 +738,9 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
 }
 
-func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (string, string, string, error) {
+func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (profileToken string, enrollmentReference string,
+	eulaToken string, err error,
+) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")
@@ -716,8 +752,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 	}
 
 	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
-	// For now, until we get to #10999, we assume that SSO is disabled if
-	// no settings are provided.
+	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
 	if settings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
@@ -770,7 +805,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
 
-	var eulaToken string
 	if eula != nil {
 		eulaToken = eula.Token
 	}
@@ -1013,10 +1047,25 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 		windows = *w
 	}
 
+	// Linux doesn't have configuration profiles, so if we aren't enforcing disk encryption we have nothing to report
+	diskEncEnabled, err := svc.ds.GetConfigEnableDiskEncryption(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check if disk encryption is enabled")
+	}
+
+	var linux fleet.MDMLinuxDiskEncryptionSummary
+	if diskEncEnabled {
+		linux, err = svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")
+		}
+	}
+
 	return &fleet.MDMDiskEncryptionSummary{
 		Verified: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.Verified,
 			Windows: windows.Verified,
+			Linux:   linux.Verified,
 		},
 		Verifying: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.Verifying,
@@ -1025,6 +1074,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 		ActionRequired: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.ActionRequired,
 			Windows: windows.ActionRequired,
+			Linux:   linux.ActionRequired,
 		},
 		Enforcing: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.Enforcing,
@@ -1033,6 +1083,7 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 		Failed: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.Failed,
 			Windows: windows.Failed,
+			Linux:   linux.Failed,
 		},
 		RemovingEnforcement: fleet.MDMPlatformsCounts{
 			MacOS:   macOS.RemovingEnforcement,
@@ -1266,6 +1317,22 @@ func (svc *Service) ListABMTokens(ctx context.Context) ([]*fleet.ABMToken, error
 	return tokens, nil
 }
 
+func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
+	// Authorizing using the more general AppConfig object because:
+	// - this service method returns a count, which is not sensitive information
+	// - gitops role, which needs this info, is not authorized for AppleBM access (as of 2024/12/02)
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return 0, err
+	}
+
+	tokens, err := svc.ds.GetABMTokenCount(ctx)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count ABM tokens")
+	}
+
+	return tokens, nil
+}
+
 func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOSTeamID, iOSTeamID, iPadOSTeamID *uint) (*fleet.ABMToken, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleBM{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -1277,7 +1344,6 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	// validate the team IDs
-
 	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
 	token.MacOSDefaultTeamID = nil
 	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}

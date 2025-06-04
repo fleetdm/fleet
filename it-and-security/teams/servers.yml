@@ -4,12 +4,12 @@ team_settings:
     enable_host_users: true
     enable_software_inventory: true
   host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
+    host_expiry_enabled: true
+    host_expiry_window: 30
   secrets:
     - secret: $DOGFOOD_SERVERS_ENROLL_SECRET
 agent_options:
-  path: ../lib/servers.agent-options.yml
+  path: ../lib/all/agent-options/servers.agent-options.yml
 controls:
   enable_disk_encryption: false
   macos_settings:

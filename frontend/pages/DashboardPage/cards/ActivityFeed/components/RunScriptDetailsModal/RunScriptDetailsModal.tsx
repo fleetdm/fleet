@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "react-query";
 
 import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
@@ -10,6 +10,7 @@ import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import Spinner from "components/Spinner/Spinner";
+import ModalFooter from "components/ModalFooter";
 
 const baseClass = "run-script-details-modal";
 
@@ -19,12 +20,9 @@ interface IScriptContentProps {
 
 const ScriptContent = ({ content }: IScriptContentProps) => {
   return (
-    <div className={`${baseClass}__script-content`}>
-      <span>Script content:</span>
-      <Textarea className={`${baseClass}__script-content-textarea`}>
-        {content}
-      </Textarea>
-    </div>
+    <Textarea label="Script content:" variant="code">
+      {content}
+    </Textarea>
   );
 };
 
@@ -121,40 +119,35 @@ const StatusMessage = ({
 interface IScriptOutputProps {
   output: string;
   hostname: string;
+  wasAdHoc: boolean;
 }
 
-const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
-  return (
-    <div className={`${baseClass}__script-output`}>
-      <p>
-        The{" "}
-        <TooltipWrapper
-          tipContent="Fleet records the last 10,000 characters to prevent downtime."
-          tooltipClass={`${baseClass}__output-tooltip`}
-          isDelayed
-        >
-          output recorded
-        </TooltipWrapper>{" "}
-        when <b>{hostname}</b> ran the script above:
-      </p>
-      <Textarea className={`${baseClass}__output-textarea`}>{output}</Textarea>
-    </div>
-  );
-};
-
-interface IScriptResultProps {
-  hostname: string;
-  output: string;
-}
-
-const ScriptResult = ({ hostname, output }: IScriptResultProps) => {
-  return (
-    <div className={`${baseClass}__script-result`}>
-      <ScriptOutput output={output} hostname={hostname} />
-    </div>
-  );
-};
-
+const ScriptOutput = ({
+  output,
+  hostname,
+  wasAdHoc = false,
+}: IScriptOutputProps) => (
+  <div className={`${baseClass}__script-result`}>
+    <Textarea
+      label={
+        <>
+          The{" "}
+          <TooltipWrapper
+            tipContent="Fleet records the last 10,000 characters to prevent downtime."
+            tooltipClass={`${baseClass}__output-tooltip`}
+            isDelayed
+          >
+            output recorded
+          </TooltipWrapper>{" "}
+          when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
+        </>
+      }
+      variant="code"
+    >
+      {output}
+    </Textarea>
+  </div>
+);
 interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;
@@ -166,6 +159,17 @@ const RunScriptDetailsModal = ({
   onCancel,
   isHidden = false,
 }: IRunScriptDetailsModalProps) => {
+  // For scrollable modal
+  const [isTopScrolling, setIsTopScrolling] = useState(false);
+  const topDivRef = useRef<HTMLDivElement>(null);
+  const checkScroll = () => {
+    if (topDivRef.current) {
+      const isScrolling =
+        topDivRef.current.scrollHeight > topDivRef.current.clientHeight;
+      setIsTopScrolling(isScrolling);
+    }
+  };
+
   const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
     ["runScriptDetailsModal", scriptExecutionId],
     () => {
@@ -173,6 +177,13 @@ const RunScriptDetailsModal = ({
     },
     { refetchOnWindowFocus: false, enabled: !!scriptExecutionId }
   );
+
+  // For scrollable modal
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener("resize", checkScroll);
+    return () => window.removeEventListener("resize", checkScroll);
+  }, [data]); // Re-run when data changes
 
   const renderContent = () => {
     let content = <></>;
@@ -189,6 +200,7 @@ const RunScriptDetailsModal = ({
         data.exit_code === null && data.host_timeout === false;
       const showOutputText =
         !hostTimedOut && !scriptsDisabledForHost && !scriptStillRunning;
+      const ranAdHocScript = data.script_id === null;
 
       content = (
         <>
@@ -197,27 +209,33 @@ const RunScriptDetailsModal = ({
             exitCode={data.exit_code}
             message={data.output}
           />
-          <ScriptContent content={data.script_contents} />
+          {ranAdHocScript && <ScriptContent content={data.script_contents} />}
           {showOutputText && (
-            <ScriptResult hostname={data.hostname} output={data.output} />
+            <ScriptOutput
+              hostname={data.hostname}
+              output={data.output}
+              wasAdHoc={ranAdHocScript}
+            />
           )}
         </>
       );
     }
 
     return (
-      <>
-        <div className={`${baseClass}__modal-content`}>{content}</div>
-      </>
+      <div
+        className={`${baseClass}__modal-content modal-scrollable-content`}
+        ref={topDivRef}
+      >
+        {content}
+      </div>
     );
   };
 
   const renderFooter = () => (
-    <div className={`primary-actions ${baseClass}__host-script-actions`}>
-      <Button onClick={onCancel} variant="brand">
-        Done
-      </Button>
-    </div>
+    <ModalFooter
+      isTopScrolling={isTopScrolling}
+      primaryButtons={<Button onClick={onCancel}>Done</Button>}
+    />
   );
   return (
     <Modal
@@ -226,9 +244,11 @@ const RunScriptDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
       isHidden={isHidden}
-      actionsFooter={renderFooter()}
     >
-      {renderContent()}
+      <>
+        {renderContent()}
+        {renderFooter()}
+      </>
     </Modal>
   );
 };

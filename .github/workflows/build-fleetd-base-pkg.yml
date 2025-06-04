@@ -107,14 +107,14 @@ jobs:
           </plist>' > fleetd-base-manifest.plist
 
       - name: Upload fleetd-base.pkg
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleetd-base.pkg
           path: |
             fleetd-base.pkg
 
       - name: Upload fleetd-base-manifest.plist
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleetd-base-manifest.plist
           path: |

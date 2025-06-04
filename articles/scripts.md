@@ -2,8 +2,8 @@
 
 In Fleet you can run custom scripts to remediate an issue on your macOS, Windows, and Linux hosts.
 
-Shell scripts are supported on macOS and Linux. By default, shell scripts will run in the host's (root) shell (`/bin/sh`). We also support `/bin/zsh` interpreter.
-Note: To run in `/bin/zsh`, create `.sh` file (only supported extension) and add an interpreter at the first line.
+Shell scripts are supported on macOS and Linux. By default, shell scripts will run in the host's (root) shell (`/bin/sh`). We also support `/bin/zsh` and `/bin/bash` interpreters.
+Note: To run in `/bin/zsh` or `/bin/bash`, create `.sh` file (only supported extension) and add an interpreter at the first line.
 
 PowerShell scripts are supported on Windows. Other types of scripts are not supported yet.
 
@@ -32,7 +32,7 @@ Fleet UI:
 2. Head to the **Hosts** page and select the host you want to run the script on.
 
 3. On your target host's host details page, select the **Actions** dropdown and select **Run Script** to view the **Run Script** menu.
-   
+
 4. In the **Run Script** menu, select the **Actions** dropdown for the script you'd like to execute and choose the **Run** option.
 
 Scripts run from the Fleet UI will run the next time your host checks in with Fleet. You can view the status of the script execution as well as the output in the target host's activity feed.
@@ -48,6 +48,24 @@ fleetctl run-script --script-path=/path/to/script --host=hostname
 ## Automatically run scripts
 
 Learn more about automatically running scripts [here](https://fleetdm.com/guides/policy-automation-run-script).
+
+## Batch execute scripts
+
+You can execute a script  on a large number of hosts at the same time using the Fleet UI or Fleet API.
+
+Fleet UI:
+
+1. In Fleet, go to the **Hosts** page, and select a team.
+
+2. Select the hosts that you want to run the script on.
+
+3. Click the **Run Script** button at the top of the list of hosts.
+
+4. In the **Run Script** modal, mouse over the script you want to run and click **Run Script**.
+
+5. Either close the modal or select another script to run.
+
+Fleet API: See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

@@ -64,6 +64,9 @@ export default {
       resolution,
       platform,
       critical,
+      software_title_id,
+      labels_include_any,
+      labels_exclude_any,
       // note absence of automations-related fields, which are only set by the UI via update
     } = data;
     const { TEAMS } = endpoints;
@@ -76,8 +79,12 @@ export default {
       resolution,
       platform,
       critical,
+      software_title_id,
+      labels_include_any,
+      labels_exclude_any,
     });
   },
+  // TODO - response type Promise<IPolicy>
   update: (id: number, data: IPolicyFormData) => {
     const {
       name,
@@ -89,8 +96,11 @@ export default {
       critical,
       // automations-related fields
       calendar_events_enabled,
+      conditional_access_enabled,
       software_title_id,
       script_id,
+      labels_include_any,
+      labels_exclude_any,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
@@ -103,8 +113,11 @@ export default {
       platform,
       critical,
       calendar_events_enabled,
+      conditional_access_enabled,
       software_title_id,
       script_id,
+      labels_include_any,
+      labels_exclude_any,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {

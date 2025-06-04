@@ -3,6 +3,7 @@ package file
 import (
 	"context"
 	"errors"
+	"os"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
@@ -13,7 +14,11 @@ func (s *FileStorage) RetrievePushInfo(_ context.Context, ids []string) (map[str
 	for _, id := range ids {
 		e := s.newEnrollment(id)
 		tokenUpdate, err := e.readFile(TokenUpdateFilename)
-		if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// TokenUpdate file missing could be a non-existent or
+			// incomplete enrollment which should not trigger an error.
+			continue
+		} else if err != nil {
 			return nil, err
 		}
 		msg, err := mdm.DecodeCheckin(tokenUpdate)

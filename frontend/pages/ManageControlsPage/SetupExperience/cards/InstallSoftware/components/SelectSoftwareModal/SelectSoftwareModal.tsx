@@ -6,6 +6,7 @@ import mdmAPI from "services/entities/mdm";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SelectSoftwareTable from "../SelectSoftwareTable";
 
@@ -55,7 +56,6 @@ const SelectSoftwareModal = ({
         selectedSoftwareIds
       );
     } catch (e) {
-      console.log("error");
       renderFlash("error", "Couldn't save software. Please try again.");
     }
     setIsSaving(false);
@@ -79,7 +79,12 @@ const SelectSoftwareModal = ({
   );
 
   return (
-    <Modal className={baseClass} title="Select software" onExit={onExit}>
+    <Modal
+      className={baseClass}
+      title="Select software"
+      width="large"
+      onExit={onExit}
+    >
       <>
         <SelectSoftwareTable
           softwareTitles={softwareTitles}
@@ -87,13 +92,18 @@ const SelectSoftwareModal = ({
           onChangeSelectAll={onChangeSelectAll}
         />
         <div className="modal-cta-wrap">
-          <Button
-            variant="brand"
-            onClick={onSaveSelectedSoftware}
-            isLoading={isSaving}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={6}
+            renderChildren={(disableChildren) => (
+              <Button
+                disabled={disableChildren}
+                onClick={onSaveSelectedSoftware}
+                isLoading={isSaving}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button variant="inverse" onClick={onExit}>
             Cancel
           </Button>

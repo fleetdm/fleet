@@ -19,14 +19,16 @@ import {
 } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import ActionsDropdown from "components/ActionsDropdown";
+import TooltipWrapper from "components/TooltipWrapper";
 
-import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
-import VersionCell from "pages/SoftwarePage/components/VersionCell";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
 
 import InstallStatusCell from "./InstallStatusCell";
@@ -70,12 +72,18 @@ export const generateActions = ({
   softwareIdActionPending,
   softwareId,
   status,
+  software_package,
   app_store_app,
   hostMDMEnrolled,
 }: generateActionsProps) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
   const actions = cloneDeep(DEFAULT_ACTION_OPTIONS);
+
+  // we want to hide the install/uninstall actions if (1) this item doesn't have a
+  // software_package or app_store_app or (2) the user doens't have write permission
+  const hideActions =
+    (!app_store_app && !software_package) || !userHasSWWritePermission;
 
   const indexInstallAction = actions.findIndex((a) => a.value === "install");
   if (indexInstallAction === -1) {
@@ -92,7 +100,13 @@ export const generateActions = ({
     throw new Error("Uninstall action not found in default actions");
   }
 
-  if (!userHasSWWritePermission) {
+  if (indexInstallAction > indexUninstallAction) {
+    // subsquent code depends on relative index order; this shouldn't change, but if it does we'll throw an
+    // error to fail loudly so that we know to update this function
+    throw new Error("Order of install/uninstall actions changed");
+  }
+
+  if (hideActions) {
     // Reverse order to not change index of subsequent array element before removal
     actions.splice(indexUninstallAction, 1);
     actions.splice(indexInstallAction, 1);
@@ -171,8 +185,9 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: ITableStringCellProps) => {
         const { id, name, source, app_store_app } = cellProps.row.original;
 
-        const softwareTitleDetailsPath = PATHS.SOFTWARE_TITLE_DETAILS(
-          id.toString().concat(`?team_id=${teamId}`)
+        const softwareTitleDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(id.toString()),
+          { team_id: teamId }
         );
 
         return (
@@ -187,7 +202,23 @@ export const generateSoftwareTableHeaders = ({
       },
     },
     {
-      Header: "Install status",
+      Header: () => (
+        <HeaderCell
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  The status of the last time <br />
+                  Fleet attempted an install <br />
+                  or uninstall.
+                </>
+              }
+            >
+              Install status
+            </TooltipWrapper>
+          }
+        />
+      ),
       disableSortBy: true,
       accessor: "status",
       Cell: ({ row: { original } }: IInstalledStatusCellProps) => {
@@ -195,7 +226,24 @@ export const generateSoftwareTableHeaders = ({
       },
     },
     {
-      Header: "Version",
+      Header: () => (
+        <HeaderCell
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  The current verified version
+                  <br />
+                  installed on host.
+                </>
+              }
+            >
+              Installed version
+            </TooltipWrapper>
+          }
+        />
+      ),
+      id: "version",
       disableSortBy: true,
       // we use function as accessor because we have two columns that
       // need to access the same data. This is not supported with a string

@@ -1,0 +1,8 @@
+{
+  "name": "Microsoft Visual Studio Code",
+  "slug": "visual-studio-code/darwin",
+  "unique_identifier": "com.microsoft.VSCode",
+  "token": "visual-studio-code",
+  "installer_format": "zip",
+  "default_categories": ["Developer tools"]
+}

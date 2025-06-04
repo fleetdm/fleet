@@ -14,8 +14,9 @@ import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
-import Pagination from "pages/ManageControlsPage/components/Pagination";
+import Pagination from "components/Pagination";
 
 import UploadList from "../../../components/UploadList";
 
@@ -25,6 +26,8 @@ import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileMod
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
 import ProfileListHeading from "./components/ProfileListHeading";
+import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
+import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
 
 const PROFILES_PER_PAGE = 10;
 
@@ -46,7 +49,11 @@ const CustomSettings = ({
   onMutation,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
+
+  const mdmEnabled =
+    config?.mdm.enabled_and_configured ||
+    config?.mdm.windows_enabled_and_configured;
 
   const [showAddProfileModal, setShowAddProfileModal] = useState(false);
   const [
@@ -54,8 +61,18 @@ const CustomSettings = ({
     setProfileLabelsModalData,
   ] = useState<IMdmProfile | null>(null);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
+  const [
+    showConfigProfileStatusModal,
+    setShowConfigProfileStatusModal,
+  ] = useState(false);
+  const [
+    showResendConfigProfileModal,
+    setShowResendConfigProfileModal,
+  ] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
+  const selectedStatusHostCount = useRef<number | null>(null);
 
   const {
     data: profilesData,
@@ -78,6 +95,7 @@ const CustomSettings = ({
         per_page: PROFILES_PER_PAGE,
       }),
     {
+      enabled: mdmEnabled,
       refetchOnWindowFocus: false,
     }
   );
@@ -89,12 +107,18 @@ const CustomSettings = ({
     onMutation();
   };
 
+  const onCancelInfo = () => {
+    selectedProfile.current = null;
+    setShowConfigProfileStatusModal(false);
+  };
+
   const onCancelDelete = () => {
     selectedProfile.current = null;
     setShowDeleteProfileModal(false);
   };
 
   const onDeleteProfile = async (profileId: string) => {
+    setIsDeleting(true);
     try {
       await mdmAPI.deleteProfile(profileId);
       refetchProfiles();
@@ -106,20 +130,25 @@ const CustomSettings = ({
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);
     }
+    setIsDeleting(false);
   };
 
   // pagination controls
-  const path = PATHS.CONTROLS_CUSTOM_SETTINGS.concat(
-    `?team_id=${currentTeamId}`
-  );
+  const path = PATHS.CONTROLS_CUSTOM_SETTINGS;
+  const queryString = isPremiumTier ? `?team_id=${currentTeamId}&` : "?";
 
   const onPrevPage = useCallback(() => {
-    router.push(path.concat(`&page=${currentPage - 1}`));
-  }, [router, path, currentPage]);
+    router.push(path.concat(`${queryString}page=${currentPage - 1}`));
+  }, [router, path, currentPage, queryString]);
 
   const onNextPage = useCallback(() => {
-    router.push(path.concat(`&page=${currentPage + 1}`));
-  }, [router, path, currentPage]);
+    router.push(path.concat(`${queryString}page=${currentPage + 1}`));
+  }, [router, path, currentPage, queryString]);
+
+  const onClickInfo = (profile: IMdmProfile) => {
+    selectedProfile.current = profile;
+    setShowConfigProfileStatusModal(true);
+  };
 
   const onClickDelete = (profile: IMdmProfile) => {
     selectedProfile.current = profile;
@@ -154,14 +183,17 @@ const CustomSettings = ({
               isPremium={!!isPremiumTier}
               profile={listItem}
               setProfileLabelsModalData={setProfileLabelsModalData}
-              onDelete={onClickDelete}
+              onClickInfo={onClickInfo}
+              onClickDelete={onClickDelete}
             />
           )}
         />
         <Pagination
-          className={`${baseClass}__pagination-controls`}
           disableNext={!meta?.has_next_results}
           disablePrev={!meta?.has_previous_results}
+          hidePagination={
+            !meta?.has_next_results && !meta?.has_previous_results
+          }
           onNextPage={onNextPage}
           onPrevPage={onPrevPage}
         />
@@ -185,7 +217,14 @@ const CustomSettings = ({
           url="https://fleetdm.com/learn-more-about/custom-os-settings"
         />
       </p>
-      <>{renderProfileList()}</>
+      {!mdmEnabled ? (
+        <TurnOnMdmMessage
+          router={router}
+          info="MDM must be turned on to apply custom settings."
+        />
+      ) : (
+        renderProfileList()
+      )}
       {showAddProfileModal && (
         <AddProfileModal
           currentTeamId={currentTeamId}
@@ -196,10 +235,11 @@ const CustomSettings = ({
       )}
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
-          profileName={selectedProfile.current?.name}
-          profileId={selectedProfile.current?.profile_uuid}
+          profileName={selectedProfile.current.name}
+          profileId={selectedProfile.current.profile_uuid}
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
+          isDeleting={isDeleting}
         />
       )}
       {isPremiumTier && hasLabels && (
@@ -208,6 +248,33 @@ const CustomSettings = ({
           setModalData={setProfileLabelsModalData}
         />
       )}
+      {showConfigProfileStatusModal && selectedProfile.current && (
+        <ConfigProfileStatusModal
+          teamId={currentTeamId}
+          name={selectedProfile.current.name}
+          uuid={selectedProfile.current.profile_uuid}
+          onClickResend={(hostCount) => {
+            selectedStatusHostCount.current = hostCount;
+            setShowConfigProfileStatusModal(false);
+            setShowResendConfigProfileModal(true);
+          }}
+          onExit={onCancelInfo}
+        />
+      )}
+      {showResendConfigProfileModal &&
+        selectedProfile.current &&
+        selectedStatusHostCount.current && (
+          <ResendConfigProfileModal
+            name={selectedProfile.current.name}
+            uuid={selectedProfile.current.profile_uuid}
+            count={selectedStatusHostCount.current}
+            onExit={() => {
+              selectedStatusHostCount.current = null;
+              setShowResendConfigProfileModal(false);
+              setShowConfigProfileStatusModal(true);
+            }}
+          />
+        )}
     </div>
   );
 };

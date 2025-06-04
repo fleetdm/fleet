@@ -157,6 +157,17 @@ func generateRandomString(sizeBytes int) string {
 }
 
 func ExpandEnv(s string) (string, error) {
+	out, err := expandEnv(s, true)
+	return out, err
+}
+
+// expandEnv expands environment variables for a gitops file.
+// $ can be escaped with a backslash, e.g. \$VAR
+// \$ can be escaped with another backslash, etc., e.g. \\\$VAR
+// $FLEET_VAR_XXX will not be expanded. These variables are expanded on the server.
+// If secretsMap is not nil, $FLEET_SECRET_XXX will be evaluated and put in the map
+// If secretsMap is nil, $FLEET_SECRET_XXX will cause an error.
+func expandEnv(s string, failOnSecret bool) (string, error) {
 	// Generate a random escaping prefix that doesn't exist in s.
 	var preventEscapingPrefix string
 	for {
@@ -167,18 +178,39 @@ func ExpandEnv(s string) (string, error) {
 	}
 
 	s = escapeString(s, preventEscapingPrefix)
-	s = escapeFleetVar(s, preventEscapingPrefix)
+	exclusionZones := getExclusionZones(s)
+
 	var err *multierror.Error
-	s = os.Expand(s, func(env string) string {
-		if strings.HasPrefix(env, preventEscapingPrefix) {
-			return "$" + strings.TrimPrefix(env, preventEscapingPrefix)
+	s = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
+
+		switch {
+		case strings.HasPrefix(env, preventEscapingPrefix):
+			return "$" + strings.TrimPrefix(env, preventEscapingPrefix), true
+		case strings.HasPrefix(env, fleet.ServerVarPrefix):
+			// Don't expand fleet vars -- they will be expanded on the server
+			return "", false
+		case strings.HasPrefix(env, fleet.ServerSecretPrefix):
+			if failOnSecret {
+				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q",
+					fleet.ServerSecretPrefix, env))
+			}
+			return "", false
 		}
+
+		// Don't expand fleet vars if they are inside an 'exclusion' zone,
+		// i.e. 'description' or 'resolution'....
+		for _, z := range exclusionZones {
+			if startPos >= z[0] && endPos <= z[1] {
+				return "", false
+			}
+		}
+
 		v, ok := os.LookupEnv(env)
 		if !ok {
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
-			return ""
+			return "", false
 		}
-		return v
+		return v, true
 	})
 	if err != nil {
 		return "", err
@@ -194,6 +226,40 @@ func ExpandEnvBytes(b []byte) ([]byte, error) {
 	return []byte(s), nil
 }
 
+func ExpandEnvBytesIgnoreSecrets(b []byte) ([]byte, error) {
+	s, err := expandEnv(string(b), false)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(s), nil
+}
+
+// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is not supported.
+// This is used for finding secrets in scripts only. The original string is not modified.
+// A map of secret names to values is updated.
+func LookupEnvSecrets(s string, secretsMap map[string]string) error {
+	if secretsMap == nil {
+		return errors.New("secretsMap cannot be nil")
+	}
+	var err *multierror.Error
+	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
+		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
+			// lookup the secret and save it, but don't replace
+			v, ok := os.LookupEnv(env)
+			if !ok {
+				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
+				return "", false
+			}
+			secretsMap[env] = v
+		}
+		return "", false
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 var escapePattern = regexp.MustCompile(`(\\+\$)`)
 
 func escapeString(s string, preventEscapingPrefix string) string {
@@ -205,10 +271,30 @@ func escapeString(s string, preventEscapingPrefix string) string {
 	})
 }
 
-var escapeFleetVarPattern = regexp.MustCompile(`(\$FLEET_VAR_\w+)|(\${FLEET_VAR_\w+})`)
+// getExclusionZones returns which positions inside 's' should be
+// excluded from variable interpolation.
+func getExclusionZones(s string) [][2]int {
+	// We need a different pattern per section because
+	// the delimiting end pattern ((?:^\s+\w+:|\z)) includes the next
+	// section token, meaning the matching logic won't work in case
+	// we have a 'resolution:' followed by a 'description:' or
+	// vice versa, and we try using something like (?:resolution:|description:)
+	toExclude := []string{
+		"resolution",
+		"description",
+	}
+	patterns := make([]*regexp.Regexp, 0, len(toExclude))
+	for _, e := range toExclude {
+		pattern := fmt.Sprintf(`(?m)^\s*(?:%s:)(.|[\r\n])*?(?:^\s+\w+:|\z)`, e)
+		patterns = append(patterns, regexp.MustCompile(pattern))
+	}
 
-func escapeFleetVar(s string, preventEscapingPrefix string) string {
-	return escapeFleetVarPattern.ReplaceAllStringFunc(s, func(match string) string {
-		return strings.ReplaceAll(match, "$", "$"+preventEscapingPrefix)
-	})
+	var zones [][2]int
+	for _, pattern := range patterns {
+		result := pattern.FindAllStringIndex(s, -1)
+		for _, r := range result {
+			zones = append(zones, [2]int{r[0], r[1]})
+		}
+	}
+	return zones
 }

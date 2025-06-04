@@ -87,16 +87,12 @@ jobs:
       - name: Install wine and wix
         if: startsWith(matrix.os, 'macos')
         run: |
-          ./scripts/macos-install-wine.sh -n
+          ./it-and-security/lib/macos/scripts/install-wine.sh -n
           wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
           mkdir wix
           unzip wix.zip -d wix
           rm -f wix.zip
           echo wix installed at $(pwd)/wix
-
-        # It seems faster not to cache Go dependencies
-      - name: Install Go Dependencies
-        run: make deps-go
 
       - name: Build fleetctl
         run: make fleetctl

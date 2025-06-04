@@ -218,3 +218,36 @@ func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *ui
 
 	return nil
 }
+
+// ListScripts retrieves the saved scripts.
+func (c *Client) ListScripts(query string) ([]*fleet.Script, error) {
+	verb, path := "GET", "/api/latest/fleet/scripts"
+	var responseBody listScriptsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.Scripts, nil
+}
+
+// Get the contents of a saved script.
+func (c *Client) GetScriptContents(scriptID uint) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/scripts/"+fmt.Sprint(scriptID)
+	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	defer response.Body.Close()
+	err = c.parseResponse(verb, path, response, nil)
+	if err != nil {
+		return nil, fmt.Errorf("parsing script response: %w", err)
+	}
+	if response.StatusCode != http.StatusNoContent {
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+		return b, nil
+	}
+	return nil, nil
+}

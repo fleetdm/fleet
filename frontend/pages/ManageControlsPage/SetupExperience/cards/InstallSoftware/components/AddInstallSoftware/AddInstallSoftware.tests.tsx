@@ -16,6 +16,7 @@ describe("AddInstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={null}
         onAddSoftware={noop}
+        hasManualAgentInstall={false}
       />
     );
 
@@ -29,6 +30,7 @@ describe("AddInstallSoftware", () => {
         currentTeamId={1}
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
         onAddSoftware={noop}
+        hasManualAgentInstall={false}
       />
     );
 
@@ -56,11 +58,15 @@ describe("AddInstallSoftware", () => {
           createMockSoftwareTitle(),
         ]}
         onAddSoftware={noop}
+        hasManualAgentInstall={false}
       />
     );
 
     expect(
-      screen.getByText(/2 software will be installed during setup/)
+      screen.getByText(
+        (_, element) =>
+          element?.textContent === "2 software will be installed during setup."
+      )
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: "Show selected software" })

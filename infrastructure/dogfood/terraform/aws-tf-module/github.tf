@@ -98,6 +98,9 @@ data "aws_iam_policy_document" "gha-permissions" {
       "ses:*",
       "wafv2:*",
       "events:*",
+      "cloudfront:*",
+      "backup:*",
+      "backup-storage:*"
     ]
     resources = ["*"]
   }

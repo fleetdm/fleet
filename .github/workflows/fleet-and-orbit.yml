@@ -155,7 +155,7 @@ jobs:
 
       - name: Upload fleet logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleet-logs
           path: |
@@ -163,7 +163,7 @@ jobs:
 
       - name: Upload cloudflared logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: cloudflared.log
           path: cloudflared.log
@@ -213,13 +213,8 @@ jobs:
   # Here we generate the Fleet Desktop and osqueryd targets for
   # macOS which can only be generated from a macOS host.
   build-macos-targets:
-    # Set macOS version to '12' (current equivalent to macos-latest) for
-    # building the binary. This ensures compatibility with macOS version 13 and
-    # later, avoiding runtime errors on systems using macOS 13 or newer.
-    #
-    # Note: Update this version to '13' once GitHub marks macOS 13 as stable
-    # or if we revise our minimum supported macOS version.
-    runs-on: macos-12
+    # Set macOS version to '13' for building the binary as Fleet's minimum supported macOS version.
+    runs-on: macos-13
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -240,7 +235,7 @@ jobs:
           make osqueryd-app-tar-gz version=$OSQUERY_VERSION out-path=.
 
       - name: Upload desktop.app.tar.gz and osqueryd.app.tar.gz
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: macos-pre-built-apps
           path: |
@@ -279,7 +274,7 @@ jobs:
 
       - name: Download macos pre-built apps
         id: download
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: macos-pre-built-apps
 
@@ -306,21 +301,21 @@ jobs:
           ./tools/tuf/test/main.sh
 
       - name: Upload PKG installer
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleet-osquery.pkg
           path: |
             fleet-osquery.pkg
 
       - name: Upload DEB installer
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
-          name: fleet-osquery_42.0.0_amd64.deb
+          name: fleet-osquery_amd64.deb
           path: |
-            fleet-osquery_42.0.0_amd64.deb
+            fleet-osquery_*_amd64.deb
 
       - name: Upload MSI installer
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleet-osquery.msi
           path: |
@@ -341,9 +336,17 @@ jobs:
 
       - name: Download pkg
         id: download
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery.pkg
+
+      - name: Wait until fleet address is reachable and fleet responds
+        run: |
+          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          do
+            echo "Awaiting until fleet server responds..."
+            sleep 10
+          done
 
       - name: Install pkg
         run: |
@@ -370,15 +373,15 @@ jobs:
 
       - name: Upload orbit logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
-          name: orbit-logs
+          name: orbit-logs-macos
           path: |
             orbit-logs
 
       - name: Uninstall pkg
         run: |
-          sudo ./orbit/tools/cleanup/cleanup_macos.sh
+          sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 60
@@ -392,14 +395,22 @@ jobs:
 
       - name: Download deb
         id: download
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: fleet-osquery_42.0.0_amd64.deb
+          name: fleet-osquery_amd64.deb
+
+      - name: Wait until fleet address is reachable and fleet responds
+        run: |
+          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          do
+            echo "Awaiting until fleet server responds..."
+            sleep 10
+          done
 
       - name: Install deb
         run: |
           sudo hostname orbit-ubuntu
-          sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
+          sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_*_amd64.deb
 
       - name: Wait enroll
         run: |
@@ -421,9 +432,9 @@ jobs:
 
       - name: Upload orbit logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
-          name: orbit-logs
+          name: orbit-logs-ubuntu
           path: |
             orbit-logs
 
@@ -443,9 +454,17 @@ jobs:
 
       - name: Download msi
         id: download
-        uses: actions/download-artifact@fb598a63ae348fa914e94cd0ff38f362e927b741 # v2
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery.msi
+
+      - name: Wait until fleet address is reachable and fleet responds
+        run: |
+          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          do
+            echo "Awaiting until fleet server responds..."
+            sleep 10
+          done
 
       - name: Install msi
         shell: pwsh
@@ -540,7 +559,7 @@ jobs:
 
       - name: Upload Orbit logs
         if: always()
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: orbit-logs-windows
           path: C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log

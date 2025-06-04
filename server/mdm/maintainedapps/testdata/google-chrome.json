@@ -6,7 +6,7 @@
 	"name": [
 		"Google Chrome"
 	],
-	"desc": "Web browser",
+	"desc": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms.",
 	"homepage": "https://www.google.com/chrome/",
 	"url": "https://dl.google.com/chrome/mac/universal/stable/GGRO/googlechrome.dmg",
 	"url_specs": {},

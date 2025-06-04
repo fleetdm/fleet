@@ -1,6 +1,3 @@
-import { buildQueryStringFromParams } from "utilities/url";
-
-import { IPolicy } from "../interfaces/policy";
 import URL_PREFIX from "./url_prefix";
 
 // Note: changes to paths.ts should change page_titles.ts respectively
@@ -29,6 +26,7 @@ export default {
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
   DASHBOARD_IOS: `${URL_PREFIX}/dashboard/ios`,
   DASHBOARD_IPADOS: `${URL_PREFIX}/dashboard/ipados`,
+  DASHBOARD_ANDROID: `${URL_PREFIX}/dashboard/android`,
 
   /**
    * Admin pages
@@ -43,10 +41,15 @@ export default {
   ADMIN_INTEGRATIONS_MDM: `${URL_PREFIX}/settings/integrations/mdm`,
   ADMIN_INTEGRATIONS_MDM_APPLE: `${URL_PREFIX}/settings/integrations/mdm/apple`,
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
+  ADMIN_INTEGRATIONS_MDM_ANDROID: `${URL_PREFIX}/settings/integrations/mdm/android`,
   ADMIN_INTEGRATIONS_APPLE_BUSINESS_MANAGER: `${URL_PREFIX}/settings/integrations/mdm/abm`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
   ADMIN_INTEGRATIONS_SCEP: `${URL_PREFIX}/settings/integrations/mdm/scep`,
   ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
+  ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT: `${URL_PREFIX}/settings/integrations/change-management`,
+  ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS: `${URL_PREFIX}/settings/integrations/conditional-access`,
+  ADMIN_INTEGRATIONS_CERTIFICATE_AUTHORITIES: `${URL_PREFIX}/settings/integrations/certificates`,
+  ADMIN_INTEGRATIONS_IDENTITY_PROVIDER: `${URL_PREFIX}/settings/integrations/identity-provider`,
   ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/mdm/vpp`,
   ADMIN_INTEGRATIONS_VPP_SETUP: `${URL_PREFIX}/settings/integrations/vpp/setup`,
 
@@ -94,40 +97,18 @@ export default {
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
   },
-  PACK: (packId: number): string => {
-    return `${URL_PREFIX}/packs/${packId}`;
-  },
-  EDIT_LABEL: (labelId: number): string => {
-    return `${URL_PREFIX}/labels/${labelId}`;
-  },
-  EDIT_QUERY: (queryId: number, teamId?: number): string => {
-    return `${URL_PREFIX}/queries/${queryId}/edit${
-      teamId ? `?team_id=${teamId}` : ""
-    }`;
-  },
-  LIVE_QUERY: (
-    queryId: number | null,
-    teamId?: number,
-    hostId?: number
-  ): string => {
-    const baseUrl = `${URL_PREFIX}/queries/${queryId || "new"}/live`;
-    const queryParams = buildQueryStringFromParams({
-      team_id: teamId,
-      host_id: hostId,
-    });
-    return queryParams ? `${baseUrl}?${queryParams}` : baseUrl;
-  },
-  QUERY_DETAILS: (queryId: number, teamId?: number): string => {
-    return `${URL_PREFIX}/queries/${queryId}${
-      teamId ? `?team_id=${teamId}` : ""
-    }`;
-  },
-  EDIT_POLICY: (policy: IPolicy): string => {
-    return `${URL_PREFIX}/policies/${policy.id}${
-      policy.team_id !== undefined ? `?team_id=${policy.team_id}` : ""
-    }`;
-  },
+  PACK: (packId: number): string => `${URL_PREFIX}/packs/${packId}`,
+  EDIT_LABEL: (labelId: number): string => `${URL_PREFIX}/labels/${labelId}`,
+  EDIT_QUERY: (queryId: number): string =>
+    `${URL_PREFIX}/queries/${queryId}/edit`,
+  LIVE_QUERY: (queryId: number | null): string =>
+    `${URL_PREFIX}/queries/${queryId || "new"}/live`,
+  QUERY_DETAILS: (queryId: number): string =>
+    `${URL_PREFIX}/queries/${queryId}`,
+  EDIT_POLICY: (policyId: number): string =>
+    `${URL_PREFIX}/policies/${policyId}`,
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
+  MFA: `${URL_PREFIX}/login/mfa`,
   NO_ACCESS: `${URL_PREFIX}/login/denied`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
 
@@ -139,7 +120,6 @@ export default {
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
-  MANAGE_HOSTS_ADD_HOSTS: `${URL_PREFIX}/hosts/manage/?add_hosts=true`,
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
@@ -195,14 +175,10 @@ export default {
   NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
   MANAGE_SCHEDULE: `${URL_PREFIX}/schedule/manage`,
-  MANAGE_TEAM_SCHEDULE: (teamId: number): string => {
-    return `${URL_PREFIX}/schedule/manage?team_id=${teamId}`;
-  },
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
-  NEW_QUERY: (teamId?: number) =>
-    `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
+  NEW_QUERY: `${URL_PREFIX}/queries/new`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
   ACCOUNT: `${URL_PREFIX}/account`,

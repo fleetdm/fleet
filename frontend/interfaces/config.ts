@@ -13,9 +13,12 @@ export interface ILicense {
   expiration: string;
   note: string;
   organization: string;
+  // Whether the Fleet instance is managed by FleetDM
+  managed_cloud: boolean;
+  allow_disable_telemetry: boolean;
 }
 
-interface IEndUserAuthentication {
+export interface IEndUserAuthentication {
   entity_id: string;
   idp_name: string;
   issuer_uri: string;
@@ -57,6 +60,8 @@ export interface IMdmConfig {
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
   windows_enabled_and_configured: boolean;
+  windows_migration_enabled: boolean;
+  android_enabled_and_configured: boolean;
   end_user_authentication: IEndUserAuthentication;
   macos_updates: IAppleDeviceUpdates;
   ios_updates: IAppleDeviceUpdates;
@@ -70,6 +75,7 @@ export interface IMdmConfig {
     enable_end_user_authentication: boolean;
     macos_setup_assistant: string | null;
     enable_release_device_manually: boolean | null;
+    manual_agent_install: boolean | null;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
@@ -106,6 +112,7 @@ export interface IConfigServerSettings {
 }
 
 export interface IConfig {
+  android_enabled: boolean; // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: string;
     org_logo_url: string;
@@ -141,6 +148,12 @@ export interface IConfig {
     enable_jit_provisioning: boolean;
     enable_jit_role_sync: boolean;
   };
+  // configuration details for conditional access. For enabled/disabled status per team, see
+  // subfields under `integrations`
+  conditional_access?: {
+    microsoft_entra_tenant_id: string;
+    microsoft_entra_connection_configured: boolean;
+  };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
     host_expiry_window?: number;
@@ -166,38 +179,9 @@ export interface IConfig {
     disable_data_sync: boolean;
     recent_vulnerability_max_age: number;
   };
-  // Note: `vulnerability_settings` is deprecated and should not be used
-  // vulnerability_settings: {
-  //   databases_path: string;
-  // };
   webhook_settings: IWebhookSettings;
   integrations: IGlobalIntegrations;
-  logging: {
-    debug: boolean;
-    json: boolean;
-    result: {
-      plugin: string;
-      config: {
-        status_log_file: string;
-        result_log_file: string;
-        enable_log_rotation: boolean;
-        enable_log_compression: boolean;
-      };
-    };
-    status: {
-      plugin: string;
-      config: {
-        status_log_file: string;
-        result_log_file: string;
-        enable_log_rotation: boolean;
-        enable_log_compression: boolean;
-      };
-    };
-    audit?: {
-      plugin: string;
-      config: any;
-    };
-  };
+  logging: ILoggingConfig;
   email?: {
     backend: string;
     config: {
@@ -206,6 +190,12 @@ export interface IConfig {
     };
   };
   mdm: IMdmConfig;
+  gitops: IGitOpsModeConfig;
+  partnerships?: IFleetPartnerships;
+}
+
+interface IFleetPartnerships {
+  enable_primo: boolean;
 }
 
 export interface IWebhookSettings {
@@ -220,4 +210,52 @@ export type IAutomationsConfig = Pick<
   "webhook_settings" | "integrations"
 >;
 
+export type LogDestination =
+  | "filesystem"
+  | "firehose"
+  | "kinesis"
+  | "lambda"
+  | "pubsub"
+  | "kafta"
+  | "stdout"
+  | "webhook"
+  | "";
+
+export interface ILoggingConfig {
+  debug: boolean;
+  json: boolean;
+  result: {
+    plugin: LogDestination;
+    config: {
+      status_log_file: string;
+      result_log_file: string;
+      enable_log_rotation: boolean;
+      enable_log_compression: boolean;
+      status_url?: string;
+      result_url?: string;
+    };
+  };
+  status: {
+    plugin: string;
+    config: {
+      status_log_file: string;
+      result_log_file: string;
+      enable_log_rotation: boolean;
+      enable_log_compression: boolean;
+    };
+  };
+  audit?: {
+    plugin: string;
+    config: any;
+  };
+}
+
 export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
+
+export interface IUserSettings {
+  hidden_host_columns: string[];
+}
+export interface IGitOpsModeConfig {
+  gitops_mode_enabled: boolean;
+  repository_url: string;
+}

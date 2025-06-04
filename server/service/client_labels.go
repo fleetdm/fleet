@@ -23,7 +23,7 @@ func (c *Client) GetLabel(name string) (*fleet.LabelSpec, error) {
 	return responseBody.Spec, err
 }
 
-// GetLabels retrieves the list of all Labels.
+// GetLabels retrieves the list of all LabelSpecs.
 func (c *Client) GetLabels() ([]*fleet.LabelSpec, error) {
 	verb, path := "GET", "/api/latest/fleet/spec/labels"
 	var responseBody getLabelSpecsResponse

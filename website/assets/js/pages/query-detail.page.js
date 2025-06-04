@@ -4,6 +4,7 @@ parasails.registerPage('query-detail', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     contributors: [],
+    selectedTab: 'sql',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -14,19 +15,6 @@ parasails.registerPage('query-detail', {
   },
   mounted: async function () {
 
-    if(this.algoliaPublicKey) { // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the documentation search will be disabled.
-      docsearch({
-        appId: 'NZXAYZXDGH',
-        apiKey: this.algoliaPublicKey,
-        indexName: 'fleetdm',
-        container: '#docsearch-query',
-        placeholder: 'Search',
-        debug: false,
-        searchParameters: {
-          'facetFilters': ['section:queries']
-        },
-      });
-    }
     let columnNamesForThisQuery = [];
     let tableNamesForThisQuery = [];
     if(this.columnNamesForSyntaxHighlighting){
@@ -44,9 +32,13 @@ parasails.registerPage('query-detail', {
     });
     (()=>{
       $('pre code').each((i, block) => {
+        if(block.classList.contains('ps') || block.classList.contains('sh')){
+          window.hljs.highlightElement(block);
+          return;
+        }
         let tableNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
         for(let tableName of tableNamesForThisQuery){// Going through the array of keywords for this table, if the entire word matches, we'll add it to the
-          for(let match of block.innerHTML.match(tableName+' ')||[]){
+          for(let match of block.innerHTML.match(tableName)||[]){
             tableNamesToHighlight.push(match);
           }
         }
@@ -54,7 +46,7 @@ parasails.registerPage('query-detail', {
         let replacementHMTL = block.innerHTML;
         for(let keywordInExample of tableNamesToHighlight) {
           let regexForThisExample = new RegExp(keywordInExample, 'g');
-          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+_.trim(keywordInExample)+'</span> ');
+          replacementHMTL = replacementHMTL.replace(regexForThisExample, '<span class="hljs-attr">'+_.trim(keywordInExample)+'</span>');
         }
         $(block).html(replacementHMTL);
         let columnNamesToHighlight = [];// Empty array to track the keywords that we will need to highlight
@@ -80,12 +72,14 @@ parasails.registerPage('query-detail', {
       });
     })();
     $('[purpose="copy-button"]').on('click', async function() {
-      let code = $(this).siblings('pre').find('code').text();
-      $(this).addClass('copied');
-      await setTimeout(()=>{
-        $(this).removeClass('copied');
-      }, 2000);
-      navigator.clipboard.writeText(code);
+      let code = $(this).closest('[purpose="codeblock"]').find('pre:visible code').text();
+      if(code) {
+        $(this).addClass('copied');
+        await setTimeout(()=>{
+          $(this).removeClass('copied');
+        }, 2000);
+        navigator.clipboard.writeText(code);
+      }
     });
   },
 

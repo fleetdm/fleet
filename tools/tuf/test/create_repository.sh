@@ -3,7 +3,8 @@
 set -xe
 
 # This script initializes a test Fleet TUF repository.
-# All targets are created with version 42.
+# All targets are created with version set to YY.MM.XXXXX, e.g. 25.5.56178
+# (patch version is a 16-bit number made from day, hour and minute).
 
 # Input:
 # TUF_PATH: directory path for the test TUF repository.
@@ -18,12 +19,24 @@ if [[ -z "$TUF_PATH" ]]; then
     echo "Must set the TUF_PATH environment variable."
     exit 1
 fi
+
 if [[ -d "$TUF_PATH" ]]; then
-    echo "$TUF_PATH directory already exists, nothing to do."
-    exit 0
+    set +x
+    echo "Do you want to remove the existing $TUF_PATH directory?"
+    echo "Type 'yes/no' to continue... "
+    while read -r word;
+    do
+        if [[ "$word" == "yes" ]]; then
+            rm -rf "$TUF_PATH"
+            break
+        elif [[ "$word" == "no" ]]; then
+            break
+        fi
+    done
+    set -x
 fi
 
-SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows}
+SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows windows-arm64}
 
 echo "Generating packages for $SYSTEMS"
 
@@ -31,12 +44,14 @@ NUDGE_VERSION=stable
 ESCROW_BUDDY_PKG_VERSION=1.0.0
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.14.1
+    OSQUERY_VERSION=5.16.0
 fi
 
 mkdir -p $TUF_PATH/tmp
 
 ./build/fleetctl updates init --path $TUF_PATH
+
+source ./tools/tuf/test/load_orbit_version_vars.sh
 
 for system in $SYSTEMS; do
 
@@ -45,6 +60,9 @@ for system in $SYSTEMS; do
     osqueryd_system="$system"
     if [[ $system == "windows" ]]; then
         osqueryd="$osqueryd.exe"
+    elif [[ $system == "windows-arm64" ]]; then
+        osqueryd="$osqueryd.exe"
+        osqueryd_system="windows-arm64"
     elif [[ $system == "macos" ]]; then
         osqueryd="$osqueryd.app.tar.gz"
         osqueryd_system="macos-app"
@@ -57,7 +75,7 @@ for system in $SYSTEMS; do
     else
         osqueryd_path="$TUF_PATH/tmp/$osqueryd"
     fi
-    curl https://tuf.fleetctl.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
+    curl https://updates.fleetdm.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
 
     major=$(echo "$OSQUERY_VERSION" | cut -d "." -f 1)
     min=$(echo "$OSQUERY_VERSION" | cut -d "." -f 2)
@@ -77,12 +95,19 @@ for system in $SYSTEMS; do
     if [[ $system == "linux" ]]; then
         goarch_value="amd64"
     fi
+    if [[ $system == "windows" ]]; then
+        goarch_value="amd64"
+    fi
+    if [[ $system == "windows-arm64" ]]; then
+        goose_value="windows"
+        goarch_value="arm64"
+    fi
     if [[ $system == "linux-arm64" ]]; then
         goose_value="linux"
         goarch_value="arm64"
     fi
     orbit_target=orbit-$system
-    if [[ $system == "windows" ]]; then
+    if [[ $system == "windows" ]] || [[ $system == "windows-arm64" ]]; then
         orbit_target="${orbit_target}.exe"
     fi
 
@@ -93,7 +118,8 @@ for system in $SYSTEMS; do
     if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
        CGO_ENABLED=1 \
        CODESIGN_IDENTITY=$CODESIGN_IDENTITY \
-       ORBIT_VERSION=42 \
+       ORBIT_VERSION=$ORBIT_VERSION \
+       ORBIT_COMMIT=$ORBIT_COMMIT \
        ORBIT_BINARY_PATH=$orbit_target \
        go run ./orbit/tools/build/build.go
     else
@@ -112,7 +138,8 @@ for system in $SYSTEMS; do
       GOARCH=$goarch_value \
       go build \
       -race=$race_value \
-      -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" \
+      -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
+        -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$ORBIT_COMMIT" \
       -o $orbit_target ./orbit/cmd/orbit
     fi
 
@@ -121,14 +148,14 @@ for system in $SYSTEMS; do
         --target $orbit_target \
         --platform $system \
         --name orbit \
-        --version 42.0.0 -t 42.0 -t 42 -t stable
+        --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
     rm $orbit_target
 
     # Add Fleet Desktop application on macos (if enabled).
     if [[ $system == "macos" && -n "$FLEET_DESKTOP" ]]; then
         if [[ -z "$MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ" ]]; then
             FLEET_DESKTOP_VERBOSE=1 \
-            FLEET_DESKTOP_VERSION=42.0.0 \
+            FLEET_DESKTOP_VERSION=$ORBIT_VERSION \
             make desktop-app-tar-gz
         fi
         ./build/fleetctl updates add \
@@ -136,7 +163,7 @@ for system in $SYSTEMS; do
         --target desktop.app.tar.gz \
         --platform macos \
         --name desktop \
-        --version 42.0.0 -t 42.0 -t 42 -t stable
+        --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         if [[ -z "$MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ" ]]; then
             rm desktop.app.tar.gz
         fi
@@ -144,26 +171,26 @@ for system in $SYSTEMS; do
 
     # Add Nudge application on macos (if enabled).
     if [[ $system == "macos" && -n "$NUDGE" ]]; then
-        curl https://tuf.fleetctl.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
+        curl https://updates.fleetdm.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
         ./build/fleetctl updates add \
             --path $TUF_PATH \
             --target nudge.app.tar.gz \
             --platform macos \
             --name nudge \
-            --version 42.0.0 -t 42.0 -t 42 -t stable
+            --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         rm nudge.app.tar.gz
     fi
 
     # Add swiftDialog on macos (if enabled).
     if [[ $system == "macos" && -n "$SWIFT_DIALOG" ]]; then
-        curl https://tuf.fleetctl.com/targets/swiftDialog/macos/stable/swiftDialog.app.tar.gz --output swiftDialog.app.tar.gz
+        curl https://updates.fleetdm.com/targets/swiftDialog/macos/stable/swiftDialog.app.tar.gz --output swiftDialog.app.tar.gz
 
         ./build/fleetctl updates add \
             --path $TUF_PATH \
             --target swiftDialog.app.tar.gz \
             --platform macos \
             --name swiftDialog \
-            --version 42.0.0 -t 42.0 -t 42 -t stable
+            --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         rm swiftDialog.app.tar.gz
     fi
 
@@ -176,47 +203,60 @@ for system in $SYSTEMS; do
             --target escrowBuddy.pkg \
             --platform macos \
             --name escrowBuddy \
-            --version 42.0.0 -t 42.0 -t 42 -t stable
+            --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         rm escrowBuddy.pkg
     fi
 
 
-    # Add Fleet Desktop application on windows (if enabled).
+    # Add Fleet Desktop application on indows (if enabled).
     if [[ $system == "windows" && -n "$FLEET_DESKTOP" ]]; then
-        FLEET_DESKTOP_VERSION=42.0.0 \
+        FLEET_DESKTOP_VERSION=$ORBIT_VERSION \
         make desktop-windows
         ./build/fleetctl updates add \
         --path $TUF_PATH \
         --target fleet-desktop.exe \
         --platform windows \
         --name desktop \
-        --version 42.0.0 -t 42.0 -t 42 -t stable
+        --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
+        rm fleet-desktop.exe
+    fi
+
+    # Add Fleet Desktop application on windows-arm64 (if enabled).
+    if [[ $system == "windows-arm64" && -n "$FLEET_DESKTOP" ]]; then
+        FLEET_DESKTOP_VERSION=$ORBIT_VERSION \
+        make desktop-windows-arm64
+        ./build/fleetctl updates add \
+        --path $TUF_PATH \
+        --target fleet-desktop.exe \
+        --platform windows-arm64 \
+        --name desktop \
+        --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         rm fleet-desktop.exe
     fi
 
     # Add Fleet Desktop application on linux (if enabled).
     if [[ $system == "linux" && -n "$FLEET_DESKTOP" ]]; then
-        FLEET_DESKTOP_VERSION=42.0.0 \
+        FLEET_DESKTOP_VERSION=$ORBIT_VERSION \
         make desktop-linux
         ./build/fleetctl updates add \
         --path $TUF_PATH \
         --target desktop.tar.gz \
         --platform linux \
         --name desktop \
-        --version 42.0.0 -t 42.0 -t 42 -t stable
+        --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         rm desktop.tar.gz
     fi
 
     # Add Fleet Desktop application on linux-arm64 (if enabled).
     if [[ $system == "linux-arm64" && -n "$FLEET_DESKTOP" ]]; then
-        FLEET_DESKTOP_VERSION=42.0.0 \
+        FLEET_DESKTOP_VERSION=$ORBIT_VERSION \
         make desktop-linux-arm64
         ./build/fleetctl updates add \
                          --path $TUF_PATH \
                          --target desktop.tar.gz \
                          --platform linux-arm64 \
                          --name desktop \
-                         --version 42.0.0 -t 42.0 -t 42 -t stable
+                         --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         rm desktop.tar.gz
     fi
 
@@ -231,7 +271,7 @@ for system in $SYSTEMS; do
                 --target $extension \
                 --platform macos \
                 --name "extensions/$extensionName" \
-                --version 42.0.0 -t 42.0 -t 42 -t stable
+                --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         done
     fi
 
@@ -246,7 +286,7 @@ for system in $SYSTEMS; do
                 --target $extension \
                 --platform linux \
                 --name "extensions/$extensionName" \
-                --version 42.0.0 -t 42.0 -t 42 -t stable
+                --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         done
     fi
 
@@ -261,7 +301,7 @@ for system in $SYSTEMS; do
                              --target $extension \
                              --platform linux-arm64 \
                              --name "extensions/$extensionName" \
-                             --version 42.0.0 -t 42.0 -t 42 -t stable
+                             --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         done
     fi
 
@@ -277,7 +317,7 @@ for system in $SYSTEMS; do
                 --target $extension \
                 --platform windows \
                 --name "extensions/$extensionName" \
-                --version 42.0.0 -t 42.0 -t 42 -t stable
+                --version $ORBIT_VERSION -t $ORBIT_MAJOR.$ORBIT_MINOR -t $ORBIT_MAJOR -t stable
         done
     fi
 done

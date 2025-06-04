@@ -10,13 +10,18 @@ import {
   ISoftwareTitleDetails,
   IFleetMaintainedApp,
   IFleetMaintainedAppDetails,
+  ISoftwarePackage,
 } from "interfaces/software";
+import { CommaSeparatedPlatformString } from "interfaces/platform";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
+  getPathWithQueryParams,
 } from "utilities/url";
-import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
+import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -71,6 +76,7 @@ export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   // used to trigger software refetches from sibling pages
   addedSoftwareToken?: string | null;
+  platform?: CommaSeparatedPlatformString;
   scope: "software-titles";
 }
 
@@ -138,6 +144,10 @@ interface IAddFleetMaintainedAppPostBody {
   post_install_script?: string;
   uninstall_script?: string;
   self_service?: boolean;
+  automatic_install?: boolean;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
+  categories: string[];
 }
 
 const ORDER_KEY = "name";
@@ -274,7 +284,27 @@ export default {
       formData.append("pre_install_query", data.preInstallQuery);
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
+    data.automaticInstall &&
+      formData.append("automatic_install", data.automaticInstall.toString());
     teamId && formData.append("team_id", teamId.toString());
+    if (data.categories) {
+      data.categories.forEach((category) => {
+        formData.append("categories", category);
+      });
+    }
+
+    if (data.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+      let labelKey = "";
+      if (data.customTarget === "labelsIncludeAny") {
+        labelKey = "labels_include_any";
+      } else {
+        labelKey = "labels_exclude_any";
+      }
+      selectedLabels?.forEach((label) => {
+        formData.append(labelKey, label);
+      });
+    }
 
     return sendRequestWithProgress({
       method: "POST",
@@ -289,13 +319,15 @@ export default {
 
   editSoftwarePackage: ({
     data,
+    orignalPackage,
     softwareId,
     teamId,
     timeout,
     onUploadProgress,
     signal,
   }: {
-    data: IPackageFormData;
+    data: IEditPackageFormData;
+    orignalPackage: ISoftwarePackage;
     softwareId: number;
     teamId: number;
     timeout?: number;
@@ -312,6 +344,34 @@ export default {
     formData.append("pre_install_query", data.preInstallQuery || "");
     formData.append("post_install_script", data.postInstallScript || "");
     formData.append("uninstall_script", data.uninstallScript || "");
+    if (data.categories) {
+      data.categories.forEach((category) => {
+        formData.append("categories", category);
+      });
+    }
+
+    // clear out labels if targetType is "All hosts"
+    if (data.targetType === "All hosts") {
+      if (orignalPackage.labels_include_any) {
+        formData.append("labels_include_any", "");
+      } else {
+        formData.append("labels_exclude_any", "");
+      }
+    }
+
+    // add custom labels if targetType is "Custom"
+    if (data.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+      let labelKey = "";
+      if (data.customTarget === "labelsIncludeAny") {
+        labelKey = "labels_include_any";
+      } else {
+        labelKey = "labels_exclude_any";
+      }
+      selectedLabels?.forEach((label) => {
+        formData.append(labelKey, label);
+      });
+    }
 
     return sendRequestWithProgress({
       method: "PATCH",
@@ -324,7 +384,8 @@ export default {
     });
   },
 
-  deleteSoftwarePackage: (softwareId: number, teamId: number) => {
+  // Endpoint for deleting packages or VPP
+  deleteSoftwareInstaller: (softwareId: number, teamId: number) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
     const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
       softwareId
@@ -358,9 +419,14 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getFleetMainainedApp: (id: number): Promise<IFleetMaintainedAppResponse> => {
+  getFleetMaintainedApp: (
+    id: number,
+    teamId?: string
+  ): Promise<IFleetMaintainedAppResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APP } = endpoints;
-    const path = `${SOFTWARE_FLEET_MAINTAINED_APP(id)}`;
+    const path = getPathWithQueryParams(SOFTWARE_FLEET_MAINTAINED_APP(id), {
+      team_id: teamId,
+    });
     return sendRequest("GET", path);
   },
 
@@ -378,7 +444,18 @@ export default {
       post_install_script: formData.postInstallScript,
       uninstall_script: formData.uninstallScript,
       self_service: formData.selfService,
+      automatic_install: formData.automaticInstall,
+      categories: formData.categories,
     };
+
+    if (formData.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+      if (formData.customTarget === "labelsIncludeAny") {
+        body.labels_include_any = selectedLabels;
+      } else {
+        body.labels_exclude_any = selectedLabels;
+      }
+    }
 
     return sendRequest("POST", SOFTWARE_FLEET_MAINTAINED_APPS, body);
   },

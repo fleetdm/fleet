@@ -28,9 +28,8 @@ import sort from "utilities/sort";
 import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import Spinner from "components/Spinner";
+import Pagination from "components/Pagination";
 import ActionButton from "./ActionButton";
 import { IActionButtonProps } from "./ActionButton/ActionButton";
 
@@ -46,6 +45,7 @@ interface IDataTableProps {
   sortDirection: any;
   onSort: any; // TODO: an event type
   disableMultiRowSelect: boolean;
+  keyboardSelectableRows?: boolean;
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
@@ -64,6 +64,8 @@ interface IDataTableProps {
   selectedDropdownFilter?: string;
   /** Set to true to persist the row selections across table data filters */
   persistSelectedRows?: boolean;
+  /** Set to `true` to not display the footer section of the table */
+  hideFooter?: boolean;
   onSelectSingleRow?: (value: Row) => void;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
@@ -79,8 +81,6 @@ interface IHeaderGroup extends HeaderGroup {
   title?: string;
 }
 
-const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
-
 // This data table uses react-table for implementation. The relevant v7 documentation of the library
 // can be found here https://react-table-v7-docs.netlify.app/docs/api/usetable
 
@@ -94,6 +94,7 @@ const DataTable = ({
   sortDirection,
   onSort,
   disableMultiRowSelect,
+  keyboardSelectableRows,
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
@@ -111,6 +112,7 @@ const DataTable = ({
   searchQueryColumn,
   selectedDropdownFilter,
   persistSelectedRows = false,
+  hideFooter = false,
   onSelectSingleRow,
   onClickRow,
   onResultsCountChange,
@@ -225,6 +227,11 @@ const DataTable = ({
           ) => {
             return sort.hasLength(a.values[id], b.values[id]);
           },
+          hostPolicyStatus: (
+            a: { values: Record<string, unknown[]> },
+            b: { values: Record<string, unknown[]> },
+            id: string
+          ) => sort.hostPolicyStatus(a.values[id], b.values[id]),
         }),
         []
       ),
@@ -320,7 +327,7 @@ const DataTable = ({
   }, [isAllPagesSelected, toggleAllRowsSelected]);
 
   useEffect(() => {
-    setPageSize(defaultPageSize || CLIENT_SIDE_DEFAULT_PAGE_SIZE);
+    setPageSize(defaultPageSize);
   }, [setPageSize]);
 
   useDeepEffect(() => {
@@ -391,31 +398,10 @@ const DataTable = ({
   const renderActionButton = (
     actionButtonProps: IActionButtonProps
   ): JSX.Element => {
-    const {
-      name,
-      onActionButtonClick,
-      buttonText,
-      targetIds,
-      variant,
-      hideButton,
-      iconSvg,
-      iconPosition,
-      indicatePremiumFeature,
-    } = actionButtonProps;
+    const key = kebabCase(actionButtonProps.name);
     return (
-      <div className={`${baseClass}__${kebabCase(name)}`}>
-        <ActionButton
-          key={kebabCase(name)}
-          name={name}
-          buttonText={buttonText}
-          onActionButtonClick={onActionButtonClick || noop}
-          targetIds={targetIds}
-          variant={variant}
-          hideButton={hideButton}
-          indicatePremiumFeature={indicatePremiumFeature}
-          iconSvg={iconSvg}
-          iconPosition={iconPosition}
-        />
+      <div className={`${baseClass}__${key}`}>
+        <ActionButton {...{ key, ...actionButtonProps }} />
       </div>
     );
   };
@@ -431,7 +417,7 @@ const DataTable = ({
     const actionProps = {
       name,
       buttonText: buttonText || "",
-      onActionButtonClick: primarySelectAction?.onActionButtonClick || noop,
+      onClick: primarySelectAction?.onClick || noop,
       targetIds,
       variant: primarySelectAction?.variant,
       iconSvg: primarySelectAction?.iconSvg,
@@ -458,17 +444,6 @@ const DataTable = ({
     !isAllPagesSelected;
 
   const pageOrRows = isClientSidePagination ? page : rows;
-
-  const previousButton = (
-    <>
-      <FleetIcon name="chevronleft" /> Previous
-    </>
-  );
-  const nextButton = (
-    <>
-      Next <FleetIcon name="chevronright" />
-    </>
-  );
 
   const tableStyles = classnames({
     "data-table__table": true,
@@ -550,6 +525,7 @@ const DataTable = ({
               const rowStyles = classnames({
                 "single-row": disableMultiRowSelect,
                 "disable-highlight": disableHighlightOnHover,
+                "clickable-row": !!onClickRow,
               });
               return (
                 <tr
@@ -560,18 +536,42 @@ const DataTable = ({
                       (onSelectRowClick &&
                         disableMultiRowSelect &&
                         onSelectRowClick(row)) ||
-                        (onClickRow && onClickRow(row));
+                        (disableMultiRowSelect &&
+                          onClickRow &&
+                          onClickRow(row));
+                    },
+                    // For accessibility when tabable
+                    onKeyDown: (e: KeyboardEvent) => {
+                      if (e.key === "Enter") {
+                        e.stopPropagation();
+                        (onSelectRowClick &&
+                          disableMultiRowSelect &&
+                          onSelectRowClick(row)) ||
+                          (disableMultiRowSelect &&
+                            onClickRow &&
+                            onClickRow(row));
+                      }
                     },
                   })}
+                  // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
+                  tabIndex={keyboardSelectableRows ? 0 : -1}
                 >
-                  {row.cells.map((cell: any) => {
+                  {row.cells.map((cell: any, index: number) => {
+                    // Only allow row click behavior on first cell
+                    // if the first cell is not a checkbox
+                    const cellProps = cell.getCellProps();
+                    const multiRowSelectEnabled = !disableMultiRowSelect;
+
                     return (
                       <td
                         key={cell.column.id}
                         className={
                           cell.column.id ? `${cell.column.id}__cell` : ""
                         }
-                        {...cell.getCellProps()}
+                        style={
+                          multiRowSelectEnabled ? { cursor: "initial" } : {}
+                        }
+                        {...cellProps}
                       >
                         {cell.render("Cell")}
                       </td>
@@ -583,43 +583,36 @@ const DataTable = ({
           </tbody>
         </table>
       </div>
-      <div className={`${baseClass}__footer`}>
-        {renderTableHelpText && !!rows?.length && (
-          <div className={`${baseClass}__table-help-text`}>
-            {renderTableHelpText()}
-          </div>
-        )}
-        {isClientSidePagination ? (
-          <div className={`${baseClass}__pagination`}>
-            <Button
-              variant="unstyled"
-              onClick={() => {
+      {!hideFooter && (
+        <div className={`${baseClass}__footer`}>
+          {renderTableHelpText && !!rows?.length && (
+            <div className={`${baseClass}__table-help-text`}>
+              {renderTableHelpText()}
+            </div>
+          )}
+          {isClientSidePagination ? (
+            <Pagination
+              disablePrev={!canPreviousPage}
+              disableNext={!canNextPage}
+              onPrevPage={() => {
                 toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange &&
                   onClientSidePaginationChange(pageIndex - 1);
                 previousPage();
               }}
-              disabled={!canPreviousPage}
-            >
-              {previousButton}
-            </Button>
-            <Button
-              variant="unstyled"
-              onClick={() => {
+              onNextPage={() => {
                 toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange &&
                   onClientSidePaginationChange(pageIndex + 1);
                 nextPage();
               }}
-              disabled={!canNextPage}
-            >
-              {nextButton}
-            </Button>
-          </div>
-        ) : (
-          renderPagination && renderPagination()
-        )}
-      </div>
+              hidePagination={!canPreviousPage && !canNextPage}
+            />
+          ) : (
+            renderPagination && renderPagination()
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -103,8 +103,8 @@ module.exports = {
       }//ﬁ
       if (Object.keys(searchBy).length >= 1) {
         // [?] https://dashboard.coresignal.com/get-started
-        let matchingLinkedinPersonIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v1/linkedin/member/search/filter', searchBy, {
-          Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+        let matchingLinkedinPersonIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/member/search/filter', searchBy, {
+          apikey: `${sails.config.custom.iqSecret}`,
           'content-type': 'application/json'
         }).tolerate((err)=>{
           sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
@@ -119,8 +119,8 @@ module.exports = {
 
     if (linkedinPersonIdOrUrlSlug) {
       // [?] https://dashboard.coresignal.com/get-started
-      let matchingPersonInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v1/linkedin/member/collect/'+encodeURIComponent(linkedinPersonIdOrUrlSlug), {}, {
-        Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+      let matchingPersonInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v2/member/collect/'+encodeURIComponent(linkedinPersonIdOrUrlSlug), {}, {
+        apikey: `${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
       }).tolerate((err)=>{
         sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
@@ -200,8 +200,8 @@ module.exports = {
       }//ﬁ
       if (Object.keys(searchBy).length >= 1) {
         // [?] https://dashboard.coresignal.com/get-started
-        let matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v1/linkedin/company/search/filter', searchBy, {
-          Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+        let matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_base/search/filter', searchBy, {
+          apikey: `${sails.config.custom.iqSecret}`,
           'content-type': 'application/json'
         }).tolerate((err)=>{
           sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
@@ -213,8 +213,8 @@ module.exports = {
         if (matchingLinkedinCompanyPageIds.length === 0 && searchBy.name && searchBy.website) {
           delete searchBy.name;
           // [?] https://dashboard.coresignal.com/get-started
-          matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v1/linkedin/company/search/filter', searchBy, {
-            Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+          matchingLinkedinCompanyPageIds = await sails.helpers.http.post('https://api.coresignal.com/cdapi/v2/company_base/search/filter', searchBy, {
+            apikey: `${sails.config.custom.iqSecret}`,
             'content-type': 'application/json'
           }).tolerate((err)=>{
             sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
@@ -229,8 +229,8 @@ module.exports = {
     let employer;
     if (matchingLinkedinCompanyPageId) {
       // [?] https://dashboard.coresignal.com/get-started
-      let matchingCompanyPageInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v1/linkedin/company/collect/'+encodeURIComponent(matchingLinkedinCompanyPageId), {}, {
-        Authorization: `Bearer ${sails.config.custom.iqSecret}`,
+      let matchingCompanyPageInfo = await sails.helpers.http.get('https://api.coresignal.com/cdapi/v2/company_base/collect/'+encodeURIComponent(matchingLinkedinCompanyPageId), {}, {
+        apikey: `${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
       }).tolerate((err)=>{
         sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);

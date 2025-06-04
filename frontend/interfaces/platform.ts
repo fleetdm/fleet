@@ -11,30 +11,54 @@ export const PLATFORM_DISPLAY_NAMES = {
   windows: "Windows",
   linux: "Linux",
   chrome: "ChromeOS",
+  android: "Android",
   ...APPLE_PLATFORM_DISPLAY_NAMES,
 } as const;
+
+export const QUERYABLE_PLATFORMS = [
+  "darwin",
+  "windows",
+  "linux",
+  "chrome",
+] as const;
+
+export const NON_QUERYABLE_PLATFORMS = ["ios", "ipados", "android"] as const;
 
 export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
 export type DisplayPlatform = typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES];
 export type QueryableDisplayPlatform = Exclude<
   DisplayPlatform,
-  "iOS" | "iPadOS"
+  typeof PLATFORM_DISPLAY_NAMES[typeof NON_QUERYABLE_PLATFORMS[number]]
 >;
-export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
 
-export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
+export type QueryablePlatform = typeof QUERYABLE_PLATFORMS[number];
+
+export const isQueryablePlatform = (
+  platform: string | undefined
+): platform is QueryablePlatform =>
+  QUERYABLE_PLATFORMS.includes(platform as QueryablePlatform);
+
+export const SCHEDULED_QUERYABLE_PLATFORMS: ScheduledQueryablePlatform[] = [
   "darwin",
   "windows",
   "linux",
-  "chrome",
 ];
+
+export type ScheduledQueryablePlatform = Exclude<QueryablePlatform, "chrome">;
+
+export const isScheduledQueryablePlatform = (
+  platform: string | undefined
+): platform is ScheduledQueryablePlatform =>
+  SCHEDULED_QUERYABLE_PLATFORMS.includes(
+    platform as ScheduledQueryablePlatform
+  );
 
 // TODO - add "iOS" and "iPadOS" once we support them
 export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];
 
 export type SelectedPlatform = QueryablePlatform | "all";
 
-export type SelectedPlatformString =
+export type CommaSeparatedPlatformString =
   | ""
   | QueryablePlatform
   | `${QueryablePlatform},${QueryablePlatform}`
@@ -64,9 +88,9 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
  */
 export const HOST_LINUX_PLATFORMS = [
   "linux",
-  "ubuntu",
+  "ubuntu", // covers Kubuntu
   "debian",
-  "rhel",
+  "rhel", // covers Fedora
   "centos",
   "sles",
   "kali",
@@ -82,6 +106,7 @@ export const HOST_LINUX_PLATFORMS = [
   "opensuse-leap",
   "opensuse-tumbleweed",
   "tuxedo",
+  "neon",
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
@@ -90,7 +115,8 @@ export type HostPlatform =
   | typeof HOST_LINUX_PLATFORMS[number]
   | typeof HOST_APPLE_PLATFORMS[number]
   | "windows"
-  | "chrome";
+  | "chrome"
+  | "android";
 
 /**
  * Checks if the provided platform is a Linux-like OS. We can recieve many
@@ -103,7 +129,7 @@ export const isLinuxLike = (platform: string) => {
   );
 };
 
-export const isAppleDevice = (platform: string) => {
+export const isAppleDevice = (platform = "") => {
   return HOST_APPLE_PLATFORMS.includes(
     platform as typeof HOST_APPLE_PLATFORMS[number]
   );
@@ -111,3 +137,69 @@ export const isAppleDevice = (platform: string) => {
 
 export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);
+
+export const isAndroid = (
+  platform: string | HostPlatform
+): platform is "android" => platform === "android";
+
+/** isMobilePlatform checks if the platform is an iPad or iPhone or Android. */
+export const isMobilePlatform = (platform: string | HostPlatform) =>
+  isIPadOrIPhone(platform) || isAndroid(platform);
+
+export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
+  "ubuntu", // covers Kubuntu
+  "rhel", // *included here to support Fedora systems. Necessary to cross-check with `os_versions` as well to confrim host is Fedora and not another, non-support rhel-like platform.
+] as const;
+
+export const isDiskEncryptionSupportedLinuxPlatform = (
+  platform: HostPlatform,
+  os_version: string
+) => {
+  const isFedora =
+    platform === "rhel" && os_version.toLowerCase().includes("fedora");
+  return isFedora || platform === "ubuntu";
+};
+
+const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [
+  "darwin",
+  "windows",
+  "chrome",
+  ...DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS,
+] as const;
+
+export type DiskEncryptionSupportedPlatform = typeof DISK_ENCRYPTION_SUPPORTED_PLATFORMS[number];
+
+export const platformSupportsDiskEncryption = (
+  platform: HostPlatform,
+  /** os_version necessary to differentiate Fedora from other rhel-like platforms */
+  os_version?: string
+) => {
+  if (isAndroid(platform)) {
+    return false;
+  }
+  if (platform === "rhel") {
+    return !!os_version && os_version.toLowerCase().includes("fedora");
+  }
+  return DISK_ENCRYPTION_SUPPORTED_PLATFORMS.includes(
+    platform as DiskEncryptionSupportedPlatform
+  );
+};
+
+const OS_SETTINGS_DISPLAY_PLATFORMS = [
+  ...DISK_ENCRYPTION_SUPPORTED_PLATFORMS,
+  "ios",
+  "ipados",
+];
+
+export const isOsSettingsDisplayPlatform = (
+  platform: HostPlatform,
+  os_version: string
+) => {
+  if (isAndroid(platform)) {
+    return false;
+  }
+  if (platform === "rhel") {
+    return !!os_version && os_version.toLowerCase().includes("fedora");
+  }
+  return OS_SETTINGS_DISPLAY_PLATFORMS.includes(platform);
+};

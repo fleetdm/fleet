@@ -4,12 +4,14 @@ import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { ISoftwareFleetMaintainedAppsResponse } from "services/entities/software";
 import { getNextLocationPath } from "utilities/helpers";
-import { buildQueryStringFromParams } from "utilities/url";
-import { IFleetMaintainedApp } from "interfaces/software";
+import {
+  FleetMaintainedAppPlatform,
+  ICombinedFMA,
+  IFleetMaintainedApp,
+} from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
@@ -21,19 +23,50 @@ const baseClass = "fleet-maintained-apps-table";
 const EmptyFleetAppsTable = () => (
   <EmptyTable
     graphicName="empty-search-question"
-    header={"No items match the current search criteria"}
+    header="No items match the current search criteria"
     info={
       <>
         Can&apos;t find app?{" "}
         <CustomLink
           newTab
-          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          url="https://fleetdm.com/feature-request"
           text="File an issue on GitHub"
         />
       </>
     }
   />
 );
+
+/** Used to convert FleetMaintainedApp API response which has separate entries
+ * for Windows FMA and macOS FMA into table friendly format that combines
+ * entries for the same app for different platforms */
+const combineAppsByPlatform = (
+  fmaList: IFleetMaintainedApp[]
+): ICombinedFMA[] => {
+  const combinedApps: { [name: string]: ICombinedFMA } = {};
+
+  fmaList.forEach((app: IFleetMaintainedApp) => {
+    const { name, platform, ...rest } = app;
+
+    if (!combinedApps[name]) {
+      combinedApps[name] = { name, macos: null, windows: null };
+    }
+
+    if (platform === "darwin") {
+      combinedApps[name].macos = {
+        platform: platform as FleetMaintainedAppPlatform,
+        ...rest,
+      };
+    } else if (platform === "windows") {
+      combinedApps[name].windows = {
+        platform: platform as FleetMaintainedAppPlatform,
+        ...rest,
+      };
+    }
+  });
+
+  return Object.values(combinedApps);
+};
 
 interface IFleetMaintainedAppsTableProps {
   teamId: number;
@@ -45,6 +78,10 @@ interface IFleetMaintainedAppsTableProps {
   currentPage: number;
   router: InjectedRouter;
   data?: ISoftwareFleetMaintainedAppsResponse;
+}
+
+interface IRowProps {
+  original: IFleetMaintainedApp;
 }
 
 const FleetMaintainedAppsTable = ({
@@ -118,54 +155,34 @@ const FleetMaintainedAppsTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  const handleRowClick = (row: IFleetMaintainedApp) => {
-    const path = `${PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(
-      row.id
-    )}?${buildQueryStringFromParams({
-      team_id: teamId,
-    })}`;
-
-    router.push(path);
-  };
-
   const tableHeadersConfig = useMemo(() => {
     if (!data) return [];
     return generateTableConfig(router, teamId);
   }, [data, router, teamId]);
 
-  const renderCount = () => {
-    if (!data) return null;
+  // Note: Serverside filtering will be buggy with pagination if > 20 apps
+  // API will need to be refactored to combine macOS/windows apps
+  // for correct pagination, sort, and counts when we go over 20 apps
+  const combinedAppsByPlatform =
+    (data && combineAppsByPlatform(data.fleet_maintained_apps ?? [])) ?? [];
 
-    return (
-      <>
-        <TableCount name="items" count={data?.count} />
-        {data?.apps_updated_at && (
-          <LastUpdatedText
-            lastUpdatedAt={data.apps_updated_at}
-            customTooltipText={
-              <>
-                The last time Fleet-maintained <br />
-                package library data was <br />
-                updated.
-              </>
-            }
-          />
-        )}
-      </>
-    );
+  const renderCount = () => {
+    if (!combinedAppsByPlatform) return null;
+
+    return <TableCount name="items" count={combinedAppsByPlatform.length} />;
   };
 
   return (
-    <TableContainer<IFleetMaintainedApp>
+    <TableContainer<IRowProps>
       className={baseClass}
       columnConfigs={tableHeadersConfig}
-      data={data?.fleet_maintained_apps ?? []}
+      data={combinedAppsByPlatform}
       isLoading={isLoading}
       resultsTitle="items"
       emptyComponent={EmptyFleetAppsTable}
       defaultSortHeader={orderKey}
       defaultSortDirection={orderDirection}
-      defaultPageIndex={currentPage}
+      pageIndex={currentPage}
       defaultSearchQuery={query}
       manualSortBy
       pageSize={perPage}
@@ -176,8 +193,6 @@ const FleetMaintainedAppsTable = ({
       inputPlaceHolder="Search by name"
       onQueryChange={onQueryChange}
       renderCount={renderCount}
-      disableMultiRowSelect
-      onClickRow={handleRowClick}
     />
   );
 };

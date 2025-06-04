@@ -55,12 +55,7 @@ class OrgDetails extends Component {
           tabIndex={tabIndex}
           helpText="Personalize Fleet with your brand.  For best results, use a square image at least 150px wide, like https://fleetdm.com/logo.png."
         />
-        <Button
-          type="submit"
-          tabIndex={tabIndex}
-          disabled={!currentPage}
-          variant="brand"
-        >
+        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
           Next
         </Button>
       </form>

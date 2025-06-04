@@ -11,7 +11,7 @@ import scriptsAPI, {
   IHostScriptsResponse,
 } from "services/entities/scripts";
 
-import ScriptDetailsModal from "pages/ManageControlsPage/Scripts/components/ScriptDetailsModal";
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 import RunScriptModal from "../RunScriptModal";
@@ -20,6 +20,7 @@ interface IScriptsProps {
   currentUser: IUser | null;
   host: IHost;
   onCloseScriptModalGroup: () => void;
+  teamIdForApi?: number;
 }
 
 type ScriptGroupModals =
@@ -33,6 +34,7 @@ const ScriptModalGroup = ({
   currentUser,
   host,
   onCloseScriptModalGroup,
+  teamIdForApi,
 }: IScriptsProps) => {
   const [previousModal, setPreviousModal] = useState<ScriptGroupModals>(null);
   const [currentModal, setCurrentModal] = useState<ScriptGroupModals>(
@@ -163,6 +165,7 @@ const ScriptModalGroup = ({
         isScriptContentError={isSelectedScriptContentError}
         isHidden={currentModal !== "view-script"}
         showHostScriptActions
+        teamIdForApi={teamIdForApi}
       />
       <DeleteScriptModal
         scriptId={selectedScriptDetails?.script_id || 1}

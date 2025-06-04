@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -50,7 +51,7 @@ func TestHostRunScript(t *testing.T) {
 	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 		return &fleet.HostScriptResult{HostID: request.HostID, ScriptContents: request.ScriptContents, ExecutionID: "abc"}, nil
 	}
-	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
 		return nil, nil
 	}
 	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
@@ -60,6 +61,9 @@ func TestHostRunScript(t *testing.T) {
 		return []byte("echo"), nil
 	}
 	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hostID, scriptID uint) (bool, error) { return false, nil }
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
 
 	t.Run("authorization checks", func(t *testing.T) {
 		testCases := []struct {
@@ -310,12 +314,15 @@ func TestHostRunScript(t *testing.T) {
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
 			{"valid with posix hashbang", "#!/bin/sh\necho 'a'", ""},
+			{"valid with usr bash hashbang", "#!/usr/bin/bash\necho 'a'", ""},
+			{"valid with bash hashbang", "#!/bin/bash\necho 'a'", ""},
+			{"valid with bash hashbang and arguments", "#!/bin/bash -x\necho 'a'", ""},
 			{"valid with usr zsh hashbang", "#!/usr/bin/zsh\necho 'a'", ""},
 			{"valid with zsh hashbang", "#!/bin/zsh\necho 'a'", ""},
 			{"valid with zsh hashbang and arguments", "#!/bin/zsh -x\necho 'a'", ""},
 			{"valid with hashbang and spacing", "#! /bin/sh  \necho 'a'", ""},
 			{"valid with hashbang and Windows newline", "#! /bin/sh  \r\necho 'a'", ""},
-			{"invalid hashbang", "#!/bin/bash\necho 'a'", "Interpreter not supported."},
+			{"invalid hashbang", "#!/bin/ksh\necho 'a'", "Interpreter not supported."},
 		}
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
@@ -498,10 +505,14 @@ func TestSavedScripts(t *testing.T) {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
+	withLFContents := "echo\necho"
+	withCRLFContents := "echo\r\necho"
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 	ds.NewScriptFunc = func(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
+		require.Equal(t, withLFContents, script.ScriptContents)
 		newScript := *script
 		newScript.ID = 1
 		return &newScript, nil
@@ -534,6 +545,12 @@ func TestSavedScripts(t *testing.T) {
 	}
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: 0}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+		return document, nil
 	}
 
 	testCases := []struct {
@@ -669,7 +686,7 @@ func TestSavedScripts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.NewScript(ctx, nil, "test.sh", strings.NewReader("echo"))
+			_, err := svc.NewScript(ctx, nil, "test.ps1", strings.NewReader(withCRLFContents))
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 			err = svc.DeleteScript(ctx, noTeamScriptID)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
@@ -680,7 +697,7 @@ func TestSavedScripts(t *testing.T) {
 			_, _, err = svc.GetScript(ctx, noTeamScriptID, true)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, err = svc.NewScript(ctx, ptr.Uint(1), "test.sh", strings.NewReader("echo"))
+			_, err = svc.NewScript(ctx, ptr.Uint(1), "test.sh", strings.NewReader(withLFContents))
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 			err = svc.DeleteScript(ctx, team1ScriptID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
@@ -845,4 +862,109 @@ func TestHostScriptDetailsAuth(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestBatchScriptExecute(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	t.Run("error if hosts do not all belong to the same team as script", func(t *testing.T) {
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 1, TeamID: ptr.Uint(1)},
+				{ID: 2, TeamID: ptr.Uint(1)},
+				{ID: 3, TeamID: ptr.Uint(2)},
+			}, nil
+		}
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			if id == 1 {
+				return &fleet.Script{ID: id, TeamID: ptr.Uint(1)}, nil
+			}
+			return &fleet.Script{ID: id}, nil
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2, 3}, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "all hosts must be on the same team as the script")
+	})
+
+	t.Run("error if both host_ids and filters are specified", func(t *testing.T) {
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2, 3}, &map[string]interface{}{"foo": "bar"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "cannot specify both host_ids and filters")
+	})
+
+	t.Run("error if filters are specified but no team_id", func(t *testing.T) {
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"label_id": float64(123)})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "filters must include a team filter")
+	})
+
+	t.Run("error if filters match too many hosts", func(t *testing.T) {
+		hosts := make([]*fleet.Host, 5001)
+		for i := 0; i < 5001; i++ {
+			hosts[i] = &fleet.Host{ID: uint(i + 1), TeamID: ptr.Uint(1)} // nolint:gosec // ignore G115
+		}
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return hosts, nil
+		}
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return hosts, nil
+		}
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			if id == 1 {
+				return &fleet.Script{ID: id, TeamID: ptr.Uint(1)}, nil
+			}
+			return &fleet.Script{ID: id}, nil
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"team_id": float64(1)})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "too_many_hosts")
+	})
+
+	t.Run("happy path", func(t *testing.T) {
+		var requestedHostIds []uint
+		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+			requestedHostIds = hostIDs
+			return "", errors.New("ok")
+		}
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 1, TeamID: ptr.Uint(1)},
+				{ID: 2, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			if id == 1 {
+				return &fleet.Script{ID: id, TeamID: ptr.Uint(1)}, nil
+			}
+			return &fleet.Script{ID: id}, nil
+		}
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 3, TeamID: ptr.Uint(1)},
+				{ID: 4, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2}, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "ok")
+		require.Equal(t, []uint{1, 2}, requestedHostIds)
+
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err = svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"team_id": float64(1)})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "ok")
+		require.Equal(t, []uint{3, 4}, requestedHostIds)
+	})
 }

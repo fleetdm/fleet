@@ -52,6 +52,7 @@ func (r *Runner) Run(execIDs []string) error {
 	var errs []error
 
 	for _, execID := range execIDs {
+		log.Info().Msgf("processing script %v", execID)
 		if !r.ScriptExecutionEnabled {
 			if err := r.runOneDisabled(execID); err != nil {
 				errs = append(errs, err)
@@ -59,6 +60,7 @@ func (r *Runner) Run(execIDs []string) error {
 			continue
 		}
 
+		log.Info().Msgf("getting script %v", execID)
 		script, err := r.Client.GetHostScript(execID)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("get host script: %w", err))
@@ -66,7 +68,7 @@ func (r *Runner) Run(execIDs []string) error {
 			break
 		}
 
-		log.Debug().Msgf("running script %v", execID)
+		log.Info().Msgf("proceeding to execution of script %v", execID)
 		if err := r.runOne(script); err != nil {
 			errs = append(errs, err)
 		}
@@ -114,6 +116,8 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		return fmt.Errorf("write script file: %w", err)
 	}
 
+	log.Info().Msgf("ready to execute script %v", script.ExecutionID)
+
 	ctx, cancel := context.WithTimeout(context.Background(), r.ScriptExecutionTimeout)
 	defer cancel()
 
@@ -139,6 +143,7 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		output = output[len(output)-(utf8.UTFMax*maxOutputRuneLen):]
 	}
 
+	log.Info().Msgf("saving script result %v with exit code %d", script.ExecutionID, exitCode)
 	err = r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
 		ExecutionID: script.ExecutionID,
 		Output:      string(output),

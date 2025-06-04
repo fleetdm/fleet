@@ -20,20 +20,17 @@ const ActivityAutomationDetailsModal = ({
     return (
       <>
         <div className={`${baseClass}__modal-content`}>
-          <p>
-            Fleet will send a JSON payload to this URL whenever a new activity
-            is generated:
-          </p>
-          <div className={`${baseClass}__webhook-url`}>
-            <Textarea className={`${baseClass}__webhook-url-textarea`}>
-              {details.webhook_url}
-            </Textarea>
-          </div>
+          <Textarea
+            label="Fleet will send a JSON payload to this URL whenever a new activity
+            is generated:"
+            className={`${baseClass}__webhook-url`}
+            variant="code"
+          >
+            {details.webhook_url}
+          </Textarea>
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     );

@@ -2,13 +2,13 @@ import React from "react";
 
 import Card from "components/Card";
 
-import OsPrefillPreview from "../../../../../../../../assets/images/os-prefill-preview.gif";
+import SetupAssistantEndUserPreview from "../../../../../../../../assets/videos/setup-assistant-preview.mp4";
 
 const baseClass = "setup-assistant-preview";
 
 const SetupAssistantPreview = () => {
   return (
-    <Card color="gray" paddingSize="xxlarge" className={baseClass}>
+    <Card color="grey" paddingSize="xxlarge" className={baseClass}>
       <h3>End user experience</h3>
       <p>
         After the end user continues past the <b>Remote Management</b> screen,
@@ -18,11 +18,14 @@ const SetupAssistantPreview = () => {
         By adding an automatic enrollment profile you can customize which
         screens are displayed and more.
       </p>
-      <img
-        className={`${baseClass}__preview-img`}
-        src={OsPrefillPreview}
-        alt="End user experience during the macOS setup assistant customised by
-        an automatic enrollment profile"
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <video
+        className={`${baseClass}__preview-video`}
+        src={SetupAssistantEndUserPreview}
+        controls
+        autoPlay
+        loop
+        muted
       />
     </Card>
   );

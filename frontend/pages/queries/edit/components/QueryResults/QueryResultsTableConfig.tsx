@@ -8,11 +8,9 @@ import { CellProps, Column, HeaderProps } from "react-table";
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import {
-  getSortTypeFromColumnType,
-  getUniqueColumnNamesFromRows,
+  getUniqueColsAreNumTypeFromRows,
   internallyTruncateText,
 } from "utilities/helpers";
-import { IQueryTableColumn } from "interfaces/osquery_table";
 
 const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
   const newHeaders = [...columns];
@@ -35,34 +33,39 @@ const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
 };
 
 const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
-  // TODO - narrow typing down this entire chain of logic
-  // typed as any[] to accomodate loose typing of websocket API
-  results: T[], // {col:val, ...} for each row of query results
-  tableColumns?: IQueryTableColumn[] | []
+  results: T[] // {col:val, ...} for each row of query results
 ): Column<T>[] => {
-  const uniqueColumnNames = getUniqueColumnNamesFromRows(results);
-  const columnsConfigs = uniqueColumnNames.map<Column<T>>((colName) => {
-    return {
-      id: colName as string,
-      Header: (headerProps: HeaderProps<T>) => (
-        <HeaderCell
-          value={headerProps.column.id}
-          isSortedDesc={headerProps.column.isSortedDesc}
-        />
-      ),
-      accessor: (data) => data[colName],
-      Cell: (cellProps: CellProps<T>) => {
-        const val = cellProps?.cell?.value;
-        return !!val?.length && val.length > 300
-          ? internallyTruncateText(val)
-          : val ?? null;
-      },
-      Filter: DefaultColumnFilter,
-      disableSortBy: false,
-      sortType: getSortTypeFromColumnType(colName, tableColumns),
-    };
-  });
-  return _unshiftHostname(columnsConfigs);
+  const colsAreNumTypes = getUniqueColsAreNumTypeFromRows(results) as Map<
+    string,
+    boolean
+  >;
+  const columnConfigs = Array.from(colsAreNumTypes.keys()).map<Column<T>>(
+    (colName) => {
+      return {
+        id: colName,
+        Header: (headerProps: HeaderProps<T>) => (
+          <HeaderCell
+            value={headerProps.column.id}
+            isSortedDesc={headerProps.column.isSortedDesc}
+          />
+        ),
+        // generic for convenience, can assume keyof T is a string
+        accessor: (data) => data[colName as keyof T],
+        Cell: (cellProps: CellProps<T>) => {
+          const val = cellProps?.cell?.value;
+          return !!val?.length && val.length > 300
+            ? internallyTruncateText(val)
+            : val ?? null;
+        },
+        Filter: DefaultColumnFilter,
+        disableSortBy: false,
+        sortType: colsAreNumTypes.get(colName)
+          ? "alphanumeric"
+          : "caseInsensitive",
+      };
+    }
+  );
+  return _unshiftHostname(columnConfigs);
 };
 
 export default generateColumnConfigsFromRows;

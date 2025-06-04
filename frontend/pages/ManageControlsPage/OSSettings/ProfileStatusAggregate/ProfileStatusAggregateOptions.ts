@@ -20,8 +20,7 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
     text: "Verifying",
     iconName: "successPartial",
     tooltipText:
-      "These hosts acknowledged all MDM commands to apply OS settings. " +
-      "Fleet is verifying the OS settings are applied with osquery.",
+      "These hosts acknowledged all MDM commands to apply OS settings. Fleet is verifying the OS settings are applied.",
   },
   {
     value: "pending",

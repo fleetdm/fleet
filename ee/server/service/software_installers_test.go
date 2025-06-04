@@ -15,7 +15,7 @@ import (
 
 func TestPreProcessUninstallScript(t *testing.T) {
 	t.Parallel()
-	var input = `
+	input := `
 blah$PACKAGE_IDS
 pkgids=$PACKAGE_ID
 they are $PACKAGE_ID, right $MY_SECRET?
@@ -74,7 +74,6 @@ quotes and braces for (
   "com.bar"
 )`
 	assert.Equal(t, expected, payload.UninstallScript)
-
 }
 
 func TestInstallUninstallAuth(t *testing.T) {
@@ -83,7 +82,9 @@ func TestInstallUninstallAuth(t *testing.T) {
 	svc := newTestService(t, ds)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}, // global scripts being disabled shouldn't impact (un)installs
+		}, nil
 	}
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -93,7 +94,8 @@ func TestInstallUninstallAuth(t *testing.T) {
 		}, nil
 	}
 	ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint,
-		withScriptContents bool) (*fleet.SoftwareInstaller, error) {
+		withScriptContents bool,
+	) (*fleet.SoftwareInstaller, error) {
 		return &fleet.SoftwareInstaller{
 			Name:     "installer.pkg",
 			Platform: "darwin",
@@ -103,21 +105,20 @@ func TestInstallUninstallAuth(t *testing.T) {
 	ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID uint, installerID uint) (*fleet.HostLastInstallData, error) {
 		return nil, nil
 	}
-	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, selfService bool, policyID *uint) (string,
-		error) {
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string,
+		error,
+	) {
 		return "request_id", nil
 	}
 	ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
 		return []byte("script"), nil
 	}
-	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult,
-		error) {
-		return &fleet.HostScriptResult{
-			ExecutionID: "execution_id",
-		}, nil
-	}
-	ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
+	ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 		return nil
+	}
+
+	ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) {
+		return true, nil
 	}
 
 	testCases := []struct {
@@ -181,7 +182,7 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 		return host, nil
 	}
 
-	// Scripts disabled
+	// Global scripts disabled (doesn't matter)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			ServerSettings: fleet.ServerSettings{
@@ -189,15 +190,45 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 			},
 		}, nil
 	}
-	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptScriptsDisabledGloballyErrMsg)
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
-	}
 
 	// Host scripts disabled
 	host.ScriptsEnabled = ptr.Bool(false)
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
+}
 
+func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "1Password",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.1password.1password",
+			Slug:             "1password/darwin",
+		}, nil
+	}
+	payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin")}
+	err := svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	assert.Contains(t, payload.URL, "1password")
+	assert.NotEmpty(t, payload.SHA256)
+	assert.NotEmpty(t, payload.InstallScript)
+	assert.NotEmpty(t, payload.UninstallScript)
+	assert.True(t, payload.FleetMaintained)
+
+	// when a slug empty, we no-op and return the payload as is
+	payload = fleet.SoftwareInstallerPayload{URL: "https://fleetdm.com"}
+	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	assert.Nil(t, payload.Slug)
+	assert.Equal(t, "https://fleetdm.com", payload.URL)
+	assert.Empty(t, payload.SHA256)
+	assert.Empty(t, payload.InstallScript)
+	assert.Empty(t, payload.UninstallScript)
+	assert.False(t, payload.FleetMaintained)
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {

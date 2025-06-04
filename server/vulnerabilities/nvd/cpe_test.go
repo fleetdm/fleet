@@ -488,21 +488,22 @@ func TestLegacyCPEDB(t *testing.T) {
 }
 
 func TestCPEFromSoftwareIntegration(t *testing.T) {
+	// Note: make sure to run `go test` with "-tags fts5" for this test, since it uses sqlite.
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
-	}{
-		{
-			software: fleet.Software{
-				Name:             "Adobe Acrobat Reader DC.app",
-				Source:           "apps",
-				Version:          "22.002.20191",
-				Vendor:           "",
-				BundleIdentifier: "com.adobe.Reader",
-			},
-			cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
-		},
-		{
+	}{ /*
+			{ // See #29570
+					software: fleet.Software{
+						Name:             "Adobe Acrobat Reader DC.app",
+						Source:           "apps",
+						Version:          "22.002.20191",
+						Vendor:           "",
+						BundleIdentifier: "com.adobe.Reader",
+					},
+					cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
+				},
+		*/{
 			software: fleet.Software{
 				Name:             "Adobe Lightroom.app",
 				Source:           "apps",
@@ -609,7 +610,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.8.9",
 				Vendor:           "",
 				BundleIdentifier: "com.apple.python3",
-			}, cpe: "cpe:2.3:a:python:python:3.8.9:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.8.9:-:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -618,7 +619,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.10.7",
 				Vendor:           "",
 				BundleIdentifier: "org.python.python",
-			}, cpe: "cpe:2.3:a:python:python:3.10.7:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.7:-:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -781,8 +782,8 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "Igor Pavlov",
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:7-zip:7-zip:22.01:*:*:*:*:windows:*:*",
-		},
-		{
+		}, /*
+			{ // See #29570
 			software: fleet.Software{
 				Name:             "Adobe Acrobat DC (64-bit)",
 				Source:           "programs",
@@ -790,8 +791,8 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "Adobe",
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:adobe:acrobat_dc:22.002.20212:*:*:*:*:windows:*:*",
-		},
-		{
+			},
+		*/{
 			software: fleet.Software{
 				Name:             "Brave",
 				Source:           "programs",
@@ -897,7 +898,31 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.10.6150.0",
 				Vendor:           "Python Software Foundation",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:python:3.10.6150.0:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.6:-:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0a1 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.101.0",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0b2 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.112.0",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:beta2:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0rc1 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.121.0",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:rc1:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1232,15 +1257,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:python:setuptools:63.2.0:*:*:*:*:python:*:*",
 		},
-		{
-			software: fleet.Software{
-				Name:             "urllib3",
-				Source:           "python_packages",
-				Version:          "1.26.5",
-				Vendor:           "",
-				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
-		},
+		// FIXME: https://github.com/fleetdm/fleet/issues/28490
+		// {
+		// 	software: fleet.Software{
+		// 		Name:             "urllib3",
+		// 		Source:           "python_packages",
+		// 		Version:          "1.26.5",
+		// 		Vendor:           "",
+		// 		BundleIdentifier: "",
+		// 	}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
+		// },
 		{
 			software: fleet.Software{
 				Name:             "UTM.app",
@@ -1314,6 +1340,33 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "6.0.1",
 			}, cpe: "",
 		},
+		// 2025-01-20: there are no entries for the jira python package at the NVD dataset.
+		{
+			software: fleet.Software{
+				Name:    "jira",
+				Source:  "python_packages",
+				Version: "3.8.0",
+			}, cpe: "",
+		},
+		{ // checks vendor/product matching based on bundle name, including EAPs
+			software: fleet.Software{
+				Name:             "GoLand EAP.app",
+				Source:           "apps",
+				Version:          "2022.3.99.123.456",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			cpe: "cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "IntelliJ IDEA Community Edition 2022.3.2",
+				Source:  "programs",
+				Version: "223.8617.56",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:223.8617.56:*:*:*:*:windows:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "IntelliJ IDEA.app",
@@ -1372,6 +1425,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:  "GitKraken",
 			},
 			cpe: "cpe:2.3:a:gitkraken:gitlens:14.9.0:*:*:*:*:visual_studio_code:*:*",
+		},
+		{ // skipped because the Docker DX VSCode extension has no vulnerabilities, so a CPE hasn't been built
+			software: fleet.Software{
+				Name:    "docker.docker",
+				Source:  "vscode_extensions",
+				Version: "0.6.0",
+				Vendor:  "Docker",
+			},
+			cpe: ``,
 		},
 		{
 			software: fleet.Software{
@@ -1643,7 +1705,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.9.18_2",
 				Vendor:  "",
 			},
-			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:macos:*:*`,
+			cpe: `cpe:2.3:a:python:python:3.9.18_2:-:*:*:*:macos:*:*`,
 		},
 		{
 			software: fleet.Software{
@@ -1662,6 +1724,82 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "org.virtualbox.app.VirtualBox",
 			},
 			cpe: "cpe:2.3:a:oracle:virtualbox:7.0.12:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "gh",
+				Source:           "deb_packages",
+				Version:          "2.61.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:*:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "gh",
+				Source:           "homebrew_packages",
+				Version:          "2.61.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "pass",
+				Source:           "homebrew_packages",
+				Version:          "1.7.4",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.4:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Cloudflare WARP",
+				Source:  "programs",
+				Version: "25.1.861.0",
+			}, cpe: "cpe:2.3:a:cloudflare:warp:2025.1.861.0:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:   "Microsoft Teams.app",
+				Source: "apps",
+				// Should not be mutated
+				Version: "25016.1904.3401.2239",
+			},
+			cpe: "cpe:2.3:a:microsoft:teams:25016.1904.3401.2239:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:   "Microsoft Teams.app",
+				Source: "apps",
+				// Should be mutated
+				Version: "1.00.622155",
+			},
+			cpe: "cpe:2.3:a:microsoft:teams:1.6.00.22155:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Source:  "apps",
+				Version: "24.11.10",
+			},
+			cpe: "cpe:2.3:a:citrix:workspace:2411.10:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "minio",
+				Source:  "homebrew_packages",
+				Version: "RELEASE.2025-02-28T09-55-16Z_1",
+			},
+			cpe: "cpe:2.3:a:minio:minio:2025-02-28T09-55-16Z:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "minio",
+				Source:  "homebrew_packages",
+				Version: "20200310000000",
+			},
+			cpe: "cpe:2.3:a:minio:minio:2020-03-10T00-00-00Z:*:*:*:*:macos:*:*",
 		},
 	}
 
@@ -1710,5 +1848,304 @@ func TestContainsNonASCII(t *testing.T) {
 
 	for _, tc := range testCases {
 		assert.Equal(t, tc.expected, containsNonASCII(tc.input))
+	}
+}
+
+func TestMutateSoftware(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		s         *fleet.Software
+		sanitized *fleet.Software
+	}{
+		{
+			name: "Microsoft Teams.app on macOS",
+			s: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Source:  "apps",
+				Version: "1.00.622155",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Source:  "apps",
+				Version: "1.6.00.22155",
+			},
+		},
+		{
+			name: "Microsoft Teams not on macOS",
+			s: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Source:  "programs",
+				Version: "1.6.00.22378",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Source:  "programs",
+				Version: "1.6.00.22378",
+			},
+		},
+		{
+			name: "Other.app on macOS",
+			s: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows, version not using full year",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "23.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows, version using full year",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Other on Windows",
+			s: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+		},
+		{
+			name: "Citrix Workspace on Windows",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace on Mac",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace with correct versioning",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
+			},
+		},
+		{
+			name: "MS Teams classic on MacOS",
+			s: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Source:  "apps",
+				Version: "1.00.634263",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Source:  "apps",
+				Version: "1.6.00.34263",
+			},
+		},
+		{
+			name: "minio",
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio",
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "20200310000000",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2020-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio with trailing garbage",
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z_1",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "JetBrains non-EAP",
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+		},
+		{
+			name: "JetBrains EAP",
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Source:           "apps",
+				Version:          "EAP GO-243.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Source:           "apps",
+				Version:          "2024.2.99.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+		},
+		{
+			name: "JetBrains year-wrapped EAP",
+			s: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "EAP IC-241.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "2023.4.99.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+		},
+		{
+			name: "Python for Windows GA dot-zero",
+			s: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.150.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows GA patch release",
+			s: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8150.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows alpha",
+			s: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.104.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.0a4",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows beta",
+			s: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.113.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.0b3",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows RC",
+			s: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.122.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.0rc2",
+				Source:  "programs",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NotPanics(t, func() { mutateSoftware(tc.s, log.NewNopLogger()) })
+			require.Equal(t, tc.sanitized, tc.s)
+		})
 	}
 }

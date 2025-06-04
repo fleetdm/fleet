@@ -4,7 +4,17 @@
   flex-direction: column;
   gap: $pad-medium;
 
+  .team-dropdown-wrapper {
+    @include normalize-team-header;
+  }
+
   h2 {
     font-size: $small;
   }
+}
+
+.software-summary-and-versions {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
 }

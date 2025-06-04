@@ -25,9 +25,9 @@ type getTeamScheduleResponse struct {
 	Err       error                    `json:"error,omitempty"`
 }
 
-func (r getTeamScheduleResponse) error() error { return r.Err }
+func (r getTeamScheduleResponse) Error() error { return r.Err }
 
-func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamScheduleRequest)
 	resp := getTeamScheduleResponse{Scheduled: []scheduledQueryResponse{}}
 	queries, err := svc.GetTeamScheduledQueries(ctx, req.TeamID, req.ListOptions)
@@ -47,7 +47,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 	if teamID != 0 {
 		teamID_ = &teamID
 	}
-	queries, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true), false)
+	queries, _, _, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true), false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ type teamScheduleQueryResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r teamScheduleQueryResponse) error() error { return r.Err }
+func (r teamScheduleQueryResponse) Error() error { return r.Err }
 
 func uintValueOrZero(v *uint) uint {
 	if v == nil {
@@ -88,7 +88,7 @@ func nullIntToPtrUint(v *null.Int) *uint {
 	return ptr.Uint(uint(v.ValueOrZero())) //nolint:gosec // dismiss G115
 }
 
-func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*teamScheduleQueryRequest)
 	resp, err := svc.TeamScheduleQuery(ctx, req.TeamID, &fleet.ScheduledQuery{
 		QueryID:  uintValueOrZero(req.QueryID),
@@ -145,9 +145,9 @@ type modifyTeamScheduleResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r modifyTeamScheduleResponse) error() error { return r.Err }
+func (r modifyTeamScheduleResponse) Error() error { return r.Err }
 
-func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamScheduleRequest)
 	if _, err := svc.ModifyTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID, req.ScheduledQueryPayload); err != nil {
 		return modifyTeamScheduleResponse{Err: err}, nil
@@ -184,9 +184,9 @@ type deleteTeamScheduleResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r deleteTeamScheduleResponse) error() error { return r.Err }
+func (r deleteTeamScheduleResponse) Error() error { return r.Err }
 
-func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteTeamScheduleRequest)
 	err := svc.DeleteTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID)
 	if err != nil {

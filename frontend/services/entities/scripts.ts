@@ -1,4 +1,4 @@
-import { IScript, IHostScript } from "interfaces/script";
+import { IHostScript, IScript } from "interfaces/script";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -8,7 +8,7 @@ export type IScriptResponse = IScript;
 
 /** All scripts response from GET /scripts */
 export interface IScriptsResponse {
-  scripts: IScript[];
+  scripts: IScript[] | null;
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
@@ -33,7 +33,7 @@ export interface IScriptResultResponse {
   host_id: number;
   execution_id: string;
   script_contents: string;
-  script_id: number;
+  script_id: number | null; // null for ad-hoc script run via API
   exit_code: number | null;
   output: string;
   message: string;
@@ -69,7 +69,7 @@ export interface IHostScriptsResponse {
 /**
  * Request body for POST /scripts/run
  *
- * https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#run-script-asynchronously
+ * https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#run-script-asynchronously
  */
 export interface IScriptRunRequest {
   host_id: number;
@@ -80,13 +80,59 @@ export interface IScriptRunRequest {
 /**
  * Response body for POST /scripts/run
  *
- * https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#run-script-asynchronously
+ * https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#run-script-asynchronously
  */
 export interface IScriptRunResponse {
   host_id: number;
   execution_id: string;
 }
 
+export interface IScriptBatchSupportedFilters {
+  // a search string, not a Fleet.Query
+  query?: string;
+  label_id?: number;
+  team_id?: number;
+  status: any; // TODO - improve upstream typing
+}
+interface IRunScriptBatchRequestBase {
+  script_id: number;
+}
+
+interface IByFilters extends IRunScriptBatchRequestBase {
+  host_ids?: never;
+  filters: IScriptBatchSupportedFilters;
+}
+
+interface IByHostIds extends IRunScriptBatchRequestBase {
+  host_ids: number[];
+  filters?: never;
+}
+/** Request body for POST /scripts/run/batch */
+export type IRunScriptBatchRequest = IByFilters | IByHostIds;
+
+/** 202 successful response body for POST /scripts/run/batch */
+export interface IRunScriptBatchResponse {
+  batch_execution_id: string;
+}
+export interface IScriptBatchSummaryParams {
+  batch_execution_id: string;
+}
+export interface IScriptBatchSummaryQueryKey extends IScriptBatchSummaryParams {
+  scope: "script_batch_summary";
+}
+
+// 200 successful response
+export interface IScriptBatchSummaryResponse {
+  ran: number;
+  pending: number;
+  errored: number;
+  team_id: number;
+  // below fields not yet used by the UI
+  canceled: number;
+  targeted: number;
+  script_id: number;
+  script_name: string;
+}
 export default {
   getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
     const { HOST_SCRIPTS } = endpoints;
@@ -131,6 +177,17 @@ export default {
     return sendRequest("GET", path);
   },
 
+  updateScript(id: number, contents: string, name: string) {
+    const { SCRIPT } = endpoints;
+    const path = `${SCRIPT(id)}`;
+
+    const file = new File([contents], name);
+    const formData = new FormData();
+    formData.append("script", file);
+
+    return sendRequest("PATCH", path, formData);
+  },
+
   deleteScript(id: number) {
     const { SCRIPT } = endpoints;
     return sendRequest("DELETE", SCRIPT(id));
@@ -144,5 +201,19 @@ export default {
   runScript(request: IScriptRunRequest): Promise<IScriptRunResponse> {
     const { SCRIPT_RUN } = endpoints;
     return sendRequest("POST", SCRIPT_RUN, request);
+  },
+  runScriptBatch(
+    request: IRunScriptBatchRequest
+  ): Promise<IRunScriptBatchResponse> {
+    const { SCRIPT_RUN_BATCH } = endpoints;
+    return sendRequest("POST", SCRIPT_RUN_BATCH, request);
+  },
+  getRunScriptBatchSummary({
+    batch_execution_id,
+  }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryResponse> {
+    return sendRequest(
+      "GET",
+      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY(batch_execution_id)}`
+    );
   },
 };

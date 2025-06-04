@@ -9,8 +9,16 @@ export default {
   HOST_UPCOMING_ACTIVITIES: (id: number): string => {
     return `/${API_VERSION}/fleet/hosts/${id}/activities/upcoming`;
   },
+  HOST_CANCEL_ACTIVITY: (hostId: number, uuid: string): string => {
+    return `/${API_VERSION}/fleet/hosts/${hostId}/activities/upcoming/${uuid}`;
+  },
 
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
+
+  // Conditional access
+  CONDITIONAL_ACCESS_MICROSOFT: `/${API_VERSION}/fleet/conditional-access/microsoft`,
+  CONDITIONAL_ACCESS_MICROSOFT_CONFIRM: `/${API_VERSION}/fleet/conditional-access/microsoft/confirm`,
+
   CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
     return `/${API_VERSION}/fleet/email/change/${token}`;
@@ -31,8 +39,20 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
+  DEVICE_SOFTWARE_UNINSTALL: (token: string, softwareTitleId: number) =>
+    `/${API_VERSION}/fleet/device/${token}/software/uninstall/${softwareTitleId}`,
+  DEVICE_VPP_COMMAND_RESULTS: (token: string, uuid: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/commands/${uuid}/results`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
+  },
+  DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/mdm/linux/trigger_escrow`;
+  },
+  DEVICE_CERTIFICATES: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/certificates`;
   },
 
   // Host endpoints
@@ -49,14 +69,17 @@ export default {
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
-    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/resend/${profileUUID}`,
+    `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
   HOST_SOFTWARE_PACKAGE_UNINSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
+  HOST_CERTIFICATES: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/certificates`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
+  INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
 
   // labels
   LABEL: (id: number) => `/${API_VERSION}/fleet/labels/${id}`,
@@ -70,6 +93,7 @@ export default {
   },
 
   LOGIN: `/${API_VERSION}/fleet/login`,
+  CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
@@ -78,6 +102,10 @@ export default {
    */
 
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+
+  MDM_ANDROID_ENTERPRISE: `/${API_VERSION}/fleet/android_enterprise`,
+  MDM_ANDROID_SIGNUP_URL: `/${API_VERSION}/fleet/android_enterprise/signup_url`,
+  MDM_ANDROID_SSE_URL: `/api/${API_VERSION}/fleet/android_enterprise/signup_sse`,
 
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
@@ -111,14 +139,18 @@ export default {
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
 
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
-  MDM_PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/mdm/profiles/summary`,
-  MDM_DISK_ENCRYPTION_SUMMARY: `/${API_VERSION}/fleet/mdm/disk_encryption/summary`,
+  PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
+  DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
-  MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
+  MDM_APPLE_ENROLLMENT_PROFILE: (
+    token: string,
+    ref?: string,
+    deviceinfo?: string
+  ) => {
     const query = new URLSearchParams({ token });
-    if (ref) {
-      query.append("enrollment_reference", ref);
-    }
+    ref && query.append("enrollment_reference", ref);
+    deviceinfo && query.append("deviceinfo", deviceinfo);
+
     return `/api/mdm/apple/enroll?${query}`;
   },
   MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
@@ -134,9 +166,12 @@ export default {
   HOST_MDM_UNENROLL: (id: number) =>
     `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
   HOST_ENCRYPTION_KEY: (id: number) =>
-    `/${API_VERSION}/fleet/mdm/hosts/${id}/encryption_key`,
+    `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
 
   ME: `/${API_VERSION}/fleet/me`,
+
+  // Disk encryption endpoints
+  UPDATE_DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
 
   // Setup experiece endpoints
   MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
@@ -166,6 +201,8 @@ export default {
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
+  EDIT_SOFTWARE_VPP: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
@@ -231,6 +268,18 @@ export default {
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
-
+  SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
+  SCRIPT_RUN_BATCH_SUMMARY: (id: string) =>
+    `/${API_VERSION}/fleet/scripts/batch/summary/${id}`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
+
+  // idp endpoints
+  SCIM_DETAILS: `/${API_VERSION}/fleet/scim/details`,
+
+  // configuration profile endpoints
+  CONFIG_PROFILE: (uuid: string) =>
+    `/${API_VERSION}/fleet/configuration_profiles/${uuid}`,
+  CONFIG_PROFILE_STATUS: (uuid: string) =>
+    `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
+  CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
 };

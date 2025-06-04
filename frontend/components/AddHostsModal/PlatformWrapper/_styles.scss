@@ -3,7 +3,7 @@
 .platform-wrapper {
   padding: 0; // different to pad sticky subnav properly
 
-  .component__tabs-wrapper {
+  .tab-nav {
     // negate problematic sticky positioning
     position: initial;
     .react-tabs {
@@ -40,38 +40,6 @@
   &__advanced--installer {
     .input-field {
       height: 105px;
-    }
-  }
-
-  &__installer-copy-icon {
-    color: $core-vibrant-blue;
-    margin-left: $pad-small;
-    margin-right: $pad-medium;
-  }
-
-  &__copy-message {
-    @include copy-message;
-  }
-
-  .buttons {
-    display: flex;
-    flex-direction: row-reverse;
-    align-items: center;
-    position: relative;
-    top: 28px;
-    right: 12px;
-    // prevent this element from affecting the parent label's height
-    height: 0;
-    gap: $pad-small;
-
-    a {
-      display: flex;
-      align-items: center;
-    }
-
-    img {
-      width: 16px;
-      height: 16px;
     }
   }
 
@@ -118,9 +86,5 @@
 
   .download-certificate--tooltip {
     margin-bottom: 0;
-  }
-
-  &__copy-message {
-    @include copy-message;
   }
 }

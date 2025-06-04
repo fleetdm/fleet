@@ -23,7 +23,7 @@ func NewSCEPVerifier(ds fleet.MDMAssetRetriever) *SCEPVerifier {
 	}
 }
 
-func (s *SCEPVerifier) Verify(cert *x509.Certificate) error {
+func (s *SCEPVerifier) Verify(ctx context.Context, cert *x509.Certificate) error {
 	if cert == nil {
 		return errors.New("no certificate provided")
 	}
@@ -33,8 +33,7 @@ func (s *SCEPVerifier) Verify(cert *x509.Certificate) error {
 		Roots:     x509.NewCertPool(),
 	}
 
-	// TODO(roberto): nano interfaces don't allow to pass a context to this function
-	rootCert, err := assets.X509Cert(context.Background(), s.ds, fleet.MDMAssetCACert)
+	rootCert, err := assets.X509Cert(ctx, s.ds, fleet.MDMAssetCACert)
 	if err != nil {
 		return fmt.Errorf("loading existing assets from the database: %w", err)
 	}

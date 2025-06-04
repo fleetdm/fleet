@@ -59,6 +59,19 @@
     align-items: flex-start;
     gap: 24px;
     align-self: stretch;
+
+    &__text__user-text {
+      ul {
+        padding-left: 20px;
+        margin-top: $pad-xxsmall;
+      }
+      a {
+        color: $core-fleet-black;
+        font-weight: normal;
+        text-decoration: underline;
+      }
+      white-space: pre-wrap;
+    }
   }
 
   &__preview-invitee {
@@ -77,4 +90,10 @@
   .modal-cta-wrap {
     margin-top: 0; // Defer to new gap styling
   }
+}
+
+// Pop up preview immediately.
+.modal__background:has(.calendar-event-preview-modal) {
+  transition: none;
+  animation: none;
 }

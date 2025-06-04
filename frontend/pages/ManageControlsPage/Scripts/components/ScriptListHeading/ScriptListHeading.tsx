@@ -8,11 +8,6 @@ const ScriptListHeading = () => {
       <div className={`${baseClass}__heading-group`}>
         <span>Script</span>
       </div>
-      <div
-        className={`${baseClass}__heading-group ${baseClass}__actions-heading`}
-      >
-        <span>Actions</span>
-      </div>
     </div>
   );
 };

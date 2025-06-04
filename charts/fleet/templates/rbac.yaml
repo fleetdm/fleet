@@ -1,6 +1,10 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "-1"
   labels:
     app: fleet
     chart: fleet
@@ -18,12 +22,19 @@ rules:
   - {{ .Values.cache.secretName }}
   - {{ .Values.fleet.secretName }}
   - {{ .Values.osquery.secretName }}
+  {{- range .Values.imagePullSecrets }}
+  - {{ .name }}
+  {{- end }}
   verbs:
   - get
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "-1"
   labels:
     app: fleet
     chart: fleet

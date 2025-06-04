@@ -40,11 +40,11 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 	return responseBody.AppleBM, err
 }
 
-func (c *Client) ListABMTokens() ([]*fleet.ABMToken, error) {
-	verb, path := "GET", "/api/latest/fleet/abm_tokens"
-	var responseBody listABMTokensResponse
+func (c *Client) CountABMTokens() (int, error) {
+	verb, path := "GET", "/api/latest/fleet/abm_tokens/count"
+	var responseBody countABMTokensResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
-	return responseBody.Tokens, err
+	return responseBody.Count, err
 }
 
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
@@ -78,15 +78,32 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*flee
 	return responseBody.MDMAppleBootstrapPackage, err
 }
 
-func (c *Client) DeleteBootstrapPackage(teamID uint) error {
+func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint, dryRun bool) error {
+	_, err := c.GetBootstrapPackageMetadata(teamID, true)
+	switch {
+	case errors.As(err, &notFoundErr{}):
+		// not found is OK, it means there is nothing to delete
+		return nil
+	case err != nil:
+		return fmt.Errorf("getting bootstrap package metadata: %w", err)
+	}
+
+	err = c.DeleteBootstrapPackage(teamID, dryRun)
+	if err != nil {
+		return fmt.Errorf("deleting bootstrap package: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) DeleteBootstrapPackage(teamID uint, dryRun bool) error {
 	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d", teamID)
 	request := deleteBootstrapPackageRequest{}
 	var responseBody deleteBootstrapPackageResponse
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	err := c.authenticatedRequestWithQuery(request, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
 	return err
 }
 
-func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) error {
+func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dryRun bool) error {
 	verb, path := "POST", "/api/latest/fleet/mdm/bootstrap"
 
 	var b bytes.Buffer
@@ -108,7 +125,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 
 	w.Close()
 
-	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, "",
+	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
 		b.Bytes(),
 		map[string]string{
 			"Content-Type":  w.FormDataContentType(),
@@ -129,7 +146,7 @@ func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) err
 	return nil
 }
 
-func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, teamID uint) error {
+func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPackage, teamID uint, dryRun bool) error {
 	isFirstTime := false
 	oldMeta, err := c.GetBootstrapPackageMetadata(teamID, true)
 	if err != nil {
@@ -147,14 +164,14 @@ func (c *Client) EnsureBootstrapPackage(bp *fleet.MDMAppleBootstrapPackage, team
 		}
 
 		// similar to the expected UI experience, delete the bootstrap package first
-		err = c.DeleteBootstrapPackage(teamID)
+		err = c.DeleteBootstrapPackage(teamID, dryRun)
 		if err != nil {
 			return fmt.Errorf("deleting old bootstrap package: %w", err)
 		}
 	}
 
 	bp.TeamID = teamID
-	if err := c.UploadBootstrapPackage(bp); err != nil {
+	if err := c.UploadBootstrapPackage(bp, dryRun); err != nil {
 		return err
 	}
 
@@ -248,11 +265,19 @@ func (c *Client) validateMacOSSetupAssistant(fileName string) ([]byte, error) {
 }
 
 func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name string) error {
-	verb, path := "POST", "/api/latest/fleet/mdm/apple/enrollment_profile"
+	verb, path := http.MethodPost, "/api/latest/fleet/enrollment_profiles/automatic"
 	request := createMDMAppleSetupAssistantRequest{
 		TeamID:            teamID,
 		Name:              name,
 		EnrollmentProfile: json.RawMessage(data),
+	}
+	return c.authenticatedRequest(request, verb, path, nil)
+}
+
+func (c *Client) deleteMacOSSetupAssistant(teamID *uint) error {
+	verb, path := http.MethodDelete, "/api/latest/fleet/enrollment_profiles/automatic"
+	request := deleteMDMAppleSetupAssistantRequest{
+		TeamID: teamID,
 	}
 	return c.authenticatedRequest(request, verb, path, nil)
 }

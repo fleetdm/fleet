@@ -1,9 +1,6 @@
 .manage-queries-page {
   &__header-wrap {
-    height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    @include normalize-team-header;
   }
 
   &__header {
@@ -53,39 +50,8 @@
   }
 
   .queries-table {
-    .controls {
-      .form-field {
-        &--dropdown {
-          margin: 0;
-        }
-      }
-    }
     &__platform-dropdown {
-      .Select-menu-outer {
-        width: 364px;
-        max-height: min-content;
-
-        .Select-menu {
-          max-height: none;
-        }
-      }
-      .Select-value {
-        padding-left: $pad-medium;
-        padding-right: $pad-medium;
-
-        &::before {
-          display: inline-block;
-          position: absolute;
-          padding: 5px 0 0 0; // centers spin
-          content: url(../assets/images/icon-filter-black-16x16@2x.png);
-          transform: scale(0.5);
-          height: 26px;
-          left: 2px;
-        }
-      }
-      .Select-value-label {
-        padding-left: $pad-medium;
-      }
+      width: 200px;
     }
 
     .data-table-block {
@@ -101,8 +67,11 @@
             .name__header {
               width: auto;
             }
-            .platforms__header {
+            .platform__header {
               width: $col-sm;
+            }
+            .interval__header {
+              max-width: $col-xs;
             }
             .updated_at__header {
               display: none;
@@ -113,8 +82,10 @@
               width: 0;
               @media (min-width: $break-md) {
                 display: table-cell;
-                width: auto;
               }
+            }
+            .automations_enabled__header {
+              max-width: $col-xs;
             }
             @media (min-width: $break-lg) {
               .author_name__header {
@@ -123,49 +94,16 @@
               .updated_at__header {
                 display: table-cell;
                 width: auto;
+                max-width: $col-md;
               }
             }
           }
           tbody {
             .name__cell {
-              max-width: $col-lg;
+              width: auto;
 
-              .query-name-cell {
-                display: flex; // required for inline icon
-                gap: $pad-xsmall;
-                text-decoration: none;
-                align-items: center;
-                &:hover {
-                  .query-name-text {
-                    text-decoration: underline;
-                  }
-                }
-
-                .query-name-text {
-                  text-overflow: ellipsis;
-                  overflow: hidden;
-                }
-
-                .inherited-badge {
-                  overflow: initial;
-                }
-                .observer-can-run-badge {
-                  @include tooltip5-arrow-styles;
-
-                  .react-tooltip {
-                    @include tooltip-text;
-                    font-style: normal;
-                    text-align: center;
-                  }
-                }
-              }
-              .observer-can-run-query-icon {
-                display: block;
-              }
-
-              .children-wrapper {
-                display: flex;
-                gap: $pad-xsmall;
+              .inherited-badge {
+                overflow: initial;
               }
             }
 
@@ -176,8 +114,11 @@
                 }
               }
             }
-            .platforms__cell {
-              max-width: $col-md;
+            .platform__cell {
+              max-width: $col-sm;
+            }
+            .interval__cell {
+              max-width: $col-xs;
             }
             .updated_at__cell {
               display: none;
@@ -185,13 +126,18 @@
             }
             .performance__cell {
               display: none;
-              max-width: $col-md;
             }
             @media (min-width: $break-md) {
               .performance__cell {
                 display: table-cell;
+                max-width: $col-sm;
               }
             }
+
+            .automations_enabled__cell {
+              max-width: $col-xs;
+            }
+
             @media (min-width: $break-lg) {
               .updated_at__cell {
                 display: table-cell;

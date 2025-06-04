@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -19,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/gorilla/mux"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -39,10 +41,10 @@ type runScriptResponse struct {
 	ExecutionID string `json:"execution_id,omitempty"`
 }
 
-func (r runScriptResponse) error() error { return r.Err }
+func (r runScriptResponse) Error() error { return r.Err }
 func (r runScriptResponse) Status() int  { return http.StatusAccepted }
 
-func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runScriptRequest)
 
 	var noWait time.Duration
@@ -77,7 +79,7 @@ type runScriptSyncResponse struct {
 	HostTimeout bool `json:"host_timeout"`
 }
 
-func (r runScriptSyncResponse) error() error { return r.Err }
+func (r runScriptSyncResponse) Error() error { return r.Err }
 func (r runScriptSyncResponse) Status() int {
 	if r.HostTimeout {
 		// The more proper response for a timeout on the server would be: StatusGatewayTimeout = 504
@@ -92,7 +94,7 @@ func (r runScriptSyncResponse) Status() int {
 // this is to be used only by tests, to be able to use a shorter timeout.
 var testRunScriptWaitForResult time.Duration
 
-func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	waitForResult := scripts.MaxServerWaitTime
 	if testRunScriptWaitForResult != 0 {
 		waitForResult = testRunScriptWaitForResult
@@ -113,7 +115,7 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		}
 		// We should still return the execution id and host id in this timeout case,
 		// so the user knows what script request to look at in the UI. We cannot
-		// return an error (field Err) in this case, as the errorer interface's
+		// return an error (field Err) in this case, as the Errorer interface's
 		// rendering logic would take over and only render the error part of the
 		// response struct.
 		hostTimeout = true
@@ -171,6 +173,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		if !lic.IsPremium() {
 			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.ErrMissingLicense
+		}
+	}
+
+	if request.ScriptContents != "" {
+		if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{request.ScriptContents}); err != nil {
+			svc.authz.SkipAuthorization(ctx)
+			return nil, fleet.NewInvalidArgumentError("script", err.Error())
 		}
 	}
 
@@ -273,7 +282,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
-	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID)
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
@@ -364,9 +373,9 @@ type getScriptResultResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getScriptResultResponse) error() error { return r.Err }
+func (r getScriptResultResponse) Error() error { return r.Err }
 
-func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getScriptResultRequest)
 	scriptResult, err := svc.GetScriptResult(ctx, req.ExecutionID)
 	if err != nil {
@@ -476,9 +485,9 @@ type createScriptResponse struct {
 	ScriptID uint  `json:"script_id,omitempty"`
 }
 
-func (r createScriptResponse) error() error { return r.Err }
+func (r createScriptResponse) Error() error { return r.Err }
 
-func createScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createScriptRequest)
 
 	scriptFile, err := req.Script.Open()
@@ -507,8 +516,13 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 	script := &fleet.Script{
 		TeamID:         teamID,
 		Name:           name,
-		ScriptContents: string(b),
+		ScriptContents: file.Dos2UnixNewlines(string(b)),
 	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{script.ScriptContents}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
 	if err := script.ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
@@ -563,10 +577,10 @@ type deleteScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteScriptResponse) error() error { return r.Err }
+func (r deleteScriptResponse) Error() error { return r.Err }
 func (r deleteScriptResponse) Status() int  { return http.StatusNoContent }
 
-func deleteScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteScriptRequest)
 	err := svc.DeleteScript(ctx, req.ScriptID)
 	if err != nil {
@@ -624,9 +638,9 @@ type listScriptsResponse struct {
 	Err     error                     `json:"error,omitempty"`
 }
 
-func (r listScriptsResponse) error() error { return r.Err }
+func (r listScriptsResponse) Error() error { return r.Err }
 
-func listScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listScriptsRequest)
 	scripts, meta, err := svc.ListScripts(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
@@ -670,7 +684,7 @@ type getScriptResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r getScriptResponse) error() error { return r.Err }
+func (r getScriptResponse) Error() error { return r.Err }
 
 type downloadFileResponse struct {
 	Err         error `json:"error,omitempty"`
@@ -679,9 +693,9 @@ type downloadFileResponse struct {
 	contentType string // optional, defaults to application/octet-stream
 }
 
-func (r downloadFileResponse) error() error { return r.Err }
+func (r downloadFileResponse) Error() error { return r.Err }
 
-func (r downloadFileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r downloadFileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.content)))
 	if r.contentType == "" {
 		r.contentType = "application/octet-stream"
@@ -699,7 +713,7 @@ func (r downloadFileResponse) hijackRender(ctx context.Context, w http.ResponseW
 	}
 }
 
-func getScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getScriptRequest)
 
 	downloadRequested := req.Alt == "media"
@@ -734,6 +748,130 @@ func (svc *Service) GetScript(ctx context.Context, scriptID uint, withContent bo
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Update Script Contents
+////////////////////////////////////////////////////////////////////////////////
+
+type updateScriptRequest struct {
+	Script   *multipart.FileHeader
+	ScriptID uint
+}
+
+func (updateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	var decoded updateScriptRequest
+
+	err := r.ParseMultipartForm(512 * units.MiB) // same in-memory size as for other multipart requests we have
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	vars := mux.Vars(r)
+	scriptIDStr, ok := vars["script_id"]
+	if !ok {
+		return nil, &fleet.BadRequestError{Message: "missing script id"}
+	}
+	scriptID, err := strconv.ParseUint(scriptIDStr, 10, 64)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: "invalid script id"}
+	}
+	// Check if scriptID exceeds the maximum value for uint, code linter
+	if scriptID > uint64(^uint(0)) {
+		return nil, &fleet.BadRequestError{Message: "script id out of bounds"}
+	}
+
+	decoded.ScriptID = uint(scriptID)
+
+	fhs, ok := r.MultipartForm.File["script"]
+	if !ok || len(fhs) < 1 {
+		return nil, &fleet.BadRequestError{Message: "no file headers for script"}
+	}
+	decoded.Script = fhs[0]
+
+	return &decoded, nil
+}
+
+type updateScriptResponse struct {
+	Err      error `json:"error,omitempty"`
+	ScriptID uint  `json:"script_id,omitempty"`
+}
+
+func (r updateScriptResponse) Error() error { return r.Err }
+
+func updateScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*updateScriptRequest)
+
+	scriptFile, err := req.Script.Open()
+	if err != nil {
+		return &updateScriptResponse{Err: err}, nil
+	}
+	defer scriptFile.Close()
+
+	script, err := svc.UpdateScript(ctx, req.ScriptID, scriptFile)
+	if err != nil {
+		return updateScriptResponse{Err: err}, nil
+	}
+	return updateScriptResponse{ScriptID: script.ID}, nil
+}
+
+func (svc *Service) UpdateScript(ctx context.Context, scriptID uint, r io.Reader) (*fleet.Script, error) {
+	script, err := svc.ds.Script(ctx, scriptID)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "finding original script to update")
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: script.TeamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read script contents")
+	}
+
+	scriptContents := file.Dos2UnixNewlines(string(b))
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{scriptContents}); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
+	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
+	// Update the script
+	savedScript, err := svc.ds.UpdateScriptContents(ctx, scriptID, scriptContents)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating script contents")
+	}
+
+	var teamName *string
+	if script.TeamID != nil && *script.TeamID != 0 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, script.TeamID, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team name for create script activity")
+		}
+		teamName = &tm.Name
+	}
+
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeUpdatedScript{
+			TeamID:     script.TeamID,
+			TeamName:   teamName,
+			ScriptName: script.Name,
+		},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new activity for update script")
+	}
+
+	return savedScript, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Get Host Script Details
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -748,9 +886,9 @@ type getHostScriptDetailsResponse struct {
 	Err     error                     `json:"error,omitempty"`
 }
 
-func (r getHostScriptDetailsResponse) error() error { return r.Err }
+func (r getHostScriptDetailsResponse) Error() error { return r.Err }
 
-func getHostScriptDetailsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostScriptDetailsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostScriptDetailsRequest)
 	scripts, meta, err := svc.GetHostScriptDetails(ctx, req.HostID, req.ListOptions)
 	if err != nil {
@@ -808,9 +946,18 @@ type batchSetScriptsResponse struct {
 	Err     error                  `json:"error,omitempty"`
 }
 
-func (r batchSetScriptsResponse) error() error { return r.Err }
+type batchScriptExecutionSummaryRequest struct {
+	BatchExecutionID string `url:"batch_execution_id"`
+}
 
-func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+type batchScriptExecutionSummaryResponse struct {
+	fleet.BatchExecutionSummary
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchSetScriptsResponse) Error() error { return r.Err }
+
+func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetScriptsRequest)
 	scriptList, err := svc.BatchSetScripts(ctx, req.TeamID, req.TeamName, req.Scripts, req.DryRun)
 	if err != nil {
@@ -848,6 +995,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	// any duplicate name in the provided set results in an error
 	scripts := make([]*fleet.Script, 0, len(payloads))
 	byName := make(map[string]bool, len(payloads))
+	scriptContents := []string{}
 	for i, p := range payloads {
 		script := &fleet.Script{
 			ScriptContents: string(p.ScriptContents),
@@ -866,11 +1014,16 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 				"duplicate script by name")
 		}
 		byName[script.Name] = true
+		scriptContents = append(scriptContents, script.ScriptContents)
 		scripts = append(scripts, script)
 	}
 
 	if dryRun {
 		return nil, nil
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, scriptContents); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
 	scriptResponses, err := svc.ds.BatchSetScripts(ctx, teamID, scripts)
@@ -886,6 +1039,30 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		return nil, ctxerr.Wrap(ctx, err, "logging activity for edited scripts")
 	}
 	return scriptResponses, nil
+}
+
+func (r batchScriptExecutionSummaryResponse) Error() error { return r.Err }
+
+func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptExecutionSummaryRequest)
+	summary, err := svc.BatchScriptExecutionSummary(ctx, req.BatchExecutionID)
+	if err != nil {
+		return batchScriptExecutionSummaryResponse{Err: err}, nil
+	}
+	return batchScriptExecutionSummaryResponse{BatchExecutionSummary: *summary}, nil
+}
+
+func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionSummary, error) {
+	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return summary, nil
 }
 
 func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {
@@ -913,6 +1090,136 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Bulk script execution
+////////////////////////////////////////////////////////////////////////////////
+
+type batchScriptRunRequest struct {
+	ScriptID uint                    `json:"script_id"`
+	HostIDs  []uint                  `json:"host_ids"`
+	Filters  *map[string]interface{} `json:"filters"`
+}
+type batchScriptRunResponse struct {
+	BatchExecutionID string `json:"batch_execution_id"`
+	Err              error  `json:"error,omitempty"`
+}
+
+func (r batchScriptRunResponse) Error() error { return r.Err }
+
+func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptRunRequest)
+	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs, req.Filters)
+	if err != nil {
+		return batchScriptRunResponse{Err: err}, nil
+	}
+	return batchScriptRunResponse{BatchExecutionID: batchID}, nil
+}
+
+const MAX_BATCH_EXECUTION_HOSTS = 5000
+
+func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error) {
+	// If we are given both host IDs and filters, return an error
+	if len(hostIDs) > 0 && filters != nil {
+		return "", fleet.NewInvalidArgumentError("filters", "cannot specify both host_ids and filters")
+	}
+
+	// First check if scripts are disabled globally. If so, no need for further processing.
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return "", err
+	}
+
+	if cfg.ServerSettings.ScriptsDisabled {
+		svc.authz.SkipAuthorization(ctx)
+		return "", fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
+	}
+
+	// Use the authorize script by ID to handle authz
+	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
+	if err != nil {
+		return "", err
+	}
+
+	var userId *uint
+	ctxUser := authz.UserFromContext(ctx)
+	if ctxUser != nil {
+		userId = &ctxUser.ID
+	}
+
+	var hosts []*fleet.Host
+
+	// If we are given filters, we need to get the hosts matching those filters
+	if filters != nil {
+		opt, lid, err := hostListOptionsFromFilters(filters)
+		if err != nil {
+			return "", err
+		}
+
+		if opt == nil {
+			return "", fleet.NewInvalidArgumentError("filters", "filters must be a valid set of host list options")
+		}
+
+		if opt.TeamFilter == nil {
+			return "", fleet.NewInvalidArgumentError("filters", "filters must include a team filter")
+		}
+
+		filter := fleet.TeamFilter{User: ctxUser, IncludeObserver: true}
+
+		// Load hosts, either from label if provided or from all hosts.
+		if lid != nil {
+			hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, *opt)
+		} else {
+			opt.DisableIssues = true // intentionally ignore failing policies
+			hosts, err = svc.ds.ListHosts(ctx, filter, *opt)
+		}
+
+		if err != nil {
+			return "", err
+		}
+	} else {
+		// Get the hosts matching the host IDs
+		hosts, err = svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+		if err != nil {
+			return "", err
+		}
+	}
+	if len(hosts) == 0 {
+		return "", &fleet.BadRequestError{Message: "no hosts match the specified host IDs"}
+	}
+
+	if len(hosts) > MAX_BATCH_EXECUTION_HOSTS {
+		return "", fleet.NewInvalidArgumentError("filters", "too_many_hosts")
+	}
+
+	hostIDsToExecute := make([]uint, 0, len(hosts))
+	for _, host := range hosts {
+		hostIDsToExecute = append(hostIDsToExecute, host.ID)
+		if host.TeamID == nil && script.TeamID == nil {
+			continue
+		}
+		if host.TeamID == nil || script.TeamID == nil || *host.TeamID != *script.TeamID {
+			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
+		}
+	}
+
+	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
+	if err != nil {
+		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
+	}
+
+	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
+		ScriptName:       script.Name,
+		BatchExeuctionID: batchID,
+		HostCount:        uint(len(hostIDsToExecute)),
+		TeamID:           script.TeamID,
+	}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
+	}
+
+	return batchID, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Lock host
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -922,29 +1229,27 @@ type lockHostRequest struct {
 }
 
 type lockHostResponse struct {
-	Err        error  `json:"error,omitempty"`
-	UnlockPIN  string `json:"unlock_pin,omitempty"`
-	StatusCode int    `json:"-"`
+	Err           error                     `json:"error,omitempty"`
+	DeviceStatus  fleet.DeviceStatus        `json:"device_status,omitempty"`
+	PendingAction fleet.PendingDeviceAction `json:"pending_action,omitempty"`
+	UnlockPIN     string                    `json:"unlock_pin,omitempty"`
 }
 
-func (r lockHostResponse) Status() int {
-	if r.StatusCode != 0 {
-		return r.StatusCode
-	}
-	return http.StatusNoContent
-}
-func (r lockHostResponse) error() error { return r.Err }
+func (r lockHostResponse) Error() error { return r.Err }
 
-func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*lockHostRequest)
 	unlockPIN, err := svc.LockHost(ctx, req.HostID, req.ViewPin)
 	if err != nil {
 		return lockHostResponse{Err: err}, nil
 	}
+	// We bail from locking if the host is locked or wiped, so we can assume the host is unlocked at this point
+	response := &lockHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionLock}
+
 	if req.ViewPin && unlockPIN != "" {
-		return lockHostResponse{UnlockPIN: unlockPIN, StatusCode: http.StatusOK}, nil
+		response.UnlockPIN = unlockPIN
 	}
-	return lockHostResponse{}, nil
+	return response, nil
 }
 
 func (svc *Service) LockHost(ctx context.Context, _ uint, _ bool) (string, error) {
@@ -964,33 +1269,27 @@ type unlockHostRequest struct {
 }
 
 type unlockHostResponse struct {
-	HostID    *uint  `json:"host_id,omitempty"`
-	UnlockPIN string `json:"unlock_pin,omitempty"`
-	Err       error  `json:"error,omitempty"`
+	HostID        *uint                     `json:"host_id,omitempty"`
+	UnlockPIN     string                    `json:"unlock_pin,omitempty"`
+	DeviceStatus  fleet.DeviceStatus        `json:"device_status,omitempty"`
+	PendingAction fleet.PendingDeviceAction `json:"pending_action,omitempty"`
+	Err           error                     `json:"error,omitempty"`
 }
 
-func (r unlockHostResponse) Status() int {
-	if r.HostID != nil {
-		// there is a response body
-		return http.StatusOK
-	}
-	// no response body
-	return http.StatusNoContent
-}
-func (r unlockHostResponse) error() error { return r.Err }
+func (r unlockHostResponse) Error() error { return r.Err }
 
-func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*unlockHostRequest)
 	pin, err := svc.UnlockHost(ctx, req.HostID)
 	if err != nil {
 		return unlockHostResponse{Err: err}, nil
 	}
 
-	var resp unlockHostResponse
+	// We bail if a host is unlocked or wiped, so we can assume the host is locked at this point
+	resp := unlockHostResponse{HostID: &req.HostID, DeviceStatus: fleet.DeviceStatusLocked, PendingAction: fleet.PendingActionUnlock}
 	// only macOS hosts return an unlock PIN, for other platforms the UnlockHost
 	// call triggers the unlocking without further user action.
 	if pin != "" {
-		resp.HostID = &req.HostID
 		resp.UnlockPIN = pin
 	}
 	return resp, nil
@@ -1013,18 +1312,20 @@ type wipeHostRequest struct {
 }
 
 type wipeHostResponse struct {
-	Err error `json:"error,omitempty"`
+	Err           error                     `json:"error,omitempty"`
+	DeviceStatus  fleet.DeviceStatus        `json:"device_status,omitempty"`
+	PendingAction fleet.PendingDeviceAction `json:"pending_action,omitempty"`
 }
 
-func (r wipeHostResponse) Status() int  { return http.StatusNoContent }
-func (r wipeHostResponse) error() error { return r.Err }
+func (r wipeHostResponse) Error() error { return r.Err }
 
-func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*wipeHostRequest)
 	if err := svc.WipeHost(ctx, req.HostID); err != nil {
 		return wipeHostResponse{Err: err}, nil
 	}
-	return wipeHostResponse{}, nil
+	// We bail if a host is locked or wiped, so we can assume the host is unlocked at this point
+	return wipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 
 func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {

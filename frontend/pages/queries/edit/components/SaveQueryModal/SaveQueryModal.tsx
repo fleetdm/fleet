@@ -1,9 +1,26 @@
-import React, { useState, useEffect, useCallback, useContext } from "react";
-import { pull, size } from "lodash";
+import React, { useState, useEffect, useContext } from "react";
+import { useQuery } from "react-query";
+
+import { size } from "lodash";
 
 import { AppContext } from "context/app";
 
 import useDeepEffect from "hooks/useDeepEffect";
+import { IPlatformSelector } from "hooks/usePlatformSelector";
+
+import {
+  FREQUENCY_DROPDOWN_OPTIONS,
+  LOGGING_TYPE_OPTIONS,
+  MIN_OSQUERY_VERSION_OPTIONS,
+  DEFAULT_USE_QUERY_OPTIONS,
+} from "utilities/constants";
+
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+import {
+  ICreateQueryRequestBody,
+  ISchedulableQuery,
+  QueryLoggingOption,
+} from "interfaces/schedulable_query";
 
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -15,19 +32,14 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import {
-  FREQUENCY_DROPDOWN_OPTIONS,
-  LOGGING_TYPE_OPTIONS,
-  MIN_OSQUERY_VERSION_OPTIONS,
-  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
-} from "utilities/constants";
 import RevealButton from "components/buttons/RevealButton";
-import { SelectedPlatformString } from "interfaces/platform";
-import {
-  ICreateQueryRequestBody,
-  ISchedulableQuery,
-  QueryLoggingOption,
-} from "interfaces/schedulable_query";
+import LogDestinationIndicator from "components/LogDestinationIndicator";
+import TargetLabelSelector from "components/TargetLabelSelector";
+import labelsAPI, {
+  getCustomLabels,
+  ILabelsSummaryResponse,
+} from "services/entities/labels";
+
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
@@ -40,6 +52,7 @@ export interface ISaveQueryModalProps {
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
   queryReportsDisabled?: boolean;
+  platformSelector: IPlatformSelector;
 }
 
 const validateQueryName = (name: string) => {
@@ -62,18 +75,15 @@ const SaveQueryModal = ({
   backendValidators,
   existingQuery,
   queryReportsDisabled,
+  platformSelector,
 }: ISaveQueryModalProps): JSX.Element => {
-  const { config } = useContext(AppContext);
+  const { config, isPremiumTier } = useContext(AppContext);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFrequency, setSelectedFrequency] = useState(
     existingQuery?.interval ?? 3600
   );
-  const [
-    selectedPlatformOptions,
-    setSelectedPlatformOptions,
-  ] = useState<SelectedPlatformString>(existingQuery?.platform ?? "");
   const [
     selectedMinOsqueryVersionOptions,
     setSelectedMinOsqueryVersionOptions,
@@ -84,13 +94,40 @@ const SaveQueryModal = ({
   ] = useState<QueryLoggingOption>(existingQuery?.logging ?? "snapshot");
   const [observerCanRun, setObserverCanRun] = useState(false);
   const [automationsEnabled, setAutomationsEnabled] = useState(false);
+  const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedLabels, setSelectedLabels] = useState({});
   const [discardData, setDiscardData] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
-  const logDestination = config?.logging.result.plugin || "";
+  const {
+    data: { labels } = { labels: [] },
+    isFetching: isFetchingLabels,
+  } = useQuery<ILabelsSummaryResponse, Error>(
+    ["custom_labels"],
+    () => labelsAPI.summary(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+      staleTime: 10000,
+      select: (res) => ({ labels: getCustomLabels(res.labels) }),
+    }
+  );
+
+  const onSelectLabel = ({
+    name: labelName,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    setSelectedLabels({
+      ...selectedLabels,
+      [labelName]: value,
+    });
+  };
 
   const toggleAdvancedOptions = () => {
     setShowAdvancedOptions(!showAdvancedOptions);
@@ -106,6 +143,14 @@ const SaveQueryModal = ({
     setErrors(backendValidators);
   }, [backendValidators]);
 
+  // Disable saving if "Custom" targeting is selected, but no labels are selected.
+  const canSave =
+    platformSelector.isAnyPlatformSelected &&
+    (selectedTargetType === "All hosts" ||
+      Object.entries(selectedLabels).some(([, value]) => {
+        return value;
+      }));
+
   const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
@@ -118,6 +163,10 @@ const SaveQueryModal = ({
     });
     setName(trimmedName);
 
+    const newPlatformString = platformSelector
+      .getSelectedPlatforms()
+      .join(",") as CommaSeparatedPlatformString;
+
     if (valid) {
       saveQuery({
         // from modal fields
@@ -127,36 +176,22 @@ const SaveQueryModal = ({
         observer_can_run: observerCanRun,
         automations_enabled: automationsEnabled,
         discard_data: discardData,
-        platform: selectedPlatformOptions,
+        platform: newPlatformString,
         min_osquery_version: selectedMinOsqueryVersionOptions,
         logging: selectedLoggingType,
         // from previous New query page
         query: queryValue,
         // from doubly previous ManageQueriesPage
         team_id: apiTeamIdForQuery,
+        labels_include_any:
+          selectedTargetType === "Custom"
+            ? Object.entries(selectedLabels)
+                .filter(([, selected]) => selected)
+                .map(([labelName]) => labelName)
+            : [],
       });
     }
   };
-
-  const onChangeSelectPlatformOptions = useCallback(
-    (values: string) => {
-      const valArray = values.split(",");
-
-      // Remove All if another OS is chosen
-      // else if Remove OS if All is chosen
-      if (valArray.indexOf("") === 0 && valArray.length > 1) {
-        // TODO - inmprove type safety of all 3 options
-        setSelectedPlatformOptions(
-          pull(valArray, "").join(",") as SelectedPlatformString
-        );
-      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
-        setSelectedPlatformOptions("");
-      } else {
-        setSelectedPlatformOptions(values as SelectedPlatformString);
-      }
-    },
-    [setSelectedPlatformOptions]
-  );
 
   return (
     <Modal title="Save query" onExit={toggleSaveQueryModal}>
@@ -195,7 +230,7 @@ const SaveQueryModal = ({
           }}
           placeholder="Every hour"
           value={selectedFrequency}
-          label="Frequency"
+          label="Interval"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
           helpText="This is how often your query collects data."
         />
@@ -219,7 +254,7 @@ const SaveQueryModal = ({
                   tipContent={
                     <>
                       Automations and reporting will be paused <br />
-                      for this query until a frequency is set.
+                      for this query until an interval is set.
                     </>
                   }
                   position="right"
@@ -236,10 +271,34 @@ const SaveQueryModal = ({
           helpText={
             <>
               Historical results will {!automationsEnabled ? "not " : ""}be sent
-              to your log destination: <b>{logDestination}</b>.
+              to your log destination:{" "}
+              <b>
+                <LogDestinationIndicator
+                  logDestination={config?.logging.result.plugin || ""}
+                  excludeTooltip
+                />
+              </b>
+              .
             </>
           }
         />
+        {platformSelector.render()}
+        {isPremiumTier && (
+          <TargetLabelSelector
+            selectedTargetType={selectedTargetType}
+            selectedLabels={selectedLabels}
+            className={`${baseClass}__target`}
+            onSelectTargetType={setSelectedTargetType}
+            onSelectLabel={onSelectLabel}
+            labels={labels || []}
+            customHelpText={
+              <span className="form-field__help-text">
+                Query will target hosts that <b>have any</b> of these labels:
+              </span>
+            }
+            suppressTitle
+          />
+        )}
         <RevealButton
           isShowing={showAdvancedOptions}
           className="advanced-options-toggle"
@@ -250,16 +309,6 @@ const SaveQueryModal = ({
         />
         {showAdvancedOptions && (
           <>
-            <Dropdown
-              options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
-              placeholder="Select"
-              label="Platforms"
-              onChange={onChangeSelectPlatformOptions}
-              value={selectedPlatformOptions}
-              multi
-              wrapperClassName={`${baseClass}__form-field form-field--platform`}
-              helpText="By default, your query collects data on all compatible platforms."
-            />
             <Dropdown
               options={MIN_OSQUERY_VERSION_OPTIONS}
               onChange={setSelectedMinOsqueryVersionOptions}
@@ -292,9 +341,9 @@ const SaveQueryModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            variant="brand"
             className="save-query-loading"
-            isLoading={isLoading}
+            isLoading={isLoading || isFetchingLabels}
+            disabled={!canSave}
           >
             Save
           </Button>

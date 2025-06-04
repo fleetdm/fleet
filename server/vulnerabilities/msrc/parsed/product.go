@@ -66,7 +66,53 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 }
 
 func NewProductFromFullName(fullName string) Product {
-	return Product(fullName)
+	// If the full name includes a version, return it as-is.
+	p := Product(fullName)
+	if p.HasDisplayVersion() {
+		return p
+	}
+
+	// Several Windows products listed in MSRC bulletins don't include the OS version number.
+	// We need this to match the product with a host's OS, so we'll add them here.
+	versionString := ""
+	switch {
+	case strings.Contains(fullName, "Windows Server 2022"):
+		versionString = "21H2"
+
+	case strings.Contains(fullName, "Windows Server 2016"):
+		versionString = "1607"
+
+	case strings.Contains(fullName, "Windows Server 2019"):
+		versionString = "1809"
+
+	case strings.Contains(fullName, "Windows 8.1"):
+		versionString = "6.3 / NT 6.3"
+
+	case strings.Contains(fullName, "Windows RT 8.1"):
+		versionString = "6.3 / NT 6.3"
+
+	case strings.Contains(fullName, "Windows Server 2012 R2"):
+		versionString = "6.3 / NT 6.3"
+
+	case strings.Contains(fullName, "Windows Server 2012"):
+		versionString = "6.2 / NT 6.2"
+
+	case strings.Contains(fullName, "Windows Server 2008 R2"):
+		versionString = "6.1 / NT 6.1"
+
+	case strings.Contains(fullName, "Windows 7"):
+		versionString = "6.1 / NT 6.1"
+
+	case strings.Contains(fullName, "Windows Server 2008"):
+		versionString = "6.0 / NT 6.0"
+	}
+
+	finalName := fullName
+	if versionString != "" {
+		finalName += (" Version " + versionString)
+	}
+
+	return Product(finalName)
 }
 
 func NewProductFromOS(os fleet.OperatingSystem) Product {

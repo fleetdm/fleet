@@ -14,7 +14,7 @@
     background-color: $ui-off-white;
     color: $core-fleet-blue;
     border: 1px solid $ui-fleet-black-10;
-    border-radius: 4px;
+    border-radius: $border-radius;
     padding: 7px $pad-medium;
     margin: $pad-large 0 0 44px;
   }

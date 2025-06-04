@@ -12,14 +12,28 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 const awsRegionHint = "us-east-1"
 
 type s3store struct {
-	s3client *s3.S3
-	bucket   string
-	prefix   string
+	s3client         *s3.S3
+	bucket           string
+	prefix           string
+	cloudFrontConfig *config.S3CloudFrontConfig
+}
+
+type installerNotFoundError struct{}
+
+var _ fleet.NotFoundError = (*installerNotFoundError)(nil)
+
+func (p installerNotFoundError) Error() string {
+	return "installer not found"
+}
+
+func (p installerNotFoundError) IsNotFound() bool {
+	return true
 }
 
 // newS3store initializes an S3 Datastore
@@ -70,9 +84,10 @@ func newS3store(config config.S3ConfigInternal) (*s3store, error) {
 	}
 
 	return &s3store{
-		s3client: s3.New(sess, &aws.Config{Region: &config.Region}),
-		bucket:   config.Bucket,
-		prefix:   config.Prefix,
+		s3client:         s3.New(sess, &aws.Config{Region: &config.Region}),
+		bucket:           config.Bucket,
+		prefix:           config.Prefix,
+		cloudFrontConfig: config.CloudFrontConfig,
 	}, nil
 }
 

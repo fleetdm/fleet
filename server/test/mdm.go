@@ -67,3 +67,50 @@ func CreateVPPTokenEncodedAfterMigration(expiration time.Time, orgName, location
 	}
 	return dataTokenJson, nil
 }
+
+func GenerateMDMAppleProfile(ident, displayName, uuid string) string {
+	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`, ident, displayName, uuid)
+}
+
+func ToMDMAppleConfigProfile(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleConfigProfile {
+	return &fleet.MDMAppleConfigProfile{
+		Identifier:   p.Identifier,
+		Name:         p.Name,
+		ProfileUUID:  p.ProfileUUID,
+		Mobileconfig: p.Checksum, // not important for the test
+	}
+}
+
+func ToMDMWindowsConfigProfile(p *fleet.MDMConfigProfilePayload) *fleet.MDMWindowsConfigProfile {
+	return &fleet.MDMWindowsConfigProfile{
+		Name:        p.Name,
+		SyncML:      p.Checksum, // not important for the test
+		ProfileUUID: p.ProfileUUID,
+	}
+}
+
+func ToMDMAppleDecl(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleDeclaration {
+	return &fleet.MDMAppleDeclaration{
+		Name:            p.Name,
+		Identifier:      p.Identifier,
+		DeclarationUUID: p.ProfileUUID,
+	}
+}

@@ -11,8 +11,8 @@ import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import {
-  buildQueryStringFromParams,
   convertParamsToSnakeCase,
+  getPathWithQueryParams,
 } from "utilities/url";
 import {
   ISoftwareApiParams,
@@ -21,8 +21,6 @@ import {
 } from "services/entities/software";
 import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import Slider from "components/forms/fields/Slider";
 import CustomLink from "components/CustomLink";
@@ -32,8 +30,11 @@ import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import { SingleValue } from "react-select-5";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
 import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
@@ -76,7 +77,6 @@ interface ISoftwareTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  resetPageIndex: boolean;
   onAddFiltersClick: () => void;
 }
 
@@ -97,7 +97,6 @@ const SoftwareTable = ({
   currentPage,
   teamId,
   isLoading,
-  resetPageIndex,
   onAddFiltersClick,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
@@ -194,17 +193,12 @@ const SoftwareTable = ({
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
   const hasSoftwareFilter = softwareFilter !== "allSoftware";
-  const hasVersionFilter = showVersions;
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
   const showFilterHeaders =
     isSoftwareEnabled &&
-    (hasData ||
-      hasQuery ||
-      hasSoftwareFilter ||
-      hasVersionFilter ||
-      hasVulnFilters);
+    (hasData || hasQuery || hasSoftwareFilter || hasVulnFilters);
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | boolean | undefined> = {
@@ -251,24 +245,16 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const queryParams = showVersions
-      ? buildQueryStringFromParams({
-          software_version_id: row.original.id,
-          team_id: teamId,
-        })
-      : buildQueryStringFromParams({
-          software_title_id: row.original.id,
-          team_id: teamId,
-        });
+    if (!row.original.id) return;
 
-    const path = `${PATHS.MANAGE_HOSTS}?${queryParams}`;
+    const detailsPath = showVersions
+      ? PATHS.SOFTWARE_VERSION_DETAILS(row.original.id.toString())
+      : PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString());
 
-    router.push(path);
+    router.push(getPathWithQueryParams(detailsPath, { team_id: teamId }));
   };
 
   const renderSoftwareCount = () => {
-    if (!tableData || !data) return null;
-
     return (
       <>
         <TableCount name="items" count={data?.count} />
@@ -284,28 +270,36 @@ const SoftwareTable = ({
             }
           />
         )}
-      </>
-    );
-  };
-
-  const renderCustomControls = () => {
-    return (
-      <div className={`${baseClass}__filter-controls`}>
-        {!showVersions && ( // Hidden when viewing versions table
-          <Dropdown
-            value={softwareFilter}
-            className={`${baseClass}__vuln_dropdown`}
-            options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
-            searchable={false}
-            onChange={handleCustomFilterDropdownChange}
-            iconName="filter"
-          />
-        )}
         <Slider
           value={showVersions}
           onChange={handleShowVersionsToggle}
           inactiveText="Show versions"
           activeText="Show versions"
+        />
+      </>
+    );
+  };
+
+  const renderCustomControls = () => {
+    // Hidden when viewing versions table
+    if (showVersions) {
+      return null;
+    }
+
+    return (
+      <div className={`${baseClass}__filter-controls`}>
+        <DropdownWrapper
+          name="software-filter"
+          value={softwareFilter}
+          className={`${baseClass}__software-filter`}
+          options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
+          onChange={(newValue: SingleValue<CustomOptionType>) =>
+            newValue &&
+            handleCustomFilterDropdownChange(
+              newValue.value as ISoftwareDropdownFilterVal
+            )
+          }
+          variant="table-filter"
         />
       </div>
     );
@@ -359,7 +353,7 @@ const SoftwareTable = ({
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        pageIndex={currentPage}
         defaultSearchQuery={query}
         manualSortBy
         pageSize={perPage}
@@ -382,7 +376,6 @@ const SoftwareTable = ({
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

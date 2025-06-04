@@ -11,6 +11,7 @@ type StatisticsPayload struct {
 	LicenseTier                   string `json:"licenseTier"`
 	Organization                  string `json:"organization"`
 	NumHostsEnrolled              int    `json:"numHostsEnrolled"`
+	NumHostsABMPending            int    `json:"numHostsABMPending"`
 	NumUsers                      int    `json:"numUsers"`
 	NumSoftwareVersions           int    `json:"numSoftwareVersions"`
 	NumHostSoftwares              int    `json:"numHostSoftwares"`
@@ -20,6 +21,7 @@ type StatisticsPayload struct {
 	NumSoftwareCVEs               int    `json:"numSoftwareCVEs"`
 	NumTeams                      int    `json:"numTeams"`
 	NumPolicies                   int    `json:"numPolicies"`
+	NumQueries                    int    `json:"numQueries"`
 	NumLabels                     int    `json:"numLabels"`
 	SoftwareInventoryEnabled      bool   `json:"softwareInventoryEnabled"`
 	VulnDetectionEnabled          bool   `json:"vulnDetectionEnabled"`
@@ -74,5 +76,5 @@ type HostsCountByOSVersion struct {
 }
 
 const (
-	StatisticsFrequency = time.Hour * 24
+	StatisticsFrequency = time.Hour * 1
 )

@@ -1,3 +1,112 @@
+## Orbit 1.42.0 (May 15, 2025)
+
+* Made the macOS Setup Experience dialog more reliable by preventing system sleep while it is shown, changing the key combo to cmd+shift+x to exit, keeping it on top of all other windows and making sure it closes once it completes.
+
+* Fixed "concurrent map writes" crashes in orbit when both `EscrowBuddy` and `swiftDialog` components are updated/fetched.
+
+* Removed popup loading indicator for LUKS key escrow.
+
+* Fixed an issue causing Nudge launch failures.
+
+* Improved support for wide aspect ratio icons in the MDM setup experience and migration dialogs for
+  Apple devices.
+
+* When fleetd on a Windows host installs an update it detects from TUF, also update the corresponding `DisplayVersion` in the Registry.
+
+* Added automatic extraction of .tar.gz/.tgz archives prior to running the associated install script.
+
+* Updated Fleet Desktop's "My device" menu item to route to the policies tab on the "My device" web page.
+
+* Updated go to 1.24.2.
+
+* Updated the `windows_updates` Orbit table so that results are only returned iff there are non-installed windows updates.
+
+* Updated orbit linux CI builders to build (musl) static executable. (The main reason for this move was the deprecation of Ubuntu 20.04 runners by Github.)
+
+## Orbit 1.41.0 (Apr 14, 2025)
+
+* Fixed osquery flag parsing when the argument contained `=`.
+
+* Added `dconf_read` table to get configuration information from GNOME.
+
+* Added more logging to installation of software packages.
+
+* Updated fleetd to report software installer download errors back to Fleet.
+
+* Changed the way macos opens the fleet desktop app to better ensure successful launch.
+
+* Added support for Windows ARM64 platform in fleetd (`fleetctl package --arch=arm64 --type=msi`).
+
+* Updated Go to v1.24.1.
+
+* Added a timeout so the desktop app retries if not displayed after 1 minute.
+
+## Orbit 1.40.1 (Mar 14, 2025)
+
+* Fixed LUKS key escrow in non-English system locales.
+
+* Added logic to ensure only one instance of Fleet Desktop is running at a time.
+
+* Fixed an issue where restarting the desktop manager on Ubuntu would cause the Fleet Desktop tray icon to disappear and not return.
+
+## Orbit 1.39.1 (Feb 12, 2025)
+
+* Fixed a bug where fleetd could not install software from an old fleet server.
+
+## Orbit 1.39.0 (Feb 07, 2025)
+
+* Fixed a bug where the `SystemDrive` environment variable was not being passed to osqueryd.
+
+* Removed rollback to connect to Fleet's old TUF server (added in case 1.38.0 had an emergency bug).
+
+* Added bash interpreter support for script execution.
+
+* Fixed a bug where fleetd was not properly cleaning up temporary directories during software installation.
+
+* Added support to download software installers from signed CDN URLs.
+
+* Added retry logic to orbit's call to `POST /orbit/software_install/result` to account for momentary network failures causing an install to appear failed (e.g. when installing network extensions as part of an EDR).
+
+* Added support for Wayland display sessions. Thanks @pboushy for [this](https://github.com/fleetdm/fleet/issues/19043#issuecomment-2625719309) contribution to fixing this issue.
+
+* Added more client-side logging for software installs, scripts, and MDM setup experience.
+
+## Orbit 1.38.0 (Jan 24, 2025), 1.38.1 (Jan 27, 2025)
+
+* Added changes to migrate to new TUF repository from https://tuf.fleetctl.com to https://updates.fleetdm.com.
+
+## Orbit 1.37.0 (Dec 13, 2024)
+
+* Added support for key escrow on Ubuntu 20.04.
+
+* Added support for kdialog Linux key escrow prompts for compatibility with Kubuntu systems. Currently supported browser on Kubuntu for Fleet desktop is Chrome.
+
+* Fixed issue where the Linux encryption progress window in zenity was not displaying properly.
+
+* Added support to migrate the MDM provider of Windows devices to Fleet.
+
+* Added `nftables` table to show configuration for Linux `nftables` network filters.
+
+* Updated Go version to 1.23.4.
+
+## Orbit 1.36.0 (Nov 25, 2024)
+
+* Upgraded macadmins osquery-extension to v1.2.3.
+
+* Added `computer_name` and `hardware_model` for fleetd enrollment.
+
+* Added serial number for fleetd enrollment for Windows hosts (already present for macOS and Linux).
+
+* Added `codesign` table to provide the "Team identifier" of macOS applications.
+
+* Fixed stale Fleet Desktop token UUID after a macOS host completes Migration Assistant.
+
+* Added functionality to support linux disk encryption key escrow including end user prompts and LUKS key management
+
+* Fixed issue with fleetd not able to connect to Fleet server after Fleet MDM profiles have been removed.
+
+* Fixed cases where self-service menu item temporarily disappeared from Fleet Desktop menu when it should have stayed visible.
+
 ## Orbit 1.35.0 (Nov 01, 2024)
 
 * Fixed orbit startup to not exit when "root.json", "snapshot.json", or "targets.json" TUF signatures have expired.

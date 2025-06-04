@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -32,9 +33,8 @@ type SetupExperiencer struct {
 	// its Run method is called within a WaitGroup,
 	// and no other parts of Orbit need access to this field (or any other parts of the
 	// SetupExperiencer), it's OK to not protect this with a lock.
-	sd *swiftdialog.SwiftDialog
-	// Name of each step -> is that step done
-	steps   map[string]bool
+	sd      *swiftdialog.SwiftDialog
+	uiSteps map[string]swiftdialog.ListItem
 	started bool
 }
 
@@ -42,7 +42,7 @@ func NewSetupExperiencer(client Client, rootDirPath string) *SetupExperiencer {
 	return &SetupExperiencer{
 		OrbitClient: client,
 		closeChan:   make(chan struct{}),
-		steps:       make(map[string]bool),
+		uiSteps:     make(map[string]swiftdialog.ListItem),
 		rootDirPath: rootDirPath,
 	}
 }
@@ -60,9 +60,11 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	)
 
 	if _, err := os.Stat(binaryPath); err != nil {
-		log.Debug().Msg("skipping setup experience: swiftDialog is not installed")
+		log.Info().Msg("skipping setup experience: swiftDialog is not installed")
 		return nil
 	}
+
+	log.Info().Msg("checking setup experience status")
 
 	// Poll the status endpoint. This also releases the device if we're done.
 	payload, err := s.OrbitClient.GetSetupExperienceStatus()
@@ -85,7 +87,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 	select {
 	case <-s.closeChan:
-		log.Debug().Str("receiver", "setup_experiencer").Msg("swiftDialog closed")
+		log.Info().Str("receiver", "setup_experiencer").Msg("swiftDialog closed")
 		return nil
 	default:
 		// ok
@@ -95,32 +97,38 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	// and account configuration to verify) right off the bat, so we can just no-op if any of those
 	// are not terminal
 
+	log.Info().Msg("setup experience: checking for pending statuses")
+
 	if payload.BootstrapPackage != nil {
 		if payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageFailed && payload.BootstrapPackage.Status != fleet.MDMBootstrapPackageInstalled {
+			log.Info().Msg("setup experience: bootstrap package pending")
 			return nil
 		}
 	}
 
-	s.steps["bootstrap"] = true
-
-	if anyProfilePending(payload.ConfigurationProfiles) {
+	if isPending, name := anyProfilePending(payload.ConfigurationProfiles); isPending {
+		log.Info().Msg(fmt.Sprintf("setup experience: profile pending: %s", name))
 		return nil
 	}
-
-	s.steps["config_profiles"] = true
 
 	if payload.AccountConfiguration != nil {
 		if payload.AccountConfiguration.Status != fleet.MDMAppleStatusAcknowledged &&
 			payload.AccountConfiguration.Status != fleet.MDMAppleStatusError &&
 			payload.AccountConfiguration.Status != fleet.MDMAppleStatusCommandFormatError {
+
+			log.Info().Msg("setup experience: account config pending")
 			return nil
 		}
 	}
 
-	s.steps["account_config"] = true
+	// Note that we are setting this based on the current payload only just in case something
+	// was removed from the payload that was there earlier(e.g. a deleted software title).
+	allStepsDone := true
 
 	// Now render the UI for the software and script.
 	if len(payload.Software) > 0 || payload.Script != nil {
+		log.Info().Msg("setup experience: rendering software and script UI")
+
 		var stepsDone int
 		var prog uint
 		var steps []*fleet.SetupExperienceStatusResult
@@ -132,28 +140,54 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 			steps = append(steps, payload.Script)
 		}
 
-		for _, step := range steps {
-			item := resultToListItem(step)
-			if _, ok := s.steps[step.Name]; ok {
-				err = s.sd.UpdateListItemByTitle(item.Title, item.StatusText, item.Status)
+		// Check for any items that were in the payload that are no longer there. This can happen
+		// if a software title was deleted, for instance
+		for uiStepName, uiStep := range s.uiSteps {
+			uiStepExistsInPayload := false
+			for _, step := range steps {
+				if uiStep.Title == step.Name {
+					uiStepExistsInPayload = true
+					break
+				}
+			}
+			if !uiStepExistsInPayload {
+				log.Info().Msgf("Setup Experience: list item %s removed from payload", uiStep.Title)
+				err = s.sd.DeleteListItemByTitle(uiStep.Title)
 				if err != nil {
-					log.Info().Err(err).Msg("updating list item in setup experience UI")
+					log.Info().Err(err).Msg("deleting list item removed from payload from setup experience UI")
+				}
+				delete(s.uiSteps, uiStepName)
+			}
+		}
+
+		for _, step := range steps {
+			currentStepState := resultToListItem(step)
+			if priorStepState, ok := s.uiSteps[step.Name]; ok {
+				if currentStepState != priorStepState {
+					// We only want to resend on change so we're not unnecessarily scrolling the UI
+					err = s.sd.UpdateListItemByTitle(currentStepState.Title, currentStepState.StatusText, currentStepState.Status)
+					if err != nil {
+						log.Info().Err(err).Msg("updating list item in setup experience UI")
+					}
+				} else {
+					log.Info().Msgf("setup experience: no change in status for %s", step.Name)
 				}
 			} else {
-				err = s.sd.AddListItem(item)
+				err = s.sd.AddListItem(currentStepState)
 				if err != nil {
 					log.Info().Err(err).Msg("adding list item in setup experience UI")
 				}
-				s.steps[step.Name] = false
+				s.uiSteps[step.Name] = currentStepState
 			}
 
 			if step.Status == fleet.SetupExperienceStatusFailure || step.Status == fleet.SetupExperienceStatusSuccess {
 				stepsDone++
-				s.steps[step.Name] = true
 				// The swiftDialog progress bar is out of 100
 				for range int(float32(1) / float32(len(steps)) * 100) {
 					prog++
 				}
+			} else {
+				allStepsDone = false
 			}
 		}
 
@@ -173,7 +207,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 	// If we get here, we can render the "done" UI.
 
-	if s.allStepsDone() {
+	if allStepsDone {
 		if err := s.sd.SetMessage(doneMessage); err != nil {
 			log.Info().Err(err).Msg("setting message in setup experience UI")
 		}
@@ -196,35 +230,36 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		if err := s.sd.EnableButton1(true); err != nil {
 			log.Info().Err(err).Msg("enabling close button in setup experience UI")
 		}
+
+		// Sleep for a few seconds to let the user see the done message before closing
+		// the UI
+		time.Sleep(3 * time.Second)
+
+		if err := s.sd.Quit(); err != nil {
+			log.Info().Err(err).Msg("quitting setup experience UI on completion")
+		}
 	}
 
 	return nil
 }
 
-func (s *SetupExperiencer) allStepsDone() bool {
-	for _, done := range s.steps {
-		if !done {
-			return false
-		}
-	}
-
-	return true
-}
-
-func anyProfilePending(profiles []*fleet.SetupExperienceConfigurationProfileResult) bool {
+func anyProfilePending(profiles []*fleet.SetupExperienceConfigurationProfileResult) (bool, string) {
 	for _, p := range profiles {
 		if p.Status == fleet.MDMDeliveryPending {
-			return true
+			return true, p.Name
 		}
 	}
 
-	return false
+	return false, ""
 }
 
 func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 	if s.started {
+		log.Info().Msg("swiftDialog started")
 		return nil
 	}
+
+	log.Info().Msg("creating swiftDialog instance")
 
 	created := make(chan struct{})
 	swiftDialog, err := swiftdialog.Create(context.Background(), binaryPath)
@@ -232,6 +267,13 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 		return errors.New("creating swiftDialog instance: %w")
 	}
 	s.sd = swiftDialog
+
+	iconSize, err := swiftdialog.GetIconSize(orgLogo)
+	if err != nil {
+		log.Error().Err(err).Msg("setup experience: getting icon size")
+		iconSize = swiftdialog.DefaultIconSize
+	}
+
 	go func() {
 		initOpts := &swiftdialog.SwiftDialogOptions{
 			Title:            "none",
@@ -244,9 +286,12 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			ProgressText:     "Configuring your device...",
 			Button1Text:      "Close",
 			Button1Disabled:  true,
+			BlurScreen:       true,
+			OnTop:            true,
+			QuitKey:          "X", // Capital X to require command+shift+x
 		}
 
-		if err := s.sd.Start(context.Background(), initOpts); err != nil {
+		if err := s.sd.Start(context.Background(), initOpts, true); err != nil {
 			log.Error().Err(err).Msg("starting swiftDialog instance")
 		}
 
@@ -254,7 +299,7 @@ func (s *SetupExperiencer) startSwiftDialog(binaryPath, orgLogo string) error {
 			log.Error().Err(err).Msg("setting initial setup experience progress")
 		}
 
-		if err := s.sd.SetIconSize(80); err != nil {
+		if err := s.sd.SetIconSize(iconSize); err != nil {
 			log.Error().Err(err).Msg("setting initial setup experience icon size")
 		}
 

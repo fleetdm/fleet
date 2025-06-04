@@ -91,6 +91,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 			FleetVersion:                         "1.2.3",
 			LicenseTier:                          "premium",
 			NumHostsEnrolled:                     999,
+			NumHostsABMPending:                   888,
 			NumUsers:                             99,
 			NumSoftwareVersions:                  100,
 			NumHostSoftwares:                     101,
@@ -100,6 +101,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 			NumSoftwareCVEs:                      105,
 			NumTeams:                             9,
 			NumPolicies:                          0,
+			NumQueries:                           200,
 			NumLabels:                            3,
 			SoftwareInventoryEnabled:             true,
 			VulnDetectionEnabled:                 true,
@@ -139,7 +141,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"numHostsFleetDesktopEnabled":1984}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -595,6 +597,51 @@ func TestScanVulnerabilities(t *testing.T) {
 
 	// ensure that webhook was called
 	require.Equal(t, 1, webhookCount)
+}
+
+func TestUpdateVulnHostCounts(t *testing.T) {
+	logger := kitlog.NewNopLogger()
+	logger = level.NewFilter(logger, level.AllowDebug())
+
+	ctx := context.Background()
+
+	ds := new(mock.Store)
+
+	testCases := []struct {
+		desc                   string
+		maxConcurrency         int
+		expectedMaxConcurrency int
+	}{
+		{
+			desc:                   "invalid max concurrency count: 0",
+			maxConcurrency:         0,
+			expectedMaxConcurrency: 1,
+		},
+		{
+			desc:                   "invalid max concurrency count: < 0",
+			maxConcurrency:         -1,
+			expectedMaxConcurrency: 1,
+		},
+		{
+			desc:                   "valid max concurrency count",
+			maxConcurrency:         10,
+			expectedMaxConcurrency: 10,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			var gotMaxConcurrency int
+			ds.UpdateVulnerabilityHostCountsFunc = func(ctx context.Context, maxRoutines int) error {
+				gotMaxConcurrency = maxRoutines
+				return nil
+			}
+
+			err := updateVulnHostCounts(ctx, ds, logger, tc.maxConcurrency)
+			require.NoError(t, err)
+
+			require.Equal(t, tc.expectedMaxConcurrency, gotMaxConcurrency)
+		})
+	}
 }
 
 func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {

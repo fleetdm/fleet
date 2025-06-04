@@ -23,7 +23,10 @@ export interface ICheckboxProps {
   wrapperClassName?: string;
   indeterminate?: boolean;
   parseTarget?: boolean;
-  tooltipContent?: React.ReactNode;
+  /** to display over the checkbox label */
+  labelTooltipContent?: React.ReactNode;
+  /** to display over the checkbox icon */
+  iconTooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
   helpText?: React.ReactNode;
   /** Use in table action only
@@ -44,7 +47,8 @@ const Checkbox = (props: ICheckboxProps) => {
     wrapperClassName,
     indeterminate = false,
     parseTarget,
-    tooltipContent,
+    labelTooltipContent,
+    iconTooltipContent,
     isLeftLabel,
     helpText,
     enableEnterToCheck = false,
@@ -111,6 +115,30 @@ const Checkbox = (props: ICheckboxProps) => {
     return "checkbox-unchecked";
   };
 
+  const renderIcon = () => {
+    const icon = (
+      <Icon
+        name={getIconName()}
+        className={`${baseClass}__icon ${baseClass}__icon--${getIconName()}`}
+      />
+    );
+    if (iconTooltipContent) {
+      return (
+        <TooltipWrapper
+          tipContent={iconTooltipContent}
+          clickable={false}
+          underline={false}
+          showArrow
+          position="right"
+          tipOffset={8}
+        >
+          {icon}
+        </TooltipWrapper>
+      );
+    }
+    return icon;
+  };
+
   return (
     <FormField {...formFieldProps}>
       <label htmlFor={name}>
@@ -118,7 +146,7 @@ const Checkbox = (props: ICheckboxProps) => {
           type="checkbox"
           ref={inputRef}
           name={name}
-          checked={value || undefined}
+          checked={!!value}
           onChange={noop} // Empty onChange to avoid React warning
           disabled={disabled || readOnly}
           style={{ display: "none" }} // Hide the input
@@ -126,6 +154,7 @@ const Checkbox = (props: ICheckboxProps) => {
         />
         <div
           role="checkbox"
+          aria-label={name}
           aria-checked={indeterminate ? "mixed" : value || undefined}
           aria-readonly={readOnly}
           aria-disabled={disabled}
@@ -135,14 +164,11 @@ const Checkbox = (props: ICheckboxProps) => {
           onKeyDown={handleKeyDown}
           onBlur={onBlur}
         >
-          <Icon
-            name={getIconName()}
-            className={`${baseClass}__icon ${baseClass}__icon--${getIconName()}`}
-          />
-          {tooltipContent ? (
+          {renderIcon()}
+          {labelTooltipContent ? (
             <span className={`${baseClass}__label-tooltip tooltip`}>
               <TooltipWrapper
-                tipContent={tooltipContent}
+                tipContent={labelTooltipContent}
                 clickable={false} // Not block form behind tooltip
               >
                 {children}

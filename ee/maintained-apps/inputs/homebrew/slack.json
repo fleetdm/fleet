@@ -1,0 +1,8 @@
+{
+  "name": "Slack",
+  "unique_identifier": "com.tinyspeck.slackmacgap",
+  "token": "slack",
+  "installer_format": "dmg",
+  "slug": "slack/darwin",
+  "default_categories": ["Communication"]
+}

@@ -109,3 +109,36 @@ func TestTokenUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestGetTokenMAID(t *testing.T) {
+	test := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>MessageType</key>
+	<string>GetToken</string>
+	<key>UDID</key>
+	<string>test</string>
+	<key>TokenServiceType</key>
+	<string>com.apple.maid</string>
+</dict>
+</plist>
+`
+	m, err := DecodeCheckin([]byte(test))
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, ok := m.(*GetToken)
+	if !ok {
+		t.Fatal("incorrect decoded check-in message type")
+	}
+	if err := msg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if msg, want, have := "invalid UDID", "test", msg.UDID; have != want {
+		t.Errorf("%s: %q, want: %q", msg, have, want)
+	}
+	if msg, want, have := "invalid TokenServiceType", "com.apple.maid", msg.TokenServiceType; have != want {
+		t.Errorf("%s: %q, want: %q", msg, have, want)
+	}
+}

@@ -10,6 +10,7 @@ import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
+import { getPathWithQueryParams } from "utilities/url";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 
 import BackLink from "components/BackLink";
@@ -30,6 +31,7 @@ interface IQueryEditorProps {
   goToSelectTargets: () => void;
   onOpenSchemaSidebar: () => void;
   renderLiveQueryWarning: () => JSX.Element | null;
+  teamIdForApi?: number;
 }
 
 const QueryEditor = ({
@@ -46,6 +48,7 @@ const QueryEditor = ({
   goToSelectTargets,
   onOpenSchemaSidebar,
   renderLiveQueryWarning,
+  teamIdForApi,
 }: IQueryEditorProps): JSX.Element | null => {
   const { currentUser, isPremiumTier, filteredPoliciesPath } = useContext(
     AppContext
@@ -150,6 +153,8 @@ const QueryEditor = ({
       query: formData.query,
       resolution: formData.resolution,
       platform: formData.platform,
+      labels_include_any: formData.labels_include_any,
+      labels_exclude_any: formData.labels_exclude_any,
     };
     if (isPremiumTier) {
       payload.critical = formData.critical;
@@ -161,7 +166,11 @@ const QueryEditor = ({
         (data) => data.policy
       );
       setIsUpdatingPolicy(false);
-      router.push(PATHS.EDIT_POLICY(policy));
+      router.push(
+        getPathWithQueryParams(PATHS.EDIT_POLICY(policy.id), {
+          team_id: policy.team_id,
+        })
+      );
       renderFlash("success", "Policy created!");
     } catch (createError: any) {
       console.error(createError);
@@ -234,7 +243,12 @@ const QueryEditor = ({
 
   // Function instead of constant eliminates race condition with filteredPoliciesPath
   const backToPoliciesPath = () => {
-    return filteredPoliciesPath || PATHS.MANAGE_POLICIES;
+    const queryParams = { team_id: teamIdForApi };
+
+    return (
+      filteredPoliciesPath ||
+      getPathWithQueryParams(PATHS.MANAGE_POLICIES, queryParams)
+    );
   };
 
   return (

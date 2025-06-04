@@ -9,57 +9,70 @@
       <div purpose="pricing-tiers" class="d-flex flex-column flex-lg-row justify-content-center">
         <%// Fleet Free tier card %>
         <div purpose="pricing-card">
-        <div purpose="free-tier-card" class="card d-flex flex-column h-100  justify-content-between">
-          <div purpose="pricing-tier-title">
-            <div class="d-flex flex-row justify-content-start">
-              <div class="d-flex flex-column justify-content-between">
-                <h2>Free</h2>
-                <h3>Unlimited hosts</h3>
-                <div purpose="tier-price" class="d-flex flex-row align-items-center">
-                  <h1><span purpose="price-dollar-sign">$</span>0</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
-                </div>
-              </div>
+          <div purpose="free-tier-card" class="card d-flex flex-lg-column flex-sm-row flex-column h-100">
+            <div purpose="pricing-tier-image">
             </div>
-          </div>
-          <div purpose="button-container" class="d-flex flex-row align-items-center">
-            <animated-arrow-button href="/docs">
-              Read the docs
-            </animated-arrow-button>
-          </div>
-        </div>
-        </div>
-        <%// Fleet Premium tier card %>
-        <div purpose="pricing-card" class="d-flex flex-column justify-content-center">
-          <div purpose="premium-tier-card" class="card d-flex h-100 flex-column justify-content-between">
-            <div purpose="pricing-tier-title">
-              <div class="d-flex flex-column justify-content-between">
-                <div class="d-flex flex-column justify-content-start">
-                  <h2>Premium</h2>
-                  <h3>Unlimited baselines</h3>
-                  <div purpose="tier-price" class="d-flex flex-row align-items-center justify-content-start">
-                    <h1><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+            <div purpose="pricing-card-body">
+              <div purpose="pricing-tier-title">
+                <div class="d-flex flex-row justify-content-start">
+                  <div class="d-flex flex-column justify-content-between">
+                    <h2>Free</h2>
+                    <h3>Unlimited hosts</h3>
+                    <div purpose="tier-price" class="d-flex flex-row align-items-center">
+                      <h1><span purpose="price-dollar-sign">$</span>0</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                    </div>
                   </div>
                 </div>
               </div>
+              <div purpose="button-container" class="d-flex flex-row align-items-center">
+                <animated-arrow-button href="/docs">
+                  Read the docs
+                </animated-arrow-button>
+              </div>
             </div>
-            <div>
+          </div>
+        </div>
+        <%// Fleet Premium tier card %>
+        <div purpose="pricing-card" class="d-flex flex-column justify-content-center">
+          <div purpose="premium-tier-card" class="card d-flex h-100 flex-lg-column flex-sm-row flex-column">
+            <div purpose="pricing-tier-image">
+            </div>
+            <div purpose="pricing-card-body">
+              <div purpose="pricing-tier-title">
+                <div class="d-flex flex-column justify-content-between">
+                  <div class="d-flex flex-column justify-content-start">
+                    <h2>Premium</h2>
+                    <h3>Unlimited baselines</h3>
+                    <div purpose="tier-price" class="d-flex flex-row align-items-center justify-content-start">
+                      <h1><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/register">Get started</a>
+<!--               <div>
+              </div> -->
             </div>
           </div>
         </div>
         <%//  Custom tier card %>
         <div purpose="pricing-card" class="d-flex flex-column justify-content-center">
-          <div purpose="custom-tier-card" class="card d-flex h-100 flex-column justify-content-between">
-            <div purpose="pricing-tier-title">
-              <div class="d-flex flex-column justify-content-between">
-                <div class="d-flex flex-column justify-content-center">
-                  <h2>Custom</h2>
-                  <h3>For teams with extremely large deployments.</h3>
+          <div purpose="custom-tier-card" class="card d-flex h-100 flex-lg-column flex-sm-row flex-column">
+            <div purpose="pricing-tier-image">
+
+            </div>
+            <div purpose="pricing-card-body">
+              <div purpose="pricing-tier-title">
+                <div class="d-flex flex-column justify-content-between">
+                  <div class="d-flex flex-column justify-content-center">
+                    <h2>Custom</h2>
+                    <h3>For teams who can move quickly with extremely large deployments.</h3>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div>
-              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/contact">Talk to us</a>
+              <div>
+                <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/contact">Talk to an engineer</a>
+              </div>
             </div>
           </div>
         </div>
@@ -69,8 +82,8 @@
       </div>
       <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="clickChangePricingMode('all')">All features</div>
-        <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="clickChangePricingMode('IT')">For IT admins</div>
         <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
+        <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="clickChangePricingMode('IT')">For IT admins</div>
         <div purpose="pricing-tier-switch" :class="pricingMode+'-selected'"></div>
       </div>
     </div>
@@ -104,7 +117,7 @@
                 <% for( let feature of category.features){ %>
                   <tr>
                     <%if(feature.description && feature.documentationUrl) {%>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank" no-icon><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
                     <% } else {%>
@@ -179,7 +192,7 @@
                 <% for( let feature of category.features){ %>
                   <tr>
                     <%if(feature.description && feature.documentationUrl) {%>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank" no-icon><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
                     <% } else {%>
@@ -252,7 +265,7 @@
                 <% for( let feature of category.features){ %>
                   <tr>
                     <%if(feature.description && feature.documentationUrl) {%>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
+                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank" no-icon><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>' : ''] %> "></a></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
                     <% } else {%>
@@ -325,7 +338,7 @@
               //  ██║     ██║  ██║╚██████╔╝    ██║  ██║ ██║
               //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝     ╚═╝  ╚═╝ ╚═╝
               %>
-              You already know how to manage the operating system. In Fleet, you can focus on managing Apple, Windows and Linux; not Intune, Omnissa, and your anxiety.
+              You already know how to manage the operating system. In Fleet, you can focus on managing {{ bowser.windows ? 'Windows, Apple' : 'Apple, Windows'}} and Linux; not "Android MDM", "Apple MDM", "config management", etc.
             </p>
           </div>
           <div purpose="accordion-item">
@@ -350,7 +363,7 @@
               //  ██║     ██║  ██║╚██████╔╝    ██║  ██║███████╗
               //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝     ╚═╝  ╚═╝╚══════╝
               %>
-              We're moving pretty fast, and we have every incentive to listen. At Fleet, everyone can contribute. We also regularly deliver customer promises, and all the code is 100% source-available.
+              We're moving pretty fast, and we have every incentive to listen. At Fleet, everyone can contribute. We also regularly deliver customer promises, and all the code is <a href="https://github.com/fleetdm/fleet">100% source-available</a>.
             </p>
           </div>
           <div purpose="accordion-item">
@@ -375,12 +388,12 @@
               //  ██║     ██║  ██║╚██████╔╝    ██║  ██║██████╔╝
               //  ╚═╝     ╚═╝  ╚═╝ ╚══▀▀═╝     ╚═╝  ╚═╝╚═════╝
               %>
-              Fleet <a href="https://fleetdm.com/handbook/company#history">started as an osquery management server</a>. After 10 years of production osquery use at scale in huge organizations, Fleet added "write" and "execute" device management capabilities, with all the necessary integrations to be comparable with other device management platforms like Omnissa (fka WS1, fka Airwatch), Jamf, Intune, and more. Today, Fleet is actively used as the next-gen MDM in homelabs all over the world, and at larger fleets at Epic Games, Cisco, Stripe, Fastly, Lear, and more.
+              Fleet <a href="https://fleetdm.com/handbook/company#history">started as an osquery management server</a>. After 10 years of production osquery use at scale in huge organizations, Fleet added "write" and "execute" device management capabilities, with all the necessary integrations to be comparable with other device management platforms like Omnissa (fka WS1, fka Airwatch), Jamf, Intune, and more. Today, Fleet is used in homelabs all over the world, and at larger fleets at Epic Games, Cisco, Stripe, Fastly, Lear, and more.
             </p>
           </div>
         </div>
         <div class="d-flex flex-row justify-content-start">
-          <p purpose="contact-note">Couldn’t find an answer? <a href="/contact">Talk to us</a>.</p>
+          <p purpose="contact-note">Couldn’t find an answer? <a href="/docs/get-started/faq">Read the FAQ</a> or <a href="/contact">talk to an engineer</a>.</p>
         </div>
       </div>
     </div>
@@ -388,8 +401,9 @@
   <modal purpose="mobile-tooltip" v-if="modal === 'mobileTooltip'" @close="closeModal()">
     <div>
       <p class="mb-0">{{selectedFeature.description}}</p>
-      <a :href="selectedFeature.documentationUrl" target="_blank" v-if="selectedFeature.documentationUrl">Learn more</a>
+      <a :href="selectedFeature.documentationUrl" target="_blank" v-if="selectedFeature.documentationUrl" no-icon>Learn more</a>
     </div>
   </modal>
+  <p style="opacity: 0; line-height: 0px; font-size: 0px; margin: 0;">537c652d-cb1a-440e-ae35-0f0bf5743e75</p>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

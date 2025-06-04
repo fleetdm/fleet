@@ -14,6 +14,8 @@ import (
 	constants "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -32,39 +34,97 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
-		res, err = newHostScriptExecutionRequest(ctx, tx, request)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, false)
 		return err
 	})
 }
 
-func newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+func (ds *Datastore) newHostScriptExecutionRequest(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, policy_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?, ?)`
-		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.policy_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
+		getStmt = `
+SELECT
+	ua.id, ua.host_id, ua.execution_id, ua.created_at, sua.script_id, sua.policy_id, ua.user_id,
+	payload->'$.sync_request' AS sync_request,
+	sc.contents as script_contents, sua.setup_experience_script_id
+FROM
+	upcoming_activities ua
+	INNER JOIN script_upcoming_activities sua
+		ON ua.id = sua.upcoming_activity_id
+	INNER JOIN script_contents sc
+		ON sua.script_content_id = sc.id
+WHERE
+	ua.id = ?
+`
 	)
 
-	execID := uuid.New().String()
-	result, err := tx.ExecContext(ctx, insStmt,
-		request.HostID,
-		execID,
-		request.ScriptContentID,
-		request.ScriptID,
-		request.PolicyID,
-		request.UserID,
-		request.SyncRequest,
-	)
+	_, activityID, err := ds.insertNewHostScriptExecution(ctx, tx, request, isInternal)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
+		return nil, ctxerr.Wrap(ctx, err, "inserting new script execution request")
 	}
 
 	var script fleet.HostScriptResult
-	id, _ := result.LastInsertId()
-	err = sqlx.GetContext(ctx, tx, &script, getStmt, id)
+	err = sqlx.GetContext(ctx, tx, &script, getStmt, activityID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
+		return nil, ctxerr.Wrap(ctx, err, "getting the created host script activity to return")
 	}
 
 	return &script, nil
+}
+
+func (ds *Datastore) insertNewHostScriptExecution(ctx context.Context, tx sqlx.ExtContext, request *fleet.HostScriptRequestPayload, isInternal bool) (string, int64, error) {
+	const (
+		insUAStmt = `
+INSERT INTO upcoming_activities
+	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
+VALUES
+	(?, ?, ?, ?, 'script', ?,
+		JSON_OBJECT(
+			'sync_request', ?,
+			'is_internal', ?,
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
+		)
+	)`
+
+		insSUAStmt = `
+INSERT INTO script_upcoming_activities
+	(upcoming_activity_id, script_id, script_content_id, policy_id, setup_experience_script_id)
+VALUES
+	(?, ?, ?, ?, ?)
+`
+	)
+
+	execID := uuid.New().String()
+	result, err := tx.ExecContext(ctx, insUAStmt,
+		request.HostID,
+		request.Priority(),
+		request.UserID,
+		request.PolicyID != nil, // fleet-initiated if request is via a policy failure
+		execID,
+		request.SyncRequest,
+		isInternal,
+		request.UserID,
+	)
+	if err != nil {
+		return "", 0, ctxerr.Wrap(ctx, err, "new script upcoming activity")
+	}
+
+	activityID, _ := result.LastInsertId()
+	_, err = tx.ExecContext(ctx, insSUAStmt,
+		activityID,
+		request.ScriptID,
+		request.ScriptContentID,
+		request.PolicyID,
+		request.SetupExperienceScriptID,
+	)
+	if err != nil {
+		return "", 0, ctxerr.Wrap(ctx, err, "new join script upcoming activity")
+	}
+
+	if _, err := ds.activateNextUpcomingActivity(ctx, tx, request.HostID, ""); err != nil {
+		return "", 0, ctxerr.Wrap(ctx, err, "activate next activity")
+	}
+
+	return execID, activityID, nil
 }
 
 func truncateScriptResult(output string) string {
@@ -106,6 +166,12 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     execution_id = ?`
 
 	const hostMDMActionsStmt = `
+  SELECT 'uninstall' AS action
+  FROM
+	host_software_installs
+  WHERE
+	execution_id = :execution_id AND host_id = :host_id
+  UNION -- host_mdm_actions query (and thus row in union) must be last to avoid #25144
   SELECT
     CASE
       WHEN lock_ref = :execution_id THEN 'lock_ref'
@@ -117,12 +183,6 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     host_mdm_actions
   WHERE
     host_id = :host_id
-  UNION
-  SELECT 'uninstall' AS action
-  FROM
-	host_software_installs
-  WHERE
-	execution_id = :execution_id AND host_id = :host_id
 `
 
 	output := truncateScriptResult(result.Output)
@@ -136,6 +196,17 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "check if host script result exists")
 		}
 		if resultExists {
+			level.Debug(ds.logger).Log("msg", "duplicate script execution result sent, will be ignored (original result is preserved)",
+				"host_id", result.HostID,
+				"execution_id", result.ExecutionID,
+			)
+
+			// still do the activate next activity to ensure progress as there was
+			// an unexpected flow if we get here.
+			if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.ExecutionID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity")
+			}
+
 			// succeed but leave hsr nil
 			return nil
 		}
@@ -159,7 +230,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 
 		if n, _ := res.RowsAffected(); n > 0 {
 			// it did update, so return the updated result
-			hsr, err = ds.getHostScriptExecutionResultDB(ctx, tx, result.ExecutionID)
+			hsr, err = ds.getHostScriptExecutionResultDB(ctx, tx, result.ExecutionID, true)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "load updated host script result")
 			}
@@ -183,7 +254,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			case "":
 				// do nothing
 			case "uninstall":
-				err = updateUninstallStatusFromResult(ctx, tx, result.HostID, result.ExecutionID, result.ExitCode)
+				err = ds.updateUninstallStatusFromResult(ctx, tx, result.HostID, result.ExecutionID, result.ExitCode)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "update host uninstall action based on script result")
 				}
@@ -194,6 +265,11 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 				}
 			}
 		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, result.HostID, result.ExecutionID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -202,29 +278,53 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, action, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
-	const listStmt = `
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, false)
+}
+
+func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, true)
+}
+
+func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
+	extraWhere := ""
+	if onlyShowInternal {
+		// software_uninstalls are implicitly internal
+		extraWhere = " AND COALESCE(ua.payload->'$.is_internal', 1) = 1"
+	}
+	if onlyReadyToExecute {
+		extraWhere += " AND ua.activated_at IS NOT NULL"
+	}
+	// this selects software uninstalls too as they run as scripts
+	listStmt := fmt.Sprintf(`
   SELECT
     id,
     host_id,
     execution_id,
-    script_id
-  FROM
-    host_script_results
-  WHERE
-    host_id = ? AND
-    exit_code IS NULL
-    -- async requests + sync requests created within the given interval
-    AND (
-      sync_request = 0
-      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
-    )
-  ORDER BY
-    created_at ASC`
+    script_id,
+		created_at
+	FROM (
+		SELECT
+			ua.id,
+			ua.host_id,
+			ua.execution_id,
+			sua.script_id,
+			ua.priority,
+			ua.created_at,
+			IF(ua.activated_at IS NULL, 0, 1) AS topmost
+		FROM
+			upcoming_activities ua
+			-- left join because software_uninstall has no script join
+			LEFT JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.host_id = ? AND
+			ua.activity_type IN ('script', 'software_uninstall')
+			%s
+		ORDER BY topmost DESC, priority DESC, created_at ASC) t`, extraWhere)
 
 	var results []*fleet.HostScriptResult
-	seconds := int(constants.MaxServerWaitTime.Seconds())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending host script executions")
 	}
 	return results, nil
@@ -233,13 +333,15 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error) {
 	const getStmt = `
 		SELECT
-		  1
+			1
 		FROM
-		  host_script_results
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
 		WHERE
-		  host_id = ? AND
-		  script_id = ? AND
-		  exit_code IS NULL
+			ua.host_id = ? AND
+			ua.activity_type = 'script' AND
+			sua.script_id = ?
 	`
 
 	var results []*uint
@@ -250,42 +352,85 @@ func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint,
 }
 
 func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID)
+	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID, false)
 }
 
-func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string) (*fleet.HostScriptResult, error) {
-	const getStmt = `
-  SELECT
-    hsr.id,
-    hsr.host_id,
-    hsr.execution_id,
-    sc.contents as script_contents,
-    hsr.script_id,
-    hsr.policy_id,
-    hsr.output,
-    hsr.runtime,
-    hsr.exit_code,
-    hsr.timeout,
-    hsr.created_at,
-    hsr.user_id,
-    hsr.sync_request,
-    hsr.host_deleted_at
+func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string, includeCanceled bool) (*fleet.HostScriptResult, error) {
+	canceledCondition := ""
+	if !includeCanceled {
+		canceledCondition = " AND hsr.canceled = 0"
+	}
+
+	getActiveStmt := fmt.Sprintf(`
+	SELECT
+		hsr.id,
+		hsr.host_id,
+		hsr.execution_id,
+		sc.contents as script_contents,
+		hsr.script_id,
+		hsr.policy_id,
+		hsr.output,
+		hsr.runtime,
+		hsr.exit_code,
+		hsr.timeout,
+		hsr.created_at,
+		hsr.user_id,
+		hsr.sync_request,
+		hsr.host_deleted_at,
+		hsr.setup_experience_script_id,
+		hsr.canceled
   FROM
-    host_script_results hsr
-  JOIN
-	script_contents sc
-  WHERE
-    hsr.execution_id = ?
-  AND
-	hsr.script_content_id = sc.id
+		host_script_results hsr
+	JOIN
+		script_contents sc
+	WHERE
+		hsr.execution_id = ? AND
+		hsr.script_content_id = sc.id
+		%s
+`, canceledCondition)
+
+	const getUpcomingStmt = `
+	SELECT
+		0 as id,
+		ua.host_id,
+		ua.execution_id,
+		sc.contents as script_contents,
+		sua.script_id,
+		sua.policy_id,
+		'' as output,
+		0 as runtime,
+		NULL as exit_code,
+		NULL as timeout,
+		ua.created_at,
+		ua.user_id,
+		COALESCE(ua.payload->'$.sync_request', 0) as sync_request,
+		NULL as host_deleted_at,
+		sua.setup_experience_script_id,
+		0 as canceled
+  FROM
+		upcoming_activities ua
+		INNER JOIN script_upcoming_activities sua
+			ON ua.id = sua.upcoming_activity_id
+		INNER JOIN
+			script_contents sc
+			ON sua.script_content_id = sc.id
+	WHERE
+		ua.execution_id = ? AND
+		ua.activity_type = 'script'
 `
 
 	var result fleet.HostScriptResult
-	if err := sqlx.GetContext(ctx, q, &result, getStmt, execID); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
+	if err := sqlx.GetContext(ctx, q, &result, getActiveStmt, execID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// try with upcoming activities
+			err = sqlx.GetContext(ctx, q, &result, getUpcomingStmt, execID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
+			}
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get host script result")
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host script result")
+		}
 	}
 	return &result, nil
 }
@@ -311,6 +456,72 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 	}
 	id, _ := res.LastInsertId()
 	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id)) //nolint:gosec // dismiss G115
+}
+
+func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error) {
+	const stmt = `
+UPDATE script_contents
+INNER JOIN
+  scripts ON scripts.script_content_id = script_contents.id
+SET
+  contents = ?,
+  md5_checksum = UNHEX(?)
+WHERE
+  scripts.id = ?
+`
+	md5Checksum := md5ChecksumScriptContent(scriptContents)
+
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, scriptContents, md5Checksum, scriptID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating script_contents")
+		}
+
+		if _, err := tx.ExecContext(ctx, "UPDATE scripts SET updated_at = NOW() WHERE id = ?", scriptID); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating script updated_at time")
+		}
+
+		if err := ds.cancelUpcomingScriptActivities(ctx, tx, scriptID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting upcoming script executions")
+		}
+
+		return nil
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "updating script contents")
+	}
+
+	return ds.Script(ctx, scriptID)
+}
+
+func (ds *Datastore) cancelUpcomingScriptActivities(ctx context.Context, db sqlx.ExtContext, scriptID uint) error {
+	const stmt = `
+SELECT
+	ua.execution_id,
+	ua.host_id
+FROM
+	script_upcoming_activities sua
+INNER JOIN
+	upcoming_activities ua ON ua.id = sua.upcoming_activity_id
+WHERE
+	sua.script_id = ?
+`
+
+	var upcomingExecutions []struct {
+		ExecutionID string `db:"execution_id"`
+		HostID      uint   `db:"host_id"`
+	}
+
+	if err := sqlx.SelectContext(ctx, db, &upcomingExecutions, stmt, scriptID); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting upcoming script executions")
+	}
+
+	for _, upcomingExecution := range upcomingExecutions {
+		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID); err != nil {
+			return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
+		}
+	}
+
+	return nil
 }
 
 func insertScript(ctx context.Context, tx sqlx.ExtContext, script *fleet.Script, scriptContentsID uint) (sql.Result, error) {
@@ -441,13 +652,52 @@ WHERE
 var errDeleteScriptWithAssociatedPolicy = &fleet.ConflictError{Message: "Couldn't delete. Policy automation uses this script. Please remove this script from associated policy automations and try again."}
 
 func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	var activateAffectedHosts []uint
+
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `DELETE FROM host_script_results WHERE script_id = ?
        		  AND exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)`,
 			id, int(constants.MaxServerWaitTime.Seconds()),
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "cancel pending script executions")
+		}
+
+		// load hosts that will have their upcoming_activities deleted, if that
+		// activity is "activated", as that means we will have to call
+		// activateNextUpcomingActivity for those hosts.
+		loadAffectedHostsStmt := `
+			SELECT
+				DISTINCT host_id
+			FROM
+				upcoming_activities ua
+				INNER JOIN script_upcoming_activities sua
+					ON ua.id = sua.upcoming_activity_id
+			WHERE sua.script_id = ? AND
+				ua.activity_type = 'script' AND
+				ua.activated_at IS NOT NULL AND
+				(ua.payload->'$.sync_request' = 0 OR
+					ua.created_at >= NOW() - INTERVAL ? SECOND)`
+		var affectedHosts []uint
+		if err := sqlx.SelectContext(ctx, tx, &affectedHosts, loadAffectedHostsStmt,
+			id, int(constants.MaxServerWaitTime.Seconds())); err != nil {
+			return ctxerr.Wrapf(ctx, err, "load affected hosts")
+		}
+		activateAffectedHosts = affectedHosts
+
+		_, err = tx.ExecContext(ctx, `DELETE FROM upcoming_activities
+			USING upcoming_activities
+				INNER JOIN script_upcoming_activities sua
+					ON upcoming_activities.id = sua.upcoming_activity_id
+			WHERE sua.script_id = ? AND
+				upcoming_activities.activity_type = 'script' AND
+				(upcoming_activities.payload->'$.sync_request' = 0 OR
+					upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			`,
+			id, int(constants.MaxServerWaitTime.Seconds()),
+		)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "cancel upcoming pending script executions")
 		}
 
 		_, err = tx.ExecContext(ctx, `DELETE FROM scripts WHERE id = ?`, id)
@@ -467,6 +717,81 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// we call this outside of the transaction to avoid a
+	// long-running/deadlock-prone transaction, as many hosts could be affected.
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts)
+}
+
+// deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
+func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	deletePendingFunc := func(stmt string, args ...any) error {
+		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		return ctxerr.Wrap(ctx, err, "delete pending host script executions for policy")
+	}
+
+	deleteHSRStmt := `
+		DELETE FROM
+			host_script_results
+		WHERE
+			policy_id = ? AND
+			script_id IN (
+				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
+			) AND
+			exit_code IS NULL
+	`
+
+	if err := deletePendingFunc(deleteHSRStmt, policyID, globalOrTeamID); err != nil {
+		return err
+	}
+
+	loadAffectedHostsStmt := `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script' AND
+			ua.activated_at IS NOT NULL AND
+			sua.policy_id = ? AND
+			sua.script_id IN (
+				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
+			)`
+	var affectedHosts []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &affectedHosts,
+		loadAffectedHostsStmt, policyID, globalOrTeamID); err != nil {
+		return err
+	}
+
+	deleteUAStmt := `
+		DELETE FROM
+			upcoming_activities
+		USING
+			upcoming_activities
+			INNER JOIN script_upcoming_activities sua
+				ON upcoming_activities.id = sua.upcoming_activity_id
+		WHERE
+			upcoming_activities.activity_type = 'script' AND
+			sua.policy_id = ? AND
+			sua.script_id IN (
+				SELECT id FROM scripts WHERE scripts.global_or_team_id = ?
+			)
+`
+	if err := deletePendingFunc(deleteUAStmt, policyID, globalOrTeamID); err != nil {
+		return err
+	}
+
+	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
 }
 
 func (ds *Datastore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
@@ -570,34 +895,75 @@ SELECT
 FROM
 	scripts s
 	LEFT JOIN (
+		-- latest is in host_script_results only if none in upcoming_activities
 		SELECT
-			id,
-			host_id,
-			script_id,
-			execution_id,
-			created_at,
-			exit_code
+			r.id,
+			r.host_id,
+			r.script_id,
+			r.execution_id,
+			r.created_at,
+			r.exit_code
 		FROM
 			host_script_results r
+			LEFT OUTER JOIN host_script_results r2
+				ON r.host_id = r2.host_id AND
+					r.script_id = r2.script_id AND
+					r2.canceled = 0 AND
+					(r2.created_at > r.created_at OR (r.created_at = r2.created_at AND r2.id > r.id))
 		WHERE
-			host_id = ?
-			AND NOT EXISTS (
-				SELECT
-					1
-				FROM
-					host_script_results
+			r.host_id = ? AND
+			r.canceled = 0 AND
+			r2.id IS NULL AND -- no other row at a later time
+			NOT EXISTS (
+				SELECT 1
+				FROM upcoming_activities ua
+				INNER JOIN script_upcoming_activities sua
+					ON ua.id = sua.upcoming_activity_id
 				WHERE
-					host_id = ?
-					AND id != r.id
-					AND script_id = r.script_id
-					AND(created_at > r.created_at
-						OR(created_at = r.created_at
-							AND id > r.id)))) hsr
+					ua.host_id = r.host_id AND
+					ua.activity_type = 'script' AND
+					sua.script_id = r.script_id
+			)
+
+	UNION
+
+	-- latest is in upcoming_activities
+	SELECT
+		NULL as id,
+		ua.host_id,
+		sua.script_id,
+		ua.execution_id,
+		ua.created_at,
+		NULL as exit_code
+	FROM
+		upcoming_activities ua
+		INNER JOIN script_upcoming_activities sua
+			ON ua.id = sua.upcoming_activity_id
+	WHERE
+		ua.host_id = ? AND
+		ua.activity_type = 'script' AND
+		NOT EXISTS (
+			-- no later entry in upcoming activities, not sure how
+			-- or if it can be done with the LEFT OUTER JOIN approach
+			-- because it involves 2 tables.
+			SELECT
+				1
+			FROM
+				upcoming_activities ua2
+				INNER JOIN script_upcoming_activities sua2
+					ON ua2.id = sua2.upcoming_activity_id
+			WHERE
+				ua.host_id = ua2.host_id AND
+				ua2.activity_type = 'script' AND
+				sua.script_id = sua2.script_id AND
+				(ua2.created_at > ua.created_at OR (ua.created_at = ua2.created_at AND ua2.id > ua.id))
+			)
+	) hsr
 	ON s.id = hsr.script_id
 WHERE
 	(hsr.host_id IS NULL OR hsr.host_id = ?)
 	AND s.global_or_team_id = ?
-	`
+`
 
 	args := []any{hostID, hostID, hostID, globalOrTeamID}
 	if len(extension) > 0 {
@@ -648,9 +1014,32 @@ WHERE
 `
 	const unsetAllScriptsFromPolicies = `UPDATE policies SET script_id = NULL WHERE team_id = ?`
 
-	const clearAllPendingExecutions = `DELETE FROM host_script_results WHERE
-       		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
-       		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
+	const clearAllPendingExecutionsHSR = `DELETE FROM host_script_results WHERE
+		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
+		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
+
+	const loadAffectedHostsAllPendingExecutionsUA = `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script'
+			AND ua.activated_at IS NOT NULL
+			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
+
+	const clearAllPendingExecutionsUA = `DELETE FROM upcoming_activities
+		USING
+			upcoming_activities
+			INNER JOIN script_upcoming_activities sua
+				ON upcoming_activities.id = sua.upcoming_activity_id
+		WHERE
+			upcoming_activities.activity_type = 'script'
+			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
 
 	const unsetScriptsNotInListFromPolicies = `
 UPDATE policies SET script_id = NULL
@@ -665,9 +1054,32 @@ WHERE
   name NOT IN (?)
 `
 
-	const clearPendingExecutionsNotInList = `DELETE FROM host_script_results WHERE
-       		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
-       		  AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
+	const clearPendingExecutionsNotInListHSR = `DELETE FROM host_script_results WHERE
+		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
+		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
+
+	const loadAffectedHostsPendingExecutionsNotInListUA = `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script'
+			AND ua.activated_at IS NOT NULL
+			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
+
+	const clearPendingExecutionsNotInListUA = `DELETE FROM upcoming_activities
+		USING
+			upcoming_activities
+			INNER JOIN script_upcoming_activities sua
+				ON upcoming_activities.id = sua.upcoming_activity_id
+		WHERE
+			upcoming_activities.activity_type = 'script'
+			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
 
 	const insertNewOrEditedScript = `
 INSERT INTO
@@ -680,9 +1092,32 @@ ON DUPLICATE KEY UPDATE
   script_content_id = VALUES(script_content_id), id=LAST_INSERT_ID(id)
 `
 
-	const clearPendingExecutionsWithObsoleteScript = `DELETE FROM host_script_results WHERE
-       		  exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
-       		  AND script_id = ? AND script_content_id != ?`
+	const clearPendingExecutionsWithObsoleteScriptHSR = `DELETE FROM host_script_results WHERE
+		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
+		AND script_id = ? AND script_content_id != ?`
+
+	const loadAffectedHostsPendingExecutionsWithObsoleteScriptUA = `
+		SELECT
+			DISTINCT host_id
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script'
+			AND ua.activated_at IS NOT NULL
+			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id = ? AND sua.script_content_id != ?`
+
+	const clearPendingExecutionsWithObsoleteScriptUA = `DELETE FROM upcoming_activities
+		USING
+			upcoming_activities
+			INNER JOIN script_upcoming_activities sua
+				ON upcoming_activities.id = sua.upcoming_activity_id
+		WHERE
+			upcoming_activities.activity_type = 'script'
+			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id = ? AND sua.script_content_id != ?`
 
 	const loadInsertedScripts = `SELECT id, team_id, name FROM scripts WHERE global_or_team_id = ?`
 
@@ -704,6 +1139,8 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	var insertedScripts []fleet.ScriptResponse
+	var activateAffectedHosts []uint
+
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var existingScripts []*fleet.Script
 
@@ -727,13 +1164,16 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		var (
-			scriptsStmt    string
-			scriptsArgs    []any
-			policiesStmt   string
-			policiesArgs   []any
-			executionsStmt string
-			executionsArgs []any
-			err            error
+			scriptsStmt     string
+			scriptsArgs     []any
+			policiesStmt    string
+			policiesArgs    []any
+			executionsStmt  string
+			executionsArgs  []any
+			extraExecStmt   string
+			extraExecArgs   []any
+			err             error
+			affectedHostIDs []uint
 		)
 		if len(keepNames) > 0 {
 			// delete the obsolete scripts
@@ -747,9 +1187,23 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
 			}
 
-			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInList, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
+			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInListHSR, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to clear pending script executions from obsolete scripts")
+			}
+
+			loadAffectedStmt, args, err := sqlx.In(loadAffectedHostsPendingExecutionsNotInListUA,
+				int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load affected hosts for upcoming script executions")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, loadAffectedStmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming script executions")
+			}
+
+			extraExecStmt, extraExecArgs, err = sqlx.In(clearPendingExecutionsNotInListUA, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to clear upcoming pending script executions from obsolete scripts")
 			}
 		} else {
 			scriptsStmt = deleteAllScriptsInTeam
@@ -758,8 +1212,16 @@ ON DUPLICATE KEY UPDATE
 			policiesStmt = unsetAllScriptsFromPolicies
 			policiesArgs = []any{globalOrTeamID}
 
-			executionsStmt = clearAllPendingExecutions
+			executionsStmt = clearAllPendingExecutionsHSR
 			executionsArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
+
+			if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs,
+				loadAffectedHostsAllPendingExecutionsUA, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming script executions")
+			}
+
+			extraExecStmt = clearAllPendingExecutionsUA
+			extraExecArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
 		}
 		if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
@@ -767,9 +1229,13 @@ ON DUPLICATE KEY UPDATE
 		if _, err := tx.ExecContext(ctx, executionsStmt, executionsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "clear obsolete script pending executions")
 		}
+		if _, err := tx.ExecContext(ctx, extraExecStmt, extraExecArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "clear obsolete upcoming script pending executions")
+		}
 		if _, err := tx.ExecContext(ctx, scriptsStmt, scriptsArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
 		}
+		activateAffectedHosts = affectedHostIDs
 
 		// insert the new scripts and the ones that have changed
 		for _, s := range incomingScripts {
@@ -783,8 +1249,20 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 			scriptID, _ := insertRes.LastInsertId()
-			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScript, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
+
+			if _, err := tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScriptHSR, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "clear obsolete pending script executions with name %q", s.Name)
+			}
+
+			var affectedHosts []uint
+			if err := sqlx.SelectContext(ctx, tx, &affectedHosts, loadAffectedHostsPendingExecutionsWithObsoleteScriptUA,
+				int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "load affected hosts for upcoming script executions with name %q", s.Name)
+			}
+			activateAffectedHosts = append(activateAffectedHosts, affectedHosts...)
+
+			if _, err = tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScriptUA, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
+				return ctxerr.Wrapf(ctx, err, "clear obsolete upcoming pending script executions with name %q", s.Name)
 			}
 		}
 
@@ -795,6 +1273,10 @@ ON DUPLICATE KEY UPDATE
 		return nil
 	}); err != nil {
 		return nil, err
+	}
+
+	if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity for batch of hosts")
 	}
 
 	return insertedScripts, nil
@@ -883,7 +1365,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 	case "windows", "linux":
 		// lock and unlock references are scripts
 		if mdmActions.LockRef != nil {
-			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef)
+			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef, true)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference script result")
 			}
@@ -891,7 +1373,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		}
 
 		if mdmActions.UnlockRef != nil {
-			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef)
+			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef, true)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get unlock reference script result")
 			}
@@ -908,7 +1390,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				status.WipeMDMCommand = cmd
 				status.WipeMDMCommandResult = cmdRes
 			} else {
-				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef)
+				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef, true)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get wipe reference script result")
 				}
@@ -995,7 +1477,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
 		}
@@ -1045,7 +1527,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
 		}
@@ -1096,7 +1578,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		id, _ := scRes.LastInsertId()
 		request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 
-		res, err = newHostScriptExecutionRequest(ctx, tx, request)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")
 		}
@@ -1230,13 +1712,16 @@ func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext,
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")
 }
 
-func updateUninstallStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, exitCode int) error {
+func (ds *Datastore) updateUninstallStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, exitCode int) error {
 	stmt := `
 	UPDATE host_software_installs SET uninstall_script_exit_code = ? WHERE execution_id = ? AND host_id = ?
 	`
 	if _, err := tx.ExecContext(ctx, stmt, exitCode, executionID, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "update uninstall status from result")
 	}
+	// NOTE: no need to call activateNextUpcomingActivity here as this function
+	// is called from SetHostScriptExecutionResult which will call it before
+	// completing.
 	return nil
 }
 
@@ -1254,11 +1739,10 @@ WHERE
     WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id, si.uninstall_script_content_id)
   )
   AND NOT EXISTS (
-    SELECT 1 FROM fleet_library_apps fla
-			WHERE script_contents.id IN (fla.install_script_content_id, fla.uninstall_script_content_id)
-  )
-  AND NOT EXISTS (
     SELECT 1 FROM setup_experience_scripts WHERE script_content_id = script_contents.id
+	)
+  AND NOT EXISTS (
+    SELECT 1 FROM script_upcoming_activities WHERE script_content_id = script_contents.id
 	)
 `
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
@@ -1284,4 +1768,185 @@ func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents
 		return 0, err
 	}
 	return scriptContentsID, nil
+}
+
+func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	script, err := ds.Script(ctx, scriptID)
+	if err != nil {
+		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
+	}
+
+	// We need full host info to check if hosts are able to run scripts, see svc.RunHostScript
+	fullHosts := make([]*fleet.Host, 0, len(hostIDs))
+
+	// Check that all hosts exist before attempting to process them
+	for _, hostID := range hostIDs {
+		host, err := ds.Host(ctx, hostID)
+		if err != nil {
+			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
+		}
+
+		// All hosts must be on the same team as the script
+		sameTeamNoTeam := host.TeamID == nil && script.TeamID == nil
+		sameTeamNumber := host.TeamID != nil && script.TeamID != nil && *host.TeamID == *script.TeamID
+		sameTeam := sameTeamNoTeam || sameTeamNumber
+		if !sameTeam {
+			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
+		}
+
+		fullHosts = append(fullHosts, host)
+	}
+
+	executions := make([]fleet.BatchExecutionHost, 0, len(fullHosts))
+
+	batchExecID := ""
+
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, host := range fullHosts {
+			// Non-orbit-enrolled host (iOS, android)
+			noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
+			// Scripts disabled on host
+			scriptsDisabled := host.ScriptsEnabled != nil && !*host.ScriptsEnabled
+
+			if noNodeKey || scriptsDisabled {
+				executions = append(executions, fleet.BatchExecutionHost{
+					HostID: host.ID,
+					Error:  &fleet.BatchExecuteIncompatibleFleetd,
+				})
+				continue
+			}
+
+			if !fleet.ValidateScriptPlatform(script.Name, host.Platform) {
+				executions = append(executions, fleet.BatchExecutionHost{
+					HostID: host.ID,
+					Error:  &fleet.BatchExecuteIncompatiblePlatform,
+				})
+				continue
+			}
+
+			executionID, _, err := ds.insertNewHostScriptExecution(ctx, tx, &fleet.HostScriptRequestPayload{
+				HostID:          host.ID,
+				UserID:          userID,
+				ScriptID:        &script.ID,
+				ScriptContentID: script.ScriptContentID,
+			}, false)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "queueing script for bulk execution")
+			}
+
+			executions = append(executions, fleet.BatchExecutionHost{
+				HostID:      host.ID,
+				ExecutionID: &executionID,
+			})
+		}
+
+		batchExecID = uuid.New().String()
+		_, err := tx.ExecContext(
+			ctx,
+			"INSERT INTO batch_script_executions (execution_id, script_id) VALUES (?, ?)",
+			batchExecID,
+			script.ID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to insert new batch execution")
+		}
+
+		args := make([]map[string]any, 0, len(executions))
+		for _, execHost := range executions {
+			args = append(args, map[string]any{
+				"batch_id":          batchExecID,
+				"host_id":           execHost.HostID,
+				"host_execution_id": execHost.ExecutionID,
+				"error":             execHost.Error,
+			})
+		}
+
+		insertStmt := `
+INSERT INTO batch_script_execution_host_results (
+	batch_execution_id,
+	host_id,
+	host_execution_id,
+	error
+) VALUES (
+	:batch_id,
+	:host_id,
+	:host_execution_id,
+	:error
+)`
+
+		if _, err := sqlx.NamedExecContext(ctx, tx, insertStmt, args); err != nil {
+			return ctxerr.Wrap(ctx, err, "associating script executions with batch job")
+		}
+
+		return nil
+	}); err != nil {
+		return "", fmt.Errorf("creating bulk execution order: %w", err)
+	}
+
+	return batchExecID, nil
+}
+
+func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchExecutionSummary, error) {
+	stmtExecutions := `
+SELECT
+	COUNT(*) as num_targeted,
+	COUNT(bsehr.error) as num_did_not_run,
+	COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) as num_succeeded,
+	COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) as num_failed,
+	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_cancelled
+FROM
+	batch_script_execution_host_results bsehr
+LEFT JOIN
+	host_script_results hsr
+		ON bsehr.host_execution_id = hsr.execution_id
+WHERE
+	bsehr.batch_execution_id = ?`
+
+	stmtScriptDetails := `
+SELECT
+	script_id,
+	s.name as script_name,
+	s.team_id as team_id
+FROM
+	batch_script_executions bse
+JOIN
+	scripts s
+	ON bse.script_id = s.id
+WHERE
+	bse.execution_id = ?`
+
+	var summary fleet.BatchExecutionSummary
+	var temp_summary struct {
+		NumTargeted  uint `db:"num_targeted"`
+		NumDidNotRun uint `db:"num_did_not_run"`
+		NumSucceeded uint `db:"num_succeeded"`
+		NumFailed    uint `db:"num_failed"`
+		NumCancelled uint `db:"num_cancelled"`
+	}
+	// Fill out the execution details
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &temp_summary, stmtExecutions, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
+	}
+
+	summary.NumTargeted = temp_summary.NumTargeted
+	// NumRan is the number of hosts that actually ran the script successfully.
+	summary.NumRan = temp_summary.NumSucceeded
+	// NumErrored is the number of hosts that errored out, which includes
+	// both failed and did not run.
+	summary.NumErrored = temp_summary.NumFailed + temp_summary.NumDidNotRun
+	// NumFailed is the number of hosts that were canceled before execution.
+	summary.NumCanceled = temp_summary.NumCancelled
+	// NumPending is the number of hosts that are pending execution.
+	summary.NumPending = temp_summary.NumTargeted - (temp_summary.NumSucceeded + temp_summary.NumFailed + temp_summary.NumDidNotRun + temp_summary.NumCancelled)
+
+	// Fill out the script details
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &summary, stmtScriptDetails, executionID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting script information for bulk execution summary")
+	}
+
+	if summary.TeamID == nil {
+		summary.TeamID = ptr.Uint(0)
+	}
+
+	return &summary, nil
 }

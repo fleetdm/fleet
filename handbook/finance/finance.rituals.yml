@@ -15,9 +15,7 @@
   description: "Look for new accounts payable invoices and make sure that Fleet's suppliers are paid." 
   moreInfoUrl: "https://fleetdm.com/handbook/finance#process-a-new-vendor-invoice"
   dri: "ireedy"
-  autoIssue:   
-    labels: [ "#g-finance" ] 
-    repo: "confidential"
+  
 -
   task: "Complete Finance KPI inputs" 
   startedOn: "2024-02-16" 
@@ -48,16 +46,7 @@
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-finance" ] # label to be applied to issue
     repo: "confidential" # The GitHub repo that issues will be created in
--
-  task: "Reconcile monthly recurring expenses" 
-  startedOn: "2024-02-28" 
-  frequency: "Monthly"
-  description: "Each month, update the inputs in “The numbers” spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend." 
-  moreInfoUrl: "https://fleetdm.com/handbook/finance#reconcile-monthly-recurring-expenses"
-  dri: "ireedy" 
-  autoIssue:   
-    labels: [ "#g-finance" ] 
-    repo: "confidential"
+    
 -
   task: "Monthly accounting"
   startedOn: "2024-02-28" 
@@ -90,7 +79,7 @@
     repo: "confidential"
 -
   task: "Run US contractor payroll" 
-  startedOn: "2024-02-28" 
+  startedOn: "2024-02-27" 
   frequency: "Monthly"
   description: "Manually process US contractor payroll by verifying and syncing time contractor worked, then processing payment." 
   moreInfoUrl: "https://fleetdm.com/handbook/finance#run-us-contractor-payroll"

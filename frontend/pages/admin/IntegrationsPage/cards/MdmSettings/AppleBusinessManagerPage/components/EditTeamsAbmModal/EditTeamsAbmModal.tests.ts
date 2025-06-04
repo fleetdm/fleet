@@ -1,5 +1,5 @@
 import {
-  APP_CONTEX_NO_TEAM_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
   APP_CONTEXT_ALL_TEAMS_SUMMARY,
 } from "interfaces/team";
 import { getOptions, getSelectedTeamIds } from "./EditTeamsAbmModal";
@@ -7,7 +7,7 @@ import { getOptions, getSelectedTeamIds } from "./EditTeamsAbmModal";
 describe("EditTeamsAbmModal", () => {
   const availableTeams = [
     APP_CONTEXT_ALL_TEAMS_SUMMARY,
-    APP_CONTEX_NO_TEAM_SUMMARY,
+    APP_CONTEXT_NO_TEAM_SUMMARY,
     { name: "Team 1", id: 1 },
     { name: "Team 2", id: 2 },
   ];

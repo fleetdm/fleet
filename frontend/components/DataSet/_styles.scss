@@ -1,6 +1,10 @@
 .data-set {
   font-size: $x-small;
-  min-width: max-content;
+
+  &__horizontal {
+    display: flex;
+    gap: $pad-small;
+  }
 
   // ff only
   @-moz-document url-prefix() {
@@ -13,6 +17,8 @@
     font-weight: $bold;
     display: flex;
     gap: $pad-xsmall; // For deprecated sandbox icons
+    // white-space: nowrap; // Future-proofing: Prevents unexpected wrapping,
+    // consider uncommenting and testing if layout issues resurface.
   }
 
   dd {

@@ -1,0 +1,115 @@
+.platform-host-counts {
+  display: grid;
+  gap: $pad-smedium;
+
+  // >= 320px and < 480px
+  @media (min-width: $break-mobile-xs) {
+    grid-template-columns: repeat(2, 1fr);
+
+    // For odd number of cards, make the first one span 2 columns
+    & > :first-child:nth-child(odd) {
+      grid-column: span 2;
+    }
+  }
+
+  // >= 480px
+  @media (min-width: $break-mobile-sm) {
+    grid-template-columns: 1fr;
+    grid-template-rows: initial; // undo multi row
+
+    // For odd number of cards, undo first one spanning 2 columns
+    & > :first-child:nth-child(odd) {
+      grid-column: initial;
+    }
+
+    &:has(> :nth-child(2)) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    &:has(> :nth-child(3)) {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    &:has(> :nth-child(4)) {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    &:has(> :nth-child(5)),
+    :has(> :nth-child(6)) {
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: auto auto;
+    }
+
+    // Special case for exactly 7 items
+    &:has(> :nth-child(7)) {
+      grid-template-columns: repeat(
+        6,
+        1fr
+      ); // Make both rows span across 6 columns
+      grid-template-rows: auto auto auto; // Three rows
+
+      // Overridden at 576px
+      & > :nth-child(-n + 5) {
+        // First row (cards 1-4)
+        grid-column: span 3; // Each card spans 3 columns
+      }
+
+      // Overridden at 576px
+      & > :nth-child(n + 5) {
+        // Second row (cards 5-7)
+        grid-column: span 2; // Each card spans 4 columns
+      }
+    }
+  }
+
+  // > 576px
+  @media (min-width: $break-mobile-md) {
+    // Special case for exactly 7 items
+    &:has(> :nth-child(7)) {
+      grid-template-columns: repeat(
+        12,
+        1fr
+      ); // Make both rows span across 12 columns
+      grid-template-rows: auto auto; // Two rows
+
+      // Overridden at 990px
+      & > :nth-child(-n + 4) {
+        // First row (cards 1-4)
+        grid-column: span 3; // Each card spans 3 columns
+      }
+
+      // Overridden at 990px
+      & > :nth-child(n + 5) {
+        // Second row (cards 5-7)
+        grid-column: span 4; // Each card spans 4 columns
+      }
+    }
+  }
+
+  // >= 880px
+  @media (min-width: $break-sm) {
+    &#{&} {
+      // Apply to all cases except when there are exactly 7 items
+      &:not(:has(> :nth-child(7))) {
+        grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+        grid-template-rows: none;
+        gap: $pad-medium;
+      }
+    }
+  }
+
+  // >= 990px
+  @media (min-width: $break-md) {
+    // Special case for exactly 7 items
+    &:has(> :nth-child(7)) {
+      grid-template-columns: repeat(7, 1fr);
+      grid-template-rows: auto;
+
+      // Must override specificity above
+      & > :nth-child(n + 5),
+      & > :nth-child(-n + 4) {
+        grid-column: span 1;
+      }
+    }
+  }
+}

@@ -39,6 +39,7 @@
     "Promise": true,
     "sails": true,
     "_": true,
+    "ƒ": true,
 
     // Models:
     "User": true,
@@ -49,6 +50,7 @@
     "VantaConnection": true,
     "CertificateSigningRequest": true,
     "Platform": true,
+    "AdCampaign": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   },

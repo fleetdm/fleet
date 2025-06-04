@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/go-kit/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,28 +53,55 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 	}
 
 	ds := new(mock.DataStore)
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return []*fleet.User{{}}, nil
+	ds.HasUsersFunc = func(ctx context.Context) (bool, error) {
+		return true, nil
 	}
+	appCfg := &fleet.AppConfig{
+		MDM: fleet.MDM{
+			EnabledAndConfigured:        false,
+			AndroidEnabledAndConfigured: false,
+		},
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+
 	svc, _ := newTestService(t, ds, nil, nil)
 
-	logger := log.NewLogfmtLogger(os.Stdout)
-	h := ServeEndUserEnrollOTA(svc, "", logger)
-	ts := httptest.NewServer(h)
-	t.Cleanup(func() {
-		ts.Close()
-	})
+	for _, enabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("MDM enabled: %t", enabled), func(t *testing.T) {
+			appCfg.MDM.EnabledAndConfigured = enabled
+			appCfg.MDM.AndroidEnabledAndConfigured = enabled
+			if enabled {
+				t.Setenv("FLEET_DEV_ANDROID_ENABLED", "1")
+			} else {
+				t.Setenv("FLEET_DEV_ANDROID_ENABLED", "0")
+			}
 
-	// assert html is returned
-	response, err := http.DefaultClient.Get(ts.URL + "?enroll_secret=foo")
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, response.StatusCode)
-	require.Equal(t, response.Header.Get("Content-Type"), "text/html; charset=utf-8")
+			logger := log.NewLogfmtLogger(os.Stdout)
+			h := ServeEndUserEnrollOTA(svc, "", ds, logger)
+			ts := httptest.NewServer(h)
+			t.Cleanup(func() {
+				ts.Close()
+			})
 
-	// assert it contains the content we expect
-	defer response.Body.Close()
-	bodyBytes, err := io.ReadAll(response.Body)
-	require.NoError(t, err)
-	bodyString := string(bodyBytes)
-	require.Contains(t, bodyString, "api/v1/fleet/enrollment_profiles/ota?enroll_secret=foo")
+			// assert html is returned
+			response, err := http.DefaultClient.Get(ts.URL + "?enroll_secret=foo")
+			require.NoError(t, err)
+			require.Equal(t, http.StatusOK, response.StatusCode)
+			require.Equal(t, response.Header.Get("Content-Type"), "text/html; charset=utf-8")
+			assert.True(t, ds.AppConfigFuncInvoked)
+
+			// assert it contains the content we expect
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			require.NoError(t, err)
+			bodyString := string(bodyBytes)
+			require.Contains(t, bodyString, "api/v1/fleet/enrollment_profiles/ota?enroll_secret=foo")
+			require.Contains(t, bodyString, "/api/v1/fleet/android_enterprise/enrollment_token")
+			require.Contains(t, bodyString, fmt.Sprintf(`const ANDROID_MDM_ENABLED = "%t" === "true";`, enabled))
+			require.Contains(t, bodyString, fmt.Sprintf(`const MAC_MDM_ENABLED = "%t" == "true";`, enabled))
+			require.Contains(t, bodyString, fmt.Sprintf(`const ANDROID_FEATURE_ENABLED = "%t" === "true";`, enabled))
+		})
+	}
 }

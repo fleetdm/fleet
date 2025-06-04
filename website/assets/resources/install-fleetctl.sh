@@ -27,8 +27,22 @@ version_gt() {
 # Determine operating system (Linux or MacOS)
 OS="$(uname -s)"
 
+# Determine architecture (x86_64 or arm64)
+ARCH="$(uname -m)"
+# Standardize x86_64 to amd64
+if [[ $ARCH != "arm64" &&
+      $ARCH != "aarch64" &&
+      $ARCH != "aarch64_be" &&
+      $ARCH != "armv8b" &&
+      $ARCH != "armv8l"
+    ]];
+then
+  ARCH="amd64";
+fi
+
+# Standardize OS name for file download
 case "${OS}" in
-    Linux*)     OS='linux' OS_DISPLAY_NAME='Linux';;
+    Linux*)     OS="linux_${ARCH}" OS_DISPLAY_NAME='Linux';;
     Darwin*)    OS='macos' OS_DISPLAY_NAME='macOS';;
     *)          echo "Unsupported operating system: ${OS}"; exit 1;;
 esac

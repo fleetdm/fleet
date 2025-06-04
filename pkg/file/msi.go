@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/sassoftware/relic/v8/lib/comdoc"
+	"golang.org/x/text/encoding/charmap"
 )
 
 func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
@@ -78,9 +79,14 @@ func ExtractMSIMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 		return nil, err
 	}
 
+	productName, err := charmap.Windows1252.NewDecoder().String(props["ProductName"])
+	if err != nil {
+		return nil, err
+	}
+
 	// MSI installer product information properties: https://learn.microsoft.com/en-us/windows/win32/msi/property-reference#product-information-properties
 	return &InstallerMetadata{
-		Name:       strings.TrimSpace(props["ProductName"]),
+		Name:       strings.TrimSpace(productName),
 		Version:    strings.TrimSpace(props["ProductVersion"]),
 		PackageIDs: []string{strings.TrimSpace(props["ProductCode"])},
 		SHASum:     h.Sum(nil),
@@ -242,9 +248,21 @@ func decodeStrings(dataReader, poolReader io.Reader) ([]string, error) {
 			}
 			return nil, fmt.Errorf("failed to read pool entry: %w", err)
 		}
+		stringEntrySize := uint32(stringEntry.Size)
+
+		// For string pool entries too long for the size to fit in a single uint16, the format sets the size as zero,
+		// maintains the reference count location in the structure, then uses the following four bytes (little-endian)
+		// to store the string size. See https://github.com/binref/refinery/issues/72.
+		if stringEntry.Size == 0 && stringEntry.RefCount != 0 {
+			err := binary.Read(poolReader, binary.LittleEndian, &stringEntrySize)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read size of large string in string pool: %w", err)
+			}
+		}
+
 		buf.Reset()
-		buf.Grow(int(stringEntry.Size))
-		_, err = io.CopyN(&buf, dataReader, int64(stringEntry.Size))
+		buf.Grow(int(stringEntrySize))
+		_, err = io.CopyN(&buf, dataReader, int64(stringEntrySize))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read string data: %w", err)
 		}

@@ -3,12 +3,11 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,6 +16,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mail"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/log/level"
 )
@@ -36,9 +38,9 @@ type getInfoAboutSessionResponse struct {
 	Err       error     `json:"error,omitempty"`
 }
 
-func (r getInfoAboutSessionResponse) error() error { return r.Err }
+func (r getInfoAboutSessionResponse) Error() error { return r.Err }
 
-func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getInfoAboutSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getInfoAboutSessionRequest)
 	session, err := svc.GetInfoAboutSession(ctx, req.ID)
 	if err != nil {
@@ -83,9 +85,9 @@ type deleteSessionResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteSessionResponse) error() error { return r.Err }
+func (r deleteSessionResponse) Error() error { return r.Err }
 
-func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteSessionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSessionRequest)
 	err := svc.DeleteSession(ctx, req.ID)
 	if err != nil {
@@ -112,11 +114,6 @@ func (svc *Service) DeleteSession(ctx context.Context, id uint) error {
 // Login
 ////////////////////////////////////////////////////////////////////////////////
 
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 type loginResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
 	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
@@ -124,14 +121,27 @@ type loginResponse struct {
 	Err            error                `json:"error,omitempty"`
 }
 
-func (r loginResponse) error() error { return r.Err }
+func (r loginResponse) Error() error { return r.Err }
 
-func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*loginRequest)
+type loginMfaResponse struct {
+	Message string `json:"message"`
+	Err     error  `json:"error,omitempty"`
+}
+
+func (r loginMfaResponse) Status() int { return http.StatusAccepted }
+
+func (r loginMfaResponse) Error() error { return r.Err }
+
+func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*contract.LoginRequest)
 	req.Email = strings.ToLower(req.Email)
 
-	user, session, err := svc.Login(ctx, req.Email, req.Password)
+	user, session, err := svc.Login(ctx, req.Email, req.Password, req.SupportsEmailVerification)
 	if err != nil {
+		if errors.Is(err, sendingMFAEmail) {
+			return loginMfaResponse{Message: "We sent an email to you. Please click the magic link in the email to sign in."}, nil
+		}
+
 		return loginResponse{Err: err}, nil
 	}
 	// Add viewer to context to allow access to service teams for list of available teams.
@@ -150,7 +160,15 @@ func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) 
 	return loginResponse{user, availableTeams, session.Key, nil}, nil
 }
 
-func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.User, *fleet.Session, error) {
+//goland:noinspection GoErrorStringFormat
+var sendingMFAEmail = errors.New("sending MFA email")
+var noMFASupported = errors.New("client with no MFA email support")
+var mfaNotSupportedForClient = endpoint_utils.BadRequestErr(
+	"Your login client does not support MFA. Please log in via the web, then use an API token to authenticate.",
+	noMFASupported,
+)
+
+func (svc *Service) Login(ctx context.Context, email, password string, supportsEmailVerification bool) (*fleet.User, *fleet.Session, error) {
 	// skipauth: No user context available yet to authorize against.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -165,7 +183,7 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	// take ~1s and frustrate a timing attack.
 	var err error
 	defer func(start time.Time) {
-		if err != nil {
+		if err != nil && !errors.Is(err, sendingMFAEmail) && !errors.Is(err, mfaNotSupportedForClient) {
 			if err := svc.NewActivity(
 				ctx, nil, fleet.ActivityTypeUserFailedLogin{
 					Email:    email,
@@ -194,6 +212,16 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 
 	if user.SSOEnabled {
 		return nil, nil, fleet.NewAuthFailedError("password login disabled for sso users")
+	} else if user.MFAEnabled {
+		if !supportsEmailVerification {
+			return nil, nil, mfaNotSupportedForClient
+		}
+
+		if err = svc.makeMFAEmail(ctx, *user); err != nil {
+			return nil, nil, fleet.NewAuthFailedError(err.Error())
+		}
+
+		return nil, nil, sendingMFAEmail
 	}
 
 	session, err := svc.makeSession(ctx, user.ID)
@@ -210,6 +238,65 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	return user, session, nil
 }
 
+func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Session, error) {
+	return svc.ds.NewSession(ctx, userID, svc.config.Session.KeySize)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Session create (second step of MFA)
+////////////////////////////////////////////////////////////////////////////////
+
+type sessionCreateRequest struct {
+	Token string `json:"token,omitempty"`
+}
+
+func sessionCreateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*sessionCreateRequest)
+	session, user, err := svc.CompleteMFA(ctx, req.Token)
+	if err != nil {
+		return loginResponse{Err: err}, nil
+	}
+	// Add viewer to context to allow access to service teams for list of available teams.
+	ctx = viewer.NewContext(ctx, viewer.Viewer{
+		User:    user,
+		Session: session,
+	})
+	availableTeams, err := svc.ListAvailableTeamsForUser(ctx, user)
+	if err != nil {
+		if errors.Is(err, fleet.ErrMissingLicense) {
+			availableTeams = []*fleet.TeamSummary{}
+		} else {
+			return loginResponse{Err: err}, nil
+		}
+	}
+	return loginResponse{user, availableTeams, session.Key, nil}, nil
+}
+
+func (svc *Service) CompleteMFA(ctx context.Context, token string) (*fleet.Session, *fleet.User, error) {
+	// skipauth: No user context available yet to authorize against.
+	svc.authz.SkipAuthorization(ctx)
+
+	var err error
+	defer func(start time.Time) { // force MFA failures to take at least a second for brute force/timing attack resistance
+		if err != nil {
+			time.Sleep(time.Until(start.Add(1 * time.Second)))
+		}
+	}(time.Now())
+
+	session, user, err := svc.ds.SessionByMFAToken(ctx, token, svc.config.Session.KeySize)
+	if err != nil {
+		return nil, nil, fleet.NewAuthFailedError(err.Error())
+	}
+
+	if err := svc.NewActivity(
+		ctx, user, fleet.ActivityTypeUserLoggedIn{
+			PublicIP: publicip.FromContext(ctx),
+		}); err != nil {
+		return nil, nil, err
+	}
+	return session, user, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Logout
 ////////////////////////////////////////////////////////////////////////////////
@@ -218,9 +305,9 @@ type logoutResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r logoutResponse) error() error { return r.Err }
+func (r logoutResponse) Error() error { return r.Err }
 
-func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func logoutEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	err := svc.Logout(ctx)
 	if err != nil {
 		return logoutResponse{Err: err}, nil
@@ -270,9 +357,9 @@ type initiateSSOResponse struct {
 	Err error  `json:"error,omitempty"`
 }
 
-func (r initiateSSOResponse) error() error { return r.Err }
+func (r initiateSSOResponse) Error() error { return r.Err }
 
-func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func initiateSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*initiateSSORequest)
 	idProviderURL, err := svc.InitiateSSO(ctx, req.RelayURL)
 	if err != nil {
@@ -305,7 +392,16 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 
 	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, badRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
+		return "", ctxerr.Wrap(ctx, endpoint_utils.BadRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
+	}
+
+	parsedUrl, err := url.Parse(redirectURL)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url"))
+	}
+
+	if slices.Contains([]string{"javascript", "vbscript", "data"}, parsedUrl.Scheme) {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url scheme: "+parsedUrl.Scheme))
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL
@@ -367,13 +463,13 @@ type callbackSSOResponse struct {
 	Err     error `json:"error,omitempty"`
 }
 
-func (r callbackSSOResponse) error() error { return r.Err }
+func (r callbackSSOResponse) Error() error { return r.Err }
 
 // If html is present we return a web page
-func (r callbackSSOResponse) html() string { return r.content }
+func (r callbackSSOResponse) Html() string { return r.content }
 
-func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
-	return func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func makeCallbackSSOEndpoint(urlPrefix string) endpoint_utils.HandlerFunc {
+	return func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 		authResponse := request.(fleet.Auth)
 		session, err := getSSOSession(ctx, svc, authResponse)
 		var resp callbackSSOResponse
@@ -495,7 +591,7 @@ func (svc *Service) InitSSOCallback(ctx context.Context, auth fleet.Auth) (strin
 func (svc *Service) GetSSOUser(ctx context.Context, auth fleet.Auth) (*fleet.User, error) {
 	user, err := svc.ds.UserByEmail(ctx, auth.UserID())
 	if err != nil {
-		var nfe notFoundErrorInterface
+		var nfe endpoint_utils.NotFoundErrorInterface
 		if errors.As(err, &nfe) {
 			return nil, ctxerr.Wrap(ctx, newSSOError(err, ssoAccountInvalid))
 		}
@@ -542,9 +638,9 @@ type ssoSettingsResponse struct {
 	Err      error                     `json:"error,omitempty"`
 }
 
-func (r ssoSettingsResponse) error() error { return r.Err }
+func (r ssoSettingsResponse) Error() error { return r.Err }
 
-func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (errorer, error) {
+func settingsSSOEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	settings, err := svc.SSOSettings(ctx)
 	if err != nil {
 		return ssoSettingsResponse{Err: err}, nil
@@ -580,19 +676,35 @@ func (svc *Service) SSOSettings(ctx context.Context) (*fleet.SessionSSOSettings,
 	return settings, nil
 }
 
-// makeSession creates a new session for the given user.
-func (svc *Service) makeSession(ctx context.Context, userID uint) (*fleet.Session, error) {
-	sessionKeySize := svc.config.Session.KeySize
-	key := make([]byte, sessionKeySize)
-	_, err := rand.Read(key)
+// makeMFAEmail sends an MFA email to the given user
+func (svc *Service) makeMFAEmail(ctx context.Context, user fleet.User) error {
+	token, err := svc.ds.NewMFAToken(ctx, user.ID)
 	if err != nil {
-		return nil, err
+		return ctxerr.Wrap(ctx, err, "creating MFA token")
 	}
-	session, err := svc.ds.NewSession(ctx, userID, base64.StdEncoding.EncodeToString(key))
+
+	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating new session")
+		return err
 	}
-	return session, nil
+	var smtpSettings fleet.SMTPSettings
+	if config.SMTPSettings != nil {
+		smtpSettings = *config.SMTPSettings
+	}
+	email := fleet.Email{
+		Subject:      "Log in to Fleet",
+		To:           []string{user.Email},
+		ServerURL:    config.ServerSettings.ServerURL,
+		SMTPSettings: smtpSettings,
+		Mailer: &mail.MFAMailer{
+			FullName: user.Name,
+			Token:    token,
+			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix), //nolint:gosec // dismiss G203
+			AssetURL: getAssetURL(),
+		},
+	}
+
+	return svc.mailService.SendEmail(email)
 }
 
 func (svc *Service) GetSessionByKey(ctx context.Context, key string) (*fleet.Session, error) {
@@ -629,91 +741,4 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 	}
 
 	return svc.ds.MarkSessionAccessed(ctx, session)
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Demo Login
-////////////////////////////////////////////////////////////////////////////////
-
-// This is a special kind of login where the username and password come in form values rather than
-// JSON as is typical for API requests. This is intended to support logins from demo environments,
-// when users are being redirected from fleetdm.com.
-
-type demologinRequest struct {
-	Email    string
-	Password string
-}
-
-func (demologinRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseForm()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to parse form",
-			InternalErr: err,
-		}, "decode demo login")
-	}
-
-	return demologinRequest{
-		Email:    r.FormValue("email"),
-		Password: r.FormValue("password"),
-	}, nil
-}
-
-type demologinResponse struct {
-	content string
-	Err     error `json:"error,omitempty"`
-}
-
-func (r demologinResponse) error() error { return r.Err }
-
-// If html is present we return a web page
-func (r demologinResponse) html() string { return r.content }
-
-func makeDemologinEndpoint(urlPrefix string) handlerFunc {
-	return func(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-		req := request.(demologinRequest)
-
-		if !svc.SandboxEnabled() {
-			return nil, errors.New("this endpoint only enabled in demo mode")
-		}
-
-		_, sess, err := svc.Login(ctx, req.Email, req.Password)
-
-		// This endpoint handles errors slightly differently in that we want to still return the
-		// HTML page redirect to login if there was some error, so we can't just return the response
-		// error without doing the rest of the logic.
-
-		session := struct {
-			Token string
-		}{}
-		var resp demologinResponse
-		if err != nil {
-			resp.Err = err
-		}
-		if sess != nil {
-			session.Token = sess.Key
-		}
-
-		relayStateLoadPage := `<!DOCTYPE html>
-     <script type='text/javascript'>
-     window.localStorage.setItem('FLEET::auth_token', '{{ .Token }}');
-     window.location = "/";
-     </script>
-     <body>
-     Redirecting to Fleet...
-     </body>
-     </html>
-    `
-		tmpl, err := template.New("demologin").Parse(relayStateLoadPage)
-		if err != nil {
-			return nil, err
-		}
-		var writer bytes.Buffer
-		err = tmpl.Execute(&writer, session)
-		if err != nil {
-			return nil, err
-		}
-		resp.content = writer.String()
-		return resp, nil
-	}
 }

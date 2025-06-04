@@ -10,8 +10,8 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/ctxlog"
+	"github.com/micromdm/nanolib/log"
+	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // ReadAllAndReplaceBody reads all of r.Body and replaces it with a new byte buffer.
@@ -50,6 +50,12 @@ func VersionHandler(version string) http.HandlerFunc {
 }
 
 type ctxKeyTraceID struct{}
+
+// GetTraceID returns the trace ID from ctx.
+func GetTraceID(ctx context.Context) string {
+	id, _ := ctx.Value(ctxKeyTraceID{}).(string)
+	return id
+}
 
 // TraceLoggingMiddleware sets up a trace ID in the request context and
 // logs HTTP requests.

@@ -17,6 +17,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -83,7 +84,7 @@ Select **Start** and Remote Management window will appear soon:` +
 var errorTemplate = template.Must(template.New("").Parse(`
 ### Something's gone wrong.
 
-Please contact your IT admin [here]({{ .ContactURL }}).
+Please [contact your IT admin]({{ .ContactURL }}).
 `))
 
 var unenrollBody = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n%s"
@@ -257,13 +258,19 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 		icon = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
 	}
 
+	iconSize, err := swiftdialog.GetIconSize(icon)
+	if err != nil {
+		log.Error().Err(err).Msg("mdm migrator: getting icon size")
+		iconSize = swiftdialog.DefaultIconSize
+	}
+
 	flags = append([]string{
 		// disable the built-in title so we have full control over the
 		// content
 		"--title", "none",
 		// top icon
 		"--icon", icon,
-		"--iconsize", "80",
+		"--iconsize", fmt.Sprintf("%d", iconSize),
 		"--centreicon",
 		// modal content
 		"--message", message,

@@ -10,6 +10,7 @@ interface DeleteProfileModalProps {
   profileId: string;
   onCancel: () => void;
   onDelete: (profileId: string) => void;
+  isDeleting: boolean;
 }
 
 const baseClass = "delete-profile-modal";
@@ -18,7 +19,7 @@ const generateMessageSuffix = (isPremiumTier?: boolean, teamId?: number) => {
   if (!isPremiumTier) {
     return "";
   }
-  return teamId ? " assigned to this team" : " with no team";
+  return teamId ? "assigned to this team" : "with no team";
 };
 
 const DeleteProfileModal = ({
@@ -26,6 +27,7 @@ const DeleteProfileModal = ({
   profileId,
   onCancel,
   onDelete,
+  isDeleting,
 }: DeleteProfileModalProps) => {
   const { isPremiumTier, currentTeam } = useContext(AppContext);
 
@@ -40,17 +42,20 @@ const DeleteProfileModal = ({
       width="large"
     >
       <>
-        <p>
-          This action will delete configuration profile{" "}
-          <span className={`${baseClass}__profile-name`}>{profileName}</span>{" "}
-          from all hosts{messageSuffix}.
-        </p>
+        <div className={`${baseClass}__content`}>
+          <p>
+            This action will remove the <b>{profileName}</b> configuration
+            profile from all hosts {messageSuffix}.
+          </p>
+          <p>Pending profiles will be canceled.</p>
+        </div>
         <div className="modal-cta-wrap">
           <Button
             type="button"
             onClick={() => onDelete(profileId)}
             variant="alert"
             className="delete-loading"
+            isLoading={isDeleting}
           >
             Delete
           </Button>

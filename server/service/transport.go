@@ -3,127 +3,39 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/gorilla/mux"
 )
 
-// errBadRoute is used for mux errors
-var errBadRoute = errors.New("bad route")
-
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	// The has to happen first, if an error happens we'll redirect to an error
-	// page and the error will be logged
-	if page, ok := response.(htmlPage); ok {
-		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		writeBrowserSecurityHeaders(w)
-		if coder, ok := page.error().(kithttp.StatusCoder); ok {
-			w.WriteHeader(coder.StatusCode())
-		}
-		_, err := io.WriteString(w, page.html())
-		return err
-	}
+	return endpoint_utils.EncodeCommonResponse(ctx, w, response, jsonMarshal)
+}
 
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
-	}
-
-	if render, ok := response.(renderHijacker); ok {
-		render.hijackRender(ctx, w)
-		return nil
-	}
-
-	if e, ok := response.(statuser); ok {
-		w.WriteHeader(e.Status())
-		if e.Status() == http.StatusNoContent {
-			return nil
-		}
-	}
-
+func jsonMarshal(w http.ResponseWriter, response interface{}) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(response)
-}
-
-// statuser allows response types to implement a custom
-// http success status - default is 200 OK
-type statuser interface {
-	Status() int
-}
-
-// loads a html page
-type htmlPage interface {
-	html() string
-	error() error
-}
-
-// renderHijacker can be implemented by response values to take control of
-// their own rendering.
-type renderHijacker interface {
-	hijackRender(ctx context.Context, w http.ResponseWriter)
-}
-
-func uintFromRequest(r *http.Request, name string) (uint64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
-	if !ok {
-		return 0, errBadRoute
-	}
-	u, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return 0, ctxerr.Wrap(r.Context(), err, "uintFromRequest")
-	}
-	return u, nil
 }
 
 func uint32FromRequest(r *http.Request, name string) (uint32, error) {
 	vars := mux.Vars(r)
 	s, ok := vars[name]
 	if !ok {
-		return 0, errBadRoute
+		return 0, endpoint_utils.ErrBadRoute
 	}
 	u, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		return 0, ctxerr.Wrap(r.Context(), err, "uint32FromRequest")
 	}
 	return uint32(u), nil
-}
-
-func intFromRequest(r *http.Request, name string) (int64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
-	if !ok {
-		return 0, errBadRoute
-	}
-	u, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return 0, ctxerr.Wrap(r.Context(), err, "intFromRequest")
-	}
-	return u, nil
-}
-
-func stringFromRequest(r *http.Request, name string) (string, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
-	if !ok {
-		return "", errBadRoute
-	}
-	unescaped, err := url.PathUnescape(s)
-	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
-	}
-	return unescaped, nil
 }
 
 // default number of items to include per page
@@ -536,6 +448,23 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
+	profileUUID := r.URL.Query().Get("profile_uuid")
+	profileStatus := r.URL.Query().Get("profile_status")
+	switch {
+	case profileUUID != "" && profileStatus != "":
+		hopt.ProfileUUIDFilter = &profileUUID
+		if fleet.OSSettingsStatus(profileStatus).IsValid() {
+			psf := fleet.OSSettingsStatus(profileStatus)
+			hopt.ProfileStatusFilter = &psf
+		} else {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid profile_status: %s", profileStatus)))
+		}
+	case profileUUID != "" && profileStatus == "":
+		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_status (it must be present when profile_uuid is specified)"))
+	case profileUUID == "" && profileStatus != "":
+		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_uuid (it must be present when profile_status is specified)"))
+	}
+
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
 	if munkiIssueID != "" {
 		id, err := strconv.ParseUint(munkiIssueID, 10, 32)
@@ -585,6 +514,28 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			)
 		}
 		hopt.PopulatePolicies = pp
+	}
+
+	populateUsers := r.URL.Query().Get("populate_users")
+	if populateUsers != "" {
+		pu, err := strconv.ParseBool(populateUsers)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_users: %s", populateUsers)),
+			)
+		}
+		hopt.PopulateUsers = pu
+	}
+
+	populateLabels := r.URL.Query().Get("populate_labels")
+	if populateLabels != "" {
+		pl, err := strconv.ParseBool(populateLabels)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_labels: %s", populateLabels)),
+			)
+		}
+		hopt.PopulateLabels = pl
 	}
 
 	// cannot combine software_id, software_version_id, and software_title_id

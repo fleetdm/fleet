@@ -1,15 +1,16 @@
-import React, { useContext } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import FileSaver from "file-saver";
+import React, { useContext } from "react";
 
 import { NotificationContext } from "context/notification";
-import scriptAPI from "services/entities/scripts";
 import { IScript } from "interfaces/script";
+import scriptAPI from "services/entities/scripts";
 
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "script-list-item";
 
@@ -17,6 +18,7 @@ interface IScriptListItemProps {
   script: IScript;
   onDelete: (script: IScript) => void;
   onClickScript: (script: IScript) => void;
+  onEdit: (script: IScript) => void;
 }
 
 // TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
@@ -42,7 +44,7 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
-const onClickDownload = async (script: IScript, renderFlash: any) => {
+const onDownload = async (script: IScript, renderFlash: any) => {
   try {
     const content = await scriptAPI.downloadScript(script.id);
     const formatDate = format(new Date(), "yyyy-MM-dd");
@@ -73,44 +75,76 @@ const ScriptListItem = ({
   script,
   onDelete,
   onClickScript,
+  onEdit,
 }: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
+  const onClickEdit = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onEdit(script);
+  };
+
+  const onClickDownload = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onDownload(script, renderFlash);
+  };
+
+  const onClickDelete = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onDelete(script);
+  };
+
+  const actions = (
+    <>
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => (
+          <Button
+            disabled={disableChildren}
+            onClick={onClickEdit}
+            className={`${baseClass}__action-button`}
+            variant="text-icon"
+          >
+            <Icon name="pencil" color="ui-fleet-black-75" />
+          </Button>
+        )}
+      />
+      <Button
+        className={`${baseClass}__action-button`}
+        variant="text-icon"
+        onClick={onClickDownload}
+      >
+        <Icon name="download" />
+      </Button>
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => (
+          <Button
+            disabled={disableChildren}
+            onClick={onClickDelete}
+            className={`${baseClass}__action-button`}
+            variant="text-icon"
+          >
+            <Icon name="trash" color="ui-fleet-black-75" />
+          </Button>
+        )}
+      />
+    </>
+  );
+
   return (
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={
-        <Button variant="text-link" onClick={() => onClickScript(script)}>
-          {script.name}
-        </Button>
-      }
+      title={<Button variant="text-link">{script.name}</Button>}
       details={
         <ScriptListItemDetails
           platform={platform}
           createdAt={script.created_at}
         />
       }
-      actions={
-        <>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="text-icon"
-            onClick={() => onClickDownload(script, renderFlash)}
-          >
-            <Icon name="download" />
-          </Button>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="text-icon"
-            onClick={() => onDelete(script)}
-          >
-            <Icon name="trash" color="ui-fleet-black-75" />
-          </Button>
-        </>
-      }
+      actions={actions}
+      onClick={() => onClickScript(script)}
     />
   );
 };

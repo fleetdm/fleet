@@ -1,2 +1,0 @@
-- Fixes a bug where a device that was removed from ABM and then added back wouldn't properly
-  re-enroll in Fleet MDM

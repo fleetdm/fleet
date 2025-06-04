@@ -19,7 +19,7 @@
   .form-field--dropdown {
     margin: 0;
   }
-  .component__tabs-wrapper .table-container__header {
+  .tab-nav .table-container__header {
     display: none;
   }
   &__empty-software {
@@ -41,20 +41,20 @@
 
   .data-table-block {
     .data-table__table {
-      table-layout: fixed;
+      table-layout: auto;
+      width: 100%;
 
       thead {
         .name__header {
-          width: 60%;
+          width: 50%;
         }
         .version__header {
           width: 30%;
           padding-right: 0;
         }
         .hosts_count__header {
-          border-right: 0;
           padding-right: 0;
-          width: 60px;
+          width: auto;
         }
         .id__header {
           padding: 0;
@@ -64,12 +64,18 @@
       }
 
       tbody {
-        .name__cell,
-        .version__cell {
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
+        .name__cell {
+          width: 50%;
         }
+
+        .version__cell {
+          width: 30%;
+        }
+
+        .hosts_count__cell {
+          width: auto; // Never truncates hosts count
+        }
+
         .id__cell {
           padding: 0;
           width: 40px;

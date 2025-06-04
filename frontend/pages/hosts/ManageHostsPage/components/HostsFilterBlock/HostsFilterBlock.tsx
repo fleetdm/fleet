@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import { invert } from "lodash";
 
+import { AppContext } from "context/app";
 import { ILabel } from "interfaces/label";
 import {
   formatOperatingSystemDisplayName,
@@ -12,6 +13,7 @@ import {
   IMdmSolution,
   MDM_ENROLLMENT_STATUS,
   MdmProfileStatus,
+  IMdmProfile,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
@@ -76,6 +78,9 @@ interface IHostsFilterBlockProps {
     diskEncryptionStatus?: DiskEncryptionStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
     softwareStatus?: SoftwareAggregateStatus;
+    configProfileStatus?: string;
+    configProfileUUID?: string;
+    configProfile?: IMdmProfile;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -93,6 +98,7 @@ interface IHostsFilterBlockProps {
   onChangeSoftwareInstallStatusFilter: (
     newStatus: SoftwareAggregateStatus
   ) => void;
+  onChangeConfigProfileStatusFilter: (newStatus: string) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
 }
@@ -126,6 +132,9 @@ const HostsFilterBlock = ({
     diskEncryptionStatus,
     bootstrapPackageStatus,
     softwareStatus,
+    configProfileStatus,
+    configProfileUUID,
+    configProfile,
   },
   selectedLabel,
   isOnlyObserver,
@@ -137,9 +146,12 @@ const HostsFilterBlock = ({
   onChangeBootstrapPackageStatusFilter,
   onChangeMacSettingsFilter,
   onChangeSoftwareInstallStatusFilter,
+  onChangeConfigProfileStatusFilter,
   onClickEditLabel,
   onClickDeleteLabel,
 }: IHostsFilterBlockProps) => {
+  const { currentUser, isOnGlobalTeam } = useContext(AppContext);
+
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
       const { description, display_text, label_type } = selectedLabel;
@@ -165,16 +177,26 @@ const HostsFilterBlock = ({
             tooltipDescription={description}
             onClear={handleClearRouteParam}
           />
-          {label_type !== "builtin" && !isOnlyObserver && (
-            <>
-              <Button onClick={onClickEditLabel} variant="small-icon">
-                <Icon name="pencil" size="small" />
-              </Button>
-              <Button onClick={onClickDeleteLabel} variant="small-icon">
-                <Icon name="trash" size="small" />
-              </Button>
-            </>
-          )}
+          {label_type !== "builtin" &&
+            !isOnlyObserver &&
+            (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
+              <>
+                <Button
+                  className={`${baseClass}__action-btn`}
+                  onClick={onClickEditLabel}
+                  variant="icon"
+                >
+                  <Icon name="pencil" size="small" />
+                </Button>
+                <Button
+                  className={`${baseClass}__action-btn`}
+                  onClick={onClickDeleteLabel}
+                  variant="icon"
+                >
+                  <Icon name="trash" size="small" />
+                </Button>
+              </>
+            )}
         </>
       );
     }
@@ -295,19 +317,10 @@ const HostsFilterBlock = ({
       clearParams.push(...additionalClearParams);
     }
 
-    // const TooltipDescription = (
-    //   <span>
-    //     Hosts with {name || "Unknown software"},
-    //     <br />
-    //     {version || "version unknown"} installed
-    //   </span>
-    // );
-
     return (
       <FilterPill
         label={label}
         onClear={() => handleClearFilter(clearParams)}
-        // tooltipDescription={TooltipDescription}
       />
     );
   };
@@ -498,6 +511,31 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderConfigProfileStatusBlock = () => {
+    const OPTIONS = [
+      { value: "verified", label: "Verified" },
+      { value: "verifying", label: "Verifying" },
+      { value: "pending", label: "Pending" },
+      { value: "failed", label: "Failed" },
+    ];
+    return (
+      <>
+        <Dropdown
+          value={configProfileStatus}
+          className={`${baseClass}__config-profile-status-dropdown`}
+          options={OPTIONS}
+          searchable={false}
+          onChange={onChangeConfigProfileStatusFilter}
+          iconName="filter-alt"
+        />
+        <FilterPill
+          label={`OS settings: ${configProfile?.name}`}
+          onClear={() => handleClearFilter(["profile_status", "profile_uuid"])}
+        />
+      </>
+    );
+  };
+
   const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
   if (
@@ -517,7 +555,8 @@ const HostsFilterBlock = ({
     osSettingsStatus ||
     diskEncryptionStatus ||
     bootstrapPackageStatus ||
-    vulnerability
+    vulnerability ||
+    (configProfileStatus && configProfileUUID && configProfile)
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -570,6 +609,8 @@ const HostsFilterBlock = ({
           return renderDiskEncryptionStatusBlock();
         case !!bootstrapPackageStatus:
           return renderBootstrapPackageStatusBlock();
+        case !!configProfileStatus && !!configProfileUUID && !!configProfile:
+          return renderConfigProfileStatusBlock();
         default:
           return null;
       }

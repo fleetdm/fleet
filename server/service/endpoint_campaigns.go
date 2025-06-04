@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -74,7 +75,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig
 			}
 
 			// Authenticate with the token
-			vc, err := authViewer(context.Background(), string(token), svc)
+			vc, err := auth.AuthViewer(context.Background(), string(token), svc)
 			if err != nil || !vc.CanPerformActions() {
 				logger.Log("err", err, "msg", "unauthorized viewer")
 				conn.WriteJSONError("unauthorized") //nolint:errcheck

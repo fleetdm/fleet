@@ -6,12 +6,12 @@ This guide details which API endpoints to make publicly accessible.
 
 If you would like to manage hosts that can travel outside your VPN or intranet, we recommend only exposing the osquery endpoints to the public internet:
 
-- `/api/osquery`
-- `/api/v1/osquery`
+- `/api/osquery/*`
+- `/api/v1/osquery/*`
 
 ## Using Fleet Desktop on remote devices
 
-If you are using Fleet Desktop and want it to work on remote devices, the bare minimum API to expose is `/api/*/fleet/device/*/desktop`. This minimal endpoint will only provide the number of failing policies.
+If you're using Fleet Desktop `/api/*/fleet/device/*/desktop` must be exposed in the API, and for the end user **Fleet Desktop > My device** page `/device/*` and `/assets/*` must be exposed.
 
 For full Fleet Desktop and scripts functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
@@ -33,7 +33,7 @@ If you would like to use Fleet's macOS MDM features, the following endpoints nee
 - `/mdm/apple/mdm`: Allows hosts to reach the server using the MDM protocol.
 - `/api/mdm/apple/enroll`: If you use automatic enrollment, allows hosts to get an enrollment profile.
 - `/api/*/fleet/device/*`: Provides end users access to their **My device** page.
-  - This page is where they download their manual enrollment profile, rotate their disk encryption key, and use other features. For more information on these API endpoints see the documentation [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#device-authenticated-routes).
+  - This page is where they download their manual enrollment profile, rotate their disk encryption key, and use other features. For more information on these API endpoints see the documentation [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#device-authenticated-routes).
 - `/api/*/fleet/mdm/sso` and `/api/*/fleet/mdm/sso/callback`: If you use automatic enrollment and you require [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula) during out-of-the-box macOS setup, allows end users to authenticate with your IdP.
 - `/api/*/fleet/mdm/setup/eula/*`: If you use automatic enrollment and you require that the end user agrees to an [End User License Agreement (EULA)](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula) during out-of-the-box macOS setup, allows end user to see the EULA.
 - `/api/*/fleet/mdm/bootstrap`: If you use automatic enrollment and you install a [bootstrap package](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package) during out-of-the-box macOS setup, installs the bootstrap package.

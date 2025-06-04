@@ -18,18 +18,18 @@ To migrate hosts, we will do the following steps:
 2. Assign hosts in Apple Business Manager (ABM) to Fleet
 3. Choose migration workflow and migrate hosts
 
-### Step 1: enroll hosts to Fleet
+### Step 1: Enroll hosts to Fleet
 
 1. First, enroll your hosts to Fleet by installing Fleet's agent (fleetd). Learn how [here](https://fleetdm.com/guides/enroll-hosts).
 2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 
-### Step 2: assign hosts in Apple Business Manager (ABM) to Fleet
+### Step 2: Assign hosts in Apple Business Manager (ABM) to Fleet
 
 1. In ABM, unassign your hosts from your current MDM solution by selecting **Devices** and then selecting **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Unassign from the current MDM**, and select **Continue**.
 
 2. Assign these hosts to Fleet: select **Devices** and then select **All Devices**. Then, select **Edit** next to **Edit MDM Server**, select **Assign to the following MDM:**, select your Fleet server in the dropdown, and select **Continue**.
 
-### Step 3: choose migration workflow and migrate hosts
+### Step 3: Choose migration workflow and migrate hosts
 
 There are two migration workflows in Fleet: default and end user.
 
@@ -55,6 +55,8 @@ Configuration:
 
 > Available in Fleet Premium
 
+![Fleet's MDM migration dialog](../website/assets/images/articles/mdm-migration-dialog.png)
+
 End user experience:
 
 - To watch an animation of the end user experience during the migration workflow, head to **Settings > Integrations > Mobile device management (MDM)** in the Fleet UI, and scroll down to the **End user migration workflow** section.
@@ -70,7 +72,8 @@ Fleet UI:
 2. Scroll down to the **End user migration workflow** section and select the toggle to enable the workflow.
 3. Under **Mode**, choose a mode, enter the webhook URL for your automation tool (e.g., Tines) under **Webhook URL**, and select **Save**.
 4. During the end user migration workflow, an end user's device will have its selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
-Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
+Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**. See recommended sizes for logos [here](https://fleetdm.com/docs/configuration/yaml-files#org-info).
+5. During migration, end users will see a button that says "Unsure? Contact IT". Head to **Settings** > **Organization settings** > **Organization info** > **Organization support URL** to direct users to your help desk if they have any questions. 
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration)
 

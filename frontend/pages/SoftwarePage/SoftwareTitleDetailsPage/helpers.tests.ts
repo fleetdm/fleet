@@ -1,5 +1,5 @@
 import { ISoftwareTitleDetails } from "interfaces/software";
-import { getPackageCardInfo } from "./helpers";
+import { getInstallerCardInfo } from "./helpers";
 
 describe("SoftwareTitleDetailsPage helpers", () => {
   describe("getPackageCardInfo", () => {
@@ -9,7 +9,10 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         name: "Test Software",
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: {
+          labels_include_any: null,
+          labels_exclude_any: null,
           name: "TestPackage.pkg",
+          title_id: 2,
           version: "1.0.0",
           self_service: true,
           uploaded_at: "2021-01-01T00:00:00Z",
@@ -21,18 +24,24 @@ describe("SoftwareTitleDetailsPage helpers", () => {
             failed_uninstall: 1,
           },
           install_script: "echo foo",
+          uninstall_script: "echo bar",
           icon_url: "https://example.com/icon.png",
+          automatic_install_policies: [],
+          last_install: null,
+          last_uninstall: null,
+          url: "",
         },
         app_store_app: null,
         source: "apps",
         hosts_count: 10,
       };
-      const packageCardInfo = getPackageCardInfo(softwareTitle);
+      const packageCardInfo = getInstallerCardInfo(softwareTitle);
       expect(packageCardInfo).toEqual({
         softwarePackage: softwareTitle.software_package,
         name: "TestPackage.pkg", // packages should display the package name not the software title name
         version: "1.0.0",
-        uploadedAt: "2021-01-01T00:00:00Z",
+        addedTimestamp: "2021-01-01T00:00:00Z",
+        softwareTitleName: "Test Software",
         status: {
           installed: 10,
           pending: 8,
@@ -50,7 +59,9 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         app_store_app: {
           app_store_id: 1,
           name: "Test App",
+          created_at: "2020-01-01T00:00:00.000Z",
           latest_version: "1.0.1",
+          platform: "darwin",
           self_service: false,
           status: {
             installed: 10,
@@ -58,16 +69,19 @@ describe("SoftwareTitleDetailsPage helpers", () => {
             failed: 3,
           },
           icon_url: "https://example.com/icon.png",
+          labels_exclude_any: null,
+          labels_include_any: null,
         },
         source: "apps",
         hosts_count: 10,
       };
-      const packageCardInfo = getPackageCardInfo(softwareTitle);
+      const packageCardInfo = getInstallerCardInfo(softwareTitle);
       expect(packageCardInfo).toEqual({
-        softwarePackage: undefined,
+        softwarePackage: softwareTitle.app_store_app,
         name: "Test Software", // apps should display the software title name (backend should ensure the app name and software title name match)
         version: "1.0.1",
-        uploadedAt: "",
+        addedTimestamp: "2020-01-01T00:00:00.000Z",
+        softwareTitleName: "Test Software",
         status: {
           installed: 10,
           pending: 5,

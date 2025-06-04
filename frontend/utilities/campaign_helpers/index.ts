@@ -1,4 +1,9 @@
-import { ICampaign, ICampaignState } from "interfaces/campaign";
+import {
+  ICampaign,
+  ICampaignState,
+  IUIHostCounts,
+  IHostWithQueryResults,
+} from "interfaces/campaign";
 import { IHost } from "interfaces/host";
 import { useContext } from "react";
 import { NotificationContext } from "context/notification";
@@ -13,10 +18,13 @@ interface IResult {
   };
 }
 
-interface IStatus {
+interface IIncomingCampaignStatus {
   type: "status";
   data: {
+    // acutal_results == count_of_hosts_with_results + count_of_hosts_with_no_results
     actual_results: number;
+    count_of_hosts_with_results: number;
+    count_of_hosts_with_no_results: number;
     expected_result: number;
     status: string;
   };
@@ -37,7 +45,7 @@ interface IError {
   data: string;
 }
 
-type ISocketData = IResult | IStatus | ITotals | IError;
+type ISocketData = IResult | IIncomingCampaignStatus | ITotals | IError;
 
 const updateCampaignStateFromTotals = (
   campaign: ICampaign,
@@ -53,69 +61,80 @@ const updateCampaignStateFromResults = (
   { data }: IResult
 ) => {
   const {
-    errors = [],
-    hosts = [],
-    hosts_count: hostsCount = { total: 0, failed: 0, successful: 0 },
-    query_results: queryResults = [],
+    errors: prevErrors = [],
+    hosts: prevHostsWithResults = [],
+    uiHostCounts: prevUIHostCounts = { total: 0, failed: 0, successful: 0 },
+    queryResults: prevQueryResults = [],
   } = campaign;
-  const { error, host, rows = [] } = data;
+  const { error: curError, host: curHost, rows: curQueryResults = [] } = data;
 
   let newErrors;
-  let newHosts;
-  let newHostsCount;
+  let newHostsWithResults: IHostWithQueryResults[];
+  // uiHostCounts.total is incremented by 1 in both cases, error and results
+  let newUIHostCounts: IUIHostCounts;
 
-  if (error || error === "") {
-    const newFailed = hostsCount.failed + 1;
-    const newTotal = hostsCount.successful + newFailed;
-
-    newErrors = errors.concat([
+  if (curError || curError === "") {
+    // both  `campaign.errors` and `campaign.hosts_count.failed` updated by this same condition,
+    // therefore `campaign.errors.length` === `campaign.hosts_count.failed`
+    newErrors = prevErrors.concat([
       {
-        host_display_name: host?.display_name,
-        osquery_version: host?.osquery_version,
+        host_display_name: curHost?.display_name,
+        osquery_version: curHost?.osquery_version,
         error:
-          error ||
+          curError ||
           // Hosts with osquery version below 4.4.0 receive an empty error message
           // when the live query fails so we create our own message.
           "Error details require osquery 4.4.0+ (Launcher does not provide error details)",
       },
     ]);
-    newHostsCount = {
-      successful: hostsCount.successful,
-      failed: newFailed,
-      total: newTotal,
+    newUIHostCounts = {
+      total: prevUIHostCounts.total + 1,
+      successful: prevUIHostCounts.successful,
+      failed: prevUIHostCounts.failed + 1,
     };
-    newHosts = hosts;
+    newHostsWithResults = prevHostsWithResults;
   } else {
-    const newSuccessful = hostsCount.successful + 1;
-    const newTotal = hostsCount.failed + newSuccessful;
-
-    newErrors = [...errors];
-    newHostsCount = {
-      successful: newSuccessful,
-      failed: hostsCount.failed,
-      total: newTotal,
+    // received non-error response
+    newErrors = [...prevErrors];
+    newUIHostCounts = {
+      total: prevUIHostCounts.total + 1,
+      successful: prevUIHostCounts.successful + 1,
+      failed: prevUIHostCounts.failed,
     };
-    const newHost = { ...host, query_results: rows };
-    newHosts = hosts.concat(newHost);
+    const curHostWithResults = { ...curHost, query_results: curQueryResults };
+    newHostsWithResults = prevHostsWithResults.concat(curHostWithResults);
   }
 
   return {
     campaign: {
       ...campaign,
       errors: newErrors,
-      hosts: newHosts,
-      hosts_count: newHostsCount,
-      query_results: [...queryResults, ...rows],
+      hosts: newHostsWithResults,
+      uiHostCounts: newUIHostCounts,
+      queryResults: [...prevQueryResults, ...curQueryResults],
     },
   };
 };
 
 const updateCampaignStateFromStatus = (
-  campaign: ICampaign,
-  { data: { status } }: IStatus
+  prevCampaign: ICampaign,
+  {
+    data: {
+      status,
+      count_of_hosts_with_results: newCountOfHostsWithResults,
+      count_of_hosts_with_no_results: newCountOfHostsWithNoResults,
+    },
+  }: IIncomingCampaignStatus
 ) => {
   return {
-    campaign: { ...campaign, status },
+    campaign: {
+      ...prevCampaign,
+      status,
+      serverHostCounts: {
+        countOfHostsWithResults: newCountOfHostsWithResults,
+        countOfHostsWithNoResults: newCountOfHostsWithNoResults,
+      },
+    },
     queryIsRunning: status !== "finished",
   };
 };

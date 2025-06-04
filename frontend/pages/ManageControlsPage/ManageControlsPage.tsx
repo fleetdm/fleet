@@ -6,7 +6,8 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./OSUpdates/components/CurrentVersionSection/CurrentVersionSection";
@@ -34,6 +35,8 @@ const controlsSubNav: IControlsSubNavItem[] = [
     pathname: PATHS.CONTROLS_SCRIPTS,
   },
 ];
+
+const subNavQueryParams = ["page", "order_key", "order_direction"] as const;
 
 interface IManageControlsPageProps {
   children: JSX.Element;
@@ -70,7 +73,7 @@ const ManageControlsPage = ({
 }: IManageControlsPageProps): JSX.Element => {
   const page = parseInt(location?.query?.page || "", 10) || 0;
 
-  const { isFreeTier, isOnGlobalTeam, isPremiumTier } = useContext(AppContext);
+  const { config, isOnGlobalTeam, isPremiumTier } = useContext(AppContext);
 
   const {
     currentTeamId,
@@ -93,8 +96,15 @@ const ManageControlsPage = ({
   const navigateToNav = useCallback(
     (i: number): void => {
       const navPath = controlsSubNav[i].pathname;
+      // remove query params related to the prior tab
+      const newParams = new URLSearchParams(location?.search);
+      subNavQueryParams.forEach((p) => newParams.delete(p));
+      const newQuery = newParams.toString();
+
       router.replace(
-        navPath.concat(location?.search || "").concat(location?.hash || "")
+        navPath
+          .concat(newQuery ? `?${newQuery}` : "")
+          .concat(location?.hash || "")
       );
     },
     [location, router]
@@ -103,7 +113,7 @@ const ManageControlsPage = ({
   const renderBody = () => {
     return (
       <div>
-        <TabsWrapper>
+        <TabNav>
           <Tabs
             selectedIndex={getTabIndex(location?.pathname || "")}
             onSelect={navigateToNav}
@@ -112,13 +122,13 @@ const ManageControlsPage = ({
               {controlsSubNav.map((navItem) => {
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
-                    {navItem.name}
+                    <TabText>{navItem.name}</TabText>
                   </Tab>
                 );
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {React.cloneElement(children, {
           teamIdForApi,
           currentPage: page,
@@ -128,34 +138,39 @@ const ManageControlsPage = ({
     );
   };
 
+  const renderHeaderContent = () => {
+    if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
+      if (userTeams.length > 1 || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams}
+            selectedTeamId={currentTeamId}
+            onChange={handleTeamChange}
+            includeAll={false}
+            includeNoTeams
+          />
+        );
+      }
+      if (!isOnGlobalTeam && userTeams.length === 1) {
+        return <h1>{userTeams[0].name}</h1>;
+      }
+    }
+    return <h1>Controls</h1>;
+  };
+
+  const renderHeader = () => (
+    <div className={`${baseClass}__header`}>
+      <div className={`${baseClass}__text`}>
+        <div className={`${baseClass}__title`}>{renderHeaderContent()}</div>
+      </div>
+    </div>
+  );
+
   return (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
-          <div className={`${baseClass}__header-wrap`}>
-            <div className={`${baseClass}__header`}>
-              <div className={`${baseClass}__text`}>
-                <div className={`${baseClass}__title`}>
-                  {isFreeTier && <h1>Controls</h1>}
-                  {isPremiumTier &&
-                    userTeams &&
-                    (userTeams.length > 1 || isOnGlobalTeam) && (
-                      <TeamsDropdown
-                        currentUserTeams={userTeams}
-                        selectedTeamId={currentTeamId}
-                        onChange={handleTeamChange}
-                        includeAll={false}
-                        includeNoTeams
-                      />
-                    )}
-                  {isPremiumTier &&
-                    !isOnGlobalTeam &&
-                    userTeams &&
-                    userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
-                </div>
-              </div>
-            </div>
-          </div>
+          <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
         </div>
         {renderBody()}
       </div>

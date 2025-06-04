@@ -202,6 +202,10 @@ const EditTeamsVppModal = ({
         <p>
           Edit teams for <b>{currentToken.org_name}</b>.
         </p>
+        <p>
+          If you delete a team, App Store apps will be deleted from that team.
+          Installed apps won&apos;t be uninstalled from hosts.
+        </p>
         <form onSubmit={onSave} className={baseClass} autoComplete="off">
           <TooltipWrapper
             position="top"
@@ -242,7 +246,6 @@ const EditTeamsVppModal = ({
           <div className="modal-cta-wrap">
             <Button
               type="submit"
-              variant="brand"
               className="save-vpp-teams-loading"
               isLoading={isSaving}
               disabled={isDropdownDisabled}

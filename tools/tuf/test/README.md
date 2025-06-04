@@ -20,7 +20,7 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 
 The `main.sh` creates and runs the TUF repository and optionally generate the installers (GENERATE_PKGS):
 ```sh
-SYSTEMS="macos windows linux linux-arm64" \
+SYSTEMS="macos windows linux linux-arm64 windows-arm64" \
 PKG_FLEET_URL=https://localhost:8080 \
 PKG_TUF_URL=http://localhost:8081 \
 DEB_FLEET_URL=https://host.docker.internal:8080 \
@@ -35,6 +35,7 @@ GENERATE_DEB_ARM64=1 \
 GENERATE_RPM=1 \
 GENERATE_RPM_ARM64=1 \
 GENERATE_MSI=1 \
+GENERATE_MSI_ARM64=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
@@ -61,7 +62,8 @@ LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_lin
 To build for a specific architecture, you can pass the `GOARCH` environment variable:
 ``` shell
 [...]
-GOARCH=arm64 # defaults to amd64
+# defaults to amd64
+GOARCH=arm64 \
 [...]
 ./tools/tuf/test/main.sh
 ```
@@ -89,24 +91,33 @@ To add new updates (osqueryd or orbit), use `push_target.sh`.
 
 E.g. to add a new version of `orbit` for Windows:
 ```sh
+source ./tools/tuf/test/load_orbit_version_vars.sh
+
 # Compile a new version of Orbit:
-GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
+GOOS=windows GOARCH=amd64 go build \
+    -o orbit-windows.exe \
+    -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$ORBIT_COMMIT" \
+    ./orbit/cmd/orbit
 
 # Push the compiled Orbit as a new version
-./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
+./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe $ORBIT_VERSION
 ```
 
 If the script was executed on a macOS host, the Orbit binary will be a universal binary. To push updates you can do:
 
 ```sh
+source ./tools/tuf/test/load_orbit_version_vars.sh
+
 # Compile a universal binary of Orbit:
 CGO_ENABLED=1 \
-ORBIT_VERSION=42 \
+ORBIT_VERSION=$ORBIT_VERSION \
+ORBIT_COMMIT=$ORBIT_COMMIT \
 ORBIT_BINARY_PATH="orbit-macos" \
 go run ./orbit/tools/build/build.go
 
 # Push the compiled Orbit as a new version
-./tools/tuf/test/push_target.sh macos orbit orbit-macos 43
+./tools/tuf/test/push_target.sh macos orbit orbit-macos $ORBIT_VERSION
 ```
 
 E.g. to add a new version of `osqueryd` for macOS:
@@ -117,15 +128,17 @@ make osqueryd-app-tar-gz version=5.5.1 out-path=.
 # Push the osqueryd target as a new version
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.5.1
 ```
-NOTE: Contributors on macOS with Apple silicon ran into issues running osqueryd downloaded from GitHub. Until this issue is root caused, the workaround is to download osqueryd from [Fleet's TUF](https://tuf.fleetctl.com/).
+NOTE: Contributors on macOS with Apple silicon ran into issues running osqueryd downloaded from GitHub. Until this issue is root caused, the workaround is to download osqueryd from [Fleet's TUF](https://updates.fleetdm.com/).
 
 E.g. to add a new version of `desktop` for macOS:
 ```sh
+source ./tools/tuf/test/load_orbit_version_vars.sh
+
 # Compile a new version of fleet-desktop
-make desktop-app-tar-gz
+FLEET_DESKTOP_VERSION=$ORBIT_VERSION make desktop-app-tar-gz
 
 # Push the desktop target as a new version
-./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz 43
+./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz $ORBIT_VERSION
 ```
 
 ### Troubleshooting
@@ -143,3 +156,16 @@ Solution: Set the `MACOSX_DEPLOYMENT_TARGET` environment variable to the lowest 
 ```
 export MACOSX_DEPLOYMENT_TARGET=13 # replace '13' with your target macOS version
 ```
+
+#### Issue generating linux-arm64 packages when running Docker Desktop on macOS using Apple Silicon
+
+When running Docker Desktop on macOS using Apple Silicon, enrollment packages for ARM Linux may fail to generate and you may see a warning similar to:
+
+```
+WARNING: The requested image's platform (linux/amd64) does not match the detected host platform (linux/arm64/v8) and no specific platform was requested
+[...]
+/usr/local/go/pkg/tool/linux_amd64/compile: signal: illegal instruction
+make: *** [desktop-linux] Error 1
+```
+
+Solution: In Docker Desktop go to Settings >> General >> Virtual Machine Options and choose the "Docker VMM (BETA)" option. Restart Docker Desktop.

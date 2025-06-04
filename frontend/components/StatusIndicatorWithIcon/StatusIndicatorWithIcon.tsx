@@ -1,11 +1,9 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import { uniqueId } from "lodash";
 import classnames from "classnames";
 
 import { IconNames } from "components/icons";
 import Icon from "components/Icon";
-import { COLORS } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "status-indicator-with-icon";
 
@@ -14,10 +12,14 @@ export type IndicatorStatus =
   | "successPartial"
   | "pending"
   | "pendingPartial"
-  | "error";
+  | "error"
+  | "failure"
+  | "actionRequired";
 
 interface IStatusIndicatorWithIconProps {
+  /** Determines which icon to display */
   status: IndicatorStatus;
+  /** The text to be displayed */
   value: string;
   tooltip?: {
     tooltipText: string | JSX.Element;
@@ -35,6 +37,8 @@ const statusIconNameMapping: Record<IndicatorStatus, IconNames> = {
   pending: "pending",
   pendingPartial: "pending-outline",
   error: "error",
+  failure: "error-outline",
+  actionRequired: "error",
 };
 
 const StatusIndicatorWithIcon = ({
@@ -46,34 +50,33 @@ const StatusIndicatorWithIcon = ({
   valueClassName,
 }: IStatusIndicatorWithIconProps) => {
   const classNames = classnames(baseClass, className);
-  const id = `status-${uniqueId()}`;
 
   const valueClasses = classnames(`${baseClass}__value`, valueClassName, {
     [`${baseClass}__value-vertical`]: layout === "vertical",
   });
   const valueContent = (
     <span className={valueClasses}>
-      <Icon name={statusIconNameMapping[status]} />
+      <Icon
+        name={statusIconNameMapping[status]}
+        color={status === "failure" ? "ui-fleet-black-50" : undefined}
+      />
       <span>{value}</span>
     </span>
   );
 
   const indicatorContent = tooltip ? (
-    <>
-      <span data-tip data-for={id}>
-        {valueContent}
-      </span>
-      <ReactTooltip
-        className={`${baseClass}__tooltip`}
-        place={tooltip?.position ? tooltip.position : "top"}
-        type="dark"
-        effect="solid"
-        id={id}
-        backgroundColor={COLORS["tooltip-bg"]}
-      >
-        {tooltip.tooltipText}
-      </ReactTooltip>
-    </>
+    <TooltipWrapper
+      className={`${baseClass}__tooltip`}
+      tooltipClass="indicator-tip-text"
+      position="top"
+      tipContent={tooltip.tooltipText}
+      tipOffset={10}
+      showArrow
+      underline={false}
+      fixedPositionStrategy
+    >
+      {valueContent}
+    </TooltipWrapper>
   ) : (
     <span>{valueContent}</span>
   );

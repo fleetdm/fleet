@@ -27,7 +27,7 @@ func Up_20230629140530(tx *sql.Tx) error {
 			updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			UNIQUE KEY idx_type (mdm_hardware_id)
-        )`)
+        ) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 	if err != nil {
 		return fmt.Errorf("failed to create mdm_windows_enrollments table: %w", err)
 	}

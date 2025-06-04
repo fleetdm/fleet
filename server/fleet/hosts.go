@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type HostStatus string
@@ -207,12 +209,23 @@ type HostListOptions struct {
 	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
 	PopulatePolicies bool
 
+	// PopulateUsers adds the `Users` array field to all Hosts returned
+	PopulateUsers bool
+
+	// PopulateLabels adds the `Labels` array field to all host responses returned
+	PopulateLabels bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 
 	// ConnectedToFleetFilter filters hosts that have an active MDM
 	// connection with this Fleet instance.
 	ConnectedToFleetFilter *bool
+
+	// ProfileUUID is the UUID of the MDM configuration profile and filters hosts by that profile.
+	ProfileUUIDFilter *string
+	// ProfileStatus is the status of the MDM configuration profile and filters hosts by that status.
+	ProfileStatusFilter *OSSettingsStatus
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -241,7 +254,9 @@ func (h HostListOptions) Empty() bool {
 		h.MunkiIssueIDFilter == nil &&
 		h.LowDiskSpaceFilter == nil &&
 		h.OSSettingsFilter == "" &&
-		h.OSSettingsDiskEncryptionFilter == ""
+		h.OSSettingsDiskEncryptionFilter == "" &&
+		h.ProfileUUIDFilter == nil &&
+		h.ProfileStatusFilter == nil
 }
 
 type HostUser struct {
@@ -344,7 +359,7 @@ type Host struct {
 	// is that the latter is a one-time request, while this one is a persistent
 	// until the timestamp expires. The initial use-case is to check for a host
 	// to be unenrolled from its old MDM solution, in the "migrate to Fleet MDM"
-	// workflow.
+	// workflow (both Apple and Windows).
 	//
 	// In the future, if we want to use it for more than one use-case, we could
 	// add a "reason" field with well-known labels so we know what condition(s)
@@ -366,6 +381,28 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+}
+
+type AndroidHost struct {
+	*Host
+	*android.Device
+}
+
+func (ah *AndroidHost) SetNodeKey(enterpriseSpecificID string) {
+	if ah.Host == nil || ah.Device == nil {
+		return
+	}
+	ah.Device.EnterpriseSpecificID = ptr.String(enterpriseSpecificID)
+	// We use node_key as a unique identifier for the host table row.
+	// Since this key is used by other hosts, we use a prefix to avoid conflicts.
+	hostNodeKey := "android/" + enterpriseSpecificID
+	ah.Host.NodeKey = &hostNodeKey
+}
+
+func (ah *AndroidHost) IsValid() bool {
+	return !(ah == nil || ah.Host == nil || ah.Device == nil ||
+		ah.Host.NodeKey == nil || ah.Device.EnterpriseSpecificID == nil ||
+		*ah.Host.NodeKey != "android/"+*ah.Device.EnterpriseSpecificID)
 }
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
@@ -437,7 +474,7 @@ type MDMHostData struct {
 	rawDecryptable *int
 
 	// OSSettings contains information related to operating systems settings that are managed for
-	// MDM-enrolled hosts.
+	// MDM-enrolled hosts and/or Linux hosts with disk encryption enabled, which don't require MDM.
 	//
 	// Note: Additional information for macOS hosts is currently stored in MacOSSettings.
 	OSSettings *HostMDMOSSettings `json:"os_settings,omitempty" db:"-" csv:"-"`
@@ -743,6 +780,19 @@ type HostDetail struct {
 
 	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
+	EndUsers          []HostEndUser          `json:"end_users,omitempty"`
+
+	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
+	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
+}
+
+type HostEndUser struct {
+	IdpID            string              `json:"idp_id,omitempty"`
+	IdpUserName      string              `json:"idp_username,omitempty"`
+	IdpFullName      string              `json:"idp_full_name,omitempty"`
+	IdpGroups        []string            `json:"idp_groups,omitempty"`
+	IdpInfoUpdatedAt *time.Time          `json:"idp_info_updated_at"`
+	OtherEmails      []HostDeviceMapping `json:"other_emails,omitempty"`
 }
 
 type HostMaintenanceWindow struct {
@@ -819,12 +869,17 @@ func (h *Host) FleetPlatform() string {
 
 // SupportsOsquery returns whether the device runs osquery.
 func (h *Host) SupportsOsquery() bool {
-	return h.Platform != "ios" && h.Platform != "ipados"
+	return PlatformSupportsOsquery(h.Platform)
+}
+
+// PlatformSupportsOsquery returns whether osquery is supported on this platform.
+func PlatformSupportsOsquery(platform string) bool {
+	return platform != "ios" && platform != "ipados" && platform != "android"
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo", "neon",
 }
 
 func IsLinux(hostPlatform string) bool {
@@ -864,7 +919,8 @@ func PlatformFromHost(hostPlatform string) string {
 		// Fleet now supports Chrome via fleetd
 		hostPlatform == "chrome",
 		hostPlatform == "ios",
-		hostPlatform == "ipados":
+		hostPlatform == "ipados",
+		hostPlatform == "android":
 		return hostPlatform
 	default:
 		return ""
@@ -1174,11 +1230,14 @@ type HostMDMCheckinInfo struct {
 }
 
 type HostDiskEncryptionKey struct {
-	HostID          uint      `json:"-" db:"host_id"`
-	Base64Encrypted string    `json:"-" db:"base64_encrypted"`
-	Decryptable     *bool     `json:"-" db:"decryptable"`
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
-	DecryptedValue  string    `json:"key" db:"-"`
+	HostID              uint      `json:"-" db:"host_id"`
+	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
+	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
+	KeySlot             *uint     `json:"-" db:"key_slot"`
+	Decryptable         *bool     `json:"-" db:"decryptable"`
+	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
+	DecryptedValue      string    `json:"key" db:"-"`
+	ClientError         string    `json:"-" db:"client_error"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed
@@ -1194,6 +1253,8 @@ type HostSoftwareInstalledPath struct {
 	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
 	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
 	TeamIdentifier string `db:"team_identifier"`
+	// A SHA256 hash of the executable file of the software.
+	ExecutableSHA256 *string `db:"executable_sha256"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles
@@ -1270,7 +1331,7 @@ func IsMacOSMajorVersionOK(host *Host) (bool, error) {
 		return false, nil
 	}
 
-	version, err := semver.NewVersion(parts[1])
+	version, err := VersionToSemverVersion(parts[1])
 	if err != nil {
 		return false, fmt.Errorf("parsing macOS version \"%s\": %w", parts[1], err)
 	}

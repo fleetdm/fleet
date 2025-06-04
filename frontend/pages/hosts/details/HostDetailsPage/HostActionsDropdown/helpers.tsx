@@ -2,7 +2,13 @@ import React from "react";
 import { cloneDeep } from "lodash";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { isLinuxLike, isAppleDevice } from "interfaces/platform";
+import {
+  isLinuxLike,
+  isAppleDevice,
+  isMobilePlatform,
+  isAndroid,
+  isIPadOrIPhone,
+} from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
 import {
@@ -84,7 +90,7 @@ const canTransferTeam = (config: IHostActionConfigOptions) => {
   return isPremiumTier && (isGlobalAdmin || isGlobalMaintainer);
 };
 
-const canEditMdm = (config: IHostActionConfigOptions) => {
+const canTurnOffMdm = (config: IHostActionConfigOptions) => {
   const {
     hostPlatform,
     isGlobalAdmin,
@@ -96,7 +102,8 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isMacMdmEnabledAndConfigured,
   } = config;
   return (
-    hostPlatform === "darwin" &&
+    !isAndroid(hostPlatform) && // TODO(android): confirm can't turn off MDM for windows, iOS, iPadOS?
+    isAppleDevice(hostPlatform) &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
     isConnectedToFleetMdm &&
@@ -105,10 +112,8 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
 };
 
 const canQueryHost = ({ hostPlatform }: IHostActionConfigOptions) => {
-  // Currently we cannot query iOS or iPadOS
-  const isIosOrIpadosHost = hostPlatform === "ios" || hostPlatform === "ipados";
-
-  return !isIosOrIpadosHost;
+  // cannot query iOS, iPadOS, or Android hosts
+  return !isMobilePlatform(hostPlatform);
 };
 
 const canLockHost = ({
@@ -132,6 +137,7 @@ const canLockHost = ({
 
   return (
     isPremiumTier &&
+    !isAndroid(hostPlatform) &&
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
@@ -164,6 +170,7 @@ const canWipeHost = ({
 
   return (
     isPremiumTier &&
+    !isAndroid(hostPlatform) &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
@@ -197,6 +204,7 @@ const canUnlock = ({
 
   return (
     isPremiumTier &&
+    !isAndroid(hostPlatform) &&
     isValidState &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
     (canUnlockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
@@ -215,11 +223,10 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
-
-  // Currently we cannot show disk encryption key for iOS or iPadOS
-  const isIosOrIpadosHost = hostPlatform === "ios" || hostPlatform === "ipados";
-
-  return isPremiumTier && doesStoreEncryptionKey && !isIosOrIpadosHost;
+  if (isMobilePlatform(hostPlatform)) {
+    return false;
+  }
+  return isPremiumTier && doesStoreEncryptionKey;
 };
 
 const canRunScript = ({
@@ -251,7 +258,7 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "diskEncryption");
   }
 
-  if (!canEditMdm(config)) {
+  if (!canTurnOffMdm(config)) {
     options = options.filter((option) => option.value !== "mdmOff");
   }
 
@@ -333,7 +340,7 @@ const modifyOptions = (
 
   let optionsToDisable: IDropdownOption[] = [];
   if (
-    !isHostOnline ||
+    (!isIPadOrIPhone(hostPlatform) && !isHostOnline) ||
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
     hostMdmDeviceStatus === "locked" ||
     hostMdmDeviceStatus === "wiped"
@@ -380,7 +387,6 @@ const modifyOptions = (
  * many variations of the options that are shown/not shown or disabled/enabled
  * which are all controlled by the configurations options argument.
  */
-// eslint-disable-next-line import/prefer-default-export
 export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   // deep clone to always start with a fresh copy of the default options.
   let options: IDropdownOption[] = cloneDeep([...DEFAULT_OPTIONS]);

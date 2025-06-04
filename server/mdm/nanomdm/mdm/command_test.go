@@ -10,14 +10,12 @@ func TestCommandAndReportResults(t *testing.T) {
 	for _, test := range []struct {
 		filename    string
 		UDID        string
-		RequestType string
 		Status      string
 		CommandUUID string
 	}{
 		{
 			"testdata/DeviceInformation.1.plist",
 			"66ADE930-5FDF-5EC4-8429-15640684C489",
-			"DeviceInformation",
 			"Acknowledged",
 			"76eda240-5488-4989-8339-f2ae160113c4",
 		},
@@ -34,9 +32,6 @@ func TestCommandAndReportResults(t *testing.T) {
 				t.Fatal(err)
 			}
 			if msg, have, want := "incorrect UDID", a.UDID, test.UDID; have != want {
-				t.Errorf("%s: %q, want: %q", msg, have, want)
-			}
-			if msg, have, want := "incorrect RequestType", a.RequestType, test.RequestType; have != want {
 				t.Errorf("%s: %q, want: %q", msg, have, want)
 			}
 			if msg, have, want := "incorrect Status", a.Status, test.Status; have != want {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -25,8 +26,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
+	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
 	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
@@ -122,6 +125,24 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 
+	teams, err := ts.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, tm := range teams {
+		err := ts.ds.DeleteTeam(ctx, tm.ID)
+		require.NoError(t, err)
+	}
+
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM policies;`)
+		return err
+	})
+
+	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
+		return err
+	})
+
 	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	for _, lbl := range lbls {
@@ -131,7 +152,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		}
 	}
 
-	queries, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
+	queries, _, _, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	queryIDs := make([]uint, 0, len(queries))
 	for _, query := range queries {
@@ -151,19 +172,6 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 			require.NoError(t, err)
 		}
 	}
-
-	teams, err := ts.ds.ListTeams(ctx, fleet.TeamFilter{User: &u}, fleet.ListOptions{})
-	require.NoError(t, err)
-	for _, tm := range teams {
-		err := ts.ds.DeleteTeam(ctx, tm.ID)
-		require.NoError(t, err)
-	}
-
-	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
-		return err
-	})
 
 	// Clean scripts in "No team" (the others are deleted in ts.ds.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
@@ -213,6 +221,25 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
 		return err
 	})
+
+	mysql.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM secret_variables")
+		return err
+	})
+
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM fleet_maintained_apps; ")
+		return err
+	})
+	// Most tests reference FMAs by ID, and the expect the records to be inserted starting with 1, so we need to reset the auto increment.
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "ALTER TABLE fleet_maintained_apps AUTO_INCREMENT = 1;")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM invites; ")
+		return err
+	})
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
@@ -232,47 +259,11 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 func (ts *withServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	t := ts.s.T()
+	return fleet_httptest.DoHTTPReq(ts.s.T(), decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
+}
 
-	requestBody := io.NopCloser(bytes.NewBuffer(rawBytes))
-	req, err := http.NewRequest(verb, ts.server.URL+path, requestBody)
-	require.NoError(t, err)
-	for key, val := range headers {
-		req.Header.Add(key, val)
-	}
-
-	opts := []fleethttp.ClientOpt{}
-	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
-		opts = append(opts, fleethttp.WithFollowRedir(false))
-	}
-	client := fleethttp.NewClient(opts...)
-
-	if len(queryParams)%2 != 0 {
-		require.Fail(t, "need even number of params: key value")
-	}
-	if len(queryParams) > 0 {
-		q := req.URL.Query()
-		for i := 0; i < len(queryParams); i += 2 {
-			q.Add(queryParams[i], queryParams[i+1])
-		}
-		req.URL.RawQuery = q.Encode()
-	}
-
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-
-	if resp.StatusCode != expectedStatusCode {
-		defer resp.Body.Close()
-		var je jsonError
-		err := json.NewDecoder(resp.Body).Decode(&je)
-		if err != nil {
-			t.Logf("Error trying to decode response body as Fleet jsonError: %s", err)
-			require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("response: %+v", resp))
-		}
-		require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("Fleet jsonError: %+v", je))
-	}
-
-	return resp
+func decodeJSON(r io.Reader, v interface{}) error {
+	return json.NewDecoder(r).Decode(v)
 }
 
 func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
@@ -281,16 +272,16 @@ func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedS
 	}, queryParams...)
 }
 
-func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, expectedStatusCode int) *http.Response {
-	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, nil)
+func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
+	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, nil, queryParams...)
 }
 
 func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
 	resp := ts.Do(verb, path, params, expectedStatusCode, queryParams...)
 	err := json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
-	if e, ok := v.(errorer); ok {
-		require.NoError(ts.s.T(), e.error())
+	if e, ok := v.(fleet.Errorer); ok {
+		require.NoError(ts.s.T(), e.Error())
 	}
 }
 
@@ -304,8 +295,8 @@ func (ts *withServer) DoJSONWithoutAuth(verb, path string, params interface{}, e
 	})
 	err = json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
-	if e, ok := v.(errorer); ok {
-		require.NoError(ts.s.T(), e.error())
+	if e, ok := v.(fleet.Errorer); ok {
+		require.NoError(ts.s.T(), e.Error())
 	}
 }
 
@@ -319,6 +310,15 @@ func (ts *withServer) getTestAdminToken() string {
 		ts.cachedAdminToken = ts.getTestToken(testUser.Email, testUser.PlaintextPassword)
 	}
 	return ts.cachedAdminToken
+}
+
+func (ts *withServer) setTokenForTest(t *testing.T, email, password string) {
+	oldToken := ts.token
+	t.Cleanup(func() {
+		ts.token = oldToken
+	})
+
+	ts.token = ts.getCachedUserToken(email, password)
 }
 
 // getCachedUserToken returns the cached auth token for the given test user email.
@@ -340,18 +340,22 @@ func (ts *withServer) getCachedUserToken(email, password string) string {
 }
 
 func (ts *withServer) getTestToken(email string, password string) string {
-	params := loginRequest{
+	return GetToken(ts.s.T(), email, password, ts.server.URL)
+}
+
+func GetToken(t *testing.T, email string, password string, serverURL string) string {
+	params := contract.LoginRequest{
 		Email:    email,
 		Password: password,
 	}
 	j, err := json.Marshal(&params)
-	require.NoError(ts.s.T(), err)
+	require.NoError(t, err)
 
 	requestBody := io.NopCloser(bytes.NewBuffer(j))
-	resp, err := http.Post(ts.server.URL+"/api/latest/fleet/login", "application/json", requestBody)
-	require.NoError(ts.s.T(), err)
+	resp, err := http.Post(serverURL+"/api/latest/fleet/login", "application/json", requestBody)
+	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(ts.s.T(), http.StatusOK, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	jsn := struct {
 		User  *fleet.User         `json:"user"`
@@ -359,8 +363,8 @@ func (ts *withServer) getTestToken(email string, password string) string {
 		Err   []map[string]string `json:"errors,omitempty"`
 	}{}
 	err = json.NewDecoder(resp.Body).Decode(&jsn)
-	require.NoError(ts.s.T(), err)
-	require.Len(ts.s.T(), jsn.Err, 0)
+	require.NoError(t, err)
+	require.Len(t, jsn.Err, 0)
 
 	return jsn.Token
 }
@@ -455,10 +459,14 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	return auth, res
 }
 
+func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
+	return ts.lastActivityMatchesExtended(name, details, id, nil)
+}
+
 // gets the latest activity and checks that it matches any provided properties.
 // empty string or 0 id means do not check that property. It returns the ID of that
 // latest activity.
-func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
+func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint, fleetInitiated *bool) uint {
 	t := ts.s.T()
 	var listActivities listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
@@ -474,6 +482,9 @@ func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 	}
 	if id > 0 {
 		assert.Equal(t, id, act.ID)
+	}
+	if fleetInitiated != nil {
+		assert.Equal(t, *fleetInitiated, act.FleetInitiated)
 	}
 	return act.ID
 }
@@ -538,9 +549,27 @@ func (ts *withServer) uploadSoftwareInstaller(
 	expectedStatus int,
 	expectedError string,
 ) {
+	ts.uploadSoftwareInstallerWithErrorNameReason(t, payload, expectedStatus, expectedError, "")
+}
+
+func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
+	t *testing.T,
+	payload *fleet.UploadSoftwareInstallerPayload,
+	expectedStatus int,
+	expectedErrorReason string,
+	expectedErrorName string,
+) {
 	t.Helper()
 
 	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+	// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
+	if errors.Is(err, os.ErrNotExist) {
+		var err2 error
+		tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
+		if err2 == nil {
+			err = nil
+		}
+	}
 	require.NoError(t, err)
 	defer tfr.Close()
 
@@ -568,6 +597,19 @@ func (ts *withServer) uploadSoftwareInstaller(
 	if payload.SelfService {
 		require.NoError(t, w.WriteField("self_service", "true"))
 	}
+	if payload.LabelsIncludeAny != nil {
+		for _, l := range payload.LabelsIncludeAny {
+			require.NoError(t, w.WriteField("labels_include_any", l))
+		}
+	}
+	if payload.LabelsExcludeAny != nil {
+		for _, l := range payload.LabelsExcludeAny {
+			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
+	if payload.AutomaticInstall {
+		require.NoError(t, w.WriteField("automatic_install", "true"))
+	}
 
 	w.Close()
 
@@ -578,6 +620,90 @@ func (ts *withServer) uploadSoftwareInstaller(
 	}
 
 	r := ts.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", b.Bytes(), expectedStatus, headers)
+	defer r.Body.Close()
+
+	if expectedErrorReason != "" || expectedErrorName != "" {
+		errName, errReason := extractServerErrorNameReason(r.Body)
+		if expectedErrorName != "" {
+			require.Equal(t, expectedErrorName, errName)
+		}
+		if expectedErrorReason != "" {
+			require.Contains(t, errReason, expectedErrorReason)
+		}
+	}
+}
+
+func (ts *withServer) updateSoftwareInstaller(
+	t *testing.T,
+	payload *fleet.UpdateSoftwareInstallerPayload,
+	expectedStatus int,
+	expectedError string,
+) {
+	t.Helper()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the software field
+	if payload.Filename != "" && payload.InstallerFile != nil {
+		fw, err := w.CreateFormFile("software", payload.Filename)
+		require.NoError(t, err)
+		n, err := io.Copy(fw, payload.InstallerFile)
+		require.NoError(t, err)
+		require.NotZero(t, n)
+	}
+
+	// add the team_id field
+	var tmID uint
+	if payload.TeamID != nil {
+		tmID = *payload.TeamID
+	}
+	require.NoError(t, w.WriteField("team_id", fmt.Sprintf("%d", tmID)))
+	// add the remaining fields
+	if payload.InstallScript != nil {
+		require.NoError(t, w.WriteField("install_script", *payload.InstallScript))
+	}
+	if payload.PreInstallQuery != nil {
+		require.NoError(t, w.WriteField("pre_install_query", *payload.PreInstallQuery))
+	}
+	if payload.PostInstallScript != nil {
+		require.NoError(t, w.WriteField("post_install_script", *payload.PostInstallScript))
+	}
+	if payload.UninstallScript != nil {
+		require.NoError(t, w.WriteField("uninstall_script", *payload.UninstallScript))
+	}
+	if payload.SelfService != nil {
+		if *payload.SelfService {
+			require.NoError(t, w.WriteField("self_service", "true"))
+		} else {
+			require.NoError(t, w.WriteField("self_service", "false"))
+		}
+	}
+	if payload.LabelsIncludeAny != nil {
+		for _, l := range payload.LabelsIncludeAny {
+			require.NoError(t, w.WriteField("labels_include_any", l))
+		}
+	}
+	if payload.LabelsExcludeAny != nil {
+		for _, l := range payload.LabelsExcludeAny {
+			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
+	if payload.Categories != nil {
+		for _, c := range payload.Categories {
+			require.NoError(t, w.WriteField("categories", c))
+		}
+	}
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", ts.token),
+	}
+
+	r := ts.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", payload.TitleID), b.Bytes(), expectedStatus, headers)
 	defer r.Body.Close()
 
 	if expectedError != "" {

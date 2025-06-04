@@ -1,4 +1,5 @@
 .editor {
+  position: relative; // needed for copy button
 
   &__label {
     font-size: $x-small;
@@ -17,5 +18,19 @@
     .ace-fleet {
       border: 1px solid $core-vibrant-red;
     }
+  }
+
+  /* Matches inputfield copy button position */
+  &__copy-wrapper {
+    position: absolute;
+    top: 28px;
+    right: 5px;
+    z-index: 2; /* Ensure it's above the editor */
+    display: flex;
+    align-items: center;
+  }
+
+  &__copied-confirmation {
+    @include copy-message;
   }
 }

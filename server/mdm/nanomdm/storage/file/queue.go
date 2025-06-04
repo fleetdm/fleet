@@ -101,7 +101,8 @@ func (q *queue) getNext() (*mdm.Command, error) {
 }
 
 // EnqueueCommand writes the command to disk in the queue directory
-func (s *FileStorage) EnqueueCommand(_ context.Context, ids []string, command *mdm.Command) (map[string]error, error) {
+func (s *FileStorage) EnqueueCommand(_ context.Context, ids []string, command *mdm.CommandWithSubtype) (map[string]error,
+	error) {
 	idErrs := make(map[string]error)
 	for _, id := range ids {
 		e := s.newEnrollment(id)
@@ -153,21 +154,28 @@ func (s *FileStorage) StoreCommandReport(r *mdm.Request, report *mdm.CommandResu
 }
 
 // RetrieveNextCommand gets the next command from the queue while minding NotNow status
-func (s *FileStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.Command, error) {
+func (s *FileStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error) {
 	e := s.newEnrollment(r.ID)
 	var q *queue
 	if !skipNotNow {
 		q = e.newQueue(subNotNow)
 		raw, err := q.getNext()
 		if err != nil {
-			return raw, err
+			return nil, err
 		}
 		if raw != nil {
-			return raw, nil
+			return &mdm.CommandWithSubtype{Command: *raw}, nil
 		}
 	}
 	q = e.newQueue(subQueue)
-	return q.getNext()
+	raw, err := q.getNext()
+	if err != nil {
+		return nil, err
+	}
+	if raw != nil {
+		return &mdm.CommandWithSubtype{Command: *raw}, nil
+	}
+	return nil, nil
 }
 
 func (s *FileStorage) ClearQueue(r *mdm.Request) error {

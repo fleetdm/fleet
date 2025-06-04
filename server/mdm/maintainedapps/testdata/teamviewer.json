@@ -6,7 +6,7 @@
 	"name": [
 		"TeamViewer"
 	],
-	"desc": "Remote access and connectivity software focused on security",
+	"desc": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration.",
 	"homepage": "https://www.teamviewer.com/",
 	"url": "https://dl.teamviewer.com/download/version_15x/update/15.57.5/TeamViewer.pkg",
 	"url_specs": {},

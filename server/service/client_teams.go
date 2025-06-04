@@ -105,24 +105,29 @@ func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers [
 	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
 }
 
-func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	query.Add("team_name", tmName)
 	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
 }
 
-func (c *Client) ApplyNoTeamAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyNoTeamAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) ([]fleet.VPPAppResponse, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
 }
 
-func (c *Client) applyAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, query url.Values) error {
+func (c *Client) applyAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, query url.Values) ([]fleet.VPPAppResponse, error) {
 	verb, path := "POST", "/api/latest/fleet/software/app_store_apps/batch"
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"app_store_apps": vppBatchPayload}, verb, path, nil, query.Encode())
+	var appsResponse batchAssociateAppStoreAppsResponse
+	err := c.authenticatedRequestWithQuery(map[string]interface{}{"app_store_apps": vppBatchPayload}, verb, path, &appsResponse, query.Encode())
+	if err != nil {
+		return nil, err
+	}
+	return appsResponse.Apps, nil
 }

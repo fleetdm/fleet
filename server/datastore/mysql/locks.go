@@ -126,8 +126,12 @@ func (ds *Datastore) DBLocks(ctx context.Context) ([]*fleet.DBLock, error) {
 	// Even though this is a Read, use the writer as we want the db locks from
 	// the primary database (the read replica should have little to no trx locks).
 	if err := ds.writer(ctx).SelectContext(ctx, &locks, stmt); err != nil {
-		// To read innodb tables, DB user must have PROCESS privilege
-		// This can be set by DB admin like: GRANT PROCESS,SELECT ON *.* TO 'fleet'@'%';
+		// To read innodb tables, the DB user must have PROCESS and SELECT privileges.
+		//
+		// This can be set by a DB admin by running:
+		//	GRANT PROCESS,SELECT ON *.* TO 'fleet'@'%';
+		//	FLUSH PRIVILEGES;
+		// Make sure to restart fleet after running the commands above.
 		if isMySQLAccessDenied(err) {
 			return nil, &accessDeniedError{
 				Message:     "select locking information: DB user must have global PROCESS and SELECT privilege",

@@ -6,7 +6,7 @@
 	"name": [
 		"Cloudflare WARP"
 	],
-	"desc": "Free app that makes your Internet safer",
+	"desc": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy.",
 	"homepage": "https://cloudflarewarp.com/",
 	"url": "https://1111-releases.cloudflareclient.com/mac/Cloudflare_WARP_2024.6.474.0.pkg",
 	"url_specs": {

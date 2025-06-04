@@ -25,6 +25,14 @@ $max-width: 2560px;
   }
 }
 
+// Used to normalize styling of team header wrapper on various pages
+@mixin normalize-team-header {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  justify-content: space-between;
+}
+
 //  Used to keep the settings description sticky under the main nav and sub nav.
 // TODO: figure out how to calculate these values with variables. Will be tedious to change otherwise
 @mixin sticky-settings-description {
@@ -115,6 +123,12 @@ $max-width: 2560px;
   filter: grayscale(0.5);
   pointer-events: none;
   cursor: default;
+
+  // Must override
+  &:hover,
+  &:focus {
+    cursor: default;
+  }
 }
 
 @mixin disabled-checkbox {
@@ -132,7 +146,9 @@ $max-width: 2560px;
   font-size: $xx-small;
   font-weight: $regular;
   @include grey-text;
-  .custom-link {
+
+  .custom-link,
+  button {
     font-size: inherit;
   }
 }
@@ -158,6 +174,10 @@ $max-width: 2560px;
   gap: $pad-small;
   white-space: nowrap;
   @include link;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 @mixin cell-with-link {
@@ -186,15 +206,16 @@ $max-width: 2560px;
   }
 }
 
-@mixin ellipse-text($width: auto) {
+@mixin ellipse-text($max-width: auto) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  width: $width;
+  max-width: $max-width;
 }
 
 @mixin copy-message {
   font-weight: $regular;
+  font-size: $x-small;
   vertical-align: top;
   background-color: $ui-light-grey;
   border: solid 1px #e2e4ea;
@@ -225,9 +246,16 @@ $max-width: 2560px;
   font-size: $xx-small;
   border-radius: 4px;
   box-sizing: border-box;
-  z-index: 99; // not more than the site nav
+  z-index: 100;
   line-height: 1.375;
   white-space: initial;
+
+  // Hyphenated words will still break at hyphens first
+  //  while non-hyphenated strings will break only when necessary
+  overflow-wrap: break-word; // Preferred property for modern browsers
+  word-wrap: break-word; // Fallback for older browsers e.g. IE
+  word-break: break-word; // Ensures words break when necessary
+
   p {
     margin: 0;
   }

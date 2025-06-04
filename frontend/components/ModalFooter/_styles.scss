@@ -1,0 +1,27 @@
+.modal-footer {
+  &__content-wrapper {
+    align-self: flex-end;
+    display: flex;
+    flex-direction: row-reverse;
+    padding-top: $pad-medium;
+    justify-content: space-between;
+  }
+
+  // Styles both primary-actions and secondary-actions
+  &__primary-buttons-wrapper,
+  &__secondary-buttons_wrapper {
+    display: flex;
+    justify-content: space-between;
+    gap: $pad-medium;
+    align-items: center;
+  }
+
+  // Align primary actions right if no secondary actions
+  > :last-child {
+    margin-left: auto;
+  }
+
+  .button__text-icon {
+    padding: 11px;
+  }
+}

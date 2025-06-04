@@ -11,33 +11,38 @@ Follow the setup in the [README.md](./README.md).
 
 ## Build and push fleetd N+1
 
+First, load new version Orbit variables:
+```sh
+source ./tools/tuf/test/load_orbit_version_vars.sh
+```
+
 ### orbit
 
 Build:
 ```sh
-GOOS=darwin GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=43" -o orbit-darwin ./orbit/cmd/orbit
-GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=43" -o orbit-linux ./orbit/cmd/orbit
-GOOS=windows GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=43" -o orbit.exe ./orbit/cmd/orbit
+GOOS=darwin GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-darwin ./orbit/cmd/orbit
+GOOS=linux GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit-linux ./orbit/cmd/orbit
+GOOS=windows GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION" -o orbit.exe ./orbit/cmd/orbit
 ```
 Push:
 ```sh
-./tools/tuf/test/push_target.sh macos orbit orbit-darwin 43
-./tools/tuf/test/push_target.sh linux orbit orbit-linux 43
-./tools/tuf/test/push_target.sh windows orbit orbit.exe 43
+./tools/tuf/test/push_target.sh macos orbit orbit-darwin $ORBIT_VERSION
+./tools/tuf/test/push_target.sh linux orbit orbit-linux $ORBIT_VERSION
+./tools/tuf/test/push_target.sh windows orbit orbit.exe $ORBIT_VERSION
 ```
 
 ### desktop
 
 Build:
 ```sh
-FLEET_DESKTOP_VERSION=43 make desktop-app-tar-gz
-FLEET_DESKTOP_VERSION=43 make desktop-windows
-FLEET_DESKTOP_VERSION=43 make desktop-linux
+FLEET_DESKTOP_VERSION=$ORBIT_VERSION make desktop-app-tar-gz
+FLEET_DESKTOP_VERSION=$ORBIT_VERSION make desktop-windows
+FLEET_DESKTOP_VERSION=$ORBIT_VERSION make desktop-linux
 ```
 ```sh
-./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz 43
-./tools/tuf/test/push_target.sh linux desktop desktop.tar.gz 43
-./tools/tuf/test/push_target.sh windows desktop fleet-desktop.exe 43
+./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz $ORBIT_VERSION
+./tools/tuf/test/push_target.sh windows desktop fleet-desktop.exe $ORBIT_VERSION
+./tools/tuf/test/push_target.sh linux desktop desktop.tar.gz $ORBIT_VERSION
 ```
 
 ### osqueryd
@@ -71,6 +76,6 @@ Release:
 
 ## Verify auto-update
 
-1. Run the following live query on the hosts: `SELECT * FROM orbit_info;`. The query should now return `version=43`.
+1. Run the following live query on the hosts: `SELECT * FROM orbit_info;`. The query should now return `version=$ORBIT_VERSION`.
 2. Run the following live query on the hosts: `SELECT * FROM osquery_info;`. The query should now return `version=5.11.0`.
-3. Verify all hosts now show "Fleet Desktop v43.0.0" on the Fleet Desktop menu.
+3. Verify all hosts now show "Fleet Desktop $ORBIT_VERSION" on the Fleet Desktop menu.

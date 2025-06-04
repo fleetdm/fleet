@@ -2,10 +2,14 @@
 
 set -e
 
-pkill file-server || true
-echo "Running TUF server"
-go run ./tools/file-server 8081 "${TUF_PATH}/repository" &
-until curl --silent -o /dev/null http://localhost:8081/root.json; do
+if curl --silent -o /dev/null "http://localhost:$TUF_PORT/root.json" ; then
+    echo "TUF server already running"
+    exit 0
+fi 
+
+echo "Start TUF server"
+go run ./tools/file-server "$TUF_PORT" "${TUF_PATH}/repository" &
+until curl --silent -o /dev/null "http://localhost:$TUF_PORT/root.json"; do
     sleep 1
 done
 echo "TUF server started"

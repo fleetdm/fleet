@@ -1,10 +1,11 @@
 // Core
 $core-fleet-black: #192147;
+$core-fleet-white: #ffffff; // TODO: merge with core-white
 $core-fleet-blue: #3e4771;
 $core-vibrant-blue: #6a67fe;
 $core-vibrant-red: #ff5c83;
 $core-fleet-purple: #ae6ddf;
-$core-white: #ffffff;
+$core-white: #ffffff; // TODO: merge with core-fleet-white
 $core-dark-blue-grey: #506e92;
 $site-nav-on-hover: #0e1533;
 
@@ -54,6 +55,8 @@ $core-vibrant-red-over: #e93661;
 $core-vibrant-red-down: #cb3559;
 $core-vibrant-blue-over: #5d5ae7;
 $core-vibrant-blue-down: #4b4ab4;
+$ui-success-over: #36a26d;
+$ui-success-down: #2b7f56;
 $core-focused-outline: #d9d9fe;
 $core-fleet-blue-over: #303860;
 $core-fleet-blue-down: $core-fleet-black;

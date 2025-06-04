@@ -19,7 +19,6 @@ package file
 // https://github.com/sassoftware/relic
 
 import (
-	"bytes"
 	"compress/bzip2"
 	"compress/zlib"
 	"crypto"
@@ -30,6 +29,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -107,9 +107,11 @@ type xmlFile struct {
 
 // distributionXML represents the structure of the distributionXML.xml
 type distributionXML struct {
-	Title   string               `xml:"title"`
-	Product distributionProduct  `xml:"product"`
-	PkgRefs []distributionPkgRef `xml:"pkg-ref"`
+	Title          string                     `xml:"title"`
+	Product        distributionProduct        `xml:"product"`
+	PkgRefs        []distributionPkgRef       `xml:"pkg-ref"`
+	Choices        []distributionChoice       `xml:"choice"`
+	ChoicesOutline distributionChoicesOutline `xml:"choices-outline"`
 }
 
 type packageInfoXML struct {
@@ -135,6 +137,20 @@ type distributionPkgRef struct {
 	InstallKBytes     string                      `xml:"installKBytes,attr"`
 }
 
+type distributionChoice struct {
+	PkgRef distributionPkgRef `xml:"pkg-ref"`
+	Title  string             `xml:"title,attr"`
+	ID     string             `xml:"id,attr"`
+}
+
+type distributionChoicesOutline struct {
+	Lines []distributionLine `xml:"line"`
+}
+
+type distributionLine struct {
+	Choice string `xml:"choice,attr"`
+}
+
 // distributionBundleVersion represents the bundle-version element
 type distributionBundleVersion struct {
 	Bundles []distributionBundle `xml:"bundle"`
@@ -157,35 +173,40 @@ type distributionApp struct {
 	ID string `xml:"id,attr"`
 }
 
+// XARHasDistribution checks if XAR archive has a Distribution file
+func XARHasDistribution(r io.Reader) (bool, error) {
+	hdr, err := readXARFileHeader(r)
+	if err != nil {
+		return false, err
+	}
+	root, err := decodeXARTOCData(r, hdr)
+	if err != nil {
+		return false, err
+	}
+	for _, f := range root.TOC.Files {
+		if f.Name == "Distribution" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // ExtractXARMetadata extracts the name and version metadata from a .pkg file
 // in the XAR format.
 func ExtractXARMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
-	var hdr xarHeader
-
 	h := sha256.New()
 	size, _ := io.Copy(h, tfr) // writes to a hash cannot fail
-
 	if err := tfr.Rewind(); err != nil {
 		return nil, fmt.Errorf("rewind reader: %w", err)
 	}
 
-	// read the file header
-	if err := binary.Read(tfr, binary.BigEndian, &hdr); err != nil {
-		return nil, fmt.Errorf("decode xar header: %w", err)
-	}
-
-	zr, err := zlib.NewReader(io.LimitReader(tfr, hdr.CompressedSize))
+	hdr, err := readXARFileHeader(tfr)
 	if err != nil {
-		return nil, fmt.Errorf("create zlib reader: %w", err)
+		return nil, err
 	}
-	defer zr.Close()
-
-	// decode the TOC data (in XML inside the zlib-compressed data)
-	var root xmlXar
-	decoder := xml.NewDecoder(zr)
-	decoder.Strict = false
-	if err := decoder.Decode(&root); err != nil {
-		return nil, fmt.Errorf("decode xar xml: %w", err)
+	root, err := decodeXARTOCData(tfr, hdr)
+	if err != nil {
+		return nil, err
 	}
 
 	// look for the distribution file, with the metadata information
@@ -229,6 +250,31 @@ func ExtractXARMetadata(tfr *fleet.TempFileReader) (*InstallerMetadata, error) {
 	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
 }
 
+func readXARFileHeader(r io.Reader) (xarHeader, error) {
+	var hdr xarHeader
+	if err := binary.Read(r, binary.BigEndian, &hdr); err != nil {
+		return hdr, fmt.Errorf("decode xar header: %w", err)
+	}
+	return hdr, nil
+}
+
+func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
+	var root xmlXar
+	zr, err := zlib.NewReader(io.LimitReader(r, hdr.CompressedSize))
+	if err != nil {
+		return root, fmt.Errorf("create zlib reader: %w", err)
+	}
+	defer zr.Close()
+
+	// decode the TOC data (in XML inside the zlib-compressed data)
+	decoder := xml.NewDecoder(zr)
+	decoder.Strict = false
+	if err := decoder.Decode(&root); err != nil {
+		return root, fmt.Errorf("decode xar xml: %w", err)
+	}
+	return root, nil
+}
+
 func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, f *xmlFile) ([]byte, error) {
 	var fileReader io.Reader
 	heapReader := io.NewSectionReader(rat, heapOffset, sectionLength-heapOffset)
@@ -270,7 +316,14 @@ func parseDistributionFile(rawXML []byte) (*InstallerMetadata, error) {
 		BundleIdentifier: identifier,
 		PackageIDs:       packageIDs,
 	}, nil
+}
 
+// Set of package names we know are incorrect. If we see these in the Distribution file we should
+// try to get the name some other way.
+var knownBadNames = map[string]struct{}{
+	"DISTRIBUTION_TITLE": {},
+	"MacFULL":            {},
+	"SU_TITLE":           {},
 }
 
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
@@ -278,7 +331,7 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 	var appVersion string
 
 	// find the package ids that have an installation size
-	var packageIDSet = make(map[string]struct{}, 1)
+	packageIDSet := make(map[string]struct{}, 1)
 	for _, pkg := range d.PkgRefs {
 		if pkg.InstallKBytes != "" && pkg.InstallKBytes != "0" {
 			var id string
@@ -310,20 +363,33 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 		packageIDs = append(packageIDs, id)
 	}
 
-out:
 	// look in all the bundle versions for one that has a `path` attribute
 	// that is not nested, this is generally the case for packages that distribute
 	// `.app` files, which are ultimately picked up as an installed app by osquery
+	var potentialBundles []distributionBundle
 	for _, pkg := range d.PkgRefs {
 		for _, versions := range pkg.BundleVersions {
-			for _, bundle := range versions.Bundles {
-				if base, isValid := isValidAppFilePath(bundle.Path); isValid {
-					identifier = bundle.ID
-					name = base
-					appVersion = bundle.CFBundleShortVersionString
-					break out
-				}
-			}
+			potentialBundles = append(potentialBundles, versions.Bundles...)
+		}
+	}
+
+	// Prefer paths that refer to Applications for name, bundle ID, etc.
+	slices.SortFunc(potentialBundles, func(a distributionBundle, b distributionBundle) int {
+		if strings.HasPrefix(a.Path, "Applications/") && !strings.HasPrefix(b.Path, "Applications/") {
+			return -1
+		}
+		if strings.HasPrefix(b.Path, "Applications/") && !strings.HasPrefix(a.Path, "Applications/") {
+			return 1
+		}
+		return 0
+	})
+
+	for _, bundle := range potentialBundles {
+		if base, isValid := isValidAppFilePath(bundle.Path); isValid {
+			identifier = bundle.ID
+			name = strings.TrimSuffix(base, ".app")
+			appVersion = bundle.CFBundleShortVersionString
+			break
 		}
 	}
 
@@ -334,6 +400,44 @@ out:
 		for _, pkg := range d.PkgRefs {
 			if len(pkg.MustClose.Apps) > 0 {
 				identifier = pkg.MustClose.Apps[0].ID
+				break
+			}
+		}
+	}
+
+	// if the identifier is still empty, try to use the product id, and make sure it's in the package IDs list
+	if identifier == "" && d.Product.ID != "" {
+		identifier = d.Product.ID
+		if !slices.Contains(packageIDs, identifier) {
+			packageIDs = append(packageIDs, identifier)
+		}
+	}
+
+	// Try to get the identifier based on the choices list, if we have one. Some .pkgs have multiple
+	// sub-pkgs inside, so the choices list helps us be a bit smarter.
+	if identifier == "" && len(d.ChoicesOutline.Lines) > 0 {
+		choicesByID := make(map[string]distributionChoice, len(d.Choices))
+		for _, c := range d.Choices {
+			choicesByID[c.ID] = c
+		}
+
+		for _, l := range d.ChoicesOutline.Lines {
+			c := choicesByID[l.Choice]
+			// Note: we can't create a map of pkg-refs by ID like we do for the choices above
+			// because different pkg-refs can have the same ID attribute. See distribution-go.xml
+			// for an example of this (this case is covered in tests).
+			for _, p := range d.PkgRefs {
+				if p.ID == c.PkgRef.ID {
+					identifier = p.PackageIdentifier
+					if identifier == "" {
+						identifier = p.ID
+					}
+					break
+				}
+			}
+
+			if identifier != "" {
+				// we found it, so we can quit looping
 				break
 			}
 		}
@@ -353,11 +457,6 @@ out:
 		}
 	}
 
-	// if the identifier is still empty, try to use the product id
-	if identifier == "" && d.Product.ID != "" {
-		identifier = d.Product.ID
-	}
-
 	// if package IDs are still empty, use the identifier as the package ID
 	if len(packageIDs) == 0 && identifier != "" {
 		packageIDs = append(packageIDs, identifier)
@@ -368,7 +467,30 @@ out:
 	if name == "" && d.Title != "" {
 		name = d.Title
 	}
+
+	if _, ok := knownBadNames[name]; ok {
+		name = ""
+	}
+
 	if name == "" {
+		// Try to find a <choice> tag that matches the bundle ID for this app. It might have the app
+		// name, so if we find it we can use that.
+		for _, c := range d.Choices {
+			if c.PkgRef.ID == identifier && c.Title != "" {
+				name = c.Title
+			}
+		}
+	}
+
+	if name == "" { // Fall back to any bundle ID in packages for name matching vs. choices
+		for _, c := range d.Choices {
+			if slices.Contains(packageIDs, c.PkgRef.ID) && c.Title != "" {
+				name = c.Title
+			}
+		}
+	}
+
+	if name == "" { // fall back to bundle ID
 		name = identifier
 	}
 
@@ -405,12 +527,11 @@ func parsePackageInfoFile(rawXML []byte) (*InstallerMetadata, error) {
 		BundleIdentifier: identifier,
 		PackageIDs:       packageIDs,
 	}, nil
-
 }
 
 // getPackageInfo gets the name, bundle identifier and version of a PKG top level PackageInfo file
 func getPackageInfo(p *packageInfoXML) (name string, identifier string, version string, packageIDs []string) {
-	var packageIDSet = make(map[string]struct{}, 1)
+	packageIDSet := make(map[string]struct{}, 1)
 	for _, bundle := range p.Bundles {
 		installPath := bundle.Path
 		if p.InstallLocation != "" {
@@ -483,13 +604,7 @@ func isValidAppFilePath(input string) (string, bool) {
 //
 // - If the file is not xar, it returns a ErrInvalidType error
 // - If the file is not signed, it returns a ErrNotSigned error
-func CheckPKGSignature(pkg io.Reader) error {
-	buff := bytes.NewBuffer(nil)
-	if _, err := io.Copy(buff, pkg); err != nil {
-		return err
-	}
-	r := bytes.NewReader(buff.Bytes())
-
+func CheckPKGSignature(r io.ReaderAt) error {
 	hdr, hashType, err := parseHeader(io.NewSectionReader(r, 0, 28))
 	if err != nil {
 		return err

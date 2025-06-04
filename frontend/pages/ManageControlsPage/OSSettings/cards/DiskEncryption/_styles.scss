@@ -1,7 +1,7 @@
 .disk-encryption {
-  &__premium-feature-message {
-    margin-top: 80px;
-    text-align: center;
+  .premium-feature-message-container {
+    justify-content: initial;
+    align-items: initial;
   }
 
   > p {
@@ -14,5 +14,18 @@
 
   .disk-encryption-content {
     animation: fade-in 250ms ease-out;
+  }
+  .section-header__sub-title a {
+    font-size: inherit;
+    color: inherit;
+  }
+
+  .data-table {
+    &__wrapper {
+      // Keeps table data within the table container at smaller screen sizes
+      overflow-x: auto;
+      // Prevent border from causing .side-nav__card-container horizontal scroll
+      box-sizing: border-box;
+    }
   }
 }

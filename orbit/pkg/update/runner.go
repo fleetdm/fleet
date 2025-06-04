@@ -121,6 +121,14 @@ func NewRunner(updater *Updater, opt RunnerOptions) (*Runner, error) {
 		return runner, nil
 	}
 
+	if _, err := updater.Lookup(constant.OrbitTUFTargetName); errors.Is(err, client.ErrNoLocalSnapshot) {
+		// Return early and skip optimization, this will cause an unnecessary auto-update of orbit
+		// but allows orbit to start up if there's no local metadata AND if the TUF server is down
+		// (which may be the case during the migration from https://tuf.fleetctl.com to
+		// https://updates.fleetdm.com).
+		return runner, nil
+	}
+
 	// Initialize the hashes of the local files for all tracked targets.
 	//
 	// This is an optimization to not compute the hash of the local files every opt.CheckInterval
@@ -172,8 +180,8 @@ func (r *Runner) HasLocalHash(target string) bool {
 	return ok
 }
 
-func randomizeDuration(max time.Duration) (time.Duration, error) {
-	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+func randomizeDuration(maxTime time.Duration) (time.Duration, error) {
+	nBig, err := rand.Int(rand.Reader, big.NewInt(int64(maxTime)))
 	if err != nil {
 		return 0, err
 	}
@@ -319,18 +327,29 @@ func (r *Runner) updateTarget(target string) error {
 	if err != nil {
 		return fmt.Errorf("get binary: %w", err)
 	}
+	// if this target is not orbit or osquery, do nothing else
+	if target != constant.OsqueryTUFTargetName && target != constant.OrbitTUFTargetName {
+		return nil
+	}
 	path := localTarget.ExecPath
+	newVersion, err := GetVersion(path)
+	if err != nil {
+		return fmt.Errorf("get new version from binary: %w", err)
+	}
 
 	if target == constant.OsqueryTUFTargetName {
 		// Compare old/new osquery versions
-		_, _ = compareVersion(path, r.OsqueryVersion, constant.OsqueryTUFTargetName)
+		_ = compareVersion(newVersion, r.OsqueryVersion, constant.OsqueryTUFTargetName)
 	}
 
 	if target != constant.OrbitTUFTargetName {
 		return nil
 	}
+
+	// target now guaranteed to be orbit
+
 	// Compare old/new orbit versions
-	_, _ = compareVersion(path, build.Version, "fleetd")
+	oVC := compareVersion(newVersion, build.Version, "fleetd")
 
 	// Symlink Orbit binary
 	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
@@ -342,6 +361,13 @@ func (r *Runner) updateTarget(target string) error {
 		return fmt.Errorf("symlink current: %w", err)
 	}
 
+	// oVC == 1 if upgrading or -1 if downgrading, 0 if the same version
+	if oVC != nil && *oVC != 0 && runtime.GOOS == "windows" {
+		if err := updateUninstallFleetdRegistryVersion(newVersion); err != nil {
+			return fmt.Errorf("update orbit version in Windows registry: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -350,12 +376,10 @@ func (r *Runner) Interrupt(err error) {
 }
 
 // compareVersion compares the old and new versions of a binary and prints the appropriate message.
-// The return value is only used for unit tests.
-func compareVersion(path string, oldVersion string, targetDisplayName string) (*int, error) {
-	newVersion, err := GetVersion(path)
-	if err != nil {
-		return nil, err
-	}
+// The return value is used to determine whether to update the Windows registry and for unit tests.
+func compareVersion(newVersion string, oldVersion string, targetDisplayName string) *int {
+	// this function is essentially a wrapper with logging of semver.IsValid and semver.Compare,
+	// neither of which return an error, so this doesn't return an error either
 	vOldVersion := "v" + oldVersion
 	vNewVersion := "v" + newVersion
 	if semver.IsValid(vOldVersion) && semver.IsValid(vNewVersion) {
@@ -368,9 +392,9 @@ func compareVersion(path string, oldVersion string, targetDisplayName string) (*
 		case -1:
 			log.Info().Msgf("Upgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
 		}
-		return &compareResult, nil
+		return &compareResult
 	}
-	return nil, nil
+	return nil
 }
 
 // Matches strings like:
@@ -384,8 +408,9 @@ func GetVersion(path string) (string, error) {
 	versionCmd := exec.Command(path, "--version")
 	out, err := versionCmd.CombinedOutput()
 	if err != nil {
-		log.Warn().Msgf("failed to get %s version: %s: %s", path, string(out), err)
-		return "", err
+		wrappedErr := fmt.Errorf("failed to get %s version: %s: %s", path, string(out), err)
+		log.Warn().Msg(wrappedErr.Error())
+		return "", wrappedErr
 	}
 	matches := versionRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
 	if len(matches) > 2 {

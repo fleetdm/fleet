@@ -43,6 +43,8 @@ module.exports = {
     maintenanceWindowsEnabled: {type: 'boolean', defaultsTo: false },
     maintenanceWindowsConfigured: {type: 'boolean', defaultsTo: false },
     numHostsFleetDesktopEnabled: {type: 'number', defaultsTo: 0 },
+    numQueries: {type: 'number', defaultsTo: 0 },
+    numHostsABMPending: {type: 'number', defaultsTo: 0 },
   },
 
 

@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -226,70 +227,28 @@ WHERE
 	return commands, nil
 }
 
-// TODO(roberto): much of this logic should be living in the service layer,
-// would be nice to get the time to properly plan and implement.
-func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, fullResponse *fleet.SyncML) error {
-	if len(fullResponse.Raw) == 0 {
+func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string, enrichedSyncML fleet.EnrichedSyncML) error {
+	if len(enrichedSyncML.Raw) == 0 {
 		return ctxerr.New(ctx, "empty raw response")
 	}
 
-	const (
-		findCommandsStmt    = `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
-		saveFullRespStmt    = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
-		dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE command_uuid IN (?)`
-
-		insertResultsStmt = `
-INSERT INTO windows_mdm_command_results
-    (enrollment_id, command_uuid, raw_result, response_id, status_code)
-VALUES %s
-ON DUPLICATE KEY UPDATE
-    raw_result = COALESCE(VALUES(raw_result), raw_result),
-    status_code = COALESCE(VALUES(status_code), status_code)
-`
-	)
-
-	enrollment, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	enrolledDevice, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting enrollment with device ID")
+		return ctxerr.Wrap(ctx, err, "getting enrolled device with device ID")
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// grab all the incoming UUIDs
-		var cmdUUIDs []string
-		uuidsToStatus := make(map[string]fleet.SyncMLCmd)
-		uuidsToResults := make(map[string]fleet.SyncMLCmd)
-		for _, protoOp := range fullResponse.GetOrderedCmds() {
-			// results and status should contain a command they're
-			// referencing
-			cmdRef := protoOp.Cmd.CmdRef
-			if !protoOp.Cmd.ShouldBeTracked(protoOp.Verb) || cmdRef == nil {
-				continue
-			}
-
-			switch protoOp.Verb {
-			case fleet.CmdStatus:
-				uuidsToStatus[*cmdRef] = protoOp.Cmd
-				cmdUUIDs = append(cmdUUIDs, *cmdRef)
-			case fleet.CmdResults:
-				uuidsToResults[*cmdRef] = protoOp.Cmd
-				cmdUUIDs = append(cmdUUIDs, *cmdRef)
-			}
-		}
-
-		// no relevant commands to tracks is a noop
-		if len(cmdUUIDs) == 0 {
-			return nil
-		}
-
 		// store the full response
-		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrollment.ID, fullResponse.Raw)
+		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
+		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "saving full response")
 		}
 		responseID, _ := sqlResult.LastInsertId()
 
 		// find commands we sent that match the UUID responses we've got
-		stmt, params, err := sqlx.In(findCommandsStmt, cmdUUIDs)
+		const findCommandsStmt = `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
+		stmt, params, err := sqlx.In(findCommandsStmt, enrichedSyncML.CmdRefUUIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to search matching commands")
 		}
@@ -300,7 +259,8 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		if len(matchingCmds) == 0 {
-			ds.logger.Log("warn", "unmatched commands", "uuids", cmdUUIDs)
+			level.Warn(ds.logger).Log("msg", "unmatched Windows MDM commands", "uuids", enrichedSyncML.CmdRefUUIDs, "mdm_device_id",
+				deviceID)
 			return nil
 		}
 
@@ -317,10 +277,22 @@ ON DUPLICATE KEY UPDATE
 
 		for _, cmd := range matchingCmds {
 			statusCode := ""
-			if status, ok := uuidsToStatus[cmd.CommandUUID]; ok && status.Data != nil {
+			if status, ok := enrichedSyncML.CmdRefUUIDToStatus[cmd.CommandUUID]; ok && status.Data != nil {
 				statusCode = *status.Data
 				if status.Cmd != nil && *status.Cmd == fleet.CmdAtomic {
-					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmd, uuidsToStatus, enrollment.HostUUID)
+					// The raw MDM command may contain a $FLEET_SECRET_XXX, which should never be exposed or stored unencrypted.
+					// Note: As of 2024/12/17, on <Add>, <Replace>, and <Exec> commands are exposed to Windows MDM users, so we should not see any secrets in <Atomic> commands. This code is here for future-proofing.
+					rawCommandStr := string(cmd.RawCommand)
+					rawCommandWithSecret, err := ds.ExpandEmbeddedSecrets(ctx, rawCommandStr)
+					if err != nil {
+						// This error should never happen since we validate the presence of needed secrets on profile upload.
+						return ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+					}
+					// Secret may be found in the command, so we make a new struct with the expanded secret.
+					cmdWithSecret := cmd
+					cmdWithSecret.RawCommand = []byte(rawCommandWithSecret)
+					pp, err := fleet.BuildMDMWindowsProfilePayloadFromMDMResponse(cmdWithSecret, enrichedSyncML.CmdRefUUIDToStatus,
+						enrolledDevice.HostUUID)
 					if err != nil {
 						return err
 					}
@@ -329,14 +301,14 @@ ON DUPLICATE KEY UPDATE
 			}
 
 			rawResult := []byte{}
-			if result, ok := uuidsToResults[cmd.CommandUUID]; ok && result.Data != nil {
+			if result, ok := enrichedSyncML.CmdRefUUIDToResults[cmd.CommandUUID]; ok && result.Data != nil {
 				var err error
 				rawResult, err = xml.Marshal(result)
 				if err != nil {
 					ds.logger.Log("err", err, "marshaling command result", "cmd_uuid", cmd.CommandUUID)
 				}
 			}
-			args = append(args, enrollment.ID, cmd.CommandUUID, rawResult, responseID, statusCode)
+			args = append(args, enrolledDevice.ID, cmd.CommandUUID, rawResult, responseID, statusCode)
 			sb.WriteString("(?, ?, ?, ?, ?),")
 
 			// if the command is a Wipe, keep track of it so we can update
@@ -352,6 +324,14 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		// store the command results
+		const insertResultsStmt = `
+INSERT INTO windows_mdm_command_results
+    (enrollment_id, command_uuid, raw_result, response_id, status_code)
+VALUES %s
+ON DUPLICATE KEY UPDATE
+    raw_result = COALESCE(VALUES(raw_result), raw_result),
+    status_code = COALESCE(VALUES(status_code), status_code)
+`
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting command results")
@@ -359,7 +339,7 @@ ON DUPLICATE KEY UPDATE
 
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
-			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrollment.HostUUID,
+			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrolledDevice.HostUUID,
 				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2"), false,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
@@ -371,7 +351,8 @@ ON DUPLICATE KEY UPDATE
 		for _, cmd := range matchingCmds {
 			matchingUUIDs = append(matchingUUIDs, cmd.CommandUUID)
 		}
-		stmt, params, err = sqlx.In(dequeueCommandsStmt, matchingUUIDs)
+		const dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid IN (?)`
+		stmt, params, err = sqlx.In(dequeueCommandsStmt, enrolledDevice.ID, matchingUUIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN to dequeue commands")
 		}
@@ -403,9 +384,10 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	// update their detail and status.
 	const updateHostProfilesStmt = `
 		INSERT INTO host_mdm_windows_profiles
-			(host_uuid, profile_uuid, detail, status, retries, command_uuid)
+			(host_uuid, profile_uuid, detail, status, retries, command_uuid, checksum)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
+			checksum = VALUES(checksum),
 			detail = VALUES(detail),
 			status = VALUES(status),
 			retries = VALUES(retries)`
@@ -413,7 +395,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	// MySQL will use the `host_uuid` part of the primary key as a first
 	// pass, and then filter that subset by `command_uuid`.
 	const getMatchingHostProfilesStmt = `
-		SELECT host_uuid, profile_uuid, command_uuid, retries
+		SELECT host_uuid, profile_uuid, command_uuid, retries, checksum
 		FROM host_mdm_windows_profiles
 		WHERE host_uuid = ? AND command_uuid IN (?)`
 
@@ -458,8 +440,8 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 				hp.Retries++
 			}
 		}
-		args = append(args, hp.HostUUID, hp.ProfileUUID, payload.Detail, payload.Status, hp.Retries)
-		sb.WriteString("(?, ?, ?, ?, ?, command_uuid),")
+		args = append(args, hp.HostUUID, hp.ProfileUUID, payload.Detail, payload.Status, hp.Retries, hp.Checksum)
+		sb.WriteString("(?, ?, ?, ?, ?, command_uuid, ?),")
 	}
 
 	stmt = fmt.Sprintf(updateHostProfilesStmt, strings.TrimSuffix(sb.String(), ","))
@@ -532,7 +514,7 @@ func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) str
 		whereEncrypted        = `(hd.encrypted IS NOT NULL AND hd.encrypted = 1)`
 		whereHostDisksUpdated = `(hd.updated_at IS NOT NULL AND hdek.updated_at IS NOT NULL AND hd.updated_at >= hdek.updated_at)`
 		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
-		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR))`
+		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
 	)
 
 	// TODO: what if windows sends us a key for an already encrypted volumne? could it get stuck
@@ -585,7 +567,7 @@ AND (
 }
 
 func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
-	enabled, err := ds.getConfigEnableDiskEncryption(ctx, teamID)
+	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -604,11 +586,16 @@ SELECT
     0 AS removing_enforcement
 FROM
     hosts h
+    JOIN host_mdm hmdm ON h.id = hmdm.host_id
+    JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
     LEFT JOIN host_disk_encryption_keys hdek ON h.id = hdek.host_id
-	LEFT JOIN host_mdm hmdm ON h.id = hmdm.host_id
-	LEFT JOIN host_disks hd ON h.id = hd.host_id
+    LEFT JOIN host_disks hd ON h.id = hd.host_id
 WHERE
-    h.platform = 'windows' AND hmdm.is_server = 0 AND %s`
+    mwe.device_state = '%s' AND
+    h.platform = 'windows' AND
+    hmdm.is_server = 0 AND
+    hmdm.enrolled = 1 AND
+    %s`
 
 	var args []interface{}
 	teamFilter := "h.team_id IS NULL"
@@ -624,6 +611,7 @@ WHERE
 		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
 		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
 		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, args...); err != nil {
@@ -655,7 +643,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
-	enabled, err := ds.getConfigEnableDiskEncryption(ctx, host.TeamID)
+	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
 	if err != nil {
 		return nil, err
 	}
@@ -766,7 +754,22 @@ WHERE
 }
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
-	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profileUUID)
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
+			return err
+		}
+
+		// cancel any pending host installs immediately for this profile
+		if err := cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID}); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func deleteMDMWindowsConfigProfile(ctx context.Context, tx sqlx.ExtContext, profileUUID string) error {
+	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -774,6 +777,31 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 	deleted, _ := res.RowsAffected() // cannot fail for mysql
 	if deleted != 1 {
 		return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
+	}
+	return nil
+}
+
+func cancelWindowsHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+	// For Windows, we currently don't support sending a command to remove a
+	// profile that was installed, so all we need to do here is delete any
+	// host-profile tuple that had this profile (whether with operation install
+	// or remove, does not matter).
+	const delStmt = `
+	DELETE FROM
+		host_mdm_windows_profiles
+	WHERE profile_uuid IN (?)`
+
+	if len(profileUUIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(delStmt, profileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN to delete host_mdm_windows_profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host_mdm_windows_profiles for deleted profile")
 	}
 	return nil
 }
@@ -887,7 +915,7 @@ func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}, e
 }
 
 func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	includeBitLocker, err := ds.getConfigEnableDiskEncryption(ctx, teamID)
+	includeBitLocker, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -924,7 +952,7 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 }
 
 type statusCounts struct {
-	Status string `db:"status"`
+	Status string `db:"final_status"`
 	Count  uint   `db:"count"`
 }
 
@@ -970,7 +998,7 @@ SELECT
             'verified'
         ELSE
             ''
-    END AS status,
+    END AS final_status,
     SUM(1) AS count
 FROM
     hosts h
@@ -980,9 +1008,10 @@ WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
     hmdm.is_server = 0 AND
+    hmdm.enrolled = 1 AND
     %s
 GROUP BY
-    status`,
+    final_status`,
 		subqueryFailed,
 		subqueryPending,
 		subqueryVerifying,
@@ -1101,7 +1130,7 @@ SELECT
         END)
     ELSE
         REPLACE((%s), 'bitlocker_', '')
-    END as status,
+    END as final_status,
     SUM(1) as count
 FROM
     hosts h
@@ -1112,9 +1141,10 @@ WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
     hmdm.is_server = 0 AND
+    hmdm.enrolled = 1 AND
     %s
 GROUP BY
-    status`,
+    final_status`,
 		profilesStatus,
 		bitlockerStatus,
 		bitlockerStatus,
@@ -1138,6 +1168,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
+		mwcp.checksum,
+		mwcp.secrets_updated_at,
 		h.uuid as host_uuid,
 		0 as count_profile_labels,
 		0 as count_non_broken_labels,
@@ -1166,6 +1198,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
+		mwcp.checksum,
+		mwcp.secrets_updated_at,
 		h.uuid as host_uuid,
 		COUNT(*) as count_profile_labels,
 		COUNT(mcpl.label_id) as count_non_broken_labels,
@@ -1199,6 +1233,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
+		mwcp.checksum,
+		mwcp.secrets_updated_at,
 		h.uuid as host_uuid,
 		COUNT(*) as count_profile_labels,
 		COUNT(mcpl.label_id) as count_non_broken_labels,
@@ -1235,6 +1271,8 @@ const windowsMDMProfilesDesiredStateQuery = `
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
+		mwcp.checksum,
+		mwcp.secrets_updated_at,
 		h.uuid as host_uuid,
 		COUNT(*) as count_profile_labels,
 		COUNT(mcpl.label_id) as count_non_broken_labels,
@@ -1267,138 +1305,154 @@ func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fl
 	// be without and use the reader replica?
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		result, err = listMDMWindowsProfilesToInstallDB(ctx, tx, nil, nil)
+		result, err = ds.listAllMDMWindowsProfilesToInstallDB(ctx, tx)
 		return err
 	})
 	return result, err
 }
 
-func listMDMWindowsProfilesToInstallDB(
-	ctx context.Context,
-	tx sqlx.ExtContext,
-	hostUUIDs []string,
-	onlyProfileUUIDs []string,
-) ([]*fleet.MDMWindowsProfilePayload, error) {
-	// The query below is a set difference between:
-	//
-	// - Set A (ds), the "desired state", can be obtained from a JOIN between
-	//   mdm_windows_configuration_profiles and hosts.
-	//
-	// - Set B, the "current state" given by host_mdm_windows_profiles.
-	//
-	// A - B gives us the profiles that need to be installed:
-	//
-	//   - profiles that are in A but not in B
-	//
-	//   - profiles that are in A and in B, with an operation type of "install"
-	//   and a NULL status. Other statuses mean that the operation is already in
-	//   flight (pending), the operation has been completed but is still subject
-	//   to independent verification by Fleet (verifying), or has reached a terminal
-	//   state (failed or verified). If the profile's content is edited, all relevant hosts will
-	//   be marked as status NULL so that it gets re-installed.
-	//
-	// Note that for label-based profiles, only fully-satisfied profiles are
-	// considered for installation. This means that a broken label-based profile,
-	// where one of the labels does not exist anymore, will not be considered for
-	// installation.
-
-	query := fmt.Sprintf(`
+// The query below is a set difference between:
+//
+//   - Set A (ds), the "desired state", can be obtained from a JOIN between
+//     mdm_windows_configuration_profiles and hosts.
+//
+// - Set B, the "current state" given by host_mdm_windows_profiles.
+//
+// A - B gives us the profiles that need to be installed:
+//
+//   - profiles that are in A but not in B
+//
+//   - profiles that are in A and in B, with an operation type of "install"
+//     and a NULL status. Other statuses mean that the operation is already in
+//     flight (pending), the operation has been completed but is still subject
+//     to independent verification by Fleet (verifying), or has reached a terminal
+//     state (failed or verified). If the profile's content is edited, all relevant hosts will
+//     be marked as status NULL so that it gets re-installed.
+//
+// Note that for label-based profiles, only fully-satisfied profiles are
+// considered for installation. This means that a broken label-based profile,
+// where one of the labels does not exist anymore, will not be considered for
+// installation.
+const windowsProfilesToInstallQuery = `
 	SELECT
 		ds.profile_uuid,
 		ds.host_uuid,
-		ds.name as profile_name
-	FROM ( %s ) as ds
+		ds.name as profile_name,
+		ds.checksum,
+		ds.secrets_updated_at
+	FROM ( ` + windowsMDMProfilesDesiredStateQuery + ` ) as ds
 		LEFT JOIN host_mdm_windows_profiles hmwp
 			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
 	WHERE
+		-- profile or secret variables have been updated
+		( hmwp.checksum != ds.checksum ) OR IFNULL(hmwp.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
 		-- profiles in A but not in B
 		( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
 		-- profiles in A and B with operation type "install" and NULL status
 		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL )
-`, windowsMDMProfilesDesiredStateQuery)
+`
 
-	hostFilter := "TRUE"
-	if len(hostUUIDs) > 0 {
-		if len(onlyProfileUUIDs) > 0 {
-			hostFilter = "mwcp.profile_uuid IN (?) AND h.uuid IN (?)"
-		} else {
-			hostFilter = "h.uuid IN (?)"
-		}
+func (ds *Datastore) listAllMDMWindowsProfilesToInstallDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMWindowsProfilePayload, error) {
+	var profiles []*fleet.MDMWindowsProfilePayload
+	err := sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToInstallQuery, "TRUE", "TRUE", "TRUE", "TRUE"), fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to install")
 	}
 
-	var err error
-	args := []any{fleet.MDMOperationTypeInstall}
-	query = fmt.Sprintf(query, hostFilter, hostFilter, hostFilter, hostFilter)
-	if len(hostUUIDs) > 0 {
+	return profiles, nil
+}
+
+func (ds *Datastore) listMDMWindowsProfilesToInstallDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostUUIDs []string,
+	onlyProfileUUIDs []string,
+) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
+	if len(hostUUIDs) == 0 {
+		return profiles, nil
+	}
+
+	hostFilter := "h.uuid IN (?)"
+	if len(onlyProfileUUIDs) > 0 {
+		hostFilter = "mwcp.profile_uuid IN (?) AND h.uuid IN (?)"
+	}
+
+	toInstallQuery := fmt.Sprintf(windowsProfilesToInstallQuery, hostFilter, hostFilter, hostFilter, hostFilter)
+
+	// use a 10k host batch size to match what we do on the macOS side.
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
+	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
+
+	for i := range selectProfilesTotalBatches {
+		start := i * selectProfilesBatchSize
+		end := min(start+selectProfilesBatchSize, len(hostUUIDs))
+
+		batchUUIDs := hostUUIDs[start:end]
+
+		var args []any
+		var stmt string
 		if len(onlyProfileUUIDs) > 0 {
-			query, args, err = sqlx.In(
-				query,
-				onlyProfileUUIDs, hostUUIDs,
-				onlyProfileUUIDs, hostUUIDs,
-				onlyProfileUUIDs, hostUUIDs,
-				onlyProfileUUIDs, hostUUIDs,
+			stmt, args, err = sqlx.In(
+				toInstallQuery,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
 				fleet.MDMOperationTypeInstall,
 			)
 		} else {
-			query, args, err = sqlx.In(query, hostUUIDs, hostUUIDs, hostUUIDs, hostUUIDs, fleet.MDMOperationTypeInstall)
+			stmt, args, err = sqlx.In(toInstallQuery, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeInstall)
 		}
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "building sqlx.In")
+			return nil, ctxerr.Wrapf(ctx, err, "building sqlx.In for list MDM windows profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
 		}
+
+		var partialResult []*fleet.MDMWindowsProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to install, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		profiles = append(profiles, partialResult...)
 	}
 
-	var profiles []*fleet.MDMWindowsProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &profiles, query, args...)
-	return profiles, err
+	return profiles, nil
 }
 
 func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var result []*fleet.MDMWindowsProfilePayload
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		result, err = listMDMWindowsProfilesToRemoveDB(ctx, tx, nil, nil)
+		result, err = ds.listAllMDMWindowsProfilesToRemoveDB(ctx, tx)
 		return err
 	})
 
 	return result, err
 }
 
-func listMDMWindowsProfilesToRemoveDB(
-	ctx context.Context,
-	tx sqlx.ExtContext,
-	hostUUIDs []string,
-	onlyProfileUUIDs []string,
-) ([]*fleet.MDMWindowsProfilePayload, error) {
-	// The query below is a set difference between:
-	//
-	// - Set A (ds), the desired state, can be obtained from a JOIN between
-	// mdm_windows_configuration_profiles and hosts.
-	// - Set B, the current state given by host_mdm_windows_profiles.
-	//
-	// B - A gives us the profiles that need to be removed
-	//
-	// Any other case are profiles that are in both B and A, and as such are
-	// processed by the ListMDMWindowsProfilesToInstall method (since they are
-	// in both, their desired state is necessarily to be installed).
-	//
-	// Note that for label-based profiles, only those that are fully-sastisfied
-	// by the host are considered for install (are part of the desired state used
-	// to compute the ones to remove). However, as a special case, a broken
-	// label-based profile will NOT be removed from a host where it was
-	// previously installed. However, if a host used to satisfy a label-based
-	// profile but no longer does (and that label-based profile is not "broken"),
-	// the profile will be removed from the host.
-
-	hostFilter := "TRUE"
-	if len(hostUUIDs) > 0 {
-		if len(onlyProfileUUIDs) > 0 {
-			hostFilter = "hmwp.profile_uuid IN (?) AND hmwp.host_uuid IN (?)"
-		} else {
-			hostFilter = "hmwp.host_uuid IN (?)"
-		}
-	}
-
-	query := fmt.Sprintf(`
+// The query below is a set difference between:
+//
+// - Set A (ds), the desired state, can be obtained from a JOIN between
+// mdm_windows_configuration_profiles and hosts.
+// - Set B, the current state given by host_mdm_windows_profiles.
+//
+// # B - A gives us the profiles that need to be removed
+//
+// Any other case are profiles that are in both B and A, and as such are
+// processed by the ListMDMWindowsProfilesToInstall method (since they are
+// in both, their desired state is necessarily to be installed).
+//
+// Note that for label-based profiles, only those that are fully-satisfied
+// by the host are considered for install (are part of the desired state used
+// to compute the ones to remove). However, as a special case, a broken
+// label-based profile will NOT be removed from a host where it was
+// previously installed. However, if a host used to satisfy a label-based
+// profile but no longer does (and that label-based profile is not "broken"),
+// the profile will be removed from the host.
+const windowsProfilesToRemoveQuery = `
 	SELECT
 		hmwp.profile_uuid,
 		hmwp.host_uuid,
@@ -1406,7 +1460,7 @@ func listMDMWindowsProfilesToRemoveDB(
 		COALESCE(hmwp.detail, '') as detail,
 		hmwp.status,
 		hmwp.command_uuid
-	FROM ( %s ) as ds
+	FROM ( ` + windowsMDMProfilesDesiredStateQuery + ` ) as ds
 		RIGHT JOIN host_mdm_windows_profiles hmwp
 			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
 	WHERE
@@ -1424,24 +1478,69 @@ func listMDMWindowsProfilesToRemoveDB(
 				mcpl.label_id IS NULL
 		) AND
 		(%s)
-`, fmt.Sprintf(windowsMDMProfilesDesiredStateQuery, "TRUE", "TRUE", "TRUE", "TRUE"), hostFilter)
+`
 
-	var err error
-	var args []any
-	if len(hostUUIDs) > 0 {
-		if len(onlyProfileUUIDs) > 0 {
-			query, args, err = sqlx.In(query, onlyProfileUUIDs, hostUUIDs)
-		} else {
-			query, args, err = sqlx.In(query, hostUUIDs)
-		}
-		if err != nil {
-			return nil, err
-		}
+func (ds *Datastore) listAllMDMWindowsProfilesToRemoveDB(ctx context.Context, tx sqlx.ExtContext) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
+	err = sqlx.SelectContext(ctx, tx, &profiles, fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "TRUE"))
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to remove")
 	}
 
-	var profiles []*fleet.MDMWindowsProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &profiles, query, args...)
-	return profiles, err
+	return profiles, nil
+}
+
+func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostUUIDs []string,
+	onlyProfileUUIDs []string,
+) (profiles []*fleet.MDMWindowsProfilePayload, err error) {
+	if len(hostUUIDs) == 0 {
+		return profiles, nil
+	}
+
+	hostFilter := "hmwp.host_uuid IN (?)"
+	if len(onlyProfileUUIDs) > 0 {
+		hostFilter = "hmwp.profile_uuid IN (?) AND hmwp.host_uuid IN (?)"
+	}
+
+	toRemoveQuery := fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", hostFilter)
+
+	// use a 10k host batch size to match what we do on the macOS side.
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
+	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
+
+	for i := range selectProfilesTotalBatches {
+		start := i * selectProfilesBatchSize
+		end := min(start+selectProfilesBatchSize, len(hostUUIDs))
+
+		batchUUIDs := hostUUIDs[start:end]
+
+		var err error
+		var args []any
+		var stmt string
+		if len(onlyProfileUUIDs) > 0 {
+			stmt, args, err = sqlx.In(toRemoveQuery, onlyProfileUUIDs, batchUUIDs)
+		} else {
+			stmt, args, err = sqlx.In(toRemoveQuery, batchUUIDs)
+		}
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "building sqlx.In for list MDM windows profiles to remove, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		var partialResult []*fleet.MDMWindowsProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "selecting windows MDM profiles to remove, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		profiles = append(profiles, partialResult...)
+	}
+
+	return profiles, nil
 }
 
 func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
@@ -1452,13 +1551,14 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		stmt := fmt.Sprintf(`
 	    INSERT INTO host_mdm_windows_profiles (
-              profile_uuid,
+	      profile_uuid,
 	      host_uuid,
 	      status,
 	      operation_type,
 	      detail,
 	      command_uuid,
-	      profile_name
+	      profile_name,
+	      checksum
             )
             VALUES %s
 	    ON DUPLICATE KEY UPDATE
@@ -1466,6 +1566,7 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
               operation_type = VALUES(operation_type),
               detail = VALUES(detail),
               profile_name = VALUES(profile_name),
+              checksum = VALUES(checksum),
               command_uuid = VALUES(command_uuid)`,
 			strings.TrimSuffix(valuePart, ","),
 		)
@@ -1493,8 +1594,8 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 	}
 
 	for _, p := range payload {
-		args = append(args, p.ProfileUUID, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.ProfileName)
-		sb.WriteString("(?, ?, ?, ?, ?, ?, ?),")
+		args = append(args, p.ProfileUUID, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.ProfileName, p.Checksum)
+		sb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
 		batchCount++
 
 		if batchCount >= batchSize {
@@ -1513,13 +1614,13 @@ func (ds *Datastore) BulkUpsertMDMWindowsHostProfiles(ctx context.Context, paylo
 	return nil
 }
 
-func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []string) (map[string][]byte, error) {
+func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []string) (map[string]fleet.MDMWindowsProfileContents, error) {
 	if len(uuids) == 0 {
 		return nil, nil
 	}
 
 	stmt := `
-          SELECT profile_uuid, syncml
+          SELECT profile_uuid, syncml, checksum
           FROM mdm_windows_configuration_profiles WHERE profile_uuid IN (?)
 	`
 	query, args, err := sqlx.In(stmt, uuids)
@@ -1530,14 +1631,18 @@ func (ds *Datastore) GetMDMWindowsProfilesContents(ctx context.Context, uuids []
 	var profs []struct {
 		ProfileUUID string `db:"profile_uuid"`
 		SyncML      []byte `db:"syncml"`
+		Checksum    []byte `db:"checksum"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profs, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running query")
 	}
 
-	results := make(map[string][]byte)
+	results := make(map[string]fleet.MDMWindowsProfileContents, len(profs))
 	for _, p := range profs {
-		results[p.ProfileUUID] = p.SyncML
+		results[p.ProfileUUID] = fleet.MDMWindowsProfileContents{
+			SyncML:   p.SyncML,
+			Checksum: p.Checksum,
+		}
 	}
 
 	return results, nil
@@ -1666,7 +1771,11 @@ INSERT INTO
 			cp.LabelsExcludeAny[i].Exclude = true
 			labels = append(labels, cp.LabelsExcludeAny[i])
 		}
-		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "windows"); err != nil {
+		var profsWithoutLabel []string
+		if len(labels) == 0 {
+			profsWithoutLabel = append(profsWithoutLabel, profileUUID)
+		}
+		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profsWithoutLabel, "windows"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
 		}
 
@@ -1759,6 +1868,16 @@ WHERE
   name NOT IN (?)
 `
 
+	const loadToBeDeletedProfilesNotInList = `
+SELECT
+	profile_uuid
+FROM
+	mdm_windows_configuration_profiles
+WHERE
+	team_id = ? AND
+	name NOT IN (?)
+`
+
 	const deleteAllProfilesForTeam = `
 DELETE FROM
   mdm_windows_configuration_profiles
@@ -1766,6 +1885,16 @@ WHERE
   team_id = ?
 `
 
+	const loadToBeDeletedProfiles = `
+SELECT
+	profile_uuid
+FROM
+	mdm_windows_configuration_profiles
+WHERE
+	team_id = ?
+`
+
+	// For Windows profiles, if team_id and name are the same, we do an update. Otherwise, we do an insert.
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_windows_configuration_profiles (
@@ -1836,7 +1965,16 @@ ON DUPLICATE KEY UPDATE
 	)
 	// delete the obsolete profiles (all those that are not in keepNames)
 	var result sql.Result
+	var deletedProfileUUIDs []string
 	if len(keepNames) > 0 {
+		stmt, args, err = sqlx.In(loadToBeDeletedProfilesNotInList, profTeamID, keepNames)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "build statement to load obsolete profiles")
+		}
+		if err = sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, stmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "load obsolete profiles")
+		}
+
 		stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepNames)
 		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "indelete") {
 			if err == nil {
@@ -1852,6 +1990,10 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
 		}
 	} else {
+		if err = sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, loadToBeDeletedProfiles, profTeamID); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "load obsolete profiles")
+		}
+
 		if result, err = tx.ExecContext(ctx, deleteAllProfilesForTeam,
 			profTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "delete") {
 			if err == nil {
@@ -1863,6 +2005,12 @@ ON DUPLICATE KEY UPDATE
 	if result != nil {
 		rows, _ := result.RowsAffected()
 		updatedDB = rows > 0
+	}
+	if len(deletedProfileUUIDs) > 0 {
+		// cancel installs of the deleted profiles immediately
+		if err := cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
+		}
 	}
 
 	// insert the new profiles and the ones that have changed
@@ -1882,6 +2030,7 @@ ON DUPLICATE KEY UPDATE
 	// between macOS and Windows, but at the time of this
 	// implementation we're under tight time constraints.
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
+	var profsWithoutLabel []string
 	if len(incomingNames) > 0 {
 		var newlyInsertedProfs []*fleet.MDMWindowsConfigProfile
 		// load current profiles (again) that match the incoming profiles by name to grab their uuids
@@ -1905,30 +2054,37 @@ ON DUPLICATE KEY UPDATE
 				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Name)
 			}
 
+			var profHasLabel bool
 			for _, label := range incomingProf.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = true
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsIncludeAny {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsExcludeAny {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
 				label.Exclude = true
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
+				profHasLabel = true
+			}
+			if !profHasLabel {
+				profsWithoutLabel = append(profsWithoutLabel, newlyInsertedProf.ProfileUUID)
 			}
 		}
 	}
 
 	// insert/delete the label associations
 	var updatedLabels bool
-	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels,
+	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, profsWithoutLabel,
 		"windows"); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "labels") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
@@ -1949,12 +2105,12 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 		return false, nil
 	}
 
-	profilesToInstall, err := listMDMWindowsProfilesToInstallDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
+	profilesToInstall, err := ds.listMDMWindowsProfilesToInstallDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list profiles to install")
 	}
 
-	profilesToRemove, err := listMDMWindowsProfilesToRemoveDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
+	profilesToRemove, err := ds.listMDMWindowsProfilesToRemoveDB(ctx, tx, hostUUIDs, onlyProfileUUIDs)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list profiles to remove")
 	}
@@ -2000,6 +2156,7 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 				profile_uuid,
 				host_uuid,
 				status,
+				checksum,
 				COALESCE(operation_type, '') AS operation_type,
 				COALESCE(detail, '') AS detail,
 				COALESCE(command_uuid, '') AS command_uuid,
@@ -2038,14 +2195,16 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 					profile_name,
 					operation_type,
 					status,
-					command_uuid
+					command_uuid,
+					checksum
 				)
 				VALUES %s
 				ON DUPLICATE KEY UPDATE
 					operation_type = VALUES(operation_type),
 					status = NULL,
 					command_uuid = VALUES(command_uuid),
-					detail = ''
+					detail = '',
+					checksum = VALUES(checksum)
 			`, strings.TrimSuffix(valuePart, ","))
 
 		_, err := tx.ExecContext(ctx, baseStmt, args...)
@@ -2066,11 +2225,12 @@ func (ds *Datastore) bulkSetPendingMDMWindowsHostProfilesDB(
 			Detail:        p.Detail,
 			CommandUUID:   p.CommandUUID,
 			Retries:       p.Retries,
+			Checksum:      p.Checksum,
 		}
 		pargs = append(
 			pargs, p.ProfileUUID, p.HostUUID, p.ProfileName,
-			fleet.MDMOperationTypeInstall)
-		psb.WriteString("(?, ?, ?, ?, NULL, ''),")
+			fleet.MDMOperationTypeInstall, p.Checksum)
+		psb.WriteString("(?, ?, ?, ?, NULL, '', ?),")
 		batchCount++
 		if batchCount >= batchSize {
 			if err := executeUpsertBatch(psb.String(), pargs); err != nil {

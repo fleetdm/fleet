@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/open"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/gofrs/flock"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -110,6 +111,21 @@ func main() {
 		log.Info().Msgf("got a TUF update root: %s", tufUpdateRoot)
 	}
 
+	// We've only seen this bug appear on Linux under certain very
+	// specific conditions
+	if runtime.GOOS == "linux" {
+		// Ensure only one instance of Fleet Desktop is running at a time
+		lockFile, err := getLockfile()
+		if err != nil {
+			log.Fatal().Err(err).Msg("could not secure lock file")
+		}
+		defer func() {
+			if err := lockFile.Unlock(); err != nil {
+				log.Error().Err(err).Msg("unlocking lockfile")
+			}
+		}()
+	}
+
 	// Setting up working runners such as signalHandler runner
 	go setupRunners()
 
@@ -124,7 +140,21 @@ func main() {
 	const checkInterval = 5 * time.Minute
 	summaryTicker := time.NewTicker(checkInterval)
 
+	// we have seen some cases where systray.Run() does not call onReady seemingly due to early
+	// initialization states with the GUI such as Windows Autopilot first time setup. This ensures
+	// we don't just hang forever waiting for the GUI to be ready.
+	trayAppDisplayed := make(chan struct{})
+	go func() {
+		select {
+		case <-trayAppDisplayed:
+			// The tray app is ready and displayed so there is nothing to do
+		case <-time.After(1 * time.Minute):
+			log.Fatal().Msg("onReady was never called - the GUI may not yet be ready")
+		}
+	}()
+
 	onReady := func() {
+		close(trayAppDisplayed)
 		log.Info().Msg("ready")
 
 		systray.SetTooltip("Fleet Desktop")
@@ -412,9 +442,9 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					openURL := client.BrowserDeviceURL(tokenReader.GetCached())
+					openURL := client.BrowserPoliciesURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
-						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
+						log.Error().Err(err).Str("url", openURL).Msg("open browser policies")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
 					summaryTicker.Reset(1 * time.Millisecond)
@@ -477,6 +507,27 @@ func main() {
 		systray.Quit()
 	}()
 
+	// Check for the system tray icon periodically and kill the process if it's missing,
+	// forcing the parent to restart it. This may happen if a Linux display manager
+	// is restarted.
+	if runtime.GOOS == "linux" {
+		log.Debug().Msg("starting tray icon checker")
+		go func() {
+			checkTrayIconTicker := time.NewTicker(5 * time.Second)
+
+			for {
+				<-checkTrayIconTicker.C
+				if !trayIconExists() {
+					log.Warn().Msg("system tray icon missing, exiting")
+					// Cleanly stop systray.
+					systray.Quit()
+					// Exit to trigger restart.
+					os.Exit(75)
+				}
+			}
+		}()
+	}
+
 	systray.Run(onReady, onExit)
 }
 
@@ -537,10 +588,36 @@ func (m *mdmMigrationHandler) NotifyRemote() error {
 func (m *mdmMigrationHandler) ShowInstructions() error {
 	openURL := m.client.BrowserDeviceURL(m.tokenReader.GetCached())
 	if err := open.Browser(openURL); err != nil {
-		log.Error().Err(err).Str("url", openURL).Msg("open browser")
+		log.Error().Err(err).Str("url", openURL).Msg("open browser my device (mdm migration handler)")
 		return err
 	}
 	return nil
+}
+
+// getLockfile checks for the fleet desktop lock file, and returns an error if it can't secure it.
+func getLockfile() (*flock.Flock, error) {
+	dir, err := logDir()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get logdir for lock: %w", err)
+	}
+	// Same as the log dir in setupLogs()
+	dir = filepath.Join(dir, "Fleet")
+
+	lockFilePath := filepath.Join(dir, "fleet-desktop.lock")
+	log.Debug().Msgf("acquiring fleet desktop lockfile: %s", lockFilePath)
+
+	lock := flock.New(lockFilePath)
+	locked, err := lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("error getting lock on %s: %w", lockFilePath, err)
+	}
+	if !locked {
+		return nil, errors.New("another instance of fleet desktop has the lock")
+	}
+
+	log.Debug().Msgf("lock acquired on %s", lockFilePath)
+
+	return lock, nil
 }
 
 // setupLogs configures our logging system to write logs to rolling files, if for some

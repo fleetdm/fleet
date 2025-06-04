@@ -1,3 +1,5 @@
+// TODO: Clean up/remove isPreviewMode
+
 import React, { useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
@@ -31,7 +33,7 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
     const { DASHBOARD } = paths;
 
     try {
-      const { user, available_teams, token } = await sessionsAPI.create(
+      const { user, available_teams, token } = await sessionsAPI.login(
         formData
       );
       local.setItem("auth_token", token);
@@ -59,7 +61,11 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
   return (
     <AuthenticationFormWrapper>
       <LoginSuccessfulPage />
-      <LoginForm handleSubmit={onSubmit} />
+      <LoginForm
+        handleSubmit={onSubmit}
+        isSubmitting={false}
+        pendingEmail={false}
+      />
     </AuthenticationFormWrapper>
   );
 };

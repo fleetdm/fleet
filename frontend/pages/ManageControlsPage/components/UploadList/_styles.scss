@@ -22,5 +22,9 @@
     &:last-child {
       border-bottom: initial;
     }
+
+    &:hover {
+      background-color: $ui-off-white;
+    }
   }
 }

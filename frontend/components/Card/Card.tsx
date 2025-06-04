@@ -1,16 +1,20 @@
+// Base component to reusable <InfoBanner/>, <HostCountCard/>, <SectionCard/>, etc
+// and countless single use components
 import React from "react";
 import classnames from "classnames";
+
+import { Link } from "react-router";
 
 const baseClass = "card";
 
 type BorderRadiusSize = "small" | "medium" | "large" | "xlarge" | "xxlarge";
-type CardColor = "white" | "gray" | "purple" | "yellow";
+type CardColor = "white" | "grey" | "purple" | "yellow";
 
 interface ICardProps {
   children?: React.ReactNode;
   /** The size of the border radius. Defaults to `small`.
    *
-   * These correspond to the boarder radius in the design system. Look at
+   * These correspond to the border radius in the design system. Look at
    * `var/_global.scss` for values */
   borderRadiusSize?: BorderRadiusSize;
   /** Includes the card shadows. Defaults to `false` */
@@ -34,6 +38,8 @@ interface ICardProps {
    *
    * Increases to 40px padding. Defaults to `false` */
   largePadding?: boolean;
+  /** The link path users can be direct to when clicking the card */
+  path?: string;
 }
 
 /**
@@ -48,6 +54,7 @@ const Card = ({
   className,
   largePadding = false,
   paddingSize = "large",
+  path,
 }: ICardProps) => {
   const classNames = classnames(
     baseClass,
@@ -63,6 +70,15 @@ const Card = ({
     className
   );
 
+  if (path) {
+    // Uses Link instead of Button to include right click functionality
+    // Cannot use Link disable option as it doesn't allow hover of tooltip
+    return (
+      <Link className={classNames} to={path}>
+        {children}
+      </Link>
+    );
+  }
   return <div className={classNames}>{children}</div>;
 };
 

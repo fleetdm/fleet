@@ -1,0 +1,14 @@
+.run-script {
+  &__description {
+    margin: 0;
+  }
+
+  &__learn-how-link {
+  margin-bottom: $pad-large;
+  }
+
+  &__run-message {
+    margin: 0 0 $pad-small;
+    font-weight: $bold;
+  }
+}

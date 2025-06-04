@@ -18,10 +18,15 @@ func (s *FileStorage) StoreBootstrapToken(r *mdm.Request, msg *mdm.SetBootstrapT
 	return nil
 }
 
+// RetrieveBootstrapToken reads the BootstrapToken from disk and returns it.
+// If no token yet exists a nil token and no error are returned.
 func (s *FileStorage) RetrieveBootstrapToken(r *mdm.Request, _ *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error) {
 	e := s.newEnrollment(r.ID)
 	bsTokenRaw, err := e.readFile(BootstrapTokenFile)
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		// mute the error if we haven't escrowed a token yet.
+		return nil, nil
+	} else if err != nil {
 		return nil, err
 	}
 	bsToken := &mdm.BootstrapToken{

@@ -1,5 +1,16 @@
+// Allows tooltip truncation on initial render
 .os-type-cell {
   display: flex;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   align-items: center;
   gap: $pad-small;
+
+  &__tooltip-wrapper {
+    display: flex;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }

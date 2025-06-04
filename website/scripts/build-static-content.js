@@ -36,16 +36,168 @@ module.exports = {
     }//ﬁ
 
     await sails.helpers.flow.simultaneously([
-      async()=>{// Parse query library from YAML and prepare to bake them into the Sails app's configuration.
-        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
+      async()=>{// Parse queries.yml library (Informational queries and host vital queries) from YAML and prepare to bake them into the Sails app's configuration.
+        let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/queries.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find standard query library YAML file at "${RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
-
-        let queriesWithProblematicResolutions = [];
+        let linesInYamlFile = yaml.split('\n');
+        let queriesWithProblematicDiscovery = [];
         let queriesWithProblematicContributors = [];
         let queriesWithProblematicTags = [];
         let queries = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
           let query = yamlDocument.toJSON().spec;
           query.kind = yamlDocument.toJSON().kind;
+          query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
+
+          // Determine the line in the yaml that this query starts on.
+          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
+          let lineWithTheQueriesNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+query.name);
+          });
+          let lineNumberForEdittingThisQuery = linesInYamlFile.indexOf(lineWithTheQueriesNameKey);
+          query.lineNumberInYaml = lineNumberForEdittingThisQuery; // Set the line number for edits.
+
+          // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
+          query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)|\(Chrome\)|\(macOS\/Linux\)$/, '');
+
+
+          if ((query.discovery !== undefined && !_.isString(query.discovery)) || (query.kind !== 'built-in' && _.isString(query.discovery))) {
+            queriesWithProblematicDiscovery.push(query);
+          }
+
+          if (query.tags) {
+            if(!_.isString(query.tags)) {
+              queriesWithProblematicTags.push(query);
+            } else {
+              // Splitting tags into an array to format them.
+              let tagsToFormat = query.tags.split(',');
+              let formattedTags = [];
+              for (let tag of tagsToFormat) {
+                if(tag !== '') {// « Ignoring any blank tags caused by trailing commas in the YAML.
+                  // Removing any extra whitespace from tags and changing them to be in lower case.
+                  formattedTags.push(_.trim(tag.toLowerCase()));
+                }
+              }
+              // Removing any duplicate tags.
+              query.tags = _.uniq(formattedTags);
+            }
+          } else {
+            query.tags = []; // « if there are no tags, we set query.tags to an empty array so it is always the same data type.
+          }
+
+          // GitHub usernames may only contain alphanumeric characters or single hyphens, and cannot begin or end with a hyphen.
+          if(query.kind !== 'built-in') {// Note: queries with kind: built-in do not have a contributors value.
+            if (!query.contributors || (query.contributors !== undefined && !_.isString(query.contributors)) || query.contributors.split(',').some((contributor) => contributor.match('^[^A-za-z0-9].*|[^A-Za-z0-9-]|.*[^A-za-z0-9]$'))) {
+              queriesWithProblematicContributors.push(query);
+            }
+          }
+
+          return query;
+        });
+        // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
+        if (queriesWithProblematicDiscovery.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "discovery" of a query should either be absent (undefined) or a single string (not a list of strings).  And "discovery" should only be present when a query\'s kind is "built-in".  But one or more queries have an invalid "discovery": ' + _.pluck(queriesWithProblematicDiscovery, 'slug').sort());
+        }//•
+        if (queriesWithProblematicTags.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "tags" of a query should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more queries have invalid "tags": ' + _.pluck(queriesWithProblematicTags, 'slug').sort());
+        }
+        // Assert uniqueness of slugs.
+        if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
+          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
+        }//•
+        // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
+        if (queriesWithProblematicContributors.length >= 1) {
+          throw new Error('Failed parsing YAML for query library: The "contributors" of a query should be a single string of valid GitHub user names (e.g. "zwass", or "zwass,noahtalerman,mikermcneil").  But one or more queries have an invalid "contributors" value: ' + _.pluck(queriesWithProblematicContributors, 'slug').sort());
+        }//•
+
+        // Get a distinct list of all GitHub usernames from all of our queries.
+        // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
+        const githubUsernames = queries.reduce((list, query) => {
+          if (!queriesWithProblematicContributors.find((element) => element.slug === query.slug) && query.kind !== 'built-in') {
+            list = _.union(list, query.contributors.split(','));
+          }
+          return list;
+        }, []);
+
+        let githubDataByUsername = {};
+
+        // If a GitHub access token was provided, validate all users listed in the standard query library YAML.
+        if(githubAccessToken) {
+          await sails.helpers.flow.simultaneouslyForEach(githubUsernames, async(username)=>{
+            githubDataByUsername[username] = await sails.helpers.http.get.with({
+              url: 'https://api.github.com/users/' + encodeURIComponent(username),
+              headers: baseHeadersForGithubRequests,
+            }).intercept((err)=>{
+              return new Error(`When validating users in standard-query-library.yml, an error when a request was sent to GitHub get the information about a user (username: ${username}). Error: ${err.stack}`);
+            });
+          });//∞
+          // Now expand queries with relevant profile data for the contributors.
+          for (let query of queries) {
+            // Skip built-in queries.
+            if(query.kind === 'built-in'){
+              continue;
+            }
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: githubDataByUsername[username].name,
+                handle: githubDataByUsername[username].login,
+                avatarUrl: githubDataByUsername[username].avatar_url,
+                htmlUrl: githubDataByUsername[username].html_url,
+              });
+            }
+            query.contributors = contributorProfiles;
+          }
+        } else {// Otherwise, use the Github username as contributor's names and handles and use fake profile pictures.
+          for (let query of queries) {
+            // Skip host vital queries.
+            if(query.kind === 'built-in'){
+              continue;
+            }
+            let usernames = query.contributors.split(',');
+            let contributorProfiles = [];
+            for (let username of usernames) {
+              contributorProfiles.push({
+                name: username,
+                handle: username,
+                avatarUrl: 'https://placekitten.com/200/200',
+                htmlUrl: 'https://github.com/'+encodeURIComponent(username),
+              });
+            }
+            query.contributors = contributorProfiles;
+          }
+        }
+
+        // Attach to what will become configuration for the Sails app.
+        builtStaticContent.queries = queries;
+        builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
+      },
+      async()=>{
+        // Parse query library from YAML and prepare to bake the policies into the Sails app's configuration.
+        // Note: we will only be using the policies from the standard query library YAML.
+        let RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO = 'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml';
+        // let RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO = 'docs/queries.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find standard query library YAML file at "${RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let linesInYamlFile = yaml.split('\n');
+        let queriesWithProblematicResolutions = [];
+        let queriesWithProblematicContributors = [];
+        let queriesWithProblematicTags = [];
+        let policies = YAML.parseAllDocuments(yaml).map((yamlDocument)=>{
+          let query = yamlDocument.toJSON().spec;
+          query.kind = yamlDocument.toJSON().kind;
+          // If this query is not a policy, we will skip it and return undefined.
+          if(query.kind === 'query'){
+            return undefined;
+          }
+          // Determine the line in the yaml that this query starts on.
+          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
+          let lineWithTheQueriesNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+query.name);
+          });
+          let lineNumberForEdittingThisQuery = linesInYamlFile.indexOf(lineWithTheQueriesNameKey);
+          query.lineNumberInYaml = lineNumberForEdittingThisQuery; // Set the line number for edits.
+
+
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
           // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
           query.name = query.name.replace(/\s\(macOS\)|\(Windows\)|\(Linux\)$/, '');
@@ -89,6 +241,9 @@ module.exports = {
           }
 
           return query;
+        }).filter((query)=>{
+          // Remove all queries we previously returned undefined for. Otherwise, they will cause the validation to always fail.
+          return query !== undefined;
         });
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
         if (queriesWithProblematicResolutions.length >= 1) {
@@ -98,8 +253,8 @@ module.exports = {
           throw new Error('Failed parsing YAML for query library: The "tags" of a query should either be absent (undefined) or a single string (not a list of strings). "tags" should be be be seperated by a comma.  But one or more queries have invalid "tags": ' + _.pluck(queriesWithProblematicTags, 'slug').sort());
         }
         // Assert uniqueness of slugs.
-        if (queries.length !== _.uniq(_.pluck(queries, 'slug')).length) {
-          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(queries, 'slug').sort());
+        if (policies.length !== _.uniq(_.pluck(policies, 'slug')).length) {
+          throw new Error('Failed parsing YAML for query library: Queries as currently named would result in colliding (duplicate) slugs.  To resolve, rename the queries whose names are too similar.  Note the duplicates: ' + _.pluck(policies, 'slug').sort());
         }//•
         // Report any errors that were detected along the way in one fell swoop to avoid endless resubmitting of PRs.
         if (queriesWithProblematicContributors.length >= 1) {
@@ -108,7 +263,7 @@ module.exports = {
 
         // Get a distinct list of all GitHub usernames from all of our queries.
         // Map all queries to build a list of unique contributor names then build a dictionary of user profile information from the GitHub Users API
-        const githubUsernames = queries.reduce((list, query) => {
+        const githubUsernames = policies.reduce((list, query) => {
           if (!queriesWithProblematicContributors.find((element) => element.slug === query.slug)) {
             list = _.union(list, query.contributors.split(','));
           }
@@ -128,7 +283,7 @@ module.exports = {
             });
           });//∞
           // Now expand queries with relevant profile data for the contributors.
-          for (let query of queries) {
+          for (let query of policies) {
             let usernames = query.contributors.split(',');
             let contributorProfiles = [];
             for (let username of usernames) {
@@ -142,7 +297,7 @@ module.exports = {
             query.contributors = contributorProfiles;
           }
         } else {// Otherwise, use the Github username as contributor's names and handles and use fake profile pictures.
-          for (let query of queries) {
+          for (let query of policies) {
             let usernames = query.contributors.split(',');
             let contributorProfiles = [];
             for (let username of usernames) {
@@ -155,11 +310,11 @@ module.exports = {
             }
             query.contributors = contributorProfiles;
           }
-        }//ﬁ
+        }
 
         // Attach to what will become configuration for the Sails app.
-        builtStaticContent.queries = queries;
-        builtStaticContent.queryLibraryYmlRepoPath = RELATIVE_PATH_TO_QUERY_LIBRARY_YML_IN_FLEET_REPO;
+        builtStaticContent.policies = policies;
+        builtStaticContent.policyLibraryYmlRepoPath = RELATIVE_PATH_TO_POLICY_LIBRARY_YML_IN_FLEET_REPO;
       },
       async()=>{// Parse markdown pages, compile & generate HTML files, and prepare to bake directory trees into the Sails app's configuration.
         let APP_PATH_TO_COMPILED_PAGE_PARTIALS = 'views/partials/built-from-markdown';
@@ -259,10 +414,11 @@ module.exports = {
               if(mdString.match(/(-|\d\.)\s.*\n<!-+\n/g)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains an HTML comment directly after a list that will cause rendering issues when converted to HTML. To resolve this error, add a blank newline before the start of the HTML comment in this file.`);
               }
-              // Look for anything in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
-              if(mdString.match(/\{\{([^}]+)\}\}/gi)) {
-                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/\{\{([^}]+)\}\}/gi)[0]}) that will cause client-side javascript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
+              // Look for anything outside of code blocks in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
+              if (mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/(?<!```.*)(?<!`){{([^}]+)}}(?!`)/gis)[0]}) that will cause client-side JavaScript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
               }
+
               mdString = mdString.replace(/(<call-to-action[\s\S]+[^>\n+])\n+(>)/g, '$1$2'); // « Removes any newlines that might exist before the closing `>` when the <call-to-action> compontent is added to markdown files.
               // [?] Looking for code that used to be here related to syntax highlighting?  Please see https://github.com/fleetdm/fleet/pull/14124/files  -mikermcneil, 2023-09-25
               let htmlString = await sails.helpers.strings.toHtml(mdString);
@@ -511,24 +667,30 @@ module.exports = {
                     if (!isExternal) { // If the image is hosted on fleetdm.com, we'll modify the meta value to reference the file directly in the `website/assets/` folder
                       embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/https?:\/\//, '').replace(/^fleetdm\.com/, '');
                     } else { // If the value is a link to an image that will not be hosted on fleetdm.com, we'll throw an error.
-                      throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
+                      throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be an image that will be hosted on fleetdm.com`);
                     }
                   } else if(inWebsiteAssetFolder) { // If the `articleImageUrl` value is a relative link to the `website/assets/` folder, we'll modify the value to link directly to that folder.
                     embeddedMetadata.articleImageUrl = embeddedMetadata.articleImageUrl.replace(/^\.\.\/website\/assets/g, '');
                   } else { // If the value is not a url and the relative link does not go to the 'website/assets/' folder, we'll throw an error.
-                    throw new Error(`Failed compiling markdown content: An article page has an invalid a articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid articleImageUrl meta tag (<meta name="articleImageUrl" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be a URL or repo relative link to an image in the 'website/assets/images' folder`);
                   }
                 }
                 if(embeddedMetadata.description && embeddedMetadata.description.length > 150) {
                   // Throwing an error if the article's description meta tag value is over 150 characters long
                   throw new Error(`Failed compiling markdown content: An article page has an invalid description meta tag (<meta name="description" value="${embeddedMetadata.description}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, make sure the value of the meta description is less than 150 characters long.`);
                 }
+                if(embeddedMetadata.showOnTestimonialsPageWithEmoji){
+                  // Throw an error if a showOnTestimonialsPageWithEmoji value is not one of: 🥀, 🔌, 🚪, or 🪟.
+                  if(!['🥀', '🔌', '🚪', '🪟'].includes(embeddedMetadata.showOnTestimonialsPageWithEmoji)){
+                    throw new Error(`Failed compiling markdown content: An article page has an invalid showOnTestimonialsPageWithEmoji meta tag (<meta name="showOnTestimonialsPageWithEmoji" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be one of 🥀, 🔌, 🚪, or 🪟 and try running this script again.`);
+                  }
+                }
                 // For article pages, we'll attach the category to the `rootRelativeUrlPath`.
                 // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                 rootRelativeUrlPath = (
                   '/' +
                   (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category)) + '/' +
-                  (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/'))
+                  (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
                 );
               }
 
@@ -638,10 +800,14 @@ module.exports = {
             if(!openPosition.experience){
               throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing an "experience" value. To resolve, add an "experience" value to the "${openPosition.jobTitle}" position and try running this script again.`);
             }
-
+            if(openPosition.onTargetEarnings){
+              if(typeof openPosition.onTargetEarnings !== 'string') {
+                throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML has an invalid "onTargetEarnings" value. (expected a strong, but instead got a ${typeof openPosition.onTargetEarnings}) To resolve, change the "onTargetEarnings" value of the "${openPosition.jobTitle}" position to be a string that contains the on target earnings for this position and try running this script again.`);
+              }
+            }
             let pageTitle = openPosition.jobTitle;
 
-            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}). \n\n\n >The salary range for this role is $48,000 - $480,000. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
+            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nMessage us on [LinkedIn](https://www.linkedin.com/company/fleetdm/). \n\n\n >The salary range for this role is ${openPosition.onTargetEarnings ? openPosition.onTargetEarnings : '$48,000 - $480,000'}. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
 
 
             let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
@@ -718,7 +884,8 @@ module.exports = {
         } else {
           expandedTables = await sails.helpers.getExtendedOsquerySchema();
         }
-
+        // Add the expanded tables to the website's configuration as builtStaticContent.osqueryTables.
+        builtStaticContent.schemaTables = expandedTables;
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of expandedTables) {
           let keywordsForSyntaxHighlighting = [];
@@ -909,7 +1076,7 @@ module.exports = {
       async()=>{
         // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
         let RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO = 'handbook/company/testimonials.yml';
-        let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
+        let VALID_PRODUCT_CATEGORIES = ['Observability', 'Device management', 'Software management'];
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find testimonials YAML file at "${RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let testimonials = YAML.parse(yaml, {prettyErrors: true});
         for(let testimonial of testimonials){
@@ -1116,7 +1283,98 @@ module.exports = {
         // Add the rituals dictionary to builtStaticContent.rituals
         builtStaticContent.rituals = rituals;
       },
+      //
+      //   █████╗ ██████╗ ██████╗     ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+      //  ██╔══██╗██╔══██╗██╔══██╗    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+      //  ███████║██████╔╝██████╔╝    ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+      //  ██╔══██║██╔═══╝ ██╔═══╝     ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+      //  ██║  ██║██║     ██║         ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+      //  ╚═╝  ╚═╝╚═╝     ╚═╝         ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+      //
+      async()=>{
+        // FUTURE: add support for multiple platforms when they are added to Fleet maintained apps.
+        let appLibrary = [];
+        // Get app library json
+        let appsJsonData = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/apps.json'));
+        // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
+        await sails.helpers.flow.simultaneouslyForEach(appsJsonData.apps, async(app)=>{
+          // FUTURE: add support for windows apps once the page is updated to be multi-platform.
+          if(app.platform !== 'darwin'){
+            return;
+          }
 
+          let appInformation = {
+            name: app.name,
+            identifier: app.slug.split('/'+app.platform)[0],
+            outputSlug: app.slug,
+            bundleIdentifier: app.unique_identifier,
+            description: app.description,
+            platform: app.platform,
+          };
+
+          // Grab the latest information about these apps from the the ee/maintained-apps folder in the repo.
+          let detailedInformationAboutThisApp = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json'))
+          .intercept('doesNotExist', ()=>{
+            return new Error(`Could not build app library configuration from the ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
+          });
+          let expectedAppIconFilename = `app-icon-${appInformation.identifier}-60x60@2x.png`;
+
+          // FUTURE: copy the app icons from where they are stored in the repo (when they are stored in the repo).
+          let iconImageExistsForThisApp = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', expectedAppIconFilename));
+          if(iconImageExistsForThisApp){
+            appInformation.iconFilename = expectedAppIconFilename;
+          } else {
+            // If no icon for this software exists in the website/assets/images folder, use a fallback icon.
+            appInformation.iconFilename = `app-icon-fallback-60x60@2x.png`;
+          }
+          // Get the latest version of the app from the versions array.
+          let latestVersionOfThisApp = detailedInformationAboutThisApp.versions[0];
+          // get the ref that is used as the key for this version's uninstall script in the `refs` array.
+          let latestUninstallScriptRef = latestVersionOfThisApp.uninstall_script_ref;
+          // Get the uninstall script for this version.
+          let scriptToUninstallThisApp = detailedInformationAboutThisApp.refs[latestUninstallScriptRef];
+          // Modify the latest uninstall script to be on a single line.
+
+          // Remove lines that only contain comments.
+          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/^\s*#.*$/gm, '');
+          // Condense functions in the uninstall script onto a single line.
+          // For each function in the script:
+          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/(\w+)\s*\(\)\s*\{([\s\S]*?)^\}/gm, (match, functionName, functionContent)=> {
+            // Split the function content into an array
+            let linesInFunction = functionContent.split('\n');
+
+            // Remove extra leading or trailing whitespace from each line.
+            linesInFunction = linesInFunction.map((line)=>{ return line.trim();});
+
+            // Remove any empty lines
+            linesInFunction = linesInFunction.filter((lineText)=>{
+              return lineText.length > 0;
+            });
+            // Iterate through the lines in the function, adding semicolons to lines with commands.
+            linesInFunction = linesInFunction.map((text, lineIndex, lines)=>{
+              // If this is not the last line in the function, and it does not only contain a control stucture keyword, append a semi colon to it.
+              if(lineIndex !== lines.length - 1 && !/^\s*(if|while|for|do|else|then|done|return)/.test(text)) {
+                return text + ';';
+              }
+              // Otherwise, do not add a semicolon
+              return text;
+            });
+            // Join the lines into a single string
+            let condensedBodyOfFunction = linesInFunction.join(' ');
+
+            // Return the condensed single-line function.
+            return `${functionName}() { ${condensedBodyOfFunction} }`;
+          });
+          // Remove newlines with "&&" and remove any that are added to the end and beginning of the condensed command.
+          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/\n\s*/g, ' && ').replace(/ && $/, '').replace(/^ && /, '');
+
+          // Add the uninstall script and the latest version to this app's configuration.
+          appInformation.uninstallScript = scriptToUninstallThisApp;
+          appInformation.version = latestVersionOfThisApp.version.split(',')[0];
+          appLibrary.push(appInformation);
+        });
+        builtStaticContent.appLibrary = appLibrary;
+      },
     ]);
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗

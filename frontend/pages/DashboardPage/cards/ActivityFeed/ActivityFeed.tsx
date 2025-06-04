@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
+import { InjectedRouter } from "react-router";
 
 import activitiesAPI, {
   IActivitiesResponse,
@@ -11,24 +12,27 @@ import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
-import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
+import Pagination from "components/Pagination";
 
 import { AppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/AppInstallDetails";
 import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
 
-import ActivityItem from "./ActivityItem";
+import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
+import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
+import VppDetailsModal from "./components/VPPDetailsModal";
+import ScriptBatchSummaryModal from "./components/ScriptBatchSummaryModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
   setRefetchActivities: (refetch: () => void) => void;
   isPremiumTier: boolean;
+  router: InjectedRouter;
 }
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -37,6 +41,7 @@ const ActivityFeed = ({
   setShowActivityFeedTitle,
   setRefetchActivities,
   isPremiumTier,
+  router,
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
@@ -57,6 +62,16 @@ const ActivityFeed = ({
     activityAutomationDetails,
     setActivityAutomationDetails,
   ] = useState<IActivityDetails | null>(null);
+  const [
+    softwareDetails,
+    setSoftwareDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
+  const [
+    scriptBatchExecutionDetails,
+    setScriptBatchExecutionDetails,
+  ] = useState<IActivityDetails | null>(null);
+
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
@@ -102,20 +117,21 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = (
-    activityType: ActivityType,
-    details: IActivityDetails
-  ) => {
-    switch (activityType) {
+  const handleDetailsClick = ({
+    type,
+    details,
+    created_at,
+  }: IShowActivityDetailsData) => {
+    switch (type) {
       case ActivityType.LiveQuery:
-        queryShown.current = details.query_sql ?? "";
-        queryImpact.current = details.stats
+        queryShown.current = details?.query_sql ?? "";
+        queryImpact.current = details?.stats
           ? getPerformanceImpactDescription(details.stats)
           : undefined;
         setShowShowQueryModal(true);
         break;
       case ActivityType.RanScript:
-        scriptExecutionId.current = details.script_execution_id ?? "";
+        scriptExecutionId.current = details?.script_execution_id ?? "";
         setShowScriptDetailsModal(true);
         break;
       case ActivityType.InstalledSoftware:
@@ -131,13 +147,26 @@ const ActivityFeed = ({
       case ActivityType.EditedActivityAutomations:
         setActivityAutomationDetails({ ...details });
         break;
+      case ActivityType.AddedSoftware:
+      case ActivityType.EditedSoftware:
+      case ActivityType.DeletedSoftware:
+        setSoftwareDetails({ ...details });
+        break;
+      case ActivityType.AddedAppStoreApp:
+      case ActivityType.EditedAppStoreApp:
+      case ActivityType.DeletedAppStoreApp:
+        setVppDetails({ ...details });
+        break;
+      case ActivityType.RanScriptBatch:
+        setScriptBatchExecutionDetails({ ...details, created_at });
+        break;
       default:
         break;
     }
   };
 
   const renderError = () => {
-    return <DataError card />;
+    return <DataError verticalPaddingSize="pad-large" />;
   };
 
   const renderNoActivities = () => {
@@ -173,7 +202,7 @@ const ActivityFeed = ({
           )}
           <div style={opacity}>
             {activities?.map((activity) => (
-              <ActivityItem
+              <GlobalActivityItem
                 activity={activity}
                 isPremiumTier={isPremiumTier}
                 onDetailsClick={handleDetailsClick}
@@ -185,28 +214,17 @@ const ActivityFeed = ({
       )}
       {!errorActivities &&
         (!isEmpty(activities) || (isEmpty(activities) && pageIndex > 0)) && (
-          <div className={`${baseClass}__pagination`}>
-            <Button
-              disabled={isFetchingActivities || !meta?.has_previous_results}
-              onClick={onLoadPrevious}
-              variant="unstyled"
-              className={`${baseClass}__load-activities-button`}
-            >
-              <>
-                <FleetIcon name="chevronleft" /> Previous
-              </>
-            </Button>
-            <Button
-              disabled={isFetchingActivities || !meta?.has_next_results}
-              onClick={onLoadNext}
-              variant="unstyled"
-              className={`${baseClass}__load-activities-button`}
-            >
-              <>
-                Next <FleetIcon name="chevronright" />
-              </>
-            </Button>
-          </div>
+          <Pagination
+            disablePrev={isFetchingActivities || !meta?.has_previous_results}
+            disableNext={isFetchingActivities || !meta?.has_next_results}
+            hidePagination={
+              !isFetchingActivities &&
+              !meta?.has_previous_results &&
+              !meta?.has_next_results
+            }
+            onPrevPage={onLoadPrevious}
+            onNextPage={onLoadNext}
+          />
         )}
       {showShowQueryModal && (
         <ShowQueryModal
@@ -243,6 +261,25 @@ const ActivityFeed = ({
         <ActivityAutomationDetailsModal
           details={activityAutomationDetails}
           onCancel={() => setActivityAutomationDetails(null)}
+        />
+      )}
+      {softwareDetails && (
+        <SoftwareDetailsModal
+          details={softwareDetails}
+          onCancel={() => setSoftwareDetails(null)}
+        />
+      )}
+      {vppDetails && (
+        <VppDetailsModal
+          details={vppDetails}
+          onCancel={() => setVppDetails(null)}
+        />
+      )}
+      {scriptBatchExecutionDetails && (
+        <ScriptBatchSummaryModal
+          scriptBatchExecutionDetails={scriptBatchExecutionDetails}
+          onCancel={() => setScriptBatchExecutionDetails(null)}
+          router={router}
         />
       )}
     </div>

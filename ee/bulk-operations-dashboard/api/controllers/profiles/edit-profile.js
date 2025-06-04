@@ -15,13 +15,27 @@ module.exports = {
       required: true,
     },
     newTeamIds: {
-      type: ['string'],
+      type: ['number'],
       description: 'An array of teams that this profile will be deployed on or Undefined if the profile is being removed from a team.'
     },
     newProfile: {
       type: 'ref',
       description: 'A file that will be replacing the profile.'
     },
+    profileTarget: {
+      type: 'string',
+      description: 'The target for this configuration profile',
+      defaultsTo: 'all',
+      isIn: ['all', 'custom'],
+    },
+    labelTargetBehavior: {
+      type: 'string',
+      isIn: ['include', 'exclude'],
+    },
+    labels: {
+      type: ['string'],
+      description: 'A list of the names of labels that will be included/excluded.'
+    }
   },
 
 
@@ -34,7 +48,7 @@ module.exports = {
 
 
 
-  fn: async function ({profile, newTeamIds, newProfile}) {
+  fn: async function ({profile, newTeamIds, newProfile, profileTarget, labelTargetBehavior, labels}) {
     if(newProfile.isNoop){
       newProfile.noMoreFiles();
       newProfile = undefined;
@@ -92,6 +106,8 @@ module.exports = {
       filename = profile.name;
       extension = profile.profileType;
     }
+
+
     //  ╔═╗╔═╗╔═╗╦╔═╗╔╗╔  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
     //  ╠═╣╚═╗╚═╗║║ ╦║║║  ╠═╝╠╦╝║ ║╠╣ ║║  ║╣
     //  ╩ ╩╚═╝╚═╝╩╚═╝╝╚╝  ╩  ╩╚═╚═╝╚  ╩╩═╝╚═╝
@@ -103,43 +119,9 @@ module.exports = {
       let removedTeamsInfo = _.filter(profile.teams, (team)=>{
         return removedTeams.includes(team.fleetApid);
       });
-      for(let team of removedTeamsInfo){
-        // console.log(`removing ${profile.name} from team id ${team.teamName}`);
-        await sails.helpers.http.sendHttpRequest.with({
-          method: 'DELETE',
-          baseUrl: sails.config.custom.fleetBaseUrl,
-          url: `/api/v1/fleet/configuration_profiles/${team.uuid}`,
-          headers: {
-            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-          }
-        });
-      }
-      for(let teamApid of addedTeams){
-        // console.log(`Adding ${profile.name} to team id ${teamApid}`);
-        await sails.helpers.http.sendHttpRequest.with({
-          method: 'POST',
-          baseUrl: sails.config.custom.fleetBaseUrl,
-          url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
-          enctype: 'multipart/form-data',
-          body: {
-            team_id: teamApid,// eslint-disable-line camelcase
-            profile: {
-              options: {
-                filename: filename + extension,
-                contentType: 'application/octet-stream'
-              },
-              value: profileContents,
-            }
-          },
-          headers: {
-            Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
-          },
-        });
-      }// After every added team
-    } else {
-      if(profile.teams) {
-        // If there is a new profile uploaded, we will need to delete the old profiles, and add the new profile.
-        for(let team of profile.teams) {
+      if(profile.labels !== labels || profile.labelTargetBehavior !== labelTargetBehavior || profile.profileTarget !== profileTarget){
+
+        await sails.helpers.flow.simultaneouslyForEach(profile.teams, async (team)=>{
           // console.log(`removing ${profile.name} from team id ${team.teamName}`);
           await sails.helpers.http.sendHttpRequest.with({
             method: 'DELETE',
@@ -149,17 +131,14 @@ module.exports = {
               Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
             }
           });
-        }
-      }
-      for(let teamApid of newTeamIds){
-        // console.log(`Adding ${profile.name} to team id ${teamApid}`);
-        await sails.helpers.http.sendHttpRequest.with({
-          method: 'POST',
-          baseUrl: sails.config.custom.fleetBaseUrl,
-          url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
-          enctype: 'multipart/form-data',
-          body: {
+        });
+
+        await sails.helpers.flow.simultaneouslyForEach(newTeamIds, async (teamApid)=>{
+          // console.log(`Adding ${profile.name} to team id ${teamApid}`);
+          let bodyForThisRequest = {
             team_id: teamApid,// eslint-disable-line camelcase
+            labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,// eslint-disable-line camelcase
+            labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,// eslint-disable-line camelcase
             profile: {
               options: {
                 filename: filename + extension,
@@ -167,12 +146,98 @@ module.exports = {
               },
               value: profileContents,
             }
-          },
+          };
+          await sails.helpers.http.sendHttpRequest.with({
+            method: 'POST',
+            baseUrl: sails.config.custom.fleetBaseUrl,
+            url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
+            enctype: 'multipart/form-data',
+            body: bodyForThisRequest,
+            headers: {
+              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+            },
+          });
+        });// After every added team
+      } else {
+
+        await sails.helpers.flow.simultaneouslyForEach(removedTeamsInfo, async (team)=>{
+          // console.log(`removing ${profile.name} from team id ${team.teamName}`);
+          await sails.helpers.http.sendHttpRequest.with({
+            method: 'DELETE',
+            baseUrl: sails.config.custom.fleetBaseUrl,
+            url: `/api/v1/fleet/configuration_profiles/${team.uuid}`,
+            headers: {
+              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+            }
+          });
+        });
+
+        await sails.helpers.flow.simultaneouslyForEach(addedTeams, async (teamApid)=>{
+          // console.log(`Adding ${profile.name} to team id ${teamApid}`);
+          let bodyForThisRequest = {
+            team_id: teamApid,// eslint-disable-line camelcase
+            labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,// eslint-disable-line camelcase
+            labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,// eslint-disable-line camelcase
+            profile: {
+              options: {
+                filename: filename + extension,
+                contentType: 'application/octet-stream'
+              },
+              value: profileContents,
+            }
+          };
+          await sails.helpers.http.sendHttpRequest.with({
+            method: 'POST',
+            baseUrl: sails.config.custom.fleetBaseUrl,
+            url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
+            enctype: 'multipart/form-data',
+            body: bodyForThisRequest,
+            headers: {
+              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+            },
+          });
+        });// After every added team
+      }
+    } else {
+      if(profile.teams) {
+        // If there is a new profile uploaded, we will need to delete the old profiles, and add the new profile.
+        await sails.helpers.flow.simultaneouslyForEach(profile.teams, async (team)=>{
+          // console.log(`removing ${profile.name} from team id ${team.teamName}`);
+          await sails.helpers.http.sendHttpRequest.with({
+            method: 'DELETE',
+            baseUrl: sails.config.custom.fleetBaseUrl,
+            url: `/api/v1/fleet/configuration_profiles/${team.uuid}`,
+            headers: {
+              Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
+            }
+          });
+        });
+      }
+      await sails.helpers.flow.simultaneouslyForEach(newTeamIds, async (teamApid)=>{
+        let bodyForThisRequest = {
+          team_id: teamApid,// eslint-disable-line camelcase
+          labels_exclude_any: labelTargetBehavior === 'exclude' ? labels : undefined,// eslint-disable-line camelcase
+          labels_include_all: labelTargetBehavior === 'include' ? labels : undefined,// eslint-disable-line camelcase
+          profile: {
+            options: {
+              filename: filename + extension,
+              contentType: 'application/octet-stream'
+            },
+            value: profileContents,
+          }
+        };
+        // console.log(`Adding ${profile.name} to team id ${teamApid}`);
+        await sails.helpers.http.sendHttpRequest.with({
+          method: 'POST',
+          baseUrl: sails.config.custom.fleetBaseUrl,
+          url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
+          enctype: 'multipart/form-data',
+          body: bodyForThisRequest,
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           },
         });
-      }// After every added team
+      });// After every added team
 
     }
     // If this profile has an ID, then it is a database record, and we will delete it if it has been deployed to a team.
@@ -187,12 +252,26 @@ module.exports = {
         platform: extension === '.xml' ? 'windows' : 'darwin',
         profileContents,
         profileType: extension,
+        labels,
+        labelTargetBehavior,
+        profileTarget,
       });
     } else if(profile.id && newProfile){
       // If there is a new profile that is replacing a database record, update the profileContents in the database.
       // console.log('Updating existing undeployed profile!');
       await UndeployedProfile.updateOne({id: profile.id}).set({
         profileContents,
+        labels,
+        labelTargetBehavior,
+        profileTarget,
+      });
+    } else if(profile.id && labels) {
+      // Update label target behavior for undeployed profiles.
+      await UndeployedProfile.updateOne({id: profile.id}).set({
+        profileContents,
+        labels,
+        labelTargetBehavior,
+        profileTarget,
       });
     }
     // All done.

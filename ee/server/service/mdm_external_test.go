@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -44,6 +45,9 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		MDM: config.MDMConfig{
 			AppleSCEPCertBytes: eeservice.TestCert,
 			AppleSCEPKeyBytes:  eeservice.TestKey,
+		},
+		Server: config.ServerConfig{
+			PrivateKey: "foo",
 		},
 	}
 	depStorage := &nanodep_mock.Storage{}
@@ -84,10 +88,11 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		ds,
 		nil,
-		nil,
 		&fleet.NoOpGeoIP{},
 		nil,
 		depStorage,
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,
@@ -203,7 +208,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			return nil, errors.New("not implemented")
 		}
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
 			return nil, errors.New("not implemented")
 		}
 		ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
@@ -231,12 +236,13 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		) (updates fleet.MDMProfilesUpdates, err error) {
 			return fleet.MDMProfilesUpdates{}, nil
 		}
-		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+		apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 		require.NoError(t, err)
 		certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
 		require.NoError(t, err)
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-			_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			_ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 				fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
 				fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
@@ -319,7 +325,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			teamStore[tm.ID] = team
 			return team, nil
 		}
-		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []string) (*fleet.MDMAppleConfigProfile, error) {
 			require.Equal(t, lastTeamID, *profile.TeamID)
 			require.Equal(t, mobileconfig.FleetFileVaultPayloadIdentifier, profile.Identifier)
 			return &profile, nil

@@ -18,11 +18,7 @@ const TurnOnAppleMdmCard = ({ onClickTurnOn }: ITurnOnAppleMdmCardProps) => {
     <SectionCard
       className={baseClass}
       header="Turn on Apple (macOS, iOS, iPadOS) MDM"
-      cta={
-        <Button variant="brand" onClick={onClickTurnOn}>
-          Turn on
-        </Button>
-      }
+      cta={<Button onClick={onClickTurnOn}>Turn on</Button>}
     >
       Enforce settings, OS updates, disk encryption, and more.
     </SectionCard>

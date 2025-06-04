@@ -79,6 +79,12 @@ func TestValidGitOpsYaml(t *testing.T) {
 		isTeam      bool
 	}{
 		"global_config_no_paths": {
+			environment: map[string]string{
+				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
+				"FLEET_SECRET_NAME":          "secret_name",
+				"FLEET_SECRET_length":        "10",
+				"FLEET_SECRET_BANANA":        "bread",
+			},
 			filePath: "testdata/global_config_no_paths.yml",
 		},
 		"global_config_with_paths": {
@@ -86,10 +92,20 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"LINUX_OS":                      "linux",
 				"DISTRIBUTED_DENYLIST_DURATION": "0",
 				"ORG_NAME":                      "Fleet Device Management",
+				"FLEET_SECRET_FLEET_SECRET_":    "fleet_secret",
+				"FLEET_SECRET_NAME":             "secret_name",
+				"FLEET_SECRET_length":           "10",
+				"FLEET_SECRET_BANANA":           "bread",
 			},
 			filePath: "testdata/global_config.yml",
 		},
 		"team_config_no_paths": {
+			environment: map[string]string{
+				"FLEET_SECRET_FLEET_SECRET_": "fleet_secret",
+				"FLEET_SECRET_NAME":          "secret_name",
+				"FLEET_SECRET_length":        "10",
+				"FLEET_SECRET_BANANA":        "bread",
+			},
 			filePath: "testdata/team_config_no_paths.yml",
 			isTeam:   true,
 		},
@@ -99,6 +115,10 @@ func TestValidGitOpsYaml(t *testing.T) {
 				"LINUX_OS":                        "linux",
 				"DISTRIBUTED_DENYLIST_DURATION":   "0",
 				"ENABLE_FAILING_POLICIES_WEBHOOK": "true",
+				"FLEET_SECRET_FLEET_SECRET_":      "fleet_secret",
+				"FLEET_SECRET_NAME":               "secret_name",
+				"FLEET_SECRET_length":             "10",
+				"FLEET_SECRET_BANANA":             "bread",
 			},
 			filePath: "testdata/team_config.yml",
 			isTeam:   true,
@@ -156,9 +176,20 @@ func TestValidGitOpsYaml(t *testing.T) {
 					require.Len(t, gitops.Software.Packages, 2)
 					for _, pkg := range gitops.Software.Packages {
 						if strings.Contains(pkg.URL, "MicrosoftTeams") {
-							assert.Equal(t, "uninstall.sh", pkg.UninstallScript.Path)
+							assert.Equal(t, "testdata/lib/uninstall.sh", pkg.UninstallScript.Path)
 						} else {
 							assert.Empty(t, pkg.UninstallScript.Path)
+						}
+					}
+					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
+					for _, fma := range gitops.Software.FleetMaintainedApps {
+						switch fma.Slug {
+						case "slack/darwin":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+						case "box-drive/windows":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+						default:
+							assert.FailNow(t, "unexpected slug found in gitops file", "slug: %s", fma.Slug)
 						}
 					}
 				} else {
@@ -195,19 +226,28 @@ func TestValidGitOpsYaml(t *testing.T) {
 					activityExpiryWindow, ok := activityExpirySettings["activity_expiry_window"].(float64)
 					require.True(t, ok)
 					require.Equal(t, 30, int(activityExpiryWindow))
+
+					// Check labels
+					require.Len(t, gitops.Labels, 2)
+					assert.Equal(t, "Global label numero uno", gitops.Labels[0].Name)
+					assert.Equal(t, "Global label numero dos", gitops.Labels[1].Name)
+					assert.Equal(t, "SELECT 1 FROM osquery_info", gitops.Labels[0].Query)
+					require.Len(t, gitops.Labels[1].Hosts, 2)
+					assert.Equal(t, "host1", gitops.Labels[1].Hosts[0])
+					assert.Equal(t, "host2", gitops.Labels[1].Hosts[1])
+
 				}
 
 				// Check controls
-				_, ok := gitops.Controls.MacOSSettings.(map[string]interface{})
+				_, ok := gitops.Controls.MacOSSettings.(fleet.MacOSSettings)
 				assert.True(t, ok, "macos_settings not found")
-				_, ok = gitops.Controls.WindowsSettings.(map[string]interface{})
+				_, ok = gitops.Controls.WindowsSettings.(fleet.WindowsSettings)
 				assert.True(t, ok, "windows_settings not found")
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
 				assert.True(t, ok, "macos_migration not found")
-				_, ok = gitops.Controls.MacOSSetup.(map[string]interface{})
-				assert.True(t, ok, "macos_setup not found")
+				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
 				_, ok = gitops.Controls.MacOSUpdates.(map[string]interface{})
 				assert.True(t, ok, "macos_updates not found")
 				_, ok = gitops.Controls.IOSUpdates.(map[string]interface{})
@@ -216,8 +256,15 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "ipados_updates not found")
 				_, ok = gitops.Controls.WindowsEnabledAndConfigured.(bool)
 				assert.True(t, ok, "windows_enabled_and_configured not found")
+				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
+				assert.True(t, ok, "windows_migration_enabled not found")
 				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
 				assert.True(t, ok, "windows_updates not found")
+				require.Len(t, gitops.FleetSecrets, 4)
+				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
+				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
+				assert.Equal(t, "10", gitops.FleetSecrets["FLEET_SECRET_length"])
+				assert.Equal(t, "bread", gitops.FleetSecrets["FLEET_SECRET_BANANA"])
 
 				// Check agent options
 				assert.NotNil(t, gitops.AgentOptions)
@@ -234,15 +281,20 @@ func TestValidGitOpsYaml(t *testing.T) {
 				if test.isTeam {
 					require.Len(t, gitops.Software.Packages, 2)
 					require.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Software.Packages[0].URL)
+					require.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Software.Packages[0].SHA256)
 					require.False(t, gitops.Software.Packages[0].SelfService)
 					require.Equal(t, "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg", gitops.Software.Packages[1].URL)
 					require.True(t, gitops.Software.Packages[1].SelfService)
+
+					require.Len(t, gitops.Software.AppStoreApps, 1)
+					require.Equal(t, gitops.Software.AppStoreApps[0].AppStoreID, "123456")
+					require.False(t, gitops.Software.AppStoreApps[0].SelfService)
 				}
 
 				// Check policies
 				expectedPoliciesCount := 5
 				if test.isTeam {
-					expectedPoliciesCount = 8
+					expectedPoliciesCount = 9
 				}
 				require.Len(t, gitops.Policies, expectedPoliciesCount)
 				assert.Equal(t, "😊 Failing policy", gitops.Policies[0].Name)
@@ -256,14 +308,18 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.NotNil(t, gitops.Policies[5].InstallSoftware)
 					assert.Equal(t, "./microsoft-teams.pkg.software.yml", gitops.Policies[5].InstallSoftware.PackagePath)
 
-					assert.Equal(t, "Script run policy", gitops.Policies[6].Name)
-					assert.NotNil(t, gitops.Policies[6].RunScript)
-					assert.Equal(t, "./lib/collect-fleetd-logs.sh", gitops.Policies[6].RunScript.Path)
+					assert.Equal(t, "Slack on macOS is installed", gitops.Policies[6].Name)
+					assert.NotNil(t, gitops.Policies[6].InstallSoftware)
+					assert.Equal(t, "123456", gitops.Policies[6].InstallSoftware.AppStoreID)
 
-					assert.Equal(t, "🔥 Failing policy with script", gitops.Policies[7].Name)
+					assert.Equal(t, "Script run policy", gitops.Policies[7].Name)
 					assert.NotNil(t, gitops.Policies[7].RunScript)
+					assert.Equal(t, "./lib/collect-fleetd-logs.sh", gitops.Policies[7].RunScript.Path)
+
+					assert.Equal(t, "🔥 Failing policy with script", gitops.Policies[8].Name)
+					assert.NotNil(t, gitops.Policies[8].RunScript)
 					// . or .. depending on whether with paths or without
-					assert.Contains(t, gitops.Policies[7].RunScript.Path, "./lib/collect-fleetd-logs.sh")
+					assert.Contains(t, gitops.Policies[8].RunScript.Path, "./lib/collect-fleetd-logs.sh")
 				}
 			},
 		)
@@ -810,7 +866,7 @@ func TestGitOpsPaths(t *testing.T) {
 				assert.ErrorContains(t, err, "failed to unmarshal")
 
 				// Test a nested path -- bad
-				tmpFileBad, err = os.CreateTemp(t.TempDir(), "*bad.yml")
+				tmpFileBad, err = os.CreateTemp(filepath.Dir(mainTmpFile.Name()), "*bad.yml")
 				require.NoError(t, err)
 				if test.isArray {
 					_, err = tmpFileBad.WriteString(fmt.Sprintf("- path: %s\n", tmpFile.Name()))
@@ -884,10 +940,22 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "empty package_path")
+	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id or a hash_sha256")
+
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    package_path: ./some_path.yml
+    app_store_id: "123456"
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "must have only one of package_path or app_store_id")
 
 	// Software has a URL that's too big
-	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 232))
+	tooBigURL := fmt.Sprintf("https://ftp.mozilla.org/%s", strings.Repeat("a", 4000-23))
 	config = getTeamConfig([]string{"software"})
 	config += fmt.Sprintf(`
 software:
@@ -900,7 +968,58 @@ software:
 	}
 	path, basePath := createTempFile(t, "", config)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
-	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be less than 256 characters", tooBigURL))
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be 4000 characters or less", tooBigURL))
+
+	// Software URL isn't a valid URL
+	config = getTeamConfig([]string{"software"})
+	invalidURL := "1.2.3://"
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, invalidURL)
+
+	path, basePath = createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("%s is not a valid URL", invalidURL))
+
+	// Software URL refers to a .exe but doesn't have (un)install scripts specified
+	config = getTeamConfig([]string{"software"})
+	exeURL := "https://download-installer.cdn.mozilla.net/pub/firefox/releases/136.0.4/win64/en-US/Firefox%20Setup%20136.0.4.exe?foo=bar"
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, exeURL)
+
+	path, basePath = createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", exeURL))
+
+	// Software URL refers to a .tar.gz but doesn't have (un)install scripts specified (URL doesn't exist as Firefox is all .tar.xz)
+	config = getTeamConfig([]string{"software"})
+	tgzURL := "https://download-installer.cdn.mozilla.net/pub/firefox/releases/137.0.2/linux-x86_64/en-US/firefox-137.0.2.tar.gz?foo=baz"
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, tgzURL)
+
+	path, basePath = createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", tgzURL))
+
+	// Policy references a VPP app not present on the team
+	config = getTeamConfig([]string{"policies"})
+	config += `
+policies:
+- name: Some policy
+  query: SELECT 1;
+  install_software:
+    app_store_id: "123456"
+`
+	_, err = gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "not found on team")
 
 	// Policy references a software installer not present in the team.
 	config = getTeamConfig([]string{"policies"})
@@ -960,6 +1079,18 @@ software:
 	}
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err, "failed to unmarshal install_software.package_path file")
+}
+
+func TestGitOpsWithStrayScriptEntryWithNoPath(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"controls"})
+	config += `
+controls:
+  scripts:
+    -
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, `check for a stray "-"`)
 }
 
 func TestGitOpsTeamPolicyWithInvalidRunScript(t *testing.T) {
@@ -1036,4 +1167,29 @@ func getBaseConfig(options map[string]string, optsToExclude []string) string {
 		}
 	}
 	return config
+}
+
+func TestIllegalFleetSecret(t *testing.T) {
+	t.Parallel()
+	config := getGlobalConfig([]string{"policies"})
+	config += `
+policies:
+  - name: $FLEET_SECRET_POLICY
+    platform: linux
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+  - name: My policy
+    platform: windows
+    query: SELECT 1;
+`
+	_, err := gitOpsFromString(t, config)
+	assert.ErrorContains(t, err, "variables with \"FLEET_SECRET_\" prefix are only allowed")
+}
+
+func TestInvalidSoftwareInstallerHash(t *testing.T) {
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err := GitOpsFromFile("testdata/team_config_invalid_sha.yml", "./testdata", appConfig, nopLogf)
+	assert.ErrorContains(t, err, "must be a valid lower-case hex-encoded (64-character) SHA-256 hash value")
 }

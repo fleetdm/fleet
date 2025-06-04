@@ -9,7 +9,7 @@ import {
 } from "interfaces/software";
 import PATHS from "router/paths";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -17,8 +17,8 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
-import VersionCell from "../../components/VersionCell";
-import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
+import VersionCell from "../../components/tables/VersionCell";
+import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -62,22 +62,38 @@ const getSoftwareNameCellData = (
   softwareTitle: ISoftwareTitle,
   teamId?: number
 ) => {
-  const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
-  const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
-    softwareTitle.id.toString()
-  )}?${teamQueryParam}`;
+  const softwareTitleDetailsPath = getPathWithQueryParams(
+    PATHS.SOFTWARE_TITLE_DETAILS(softwareTitle.id.toString()),
+    { team_id: teamId }
+  );
 
   const { software_package, app_store_app } = softwareTitle;
   let hasPackage = false;
   let isSelfService = false;
+  let installType: "manual" | "automatic" | undefined;
   let iconUrl: string | null = null;
+  let automaticInstallPoliciesCount = 0;
   if (software_package) {
     hasPackage = true;
     isSelfService = software_package.self_service;
+    installType =
+      software_package.automatic_install_policies &&
+      software_package.automatic_install_policies.length > 0
+        ? "automatic"
+        : "manual";
+    automaticInstallPoliciesCount =
+      software_package.automatic_install_policies?.length || 0;
   } else if (app_store_app) {
     hasPackage = true;
     isSelfService = app_store_app.self_service;
     iconUrl = app_store_app.icon_url;
+    installType =
+      app_store_app.automatic_install_policies &&
+      app_store_app.automatic_install_policies.length > 0
+        ? "automatic"
+        : "manual";
+    automaticInstallPoliciesCount =
+      app_store_app.automatic_install_policies?.length || 0;
   }
 
   const isAllTeams = teamId === undefined;
@@ -88,7 +104,9 @@ const getSoftwareNameCellData = (
     path: softwareTitleDetailsPath,
     hasPackage: hasPackage && !isAllTeams,
     isSelfService,
+    installType,
     iconUrl,
+    automaticInstallPoliciesCount,
   };
 };
 
@@ -117,7 +135,11 @@ const generateTableHeaders = (
             router={router}
             hasPackage={nameCellData.hasPackage}
             isSelfService={nameCellData.isSelfService}
+            installType={nameCellData.installType}
             iconUrl={nameCellData.iconUrl ?? undefined}
+            automaticInstallPoliciesCount={
+              nameCellData.automaticInstallPoliciesCount
+            }
           />
         );
       },
@@ -149,7 +171,11 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
-        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+        const vulnDetectionNotSupported =
+          isIpadOrIphoneSoftwareSource(cellProps.row.original.source) ||
+          cellProps.row.original.source === "tgz_packages";
+
+        if (vulnDetectionNotSupported) {
           return <TextCell value="Not supported" grey />;
         }
         const vulnerabilities = getVulnerabilities(
@@ -177,11 +203,16 @@ const generateTableHeaders = (
       id: "view-all-hosts",
       disableSortBy: true,
       Cell: (cellProps: IViewAllHostsLinkProps) => {
+        const hostCountNotSupported =
+          cellProps.row.original.source === "tgz_packages";
+
+        if (hostCountNotSupported) return null;
+
         return (
           <ViewAllHostsLink
             queryParams={{
               software_title_id: cellProps.row.original.id,
-              team_id: teamId, // TODO: do we need team id here?
+              team_id: teamId,
             }}
             className="software-link"
             rowHover

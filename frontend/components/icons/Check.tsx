@@ -13,6 +13,7 @@ const Check = ({ color = "core-fleet-blue" }: ICheckProps) => {
       height="16"
       fill="none"
       viewBox="0 0 16 16"
+      aria-label="check"
     >
       <path
         stroke={COLORS[color]}

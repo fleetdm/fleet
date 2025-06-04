@@ -7,6 +7,7 @@ type AllStorage interface {
 	PushCertStore
 	CommandEnqueuer
 	CertAuthStore
+	CertAuthRetriever
 	StoreMigrator
 	TokenUpdateTallyStore
 }

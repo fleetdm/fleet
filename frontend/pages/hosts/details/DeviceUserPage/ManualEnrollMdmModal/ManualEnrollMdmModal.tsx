@@ -6,8 +6,10 @@ import mdmAPI from "services/entities/mdm";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
+import { IDeviceUserResponse } from "interfaces/host";
 
 interface IManualEnrollMdmModalProps {
+  host: IDeviceUserResponse["host"];
   onCancel: () => void;
   token?: string;
 }
@@ -15,6 +17,7 @@ interface IManualEnrollMdmModalProps {
 const baseClass = "manual-enroll-mdm-modal";
 
 const ManualEnrollMdmModal = ({
+  host: { platform, os_version },
   onCancel,
   token = "",
 }: IManualEnrollMdmModalProps): JSX.Element => {
@@ -35,8 +38,23 @@ const ManualEnrollMdmModal = ({
     }
   };
 
-  const renderModalBody = () => {
-    return (
+  let isMacOsSequoiaOrLater = false;
+  if (platform === "darwin" && os_version.startsWith("macOS ")) {
+    const [major] = os_version
+      .replace("macOS ", "")
+      .split(".")
+      .map((s) => parseInt(s, 10));
+    isMacOsSequoiaOrLater = major >= 15;
+  }
+
+  return (
+    <Modal
+      title="Turn on MDM"
+      onExit={onCancel}
+      onEnter={onCancel}
+      className={baseClass}
+      width="xlarge"
+    >
       <div>
         <p className={`${baseClass}__description`}>
           To turn on MDM, Apple Inc. requires that you download and install a
@@ -60,37 +78,33 @@ const ManualEnrollMdmModal = ({
             <b>System Settings</b>.
           </li>
           <li>
-            In the search bar, type “Profiles”. Select <b>Profiles</b>, find and
-            double click the <br /> <b>[Organization name] enrollment</b>{" "}
-            profile.
+            {isMacOsSequoiaOrLater ? (
+              <>
+                In the sidebar menu, select <b>Profile Downloaded</b>, find and
+                double-click the <b>[Organization name] enrollment</b> profile.
+              </>
+            ) : (
+              <>
+                In the search bar, type “Profiles”. Select <b>Profiles</b>, find
+                and double click the <b>[Organization name] enrollment</b>{" "}
+                profile.
+              </>
+            )}
           </li>
           <li>
-            Select <b>Install...</b> then confirm again clicking <b>Install</b>.
+            Select <b>Install</b> then enter your password.
           </li>
-          <li>Enter your password when you get a prompt.</li>
           <li>
             Select <b>Done</b> to close this window and select <b>Refetch</b> on
-            your My device page to tell <br /> your organization that MDM is on.
+            your My device page to tell your organization that MDM is on.
           </li>
         </ol>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onCancel} variant="brand">
+          <Button type="button" onClick={onCancel}>
             Done
           </Button>
         </div>
       </div>
-    );
-  };
-
-  return (
-    <Modal
-      title="Turn on MDM"
-      onExit={onCancel}
-      onEnter={onCancel}
-      className={baseClass}
-      width="xlarge"
-    >
-      {renderModalBody()}
     </Modal>
   );
 };

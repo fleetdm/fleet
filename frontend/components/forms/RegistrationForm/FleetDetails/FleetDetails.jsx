@@ -53,12 +53,7 @@ class FleetDetails extends Component {
             this.firstInput = input;
           }}
         />
-        <Button
-          type="submit"
-          tabIndex={tabIndex}
-          disabled={!currentPage}
-          variant="brand"
-        >
+        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
           Next
         </Button>
       </form>

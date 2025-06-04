@@ -16,6 +16,7 @@ module.exports = {
     // Set…
     firstName: { type: 'string'},
     lastName: { type: 'string'},
+    jobTitle: {type: 'string'},
     organization: { type: 'string' },
     description: { type: 'string' },
     primaryBuyingSituation: { type: 'string' },
@@ -40,6 +41,10 @@ module.exports = {
         'Website - Contact forms',
         'Website - Sign up',
         'Website - Newsletter',
+        'LinkedIn - Comment',
+        'LinkedIn - Reaction',
+        'LinkedIn - Share',
+        'LinkedIn - Liked the LinkedIn company page',
       ],
     },
     getStartedResponses: {
@@ -69,7 +74,7 @@ module.exports = {
 
   },
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -119,6 +124,9 @@ module.exports = {
     if(intentSignal) {
       valuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
     }
+    if(jobTitle) {
+      valuesToSet.Title = jobTitle;
+    }
 
     let existingContactRecord;
     // Search for an existing Contact record using the provided email address or linkedIn profile URL.
@@ -161,8 +169,9 @@ module.exports = {
           delete valuesToSet.Intent_signals__c;
         }
       }
-      // Check the existing contact record's psychologicalStage.
-      if(psychologicalStage) {
+
+      // Check the existing contact record's psychologicalStage (If it is set).
+      if(psychologicalStage && existingContactRecord.Stage__c !== null) {
         let recordsCurrentPsyStage = existingContactRecord.Stage__c;
         // Because each psychological stage starts with a number, we'll get the first character in the record's current psychological stage and the new psychological stage to make comparison easier.
         let psyStageStageNumberToChangeTo = Number(psychologicalStage[0]);

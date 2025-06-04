@@ -12,15 +12,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/osquery/osquery-go"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -33,7 +36,8 @@ type (
 // fleet.OrbitClient type satisfies this interface.
 type Client interface {
 	GetInstallerDetails(installID string) (*fleet.SoftwareInstallDetails, error)
-	DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error)
+	DownloadSoftwareInstaller(installerID uint, downloadDir string, progressFunc func(int)) (string, error)
+	DownloadSoftwareInstallerFromURL(url string, filename string, downloadDir string, progressFunc func(int)) (string, error)
 	SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error
 }
 
@@ -62,6 +66,10 @@ type Runner struct {
 	// and non-Windows platforms.
 	execCmdFn func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error)
 
+	// extractTarGzFn is the function to call to extract a tarball. If nil, the
+	// implementation in the updates package, wrapped with an OS file open, will be used.
+	extractTarGzFn func(path string, destDir string) error
+
 	// can be set for tests to replace os.RemoveAll, which is called to remove
 	// the script's temporary directory after execution.
 	removeAllFn func(string) error
@@ -73,7 +81,13 @@ type Runner struct {
 	osqueryConnectionMutex sync.Mutex
 
 	rootDirPath string
+
+	retryOpts []retry.Option
+
+	logger zerolog.Logger
 }
+
+const extractionDirectoryName = "extracted"
 
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, rootDirPath string) *Runner {
 	r := &Runner{
@@ -82,6 +96,8 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 		scriptsEnabled:            scriptsEnabled,
 		installerExecutionTimeout: pkgscripts.MaxHostSoftwareInstallExecutionTime,
 		rootDirPath:               rootDirPath,
+		retryOpts:                 []retry.Option{retry.WithMaxAttempts(5)},
+		logger:                    log.With().Str("runner", "installer").Logger(),
 	}
 
 	return r
@@ -90,7 +106,7 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
 	if runtime.GOOS == "darwin" {
 		if config.Notifications.RunSetupExperience && !update.CanRun(r.rootDirPath, "swiftDialog", update.SwiftDialogMacOSTarget) {
-			log.Debug().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
+			log.Info().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
 			return nil
 		}
 	}
@@ -124,25 +140,44 @@ func connectOsquery(r *Runner) error {
 }
 
 func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
-	log.Debug().Msg("starting software installers run")
+	if len(config.Notifications.PendingSoftwareInstallerIDs) > 0 {
+		r.logger.Info().Msgf("received notification for software installers: %v", config.Notifications.PendingSoftwareInstallerIDs)
+	} else {
+		r.logger.Debug().Msg("starting software installers run")
+	}
+
 	var errs []error
 	for _, installerID := range config.Notifications.PendingSoftwareInstallerIDs {
+		logger := r.logger.With().Str("installerID", installerID).Logger()
+
+		logger.Info().Msg("processing")
 		if ctx.Err() != nil {
 			errs = append(errs, ctx.Err())
 			break
 		}
-		payload, err := r.installSoftware(ctx, installerID)
+		payload, err := r.installSoftware(ctx, installerID, logger)
 		if err != nil {
 			errs = append(errs, err)
 			if payload == nil {
 				continue
 			}
 		}
-		if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+		attemptNum := 1
+		err = retry.Do(func() error {
+			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+				logger.Info().Err(err).Msgf("failed to save installer result, attempt #%d", attemptNum)
+				attemptNum++
+				return err
+			}
+			return nil
+		}, r.retryOpts...)
+		if err != nil {
 			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
 		}
+
 	}
 	if len(errs) != 0 {
+		r.logger.Error().Errs("errs", errs).Msg("failures found when processing installers")
 		return errors.Join(errs...)
 	}
 
@@ -179,10 +214,11 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 	return true, string(response), nil
 }
 
-func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.HostSoftwareInstallResultPayload, error) {
-	log.Debug().Msgf("about to install software with installer id: %s", installID)
+func (r *Runner) installSoftware(ctx context.Context, installID string, logger zerolog.Logger) (*fleet.HostSoftwareInstallResultPayload, error) {
+	logger.Info().Msg("fetching installer details")
 	installer, err := r.OrbitClient.GetInstallerDetails(installID)
 	if err != nil {
+		logger.Err(err).Msg("fetch installer details")
 		return nil, fmt.Errorf("fetching software installer details: %w", err)
 	}
 
@@ -190,23 +226,24 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 	payload.InstallUUID = installID
 
 	if installer.PreInstallCondition != "" {
-		log.Debug().Msgf("pre-condition is not empty, about to run the query")
+		logger.Info().Msg("pre-condition is not empty, about to run the query")
 		shouldInstall, output, err := r.preConditionCheck(ctx, installer.PreInstallCondition)
 		payload.PreInstallConditionOutput = &output
 		if err != nil {
+			logger.Err(err).Msg("pre-condition check failed")
 			return payload, err
 		}
 
 		if !shouldInstall {
-			log.Debug().Msgf("pre-condition didn't pass, stopping installation")
+			logger.Info().Msg("pre-condition didn't pass, stopping installation")
 			return payload, nil
 		}
 	}
 
 	if !r.scriptsEnabled() {
-		// fleetctl knows that -2 means script was disabled on host
-		log.Debug().Msgf("scripts are disabled for this host, stopping installation")
-		payload.InstallScriptExitCode = ptr.Int(-2)
+		// Fleet knows that -2 means script was disabled on host
+		logger.Info().Msg("scripts are disabled for this host, stopping installation")
+		payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeScriptsDisabled)
 		payload.InstallScriptOutput = ptr.String("Scripts are disabled")
 		return payload, nil
 	}
@@ -217,13 +254,8 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 	}
 	tmpDir, err := tmpDirFn("", "")
 	if err != nil {
+		logger.Err(err).Msg("creating temporary directory")
 		return payload, fmt.Errorf("creating temporary directory: %w", err)
-	}
-
-	log.Debug().Str("install_id", installID).Msgf("about to download software installer")
-	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
-	if err != nil {
-		return payload, err
 	}
 
 	// remove tmp directory and installer
@@ -238,26 +270,113 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		}
 	}()
 
+	progressFn := func() func(n int) {
+		chunk := 0
+		return func(n int) {
+			if n == 0 {
+				logger.Info().Msg("done downloading")
+				return
+			}
+			chunk += n
+			if chunk >= 10*units.MB {
+				logger.Debug().Msgf("downloaded %d bytes", chunk)
+				chunk = 0
+			}
+		}
+	}
+
+	var installerPath string
+	if installer.SoftwareInstallerURL != nil && installer.SoftwareInstallerURL.URL != "" {
+		logger.Info().Msg("about to download software installer from URL")
+		installerPath, err = r.OrbitClient.DownloadSoftwareInstallerFromURL(
+			installer.SoftwareInstallerURL.URL,
+			installer.SoftwareInstallerURL.Filename,
+			tmpDir,
+			progressFn(),
+		)
+		if err != nil {
+			logger.Err(err).Msg("downloading software installer from URL")
+			// If download fails, we will fall back to downloading the installer directly from Fleet server
+			installerPath = ""
+		}
+	}
+
+	if installerPath == "" {
+		logger.Info().Msg("about to download software installer from Fleet")
+		installerPath, err = r.OrbitClient.DownloadSoftwareInstaller(
+			installer.InstallerID,
+			tmpDir,
+			progressFn(),
+		)
+		if err != nil {
+			logger.Err(err).Msg("failed to download software installer")
+			// Set a special exit code to indicate that the installer download failed, so that Fleet
+			// will mark this installation as failed.
+			payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeInstallerDownloadFailed)
+			payload.InstallScriptOutput = ptr.String("Installer download failed")
+			return payload, err
+		}
+		logger.Info().Str("installerPath", installerPath).Msg("software installer downloaded")
+	}
+
+	if strings.HasSuffix(installerPath, ".tgz") || strings.HasSuffix(installerPath, ".tar.gz") {
+		logger.Info().Msg("detected tar.gz archive, extracting to subdirectory")
+		extractDestination := filepath.Join(tmpDir, extractionDirectoryName)
+		err := os.Mkdir(extractDestination, 0700)
+		if err != nil {
+			logger.Err(err).Msg("failed to create directory for .tar.gz extraction")
+			// Using download failed exit code here to indicate that installer extraction failed
+			payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeInstallerDownloadFailed)
+			payload.InstallScriptOutput = ptr.String("Installer extraction failed")
+			return payload, err
+		}
+
+		extractFn := r.extractTarGzFn
+		if extractFn == nil {
+			extractFn = func(path string, destDir string) error {
+				return file.ExtractTarGz(path, destDir, 2*1024*1024*1024*1024) // 2 TiB limit per extracted file
+			}
+		}
+
+		if err = extractFn(installerPath, extractDestination); err != nil {
+			logger.Err(err).Msg("failed extract .tar.gz archive")
+			payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeInstallerDownloadFailed)
+			payload.InstallScriptOutput = ptr.String("Installer extraction failed")
+			return payload, err
+		}
+
+		// install script will be run inside extracted dir rather than in parent; both dirs
+		// will be cleaned up when we're done
+		installerPath = extractDestination
+	}
+
 	scriptExtension := ".sh"
 	if runtime.GOOS == "windows" {
 		scriptExtension = ".ps1"
 	}
-	log.Debug().Msgf("about to run install script")
+
+	logger.Info().Msg("about to run install script")
 	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptExtension)
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
+		logger.Err(err).Msg("install script")
 		return payload, err
 	}
+	logger.Info().Int("exitCode", installExitCode).Msgf("install script")
 
 	if installer.PostInstallScript != "" {
-		log.Debug().Msgf("about to run post-install script for %s", installerPath)
+		logger.Info().Str("installerPath", installerPath).Msg("about to run post-install script")
 		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptExtension)
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
 
 		if postErr != nil || postExitCode != 0 {
-			log.Info().Msgf("installation of %s failed, attempting rollback. Exit code: %d, error: %s", installerPath, postExitCode, postErr)
+			logger.Info().Str(
+				"installerPath", installerPath,
+			).Int(
+				"exitCode", postExitCode,
+			).Err(postErr).Msg("installation failed, attempting rollback")
 			ext := filepath.Ext(installerPath)
 			ext = strings.TrimPrefix(ext, ".")
 			uninstallScript := installer.UninstallScript
@@ -271,8 +390,8 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 			}
 			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath,
 				"rollback-script"+scriptExtension)
-			log.Info().Msgf(
-				"rollback staus: exit code: %d, error: %s, output: %s",
+			logger.Info().Msgf(
+				"rollback status: exit code: %d, error: %s, output: %s",
 				uninstallExitCode, uninstallErr, uninstallOutput,
 			)
 			builder.WriteString(fmt.Sprintf("Uninstall script exit code: %d\n", uninstallExitCode))

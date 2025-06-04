@@ -1,7 +1,10 @@
 import { IMdmVppToken } from "interfaces/mdm";
 import { ApplePlatform } from "interfaces/platform";
+import { SoftwareCategory } from "interfaces/software";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
 
 export interface IGetVppInfoResponse {
   org_name: string;
@@ -19,11 +22,24 @@ export interface IVppApp {
   platform: ApplePlatform;
 }
 
-interface IAddVppAppPostBody {
+export interface IAddVppAppPostBody {
   app_store_id: string;
   team_id: number;
   platform: ApplePlatform;
   self_service?: boolean;
+  automatic_install?: boolean;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
+  categories?: SoftwareCategory[];
+}
+
+export interface IEditVppAppPostBody {
+  team_id: number;
+  self_service?: boolean;
+  // No automatic_install on edit VPP app
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
+  categories?: SoftwareCategory[];
 }
 
 export interface IGetVppAppsResponse {
@@ -75,24 +91,65 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addVppApp: (
-    teamId: number,
-    appStoreId: string,
-    platform: ApplePlatform,
-    isSelfService: boolean
-  ) => {
+  addVppApp: (teamId: number, formData: ISoftwareVppFormData) => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
-    const postBody: IAddVppAppPostBody = {
-      app_store_id: appStoreId,
-      team_id: teamId,
-      platform,
-    };
 
-    if (isSelfService) {
-      postBody.self_service = isSelfService;
+    if (!formData.selectedApp) {
+      throw new Error("Selected app is required. This should not happen.");
     }
 
-    return sendRequest("POST", MDM_APPLE_VPP_APPS, postBody);
+    const body: IAddVppAppPostBody = {
+      app_store_id: formData.selectedApp.app_store_id,
+      team_id: teamId,
+      platform: formData.selectedApp?.platform,
+      self_service: formData.selfService,
+      automatic_install: formData.automaticInstall,
+    };
+
+    // Add categories if present
+    if (formData.categories && formData.categories.length > 0) {
+      body.categories = formData.categories as SoftwareCategory[];
+    }
+
+    if (formData.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+      if (formData.customTarget === "labelsIncludeAny") {
+        body.labels_include_any = selectedLabels;
+      } else {
+        body.labels_exclude_any = selectedLabels;
+      }
+    }
+
+    return sendRequest("POST", MDM_APPLE_VPP_APPS, body);
+  },
+
+  editVppApp: (
+    softwareId: number,
+    teamId: number,
+    formData: ISoftwareVppFormData
+  ) => {
+    const { EDIT_SOFTWARE_VPP } = endpoints;
+
+    const body: IEditVppAppPostBody = {
+      self_service: formData.selfService,
+      team_id: teamId,
+    };
+
+    // Add categories if present
+    if (formData.categories && formData.categories.length > 0) {
+      body.categories = formData.categories as SoftwareCategory[];
+    }
+
+    if (formData.targetType === "Custom") {
+      const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+      if (formData.customTarget === "labelsIncludeAny") {
+        body.labels_include_any = selectedLabels;
+      } else {
+        body.labels_exclude_any = selectedLabels;
+      }
+    }
+
+    return sendRequest("PATCH", EDIT_SOFTWARE_VPP(softwareId), body);
   },
 
   getVppTokens: (): Promise<IGetVppTokensResponse> => {

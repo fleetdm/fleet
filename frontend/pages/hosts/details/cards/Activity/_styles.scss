@@ -1,27 +1,12 @@
 .activity-card {
   position: relative;
 
-  h2 {
-    font-size: 20px;
-    margin: 0 0 $pad-large;
-  }
-
-  .react-tabs__tab-list {
-    li:first-of-type {
-      padding-bottom: 10px; // adds 2px to bottom padding of "Past" tab to adjust for the count badge on the "Upcoming" tab
-    }
-  }
-
-  &__upcoming-count {
-    padding: $pad-xxsmall $pad-xsmall;
-    color: $core-white;
-    background-color: $core-vibrant-blue;
-    border-radius: $border-radius;
-    font-weight: $bold;
-    margin-left: $pad-small;
-  }
-
   &__loading-overlay {
+    // this is to center the loading spinner in the card
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
     height: 100%;
     width: 100%;
     position: absolute;
@@ -37,6 +22,6 @@
     font-size: $xx-small;
     position: absolute;
     top: 14px;
-    right: 0;
+    right: 14px;
   }
 }

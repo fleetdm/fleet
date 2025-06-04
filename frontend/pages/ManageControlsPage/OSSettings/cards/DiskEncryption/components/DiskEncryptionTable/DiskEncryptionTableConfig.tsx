@@ -4,7 +4,7 @@ import { DiskEncryptionStatus } from "interfaces/mdm";
 import {
   IDiskEncryptionStatusAggregate,
   IDiskEncryptionSummaryResponse,
-} from "services/entities/mdm";
+} from "services/entities/disk_encryption";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -109,6 +109,21 @@ const defaultTableHeaders: IDataColumn[] = [
     },
   },
   {
+    title: "Linux hosts",
+    Header: (cellProps: IHeaderProps) => (
+      <HeaderCell
+        value={cellProps.column.title}
+        isSortedDesc={cellProps.column.isSortedDesc}
+        disableSortBy
+      />
+    ),
+    disableSortBy: true,
+    accessor: "linuxHosts",
+    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
+      return <TextCell value={aggregateCount} />;
+    },
+  },
+  {
     title: "",
     Header: "",
     accessor: "linkToFilteredHosts",
@@ -200,6 +215,7 @@ export const generateTableData = (
     status: STATUS_CELL_VALUES[status],
     macosHosts: statusAggregate.macos,
     windowsHosts: statusAggregate.windows,
+    linuxHosts: statusAggregate.linux,
     teamId: currentTeamId,
   });
 

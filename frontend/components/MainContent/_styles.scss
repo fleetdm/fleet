@@ -18,3 +18,15 @@
     z-index: 4; // Needed for settings page scroll
   }
 }
+
+@media (max-width: ($break-xs - 1)) {
+  .main-content {
+    padding: $pad-large;
+  }
+}
+
+@media (max-width: ($break-mobile-md - 1)) {
+  .main-content {
+    padding: 20px;
+  }
+}

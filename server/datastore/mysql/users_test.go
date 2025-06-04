@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -26,7 +27,9 @@ func TestUsers(t *testing.T) {
 	}{
 		{"Create", testUsersCreate},
 		{"ByID", testUsersByID},
+		{"Delete", testUsersDelete},
 		{"Save", testUsersSave},
+		{"Has", testUsersHas},
 		{"List", testUsersList},
 		{"Teams", testUsersTeams},
 		{"CreateWithTeams", testUsersCreateWithTeams},
@@ -42,14 +45,19 @@ func TestUsers(t *testing.T) {
 
 func testUsersCreate(t *testing.T, ds *Datastore) {
 	createTests := []struct {
-		password, email             string
-		isAdmin, passwordReset, sso bool
-		resultingPasswordReset      bool
+		password, email                  string
+		isAdmin, passwordReset, sso, mfa bool
+		resultingPasswordReset           bool
+		inviteID                         *uint
+		errorMsg                         *string
 	}{
-		{"foobar", "mike@fleet.co", true, false, true, false},
-		{"foobar", "jason@fleet.co", true, false, false, false},
-		{"foobar", "jason2@fleet.co", true, true, true, false},
-		{"foobar", "jason3@fleet.co", true, true, false, true},
+		{"foobar", "mike@fleet.co", true, false, true, false, false, nil, nil},
+		{"foobar", "jason@fleet.co", true, false, false, true, false, nil, nil},
+		{"foobar", "jason2@fleet.co", true, true, true, false, false, nil, nil},
+		{"foobar", "jason3@fleet.co", true, true, false, false, true, nil, nil},
+		{"foobar", "jason4@fleet.co", true, true, false, false, true, ptr.Uint(1), nil},
+		// Simulating a race condition where two users accept the same invite
+		{"foobar", "jason5@fleet.co", true, true, false, false, true, ptr.Uint(1), ptr.String("users.invite_id")},
 	}
 
 	for _, tt := range createTests {
@@ -58,13 +66,19 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
 			SSOEnabled:               tt.sso,
+			MFAEnabled:               tt.mfa,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
+			InviteID:                 tt.inviteID,
 		}
 
 		// truncating because we're truncating under the hood to match the DB
 		beforeUserCreate := time.Now().Truncate(time.Second)
 		user, err := ds.NewUser(context.Background(), u)
 		afterUserCreate := time.Now().Truncate(time.Second)
+		if tt.errorMsg != nil {
+			assert.ErrorContains(t, err, *tt.errorMsg)
+			continue
+		}
 		assert.Nil(t, err)
 
 		assert.LessOrEqual(t, beforeUserCreate, user.CreatedAt)
@@ -79,7 +93,9 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
+		assert.Equal(t, tt.mfa, verify.MFAEnabled)
 		assert.Equal(t, tt.resultingPasswordReset, verify.AdminForcedPasswordReset)
+		assert.Equal(t, tt.inviteID, verify.InviteID)
 
 		assert.LessOrEqual(t, beforeUserCreate, verify.CreatedAt)
 		assert.LessOrEqual(t, beforeUserCreate, verify.UpdatedAt)
@@ -103,11 +119,11 @@ func testUsersByID(t *testing.T, ds *Datastore) {
 
 func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	createTests := []struct {
-		password, email        string
-		isAdmin, passwordReset bool
+		password, email             string
+		isAdmin, passwordReset, mfa bool
 	}{
-		{"foobar", "mike@fleet.co", true, false},
-		{"foobar", "jason@fleet.co", false, false},
+		{"foobar", "mike@fleet.co", true, false, true},
+		{"foobar", "jason@fleet.co", false, false, false},
 	}
 
 	var users []*fleet.User
@@ -117,6 +133,7 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 			Password:                 []byte(tt.password),
 			AdminForcedPasswordReset: tt.passwordReset,
 			Email:                    tt.email,
+			MFAEnabled:               tt.mfa,
 			GlobalRole:               ptr.String(fleet.RoleObserver),
 		}
 
@@ -129,11 +146,74 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) []*fleet.User {
 	return users
 }
 
+func testUsersDelete(t *testing.T, ds *Datastore) {
+	_, err := ds.UserOrDeletedUserByID(context.Background(), 999999)
+	var nfe fleet.NotFoundError
+	assert.ErrorAs(t, err, &nfe)
+
+	users := createTestUsers(t, ds)
+	for _, tt := range users {
+		err := ds.DeleteUser(context.Background(), tt.ID)
+		assert.Nil(t, err)
+		_, err = ds.UserByID(context.Background(), tt.ID)
+		var nfe fleet.NotFoundError
+		assert.ErrorAs(t, err, &nfe)
+		returned, err := ds.UserOrDeletedUserByID(context.Background(), tt.ID)
+		require.NoError(t, err)
+		assert.Equal(t, tt.ID, returned.ID)
+		assert.True(t, returned.Deleted)
+	}
+}
+
 func testUsersSave(t *testing.T, ds *Datastore) {
 	users := createTestUsers(t, ds)
 	testUserGlobalRole(t, ds, users)
 	testEmailAttribute(t, ds, users)
 	testPasswordAttribute(t, ds, users)
+	testMFAAttribute(t, ds, users)
+	testSettingsAttribute(t, ds, users)
+}
+
+func testMFAAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
+	for _, user := range users {
+		user.MFAEnabled = true
+		err := ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err := ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.True(t, verify.MFAEnabled)
+
+		user.MFAEnabled = false
+		err = ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err = ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.False(t, verify.MFAEnabled)
+	}
+}
+
+func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
+	for _, user := range users {
+		user.Settings = &fleet.UserSettings{}
+		err := ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		verify, err := ds.UserByID(context.Background(), user.ID)
+		assert.Nil(t, err)
+		// settings should only be returned via dedicated method
+		assert.Nil(t, verify.Settings)
+
+		user.Settings.HiddenHostColumns = []string{"osquery_version"}
+		err = ds.SaveUser(context.Background(), user)
+		assert.Nil(t, err)
+
+		// call the settings db method here
+		settings, err := ds.UserSettings(context.Background(), user.ID)
+		assert.Nil(t, err)
+		assert.Equal(t, settings.HiddenHostColumns, user.Settings.HiddenHostColumns)
+	}
 }
 
 func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
@@ -182,6 +262,37 @@ func testUserGlobalRole(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
 	var ferr *fleet.Error
 	require.True(t, errors.As(err, &ferr))
 	assert.Equal(t, "Cannot specify both Global Role and Team Roles", ferr.Message)
+}
+
+func testUsersHas(t *testing.T, ds *Datastore) {
+	has, err := ds.HasUsers(context.Background())
+	require.Nil(t, err)
+	require.False(t, has)
+
+	createTestUsers(t, ds)
+	has, err = ds.HasUsers(context.Background())
+	require.Nil(t, err)
+	require.True(t, has)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), "ALTER TABLE users ADD COLUMN settings2 json NOT NULL DEFAULT (JSON_OBJECT())")
+		return err
+	})
+
+	// fails right now due to SELECT *
+	_, err = ds.ListUsers(context.Background(), fleet.UserListOptions{})
+	assert.ErrorContains(t, err, "missing destination name settings2")
+
+	// should succeed since we are being pickier about what we select
+	has, err = ds.HasUsers(context.Background())
+	require.Nil(t, err)
+	require.True(t, has)
+
+	// cleanup
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), "ALTER TABLE users DROP COLUMN settings2")
+		return err
+	})
 }
 
 func testUsersList(t *testing.T, ds *Datastore) {

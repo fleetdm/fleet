@@ -201,3 +201,22 @@ export const ignoreAxiosError = (err: AxiosError, ignoreStatuses: number[]) => {
   // return !!err.response && ignoreStatuses.includes(err.response.status);
   return !!err.status && ignoreStatuses.includes(err.status);
 };
+
+/**
+ * expandErrorReasonRequired attempts to expand the error reason for a required
+ * field error. It looks for a Fleet API error with a `reason` of `"required"`
+ * in the `errors` array of the payload. If found, it returns the `name` of the
+ * error with the string `"required"` appended. Otherwise, it returns the
+ * error reason as is.
+ */
+export const expandErrorReasonRequired = (err: unknown) => {
+  if (isRecordWithDataErrors(err)) {
+    const found = err.data.errors.find(
+      (e) => isFleetApiError(e) && e.reason === "required"
+    );
+    if (found) {
+      return `${(found as IFleetApiError).name} required`;
+    }
+  }
+  return getErrorReason(err);
+};

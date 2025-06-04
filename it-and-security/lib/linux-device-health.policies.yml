@@ -1,6 +1,0 @@
-- name: Linux - Enable disk encryption
-  query: SELECT 1 FROM mounts m, disk_encryption d WHERE m.device_alias = d.name AND d.encrypted = 1 AND m.path = '/';
-  critical: false
-  description: This policy checks if disk encryption is enabled.
-  resolution: As an IT admin, deploy an image that includes disk encryption.
-  platform: linux

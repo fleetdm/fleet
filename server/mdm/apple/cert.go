@@ -2,6 +2,7 @@ package apple_mdm
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -60,7 +61,7 @@ func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.Priva
 	return certReq, key, nil
 }
 
-func GenerateAPNSCSR(org, email string, key *rsa.PrivateKey) (*x509.CertificateRequest, error) {
+func GenerateAPNSCSR(org, email string, key crypto.PrivateKey) (*x509.CertificateRequest, error) {
 	subj := pkix.Name{
 		Organization: []string{org},
 		ExtraNames: []pkix.AttributeTypeAndValue{{

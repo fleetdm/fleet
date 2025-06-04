@@ -85,6 +85,7 @@ export const generateStatusTableHeaders = (teamId?: number): IDataColumn[] => [
           }}
           className="mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}
+          rowHover
         />
       );
     },
