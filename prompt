@@ -1,0 +1,21 @@
+We need to implement the ManageLabels table. A sample of this table is contained in the attached
+screenshot. This table will present an interactive UI for the user to work with fleet labels. The
+data for the table will come from `frontend/services/entities/labels.ts` > `ILabelsResponse`. That
+means, the response will have a `labels` field, the value of which will be an array of `ILabel`s.
+
+The table should have `Name`, `Description`, and `Type` columns, which correspond to
+`Ilabel.name`, `ILabel.description`, and `ILabel.label_type`, respectively. The table should be
+sortable by each of these columns.
+
+There should also be an additional column without a name, that contains, on hover, an "Actions"
+dropdown. This dropdown should, when clicked, present the following options, in this order:
+
+- "View all hosts": links to the Hosts page, filtered by the label represented by the row.
+- "Edit": Links to the edit label page for the label represented by the row. HIDDEN FOR OBSERVERS
+  AND OBSERVER PLUSs.
+  -"Delete": Opens confirmation modal, same "Delete label" modal used on /hosts page (hidden for
+  Observer/+ users). USE A PLACEHOLDER FOR THIS MODAL FOR NOW.
+
+`frontend/pages/admin/TeamManagementPage` implements a similar final column containing an actions
+dropdown, so use it as a reference. Note that this table has an associated `TeamTableConfig.tsx`
+that configures the columns. This new table should similarly use a `TableConfig.tsx`
