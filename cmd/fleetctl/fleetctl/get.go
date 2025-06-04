@@ -26,6 +26,7 @@ import (
 	"gopkg.in/guregu/null.v3"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -1585,14 +1586,37 @@ var baseStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("240"))
 
 type model struct {
-	table     table.Model
-	currIndex int
+	table        table.Model
+	textInput    textinput.Model
+	currIndex    int
+	editingTitle bool
 }
 
-func (m model) Init() tea.Cmd { return nil }
+func (m model) Init() tea.Cmd {
+	return nil
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
+	var cmd, c tea.Cmd
+	if m.editingTitle == true {
+
+		switch msg := msg.(type) {
+		case tea.KeyMsg:
+			switch msg.String() {
+			case "enter":
+				m.editingTitle = false
+				os.WriteFile(m.textInput.Value(), []byte(m.table.SelectedRow()[len(m.table.Columns())-1]), 0o644)
+
+				return m, tea.Batch(
+					tea.Printf("saved command result to %s\n", m.textInput.Value()),
+				)
+			}
+		}
+
+		m.textInput, c = m.textInput.Update(msg)
+		m.table, cmd = m.table.Update(msg)
+		return m, tea.Batch(cmd, c)
+	}
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -1618,19 +1642,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				tea.Printf("Command payload: \n%s\n", m.table.SelectedRow()[len(m.table.Columns())-2]),
 			)
 		case "s":
-			os.WriteFile("output.xml", []byte(m.table.SelectedRow()[len(m.table.Columns())-1]), 0o644)
-			return m, tea.Batch(
-				tea.Println("Result saved to output.xml"),
-			)
-
+			m.editingTitle = true
+			return m, tea.Batch(m.textInput.Focus())
 		}
 	}
 	m.table, cmd = m.table.Update(msg)
-	return m, cmd
+	return m, tea.Batch(cmd)
 }
 
 func (m model) View() string {
-	return baseStyle.Render(m.table.View()) + "\n"
+	if m.editingTitle == false {
+		return baseStyle.Render(m.table.View())
+	}
+	return baseStyle.Render(m.table.View(), "\n\n", m.textInput.View()) + "\n"
 }
 
 func printTableWithBubbleTea(c *cli.Context, columns []string, data [][]string) {
@@ -1663,7 +1687,7 @@ func printTableWithBubbleTea(c *cli.Context, columns []string, data [][]string) 
 		Bold(false)
 	t.SetStyles(s)
 
-	m := model{t, 0}
+	m := model{t, textinput.New(), 0, false}
 	if _, err := tea.NewProgram(m).Run(); err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
