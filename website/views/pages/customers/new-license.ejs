@@ -15,7 +15,7 @@
             <span purpose="quote-input" style="position: relative; cursor: text; padding: 6px 16px 8px 16px;" class="form-control" @click="clickResetForm()" v-if="numberOfHostsQuoted">{{formData.numberOfHosts}}<span style="position: absolute; cursor: pointer; bottom: 14px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
           </div>
 
-          <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4" v-if="showQuotedPrice && numberOfHostsQuoted < 300">
+          <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4" v-if="showQuotedPrice && numberOfHostsQuoted < 700">
             <p class="small">
               <strong class="pr-1" style="font-size: 18px; color: #192147">$7.00</strong>/ host / month<br>(Billed annually)
             </p>
@@ -28,16 +28,16 @@
             <strong>Order summary</strong>
           </div>
           <div class="d-flex flex-row justify-content-between">
-            <p class="">Fleet Premium (self-hosted<span v-if="numberOfHostsQuoted > 299" > or managed cloud</span>)</p>
-          <div class="ml-auto text-right" v-if="numberOfHostsQuoted < 300">
+            <p class="">Fleet Premium (self-hosted<span v-if="numberOfHostsQuoted > 699" > or managed cloud</span>)</p>
+          <div class="ml-auto text-right" v-if="numberOfHostsQuoted < 700">
             <strong>${{(!showQuotedPrice || _.isNaN(formData.numberOfHosts * 7.00 * 12)) ? quotedPrice : formData.numberOfHosts * 7.00 * 12}}.00 <br purpose="order-form-line-break">/year</strong>
           </div>
           </div>
         </div>
         <div :class="[showBillingForm ? 'pt-2' : '' ]" v-if="!showBillingForm">
           <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="!numberOfHostsQuoted">Continue</ajax-button>
-          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" @click="clickScheduleDemo" v-if="showQuotedPrice && numberOfHostsQuoted > 299">Talk to us</ajax-button>
-          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted < 300">Continue</ajax-button>
+          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" @click="clickScheduleDemo" v-if="showQuotedPrice && numberOfHostsQuoted > 699">Talk to us</ajax-button>
+          <ajax-button spinner="true" purpose="submit-button" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="showQuotedPrice && numberOfHostsQuoted < 700">Continue</ajax-button>
         </div>
       </ajax-form>
     </div>
