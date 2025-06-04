@@ -14,15 +14,15 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ### Install apps during new Mac boot
 
-Using Fleet, you can now block a user’s screen while software installs or scripts run during macOS Setup Assistant. This prevents users from accessing the desktop before required configurations are enforced, improving security and guaranteeing that all workstations meet organizational standards before use. Learn more in the guide [here](https://fleetdm.com/guides/macos-setup-experience).
+Using Fleet, you can now block a user’s screen while software installs or scripts run during the [macOS setup experience](https://fleetdm.com/guides/macos-setup-experience). This prevents users from accessing the desktop before required configurations are enforced, improving security and guaranteeing that all workstations meet organizational standards before use.
 
 ### Automatically connect end users to Wi-Fi
 
-With Fleet, you can now install a SCEP certificate from NDES on all macOS hosts as part of the Wi-Fi/Ethernet configuration profile. This ensures seamless and secure network access for end users. Learn more in the guide [here](https://fleetdm.com/guides/ndes-scep-proxy).
+With Fleet, you can now [install a SCEP certificate from NDES](https://fleetdm.com/guides/ndes-scep-proxy) on all macOS hosts as part of the Wi-Fi/Ethernet configuration profile. This ensures seamless and secure network access for end users.
 
 ### Custom URL for Apple MDM
 
-Fleet now provides the ability to set an alternative MDM URL to help organizations differentiate MDM traffic from other Fleet traffic, allowing the application of network rules specific to MDM communications. Learn more in the guide [here](https://fleetdm.com/guides/alternate-apple-mdm-url).
+Fleet now provides the ability to set an [alternative MDM URL](https://fleetdm.com/guides/alternate-apple-mdm-url) to help organizations differentiate MDM traffic from other Fleet traffic, allowing the application of network rules specific to MDM communications.
 
 ## Changes
 
