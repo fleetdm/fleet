@@ -266,8 +266,8 @@ const TAGGED_TEMPLATES = {
     if (activity.details?.mdm_platform === "microsoft") {
       return (
         <>
-          Mobile device management (MDM) was turned on for{" "}
-          <b>{activity.details?.host_display_name} (manual)</b>.
+          MDM features were turned on for{" "}
+          <b> {activity.details?.host_display_name}</b>.
         </>
       );
     }
@@ -276,12 +276,9 @@ const TAGGED_TEMPLATES = {
     // compatibility
     return (
       <>
-        An end user turned on MDM features for a host with serial number{" "}
-        <b>
-          {activity.details?.host_serial} (
-          {activity.details?.installed_from_dep ? "automatic" : "manual"})
-        </b>
-        .
+        An end user turned on MDM features on
+        <b> {activity.details?.host_display_name}</b> (serial number{" "}
+        <b>{activity.details?.host_serial}</b>).
       </>
     );
   },
