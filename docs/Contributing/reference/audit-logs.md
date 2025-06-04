@@ -1792,6 +1792,7 @@ This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_serial": The serial number of the host.
 - "host_display_name": The display name of the host.
+- "host_platform": The platform of the host
 
 #### Example
 
@@ -1799,7 +1800,8 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_serial": "C02X12345678",
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }
 ```
 
@@ -1811,6 +1813,7 @@ This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_serial": The serial number of the host.
 - "host_display_name": The display name of the host.
+- "host_platform": The platform of the host.
 
 #### Example
 
@@ -1818,7 +1821,8 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_serial": "C02X12345678",
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }
 ```
 
@@ -1830,6 +1834,7 @@ This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_serial": The serial number of the host.
 - "host_display_name": The display name of the host.
+- "host_platform": The platform of the host.
 
 #### Example
 
@@ -1837,7 +1842,8 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_serial": "C02X12345678",
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }
 ```
 
@@ -1849,6 +1855,7 @@ This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_serial": The serial number of the host.
 - "host_display_name": The display name of the host.
+- "host_platform": The platform of the host.
 
 #### Example
 
@@ -1856,7 +1863,8 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_serial": "C02X12345678",
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }
 ```
 

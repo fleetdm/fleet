@@ -2517,6 +2517,7 @@ type ActivityTypeStartedMDMSetup struct {
 	HostID          uint   `json:"host_id"`
 	HostSerial      string `json:"host_serial"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeStartedMDMSetup) ActivityName() string {
@@ -2528,10 +2529,12 @@ func (a ActivityTypeStartedMDMSetup) Documentation() (activity string, details s
 		`This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_serial": The serial number of the host.
-- "host_display_name": The display name of the host.`, `{
+- "host_display_name": The display name of the host.
+- "host_platform": The platform of the host`, `{
   "host_id": 1,
   "host_serial": "C02X12345678",
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }`
 }
 
@@ -2539,6 +2542,7 @@ type ActivityTypeCompletedMDMSetup struct {
 	HostID          uint   `json:"host_id"`
 	HostSerial      string `json:"host_serial"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeCompletedMDMSetup) ActivityName() string {
@@ -2550,10 +2554,12 @@ func (a ActivityTypeCompletedMDMSetup) Documentation() (activity string, details
 		`This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_serial": The serial number of the host.
-- "host_display_name": The display name of the host.`, `{
+- "host_display_name": The display name of the host.
+- "host_platform": The platform of the host.`, `{
   "host_id": 1,
   "host_serial": "C02X12345678",
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }`
 }
 
@@ -2561,6 +2567,7 @@ type ActivityTypeStartedMDMMigration struct {
 	HostID          uint   `json:"host_id"`
 	HostSerial      string `json:"host_serial"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeStartedMDMMigration) ActivityName() string {
@@ -2572,10 +2579,12 @@ func (a ActivityTypeStartedMDMMigration) Documentation() (activity string, detai
 		`This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_serial": The serial number of the host.
-- "host_display_name": The display name of the host.`, `{
+- "host_display_name": The display name of the host.
+- "host_platform": The platform of the host.`, `{
   "host_id": 1,
   "host_serial": "C02X12345678",
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }`
 }
 
@@ -2583,6 +2592,7 @@ type ActivityTypeCompletedMDMMigration struct {
 	HostID          uint   `json:"host_id"`
 	HostSerial      string `json:"host_serial"`
 	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
 }
 
 func (a ActivityTypeCompletedMDMMigration) ActivityName() string {
@@ -2594,9 +2604,11 @@ func (a ActivityTypeCompletedMDMMigration) Documentation() (activity string, det
 		`This activity contains the following fields:
 - "host_id": The ID of the host.
 - "host_serial": The serial number of the host.
-- "host_display_name": The display name of the host.`, `{
+- "host_display_name": The display name of the host.
+- "host_platform": The platform of the host.`, `{
   "host_id": 1,
   "host_serial": "C02X12345678",
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }`
 }

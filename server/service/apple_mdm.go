@@ -3245,14 +3245,15 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		if lastLifecycleEvent != nil && lastLifecycleEvent.EventType == fleet.HostLifecycleEventStartedMDMMigration {
 			// If the last lifecycle event was a migration, we want to create an activity
 			// for the end of the migration.
+			host, err := svc.ds.HostByIdentifier(r.Context, r.ID)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "getting host by identifier")
+			}
 			act := fleet.ActivityTypeCompletedMDMMigration{
 				HostSerial:      updatedInfo.HardwareSerial,
 				HostDisplayName: updatedInfo.DisplayName,
 				HostID:          lastLifecycleEvent.HostID,
-			}
-			host, err := svc.ds.HostByIdentifier(r.Context, r.ID)
-			if err != nil {
-				return ctxerr.Wrap(r.Context, err, "getting host by identifier")
+				HostPlatform:    host.Platform,
 			}
 			_, err = newActivityWithHostLifecycleEvent(r.Context, nil, &act, host, svc.ds, svc.logger)
 			if err != nil {
@@ -3298,6 +3299,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			HostSerial:      info.HardwareSerial,
 			HostDisplayName: info.DisplayName,
 			HostID:          host.ID,
+			HostPlatform:    host.Platform,
 		}
 		_, err = newActivityWithHostLifecycleEvent(r.Context, nil, &act, host, svc.ds, svc.logger)
 		if err != nil {
@@ -3573,6 +3575,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 					HostSerial:      host.HardwareSerial,
 					HostDisplayName: host.DisplayName(),
 					HostID:          host.ID,
+					HostPlatform:    host.Platform,
 				}
 				_, err = newActivityWithHostLifecycleEvent(r.Context, nil, act, host, svc.ds, svc.logger)
 				if err != nil {

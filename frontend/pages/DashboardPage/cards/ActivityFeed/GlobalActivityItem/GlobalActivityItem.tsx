@@ -1195,7 +1195,7 @@ const TAGGED_TEMPLATES = {
     const platform = getPlatformDisplayName(activity.details?.host_platform);
     return (
       <>
-        An end user started {platform ? `${platform} ` : ""}migration on
+        An end user started {platform ? `${platform} ` : ""} MDM migration on
         <b> {activity.details?.host_display_name}</b> (serial number{" "}
         <b>{activity.details?.host_serial}</b>).
       </>
@@ -1206,7 +1206,7 @@ const TAGGED_TEMPLATES = {
     const platform = getPlatformDisplayName(activity.details?.host_platform);
     return (
       <>
-        An end user finished {platform ? `${platform} ` : ""}migration on
+        An end user finished {platform ? `${platform} ` : ""} MDM migration on
         <b> {activity.details?.host_display_name}</b> (serial number{" "}
         <b>{activity.details?.host_serial}</b>).
       </>

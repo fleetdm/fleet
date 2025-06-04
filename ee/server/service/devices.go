@@ -78,6 +78,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		HostSerial:      host.HardwareSerial,
+		HostPlatform:    host.Platform,
 	}
 
 	_, err = svc.NewActivityWithHostLifecycleEvent(ctx, nil, activity, host)
