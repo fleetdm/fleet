@@ -3559,18 +3559,26 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, false); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
 			}
-			host, err := svc.ds.HostByIdentifier(r.Context, r.ID)
-			if err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "getting host by identifier")
+			lastLifecycleEvent, err := svc.ds.GetLastLifecycleEventForHost(r.Context, r.ID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(r.Context, err, "getting last lifecycle event for host")
 			}
-			act := &fleet.ActivityTypeCompletedMDMSetup{
-				HostSerial:      host.HardwareSerial,
-				HostDisplayName: host.DisplayName(),
-				HostID:          host.ID,
-			}
-			_, err = newActivityWithHostLifecycleEvent(r.Context, nil, act, host, svc.ds, svc.logger)
-			if err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "creating activity for macOS setup experience end")
+			// If the last lifecycle event indicated the host was starting setup experience, create
+			// an ending setup experience event and activity.
+			if lastLifecycleEvent != nil && lastLifecycleEvent.EventType == fleet.HostLifecycleEventStartedMDMSetup {
+				host, err := svc.ds.HostByIdentifier(r.Context, r.ID)
+				if err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "getting host by identifier")
+				}
+				act := &fleet.ActivityTypeCompletedMDMSetup{
+					HostSerial:      host.HardwareSerial,
+					HostDisplayName: host.DisplayName(),
+					HostID:          host.ID,
+				}
+				_, err = newActivityWithHostLifecycleEvent(r.Context, nil, act, host, svc.ds, svc.logger)
+				if err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "creating activity for macOS setup experience end")
+				}
 			}
 		}
 	}
