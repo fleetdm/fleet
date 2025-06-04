@@ -2941,7 +2941,6 @@ func createScannedHostEndpoint(ctx context.Context, request any, svc fleet.Servi
 func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.ScannedHostPayload) error {
 	// orbit-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
-	// TODO(JVE): parse OS field
 	// Linux tim-ubuntu-noble 6.11.0-24-generic #24~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue Mar 25 19:25:57 UTC 2 aarch64
 	// Linux ubuntu-2204 5.15.0-141-generic #151-Ubuntu SMP Sun May 18 21:36:08 UTC 2025 aarch64
 	type parsedOSField struct {
@@ -2959,13 +2958,30 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 
 		// get the platform and version
 		p := parts[3]
-		regex := regexp.MustCompile(`#[0-9]+~([0-9]+.[0-9]+.[0-9]+)-([[:alpha:]]+)`)
+		regex := regexp.MustCompile(`#[0-9]+(?:~([0-9]+\.[0-9]+\.[0-9]+))?-([[:alpha:]]+)`)
 		matches := regex.FindStringSubmatch(p)
-		out.PlatformVersion = fmt.Sprintf("%s %s", matches[2], matches[1])
-		out.Platform = strings.ToLower(matches[2])
+
+		var version string
+		var osName string
+
+		switch {
+		case strings.Contains(matches[0], "151"):
+			version = "22.04"
+			osName = matches[2]
+		case strings.Contains(matches[0], "236"):
+			version = "20.04"
+			osName = matches[2]
+		default:
+			version = matches[1]
+			osName = matches[2]
+		}
+
+		out.PlatformVersion = fmt.Sprintf("%s %s", osName, version)
+		out.Platform = strings.ToLower(osName)
 
 		// get the kernel so we can make a software entry
-		// FIXME: this shouldn't be hardcoded to linux
+		// FIXME: this shouldn't be hardcoded
+
 		s, _ := fleet.SoftwareFromOsqueryRow(
 			fmt.Sprintf("linux-image-%s", parts[2]),
 			strings.Trim(parts[2], "-generic"),
@@ -2988,15 +3004,15 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 		h, err := svc.ds.NewHost(ctx, &fleet.Host{
 			UpdateCreateTimestamps:      fleet.UpdateCreateTimestamps{},
 			HostSoftware:                fleet.HostSoftware{},
-			OsqueryHostID:               new(string),
+			OsqueryHostID:               ptr.String(p.UUID),
 			DetailUpdatedAt:             time.Now(),
 			LabelUpdatedAt:              time.Now(),
 			PolicyUpdatedAt:             time.Now(),
 			LastEnrolledAt:              time.Now(),
 			SeenTime:                    time.Now(),
 			RefetchRequested:            false,
-			NodeKey:                     new(string),
-			OrbitNodeKey:                new(string),
+			NodeKey:                     ptr.String(p.UUID),
+			OrbitNodeKey:                ptr.String(p.UUID),
 			Hostname:                    p.Hostname,
 			UUID:                        p.UUID,
 			Platform:                    f.Platform,
@@ -3019,7 +3035,7 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 			HardwareModel:               "",
 			HardwareVersion:             "",
 			HardwareSerial:              "",
-			ComputerName:                "",
+			ComputerName:                p.Hostname,
 			PrimaryNetworkInterfaceID:   new(uint),
 			NetworkInterfaces:           []*fleet.NetworkInterface{},
 			PrimaryIP:                   p.IPAddress,
@@ -3055,7 +3071,7 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 		}
 
 		err = svc.ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
-			Name:          Capitalize(f.Platform),
+			Name:          capitalize(f.Platform),
 			Arch:          f.Arch,
 			Version:       strings.TrimPrefix(f.PlatformVersion, "Ubuntu "),
 			KernelVersion: strings.TrimPrefix(f.PlatformVersion, "Ubuntu "),
@@ -3066,7 +3082,7 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 	return nil
 }
 
-func Capitalize(s string) string {
+func capitalize(s string) string {
 	if s == "" {
 		return s
 	}
