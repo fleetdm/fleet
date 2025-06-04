@@ -80,7 +80,6 @@ Each PR to the website is manually checked for quality and tested before going l
 3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
 
 
-
 ### Test fleetdm.com locally 
 
 When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
@@ -237,18 +236,21 @@ Use the following steps to cancel a Fleet Premium subscription:
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 
+### Purchase a SaaS tool
+
+When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
+- Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
+- Avoid extra features you don't need, and if they're there anyway, avoid using them.
+- Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
+- Programability: Does it have a publicly documented legible REST API that requires at most a single API token?
+- Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
+
+
 ### Track a Fleet applicant
 
 Use the following steps to track a Fleet applicant:
 1. Once a day, check the [Fleet LinkedIn inbox](https://www.linkedin.com/company/71111416/admin/inbox/thread/2-YzE0M2M3YzgtMjQzZS00NDlhLWJjMGQtYWQwMTY1ODhlMmY3XzAxMA==/) for any applicants expressing interest in joining the team.
-2. If applicants have messaged fleet, navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the following from the candidate LinkedIn:
-  - **Full name**
-  - **LinkedIn URL**
-  - **Position**: if the position doesn't exist in the dropdown menu, click the "Positions" tab at the bottom of the page and add the missing position (get the correct job code from the ["Hiring plan and assumptions"](https://docs.google.com/spreadsheets/d/1Y9wXJjHqYUaBx79RfbYW19_RY9il6Dsw/edit?gid=33569091#gid=33569091) spreadsheet (Confidential Google doc)).
-  - **Interest expressed on**: Date they messaged Fleet
-  - **Location**: If US, State abbreviation. If non-US, Country listed on LinkedIn.
-  - **Notes**: Copy the message the candidate sent and paste it into this cell.
-  - **Has previous relationship with fleetie?: (if so, who?)
+2. Navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the relevant details from the candidate's LinkedIn:
 3. Using a Google doc comment, at-mention the hiring manager. If none exist or you aren't sure, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
 
 
@@ -284,7 +286,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 7. If the previous user has not wiped the device, navigate to the host in dogfood, and click `actions` » `wipe` and wait until the device is finished and restarts.
 
 **If you need to manually recover a device or reinstall macOS**
-1. enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
+1. Enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
 2. Connect the device to WIFI.
 3. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
 4. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
