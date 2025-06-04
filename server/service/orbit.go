@@ -325,7 +325,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		notifs.PendingSoftwareInstallerIDs = pendingInstalls
 	}
 
-	if host.RefetchRequested || host.DetailUpdatedAt.Before(time.Now().Add(-5*time.Second)) {
+	if host.RefetchRequested || host.DetailUpdatedAt.Before(time.Now().Add(-3*time.Second)) {
 		notifs.ScanNetwork = true
 	}
 

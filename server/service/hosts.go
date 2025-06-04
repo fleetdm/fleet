@@ -2943,6 +2943,7 @@ func (svc *Service) CreateScannedHosts(ctx context.Context, payloads []*fleet.Sc
 	svc.authz.SkipAuthorization(ctx)
 	// TODO(JVE): parse OS field
 	// Linux tim-ubuntu-noble 6.11.0-24-generic #24~24.04.1-Ubuntu SMP PREEMPT_DYNAMIC Tue Mar 25 19:25:57 UTC 2 aarch64
+	// Linux ubuntu-2204 5.15.0-141-generic #151-Ubuntu SMP Sun May 18 21:36:08 UTC 2025 aarch64
 	type parsedOSField struct {
 		Platform        string
 		PlatformVersion string
