@@ -3288,7 +3288,6 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		return nil
 	}
 
-	// TODO Add changes here to detect start of setup experience or end of MDM migration
 	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
 		host, err := svc.ds.HostByIdentifier(r.Context, r.ID)
