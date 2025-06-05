@@ -464,7 +464,6 @@ parasails.registerPage('configuration-builder', {
 <key>PayloadContent</key>
 <array>
 `;
-      let uuidForThisProfile = crypto.randomUUID();
       // Iterate through the selcted payloads
       // group selected payloads by their payload type value.
       let payloadsToCreateDictonariesFor = _.groupBy(this.selectedPayloads, 'payloadType');
