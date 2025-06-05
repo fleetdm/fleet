@@ -13,7 +13,7 @@ I assumed I was going to need to spin up servers from scratch, learn about Docke
 
 The docs were short and clear. There was nothing tricky to figure out. I followed the steps. I clicked a few buttons.  Eureka! Just like Victor Frankenstein - I watched it go live.
 
-## 🖱️ A one-click upgrade experience
+## A one-click upgrade experience
 
 Later, I found the upgrade process even simpler than the initial deployment.  I’d be lying to you if I said I knew exactly what all was involved in a database migration, but I can tell you that it was baked in to the upgrade process and happened with the click of a button. No interruptions, no hidden tasks. Just an updated instance, ready to go. I don't know that anything gets easier than that.
 
