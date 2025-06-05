@@ -17,7 +17,7 @@ The docs were short and clear. There was nothing tricky to figure out. I followe
 
 Later, I found the upgrade process even simpler than the initial deployment.  I’d be lying to you if I said I knew exactly what all was involved in a database migration, but I can tell you that it was baked in to the upgrade process and happened with the click of a button. No interruptions, no hidden tasks. Just an updated instance, ready to go. I don't know that anything gets easier than that.
 
-## ⁉️ Why this matters
+## Why this matters
 
 For people in operations, legal, HR, or other non-engineering roles, the idea of deploying or managing an app can seem like someone else’s domain. But tools like Fleet make technical ownership more accessible. It doesn’t require deep technical fluency, just a willingness to follow clear steps and trust the process.
 
