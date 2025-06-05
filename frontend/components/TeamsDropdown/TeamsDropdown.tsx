@@ -143,9 +143,6 @@ const TeamsDropdown = ({
       // When tabbing
       // Relies on --is-focused for styling as &:focus-visible cannot be applied
       "&.team-dropdown__control--is-focused": {
-        ".team-dropdown__single-value": {
-          color: COLORS["core-vibrant-blue-over"],
-        },
         ".team-dropdown__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],
         },
