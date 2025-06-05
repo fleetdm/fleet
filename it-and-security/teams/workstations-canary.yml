@@ -104,6 +104,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
         labels_include_any:
           - "Santa test devices"
+      - path: ../lib/macos/configuration-profiles/santa-machine-mapping.mobileconfig
+        labels_include_any:
+          - "Santa test devices"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
