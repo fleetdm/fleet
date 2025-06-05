@@ -7,7 +7,7 @@
           <a purpose="header-logo" href="/">
             <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
           </a>
-          <div purpose="search-bar" v-if="step === 'configuration-builder'">
+   <!--        <div purpose="search-bar" v-if="step === 'configuration-builder'">
             <div purpose="disabled-search" class="d-flex w-100">
               <div class="input-group">
                 <div class="input-group-prepend">
@@ -25,7 +25,7 @@
             <div purpose="search-results">
 
             </div>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
@@ -96,8 +96,8 @@
           <div v-if="selectedPayloadCategory === 'macos-device-lock'">
             <div purpose="subcategory-header">
               <h2>Device lock</h2>
-              <p>
-                Settings related to screen lock and passwords. <a target="_blank" href="/tables/screenlock#apple">Learn more</a>
+              <p class="mb-0">
+                Settings related to screen lock and passwords. <a target="_blank" href="https://developer.apple.com/documentation/devicemanagement/passcode">Learn more</a>
               </p>
             </div>
             <div purpose="subcategory-options">
@@ -138,8 +138,8 @@
           <div v-if="selectedPayloadCategory === 'windows-device-lock'">
             <div purpose="subcategory-header">
               <h2>Device lock</h2>
-              <p>
-                Settings related to screen lock and passwords. <a target="_blank" href="/tables/screenlock#apple">Learn more</a>
+              <p class="mb-0">
+                Settings related to screen lock and passwords. <a target="_blank" href="https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock">Learn more</a>
               </p>
             </div>
             <div purpose="subcategory-options">
@@ -189,7 +189,7 @@
             <div purpose="options-container" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
               <div purpose="payload-category" v-for="category in _.keysIn(selectedPayloadsGroupedByCategory)">
                 <div purpose="category-header">
-                  <h2>{{category}}</h2>
+                  <h2 class="mb-0">{{category}}</h2>
                   <div purpose="download-and-remove-buttons">
                     <a purpose="form-button" @click="clickRemoveOneCategoryPayloadOptions(category)">Remove all</a>
                     <ajax-button purpose="download-button" :syncing="syncing"><img alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
@@ -238,13 +238,13 @@
                       {{ configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'Yes' : 'No' }}
                     </label>
                   </div>
-                  <a @click="clickRemovePayloadOption(option)" purpose="form-button">Remove</a>
+                  <a @click="clickRemovePayloadOption(option)" purpose="remove-button">Remove</a>
                 </div>
               </div>
             </div>
-            <div purpose="bottom-download-bar" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
+            <div purpose="bottom-download-bar" :class="[ selectedPayloadCategory ? 'slide-in' : '' ]">
               <a purpose="new-button" @click="clickOpenResetFormModal()">Create new</a>
-              <ajax-button purpose="download-button" :syncing="syncing">Download <img class="d-inline-flex" alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
+              <ajax-button purpose="download-button" :syncing="syncing" v-if="selectedPayloads.length > 0">Download <img class="d-inline-flex" alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
             </div>
           </ajax-form>
 

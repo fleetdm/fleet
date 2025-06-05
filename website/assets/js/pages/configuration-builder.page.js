@@ -629,7 +629,6 @@ parasails.registerPage('configuration-builder', {
       } else {
         // Remove the payload option and all dependencies
         let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: payloadSlug});
-        console.log(payloadSlug, payloadToRemove);
         // check the alsoAutoSetWhenSelected value of the payload we're removing.
         let newSelectedPayloads = _.without(this.selectedPayloads, payloadToRemove);
         delete this.configurationBuilderFormRules[payloadSlug+'-value'];
@@ -648,6 +647,7 @@ parasails.registerPage('configuration-builder', {
     clickResetForm: async function() {
       this.step = 'platform-select';
       this.platform = undefined;
+      this.platformSelectFormData.platform = undefined;
       // The current selected payload category, controls which options are shown in the middle section
       this.selectedPayloadCategory = undefined;
 
