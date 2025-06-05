@@ -1,0 +1,22 @@
+\*\*\* Remaining TODO
+
+- access for global observers:
+  - from settings list
+  - no 'Add label' button
+- Header
+  - top margin
+  - font weight √
+  - subheader distance to header
+  - subheader color, italicization √
+- delete label modal
+- actions:
+  - click through to filtered hosts page
+  - no edit or delete for < admins
+- columns
+  - add sort arrows (functionality is working)
+  - type
+    - should be sourced from `label.membership_type`, not `label.type`
+    - should exclude `label.type == builtin`
+- When saving a new label, redirect to `manage/labels` now, instead of filtered hosts page (current
+  behavior)
+- Actions menu only visible on row hover
