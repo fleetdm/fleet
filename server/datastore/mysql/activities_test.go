@@ -571,7 +571,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// create pending install and uninstall requests for h3 that will be deleted
 	_, err = ds.InsertSoftwareInstallRequest(ctx, h3.ID, sw3Meta.InstallerID, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
-	err = ds.InsertSoftwareUninstallRequest(ctx, "uninstallRun", h3.ID, sw3Meta.InstallerID)
+	err = ds.InsertSoftwareUninstallRequest(ctx, "uninstallRun", h3.ID, sw3Meta.InstallerID, false)
 	require.NoError(t, err)
 
 	// delete installer (should clear pending requests)
@@ -1344,7 +1344,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 
 	// create a pending uninstall request
 	sw1_2 := uuid.NewString()
-	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1)
+	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1, false)
 	require.NoError(t, err)
 
 	// still hasn't changed the pending queue
@@ -1495,7 +1495,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 
 	// create a pending uninstall request
 	sw1_2 := uuid.NewString()
-	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1)
+	err = ds.InsertSoftwareUninstallRequest(ctx, sw1_2, h1.ID, sw1, false)
 	require.NoError(t, err)
 
 	// set a result for the software uninstall

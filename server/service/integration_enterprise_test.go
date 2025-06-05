@@ -12854,7 +12854,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.NoError(s.T(), err)
 }
 
-func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
+func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall() {
 	t := s.T()
 
 	host1 := createOrbitEnrolledHost(t, "linux", "", s.ds)
@@ -12982,6 +12982,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	uninstallDetails := make(map[string]interface{}, 5)
 	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &uninstallDetails))
 	assert.EqualValues(t, fleet.SoftwareUninstallPending, uninstallDetails["status"])
+	assert.EqualValues(t, true, uninstallDetails["self_service"])
 	assert.Nil(t, listUpcomingAct.Activities[0].ActorID)
 	assert.False(t, listUpcomingAct.Activities[0].FleetInitiated)
 
@@ -13001,6 +13002,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	uninstallDetails = make(map[string]interface{}, 5)
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &uninstallDetails))
 	assert.Equal(t, "uninstalled", uninstallDetails["status"])
+	assert.EqualValues(t, true, uninstallDetails["self_service"])
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {

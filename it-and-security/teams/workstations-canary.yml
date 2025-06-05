@@ -93,8 +93,8 @@ controls:
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
-      - path: ../lib/macos/declaration-profiles/passcode-settings.json
-      - path: ../lib/macos/declaration-profiles/software-update-settings.json
+      - path: ../lib/macos/declaration-profiles/Passcode settings.json
+      - path: ../lib/macos/declaration-profiles/Software Update settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
@@ -110,12 +110,11 @@ controls:
     minimum_version: "15.5"
   windows_settings:
     custom_settings:
-      - path: ../lib/windows/configuration-profiles/enable-firewall-all-domains.xml
-      - path: ../lib/windows/configuration-profiles/password.xml
-      - path: ../lib/windows/configuration-profiles/advanced-logging-powershell.xml
-      - path: ../lib/windows/configuration-profiles/autoset-time-date.xml
-      - path: ../lib/windows/configuration-profiles/disable-onedrive.xml
-      - path: ../lib/windows/configuration-profiles/disable-guest-account.xml
+      - path: ../lib/windows/configuration-profiles/Enable firewall.xml
+      - path: ../lib/windows/configuration-profiles/Password settings.xml
+      - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
+      - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
+      - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2

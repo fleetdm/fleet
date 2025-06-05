@@ -21,7 +21,7 @@ You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market grou
 Fleet is successful because of our customers and community, and those relationships are built on trust.
 
 
-### Security
+### Security 
 
 Security policies are best when they're alive, in context of how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
@@ -66,6 +66,7 @@ Community members can [request a copy of Fleet's SOC 2 report](https://fleetdm.c
 | Features &amp; product adoption      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Feature prioritization               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Design system for the [Fleet product](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=1328-1329) and fleetdm.com | <sup><sub>_See [🌐 Head of Design](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🌐 Head of Design](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
@@ -155,7 +156,7 @@ Videos are transcribed, and this makes it easier to find required redactions dur
 ["**No agenda, no attenda**."](https://about.gitlab.com/company/culture/all-remote/live-doc-meetings/#gitlab-meeting-best-practices) Every work-related meeting should have an editable agenda (e.g. edit access shared with all attendees) attached to the calendar invite. 
 - To create a meeting agenda please make a copy of [Fleet's meeting template](https://docs.google.com/document/d/1TaZ654gTwadWGDYhP3zuAzWe0eiY0s9NhaU9KLCokgw/copy).
 
->Please do not use Google Calendar's automatic agenda/notes creation function, as it does not adhere to Fleet's preferred agenda format. If the automatic agenda doc has been created in error, edit the calendar invite to delete it from the meeting to avoid confusion.
+> Tired of making agendas manually? Ask the [Digital Experience team](https://fleetdm.com/handbook/digital-experience#team) about our [meeting notes automation](https://fleetdm.zoom.us/clips/share/Gd69AuhMSqGIN7NE8JxPvA). Please do not use Google Calendar's automatic agenda/notes creation function, as it does not adhere to Fleet's preferred agenda format. If the automatic agenda doc has been created in error, edit the calendar invite to delete it from the meeting to avoid confusion.
 
 
 ## Scheduling a meeting
@@ -173,10 +174,7 @@ Our Zoom meetings are configured to let participants join before the host arrive
 
 > Need a Calendly account? Reach out to 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
-
-
-It is important to [set your working hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. 
-- Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
+It is important to [set your working hours](https://support.google.com/calendar/answer/7638168?hl=en&co=GENIE.Platform%3DDesktop) in Google Calendar and block out any personal time/events/PTO, so that team members do not inadvertently schedule a time when you are not available. Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
 
 It is also common practice to block out time for focused work. In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Help each other by batching up internal meetings which enables longer, uninterrupted stretches of deep work.
 
@@ -192,7 +190,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 ### Shared calendars
 
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
-Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/digital-experience#contact-us) and the appropriate DRI will reply with feedback.
+Looking to add, change, or remove a shared calendar? [Create an issue](https://fleetdm.com/handbook/digital-experience#contact-us) and the appropriate DRI will reply with feedback.
 
 
 ### Skip-level 1:1 meetings 
@@ -205,7 +203,7 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 
 ### Schedule time with the CEO
 
-All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
+All invitations to meetings are welcome, and quickly considering them is a top priority for the CEO.
 
 > Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
 
@@ -253,10 +251,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
-> **Need an app that you don't see in Fleet Slack?**
->
-> [Create a Digital Experience issue](https://fleetdm.com/handbook/digital-experience#contact-us) to request an app be added to the Fleet Slack workspace.
-
+> **Need an app that you don't see in Fleet Slack?** [Create a Digital Experience issue](https://fleetdm.com/handbook/digital-experience#contact-us) to request an app be added to the Fleet Slack workspace.
 
 
 ## Key Slack channels
@@ -328,9 +323,7 @@ See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#workin
 
 ### Images
 
-Try to keep images in the docs at a minimum. Images can be a quick way to help users understand a concept or direct them towards a specific user interface(UI) element. Still, too many can make the documentation feel cluttered and more difficult to maintain.
-
-When adding images to the Fleet repo, follow these guidelines:
+Try to keep images in the docs at a minimum. Images can be a quick way to help users understand a concept or direct them towards a specific user interface(UI) element. Still, too many can make the documentation feel cluttered and more difficult to maintain. When adding images to the Fleet repo, follow these guidelines:
 
 - UI screenshots should be a 4:3 aspect ratio (1280x960). This is an optimal size for the container width of the docs and ensures that content in screenshots is as clear as possible to view in the docs (and especially on mobile devices).
 - You can set up a custom preset in the Google Chrome device toolbar (in Developer Tools) to quickly adjust your browser to the correct size for taking a screenshot.
@@ -362,6 +355,24 @@ In Figma:
 Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/committing-changes.md#committing-changes).
 
 
+### Getting GitHub notifications in Slack 
+
+Fleet uses Toast to get GitHub notifications right from Slack. 
+
+Toast only notifies people about: 
+- Brand new comments that at-mention them.
+- New requests to review PRs.
+- Their PRs having been reviewed.
+
+Toast does NOT notify people about: 
+- New issues assigned to them.
+- Existing issues being assigned to them.
+- Comments on issues assigned to them.
+- Edits of comments to add at-mentions of them.
+- Edits of descriptions to add at-mentions of them.
+- New issues that at-mention them in the description.
+  
+
 ### Issue labels
 
 Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
@@ -370,12 +381,10 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 |:------------------|:------------|:------------------------------------|
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
-| `customer-`       | [Customer request](TODO link to handbook section) | `customer-leo`, `customer-sagittarius`
+| `customer-`       | [Customer request](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename) | `customer-leo`, `customer-sagittarius`
 | `#g-`             | Group isssue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
 
-Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system.
-
-Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
+Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
 
 _**Note:**_ There are only a few "special" labels that are exceptions to this rule:
@@ -386,11 +395,11 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 - `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
 
 
-> If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct you can preview the template and make sure each label name is in a separate box.  
+> If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct, you can preview the template and make sure each label name is in a separate box.  
 > <img width="1645" alt="Screenshot 2025-03-13 at 10 59 03" src="https://github.com/user-attachments/assets/37227cb8-335e-4237-afd9-4144b695ec63" />
 
 
-> ***Create an issue from a Slack***
+> ***Create an issue from a Slack message***
 >
 > If you need to track content from a Slack channel (e.g. #help-customers), you can automatically generate a GitHub issue by adding the emoji `create-github-issue` as a reaction to any message. This will automatically: 
 > - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [#g-digital-experience](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board) kanban board.
@@ -401,7 +410,7 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 
 ## Process new requests
 
-Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily, prioritizing all new requests including issues and PRs within one business day.
+Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily, prioritizing all new requests, including issues and PRs, within one business day.
 
 To process intake team members will:
 - Inspect each item in the "📨 New requests" column and understand the next steps needed to complete the task.
@@ -412,9 +421,7 @@ To process intake team members will:
 
 ### Estimation points
 
-Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
-
-We use the following story points to estimate tasks:
+Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value. We use the following story points to estimate tasks:
 
 | Story point | Time |
 |:---|:--------------|
@@ -504,15 +511,12 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 ### Linking to a location on GitHub
 
 When adding a link to any text in the docs, handbook, or website always be sure to use the canonical form of the URL (e.g. _"https//www.fleetdm.com/
-handbook/..."_).
-Navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
+handbook/..."_). Navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
 
 
 ### Fixing a broken link
 
-For instance when a broken link is discovered on fleetdm.com, always check if the link is a relative link to a location outside of `/docs`.
-
-An example of a link that lives outside of `/docs` is:
+For instance when a broken link is discovered on fleetdm.com, always check if the link is a relative link to a location outside of `/docs`. An example of a link that lives outside of `/docs` is:
 
 ```
 ../../tools/app/prometheus
@@ -570,12 +574,11 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
 
 The [Audit logs doc page](https://fleetdm.com/docs/Using-Fleet/Audit-logs) has a page generator that is used to speed up doc writing when Fleet adds new activity types.
 
-- If you're making a copy change to an exiting activity type, edit the `activities.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/activities.go).
-- If you're making a change to the top section or meta tags, edit the `gen_activity_doc.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/gen_activity_doc.go).
+- If you're making a copy change to an exiting activity type, [edit the `activities.go` file](https://github.com/fleetdm/fleet/blob/main/server/fleet/activities.go).
+- If you're making a change to the top section or meta tags, [edit the `gen_activity_doc.go` file](https://github.com/fleetdm/fleet/blob/main/server/fleet/gen_activity_doc.go).
 - If you're adding a new activity type, add the activity to the `ActivityDetailsList` list in the `activities.go` file.
 
 After making your changes, save them and run `make generate-doc`. This will generate a new `Audit-logs.md` file. Make sure you run the command in the top level folder of your cloned, Fleet repo.
-
 
 
 ## Spending company money
@@ -602,17 +605,6 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 - For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1890e56b-7b03-4340-97d4-a6590c7715a9">
-
-
-### SaaS tool purchases
-
-When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
-- Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
-- Avoid extra features you don't need, and if they're there anyway, avoid using them.
-- Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
-- Programability: Does it have a publicly documented legible REST API that requires at most a single API token?
-- Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
-
 
 #### Reimbursements
 
@@ -666,6 +658,7 @@ For recurring business expenses paid by credit card, there are four accounts pay
 
 
 > ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
+
 
 ### Spending company money while traveling
 
@@ -942,13 +935,15 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
     - Disarm puffery for engineers by replacing puffery with real data.
     - Disarm puffery for the business by replacing puffery with ROI/RTO  (how much time and/or money is it going save the business?  Forget the details.  When will it pay itself back?)
   - Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). 
-  - Create headings that make good permalinks, use links and add missing links. Indicate links by highlighting words that describe the content (Better SEO than lighting up “click here”). 
-  - Don’t duplicate content, link to other places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. 
-  - A big goal is to be able to link directly to this stuff when something comes up as a gentle way to remind and train using the foundation we've already built. 
   - Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). 
   - Read your PRs, check it carefully with each change and edit until the diff looks good.
   - Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional changes, remove them.
 
+#### Use links in your writing
+
+Don’t duplicate content. Link to existing places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. Linking to existing material when something comes up is a gentle way to remind and train using the foundation we've already built.
+
+Create headings that make good permalinks, use links and add missing links. Don't anchor links with "here" or "click here"; [linking relevant words is better for accessibility](https://granicus.com/blog/why-click-here-links-are-bad/) and better for SEO.
 
 ### What would Mister Rogers say?
 
@@ -1029,7 +1024,11 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 ### Headings and titles
 
-Headings and titles should give an accurate idea of a topic's content and help guide readers through your writing so they can quickly find what they need.
+Headings and titles should:
+
+- Give an accurate idea of a topic's content.
+- Help guide readers through your writing so they can quickly find what they need.
+- [Make good permalinks](https://fleetdm.com/handbook/company/communications#use-links-in-your-writing).
 
 #### Static headings
 
