@@ -15,7 +15,7 @@ The docs were short and clear. There was nothing tricky to figure out. I followe
 
 ## A one-click upgrade experience
 
-Later, I found the upgrade process even simpler than the initial deployment.  I’d be lying to you if I said I knew exactly what all was involved in a database migration, but I can tell you that it was baked in to the upgrade process and happened with the click of a button. No interruptions, no hidden tasks. Just an updated instance, ready to go. I don't know that anything gets easier than that.
+Later, I found the upgrade process even simpler than the initial deployment. I’d be lying to you if I said I knew exactly what’s involved in a database migration, but I can tell you that it was baked into the upgrade process and happened with the click of a button. There were no interruptions, no hidden tasks, just an updated instance, ready to go. I don’t know that anything gets easier than that.
 
 ## Why this matters
 
