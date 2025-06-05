@@ -38,7 +38,7 @@ func expectSignupDetails(t *testing.T, s *Suite) *android.SignupDetails {
 		Url:  "URL",
 		Name: "Name",
 	}
-	s.AndroidProxy.SignupURLsCreateFunc = func(callbackURL string) (*android.SignupDetails, error) {
+	s.AndroidProxy.SignupURLsCreateFunc = func(serverURL, callbackURL string) (*android.SignupDetails, error) {
 		// We will need to extract the security token from the callbackURL for further testing
 		assert.Contains(t, callbackURL, "/api/v1/fleet/android_enterprise/connect/")
 		return signupDetails, nil

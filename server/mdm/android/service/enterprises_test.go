@@ -18,7 +18,7 @@ import (
 )
 
 func TestEnterprisesAuth(t *testing.T) {
-	proxy := android_mock.Proxy{}
+	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()

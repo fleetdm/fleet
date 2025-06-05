@@ -15,6 +15,7 @@ import (
 	proxy_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
@@ -52,7 +53,7 @@ type WithServer struct {
 	AppConfig   fleet.AppConfig
 	AppConfigMu sync.Mutex
 
-	Proxy            proxy_mock.Proxy
+	Proxy            proxy_mock.Client
 	ProxyCallbackURL string
 }
 
@@ -60,7 +61,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.DS.Datastore = CreateNamedMySQLDS(t, dbName)
 	ts.CreateCommonDSMocks()
 
-	ts.Proxy = proxy_mock.Proxy{}
+	ts.Proxy = proxy_mock.Client{}
 	ts.createCommonProxyMocks(t)
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
@@ -108,18 +109,21 @@ func (ts *WithServer) CreateCommonDSMocks() {
 }
 
 func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
-	ts.Proxy.SignupURLsCreateFunc = func(callbackURL string) (*android.SignupDetails, error) {
+	ts.Proxy.SignupURLsCreateFunc = func(serverURL, callbackURL string) (*android.SignupDetails, error) {
 		ts.ProxyCallbackURL = callbackURL
 		return &android.SignupDetails{
 			Url:  EnterpriseSignupURL,
 			Name: "signupUrls/Cb08124d0999c464f",
 		}, nil
 	}
-	ts.Proxy.EnterprisesCreateFunc = func(ctx context.Context, req android.ProxyEnterprisesCreateRequest) (string, string, error) {
-		return EnterpriseID, "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5", nil
+	ts.Proxy.EnterprisesCreateFunc = func(ctx context.Context, req androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
+		return androidmgmt.EnterprisesCreateResponse{
+			EnterpriseName: "enterprises/" + EnterpriseID,
+			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
+		}, nil
 	}
-	ts.Proxy.EnterprisesPoliciesPatchFunc = func(enterpriseID string, policyName string, policy *androidmanagement.Policy) error {
-		assert.Equal(t, EnterpriseID, enterpriseID)
+	ts.Proxy.EnterprisesPoliciesPatchFunc = func(policyName string, policy *androidmanagement.Policy) error {
+		assert.Contains(t, policyName, EnterpriseID)
 		return nil
 	}
 	ts.Proxy.EnterpriseDeleteFunc = func(ctx context.Context, enterpriseID string) error {

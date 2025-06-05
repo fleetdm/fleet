@@ -5,6 +5,8 @@ import (
 	_ "embed"
 	"fmt"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -14,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/mdm/android/service/proxy"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
@@ -31,7 +33,7 @@ type Service struct {
 	logger   kitlog.Logger
 	authz    *authz.Authorizer
 	ds       fleet.AndroidDatastore
-	proxy    android.Proxy
+	proxy    androidmgmt.Client
 	fleetSvc fleet.Service
 
 	// SignupSSEInterval can be overwritten in tests.
@@ -43,15 +45,16 @@ func NewService(
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
 	fleetSvc fleet.Service,
+	licenseKey string,
 ) (android.Service, error) {
-	prx := proxy.NewProxy(ctx, logger)
+	prx := androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
 	return NewServiceWithProxy(logger, ds, prx, fleetSvc)
 }
 
 func NewServiceWithProxy(
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
-	proxy android.Proxy,
+	proxy androidmgmt.Client,
 	fleetSvc fleet.Service,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
@@ -91,6 +94,16 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, err
 	}
 
+	serverURL := appConfig.ServerSettings.ServerURL
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return nil, &fleet.BadRequestError{Message: "parsing Fleet server URL: " + err.Error(), InternalErr: err}
+	}
+	host := u.Hostname()
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return nil, &fleet.BadRequestError{Message: "Android Enterprise cannot be enabled with localhost server URL"}
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext
@@ -107,7 +120,7 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 	}
 
 	callbackURL := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/connect/%s", appConfig.ServerSettings.ServerURL, signupToken)
-	signupDetails, err := svc.proxy.SignupURLsCreate(callbackURL)
+	signupDetails, err := svc.proxy.SignupURLsCreate(appConfig.ServerSettings.ServerURL, callbackURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating signup url")
 	}
@@ -169,7 +182,7 @@ func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, 
 func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken string, enterpriseToken string) error {
 	// Authorization is done by GetEnterpriseBySignupToken below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
-	// Also, this method call will fail if Proxy (Google Project) is not configured.
+	// Also, this method call will fail if ProxyClient (Google Project) is not configured.
 	svc.authz.SkipAuthorization(ctx)
 
 	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
@@ -198,9 +211,9 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 		return ctxerr.Wrap(ctx, err, "inserting pubsub authentication token")
 	}
 
-	name, _, err := svc.proxy.EnterprisesCreate(
+	createRsp, err := svc.proxy.EnterprisesCreate(
 		ctx,
-		android.ProxyEnterprisesCreateRequest{
+		androidmgmt.EnterprisesCreateRequest{
 			Enterprise: androidmanagement.Enterprise{
 				EnabledNotificationTypes: []string{
 					string(android.PubSubEnrollment),
@@ -212,25 +225,29 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			EnterpriseToken: enterpriseToken,
 			SignupUrlName:   enterprise.SignupName,
 			PubSubPushURL:   appConfig.ServerSettings.ServerURL + pubSubPushPath + "?token=" + pubSubToken,
+			ServerURL:       appConfig.ServerSettings.ServerURL,
 		},
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "creating enterprise")
 	}
 
-	enterpriseID := strings.TrimPrefix(name, "enterprises/")
+	enterpriseID := strings.TrimPrefix(createRsp.EnterpriseName, "enterprises/")
 	enterprise.EnterpriseID = enterpriseID
-	// topicID, err := topicIDFromName(topicName)
-	// if err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "parsing topic name")
-	// }
-	// enterprise.TopicID = topicID
+	if createRsp.TopicName != "" {
+		topicID, err := topicIDFromName(createRsp.TopicName)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "parsing topic name")
+		}
+		enterprise.TopicID = topicID
+	}
 	err = svc.ds.UpdateEnterprise(ctx, enterprise)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating enterprise")
 	}
 
-	err = svc.proxy.EnterprisesPoliciesPatch(enterprise.EnterpriseID, fmt.Sprintf("%d", defaultAndroidPolicyID), &androidmanagement.Policy{
+	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
+	err = svc.proxy.EnterprisesPoliciesPatch(policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
 			MemoryInfoEnabled:            true,
@@ -328,7 +345,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "getting enterprise")
 	default:
-		err = svc.proxy.EnterpriseDelete(ctx, enterprise.EnterpriseID)
+		err = svc.proxy.EnterpriseDelete(ctx, enterprise.Name())
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting enterprise via Google API")
 		}
