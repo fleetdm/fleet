@@ -27,4 +27,4 @@ Fleet supports on-prem use cases and always will. That includes people who are n
 <meta name="authorGitHubUsername" value="hollidayn">
 <meta name="category" value="announcements">
 <meta name="publishedOn" value="2025-06-05">
-<meta name="description" value="Self-hosting Fleet is easier than you think—even for non-technical roles. One of our ops team members shares how they got it running in minutes with zero hassle.">
+<meta name="description" value="Self-hosting Fleet is easier than you think—even for non-technical roles. One of our ops team members shares how they got it running in minutes.">
