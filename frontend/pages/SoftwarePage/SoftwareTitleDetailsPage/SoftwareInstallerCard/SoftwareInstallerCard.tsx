@@ -265,8 +265,8 @@ const SoftwareInstallerCard = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
-  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page refresh
-  // as it automatically opens from adding/editing flow of custom software in gitOps mode
+  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
+  // as it automatically opens from adding flow of custom software in gitOps mode
   const [showViewYamlModal, setShowViewYamlModal] = useState(gitOpsYamlParam);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -432,6 +432,7 @@ const SoftwareInstallerCard = ({
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
+          openViewYamlModal={onToggleViewYaml}
         />
       )}
       {showDeleteModal && (
