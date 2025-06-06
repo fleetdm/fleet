@@ -941,14 +941,14 @@ Use the following steps to confirm CEO shadow dates:
 
 Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@latest/github/site-policy/github-terms-of-service) and search “inbound=outbound” to find the clause, if still there as is, paste a screenshot into the table in this [document](https://docs.google.com/document/d/101rcp9v3Zdml4YolGRmqYS5ruAKzQvXLOTHLXCavPuE/edit#heading=h.xu6qsi0wrns). If the clause has changed, contact Mike M. and let him know. 
 
-### Vanta compliance
+### Monitor SOC 2 compliance in Vanta
 
-Login to Vanta at the beginning of the month to check what tests are coming due or need remediation.  
-To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
-Click on a test, then click on "Tasks".  
-Click on "Create task." Then "Create GitHub issue."
-This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary). 
-Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated, you can manually add details if necessary.
+1. Login to Vanta at the beginning of the week to check what tests are coming due or need remediation.  
+2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
+3. Click on a test, then click on "Tasks".  
+4. Click on "Create task." Then "Create GitHub issue."
+5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the "#g-digital-experience" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated, you can manually add details if necessary.
+6. Follow up with the DRI of each issue daily until it's resolved. Loop in their manager, Fleet's CTO, or the Head of Digital Experience as needed.
 
 
 ## Rituals
