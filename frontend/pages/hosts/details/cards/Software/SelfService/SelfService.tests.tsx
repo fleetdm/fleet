@@ -29,6 +29,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   },
   router: createMockRouter(),
   onShowInstallerDetails: noop,
+  onShowUninstallDetails: noop,
 };
 
 describe("SelfService", () => {
@@ -107,6 +108,7 @@ describe("SelfService", () => {
         }}
         router={createMockRouter()}
         onShowInstallerDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
