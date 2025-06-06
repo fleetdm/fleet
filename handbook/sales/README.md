@@ -105,7 +105,7 @@ To complete a security questionnaire, the AE assigned to the account will:
 2. [Use the handbook](https://fleetdm.com/handbook/digital-experience/security#vendor-questionnaires) to answer the questions with links to appropriate sections in the handbook.
 3. If there are outstanding questions, the AE will assign the issue to the Solutions Consultant (SC) associated to the opportunity.
 4. The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the AE.
-5. If there are still unanswered questions, the AE will route the issue to the [Infrastructure team (#g-customer-success)](https://fleetdm.com/handbook/customer-success#contact-us). Once complete, the infra team will leave a comment in the issue @-mentioning the AE. Any questions answered by the infra team will be added to the handbook by the SC.
+5. If there are still unanswered questions, the AE will route the issue to the relevant department. Once complete, the team will leave a comment in the issue @-mentioning the AE with the requested information. Any questions answered by other departments will be added to the handbook by the AE.
 
 
 ## Rituals
