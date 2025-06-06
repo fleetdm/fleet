@@ -114,8 +114,8 @@ export default {
     deviceToken: string,
     scriptExecutionId: string
   ) => {
-    const { DEVICE_SOFTWARE_SCRIPT_RESULTS } = endpoints;
-    const path = DEVICE_SOFTWARE_SCRIPT_RESULTS(deviceToken, scriptExecutionId);
+    const { DEVICE_SOFTWARE_UNINSTALL_RESULTS } = endpoints;
+    const path = DEVICE_SOFTWARE_UNINSTALL_RESULTS(deviceToken, scriptExecutionId);
 
     return sendRequest("GET", path);
   },

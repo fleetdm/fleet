@@ -43,9 +43,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
   DEVICE_SOFTWARE_UNINSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/uninstall/${softwareTitleId}`,
-  // Used to view uninstall script results
-  DEVICE_SOFTWARE_SCRIPT_RESULTS: (token: string, scriptExecutionId: string) =>
-    `/${API_VERSION}/fleet/device/${token}/software/script/${scriptExecutionId}/results`,
+  DEVICE_SOFTWARE_UNINSTALL_RESULTS: (token: string, scriptExecutionId: string) =>
+    `/${API_VERSION}/fleet/device/${token}/software/uninstall/${scriptExecutionId}/results`,
   DEVICE_VPP_COMMAND_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/commands/${uuid}/results`,
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
