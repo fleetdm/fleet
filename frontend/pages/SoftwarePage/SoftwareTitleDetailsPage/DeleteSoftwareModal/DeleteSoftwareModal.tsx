@@ -7,6 +7,7 @@ import { getErrorReason } from "interfaces/errors";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import InfoBanner from "components/InfoBanner";
 
 const baseClass = "delete-software-modal";
 
@@ -21,6 +22,7 @@ interface IDeleteSoftwareModalProps {
   softwareInstallerName?: string;
   onExit: () => void;
   onSuccess: () => void;
+  gitOpsModeEnabled?: boolean;
 }
 
 const DeleteSoftwareModal = ({
@@ -29,6 +31,7 @@ const DeleteSoftwareModal = ({
   softwareInstallerName,
   onExit,
   onSuccess,
+  gitOpsModeEnabled,
 }: IDeleteSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -61,6 +64,12 @@ const DeleteSoftwareModal = ({
       isContentDisabled={isDeleting}
     >
       <>
+        {gitOpsModeEnabled && (
+          <InfoBanner color="purple" className={`${baseClass}__gitops-warning`}>
+            You are currently in GitOps mode. If the package is defined in
+            GitOps, it will reappear when GitOps runs.
+          </InfoBanner>
+        )}
         <p>
           Software won&apos;t be uninstalled from existing hosts, but any
           pending installs and uninstalls{" "}

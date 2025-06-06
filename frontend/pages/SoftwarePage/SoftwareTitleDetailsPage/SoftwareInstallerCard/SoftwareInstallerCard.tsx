@@ -101,15 +101,17 @@ interface IActionsDropdownProps {
   onEditSoftwareClick: () => void;
   gitOpsModeEnabled?: boolean;
   repoURL?: string;
+  isFMA?: boolean;
 }
 
-const SoftwareActionButtons = ({
+export const SoftwareActionButtons = ({
   installerType,
   onDownloadClick,
   onDeleteClick,
   onEditSoftwareClick,
   gitOpsModeEnabled,
   repoURL,
+  isFMA,
 }: IActionsDropdownProps) => {
   let options =
     installerType === "package"
@@ -136,10 +138,10 @@ const SoftwareActionButtons = ({
     );
     options = options.map((option) => {
       // edit is disabled in gitOpsMode for VPP only
-      // delete is disabled in gitOpsMode for all installers (FMA, VPP, & custom packages)
+      // delete is disabled in gitOpsMode for FMA and VPP onlu
       if (
         (option.value === "edit" && installerType === "vpp") ||
-        option.value === "delete"
+        (option.value === "delete" && (installerType === "vpp" || isFMA))
       ) {
         return {
           ...option,
@@ -263,6 +265,9 @@ const SoftwareInstallerCard = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
+  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page refresh
+  // as it automatically opens from adding/editing flow of custom software in gitOps mode
+  const [showViewYamlModal, setShowViewYamlModal] = useState(gitOpsYamlParam);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -274,20 +279,8 @@ const SoftwareInstallerCard = ({
     setShowDeleteModal(true);
   };
 
-  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened
-  // as it automatically opens from adding/editing flow of custom software in gitOps mode
   const onToggleViewYaml = () => {
-    const newQueryParams: QueryParams = {
-      team_id: teamId,
-      gitops_yaml: !gitOpsYamlParam ? "true" : undefined,
-    };
-
-    router.push(
-      getPathWithQueryParams(
-        PATHS.SOFTWARE_TITLE_DETAILS(softwareId.toString()),
-        newQueryParams
-      )
-    );
+    setShowViewYamlModal(!showViewYamlModal);
   };
 
   const onDeleteSuccess = useCallback(() => {
@@ -399,6 +392,7 @@ const SoftwareInstallerCard = ({
                 onEditSoftwareClick={onEditSoftwareClick}
                 gitOpsModeEnabled={gitOpsModeEnabled}
                 repoURL={repoURL}
+                isFMA={isFleetMaintainedApp}
               />
             )}
           </div>
@@ -442,6 +436,7 @@ const SoftwareInstallerCard = ({
       )}
       {showDeleteModal && (
         <DeleteSoftwareModal
+          gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
           softwareInstallerName={softwareInstaller?.name}
           teamId={teamId}
@@ -449,7 +444,7 @@ const SoftwareInstallerCard = ({
           onSuccess={onDeleteSuccess}
         />
       )}
-      {gitOpsYamlParam && isCustomPackage && (
+      {showViewYamlModal && isCustomPackage && (
         <ViewYamlModal
           softwareTitleName={softwareTitleName}
           softwarePackage={softwareInstaller as ISoftwarePackage}
