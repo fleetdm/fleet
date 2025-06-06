@@ -30,10 +30,10 @@ type ProxyClient struct {
 	fleetServerSecret string
 }
 
-// Compile-time check to ensure that ProxyClient implements android.Client.
+// Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &ProxyClient{}
 
-func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string, getenv func(string) string) *ProxyClient {
+func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string, getenv func(string) string) Client {
 	proxyEndpoint := getenv("FLEET_DEV_ANDROID_PROXY_ENDPOINT")
 	if proxyEndpoint == "" {
 		proxyEndpoint = defaultProxyEndpoint
@@ -73,7 +73,7 @@ func (p *ProxyClient) SignupURLsCreate(ctx context.Context, serverURL, callbackU
 	signupURL, err := call.Do()
 	switch {
 	case isErrorCode(err, http.StatusConflict):
-		return nil, android.NewConflictError(fmt.Errorf("android enterprise already exists. Contact Fleet support for help"))
+		return nil, android.NewConflictError(fmt.Errorf("android enterprise already exists. Contact Fleet support for help: %w", err))
 	case err != nil:
 		return nil, fmt.Errorf("creating signup url: %w", err)
 	}
