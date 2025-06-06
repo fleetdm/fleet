@@ -177,6 +177,13 @@
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {
+      "name": "Santa",
+      "slug": "santa/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.northpolesec.santa",
+      "description": "Santa is a high-performance open-source security agent for macOS that provides binary & file-access authorization and rich system event logging."
+    },
+    {
       "name": "WhatsApp",
       "slug": "whatsapp/darwin",
       "platform": "darwin",
