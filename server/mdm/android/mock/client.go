@@ -23,7 +23,7 @@ type EnterprisesEnrollmentTokensCreateFunc func(enterpriseName string, token *an
 
 type EnterpriseDeleteFunc func(ctx context.Context, enterpriseID string) error
 
-type SetFleetServerSecretFunc func(secret string)
+type SetAuthenticationSecretFunc func(secret string) error
 
 type Client struct {
 	SignupURLsCreateFunc        SignupURLsCreateFunc
@@ -41,8 +41,8 @@ type Client struct {
 	EnterpriseDeleteFunc        EnterpriseDeleteFunc
 	EnterpriseDeleteFuncInvoked bool
 
-	SetFleetServerSecretFunc        SetFleetServerSecretFunc
-	SetFleetServerSecretFuncInvoked bool
+	SetAuthenticationSecretFunc        SetAuthenticationSecretFunc
+	SetAuthenticationSecretFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -82,9 +82,9 @@ func (p *Client) EnterpriseDelete(ctx context.Context, enterpriseID string) erro
 	return p.EnterpriseDeleteFunc(ctx, enterpriseID)
 }
 
-func (p *Client) SetFleetServerSecret(secret string) {
+func (p *Client) SetAuthenticationSecret(secret string) error {
 	p.mu.Lock()
-	p.SetFleetServerSecretFuncInvoked = true
+	p.SetAuthenticationSecretFuncInvoked = true
 	p.mu.Unlock()
-	p.SetFleetServerSecretFunc(secret)
+	return p.SetAuthenticationSecretFunc(secret)
 }

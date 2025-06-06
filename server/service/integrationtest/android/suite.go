@@ -31,6 +31,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 		fleetSvc,
 	)
 	require.NoError(t, err)
+	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierFree,

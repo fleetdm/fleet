@@ -59,8 +59,9 @@ func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string
 	}
 }
 
-func (p *ProxyClient) SetFleetServerSecret(secret string) {
+func (p *ProxyClient) SetAuthenticationSecret(secret string) error {
 	p.fleetServerSecret = secret
+	return nil
 }
 
 func (p *ProxyClient) SignupURLsCreate(serverURL, callbackURL string) (*android.SignupDetails, error) {
@@ -98,7 +99,7 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 		FleetLicenseKey: p.licenseKey,
 		PubSubPushURL:   req.PubSubPushURL,
 		EnterpriseToken: req.EnterpriseToken,
-		SignupURLName:   req.SignupUrlName,
+		SignupURLName:   req.SignupURLName,
 		Enterprise: androidmanagement.Enterprise{
 			EnabledNotificationTypes: req.EnabledNotificationTypes,
 		},
@@ -124,7 +125,7 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 
 	switch {
 	case resp.StatusCode == http.StatusNotModified:
-		return EnterprisesCreateResponse{}, fmt.Errorf("android enterprise %s was already created", req.SignupUrlName)
+		return EnterprisesCreateResponse{}, fmt.Errorf("android enterprise %s was already created", req.SignupURLName)
 	case resp.StatusCode != http.StatusOK:
 		return EnterprisesCreateResponse{}, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}

@@ -18,12 +18,12 @@ import (
 )
 
 func TestEnterprisesAuth(t *testing.T) {
-	proxy := android_mock.Client{}
-	proxy.InitCommonMocks()
+	androidAPIClient := android_mock.Client{}
+	androidAPIClient.InitCommonMocks()
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithProxy(logger, fleetDS, &proxy, &fleetSvc)
+	svc, err := NewServiceWithProxy(logger, fleetDS, &androidAPIClient, &fleetSvc)
 	require.NoError(t, err)
 
 	testCases := []struct {

@@ -13,7 +13,8 @@ type Client interface {
 	// See: https://developers.google.com/android/management/reference/rest/v1/signupUrls/create
 	SignupURLsCreate(serverURL, callbackURL string) (*android.SignupDetails, error)
 
-	// EnterprisesCreate creates an enterprise. This is the last step in the enterprise signup flow.
+	// EnterprisesCreate creates an enterprise as well as the PubSub subscription to receive notifications from Google.
+	// This is the last step in the enterprise signup flow.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/create
 	EnterprisesCreate(ctx context.Context, req EnterprisesCreateRequest) (EnterprisesCreateResponse, error)
 
@@ -27,18 +28,18 @@ type Client interface {
 
 	// EnterpriseDelete permanently deletes an enterprise and all accounts and data associated with it.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/delete
-	EnterpriseDelete(ctx context.Context, enterpriseID string) error
+	EnterpriseDelete(ctx context.Context, enterpriseName string) error
 
-	// SetFleetServerSecret sets the secret used to authenticate with fleetdm.com.
-	SetFleetServerSecret(secret string)
+	// SetAuthenticationSecret sets the secret used for authentication.
+	SetAuthenticationSecret(secret string) error
 }
 
 type EnterprisesCreateRequest struct {
-	// For Enterprise, EnterpriseToken, and SignupUrlName details,
+	// For Enterprise, EnterpriseToken, and SignupURLName details,
 	// see: https://developers.google.com/android/management/reference/rest/v1/enterprises/create
 	androidmanagement.Enterprise
 	EnterpriseToken string
-	SignupUrlName   string
+	SignupURLName   string
 
 	// PubSubPushURL is the URL to push Android PubSub messages to.
 	PubSubPushURL string
