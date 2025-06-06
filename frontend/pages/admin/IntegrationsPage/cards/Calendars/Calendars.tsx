@@ -358,7 +358,6 @@ const Calendars = (): JSX.Element => {
                   inputWrapperClass={`${baseClass}__oauth-scopes`}
                   name="oauth-scopes"
                   enableCopy
-                  copyButtonPosition="inside"
                   type="textarea"
                   value={OAUTH_SCOPES}
                 />

@@ -70,7 +70,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 		require.NoError(t, err)
 		byteData := make([]byte, len(datUTF16)*2)
 		for i, v := range datUTF16 {
-			binary.BigEndian.PutUint16(byteData[i*2:], v)
+			binary.LittleEndian.PutUint16(byteData[i*2:], v)
 		}
 		return byteData
 	}

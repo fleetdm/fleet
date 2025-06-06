@@ -1,4 +1,6 @@
 url: https://zoom.us/client/6.3.10.7150/zoom_amd64.deb
 self_service: true
+categories:
+  - Communication
 labels_include_any:
   - "Debian-based Linux hosts"

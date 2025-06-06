@@ -63,28 +63,28 @@ func TestParseRealDistributionFiles(t *testing.T) {
 	}{
 		{
 			file:               "distribution-1password.xml",
-			expectedName:       "1Password.app",
+			expectedName:       "1Password",
 			expectedVersion:    "8.10.34",
 			expectedBundleID:   "com.1password.1password",
 			expectedPackageIDs: []string{"com.1password.1password"},
 		},
 		{
 			file:               "distribution-chrome.xml",
-			expectedName:       "Google Chrome.app",
+			expectedName:       "Google Chrome",
 			expectedVersion:    "126.0.6478.62",
 			expectedBundleID:   "com.google.Chrome",
 			expectedPackageIDs: []string{"com.google.Chrome"},
 		},
 		{
 			file:               "distribution-edge.xml",
-			expectedName:       "Microsoft Edge.app",
+			expectedName:       "Microsoft Edge",
 			expectedVersion:    "126.0.2592.56",
 			expectedBundleID:   "com.microsoft.edgemac",
 			expectedPackageIDs: []string{"com.microsoft.edgemac"},
 		},
 		{
 			file:               "distribution-firefox.xml",
-			expectedName:       "Firefox.app",
+			expectedName:       "Firefox",
 			expectedVersion:    "99.0",
 			expectedBundleID:   "org.mozilla.firefox",
 			expectedPackageIDs: []string{"org.mozilla.firefox"},
@@ -105,7 +105,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		},
 		{
 			file:             "distribution-microsoft-teams.xml",
-			expectedName:     "Microsoft Teams.app",
+			expectedName:     "Microsoft Teams",
 			expectedVersion:  "24124.1412.2911.3341",
 			expectedBundleID: "com.microsoft.teams2",
 			expectedPackageIDs: []string{
@@ -115,14 +115,14 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		},
 		{
 			file:               "distribution-zoom.xml",
-			expectedName:       "zoom.us.app",
+			expectedName:       "zoom.us",
 			expectedVersion:    "6.0.11.35001",
 			expectedBundleID:   "us.zoom.xos",
 			expectedPackageIDs: []string{"us.zoom.pkg.videomeeting"},
 		},
 		{
 			file:             "distribution-acrobatreader.xml",
-			expectedName:     "Adobe Acrobat Reader.app",
+			expectedName:     "Adobe Acrobat Reader",
 			expectedVersion:  "24.002.20857",
 			expectedBundleID: "com.adobe.Reader",
 			expectedPackageIDs: []string{
@@ -132,14 +132,14 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		},
 		{
 			file:               "distribution-airtame.xml",
-			expectedName:       "Airtame.app",
+			expectedName:       "Airtame",
 			expectedVersion:    "4.10.1",
 			expectedBundleID:   "com.airtame.airtame-application",
 			expectedPackageIDs: []string{"com.airtame.airtame-application"},
 		},
 		{
 			file:             "distribution-boxdrive.xml",
-			expectedName:     "Box.app",
+			expectedName:     "Box",
 			expectedVersion:  "2.38.173",
 			expectedBundleID: "com.box.desktop",
 			expectedPackageIDs: []string{
@@ -149,7 +149,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		},
 		{
 			file:             "distribution-iriunwebcam.xml",
-			expectedName:     "IriunWebcam.app",
+			expectedName:     "IriunWebcam",
 			expectedVersion:  "2.8.8",
 			expectedBundleID: "com.iriun.macwebcam",
 			// Note: "com.iriun.pkg.multicam" is part of the installer package, but it is not actually installed by default.
@@ -158,7 +158,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		},
 		{
 			file:             "distribution-microsoftexcel.xml",
-			expectedName:     "Microsoft Excel.app",
+			expectedName:     "Microsoft Excel",
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Excel",
 			expectedPackageIDs: []string{
@@ -168,7 +168,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		},
 		{
 			file:             "distribution-microsoftword.xml",
-			expectedName:     "Microsoft Word.app",
+			expectedName:     "Microsoft Word",
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Word",
 			expectedPackageIDs: []string{
@@ -178,7 +178,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		},
 		{
 			file:             "distribution-miscrosoftpowerpoint.xml",
-			expectedName:     "Microsoft PowerPoint.app",
+			expectedName:     "Microsoft PowerPoint",
 			expectedVersion:  "16.86",
 			expectedBundleID: "com.microsoft.Powerpoint",
 			expectedPackageIDs: []string{
@@ -188,7 +188,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		},
 		{
 			file:               "distribution-ringcentral.xml",
-			expectedName:       "RingCentral.app",
+			expectedName:       "RingCentral",
 			expectedVersion:    "24.1.32.9774",
 			expectedBundleID:   "com.ringcentral.glip",
 			expectedPackageIDs: []string{"com.ringcentral.glip"},
@@ -202,7 +202,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		},
 		{
 			file:               "test-zero-installkbytes.xml",
-			expectedName:       "ZeroInstallSize.app",
+			expectedName:       "ZeroInstallSize",
 			expectedVersion:    "1.2.3",
 			expectedBundleID:   "com.bozo.zeroinstallsize",
 			expectedPackageIDs: []string{"com.bozo.zeroinstallsize.app"},
@@ -211,8 +211,8 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			file:               "distribution-sentinelone.xml",
 			expectedName:       "SentinelOne",
 			expectedVersion:    "24.3.2.7753",
-			expectedBundleID:   "com.sentinelone.pkg.sentinel-agent",
-			expectedPackageIDs: []string{"com.sentinelone.pkg.sentinel-agent"},
+			expectedBundleID:   "com.sentinelone.sentinel-agent",
+			expectedPackageIDs: []string{"com.sentinelone.pkg.sentinel-agent", "com.sentinelone.sentinel-agent"},
 		},
 		{
 			file:               "distribution-cold-turkey.xml",

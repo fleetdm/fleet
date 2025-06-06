@@ -119,7 +119,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 					"DELETE",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID),
 					nil,
-					http.StatusOK,
+					http.StatusNoContent,
 				)
 
 				require.NoError(t, device.Enroll())

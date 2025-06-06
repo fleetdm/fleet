@@ -1,0 +1,7 @@
+.installer-status-table {
+  &__status-title {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-small;
+  }
+}

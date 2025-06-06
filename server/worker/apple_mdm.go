@@ -52,13 +52,18 @@ func (a *AppleMDM) Name() string {
 
 // appleMDMArgs is the payload for the Apple MDM job.
 type appleMDMArgs struct {
-	Task                   AppleMDMTask `json:"task"`
-	HostUUID               string       `json:"host_uuid"`
-	TeamID                 *uint        `json:"team_id,omitempty"`
-	EnrollReference        string       `json:"enroll_reference,omitempty"`
-	EnrollmentCommands     []string     `json:"enrollment_commands,omitempty"`
-	Platform               string       `json:"platform,omitempty"`
-	UseWorkerDeviceRelease bool         `json:"use_worker_device_release,omitempty"`
+	Task     AppleMDMTask `json:"task"`
+	HostUUID string       `json:"host_uuid"`
+	TeamID   *uint        `json:"team_id,omitempty"`
+	// EnrollReference is the UUID of the MDM IdP account used to enroll the
+	// device. It is used to set the username and full name of the user
+	// associated with the device.
+	//
+	// FIXME: Rename this to IdPAccountUUID or something similar.
+	EnrollReference        string   `json:"enroll_reference,omitempty"`
+	EnrollmentCommands     []string `json:"enrollment_commands,omitempty"`
+	Platform               string   `json:"platform,omitempty"`
+	UseWorkerDeviceRelease bool     `json:"use_worker_device_release,omitempty"`
 }
 
 // Run executes the apple_mdm job.

@@ -72,7 +72,7 @@ describe("SaveQueryModal", () => {
 
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
     expect(screen.getByLabelText("Description")).toBeInTheDocument();
-    expect(screen.getByText("Frequency")).toBeInTheDocument();
+    expect(screen.getByText("Interval")).toBeInTheDocument();
     expect(screen.getByText("Observers can run")).toBeInTheDocument();
     expect(screen.getByText("Automations off")).toBeInTheDocument();
     expect(screen.getByText("Show advanced options")).toBeInTheDocument();

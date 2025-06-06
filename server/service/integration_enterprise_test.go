@@ -6601,7 +6601,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
 		ScriptID: script.ID,
 		HostIDs:  []uint{host1.ID, host2.ID, host3Team1.ID},
-	}, http.StatusBadRequest, &batchRes)
+	}, http.StatusUnprocessableEntity, &batchRes)
 	require.Empty(t, batchRes.BatchExecutionID)
 
 	// Bad script ID
@@ -6627,7 +6627,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
-		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s"}`, batchRes.BatchExecutionID, script.Name),
+		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null}`, batchRes.BatchExecutionID, script.Name),
 		0,
 	)
 
@@ -12484,7 +12484,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	// Upload another package for another platform
 	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
 		Filename: "dummy_installer.pkg",
-		Title:    "DummyApp.app",
+		Title:    "DummyApp",
 		TeamID:   teamID,
 	}
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
@@ -12854,7 +12854,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.NoError(s.T(), err)
 }
 
-func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
+func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall() {
 	t := s.T()
 
 	host1 := createOrbitEnrolledHost(t, "linux", "", s.ds)
@@ -12964,6 +12964,45 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	require.Equal(t, details.SoftwareTitle, payloadSS.Title)
 	require.True(t, details.SelfService)
 	require.EqualValues(t, fleet.SoftwareInstalled, details.Status)
+
+	// Do uninstall on host
+	s.DoRawNoAuth("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%d", token, titleIDSS), nil, http.StatusAccepted)
+	var getHostSoftwareResp getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSoftwareResp)
+	require.Len(t, getHostSoftwareResp.Software, 2)
+	assert.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
+	assert.Equal(t, fleet.SoftwareUninstallPending, *getHostSoftwareResp.Software[0].Status)
+	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastUninstall)
+	uninstallExecutionID := getHostSoftwareResp.Software[0].SoftwarePackage.LastUninstall.ExecutionID
+
+	// Uninstall should show up as a pending activity
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), listUpcomingAct.Activities[0].Type)
+	uninstallDetails := make(map[string]interface{}, 5)
+	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &uninstallDetails))
+	assert.EqualValues(t, fleet.SoftwareUninstallPending, uninstallDetails["status"])
+	assert.EqualValues(t, true, uninstallDetails["self_service"])
+	assert.Nil(t, listUpcomingAct.Activities[0].ActorID)
+	assert.False(t, listUpcomingAct.Activities[0].FleetInitiated)
+
+	// Host sends successful uninstall result
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host1.OrbitNodeKey,
+			uninstallExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	// Check activity feed
+	var activitiesResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &activitiesResp, "order_key", "a.id",
+		"order_direction", "desc")
+	require.NotEmpty(t, activitiesResp.Activities)
+	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
+	uninstallDetails = make(map[string]interface{}, 5)
+	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &uninstallDetails))
+	assert.Equal(t, "uninstalled", uninstallDetails["status"])
+	assert.EqualValues(t, true, uninstallDetails["self_service"])
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
@@ -13509,7 +13548,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
-		{Name: "DummyApp.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+		{Name: "DummyApp", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -13540,7 +13579,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -13554,8 +13593,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
-		{Name: "DummyApp.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
-		{Name: "AppDummy.app", Version: "2.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+		{Name: "DummyApp", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+		{Name: "AppDummy", Version: "2.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -13576,7 +13615,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -13608,7 +13647,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.Equal(t, "NoVersion.app", resp.SoftwareTitles[0].Name)
+	require.Equal(t, "NoVersion", resp.SoftwareTitles[0].Name)
 	require.Equal(t, "", resp.SoftwareTitles[0].SoftwarePackage.Version)
 }
 
@@ -13722,7 +13761,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
 		// note: the source is not "apps"
-		{Name: "DummyApp.app", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -13743,7 +13782,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -13768,7 +13807,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -13808,7 +13847,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
 		{Name: "bar", Version: "0.0.4", Source: "apps"},
 		// note: the source is not "apps"
-		{Name: "DummyApp.app", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+		{Name: "DummyApp", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -13833,7 +13872,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.ElementsMatch(
 		t,
-		[]string{"DummyApp.app"},
+		[]string{"DummyApp"},
 		[]string{resp.SoftwareTitles[0].Name},
 	)
 
@@ -13851,7 +13890,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	require.Len(t, resp.SoftwareTitles, 3)
 	require.ElementsMatch(
 		t,
-		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{"foo", "bar", "DummyApp"},
 		[]string{
 			resp.SoftwareTitles[0].Name,
 			resp.SoftwareTitles[1].Name,
@@ -14750,7 +14789,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"query", "DummyApp.app",
+		"query", "DummyApp",
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
@@ -14901,7 +14940,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Populate software for host1Team1 (to have a software title
 	// that doesn't have an associated installer)
 	software := []fleet.Software{
-		{Name: "Foobar.app", Version: "0.0.1", Source: "apps"},
+		{Name: "Foobar", Version: "0.0.1", Source: "apps"},
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host1Team1.ID, software)
 	require.NoError(t, err)
@@ -14914,7 +14953,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{},
 		http.StatusOK, &resp,
-		"query", "Foobar.app",
+		"query", "Foobar",
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
@@ -15346,7 +15385,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		"status": "installed",
 		"policy_id": %d,
 		"policy_name": "%s"
-	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp.app", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
+	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
 
 	// host2Team1 posts the installation result for ruby.deb.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
@@ -16278,7 +16317,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 	require.NoError(t, err)
 
 	software := []fleet.Software{
-		{Name: "DummyApp.app", Version: "0.0.2", Source: "apps"},
+		{Name: "DummyApp", Version: "0.0.2", Source: "apps"},
 	}
 	// we must ingest the title with an empty bundle identifier for this
 	// test to be valid
@@ -16774,6 +16813,13 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, tpResp.Policy.Name, gotPolicy.Name)
 	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
 
+	// check that we created an activity for the policy creation
+	wantAct := fleet.ActivityTypeCreatedPolicy{
+		ID:   gotPolicy.ID,
+		Name: gotPolicy.Name,
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
 	// First FMA added doesn't have automatic install policies
 	st = resp.SoftwareTitles[1] // sorted by ID above
 	require.NotNil(t, st.SoftwarePackage)
@@ -17095,7 +17141,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	require.Len(t, ts.InheritedPolicies, 0)
 
 	// Delete and try again with automatic policy turned on.
-	pkgTitleID := getSoftwareTitleID(t, s.ds, "DummyApp.app", "apps")
+	pkgTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", pkgTitleID), nil, http.StatusNoContent,
 		"team_id", fmt.Sprintf("%d", team1.ID))
 
@@ -17108,20 +17154,27 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	}
 	s.uploadSoftwareInstaller(t, pkgPayload, http.StatusOK, "")
 
-	pkgTitleID = getSoftwareTitleID(t, s.ds, "DummyApp.app", "apps")
+	pkgTitleID = getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
 	respTitle := getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d?team_id=%d", pkgTitleID, team1.ID), listSoftwareTitlesRequest{}, http.StatusOK, &respTitle)
 	require.NotNil(t, respTitle.SoftwareTitle)
 	require.NotNil(t, respTitle.SoftwareTitle.SoftwarePackage)
 	require.Len(t, respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
-	require.Equal(t, "[Install software] DummyApp.app (pkg)", respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name)
+	require.Equal(t, "[Install software] DummyApp (pkg)", respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name)
+
+	// check that we created an activity for the policy creation
+	wantAct := fleet.ActivityTypeCreatedPolicy{
+		ID:   respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID,
+		Name: respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name,
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
 	// Check a policy was created on team1.
 	ts = listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
 	require.Len(t, ts.InheritedPolicies, 0)
-	require.Equal(t, "[Install software] DummyApp.app (pkg)", ts.Policies[0].Name)
+	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
 
 	// Upload dummy_installer.pkg to team2 with automatic policy.
 	pkgPayload = &fleet.UploadSoftwareInstallerPayload{
@@ -17137,7 +17190,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team2.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
 	require.Len(t, ts.InheritedPolicies, 0)
-	require.Equal(t, "[Install software] DummyApp.app (pkg)", ts.Policies[0].Name)
+	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
 
 	// Upload ruby.deb to team1 with automatic policy.
 	payloadRubyDEB := &fleet.UploadSoftwareInstallerPayload{
@@ -17345,14 +17398,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.True(t, hitDebURL)
 	hitDebURL = false
 
-	var installerHash string
+	var debHash string
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+		return sqlx.GetContext(ctx, q, &debHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
 	})
-	require.NotEmpty(t, installerHash)
+	require.NotEmpty(t, debHash)
 
 	// add the hash to the payload
-	softwareToInstall[0].SHA256 = installerHash
+	softwareToInstall[0].SHA256 = debHash
 
 	// dry run shouldn't hit the download endpoint since we included the SHA
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name, "dry_run", "true")
@@ -17524,7 +17577,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.NotNil(t, pkgTitleID)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
 	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, "DummyApp.app", stResp.SoftwareTitle.Name)
+	require.Equal(t, "DummyApp", stResp.SoftwareTitle.Name)
 	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
 	require.Equal(t, softwareToInstall[2].InstallScript, stResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Equal(t, softwareToInstall[2].UninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
@@ -17533,7 +17586,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	require.True(t, hitPkgURL)
 	hitPkgURL = false
 
-	// attempt to add the exe to team 1 without scripts. Even though the admin has access to
+	// Attempt to add the exe to team 1 without scripts. Even though the admin has access to
 	// both teams, it should fail because scripts are required for exes.
 	// Check without either script first.
 	s.token = s.getTestAdminToken()
@@ -17593,10 +17646,31 @@ done
 	require.NotNil(t, pkgTitleID)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *pkgTitleID), getSoftwareTitleRequest{}, http.StatusOK, &stResp, "team_id", fmt.Sprint(team2.ID))
 	require.NotNil(t, stResp.SoftwareTitle.SoftwarePackage)
-	require.Equal(t, "DummyApp.app", stResp.SoftwareTitle.Name)
+	require.Equal(t, "DummyApp", stResp.SoftwareTitle.Name)
 	require.Equal(t, pkgURL, stResp.SoftwareTitle.SoftwarePackage.URL)
 	require.Equal(t, file.GetInstallScript("pkg"), stResp.SoftwareTitle.SoftwarePackage.InstallScript)
 	require.Equal(t, expectedUninstallScript, stResp.SoftwareTitle.SoftwarePackage.UninstallScript)
+
+	// Clean up all installers from the store. We don't care about how many installers are
+	// removed in this test, so just check that the cleanup succeeded.
+	_, err = s.softwareInstallStore.Cleanup(ctx, nil, time.Now())
+	require.NoError(t, err)
+
+	// At this point, the exe payload has no URL. Batch set should fail because the
+	// installer bytes don't exist anymore and there is no URL provided.
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, fmt.Sprintf("package not found with hash %s", exeHash))
+
+	// Add the URL back and do the batch set. Should succeed and re-download all installers.
+	softwareToInstall[1].URL = exeURL
+	hitDebURL, hitExeURL, hitPkgURL = false, false, false
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 3)
+	for _, v := range []bool{hitDebURL, hitExeURL, hitPkgURL} {
+		require.True(t, v)
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategories() {

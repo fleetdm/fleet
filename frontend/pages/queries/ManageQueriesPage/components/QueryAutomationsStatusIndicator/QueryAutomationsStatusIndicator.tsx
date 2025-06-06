@@ -26,8 +26,8 @@ const QueryAutomationsStatusIndicator = ({
       ? {
           tooltipText: (
             <>
-              <strong>Automations</strong> will resume for this query when a
-              frequency is set.
+              <strong>Automations</strong> will resume for this query when an
+              interval is set.
             </>
           ),
         }

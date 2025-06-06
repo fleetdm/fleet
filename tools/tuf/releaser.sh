@@ -199,8 +199,17 @@ release_osqueryd_to_edge () {
     if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
         pushd "$GIT_REPOSITORY_DIRECTORY"
         git checkout -b "$BRANCH_NAME"
+        # Update the version used to build osqueryd targets.
         "$GO_TOOLS_DIRECTORY/replace" .github/workflows/generate-osqueryd-targets.yml "OSQUERY_VERSION: .+\n" "OSQUERY_VERSION: $VERSION\n"
         git add .github/workflows/generate-osqueryd-targets.yml
+        # Update the version used to generate the osquery schema in Fleet.
+        "$GO_TOOLS_DIRECTORY/replace" ./website/config/custom.js "versionOfOsquerySchemaToUseWhenGeneratingDocumentation: .+\n" "versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '$VERSION',\n"
+        git add ./website/config/custom.js
+        pushd website
+        npm install
+        ./node_modules/sails/bin/sails.js run generate-merged-schema
+        popd
+        git add ./schema/osquery_fleet_schema.json
         git commit -m "Bump osqueryd version to $VERSION"
         git push origin "$BRANCH_NAME"
         prompt "A PR will be created to trigger a Github Action to build osqueryd."

@@ -22,7 +22,7 @@ CREATE TABLE mobile_device_management_solutions (
   updated_at    TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   UNIQUE KEY idx_mobile_device_management_solutions_name (name, server_url)
-)`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")
 	}

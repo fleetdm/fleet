@@ -10,11 +10,7 @@ import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
-import {
-  ISoftwareTitleDetails,
-  formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
-} from "interfaces/software";
+import { ISoftwareTitleDetails } from "interfaces/software";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
@@ -30,11 +26,8 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
-import Card from "components/Card";
-
-import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
-import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
+import SoftwareSummaryCard from "./SoftwareSummaryCard";
 import SoftwareInstallerCard from "./SoftwareInstallerCard";
 import { getInstallerCardInfo } from "./helpers";
 
@@ -42,7 +35,6 @@ const baseClass = "software-title-details-page";
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
-  team_id?: string;
 }
 
 type ISoftwareTitleDetailsPageProps = RouteComponentProps<
@@ -61,11 +53,14 @@ const SoftwareTitleDetailsPage = ({
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
+    config,
   } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
+  const autoOpenGitOpsYamlModal =
+    location.query.gitops_yaml === "true" && config?.gitops.gitops_mode_enabled;
 
   const {
     currentTeamId,
@@ -143,6 +138,7 @@ const SoftwareTitleDetailsPage = ({
     }
 
     const {
+      softwareTitleName,
       softwarePackage,
       name,
       version,
@@ -153,6 +149,7 @@ const SoftwareTitleDetailsPage = ({
 
     return (
       <SoftwareInstallerCard
+        softwareTitleName={softwareTitleName}
         softwareInstaller={softwarePackage}
         name={name}
         version={version}
@@ -161,33 +158,26 @@ const SoftwareTitleDetailsPage = ({
         isSelfService={isSelfService}
         softwareId={softwareId}
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        teamIdForApi={teamIdForApi}
         onDelete={onDeleteInstaller}
         refetchSoftwareTitle={refetchSoftwareTitle}
+        isLoading={isSoftwareTitleLoading}
+        router={router}
+        gitOpsYamlParam={autoOpenGitOpsYamlModal}
       />
     );
   };
 
-  const renderSoftwareVersionsCard = (title: ISoftwareTitleDetails) => {
-    // Hide versions card for tgz_packages only
-    if (title.source === "tgz_packages") return null;
-
+  const renderSoftwareSummaryCard = (title: ISoftwareTitleDetails) => {
     return (
-      <Card
-        borderRadiusSize="xxlarge"
-        includeShadow
-        className={`${baseClass}__versions-section`}
-      >
-        <h2>Versions</h2>
-        <SoftwareTitleDetailsTable
-          router={router}
-          data={title.versions ?? []}
-          isLoading={isSoftwareTitleLoading}
-          teamIdForApi={teamIdForApi}
-          isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
-          isAvailableForInstall={isAvailableForInstall}
-          countsUpdatedAt={title.counts_updated_at}
-        />
-      </Card>
+      <SoftwareSummaryCard
+        title={title}
+        softwareId={softwareId}
+        teamId={teamIdForApi}
+        isAvailableForInstall={isAvailableForInstall}
+        isLoading={isSoftwareTitleLoading}
+        router={router}
+      />
     );
   };
 
@@ -208,26 +198,8 @@ const SoftwareTitleDetailsPage = ({
     if (softwareTitle) {
       return (
         <>
-          <SoftwareDetailsSummary
-            title={softwareTitle.name}
-            type={formatSoftwareType(softwareTitle)}
-            versions={softwareTitle.versions?.length ?? 0}
-            hosts={softwareTitle.hosts_count}
-            countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{
-              software_title_id: softwareId,
-              team_id: teamIdForApi,
-            }}
-            name={softwareTitle.name}
-            source={softwareTitle.source}
-            iconUrl={
-              softwareTitle.app_store_app
-                ? softwareTitle.app_store_app.icon_url
-                : undefined
-            }
-          />
+          {renderSoftwareSummaryCard(softwareTitle)}
           {renderSoftwareInstallerCard(softwareTitle)}
-          {renderSoftwareVersionsCard(softwareTitle)}
         </>
       );
     }

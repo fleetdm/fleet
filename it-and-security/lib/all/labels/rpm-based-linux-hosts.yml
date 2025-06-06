@@ -2,3 +2,4 @@
   description: Linux hosts running on RPM-based operating systems
   query: SELECT 1 FROM os_version WHERE platform_like = 'rhel';
   label_membership_type: dynamic
+  platform: linux

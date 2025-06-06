@@ -172,7 +172,6 @@ const EditScriptModal = ({
           <Editor
             mode={mode}
             error={formError}
-            isFormField
             label="Script"
             onBlur={onBlur}
             onChange={onChange}

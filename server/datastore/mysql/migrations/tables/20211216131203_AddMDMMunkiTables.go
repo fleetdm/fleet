@@ -18,7 +18,7 @@ func Up_20211216131203(tx *sql.Tx) error {
 			server_url VARCHAR(255) DEFAULT '' NOT NULL,
 			installed_from_dep bool DEFAULT FALSE NOT NULL,
 			PRIMARY KEY (host_id)
-		);
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	if _, err := tx.Exec(mdmTable); err != nil {
 		return errors.Wrap(err, "create host_mdm table")
@@ -28,7 +28,7 @@ func Up_20211216131203(tx *sql.Tx) error {
 			host_id int(10) UNSIGNED NOT NULL,
 			version VARCHAR(255) DEFAULT '' NOT NULL,
 			PRIMARY KEY (host_id)
-		);
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	if _, err := tx.Exec(munkiInfoTable); err != nil {
 		return errors.Wrap(err, "create host_munki_info table")

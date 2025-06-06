@@ -216,7 +216,7 @@ func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luksdevice.
 }
 
 func getNextAvailableKeySlot(ctx context.Context, devicePath string) (uint, error) {
-	dump, err := getLuksDump(ctx, devicePath)
+	dump, err := GetLuksDump(ctx, devicePath)
 	if err != nil {
 		return 0, fmt.Errorf("get next available key slot: %w", err)
 	}
@@ -323,19 +323,7 @@ func (lr *LuksRunner) infoPrompt(title, text string) error {
 	return nil
 }
 
-type LuksDump struct {
-	Keyslots map[string]Keyslot `json:"keyslots"`
-}
-
-type Keyslot struct {
-	KDF KDF `json:"kdf"`
-}
-
-type KDF struct {
-	Salt string `json:"salt"`
-}
-
-func getLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
+func GetLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	var jsonFlag string
 	var jsonNeedsExtraction bool
 
@@ -373,7 +361,7 @@ func getLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 }
 
 func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
-	dump, err := getLuksDump(ctx, devicePath)
+	dump, err := GetLuksDump(ctx, devicePath)
 	if err != nil {
 		return "", fmt.Errorf("getting salt for key slot: %w", err)
 	}

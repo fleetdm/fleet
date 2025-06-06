@@ -49,7 +49,6 @@ const AutoEnrollMdmModal = ({
             </div>
             <InputField
               enableCopy
-              copyButtonPosition="inside"
               readOnly
               inputWrapperClass
               name="profiles-renew-command"
@@ -90,7 +89,6 @@ const AutoEnrollMdmModal = ({
             </div>
             <InputField
               enableCopy
-              copyButtonPosition="inside"
               readOnly
               inputWrapperClass
               name="profiles-renew-command"

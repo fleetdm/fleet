@@ -25,7 +25,7 @@ func Up_20161118212538(tx *sql.Tx) error {
 			"PRIMARY KEY (`id`)," +
 			"UNIQUE KEY `idx_invite_unique_email` (`email`)," +
 			"UNIQUE KEY `idx_invite_unique_key` (`token`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }

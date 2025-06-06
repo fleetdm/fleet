@@ -71,6 +71,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"github.com/throttled/throttled/v2"
 	"go.elastic.co/apm/module/apmhttp/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
@@ -897,6 +898,14 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register cleanups_then_aggregations schedule")
 			}
 
+			if err := cronSchedules.StartCronSchedule(
+				func() (fleet.CronSchedule, error) {
+					return newUpcomingActivitiesSchedule(ctx, instanceID, ds, logger)
+				},
+			); err != nil {
+				initFatal(err, "failed to register upcoming_activities_maintenance schedule")
+			}
+
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newUsageStatisticsSchedule(ctx, instanceID, ds, config, license, logger)
 			}); err != nil {
@@ -1078,8 +1087,13 @@ the way that the Fleet server works.
 
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
 
+				var extra []service.ExtraHandlerOption
+				if config.MDM.SSORateLimitPerMinute > 0 {
+					extra = append(extra, service.WithMdmSsoRateLimit(throttled.PerMin(config.MDM.SSORateLimitPerMinute)))
+				}
+
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
-					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)})
+					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {

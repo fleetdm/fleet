@@ -69,11 +69,11 @@ Such application runs as the Desktop GUI user (it does not run as `root`/`SYSTEM
 Before starting `Fleet desktop`, `orbit` will set a random "Fleet desktop token" and send it to Fleet server via the `orbit` authenticated communication channel.
 The `orbit` process stores such token on a file accessible to the GUI user and `Fleet desktop` will use the token to authenticate requests to Fleet. When the user clicks on "My device" on the tray icon menu, `Fleet desktop` will open the default browser on a URL that contains the "Fleet desktop token" on its URL path. For this very reason, the "Fleet desktop token" is rotated every hour (by the `orbit` process).
 
-Here's a diagram to summarize fleetd communication channels after enrollment (more on "tuf.fleetctl.com" below):
+Here's a diagram to summarize fleetd communication channels after enrollment (more on "updates.fleetdm.com" below):
 ```mermaid
 graph LR;
 
-tuf["tuf.fleetctl.com"];
+tuf["updates.fleetdm.com"];
 
 subgraph fleetd;
     orbit;
@@ -93,7 +93,7 @@ orbit -- HTTPS + The Update Framework --> tuf;
 ## Fleetd auto updates
 
 `orbit` uses the [The Update Framework](https://theupdateframework.io/) to perform secure auto-updates.
-By default, `orbit` has public root keys embedded in it to only trust updates published and signed in Fleet's TUF repository https://tuf.fleetctl.com (via HTTPS).
+By default, `orbit` has public root keys embedded in it to only trust updates published and signed in Fleet's TUF repository https://updates.fleetdm.com (via HTTPS).
 
 fleetd can also be customized to use a user-controlled "TUF" server.
 More information can be found on orbit's Github [README](https://github.com/fleetdm/fleet/tree/main/orbit).

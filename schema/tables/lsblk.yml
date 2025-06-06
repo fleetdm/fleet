@@ -1,0 +1,27 @@
+name: lsblk
+description: Based on the output obtained by running `lsblk -n -O`
+evented: false
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+platforms:
+  - linux
+columns:
+  - name: fullkey
+    description: Flattened full key with '/' as separator, e.g. `blockdevices/15/min-io`.
+    required: false
+    type: text
+  - name: parent
+    description: Parent key when keys are nested in the document.
+    required: false
+    type: text
+  - name: key
+    description: JSON key or array index.
+    required: false
+    type: text
+  - name: value
+    description: JSON value
+    required: false
+    type: text
+  - name: query
+    description: Specifies a query to flatten with. This is used both for re-writing arrays into maps, and for filtering.
+    required: false
+    type: text

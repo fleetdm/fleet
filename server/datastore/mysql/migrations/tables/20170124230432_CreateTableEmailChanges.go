@@ -16,7 +16,7 @@ func Up_20170124230432(tx *sql.Tx) error {
 		"UNIQUE KEY `idx_unique_email_changes_token` (`token`) USING BTREE, " +
 		"KEY `fk_email_changes_users` (`user_id`), " +
 		"CONSTRAINT `fk_email_changes_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE " +
-		") ENGINE=InnoDB DEFAULT CHARSET=utf8;"
+		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
 	_, err := tx.Exec(sqlStatement)
 	return err
 }

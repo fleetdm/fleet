@@ -1,4 +1,4 @@
-import React, { ReactNode } from "react";
+import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import { http, HttpResponse } from "msw";
@@ -250,15 +250,15 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    // Find the frequency dropdown
-    const frequencyDropdown = screen
-      .getByText("Frequency")
+    // Find the interval dropdown
+    const intervalDropdown = screen
+      .getByText("Interval")
       .closest(".form-field--dropdown") as HTMLElement;
-    expect(frequencyDropdown).toBeInTheDocument();
+    expect(intervalDropdown).toBeInTheDocument();
 
-    // Check if the frequency is set to "Never"
-    const selectedFrequency = within(frequencyDropdown).getByText("Never");
-    expect(selectedFrequency).toBeInTheDocument();
+    // Check if the interval is set to "Never"
+    const selectedInterval = within(intervalDropdown).getByText("Never");
+    expect(selectedInterval).toBeInTheDocument();
 
     // Find the automations slider
     const automationsSlider = screen

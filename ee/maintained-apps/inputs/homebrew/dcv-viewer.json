@@ -1,0 +1,7 @@
+{
+  "name": "Amazon DCV",
+  "unique_identifier": "com.nicesoftware.dcvviewer",
+  "token": "dcv-viewer",
+  "installer_format": "dmg",
+  "slug": "dcv-viewer/darwin"
+}

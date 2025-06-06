@@ -27,11 +27,6 @@ module.exports = {
         author: 'koo',
         tweet: 'Sails.js is the best JavaScript framework'
       },
-      {
-        id: 4,
-        author: 'koo',
-        tweet: 'The 4th annual SailsConf is coming up in May in Abuja!'
-      },
     ];
 
     let topPosts = [];

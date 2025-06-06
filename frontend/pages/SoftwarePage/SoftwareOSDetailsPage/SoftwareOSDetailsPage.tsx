@@ -164,17 +164,23 @@ const SoftwareOSDetailsPage = ({
           />
         ) : (
           <>
-            <SoftwareDetailsSummary
-              title={osVersionDetails.name}
-              hosts={osVersionDetails.hosts_count}
-              countsUpdatedAt={counts_updated_at}
-              queryParams={{
-                os_name: osVersionDetails.name_only,
-                os_version: osVersionDetails.version,
-                team_id: teamIdForApi,
-              }}
-              name={osVersionDetails.platform}
-            />
+            <Card
+              borderRadiusSize="xxlarge"
+              includeShadow
+              className={`${baseClass}__summary-section`}
+            >
+              <SoftwareDetailsSummary
+                title={osVersionDetails.name}
+                hosts={osVersionDetails.hosts_count}
+                countsUpdatedAt={counts_updated_at}
+                queryParams={{
+                  os_name: osVersionDetails.name_only,
+                  os_version: osVersionDetails.version,
+                  team_id: teamIdForApi,
+                }}
+                name={osVersionDetails.platform}
+              />
+            </Card>
             <Card
               borderRadiusSize="xxlarge"
               includeShadow

@@ -164,7 +164,7 @@ const FleetMaintainedAppsTable = ({
   // API will need to be refactored to combine macOS/windows apps
   // for correct pagination, sort, and counts when we go over 20 apps
   const combinedAppsByPlatform =
-    (data && combineAppsByPlatform(data.fleet_maintained_apps)) ?? [];
+    (data && combineAppsByPlatform(data.fleet_maintained_apps ?? [])) ?? [];
 
   const renderCount = () => {
     if (!combinedAppsByPlatform) return null;

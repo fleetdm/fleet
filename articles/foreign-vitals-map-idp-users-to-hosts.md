@@ -6,7 +6,7 @@ _Available in Fleet Premium._
 
 To add IdP host vitals, like the end user's groups and full name, follow steps for your IdP. 
 
-Fleet currently supports [Okta](#okta). [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), are coming soon.
+Fleet currently supports [Okta](#okta). [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), more are coming soon.
 
 
 ## Okta

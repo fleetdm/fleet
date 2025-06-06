@@ -58,7 +58,7 @@ Fleet refreshes host details once per hour by default. As part of the refresh pr
 
 ## Sequence diagram
 
-For additional technical details, including a sequence diagram, see [Fleet's contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/MDM-end-user-authentication.md).
+For additional technical details, including a sequence diagram, see [Fleet's contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/mdm/mdm-end-user-authentication.md).
 
 ## Summary
 

@@ -1,2 +1,0 @@
-- Fixes an issue with how names for macOS software titles were calculated and prevents duplicate
-  entries being created if the software is renamed by end users.

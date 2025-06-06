@@ -765,7 +765,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Configure 'Log on as a service'
+  name: CIS - Ensure 'Log on as a service' is configured
   platforms: win11
   platform: windows
   description: |
@@ -980,24 +980,6 @@ spec:
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/TakeOwnership</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, english-support-only
-  contributors: marcosd4h
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Accounts Block Microsoft accounts' is set to 'Users can't add or log on with Microsoft accounts'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting prevents users from adding new Microsoft accounts on this computer.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'Users can't add or log on with Microsoft account':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Accounts: Block Microsoft accounts'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\NoConnectedUser' AND data == 3);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
 ---
 apiVersion: v1
@@ -1972,6 +1954,27 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'Network security: LDAP client encryption requirements' is set to 'Negotiate sealing' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines the level of data encryption that is requested on behalf of clients that issue LDAP BIND requests.
+    The recommended state for this setting is: 'Negotiate sealing'.
+    Configuring this setting to 'Require sealing' also conforms to the Benchmark.
+    Note: This policy setting does not have any impact on LDAP simple bind
+    (ldap_simple_bind) or LDAP simple bind through SSL (ldap_simple_bind_s).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Negotiate sealing' or higher:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: LDAP client encryption requirements'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LDAP\ldapclientconfidentiality' AND data IN (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Network security Force logoff when logon hours expire' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -2333,6 +2336,25 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'GameInput Service (GameInputSvc)' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This service enables the use of keyboards, mice, gamepads, and other input devices to be used with the GameInput API.
+    The recommended state for this setting is: Disabled.
+    Note: GameInput service runs as LocalSystem in its own process of GameInputSvc.exe and doesn't share its process with other services.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to: Disabled.
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\GameInput Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\GameInputSvc\Start' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Geolocation Service (lfsvc)' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -2501,82 +2523,6 @@ spec:
     EXISTS ( SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\sshd\\Start' AND data == 4 );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Peer Name Resolution Protocol (PNRPsvc)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Enables serverless peer name resolution over the Internet using the Peer Name Resolution Protocol (PNRP).
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Name Resolution Protocol'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PNRPsvc\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Peer Networking Grouping (p2psvc)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Enables multi-party communication using Peer-to-Peer Grouping.
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Networking Grouping'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\p2psvc\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Peer Networking Identity Manager (p2pimsvc)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Provides identity services for the Peer Name Resolution Protocol (PNRP) and Peer-to-Peer Grouping services.
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\Peer Networking Identity Manager'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\p2pimsvc\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'PNRP Machine Name Publication Service (PNRPAutoReg)' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This service publishes a machine name using the Peer Name Resolution Protocol. Configuration is managed via the netsh context ‘p2p pnrp peer’.
-    The recommended state for this setting is: Disabled.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via domain GP, set the following UI path to 'Disabled':
-    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\PNRP Machine Name Publication Service'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\PNRPAutoReg\\Start' AND data == 4);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
 ---
 apiVersion: v1
@@ -3030,6 +2976,26 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'WinHTTP Web Proxy Auto-Discovery Service (WinHttpAutoProxySvc)' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    WinHTTP implements the client HTTP stack and provides developers with a Win32 API and COM Automation component for sending HTTP requests and receiving responses.
+    In addition, WinHTTP provides support for auto-discovering a proxy configuration via its implementation of the Web Proxy Auto-Discovery (WPAD) protocol.
+    The recommended state for this setting is: Disabled.
+    Note: Although CIS categorizes this as a L2 recommendation, if none of the cases listed in the Impact Section apply, we highly recommend disabling this service.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to: Disabled.
+    'Computer Configuration\Policies\Windows Settings\Security Settings\System Services\WinHTTP Web Proxy Auto-Discovery Service'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\WinHttpAutoProxySvc\Start' AND data = 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'World Wide Web Publishing Service (W3SVC)' is set to 'Disabled' or to 'Not Installed'
   platforms: win11
   platform: windows
@@ -3233,25 +3199,6 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Update\Manage updates offered from Windows Update\Enable optional updates'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\SetAllowOptionalContent' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: DefensiveDepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Turn off Windows Copilot' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting configures the use of Windows Copilot. Windows Copilot is an artificial intelligence (AI) assistant that's integrated in Microsoft Windows workstation OSes, beginning with Windows 11 Release 23H2.
-    The recommended state for this setting is: Enabled.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'User Configuration\Policies\Administrative Templates\Windows Components\Windows Copilot\Turn off Windows Copilot'
-  query: |
-    SELECT 1 FROM registry WHERE path LIKE 'HKEY_USERS\%\Software\Policies\Microsoft\Windows\WindowsCopilot\TurnOffWindowsCopilot' AND data = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: DefensiveDepth
@@ -5107,6 +5054,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Turn off default IPv6 DNS Servers' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the DNS client will use the default IPv6 DNS server addresses provided by Windows.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Turn off default IPv6 DNS Servers'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DnsClient.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\DisableIPv6DefaultDnsServers' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Turn off multicast name resolution' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -5145,6 +5112,219 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Audit client does not support encryption' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Server Message Block (SMB) server will log events when the SMB client doesn't support encryption.
+    Enabling this will create event log entries in
+    'Applications and Services Logs\Microsoft\Windows\SMBClient\Audit', with Event ID 31998.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit client does not support encryption'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditClientDoesNotSupportEncryption' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit client does not support signing' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Server Message Block (SMB) server will log events when the SMB client doesn't support signing.
+    Enabling this will create event log entries in 'Applications and Services Logs\Microsoft\Windows\SMBClient\Audit', with Event ID 31999.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit client does not support signing'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditClientDoesNotSupportSigning' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable authentication rate limiter' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings configures the Server Message Block (SMB) server authentication rate limiter.
+    The authentication rate limiter is a feature of SMB that is designed to address brute force attacks.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Enable authentication rate limiter'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\EnableAuthRateLimiter' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable remote mailslots' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls whether the SMB server will use remote mailslots over the
+    computer browser service. The remote mailslots protocol is an old, simple, unreliable,
+    and insecure inter-process communication method.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Enable remote mailslots'
+    Note: A reboot is required after the setting is applied.
+    Note 2: This Group Policy path may not exist by default. It is provided by the Group
+    Policy template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Bowser\EnableMailslots' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Mandate the minimum version of SMB' is set to 'Enabled: 3.1.1'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls the minimum version of Server Message Block (SMB) protocol that can be used on the system.
+    The recommended state for this setting is: Enabled: 3.1.1.
+    Note: This group policy setting does not prevent the use of SMBv1 if it is installed and
+    enabled on the system. If the following recommendations are configured as prescribed
+    in this benchmark, SMBv1 will be disabled on the system: 'Configure SMB v1 client driver' and 'Configure SMB v1 server.'
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 3.1.1':
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Mandate the minimum version of SMB'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template LanmanServer.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\MinSmb2Dialect' AND data = 785);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Require Encryption' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the SMB client will require encryption.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Require Encryption'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanWorkstation.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\RequireEncryption' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Set authentication rate limiter delay (milliseconds)' is set to 'Enabled: 2000' or more
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings configures the SMB server invalid authentication delay value in milliseconds.
+    The recommended state for this setting is: 'Enabled: 2000' or more.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 2000' or more:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Set authentication rate limiter delay (milliseconds)'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanServer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\InvalidAuthenticationDelayTimeInMs' AND data >= 2000);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit insecure guest logon' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy determines whether the Server Message Block (SMB) client will log events when the client is logged on as guest account.
+    Enabling this will create event log entries in 'Applications and Service Logs\Microsoft\Windows\SMBClient\Security', with Event IDs 3023, 31017, 31018, and 31022.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit insecure guest logon'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template LanmanWorkstation.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditInsecureGuestLogon' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit server does not support encryption' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Server Message Block (SMB) client will log events when the SMB server doesn't support encryption.
+    Enabling this will create event log entries in 'Applications and Services Logs\Microsoft\Windows\SMBServer\Audit', with Event ID 3021.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit server does not support encryption'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template LanmanWorkstation.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditServerDoesNotSupportEncryption' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Audit server does not support signing' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Server Message Block (SMB) client will log events when the SMB server doesn't support signing.
+    Enabling this will create event log entries in 'Applications and Services Logs\Microsoft\Windows\SMBServer\Audit', with Event ID 3022.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit server does not support signing'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LanmanWorkstation.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditServerDoesNotSupportSigning' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds' is set to 'Enabled: 300,000 or 5 minutes'
   platforms: win11
   platform: windows
@@ -5155,7 +5335,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (KeepAliveTime) How often keep-alive packets are sent in milliseconds'
     Note: This Group Policy path does not exist by default. An additional Group Policy template (MSS-legacy.admx/adml) is required - it is available from the Security Compliance Toolkit 1.0 (https://www.microsoft.com/en-us/download/details.aspx?id=55319)
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\KeepAliveTime' AND data = 300000);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\KeepAliveTime' AND data = 300000);
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_group_policy_template_required
   contributors: rachelelysia
@@ -5288,7 +5468,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Defender SmartScreen\Microsoft Edge\Configure Windows Defender SmartScreen'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template MicrosoftEdge.admx/adml that is included with the Microsoft Windows 10 RTM (Release 1507) Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\MicrosoftEdge\\PhishingFilter\EnabledV9' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\MicrosoftEdge\PhishingFilter\EnabledV9' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
@@ -5325,7 +5505,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Disabled:
     'Computer Configuration\Policies\Administrative Templates\Printers\Allow Print Spooler to accept client connections'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows NT\\Printers\RegisterSpoolerRemoteRpcEndPoint' AND data = 2);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\RegisterSpoolerRemoteRpcEndPoint' AND data = 2);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
@@ -5343,7 +5523,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Show warning and elevation prompt':
     'Computer Configuration\Policies\Administrative Templates\Printers\Point and Print Restrictions: When installing drivers for a new connection'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows NT\\Printers\PointAndPrint\\NoWarningNoElevationOnInstall' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\PointAndPrint\NoWarningNoElevationOnInstall' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
@@ -5361,7 +5541,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Show warning and elevation prompt':
     'Computer Configuration\Policies\Administrative Templates\Printers\Point and Print Restrictions: When updating drivers for an existing connection'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\Software\\Policies\\Microsoft\\Windows NT\\Printers\PointAndPrint\\UpdatePromptSettings' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\PointAndPrint\UpdatePromptSettings' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
@@ -5370,19 +5550,22 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Configure DNS over HTTPS (DoH) name resolution' is set to 'Enabled: Allow DoH' or higher (Automated)
+    CIS - Ensure 'Configure multicast DNS (mDNS) protocol' is set to 'Disabled'
   platforms: win11
   platform: windows
   description: |
-    This setting determines if DNS over HTTPS (DoH) is used by the system. DNS over HTTPS (DoH) is a protocol for performing remote Domain Name System (DNS) resolution over the Hypertext Transfer Protocol Secure (HTTPS). For additional information on DNS over HTTPS (DoH), visit: Secure DNS Client over HTTPS (DoH) on Windows Server 2022 | Microsoft Docs.
+    This policy setting determines if the DNS client will perform name resolution over Multicast DNS (mDNS).
+    mDNS performs local network name and service discoveries without the need for central DNS.
+    The recommended state for this setting is: Disabled.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled: Allow DoH (configuring to Enabled: Require DoH also conforms to the benchmark):
-    'Computer Configuration\Policies\Administrative Templates\Network\DNSClient\Configure DNS over HTTPS (DoH) name resolution'
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Configure multicast DNS (mDNS) protocol'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DnsClient.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\DoHPolicy' AND (data in (2,3)));
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMDNS' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: DefensiveDepth
 ---
 apiVersion: v1
 kind: policy
@@ -5397,7 +5580,7 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to 'Enabled: Disable NetBIOS name resolution on public networks':
     'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Configure NetBIOS settings'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient\\EnableNetbios' AND (data = 0));
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableNetbios' AND (data = 0));
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: DefensiveDepth
@@ -5533,6 +5716,35 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
   contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Windows protected print' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether Windows protected print is enabled on the system.
+    Windows protected print uses the modern print platform and Windows protected print
+    mode. Modern print is designed to work only with Mopria-certified printers. Mopria is a
+    collection of printer manufacturers and software vendors that define standards for IPP
+    printing and eSCL scanning.
+
+    The recommended state for this setting is: Enabled.
+
+    Note: Windows protected print will not prohibit administrators or users from installing
+    third-party print drivers through an installation package provided by the print device
+    manufacturer.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled.
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure Windows protected print'
+    Note: This Group Policy path is provided by the Group Policy template
+    Printing.admx/adml that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\WPP\WindowsProtectedPrintGroupPolicyState' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
 ---
 apiVersion: v1
 kind: policy
@@ -5759,66 +5971,6 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_LEVEL1
   contributors: DefensiveDepth
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Prevent installation of devices that match any of these device IDs' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting allows you to specify a list of Plug and Play hardware IDs and compatible IDs for devices that Windows is prevented from installing. This policy setting takes precedence over any other policy setting that allows Windows to install a device.
-    If you enable this policy setting, Windows is prevented from installing a device whose hardware ID or compatible ID appears in the list you create. If you enable this policy setting on a remote desktop server, the policy setting affects redirection of the specified devices from a remote desktop client to the remote desktop server.
-    If you disable or do not configure this policy setting, devices can be installed and updated as allowed or prevented by other policy settings.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices that match any of these device IDs'
-  query: |
-    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceInstall\\Restrictions\DenyDeviceIDs' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Prevent installation of devices that match any of these device IDs: Prevent installation of devices that match any of these device IDs' is set to 'PCI\CC_0C0A'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting allows you to specify a list of Plug and Play hardware IDs and compatible IDs for devices that Windows is prevented from installing. This policy setting takes precedence over any other policy setting that allows Windows to install a device.
-    If you enable this policy setting, Windows is prevented from installing a device whose hardware ID or compatible ID appears in the list you create. If you enable this policy setting on a remote desktop server, the policy setting affects redirection of the specified devices from a remote desktop client to the remote desktop server.
-    If you disable or do not configure this policy setting, devices can be installed and updated as allowed or prevented by other policy settings.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled', and add 'PCI\CC_0C0A' to the Device IDs list:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices that match any of these device IDs'
-  query: |
-    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceInstall\\Restrictions\\DenyDeviceIDs\1' AND data = 'PCI\CC_0C0A');
-  purpose: Informational
-  tags: compliance, CIS, CIS_BitLocker
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Prevent installation of devices that match any of these device IDs: Also apply to matching devices that are already installed.' is set to 'True' (checked)
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting allows you to specify a list of Plug and Play hardware IDs and compatible IDs for devices that Windows is prevented from installing. This policy setting takes precedence over any other policy setting that allows Windows to install a device.
-    If you enable this policy setting, Windows is prevented from installing a device whose hardware ID or compatible ID appears in the list you create. If you enable this policy setting on a remote desktop server, the policy setting affects redirection of the specified devices from a remote desktop client to the remote desktop server.
-    If you disable or do not configure this policy setting, devices can be installed and updated as allowed or prevented by other policy settings.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to 'Enabled', and check the 'Also apply to matching devices that are already installed'. checkbox:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Installation\Device Installation Restrictions\Prevent installation of devices that match any of these device IDs'
-  query: |
-    SELECT 1 FROM REGISTRY WHERE (PATH = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DeviceInstall\\Restrictions\DenyDeviceIDsRetroactive' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
 ---
 apiVersion: v1
 kind: policy
@@ -6458,6 +6610,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Block NetBIOS-based discovery for domain controller location' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the Domain Controller (DC) location algorithm uses NetBIOS-based discovery for the Domain Controller's location.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Net Logon\DC Locator DNS Records\Block NetBIOS-based discovery for domain controller location'
+    Note: This Group Policy path is provided by the Group Policy template
+    'Netlogon.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Netlogon\Parameters\BlockNetbiosDiscovery' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow Clipboard synchronization across devices' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -6657,6 +6829,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure SAM change password RPC methods policy' is set to 'Enabled: Block all change password RPC methods'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines which RPC methods can be used to change passwords stored in the Security Account Manager (SAM).
+    The recommended state for this setting is: 'Enabled: Block all change password RPC methods'.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Block all change password RPC methods':
+    'Computer Configuration\Policies\Administrative Templates\System\Security Account Manager\Configure SAM change password RPC methods policy'
+    Note: This Group Policy path is provided by the Group Policy template 'SAM.admx/adml'
+    that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\SAM\SamrChangeUserPasswordApiPolicy' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Restrict Unauthenticated RPC clients' is set to 'Enabled: Authenticated'
   platforms: win11
   platform: windows
@@ -6775,6 +6967,93 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'Configure the behavior of the sudo command' is set to 'Enabled: Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures the use of the sudo.exe command line tool. The sudo
+    feature in Windows allows users to run elevated commands (as an administrator)
+    directly from an unelevated console session.
+    The recommended state for this setting is: Enabled: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Disabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Configure the behavior of the sudo command'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'Sudo.admx' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Sudo\Enabled' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off API Sampling' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines if API data sampling is sent to Microsoft. API sampling
+    monitors the sampled collection of APIs used during system runtime to help diagnose
+    compatibility problems in Windows.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\App and Device Inventory\Turn off API Sampling'
+    Note: This Group Policy path is provided by the Group Policy template
+    'AppDeviceInventory.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat\DisableAPISamping' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Application Footprint' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines if Application Footprint data is sent to Microsoft.
+    Application Footprint monitors a sampled collection of registry and file activity to help
+    diagnose compatibility problems.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\App and Device Inventory\Turn off Application Footprint'
+    Note: This Group Policy path is provided by the Group Policy template
+    'AppDeviceInventory.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat\DisableApplicationFootprint' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Install Tracing' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines if Install Tracing data is sent to Microsoft. Install Tracing
+    tracks application installs to help diagnose compatibility problems.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\App and Device Inventory\Turn off Install Tracing'
+    Note: This Group Policy path is provided by the Group Policy template
+    'AppDeviceInventory.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppCompat\DisableInstallTracing' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'Allow a Windows app to share application data between users' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -6791,6 +7070,27 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
   contributors: marcosd4h
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Not allow per-user unsigned packages to install by default (requires explicitly allow per install)' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This setting manages a user's ability to install unsigned Windows App packages.
+    The recommended state for this setting is: Enabled.
+    Note: Unsigned Windows App packages will require an explicit allow per install if this setting is disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\App Package Deployment\Not allow per-user unsigned packages to install by default (requires explicitly allow per install)'
+    Note: This Group Policy path is provided by the Group Policy template
+    'AppxPackageManager.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Appx\DisablePerUserUnsignedPackagesByDefault' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -8080,28 +8380,10 @@ spec:
     To establish the recommended configuration via GP, set the following UI path to Enabled.
     'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Limit Dump Collection'
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection\LimitDumpCollection' AND data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DataCollection\LimitDumpCollection' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: marcosd4h
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
-    CIS - Ensure 'Toggle user control over Insider builds' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines whether users can access the Insider build controls in the Advanced Options for Windows Update. These controls are located under "Get Insider builds," and enable users to make their devices available for downloading and installing Windows preview software.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Data Collection and Preview Builds\Toggle user control over Insider builds'
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\PreviewBuilds\AllowBuildPreview' AND data = 0);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
 ---
 apiVersion: v1
 kind: policy
@@ -8155,15 +8437,41 @@ spec:
   platforms: win11
   platform: windows
   description: |
-    This policy setting controls whether the Local Security Authority Subservice Service (LSASS) runs in protected mode and also has the option to lock in protected mode with Unified Extensible Firmware Interface (UEFI). The Local Security Authority (LSA), which includes the LSASS process, validates users for local and remote sign-ins and enforces local security policies.
+    This policy setting controls whether the Local Security Authority Subservice Service
+    (LSASS) runs in protected mode and also has the option to lock in protected mode with
+    Unified Extensible Firmware Interface (UEFI). The Local Security Authority (LSA), which
+    includes the LSASS process, validates users for local and remote sign-ins and enforces
+    local security policies.
+    The recommended state for this setting is: Enabled: Enabled with UEFI Lock.
+    Note: This additional protection to prevent reading memory and code injection by non-
+    protected processes is supported by Windows 8.1 (or newer).
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Enabled: Enabled with UEFI Lock:
     'Computer Configuration\Policies\Administrative Templates\System\Local Security Authority\Configures LSASS to run as a protected process'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template LocalSecurityAuthority.admx/adml that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v1.0 (or newer).
+    Note 2: In the Microsoft Windows 11 Release 23H2 Administrative Templates, the
+    registry location of 'HKLM\SYSTEM\CurrentControlSet\Control\Lsa:RunAsPPL' was set
+    for Configures LSASS to run as a protected process. This same registry location and
+    value was also created if the setting Ensure 'LSA Protection' is set to 'Enabled' was also
+    applied. This appears to have been a mistake in the ADMX/ADML Templates for that release.
+    Starting with the Microsoft Windows 11 Release 24H2 Administrative Templates, the
+    setting Configures LSASS to run as a protected process has a new registry location of
+    'HKLM\Software\Policies\Microsoft\Windows\System'. In addition, the setting LSA
+    Protection will be displayed by GPME when this setting (Configures LSASS to run as a protected process) is configured.
+    If Configures LSASS to run as a protected process was configured using an older
+    version of the ADML/ADML templates, the new registry location will not auto-apply to
+    the system, and assessment scans using the latest benchmark might fail. To fix this
+    issue, the ADMX/ADML templates must be updated to the latest version, the setting
+    removed from the GPO, and then added back in.
+    If the Microsoft Windows 10 Benchmark is applied, LSA Protection is configured via a
+    separate recommendation for older versions of the Windows 10 Operating System
+    using the SecGuide.admx/adml templates. That configuration is checked for separately
+    from this recommendation.
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\Control\LSA\RunAsPPL' and data = 1);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\RunAsPPL' and data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: DefensiveDepth
 ---
 apiVersion: v1
 kind: policy
@@ -8348,6 +8656,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Do not apply the Mark of the Web tag to files copied from insecure sources' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether files that are sourced from insecure locations are tagged with Mark of the Web (MOTW).
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\File Explorer\Do not apply the Mark of the Web tag to files copied from insecure sources'
+    Note: This Group Policy path is provided by the Group Policy template
+    'Explorer.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer\DisableMotWOnInsecurePathCopy' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Turn off account-based insights, recent, favorite, and recommended files in File Explorer' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -8456,6 +8784,28 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable EDR in block mode' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether Microsoft Defender Antivirus Endpoint Detection and Response (EDR) is enabled in block mode (passive remediation).
+    The recommended state for this setting is: Enabled.
+    Note: EDR in block mode is only available in Microsoft Defender for Endpoint Plan 2.
+    Note 2: This setting is available with Microsoft Defender Antivirus platform release v4.18.2202.X and newer.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Features\Enable EDR in block mode'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Features\PassiveRemediation' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -8639,6 +8989,46 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Convert warn verdict to block' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether Microsoft Defender Antivirus network protection will display a warning, or block network traffic.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Network Inspection System\Convert warn verdict to block'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\NIS\EnableConvertWarnToBlock' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure real-time protection and Security Intelligence Updates during OOBE' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures whether Real-time Protection and Security Intelligence Updates are enabled during the Out of Box experience (OOBE).
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Real-Time Protection\Configure real-time protection and Security Intelligence Updates during OOBE'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection\OobeEnableRtpAndSigUpdate' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Scan all downloaded files and attachments' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -8720,6 +9110,70 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure Brute-Force Protection aggressiveness' is set to 'Enabled: Medium' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures whether Brute-Force Protection in Microsoft Defender Antivirus is enabled.
+    Brute-force protection can detect and block attempts to forcibly sign in to a system.
+    The recommended state for this setting is: Enabled: Medium. Configuring this setting to High also conforms to the benchmark.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Medium' or higher:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Remediation\Behavioral Network Blocks\Brute-Force Protection\Configure Brute-Force Protection aggressiveness'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Remediation\Behavioral Network Blocks\Brute Force Protection\BruteForceProtectionAggressiveness' AND data IN (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure Remote Encryption Protection Mode' is set to 'Enabled: Audit' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures the Brute-Force Protection feature in Microsoft Defender Antivirus.
+    Brute-Force Protection can detect and block attempts to forcibly initiate sign-ins and sessions.
+    The recommended state for this setting is: 'Enabled: Audit'. Configuring this setting to Block also conforms to the benchmark.
+    Note: Configuring the value to either Default or Off does not conform to this benchmark.
+    Note 2: This setting's name is duplicated in the 'Remote Encryption Protection' section, but they configure two different behaviors.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Audit' or higher:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Remediation\Behavioral Network Blocks\Brute-Force Protection\Configure Remote Encryption Protection Mode'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Remediation\Behavioral Network Blocks\Brute Force Protection\BruteForceProtectionConfiguredState' AND data IN (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure how aggressively Remote Encryption Protection blocks threats' is set to 'Enabled: Medium' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures how aggressively Remote Encryption Prevention Protection blocks malicious IP addresses.
+    The recommended state for this setting is: 'Enabled: Medium' or higher. Configuring this setting to High also conforms to the benchmark
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Medium' or higher:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Remediation\Behavioral Network Blocks\Remote Encryption Protection\Configure how aggressively Remote Encryption Protection blocks threats'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Remediation\Behavioral Network Blocks\Remote Encryption Protection\RemoteEncryptionProtectionAggressiveness' AND data IN (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Configure Watson events' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -8740,6 +9194,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Scan excluded files and directories during quick scans' is set to 'Enabled: 1'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting manages whether or not Microsoft Defender Antivirus scans excluded files and directories when running a Quick Scan.
+    The recommended state for this setting is: Enabled: 1.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 1':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Scan\Scan excluded files and directories during quick scans'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Scan\QuickScanIncludeExclusions' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Scan removable drives' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -8755,6 +9229,26 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Trigger a quick scan after X days without any scans' is set to 'Enabled: 7'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures the number of days after the last scan (of any type) before an aggressive Quick Scan is automatically triggered.
+    The recommended state for this setting is: 'Enabled: 7 days'.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: 7 days':
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Scan\Trigger a quick scan after X days without any scans'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Scan\DaysUntilAggressiveCatchupQuickScan' AND data = 7);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -8799,20 +9293,21 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Turn off Microsoft Defender AntiVirus' is set to 'Disabled'
+    CIS - Ensure 'Control whether exclusions are visible to local users' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
-    This policy setting turns off Microsoft Defender Antivirus. If the setting is configured to Disabled, Microsoft Defender Antivirus runs and computers are scanned for malware and other potentially unwanted software.
+    This policy setting controls whether Microsoft Defender Antivirus exclusions are visible to local users on the system.
+    The recommended state for this setting is: Enabled.
   resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Turn off Microsoft Defender AntiVirus'
-    Note: This Group Policy path is provided by the Group Policy template WindowsDefender.admx/adml that is included with all versions of the Microsoft Windows Administrative Templates.
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Control whether exclusions are visible to local users'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\DisableAntiSpyware' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\HideExclusionsFromLocalUsers' AND data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
 ---
 apiVersion: v1
 kind: policy
@@ -9047,6 +9542,27 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: artemist-work
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn on Basic feed authentication over HTTP' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether RSS feeds can be authenticated using the Basic authentication scheme over an unencrypted HTTP connection.
+    The recommended state for this setting is: Disabled.
+    Note: A developer cannot change this setting through the Feed APIs.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Administrative Templates\Windows Components\RSS Feeds\Turn on Basic feed authentication over HTTP'
+    Note: This Group Policy path is provided by the Group Policy template
+    'InetRes.admx/adml' that is included with the Microsoft Windows 7 & Server 2008 R2 Administrative Templates (or newer).
+  query: |
+   SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Feeds\AllowBasicAuthInClear' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -9456,25 +9972,6 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
-    CIS - Ensure 'Only display the private store within the Microsoft Store' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting denies access to the retail catalog in the Microsoft Store, but displays the private store.
-  resolution: |
-    To establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Windows Components\Store\Only display the private store within the Microsoft Store'
-    Note: This Group Policy path may not exist by default. It is provided by the Group Policy template WindowsStore.admx/adml that is included with the Microsoft Windows 10 Release 1511 Administrative Templates (or newer).
-  query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsStore\RequirePrivateStoreOnly' AND data = 1);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: rachelelysia
----
-apiVersion: v1
-kind: policy
-spec:
-  name: >
     CIS - Ensure 'Turn off Automatic Download and Install of updates' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -9767,6 +10264,34 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Configure the transmission of the user's password in the content of MPR notifications sent by winlogon.' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether winlogon includes a user's password in the content
+    of Multiple Provider Router (MPR) notifications. MPR handles communication between
+    the Windows operating system and the installed network providers. MPR checks the
+    registry to determine which providers are installed on the system and the order they are
+    cycled through. The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Logon Options\Configure the transmission of the user's password in the content of MPR notifications sent by winlogon.'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template WinLogon.admx/adml that is included with the Microsoft Windows 11 Release
+    22H2 Administrative Templates v1.0 (or newer).
+    Note #2: This setting was initially released with the Windows 11 Release 22H2
+    Administrative Templates, named Enable MPR notifications for the system. It was
+    renamed starting with the Windows 11 Release 24H2 Administrative Templates.
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\EnableMPR' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Sign-in and lock last interactive user automatically after a restart' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -9972,6 +10497,26 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Allow mapping folders into Windows Sandbox' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether folders are allowed to be mapped into Windows Sandbox.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows Sandbox\Allow mapping folders into Windows Sandbox'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsSandbox.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Sandbox\AllowWriteToMappedFolders' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Allow networking in Windows Sandbox' is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -10161,7 +10706,7 @@ spec:
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\AppInstaller\\EnableAppInstaller' AND (data = 0));
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  tags: compliance, CIS, CIS_Level2, CIS_group_policy_template_required
   contributors: DefensiveDepth
 ---
 apiVersion: v1
@@ -10206,6 +10751,51 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Enable App Installer Local Archive Malware Scan Override' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls the ability to override malware scans when the following conditions are true:
+      1. installing an archive file
+      2. using a local manifest
+      3. via command line arguments
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable App Installer Local Archive Malware Scan Override'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DesktopAppInstaller.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppInstaller\EnableLocalArchiveMalwareScanOverride' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable App Installer Microsoft Store Source Certificate Validation Bypass' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether Windows Package Manager validates the Microsoft
+    Store certificate hash to match a known Microsoft Store certificate when it initiates a
+    connection to the Microsoft Store source.
+    The recommended state for this setting is: Disabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Enable App Installer Microsoft Store Source Certificate Validation Bypass'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DesktopAppInstaller.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppInstaller\EnableBypassCertificatePinningForMicrosoftStore' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Enable App Installer ms-appinstaller protocol' is set to 'Disabled' 
   platforms: win11
   platform: windows
@@ -10225,6 +10815,27 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Enable Windows Package Manager command line interfaces' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether a user can perform actions using the Windows Package Manager through a command line interface (Windows CLI or PowerShell).
+    The recommended state for this setting is: Disabled.
+    Note: This policy does not override the Enable App Installer policy, which is set to Disabled in the L2 profile of the CIS Windows Operating System Benchmarks.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Desktop App Installer\Enable Windows Package Manager command line interfaces'
+    Note: This Group Policy path is provided by the Group Policy template
+    'DesktopAppInstaller.admx/adml' that is included with the Microsoft Windows 11 Release 24H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\AppInstaller\EnableWindowsPackageManagerCommandLineInterfaces' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Do not allow WebAuthn redirection' is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -10239,6 +10850,27 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2, CIS_group_policy_template_required
   contributors: DefensiveDepth
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Restrict clipboard transfer from server to client' is set to 'Enabled: Disable clipboard transfers from server to client'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the clipboard can be used to transfer data from the Remote Desktop session to the client.
+    The recommended state for this setting is: Enabled: Disable clipboard transfers from server to client.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Enabled: Disable clipboard transfers from server to client':
+    'Computer Configuration\Administrative Templates\Windows Components\Remote Desktop Services\Remote Desktop Session Host\Device and Resource Redirection\Restrict clipboard transfer from server to client'
+    Note: This Group Policy path is provided by the Group Policy template
+    'TerminalServer.admx/adml' that is included with the Microsoft Windows 11 Release 23H2 v2.0 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services\SCClipLevel' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+
 ---
 apiVersion: v1
 kind: policy
@@ -10489,6 +11121,28 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Turn off Windows Copilot' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures the use of Windows Copilot. Windows Copilot is an
+    artificial intelligence (AI) assistant that's integrated in Microsoft Windows workstation
+    OSes, beginning with Windows 11 Release 23H2.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'User Configuration\Policies\Administrative Templates\Windows Components\Windows Copilot\Turn off Windows Copilot'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'WindowsCopilot.admx/adml' that is included with the Microsoft Windows 11 Release 23H2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path LIKE 'HKEY_USERS\%\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot\TurnOffWindowsCopilot' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
