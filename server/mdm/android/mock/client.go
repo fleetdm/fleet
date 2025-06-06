@@ -13,15 +13,15 @@ import (
 
 var _ androidmgmt.Client = (*Client)(nil)
 
-type SignupURLsCreateFunc func(serverURL string, callbackURL string) (*android.SignupDetails, error)
+type SignupURLsCreateFunc func(ctx context.Context, serverURL string, callbackURL string) (*android.SignupDetails, error)
 
 type EnterprisesCreateFunc func(ctx context.Context, req androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error)
 
-type EnterprisesPoliciesPatchFunc func(policyName string, policy *androidmanagement.Policy) error
+type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy) error
 
-type EnterprisesEnrollmentTokensCreateFunc func(enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
+type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
-type EnterpriseDeleteFunc func(ctx context.Context, enterpriseID string) error
+type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
 
 type SetAuthenticationSecretFunc func(secret string) error
 
@@ -47,11 +47,11 @@ type Client struct {
 	mu sync.Mutex
 }
 
-func (p *Client) SignupURLsCreate(serverURL string, callbackURL string) (*android.SignupDetails, error) {
+func (p *Client) SignupURLsCreate(ctx context.Context, serverURL string, callbackURL string) (*android.SignupDetails, error) {
 	p.mu.Lock()
 	p.SignupURLsCreateFuncInvoked = true
 	p.mu.Unlock()
-	return p.SignupURLsCreateFunc(serverURL, callbackURL)
+	return p.SignupURLsCreateFunc(ctx, serverURL, callbackURL)
 }
 
 func (p *Client) EnterprisesCreate(ctx context.Context, req androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
@@ -61,25 +61,25 @@ func (p *Client) EnterprisesCreate(ctx context.Context, req androidmgmt.Enterpri
 	return p.EnterprisesCreateFunc(ctx, req)
 }
 
-func (p *Client) EnterprisesPoliciesPatch(policyName string, policy *androidmanagement.Policy) error {
+func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
 	p.mu.Lock()
 	p.EnterprisesPoliciesPatchFuncInvoked = true
 	p.mu.Unlock()
-	return p.EnterprisesPoliciesPatchFunc(policyName, policy)
+	return p.EnterprisesPoliciesPatchFunc(ctx, policyName, policy)
 }
 
-func (p *Client) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
+func (p *Client) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
 	p.mu.Lock()
 	p.EnterprisesEnrollmentTokensCreateFuncInvoked = true
 	p.mu.Unlock()
-	return p.EnterprisesEnrollmentTokensCreateFunc(enterpriseName, token)
+	return p.EnterprisesEnrollmentTokensCreateFunc(ctx, enterpriseName, token)
 }
 
-func (p *Client) EnterpriseDelete(ctx context.Context, enterpriseID string) error {
+func (p *Client) EnterpriseDelete(ctx context.Context, enterpriseName string) error {
 	p.mu.Lock()
 	p.EnterpriseDeleteFuncInvoked = true
 	p.mu.Unlock()
-	return p.EnterpriseDeleteFunc(ctx, enterpriseID)
+	return p.EnterpriseDeleteFunc(ctx, enterpriseName)
 }
 
 func (p *Client) SetAuthenticationSecret(secret string) error {

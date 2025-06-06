@@ -110,7 +110,7 @@ func (ts *WithServer) CreateCommonDSMocks() {
 
 func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 	ts.AndroidAPIClient.InitCommonMocks()
-	ts.AndroidAPIClient.SignupURLsCreateFunc = func(_, callbackURL string) (*android.SignupDetails, error) {
+	ts.AndroidAPIClient.SignupURLsCreateFunc = func(_ context.Context, _, callbackURL string) (*android.SignupDetails, error) {
 		ts.ProxyCallbackURL = callbackURL
 		return &android.SignupDetails{
 			Url:  EnterpriseSignupURL,
@@ -123,7 +123,7 @@ func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
 		}, nil
 	}
-	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(policyName string, _ *androidmanagement.Policy) error {
+	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) error {
 		assert.Contains(t, policyName, EnterpriseID)
 		return nil
 	}

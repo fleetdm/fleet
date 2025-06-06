@@ -124,7 +124,7 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 	}
 
 	callbackURL := fmt.Sprintf("%s/api/v1/fleet/android_enterprise/connect/%s", appConfig.ServerSettings.ServerURL, signupToken)
-	signupDetails, err := svc.androidAPIClient.SignupURLsCreate(appConfig.ServerSettings.ServerURL, callbackURL)
+	signupDetails, err := svc.androidAPIClient.SignupURLsCreate(ctx, appConfig.ServerSettings.ServerURL, callbackURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating signup url")
 	}
@@ -262,7 +262,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 	}
 
 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
-	err = svc.androidAPIClient.EnterprisesPoliciesPatch(policyName, &androidmanagement.Policy{
+	err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
 			MemoryInfoEnabled:            true,
@@ -453,7 +453,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
 		OneTimeOnly:        true,
 	}
-	token, err = svc.androidAPIClient.EnterprisesEnrollmentTokensCreate(enterprise.Name(), token)
+	token, err = svc.androidAPIClient.EnterprisesEnrollmentTokensCreate(ctx, enterprise.Name(), token)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating Android enrollment token")
 	}

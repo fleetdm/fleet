@@ -64,15 +64,17 @@ func (p *ProxyClient) SetAuthenticationSecret(secret string) error {
 	return nil
 }
 
-func (p *ProxyClient) SignupURLsCreate(serverURL, callbackURL string) (*android.SignupDetails, error) {
+func (p *ProxyClient) SignupURLsCreate(ctx context.Context, serverURL, callbackURL string) (*android.SignupDetails, error) {
 	if p == nil || p.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
-	call := p.mgmt.SignupUrls.Create().CallbackUrl(callbackURL)
+	call := p.mgmt.SignupUrls.Create().CallbackUrl(callbackURL).Context(ctx)
 	call.Header().Set("Origin", serverURL)
 	signupURL, err := call.Do()
-	if err != nil {
-		// TODO: Return a meaningful error if response is 409, which means enterprise was already created for this server.
+	switch {
+	case isErrorCode(err, http.StatusConflict):
+		return nil, android.NewConflictError(fmt.Errorf("android enterprise already exists. Contact Fleet support for help"))
+	case err != nil:
 		return nil, fmt.Errorf("creating signup url: %w", err)
 	}
 	return &android.SignupDetails{
@@ -144,8 +146,8 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 	}, nil
 }
 
-func (p *ProxyClient) EnterprisesPoliciesPatch(policyName string, policy *androidmanagement.Policy) error {
-	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy)
+func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
+	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	_, err := call.Do()
 	switch {
@@ -157,12 +159,12 @@ func (p *ProxyClient) EnterprisesPoliciesPatch(policyName string, policy *androi
 	return nil
 }
 
-func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *androidmanagement.EnrollmentToken,
-) (*androidmanagement.EnrollmentToken, error) {
+func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
+	token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
 	if p == nil || p.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
-	token, err := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Do()
+	token, err := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating enrollment token: %w", err)
 	}
@@ -174,9 +176,11 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 		return errors.New("android management service not initialized")
 	}
 
-	_, err := p.mgmt.Enterprises.Delete(enterpriseName).Do()
+	call := p.mgmt.Enterprises.Delete(enterpriseName).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	_, err := call.Do()
 	switch {
-	case googleapi.IsNotModified(err):
+	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
 		level.Info(p.logger).Log("msg", "enterprise was already deleted", "enterprise_name", enterpriseName)
 		return nil
 	case err != nil:
@@ -184,4 +188,13 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 	}
 
 	return nil
+}
+
+func isErrorCode(err error, code int) bool {
+	if err == nil {
+		return false
+	}
+	var ae *googleapi.Error
+	ok := errors.As(err, &ae)
+	return ok && ae.Code == code
 }

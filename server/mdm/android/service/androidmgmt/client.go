@@ -11,7 +11,7 @@ import (
 type Client interface {
 	// SignupURLsCreate creates an enterprise signup URL.
 	// See: https://developers.google.com/android/management/reference/rest/v1/signupUrls/create
-	SignupURLsCreate(serverURL, callbackURL string) (*android.SignupDetails, error)
+	SignupURLsCreate(ctx context.Context, serverURL, callbackURL string) (*android.SignupDetails, error)
 
 	// EnterprisesCreate creates an enterprise as well as the PubSub subscription to receive notifications from Google.
 	// This is the last step in the enterprise signup flow.
@@ -20,11 +20,12 @@ type Client interface {
 
 	// EnterprisesPoliciesPatch updates or creates a policy.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/patch
-	EnterprisesPoliciesPatch(policyName string, policy *androidmanagement.Policy) error
+	EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error
 
 	// EnterprisesEnrollmentTokensCreate creates an enrollment token for a given enterprise. It is used to enroll an Android device.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens/create
-	EnterprisesEnrollmentTokensCreate(enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
+	EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
+		token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
 	// EnterpriseDelete permanently deletes an enterprise and all accounts and data associated with it.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/delete

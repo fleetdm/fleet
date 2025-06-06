@@ -9,10 +9,10 @@ import (
 )
 
 func (p *Client) InitCommonMocks() {
-	p.EnterpriseDeleteFunc = func(ctx context.Context, enterpriseID string) error {
+	p.EnterpriseDeleteFunc = func(_ context.Context, enterpriseID string) error {
 		return nil
 	}
-	p.SignupURLsCreateFunc = func(serverURL, callbackURL string) (*android.SignupDetails, error) {
+	p.SignupURLsCreateFunc = func(_ context.Context, serverURL, callbackURL string) (*android.SignupDetails, error) {
 		return &android.SignupDetails{}, nil
 	}
 	p.EnterprisesCreateFunc = func(ctx context.Context, req androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error) {
@@ -22,7 +22,7 @@ func (p *Client) InitCommonMocks() {
 			FleetServerSecret: "fleetServerSecret",
 		}, nil
 	}
-	p.EnterprisesPoliciesPatchFunc = func(policyName string, policy *androidmanagement.Policy) error {
+	p.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy) error {
 		return nil
 	}
 	p.SetAuthenticationSecretFunc = func(secret string) error { return nil }
