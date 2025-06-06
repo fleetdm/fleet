@@ -188,7 +188,7 @@ const InstallerStatus = ({
         {displayConfig.iconName === "pending-outline" ? (
           <Spinner size="x-small" includeContainer={false} centered={false} />
         ) : (
-          <Icon name={displayConfig.iconName} />
+          displayConfig?.iconName && <Icon name={displayConfig.iconName} />
         )}
         <span data-testid={`${baseClass}__status--test`}>
           {renderDisplayStatus()}
@@ -351,7 +351,6 @@ const InstallerStatusAction = ({
             color="core-fleet-blue"
             size="small"
           />
-
           <span data-testid={`${baseClass}__install-button--test`}>
             {displayActionItems.install.text}
           </span>
