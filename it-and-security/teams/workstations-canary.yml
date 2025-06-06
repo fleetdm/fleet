@@ -98,7 +98,10 @@ controls:
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
-      - path: ../lib/macos/configuration-profiles/santa-configuration-moroz.mobileconfig
+      - path: ../lib/macos/configuration-profiles/santa-configuration.mobileconfig
+        labels_include_any:
+          - "Santa test devices"
+      - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
         labels_include_any:
           - "Santa test devices"
   macos_setup:
@@ -135,6 +138,7 @@ controls:
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/macos/scripts/install-santa-extension.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -154,6 +158,7 @@ policies:
   - path: ../lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
+  - path: ../lib/macos/queries/collect-santa-denied-logs.yml
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
