@@ -1,1 +1,0 @@
-* Added the endpoint `POST /api/v1/fleet/configuration_profiles/resend/batch` to resend a profile to all hosts that satisfy the filter.

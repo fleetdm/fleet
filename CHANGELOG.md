@@ -1,3 +1,9 @@
+## Fleet 4.69.0 (May 23, 2025)
+
+### Bug fixes
+
+null
+
 ## Fleet 4.68.0 (May 22, 2025)
 
 ### Security Engineers
