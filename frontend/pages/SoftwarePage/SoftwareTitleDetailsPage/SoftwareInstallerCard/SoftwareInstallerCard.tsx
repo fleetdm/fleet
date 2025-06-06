@@ -351,61 +351,65 @@ const SoftwareInstallerCard = ({
 
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
-      <div className={`${baseClass}__row-1`}>
-        <div className={`${baseClass}__row-1--responsive`}>
-          <InstallerDetailsWidget
-            softwareName={softwareInstaller?.name || name}
-            installerType={installerType}
-            versionInfo={versionInfo}
-            addedTimestamp={addedTimestamp}
-            sha256={sha256}
-            isFma={isFleetMaintainedApp}
-          />
-          <div className={`${baseClass}__tags-wrapper`}>
-            {Array.isArray(automaticInstallPolicies) &&
-              automaticInstallPolicies.length > 0 && (
+      <div className={`${baseClass}__installer-header`}>
+        <div className={`${baseClass}__row-1`}>
+          <div className={`${baseClass}__row-1--responsive-wrap`}>
+            <InstallerDetailsWidget
+              softwareName={softwareInstaller?.name || name}
+              installerType={installerType}
+              versionInfo={versionInfo}
+              addedTimestamp={addedTimestamp}
+              sha256={sha256}
+              isFma={isFleetMaintainedApp}
+            />
+            <div className={`${baseClass}__tags-wrapper`}>
+              {Array.isArray(automaticInstallPolicies) &&
+                automaticInstallPolicies.length > 0 && (
+                  <TooltipWrapper
+                    showArrow
+                    position="top"
+                    tipContent={
+                      automaticInstallPolicies.length === 1
+                        ? "A policy triggers install."
+                        : `${automaticInstallPolicies.length} policies trigger install.`
+                    }
+                    underline={false}
+                  >
+                    <Tag icon="refresh" text="Automatic install" />
+                  </TooltipWrapper>
+                )}
+              {isSelfService && (
                 <TooltipWrapper
                   showArrow
                   position="top"
-                  tipContent={
-                    automaticInstallPolicies.length === 1
-                      ? "A policy triggers install."
-                      : `${automaticInstallPolicies.length} policies trigger install.`
-                  }
+                  tipContent={SELF_SERVICE_TOOLTIP}
                   underline={false}
                 >
-                  <Tag icon="refresh" text="Automatic install" />
+                  <Tag icon="user" text="Self-service" />
                 </TooltipWrapper>
               )}
-            {isSelfService && (
-              <TooltipWrapper
-                showArrow
-                position="top"
-                tipContent={SELF_SERVICE_TOOLTIP}
-                underline={false}
-              >
-                <Tag icon="user" text="Self-service" />
-              </TooltipWrapper>
+            </div>
+          </div>
+          <div className={`${baseClass}__actions-wrapper`}>
+            {showActions && (
+              <SoftwareActionButtons
+                installerType={installerType}
+                onDownloadClick={onDownloadClick}
+                onDeleteClick={onDeleteClick}
+                onEditSoftwareClick={onEditSoftwareClick}
+                gitOpsModeEnabled={gitOpsModeEnabled}
+                repoURL={repoURL}
+              />
             )}
           </div>
         </div>
-        <div className={`${baseClass}__actions-wrapper`}>
-          {showActions && (
-            <SoftwareActionButtons
-              installerType={installerType}
-              onDownloadClick={onDownloadClick}
-              onDeleteClick={onDeleteClick}
-              onEditSoftwareClick={onEditSoftwareClick}
-              gitOpsModeEnabled={gitOpsModeEnabled}
-              repoURL={repoURL}
-            />
+        <div className={`${baseClass}__row-2`}>
+          {gitOpsModeEnabled && isCustomPackage && (
+            <div className={`${baseClass}__yaml-button-wrapper`}>
+              <Button onClick={onToggleViewYaml}>View YAML</Button>
+            </div>
           )}
         </div>
-        {gitOpsModeEnabled && isCustomPackage && (
-          <div className={`${baseClass}__yaml-button-wrapper`}>
-            <Button onClick={onToggleViewYaml}>View YAML</Button>
-          </div>
-        )}
       </div>
       <div className={`${baseClass}__installer-status-table`}>
         <InstallerStatusTable

@@ -58,5 +58,8 @@
 .sql-editor * {
   letter-spacing: normal !important;
   word-spacing: normal !important;
-  font-family: 'SourceCodePro', monospace !important;
+}
+
+.sql-editor .ace_editor {
+  font-family: "SourceCodePro", monospace !important;
 }

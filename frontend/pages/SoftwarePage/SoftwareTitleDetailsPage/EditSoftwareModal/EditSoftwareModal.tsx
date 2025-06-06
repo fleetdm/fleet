@@ -196,7 +196,7 @@ const EditSoftwareModal = ({
         software.title_id &&
         gitOpsModeEnabled
       ) {
-        // No longer refetch as we open YAML modal if editing with gitOpsModeEnabled
+        // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
         const newQueryParams: QueryParams = {
           team_id: teamId,
           gitops_yaml: "true",
@@ -217,8 +217,8 @@ const EditSoftwareModal = ({
               : ""}
           </>
         );
-        refetchSoftwareTitle();
       }
+      refetchSoftwareTitle();
       onExit();
     } catch (e) {
       renderFlash("error", getErrorMessage(e, software as IAppStoreApp));

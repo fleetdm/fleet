@@ -304,8 +304,12 @@ spec:
             drop: [ALL]
           privileged: false
           readOnlyRootFilesystem: true
+          {{- if .Values.fleet.securityContext.runAsGroup }}
           runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+          {{- end }}
           runAsNonRoot: true
         livenessProbe:
           httpGet:
@@ -363,8 +367,12 @@ spec:
             drop: [ALL]
           privileged: false
           readOnlyRootFilesystem: true
+          {{- if .Values.fleet.securityContext.runAsGroup }}
           runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+          {{- end }}
           runAsNonRoot: true
       {{- end }}
       hostPID: false

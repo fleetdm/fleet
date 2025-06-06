@@ -16,7 +16,7 @@ import InputField from "components/forms/fields/InputField";
 import Editor from "components/Editor";
 
 import { hyphenateString } from "utilities/strings/stringUtils";
-import { createPackageYaml, renderYamlHelperText } from "./helpers";
+import { createPackageYaml, renderDownloadFilesText } from "./helpers";
 
 const baseClass = "view-yaml-modal";
 
@@ -136,8 +136,9 @@ const ViewYamlModal = ({
         <InfoBanner className={`${baseClass}__info-banner`}>
           <p>
             To complete your GitOps configuration, follow the instructions
-            below. If the YAML is not added, the package will be deleted on the
-            next GitOps run.&nbsp;
+            below. If the YAML is not added, new installers will be deleted on
+            the next GitOps run, and edited installers will cause the GitOps run
+            to fail.&nbsp;
             <CustomLink
               url={`${LEARN_MORE_ABOUT_BASE_LINK}/yaml-software`}
               text="How to use YAML"
@@ -162,30 +163,28 @@ const ViewYamlModal = ({
             label="Filename"
             value={`${hyphenatedSoftwareTitle}.yml`}
           />
-          <Editor
-            label="Contents"
-            helpText={renderYamlHelperText({
-              preInstallQuery,
-              installScript,
-              postInstallScript,
-              uninstallScript,
-              onClickPreInstallQuery: preInstallQuery
-                ? onDownloadPreInstallQuery
-                : undefined,
-              onClickInstallScript: installScript
-                ? onDownloadInstallScript
-                : undefined,
-              onClickPostInstallScript: postInstallScript
-                ? onDownloadPostInstallScript
-                : undefined,
-              onClickUninstallScript: uninstallScript
-                ? onDownloadUninstallScript
-                : undefined,
-            })}
-            value={packageYaml}
-            enableCopy
-          />
+          <Editor label="Contents" value={packageYaml} enableCopy />
         </div>
+        <p>
+          {renderDownloadFilesText({
+            preInstallQuery,
+            installScript,
+            postInstallScript,
+            uninstallScript,
+            onClickPreInstallQuery: preInstallQuery
+              ? onDownloadPreInstallQuery
+              : undefined,
+            onClickInstallScript: installScript
+              ? onDownloadInstallScript
+              : undefined,
+            onClickPostInstallScript: postInstallScript
+              ? onDownloadPostInstallScript
+              : undefined,
+            onClickUninstallScript: uninstallScript
+              ? onDownloadUninstallScript
+              : undefined,
+          })}
+        </p>
         <div className="modal-cta-wrap">
           <Button onClick={onExit}>Done</Button>
         </div>
