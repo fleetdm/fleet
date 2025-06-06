@@ -156,6 +156,10 @@ module.exports = {
         .findOne({
           Last_email_associated_by_fleetdm_com__c:  emailAddress, // eslint-disable-line camelcase
         });
+        // If we matched a contact record by searchign last email associated by fleetdm.com, remove the email address from the update criteria.
+        if(existingContactRecord){
+          delete valuesToSet.Email;
+        }
       }
     } else if(linkedinUrl) {
       existingContactRecord = await salesforceConnection.sobject('Contact')
@@ -305,7 +309,7 @@ module.exports = {
           Id: salesforceContactId,
         });
         // If an email address was provided, and the existing contact has an email address set, remove it from the ValuesToSet dictionairy and set it as the "last email associated by fleetdm.com"
-        if(emailAddress && !existingContactRecord.Email){
+        if(emailAddress && existingContactRecord.Email){
           delete valuesToSet.Email;
           valuesToSet.Last_email_associated_by_fleetdm_com__c =  emailAddress;// eslint-disable-line camelcase
         }
