@@ -76,10 +76,7 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import {
-  InstallOrCommandUuid,
-  ScriptExecutionId,
-} from "../cards/Software/SelfService/SelfServiceTableConfig";
+import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceTableConfig";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";
@@ -351,10 +348,8 @@ const DeviceUserPage = ({
   );
 
   const onShowUninstallDetails = useCallback(
-    (script_execution_id?: ScriptExecutionId) => {
-      setSelectedSelfServiceScriptExecutionId(
-        script_execution_id?.script_execution_id
-      );
+    (scriptExecutionId?: string) => {
+      setSelectedSelfServiceScriptExecutionId(scriptExecutionId);
     },
     [setSelectedSelfServiceScriptExecutionId]
   );

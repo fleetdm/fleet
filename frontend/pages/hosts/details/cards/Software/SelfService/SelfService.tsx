@@ -38,7 +38,6 @@ import Pagination from "components/Pagination";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
 import {
   InstallOrCommandUuid,
-  ScriptExecutionId,
   generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig,
 } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
@@ -69,7 +68,7 @@ export interface ISoftwareSelfServiceProps {
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (scriptExecutionId?: ScriptExecutionId) => void;
+  onShowUninstallDetails: (scriptExecutionId?: string) => void;
 }
 
 const SoftwareSelfService = ({

@@ -103,15 +103,11 @@ interface InstallUuid {
 
 export type InstallOrCommandUuid = CommandUuid | InstallUuid;
 
-export type ScriptExecutionId = {
-  script_execution_id: string;
-};
-
 type IInstallerStatusProps = Pick<IHostSoftware, "status"> & {
   last_install: ISoftwareLastInstall | IAppLastInstall | null;
   last_uninstall: ISoftwareLastUninstall | null;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (ScriptExecutionId?: ScriptExecutionId) => void;
+  onShowUninstallDetails: (scriptExecutionId?: string) => void;
 };
 
 const InstallerStatus = ({
@@ -161,11 +157,11 @@ const InstallerStatus = ({
           variant="text-icon"
           onClick={() => {
             if ("script_execution_id" in last_uninstall) {
-              onShowUninstallDetails({
-                script_execution_id: (last_uninstall as {
+              onShowUninstallDetails(
+                (last_uninstall as {
                   script_execution_id: string;
-                }).script_execution_id,
-              });
+                }).script_execution_id
+              );
             } else {
               onShowUninstallDetails(undefined);
             }
@@ -393,7 +389,7 @@ interface ISelfServiceTableHeaders {
   deviceToken: string;
   onInstall: () => void;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
-  onShowUninstallDetails: (script_execution_id?: ScriptExecutionId) => void;
+  onShowUninstallDetails: (scriptExecutionId?: string) => void;
   onClickUninstallAction: (software: IHostSoftware) => void;
 }
 

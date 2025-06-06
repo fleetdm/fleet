@@ -85,14 +85,6 @@ export interface ISoftwareAppStoreAppStatus {
 export interface ISoftwarePackage {
   name: string;
   title_id: number;
-  last_install?: {
-    install_uuid: string;
-    installed_at: string;
-  } | null;
-  last_uninstall?: {
-    script_execution_id: string;
-    uninstalled_at: string;
-  } | null;
   url: string;
   version: string;
   uploaded_at: string;
@@ -130,11 +122,7 @@ export interface IAppStoreApp {
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   automatic_install?: boolean;
-  last_install?: {
-    install_uuid: string;
-    command_uuid: string;
-    installed_at: string;
-  } | null;
+  last_install?: IAppLastInstall | null;
   last_uninstall?: {
     script_execution_id: string;
     uninstalled_at: string;
