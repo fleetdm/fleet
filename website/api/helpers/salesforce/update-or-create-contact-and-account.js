@@ -310,7 +310,7 @@ module.exports = {
         }
         // If a contact souce was provided, since we found an existing contact when trying to create one, remove it from the valuesToSet.
         if(contactSource) {
-          delete valuesToSet.Contact_source__c;// eslint-disable-line camelcase
+          delete valuesToSet.Contact_source__c;
         }
 
       }
