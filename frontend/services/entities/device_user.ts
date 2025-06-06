@@ -115,7 +115,10 @@ export default {
     scriptExecutionId: string
   ) => {
     const { DEVICE_SOFTWARE_UNINSTALL_RESULTS } = endpoints;
-    const path = DEVICE_SOFTWARE_UNINSTALL_RESULTS(deviceToken, scriptExecutionId);
+    const path = DEVICE_SOFTWARE_UNINSTALL_RESULTS(
+      deviceToken,
+      scriptExecutionId
+    );
 
     return sendRequest("GET", path);
   },
