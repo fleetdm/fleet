@@ -65,7 +65,7 @@ const DeleteSoftwareModal = ({
     >
       <>
         {gitOpsModeEnabled && (
-          <InfoBanner color="purple" className={`${baseClass}__gitops-warning`}>
+          <InfoBanner className={`${baseClass}__gitops-warning`}>
             You are currently in GitOps mode. If the package is defined in
             GitOps, it will reappear when GitOps runs.
           </InfoBanner>

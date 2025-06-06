@@ -144,7 +144,7 @@ const ViewYamlModal = ({
             the next GitOps run, and edited installers will cause the GitOps run
             to fail.&nbsp;
             <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/yaml-software`}
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/yaml-packages`}
               text="How to use YAML"
               newTab
               multiline
