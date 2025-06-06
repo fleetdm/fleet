@@ -1106,6 +1106,8 @@ type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.Ho
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
+type GetSelfServiceUninstallScriptExecutionResultFunc func(ctx context.Context, execID string, hostID uint) (*fleet.HostScriptResult, error)
+
 type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
 
 type ListReadyToExecuteScriptsForHostFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
@@ -2988,6 +2990,9 @@ type DataStore struct {
 
 	GetHostScriptExecutionResultFunc        GetHostScriptExecutionResultFunc
 	GetHostScriptExecutionResultFuncInvoked bool
+
+	GetSelfServiceUninstallScriptExecutionResultFunc        GetSelfServiceUninstallScriptExecutionResultFunc
+	GetSelfServiceUninstallScriptExecutionResultFuncInvoked bool
 
 	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
 	ListPendingHostScriptExecutionsFuncInvoked bool
@@ -7168,6 +7173,13 @@ func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID str
 	s.GetHostScriptExecutionResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostScriptExecutionResultFunc(ctx, execID)
+}
+
+func (s *DataStore) GetSelfServiceUninstallScriptExecutionResult(ctx context.Context, execID string, hostID uint) (*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.GetSelfServiceUninstallScriptExecutionResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSelfServiceUninstallScriptExecutionResultFunc(ctx, execID, hostID)
 }
 
 func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
