@@ -464,7 +464,6 @@ parasails.registerPage('configuration-builder', {
 <key>PayloadContent</key>
 <array>
 `;
-      let uuidForThisProfile = crypto.randomUUID();
       // Iterate through the selcted payloads
       // group selected payloads by their payload type value.
       let payloadsToCreateDictonariesFor = _.groupBy(this.selectedPayloads, 'payloadType');
@@ -515,11 +514,11 @@ parasails.registerPage('configuration-builder', {
 <key>PayloadDescription</key>
 <string>${this.downloadProfileFormData.description}</string>
 <key>PayloadIdentifier</key>
-<string>Fleet-profile-generator.${uuidForThisProfile}</string>
+<string>${this.downloadProfileFormData.identifier}.${this.downloadProfileFormData.uuid}</string>
 <key>PayloadType</key>
 <string>Configuration</string>
 <key>PayloadUUID</key>
-<string>${uuidForThisProfile}</string>
+<string>${this.downloadProfileFormData.uuid}</string>
 <key>PayloadVersion</key>
 <integer>1</integer>
 <key>TargetDeviceType</key>
@@ -567,8 +566,21 @@ parasails.registerPage('configuration-builder', {
       if(_.keysIn(this.selectedPayloadsGroupedByCategory).length > 1) {
         this.modal = 'multiple-payloads-selected';
       } else {
-        this.modal = 'download-profile';
+        this.openDownloadModal();
       }
+    },
+    openDownloadModal: function() {
+      this.modal = 'download-profile';
+      if(this.selectedPlatform === 'macos'){
+        this.downloadProfileFormRules = {
+          name: {required: true},
+          uuid: {required: true},
+          identifier: {required: true},
+        };
+        // Generate a uuid to prefill for the download profile form.
+        this.downloadProfileFormData.uuid = crypto.randomUUID();
+      }
+      this._enableToolTips();
     },
     clickClearOneFormError: async function(field) {
       await this.forceRender();
@@ -578,9 +590,9 @@ parasails.registerPage('configuration-builder', {
     },
     clickSelectPayloadCategory: function(payloadGroup) {
       this.selectedPayloadCategory = payloadGroup;
-      this._enablePayloadToolTips();
+      this._enableToolTips();
     },
-    _enablePayloadToolTips: async function() {
+    _enableToolTips: async function() {
       await setTimeout(()=>{
         $('[data-toggle="tooltip"]').tooltip({
           container: '#configuration-builder',
@@ -629,7 +641,6 @@ parasails.registerPage('configuration-builder', {
       } else {
         // Remove the payload option and all dependencies
         let payloadToRemove = _.find(this.selectedPayloads, {uniqueSlug: payloadSlug});
-        console.log(payloadSlug, payloadToRemove);
         // check the alsoAutoSetWhenSelected value of the payload we're removing.
         let newSelectedPayloads = _.without(this.selectedPayloads, payloadToRemove);
         delete this.configurationBuilderFormRules[payloadSlug+'-value'];
@@ -648,6 +659,7 @@ parasails.registerPage('configuration-builder', {
     clickResetForm: async function() {
       this.step = 'platform-select';
       this.platform = undefined;
+      this.platformSelectFormData.platform = undefined;
       // The current selected payload category, controls which options are shown in the middle section
       this.selectedPayloadCategory = undefined;
 

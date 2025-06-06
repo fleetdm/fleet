@@ -330,9 +330,9 @@ You can confirm that the device has been ordered correctly by following these st
 - View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
 
 On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
-- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
+- If you have physical access to the macOS host, [add it via Apple Configurator](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web).
 - If you do not have physical access to the device, the user will need to undertake the following steps:
-  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+  - Install the fleetd package for your device from the [shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
   - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
   - In Fleet desktop, follow the instructions to turn on MDM.
   - Once complete, follow instructions to reset disk encryption key.
@@ -341,7 +341,7 @@ On occasion there will be a need to manually enroll a macOS host in dogfood. Thi
 
 ### Enroll a Windows or Ubuntu Linux device in dogfood
 
-To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from the [internal shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
 Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
 
 
@@ -926,7 +926,7 @@ To add the most recent connections from Linkedin to our CRM, follow these steps:
 Once a week, the Apprentice will review the "community activity report" and add the LinkedIn URLs into the campaign. This will send out a connection request to those who liked, shared, commented, etc. a post on LinkedIn. 
  1. Export the [community activity report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002j3wf2AA/view).
  2. Copy the LinkedIn URLs.
- 3. Paste the LinkedIn URLs [here](https://app.dripify.io/campaigns/1291030).
+ 3. Paste the LinkedIn URLs in the [appropriate Dripify campaign](https://app.dripify.io/campaigns/1291030).
 
  ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
 
