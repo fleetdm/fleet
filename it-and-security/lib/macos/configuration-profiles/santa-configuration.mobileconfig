@@ -221,7 +221,7 @@
 	<key>PayloadDescription</key>
 	<string>Combined Santa Configuration Profiles</string>
 	<key>PayloadDisplayName</key>
-	<string>Santa configuration (moroz)</string>
+	<string>Santa configuration</string>
 	<key>PayloadIdentifier</key>
 	<string>com.northpolesec.santa.combined.profile</string>
 	<key>PayloadOrganization</key>
