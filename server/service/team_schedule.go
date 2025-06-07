@@ -155,7 +155,6 @@ func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 	return modifyTeamScheduleResponse{}, nil
 }
 
-// TODO(lucas): Document new behavior.
 // teamID is not used because of mismatch between old internal representation and API.
 func (svc Service) ModifyTeamScheduledQueries(
 	ctx context.Context,
@@ -195,7 +194,6 @@ func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 	return deleteTeamScheduleResponse{}, nil
 }
 
-// TODO(lucas): Document new behavior.
 // teamID is not used because of mismatch between old internal representation and API.
 func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint) error {
 	return svc.DeleteQueryByID(ctx, scheduledQueryID)

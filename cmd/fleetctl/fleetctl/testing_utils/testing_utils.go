@@ -19,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/apple"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -89,7 +89,8 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 		}, nil
 	}
 	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		_ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		_ sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
 			fleet.MDMAssetABMCert:            {Name: fleet.MDMAssetABMCert, Value: certPEM},
 			fleet.MDMAssetABMKey:             {Name: fleet.MDMAssetABMKey, Value: keyPEM},
@@ -388,7 +389,8 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return []*fleet.ABMToken{{OrganizationName: "Fleet Device Management Inc."}}, nil
 	}
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions,
-		tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		tmFilter fleet.TeamFilter,
+	) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {

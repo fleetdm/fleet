@@ -11,6 +11,7 @@ spec:
       host_expiry_window: 0
     integrations:
       google_calendar: null
+      conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
       macos_updates:
@@ -65,6 +66,7 @@ spec:
       host_expiry_window: 15
     integrations:
       google_calendar: null
+      conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
       macos_updates:

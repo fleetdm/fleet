@@ -24,6 +24,7 @@ controls:
 name: No team
 policies:
 - calendar_events_enabled: false
+  conditional_access_enabled: true
   critical: false
   description: This is a team policy
   name: Team Policy

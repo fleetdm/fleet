@@ -11,6 +11,7 @@ spec:
       enable_software_inventory: false
     integrations:
       google_calendar: null
+      conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
       macos_settings:

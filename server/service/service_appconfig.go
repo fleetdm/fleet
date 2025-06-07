@@ -85,6 +85,14 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 	}
 
 	lic, _ := license.FromContext(ctx)
+
+	// Currently we use the presence of Microsoft Compliance Partner settings
+	// (only configured in cloud instances) to determine if a Fleet instance
+	// is a cloud managed instance.
+	if svc.config.MicrosoftCompliancePartner.IsSet() {
+		lic.ManagedCloud = true
+	}
+
 	return lic, nil
 }
 
