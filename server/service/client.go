@@ -449,6 +449,11 @@ func (c *Client) ApplyGroup(
 		if opts.DryRun {
 			logfn("[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
+			for _, label := range specs.Labels {
+				if label.LabelType == fleet.LabelTypeBuiltIn {
+					return nil, nil, nil, nil, errors.New("Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
+				}
+			}
 			if err := c.ApplyLabels(specs.Labels); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
