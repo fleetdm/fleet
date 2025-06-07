@@ -3,6 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/gorilla/mux"
+	"io"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -967,4 +971,110 @@ func TestBatchScriptExecute(t *testing.T) {
 		require.ErrorContains(t, err, "ok")
 		require.Equal(t, []uint{3, 4}, requestedHostIds)
 	})
+}
+
+func TestWipeHostRequestDecode(t *testing.T) {
+	sut := wipeHostRequest{}
+	ctx := context.Background()
+
+	validHostIDExp := func(t *testing.T, req *wipeHostRequest) {
+		require.NotNil(t, req)
+		require.Equal(t, uint(123), req.HostID)
+	}
+
+	testCases := []struct {
+		name          string
+		params        map[string]string
+		body          io.Reader
+		expectedError string
+		expectation   func(t *testing.T, req *wipeHostRequest)
+	}{
+		{
+			name:          "HostID missing",
+			expectedError: "bad route",
+		},
+		{
+			name:          "HostID non-numeric",
+			params:        map[string]string{"id": "abc"},
+			expectedError: "invalid syntax",
+		},
+		{
+			name:        "HostID valid",
+			params:      map[string]string{"id": "123"},
+			expectation: validHostIDExp,
+		},
+		{
+			name:   "doWipe",
+			params: map[string]string{"id": "123"},
+			body:   strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				validHostIDExp(t, req)
+				require.NotNil(t, req.Metadata)
+				require.NotNil(t, req.Metadata.Windows)
+				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipe, req.Metadata.Windows.WipeType)
+			},
+		},
+		{
+			name:   "doWipeProtected",
+			params: map[string]string{"id": "123"},
+			body:   strings.NewReader(`{"windows": {"wipe_type": "doWipeProtected"}}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				validHostIDExp(t, req)
+				require.NotNil(t, req.Metadata)
+				require.NotNil(t, req.Metadata.Windows)
+				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipeProtected, req.Metadata.Windows.WipeType)
+			},
+		},
+		{
+			name:          "invalid wipe type",
+			params:        map[string]string{"id": "123"},
+			body:          strings.NewReader(`{"windows": {"wipe_type": "doWipeProtectedII"}}`),
+			expectedError: "failed to unmarshal request body",
+		},
+		{
+			name:   "empty payload",
+			params: map[string]string{"id": "123"},
+			body:   strings.NewReader(`{}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				validHostIDExp(t, req)
+				require.NotNil(t, req.Metadata)
+				require.Nil(t, req.Metadata.Windows)
+			},
+		},
+		{
+			name:   "windows field is null",
+			params: map[string]string{"id": "123"},
+			body:   strings.NewReader(`{"windows": null}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				validHostIDExp(t, req)
+				require.NotNil(t, req.Metadata)
+				require.Nil(t, req.Metadata.Windows)
+			},
+		},
+		{
+			name:          "empty wipe type",
+			params:        map[string]string{"id": "123"},
+			body:          strings.NewReader(`{"windows": {"wipe_type": null}}`),
+			expectedError: "failed to unmarshal request body",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			url := fmt.Sprintf("/api/v1/fleet/hosts/%s/wipe", tc.params["id"])
+			req := httptest.NewRequest("POST", url, tc.body)
+			req = mux.SetURLVars(req, tc.params)
+
+			result, err := sut.DecodeRequest(ctx, req)
+
+			if tc.expectedError != "" {
+				require.ErrorContains(t, err, tc.expectedError)
+			} else {
+				require.NoError(t, err)
+				decodedReq, ok := result.(*wipeHostRequest)
+				require.True(t, ok)
+				tc.expectation(t, decodedReq)
+			}
+		})
+	}
 }

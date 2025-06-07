@@ -4455,9 +4455,10 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 #### Parameters
 
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| id | integer | path | **Required**. ID of the host to be wiped. |
+| Name     | Type              | In   | Description                                                                                                                                                                                                          |
+|----------| ----------------- | ---- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id       | integer | path | **Required**. ID of the host to be wiped.                                                                                                                                                                            |
+| windows  | object | body | Optional metadata used when wiping Windows hosts. The object includes a `wipe_type` property that can be used for specifying what type of remote wipe to perform, allowed values are `doWipe` and `doWipeProtected`. |
 
 #### Example
 
