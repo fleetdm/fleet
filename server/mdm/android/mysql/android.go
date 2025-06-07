@@ -15,18 +15,13 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+func (ds *Datastore) NewAndroidHost(ctx context.Context, serverURL string, host *android.Host) (*android.Host, error) {
 	if !host.IsValid() {
 		return nil, ctxerr.New(ctx, "valid Android host is required")
 	}
 	ds.setTimesToNonZero(host)
 
-	appCfg, err := ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "new Android host get app config")
-	}
-
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.WithRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// We use node_key as a unique identifier for the host table row. It matches: android/{enterpriseSpecificID}.
 		stmt := `
 		INSERT INTO hosts (
@@ -76,9 +71,9 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		`
 		result, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
 			"node_key":          host.NodeKey,
-			"hostname":          host.Hostname,
-			"computer_name":     host.ComputerName,
-			"platform":          host.Platform,
+			"hostname":          host.HardwareModel,
+			"computer_name":     host.HardwareModel,
+			"platform":          host.Platform(),
 			"os_version":        host.OSVersion,
 			"build":             host.Build,
 			"memory":            host.Memory,
@@ -94,25 +89,25 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			return ctxerr.Wrap(ctx, err, "new Android host")
 		}
 		id, _ := result.LastInsertId()
-		host.Host.ID = uint(id) // nolint:gosec
-		host.Device.HostID = host.Host.ID
+		host.ID = uint(id) // nolint:gosec
+		host.Device.HostID = host.ID
 
-		err = upsertHostDisplayNames(ctx, tx, *host.Host)
+		err = upsertHostDisplayName(ctx, tx, host)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host display name")
 		}
-		err = ds.insertAndroidHostLabelMembershipTx(ctx, tx, host.Host.ID)
+		err = ds.insertAndroidHostLabelMembershipTx(ctx, tx, host.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host label membership")
 		}
 
 		// create entry in host_mdm as enrolled (manually), because currently all
 		// android hosts are necessarily MDM-enrolled when created.
-		if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+		if err := upsertAndroidHostMDMInfoDB(ctx, tx, serverURL, false, true, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "new Android host MDM info")
 		}
 
-		host.Device, err = ds.Datastore.CreateDeviceTx(ctx, tx, host.Device)
+		host.Device, err = ds.CreateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "creating new Android device")
 		}
@@ -121,8 +116,18 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 	return host, err
 }
 
+func upsertHostDisplayName(ctx context.Context, tx sqlx.ExtContext, host *android.Host) error {
+	_, err := tx.ExecContext(ctx, `
+			INSERT INTO host_display_names (host_id, display_name) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)`, host.ID, host.DisplayName())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "upsert host display name")
+	}
+	return nil
+}
+
 // setTimesToNonZero to avoid issues with MySQL.
-func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
+func (ds *Datastore) setTimesToNonZero(host *android.Host) {
 	if host.DetailUpdatedAt.IsZero() {
 		host.DetailUpdatedAt = common_mysql.GetDefaultNonZeroTime()
 	}
@@ -131,18 +136,13 @@ func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
 	}
 }
 
-func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+func (ds *Datastore) UpdateAndroidHost(ctx context.Context, serverURL string, host *android.Host, fromEnroll bool) error {
 	if !host.IsValid() {
 		return ctxerr.New(ctx, "valid Android host is required")
 	}
 	ds.setTimesToNonZero(host)
 
-	appCfg, err := ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update Android host get app config")
-	}
-
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.WithRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `
 		UPDATE hosts SET
 			team_id = :team_id,
@@ -161,13 +161,13 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		WHERE id = :id
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
-			"id":                host.Host.ID,
+			"id":                host.ID,
 			"team_id":           host.TeamID,
 			"detail_updated_at": host.DetailUpdatedAt,
 			"label_updated_at":  host.LabelUpdatedAt,
-			"hostname":          host.Hostname,
-			"computer_name":     host.ComputerName,
-			"platform":          host.Platform,
+			"hostname":          host.HardwareModel,
+			"computer_name":     host.HardwareModel,
+			"platform":          host.Platform(),
 			"os_version":        host.OSVersion,
 			"build":             host.Build,
 			"memory":            host.Memory,
@@ -182,12 +182,12 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 		if fromEnroll {
 			// update host_mdm to set enrolled back to true
-			if err := upsertAndroidHostMDMInfoDB(ctx, tx, appCfg.ServerSettings.ServerURL, false, true, host.Host.ID); err != nil {
+			if err := upsertAndroidHostMDMInfoDB(ctx, tx, serverURL, false, true, host.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "update Android host MDM info")
 			}
 		}
 
-		err = ds.Datastore.UpdateDeviceTx(ctx, tx, host.Device)
+		err = ds.UpdateDeviceTx(ctx, tx, host.Device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android device")
 		}
@@ -196,7 +196,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	return err
 }
 
-func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*android.Host, error) {
 	type liteHost struct {
 		TeamID *uint `db:"team_id"`
 		*android.Device
@@ -220,11 +220,9 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting device by enterprise specific ID")
 	}
-	result := &fleet.AndroidHost{
-		Host: &fleet.Host{
-			ID:     host.Device.HostID,
-			TeamID: host.TeamID,
-		},
+	result := &android.Host{
+		ID:     host.Device.HostID,
+		TeamID: host.TeamID,
 		Device: host.Device,
 	}
 	result.SetNodeKey(enterpriseSpecificID)
@@ -275,7 +273,7 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 // BulkSetAndroidHostsUnenrolled sets all android hosts to unenrolled (for when
 // Android MDM is turned off for all Fleet).
 func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
+	_, err := ds.Writer(ctx).ExecContext(ctx, `
 UPDATE host_mdm
 	SET server_url = '', mdm_id = NULL, enrolled = 0
 	WHERE host_id IN (
@@ -298,7 +296,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 	}
 
 	var mdmID int64
-	if insertOnDuplicateDidInsertOrUpdate(result) {
+	if common_mysql.InsertOnDuplicateDidInsertOrUpdate(result) {
 		mdmID, _ = result.LastInsertId()
 	} else {
 		stmt := `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`

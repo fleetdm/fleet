@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -110,10 +109,14 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 	return dsn
 }
 
-func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error {
+type ErrorWrapper interface {
+	Wrap(ctx context.Context, cause error, msgs ...string) error
+}
+
+func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, ew ErrorWrapper, logger log.Logger) error {
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create transaction")
+		return ew.Wrap(ctx, err, "create transaction")
 	}
 
 	defer func() {
@@ -128,13 +131,13 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 	if err := fn(tx); err != nil {
 		rbErr := tx.Rollback()
 		if rbErr != nil && rbErr != sql.ErrTxDone {
-			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back after err", rbErr.Error())
+			return ew.Wrap(ctx, err, fmt.Sprintf("got err '%s' rolling back after err", rbErr.Error()))
 		}
 		return err
 	}
 
 	if err := tx.Commit(); err != nil {
-		return ctxerr.Wrap(ctx, err, "commit transaction")
+		return ew.Wrap(ctx, err, "commit transaction")
 	}
 
 	return nil
@@ -150,4 +153,36 @@ var DefaultNonZeroTime = "2000-01-01T00:00:00Z"
 
 func GetDefaultNonZeroTime() time.Time {
 	return time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+}
+
+func InsertOnDuplicateDidInsertOrUpdate(res sql.Result) bool {
+	// From mysql's documentation:
+	//
+	// With ON DUPLICATE KEY UPDATE, the affected-rows value per row is 1 if
+	// the row is inserted as a new row, 2 if an existing row is updated, and
+	// 0 if an existing row is set to its current values. If you specify the
+	// CLIENT_FOUND_ROWS flag to the mysql_real_connect() C API function when
+	// connecting to mysqld, the affected-rows value is 1 (not 0) if an
+	// existing row is set to its current values.
+	//
+	// If a table contains an AUTO_INCREMENT column and INSERT ... ON DUPLICATE KEY UPDATE
+	// inserts or updates a row, the LAST_INSERT_ID() function returns the AUTO_INCREMENT value.
+	//
+	// https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html
+	//
+	// Note that connection string sets CLIENT_FOUND_ROWS (see
+	// generateMysqlConnectionString in this package), so it does return 1 when
+	// an existing row is set to its current values, but with a last inserted id
+	// of 0.
+	//
+	// Also note that with our mysql driver, Result.LastInsertId and
+	// Result.RowsAffected can never return an error, they are retrieved at the
+	// time of the Exec call, and the result simply returns the integers it
+	// already holds:
+	// https://github.com/go-sql-driver/mysql/blob/bcc459a906419e2890a50fc2c99ea6dd927a88f2/result.go
+
+	lastID, _ := res.LastInsertId()
+	aff, _ := res.RowsAffected()
+	// something was updated (lastID != 0) AND row was found (aff == 1 or higher if more rows were found)
+	return lastID != 0 && aff > 0
 }
