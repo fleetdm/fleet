@@ -73,6 +73,8 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
 </plist>
 ```
 
+### Using human-device mapping
+
 You can optionally specify the `END_USER_EMAIL` that will be added to the host's [human-device mapping](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping):
 
 ```xml

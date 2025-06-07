@@ -101,7 +101,7 @@ $ docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up
 
 ### Redis cluster on macOS
 
-Redis cluster mode can also be run on macOS, but requires an extra component to give the local development environment access to the docker network. The required tool is located [here](https://github.com/chipmk/docker-mac-net-connect). Run the following commands to setup the docker VPN bridge:
+Redis cluster mode can also be run on macOS, but requires [Docker Mac Net Connect](https://github.com/chipmk/docker-mac-net-connect) to give the local development environment access to the docker network. Run the following commands to setup the docker VPN bridge:
 
 ```sh
 # Install via Homebrew
@@ -664,7 +664,7 @@ To use the workflow, follow these steps:
 - Select "Developer ID Installer" and follow the prompts to create and download the certificate.
 - Install the downloaded certificate to your keychain.
 - Locate the certificate in your Keychain and confirm everything looks correct. Run this command to confirm you see it listed `security find-identity -v`
-  - If the security  command does not show your newly added certificate you may need to install the `Developer ID - G2 (Expiring 09/17/2031 00:00:00 UTC)` certificate from [here](https://www.apple.com/certificateauthority/). 
+  - If the security  command does not show your newly added certificate you may need to install the `Developer ID - G2 (Expiring 09/17/2031 00:00:00 UTC)` certificate from [Apple PKI](https://www.apple.com/certificateauthority/). 
 3. Sign your pkg with the `productsign` command replacing the placeholders with your actual values:
 
 `productsign --sign "Developer ID Installer: Your Apple Account Name (serial number)" <path_to_unpacked_files> <path_to_signed_package.pkg>`

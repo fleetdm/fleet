@@ -1,6 +1,6 @@
 ## Custom configuration web URL
 
-In Fleet, you can require end users to authenticate with your identity provider (IdP) before they can use their new Mac. Learn more [here](../Using%20Fleet/MDM-macOS-setup-experience.md#end-user-authentication-and-eula).
+In Fleet, [you can require end users to authenticate with your identity provider (IdP) before they can use their new Mac](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula).
 
 Some customers require end users to authenticate with a custom web application instead of an IdP.
 

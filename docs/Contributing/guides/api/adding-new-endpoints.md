@@ -168,8 +168,7 @@ Now that the endpoint is all connected in the right places, a few things happen 
 3. [User](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L311) or 
 [host](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L318) or 
 [device](https://github.com/fleetdm/fleet/blob/main/server/service/endpoint_utils.go#L295) token authentication. 
-4. API versioning. You probably noticed the `_version_` portion of the URL above. More on this approach 
-[here](./API-Versioning.md).
+4. [API versioning](../api-versioning.md) (mapping `_version_` to `latest` and `v1`).
 
 One thing to note is that while we used an empty struct `countAllHostsRequest`, we could've easily skipped defining it
 and used `nil`, but it was added for the sake of this documentation.
