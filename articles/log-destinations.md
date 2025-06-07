@@ -84,7 +84,7 @@ resource "aws_kinesis_firehose_delivery_stream" "test_stream" {
 }
 ```
 
-For the latest configuration go to HashiCorp's Terraform docs [here](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination).
+For the latest configuration go to [HashiCorp's Terraform docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination).
 
 ## Amazon Kinesis Data Streams
 

@@ -14,7 +14,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ### Auto-install software
 
-IT admins can now install a Fleet-maintained app on all hosts without writing a custom policy. This simplifies software management and saves time for your end users by ensuring productivity tools like Slack and Zoom are consistently available. Learn more about automatically installing software [here](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+IT admins can now [install a Fleet-maintained app](https://fleetdm.com/guides/automatic-software-install-in-fleet) on all hosts without writing a custom policy. This simplifies software management and saves time for your end users by ensuring productivity tools like Slack and Zoom are consistently available.
 
 ### Email two-factor authentication (2FA)
 

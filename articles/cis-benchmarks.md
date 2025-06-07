@@ -142,9 +142,7 @@ Certain benchmarks cannot be automated by a policy in Fleet. For a list of speci
 - [Windows 11 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/README.md)
 
 ## Performance testing
-In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS hosts. Ultimately, we validated both server and host performance at that scale.
-
-Detailed results are [here](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing).
+In August 2023, we completed [scale testing on 10k Windows hosts and 70k macOS hosts](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing). Ultimately, we validated both server and host performance at that scale.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="lucasmrod">

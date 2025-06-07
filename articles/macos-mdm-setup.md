@@ -62,7 +62,7 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 
 > Available in Fleet Premium
 
-To connect Fleet to Apple's VPP, head to the guide [here](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet).
+To connect Fleet to Apple's VPP, follow the instructions in our [VPP guide](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#prerequisites).
 
 ## Best practice
 

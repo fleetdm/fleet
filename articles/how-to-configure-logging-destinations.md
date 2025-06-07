@@ -78,7 +78,7 @@ Sumo Logic supports data ingestion via HTTP, making it a reliable choice for log
 
 #### For Splunk
 
-Splunk is a powerful platform for searching, monitoring, and analyzing machine-generated big data. Learn how to connect Fleet to Splunk [here](https://fleetdm.com/guides/log-destinations#splunk).
+Splunk is a powerful platform for searching, monitoring, and analyzing machine-generated big data. You can [configure Fleet to send logs to Splunk](https://fleetdm.com/guides/log-destinations#splunk).
 
 
 ### Conclusion
