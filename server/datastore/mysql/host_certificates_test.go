@@ -89,8 +89,10 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	// default ordering is by common name ascending
 	require.Equal(t, expected2.Subject.CommonName, certs[0].CommonName)
 	require.Equal(t, expected2.Subject.CommonName, certs[0].SubjectCommonName)
+	require.Equal(t, fleet.SystemHostCertificate, certs[0].Source)
 	require.Equal(t, expected1.Subject.CommonName, certs[1].CommonName)
 	require.Equal(t, expected1.Subject.CommonName, certs[1].SubjectCommonName)
+	require.Equal(t, fleet.SystemHostCertificate, certs[1].Source)
 
 	// order by not_valid_after descending
 	certs2, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "not_valid_after", OrderDirection: fleet.OrderAscending})
@@ -108,6 +110,19 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.Len(t, certs3, 1)
 	require.Equal(t, expected2.Subject.CommonName, certs3[0].CommonName)
 	require.Equal(t, expected2.Subject.CommonName, certs3[0].SubjectCommonName)
+
+	// re-add first certificate but as a "user" source
+	payload[0].Source = fleet.UserHostCertificate
+	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[0], payload[1]}))
+	certs4, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs4, 2)
+	require.Equal(t, expected2.Subject.CommonName, certs4[0].CommonName)
+	require.Equal(t, expected2.Subject.CommonName, certs4[0].SubjectCommonName)
+	require.Equal(t, fleet.SystemHostCertificate, certs4[0].Source)
+	require.Equal(t, expected1.Subject.CommonName, certs4[1].CommonName)
+	require.Equal(t, expected1.Subject.CommonName, certs4[1].SubjectCommonName)
+	require.Equal(t, fleet.UserHostCertificate, certs4[1].Source)
 }
 
 func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {

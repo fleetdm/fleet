@@ -45,6 +45,16 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
 	for sha1, incoming := range incomingBySHA1 {
+		// TODO(mna): it's possible that the same cert exists in the system and
+		// login keychains (or in multiple login keychains), but we detect based on
+		// the SHA1-only (which presumably is the hash of the cert bytes, not any
+		// outside metadata such as the source keychain).
+		//
+		// My hunch on how to address this: insert only if it doesn't exist for the
+		// same combination of sha1 + source (system or user). If it exists for
+		// multiple login keychains, we don't care (we don't store which user has
+		// it in their keychain), but we do (probably) care if it's in system AND
+		// user keychains.
 		if _, ok := existingBySHA1[sha1]; ok {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
@@ -136,7 +146,8 @@ SELECT
 	issuer_country,
 	issuer_org,
 	issuer_org_unit,
-	issuer_common_name
+	issuer_common_name,
+	source
 FROM
 	host_certificates
 WHERE
@@ -187,18 +198,20 @@ INSERT INTO host_certificates (
 	issuer_country,
 	issuer_org,
 	issuer_org_unit,
-	issuer_common_name
+	issuer_common_name,
+	source
 ) VALUES %s`
 
 	placeholders := make([]string, 0, len(certs))
-	args := make([]interface{}, 0, len(certs)*19)
+	const singleRowPlaceholderCount = 20
+	args := make([]interface{}, 0, len(certs)*singleRowPlaceholderCount)
 	for _, cert := range certs {
-		placeholders = append(placeholders, "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
 		args = append(args,
 			cert.HostID, cert.SHA1Sum, cert.NotValidBefore, cert.NotValidAfter, cert.CertificateAuthority, cert.CommonName,
 			cert.KeyAlgorithm, cert.KeyStrength, cert.KeyUsage, cert.Serial, cert.SigningAlgorithm,
 			cert.SubjectCountry, cert.SubjectOrganization, cert.SubjectOrganizationalUnit, cert.SubjectCommonName,
-			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName)
+			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName, cert.Source)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.Join(placeholders, ","))
