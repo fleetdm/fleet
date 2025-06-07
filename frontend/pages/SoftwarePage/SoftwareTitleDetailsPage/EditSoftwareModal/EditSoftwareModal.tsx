@@ -56,6 +56,7 @@ interface IEditSoftwareModalProps {
   installerType: "package" | "vpp";
   router: InjectedRouter;
   gitOpsModeEnabled?: boolean;
+  openViewYamlModal: () => void;
 }
 
 const EditSoftwareModal = ({
@@ -67,6 +68,7 @@ const EditSoftwareModal = ({
   installerType,
   router,
   gitOpsModeEnabled = false,
+  openViewYamlModal,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -197,16 +199,7 @@ const EditSoftwareModal = ({
         gitOpsModeEnabled
       ) {
         // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
-        const newQueryParams: QueryParams = {
-          team_id: teamId,
-          gitops_yaml: "true",
-        };
-        router.push(
-          getPathWithQueryParams(
-            paths.SOFTWARE_TITLE_DETAILS(software.title_id.toString()),
-            newQueryParams
-          )
-        );
+        openViewYamlModal();
       } else {
         renderFlash(
           "success",
