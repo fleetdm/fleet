@@ -792,8 +792,20 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deletedMultipleSavedQuery: () => {
-    return <> deleted multiple queries.</>;
+  deletedMultipleSavedQuery: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        deleted multiple queries{" "}
+        {activity.details?.team_name ? (
+          <>
+            from the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "globally"
+        )}
+      </>
+    );
   },
   lockedHost: (activity: IActivity) => {
     return (
@@ -1167,6 +1179,126 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createdSavedQuery: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        created a query <b>{activity.details?.query_name}</b>{" "}
+        {activity.details?.team_name ? (
+          <>
+            to the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "globally"
+        )}
+      </>
+    );
+  },
+  editedSavedQuery: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        edited the query <b>{activity.details?.query_name}</b>{" "}
+        {activity.details?.team_name ? (
+          <>
+            on the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "globally"
+        )}
+      </>
+    );
+  },
+  deletedSavedQuery: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        deleted the query <b>{activity.details?.query_name}</b>{" "}
+        {activity.details?.team_name ? (
+          <>
+            from the <b>{activity.details.team_name}</b> team
+          </>
+        ) : (
+          "globally"
+        )}
+      </>
+    );
+  },
+  createdPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          to the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "globally";
+    }
+
+    return (
+      <>
+        {" "}
+        created a policy <b>{activity.details?.policy_name}</b> {teamText}
+      </>
+    );
+  },
+  editedPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "globally";
+    }
+
+    return (
+      <>
+        {" "}
+        edited the policy <b>{activity.details?.policy_name}</b> {teamText}
+      </>
+    );
+  },
+  deletedPolicy: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === 0) {
+      teamText = (
+        <>
+          for <b>No Team</b>
+        </>
+      );
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          from the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "globally";
+    }
+
+    return (
+      <>
+        {" "}
+        deleted the policy <b>{activity.details?.policy_name}</b> {teamText}
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1356,7 +1488,7 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
       return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
     }
     case ActivityType.DeletedMultipleSavedQuery: {
-      return TAGGED_TEMPLATES.deletedMultipleSavedQuery();
+      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
     }
     case ActivityType.LockedHost: {
       return TAGGED_TEMPLATES.lockedHost(activity);
@@ -1457,6 +1589,24 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.CanceledUninstallSoftware: {
       return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
+    }
+    case ActivityType.CreatedSavedQuery: {
+      return TAGGED_TEMPLATES.createdSavedQuery(activity);
+    }
+    case ActivityType.EditedSavedQuery: {
+      return TAGGED_TEMPLATES.editedSavedQuery(activity);
+    }
+    case ActivityType.DeletedSavedQuery: {
+      return TAGGED_TEMPLATES.deletedSavedQuery(activity);
+    }
+    case ActivityType.CreatedPolicy: {
+      return TAGGED_TEMPLATES.createdPolicy(activity);
+    }
+    case ActivityType.EditedPolicy: {
+      return TAGGED_TEMPLATES.editedPolicy(activity);
+    }
+    case ActivityType.DeletedPolicy: {
+      return TAGGED_TEMPLATES.deletedPolicy(activity);
     }
 
     default: {
