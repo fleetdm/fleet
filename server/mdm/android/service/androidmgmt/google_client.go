@@ -1,10 +1,9 @@
-package proxy
+package androidmgmt
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -20,24 +19,19 @@ import (
 	"google.golang.org/api/option"
 )
 
-// Proxy is a temporary placeholder as an interface to the Google API.
-// Once the real proxy is implemented on fleetdm.com, this package will be removed.
-
-var (
-	// Required env vars to use the proxy
-	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS")
+// GoogleClient connects directly to Google's Android Management API. It is intended to be used for development/debugging.
+type GoogleClient struct {
+	logger                    kitlog.Logger
+	mgmt                      *androidmanagement.Service
+	androidServiceCredentials string
 	androidProjectID          string
-)
-
-type Proxy struct {
-	logger kitlog.Logger
-	mgmt   *androidmanagement.Service
 }
 
-// Compile-time check to ensure that Proxy implements android.Proxy.
-var _ android.Proxy = &Proxy{}
+// Compile-time check to ensure that ProxyClient implements Client.
+var _ Client = &GoogleClient{}
 
-func NewProxy(ctx context.Context, logger kitlog.Logger) *Proxy {
+func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(string) string) Client {
+	androidServiceCredentials := getenv("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS")
 	if androidServiceCredentials == "" {
 		return nil
 	}
@@ -52,24 +46,25 @@ func NewProxy(ctx context.Context, logger kitlog.Logger) *Proxy {
 		level.Error(logger).Log("msg", "unmarshaling android service credentials", "err", err)
 		return nil
 	}
-	androidProjectID = creds.ProjectID
 
 	mgmt, err := androidmanagement.NewService(ctx, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
 	if err != nil {
 		level.Error(logger).Log("msg", "creating android management service", "err", err)
 		return nil
 	}
-	return &Proxy{
-		logger: logger,
-		mgmt:   mgmt,
+	return &GoogleClient{
+		logger:                    logger,
+		mgmt:                      mgmt,
+		androidServiceCredentials: androidServiceCredentials,
+		androidProjectID:          creds.ProjectID,
 	}
 }
 
-func (p *Proxy) SignupURLsCreate(callbackURL string) (*android.SignupDetails, error) {
-	if p == nil || p.mgmt == nil {
+func (g *GoogleClient) SignupURLsCreate(ctx context.Context, serverURL, callbackURL string) (*android.SignupDetails, error) {
+	if g == nil || g.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
-	signupURL, err := p.mgmt.SignupUrls.Create().ProjectId(androidProjectID).CallbackUrl(callbackURL).Do()
+	signupURL, err := g.mgmt.SignupUrls.Create().ProjectId(g.androidProjectID).CallbackUrl(callbackURL).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating signup url: %w", err)
 	}
@@ -79,35 +74,39 @@ func (p *Proxy) SignupURLsCreate(callbackURL string) (*android.SignupDetails, er
 	}, nil
 }
 
-func (p *Proxy) EnterprisesCreate(ctx context.Context, req android.ProxyEnterprisesCreateRequest) (string, string, error) {
-	if p == nil || p.mgmt == nil {
-		return "", "", errors.New("android management service not initialized")
+func (g *GoogleClient) EnterprisesCreate(ctx context.Context, req EnterprisesCreateRequest) (EnterprisesCreateResponse, error) {
+	res := EnterprisesCreateResponse{}
+	if g == nil || g.mgmt == nil {
+		return res, errors.New("android management service not initialized")
 	}
 
-	topicName, err := p.createPubSubTopic(ctx, req.PubSubPushURL)
+	topicName, err := g.createPubSubTopic(ctx, req.PubSubPushURL)
 	if err != nil {
-		return "", "", fmt.Errorf("creating PubSub topic: %w", err)
+		return res, fmt.Errorf("creating PubSub topic: %w", err)
 	}
 
-	enterprise, err := p.mgmt.Enterprises.Create(&androidmanagement.Enterprise{
+	enterprise, err := g.mgmt.Enterprises.Create(&androidmanagement.Enterprise{
 		EnabledNotificationTypes: req.EnabledNotificationTypes,
 		PubsubTopic:              topicName,
 	}).
-		ProjectId(androidProjectID).
+		ProjectId(g.androidProjectID).
 		EnterpriseToken(req.EnterpriseToken).
-		SignupUrlName(req.SignupUrlName).
+		SignupUrlName(req.SignupURLName).
+		Context(ctx).
 		Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		return "", "", fmt.Errorf("android enterprise %s was already created", req.SignupUrlName)
+		return res, fmt.Errorf("android enterprise %s was already created", req.SignupURLName)
 	case err != nil:
-		return "", "", fmt.Errorf("creating enterprise: %w", err)
+		return res, fmt.Errorf("creating enterprise: %w", err)
 	}
-	return enterprise.Name, topicName, nil
+	res.EnterpriseName = enterprise.Name
+	res.TopicName = topicName
+	return res, nil
 }
 
-func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, error) {
-	pubSubClient, err := pubsub.NewClient(ctx, androidProjectID, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
+func (g *GoogleClient) createPubSubTopic(ctx context.Context, pushURL string) (string, error) {
+	pubSubClient, err := pubsub.NewClient(ctx, g.androidProjectID, option.WithCredentialsJSON([]byte(g.androidServiceCredentials)))
 	if err != nil {
 		return "", fmt.Errorf("creating PubSub client: %w", err)
 	}
@@ -152,49 +151,48 @@ func (p *Proxy) createPubSubTopic(ctx context.Context, pushURL string) (string, 
 	return topic.String(), nil
 }
 
-func (p *Proxy) EnterprisesPoliciesPatch(enterpriseID string, policyName string, policy *androidmanagement.Policy) error {
-	fullPolicyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, policyName)
-	_, err := p.mgmt.Enterprises.Policies.Patch(fullPolicyName, policy).Do()
+func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
+	_, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		p.logger.Log("msg", "Android policy not modified", "enterprise_id", enterpriseID, "policy_name", policyName)
+		g.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
 	case err != nil:
-		return fmt.Errorf("patching policy %s: %w", fullPolicyName, err)
+		return fmt.Errorf("patching policy %s: %w", policyName, err)
 	}
 	return nil
 }
 
-func (p *Proxy) EnterprisesEnrollmentTokensCreate(enterpriseName string, token *androidmanagement.EnrollmentToken,
+func (g *GoogleClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken,
 ) (*androidmanagement.EnrollmentToken, error) {
-	if p == nil || p.mgmt == nil {
+	if g == nil || g.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
-	token, err := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Do()
+	token, err := g.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating enrollment token: %w", err)
 	}
 	return token, nil
 }
 
-func (p *Proxy) EnterpriseDelete(ctx context.Context, enterpriseID string) error {
-	if p == nil || p.mgmt == nil {
+func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName string) error {
+	if g == nil || g.mgmt == nil {
 		return errors.New("android management service not initialized")
 	}
 
 	// To find out the enterprise's PubSub topic, we need to get the enterprise first
-	enterprise, err := p.mgmt.Enterprises.Get("enterprises/" + enterpriseID).Do()
+	enterprise, err := g.mgmt.Enterprises.Get(enterpriseName).Context(ctx).Do()
 	if err != nil {
-		level.Error(p.logger).Log("msg", "getting enterprise; perhaps it was already deleted?", "err", err, "enterprise_id", enterpriseID)
+		level.Error(g.logger).Log("msg", "getting enterprise; perhaps it was already deleted?", "err", err, "enterprise_name", enterpriseName)
 		return nil
 	}
 
-	_, err = p.mgmt.Enterprises.Delete("enterprises/" + enterpriseID).Do()
+	_, err = g.mgmt.Enterprises.Delete(enterpriseName).Do()
 	switch {
 	case googleapi.IsNotModified(err):
-		level.Info(p.logger).Log("msg", "enterprise was already deleted", "enterprise_id", enterpriseID)
+		level.Info(g.logger).Log("msg", "enterprise was already deleted", "enterprise_name", enterpriseName)
 		return nil
 	case err != nil:
-		return fmt.Errorf("deleting enterprise %s: %w", enterpriseID, err)
+		return fmt.Errorf("deleting enterprise %s: %w", enterpriseName, err)
 	}
 
 	// Delete the PubSub topic if it exists
@@ -203,11 +201,11 @@ func (p *Proxy) EnterpriseDelete(ctx context.Context, enterpriseID string) error
 	}
 	topicID, err := getLastPart(ctx, enterprise.PubsubTopic)
 	if err != nil || len(topicID) == 0 {
-		level.Error(p.logger).Log("msg", "getting last part of PubSub topic", "err", err, "topic", enterprise.PubsubTopic)
+		level.Error(g.logger).Log("msg", "getting last part of PubSub topic", "err", err, "topic", enterprise.PubsubTopic)
 		return nil
 	}
 
-	pubSubClient, err := pubsub.NewClient(ctx, androidProjectID, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
+	pubSubClient, err := pubsub.NewClient(ctx, g.androidProjectID, option.WithCredentialsJSON([]byte(g.androidServiceCredentials)))
 	if err != nil {
 		return fmt.Errorf("creating PubSub client: %w", err)
 	}
@@ -216,7 +214,16 @@ func (p *Proxy) EnterpriseDelete(ctx context.Context, enterpriseID string) error
 	if err != nil {
 		return fmt.Errorf("deleting PubSub topic %s: %w", enterprise.PubsubTopic, err)
 	}
+	// Delete the subscription, which has the same ID as the topic.
+	err = pubSubClient.Subscription(topicID).Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("deleting PubSub subscription %s: %w", topicID, err)
+	}
 
+	return nil
+}
+
+func (g *GoogleClient) SetAuthenticationSecret(_ string) error {
 	return nil
 }
 

@@ -89,6 +89,17 @@ func (svc *Service) authenticatePubSub(ctx context.Context, token string) error 
 	return nil
 }
 
+func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, error) {
+	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidFleetServerSecret}, nil)
+	switch {
+	case fleet.IsNotFound(err):
+		return "", nil
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "getting Android authentication secret")
+	}
+	return string(assets[fleet.MDMAssetAndroidFleetServerSecret].Value), nil
+}
+
 func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, rawData []byte) error {
 	// We allow DELETED notification type to be received since user may be in the process of disabling Android MDM.
 	// Otherwise, we authenticate below in authenticatePubSub

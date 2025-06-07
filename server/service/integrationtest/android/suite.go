@@ -16,13 +16,13 @@ import (
 
 type Suite struct {
 	integrationtest.BaseSuite
-	AndroidProxy *android_mock.Proxy
+	AndroidProxy *android_mock.Client
 }
 
 func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndRedisAndService(t, uniqueTestName)
 	logger := log.NewLogfmtLogger(os.Stdout)
-	proxy := android_mock.Proxy{}
+	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
 	androidSvc, err := android_service.NewServiceWithProxy(
 		logger,
@@ -31,6 +31,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 		fleetSvc,
 	)
 	require.NoError(t, err)
+	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
 	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierFree,
