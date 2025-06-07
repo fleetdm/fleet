@@ -94,6 +94,7 @@ func TestLabels(t *testing.T) {
 		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
+		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -1952,4 +1953,56 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.Hostname, labelSpec.Hosts[0])
 	require.Equal(t, host2.Hostname, labelSpec.Hosts[1])
 	require.Equal(t, host3.Hostname, labelSpec.Hosts[2])
+}
+
+func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("1"),
+		NodeKey:        ptr.String("1"),
+		UUID:           "1",
+		Hostname:       "foo.local",
+		HardwareSerial: "hwd1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("2"),
+		NodeKey:        ptr.String("2"),
+		UUID:           "2",
+		Hostname:       "bar.local",
+		HardwareSerial: "hwd2",
+		Platform:       "windows",
+	})
+	require.NoError(t, err)
+	host3, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("3"),
+		NodeKey:        ptr.String("3"),
+		UUID:           "uuid3",
+		Hostname:       "baz.local",
+		HardwareSerial: "hwd3",
+		Platform:       "windows",
+	})
+	require.NoError(t, err)
+
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "label1",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts: []string{
+				"foo.local",
+				"hwd2",
+				"uuid3",
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 3)
+	require.Equal(t, host1.ID, hosts[0].ID)
+	require.Equal(t, host2.ID, hosts[1].ID)
+	require.Equal(t, host3.ID, hosts[2].ID)
 }
