@@ -123,14 +123,23 @@ export default {
   MANAGE_HOSTS_LABEL: (labelId: number | string): string => {
     return `${URL_PREFIX}/hosts/manage/labels/${labelId}`;
   },
-  HOST_DETAILS: (id: number): string => {
+  HOST_DETAILS_PAGE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}`;
+  },
+  HOST_DETAILS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/details`;
   },
   HOST_SCRIPTS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/scripts`;
   },
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;
+  },
+  HOST_INVENTORY: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/software/inventory`;
+  },
+  HOST_LIBRARY: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/software/library`;
   },
   HOST_QUERIES: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/queries`;
