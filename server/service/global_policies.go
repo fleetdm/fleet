@@ -87,7 +87,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		fleet.ActivityTypeCreatedPolicy{
 			ID:       policy.ID,
 			Name:     policy.Name,
-			TeamID:   nil,
+			TeamID:   -1,
 			TeamName: nil,
 		},
 	); err != nil {
@@ -271,7 +271,7 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 			fleet.ActivityTypeDeletedPolicy{
 				ID:       id,
 				Name:     policiesByID[id].Name,
-				TeamID:   nil,
+				TeamID:   -1,
 				TeamName: nil,
 			},
 		); err != nil {

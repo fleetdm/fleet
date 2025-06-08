@@ -108,7 +108,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 			fleet.ActivityTypeCreatedPolicy{
 				ID:       policy.ID,
 				Name:     policy.Name,
-				TeamID:   &teamID,
+				TeamID:   int64(teamID),
 				TeamName: &teamName,
 			},
 		); err != nil {
@@ -135,7 +135,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		fleet.ActivityTypeCreatedPolicy{
 			ID:       policy.ID,
 			Name:     policy.Name,
-			TeamID:   &teamID,
+			TeamID:   int64(teamID),
 			TeamName: teamName,
 		},
 	); err != nil {
@@ -454,7 +454,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 				fleet.ActivityTypeDeletedPolicy{
 					ID:       id,
 					Name:     policiesByID[id].Name,
-					TeamID:   &teamID,
+					TeamID:   int64(teamID),
 					TeamName: &teamName,
 				},
 			); err != nil {
@@ -483,7 +483,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 			fleet.ActivityTypeDeletedPolicy{
 				ID:       id,
 				Name:     policiesByID[id].Name,
-				TeamID:   &teamID,
+				TeamID:   int64(teamID),
 				TeamName: teamName,
 			},
 		); err != nil {
