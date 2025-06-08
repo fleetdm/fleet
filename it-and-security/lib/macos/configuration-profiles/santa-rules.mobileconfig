@@ -42,7 +42,16 @@
 										<string>BLOCKLIST</string>
 										<key>rule_type</key>
 										<string>BINARY</string>
-									</dict>									
+									</dict>
+									<dict>
+                                            					<!-- Block Chrome version with vulnerability, v137.0.7151.69 -->
+                                           					<key>identifier</key>
+                                            					<string>9e29a658cb87df522934f80bab108803b8416c61</string>
+                                            					<key>policy</key>
+                                            					<string>BLOCKLIST</string>
+                                            					<key>rule_type</key>
+                                            					<string>CDHASH</string>
+                                        				</dict>
 								</array>
 							</dict>
 						</dict>
