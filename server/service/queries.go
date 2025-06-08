@@ -339,13 +339,18 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		return nil, err
 	}
 
+	var teamID int64
 	var teamName *string
 	if query.TeamID != nil {
+		teamID = int64(*query.TeamID)
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 		if err != nil {
 			return nil, err
 		}
 		teamName = &team.Name
+	} else {
+		teamID = -1 // Use -1 for global queries
+		teamName = nil
 	}
 
 	if err := svc.NewActivity(
@@ -354,7 +359,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		fleet.ActivityTypeCreatedSavedQuery{
 			ID:       query.ID,
 			Name:     query.Name,
-			TeamID:   query.TeamID,
+			TeamID:   teamID, // log teamID if available, else -1 for global
 			TeamName: teamName,
 		},
 	); err != nil {
@@ -475,13 +480,18 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, err
 	}
 
+	var teamID int64
 	var teamName *string
 	if query.TeamID != nil {
+		teamID = int64(*query.TeamID)
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 		if err != nil {
 			return nil, err
 		}
 		teamName = &team.Name
+	} else {
+		teamID = -1
+		teamName = nil
 	}
 
 	if err := svc.NewActivity(
@@ -490,7 +500,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		fleet.ActivityTypeEditedSavedQuery{
 			ID:       query.ID,
 			Name:     query.Name,
-			TeamID:   query.TeamID,
+			TeamID:   teamID,
 			TeamName: teamName,
 		},
 	); err != nil {
@@ -555,13 +565,18 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		return err
 	}
 
+	var logTeamID int64
 	var teamName *string
 	if query.TeamID != nil {
+		logTeamID = int64(*query.TeamID)
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 		if err != nil {
 			return err
 		}
 		teamName = &team.Name
+	} else {
+		logTeamID = -1
+		teamName = nil
 	}
 
 	if err := svc.NewActivity(
@@ -569,7 +584,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery{
 			Name:     name,
-			TeamID:   query.TeamID,
+			TeamID:   logTeamID,
 			TeamName: teamName,
 		},
 	); err != nil {
@@ -617,13 +632,18 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete query")
 	}
 
+	var logTeamID int64
 	var teamName *string
 	if query.TeamID != nil {
+		logTeamID = int64(*query.TeamID)
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 		if err != nil {
 			return err
 		}
 		teamName = &team.Name
+	} else {
+		logTeamID = -1
+		teamName = nil
 	}
 
 	if err := svc.NewActivity(
@@ -631,7 +651,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedSavedQuery{
 			Name:     query.Name,
-			TeamID:   query.TeamID,
+			TeamID:   logTeamID,
 			TeamName: teamName,
 		},
 	); err != nil {
@@ -666,7 +686,7 @@ func deleteQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.S
 
 func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error) {
 	// Verify that the user is allowed to delete all the requested queries.
-	var teamID *uint
+	var logTeamID int64 = -1
 	var teamName *string
 	for _, id := range ids {
 		query, err := svc.ds.Query(ctx, id)
@@ -680,11 +700,11 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 
 		// Capture team information for activity logging.
 		if query.TeamID != nil {
+			logTeamID = int64(*query.TeamID)
 			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 			if err != nil {
 				return 0, err
 			}
-			teamID = query.TeamID
 			teamName = &team.Name
 		}
 	}
@@ -699,7 +719,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedMultipleSavedQuery{
 			IDs:      ids,
-			Teamid:   teamID,
+			Teamid:   logTeamID,
 			TeamName: teamName,
 		},
 	); err != nil {

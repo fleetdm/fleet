@@ -1180,53 +1180,70 @@ const TAGGED_TEMPLATES = {
     );
   },
   createdSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = "globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          to the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = ""; // in case any previous activity has no team metadata but not global as well, log no team information
+    }
     return (
       <>
         {" "}
-        created a query <b>{activity.details?.query_name}</b>{" "}
-        {activity.details?.team_name ? (
-          <>
-            to the <b>{activity.details.team_name}</b> team
-          </>
-        ) : (
-          "globally"
-        )}
+        created a query <b>{activity.details?.query_name}</b> {teamText}
       </>
     );
   },
   editedSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = "globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          on the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
     return (
       <>
         {" "}
-        edited the query <b>{activity.details?.query_name}</b>{" "}
-        {activity.details?.team_name ? (
-          <>
-            on the <b>{activity.details.team_name}</b> team
-          </>
-        ) : (
-          "globally"
-        )}
+        edited the query <b>{activity.details?.query_name}</b> {teamText}
       </>
     );
   },
   deletedSavedQuery: (activity: IActivity) => {
+    let teamText;
+    if (activity.details?.team_id === -1) {
+      teamText = "globally";
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          from the <b>{activity.details.team_name}</b> team
+        </>
+      );
+    } else {
+      teamText = "";
+    }
     return (
       <>
         {" "}
-        deleted the query <b>{activity.details?.query_name}</b>{" "}
-        {activity.details?.team_name ? (
-          <>
-            from the <b>{activity.details.team_name}</b> team
-          </>
-        ) : (
-          "globally"
-        )}
+        deleted the query <b>{activity.details?.query_name}</b> {teamText}
       </>
     );
   },
   createdPolicy: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === 0) {
+    if (activity.details?.team_id === -1) {
+      teamText = "globally";
+    } else if (activity.details?.team_id === 0) {
       teamText = (
         <>
           for <b>No Team</b>
@@ -1239,7 +1256,7 @@ const TAGGED_TEMPLATES = {
         </>
       );
     } else {
-      teamText = "globally";
+      teamText = "";
     }
 
     return (
@@ -1251,7 +1268,9 @@ const TAGGED_TEMPLATES = {
   },
   editedPolicy: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === 0) {
+    if (activity.details?.team_id === -1) {
+      teamText = "globally";
+    } else if (activity.details?.team_id === 0) {
       teamText = (
         <>
           for <b>No Team</b>
@@ -1264,7 +1283,7 @@ const TAGGED_TEMPLATES = {
         </>
       );
     } else {
-      teamText = "globally";
+      teamText = "";
     }
 
     return (
@@ -1276,7 +1295,9 @@ const TAGGED_TEMPLATES = {
   },
   deletedPolicy: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === 0) {
+    if (activity.details?.team_id === -1) {
+      teamText = "globally";
+    } else if (activity.details?.team_id === 0) {
       teamText = (
         <>
           for <b>No Team</b>
@@ -1289,7 +1310,7 @@ const TAGGED_TEMPLATES = {
         </>
       );
     } else {
-      teamText = "globally";
+      teamText = "";
     }
 
     return (
