@@ -68,13 +68,13 @@ function Force-Remove-Orbit {
     }
     
     # Write success log
-    "Fleet successfully removed at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+    "Fleetd successfully removed at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
   }
   catch {
     Write-Host "There was a problem running Force-Remove-Orbit"
     Write-Host "$(Resolve-Error-Detailed)"
     # Write error log
-    "Error removing Fleet at $(Get-Date): $($Error[0])" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+    "Error removing fleetd at $(Get-Date): $($Error[0])" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
     return $false
   }
 
@@ -113,7 +113,7 @@ function Main {
       # remove the agent. Instead, it starts a new detached process that
       # will do the actual removal.
       
-      Write-Host "Removing fleet, system will be unenrolled in 20 seconds..."
+      Write-Host "Removing fleetd, system will be unenrolled in 20 seconds..."
       Write-Host "Executing detached child process"
       
       $execName = $MyInvocation.ScriptName

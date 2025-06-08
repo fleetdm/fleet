@@ -108,6 +108,14 @@ VALUES (?, ?, ?, ?, ?, ?)`
 	return nil
 }
 
+func (ds *Datastore) DeleteLUKSData(ctx context.Context, hostID, keySlot uint) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `
+DELETE FROM host_disk_encryption_keys WHERE host_id = ? AND key_slot = ?`, hostID, keySlot)
+		return err
+	})
+}
+
 func (ds *Datastore) SaveLUKSData(ctx context.Context, host *fleet.Host, encryptedBase64Passphrase string, encryptedBase64Salt string,
 	keySlot uint) error {
 	if encryptedBase64Passphrase == "" || encryptedBase64Salt == "" { // should have been caught at service level
@@ -252,11 +260,16 @@ func (ds *Datastore) SetHostsDiskEncryptionKeyStatus(
 func (ds *Datastore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 	var key fleet.HostDiskEncryptionKey
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &key, `
-          SELECT
-            host_id, base64_encrypted, decryptable, updated_at, client_error
-          FROM
-            host_disk_encryption_keys
-          WHERE host_id = ?`, hostID)
+SELECT
+	host_id, 
+	base64_encrypted, 
+	base64_encrypted_salt,
+	key_slot,
+	decryptable, 
+	updated_at, 
+	client_error
+FROM host_disk_encryption_keys
+WHERE host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			msg := fmt.Sprintf("for host %d", hostID)

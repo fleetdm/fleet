@@ -454,3 +454,5 @@ export const DATE_FNS_FORMAT_STRINGS = {
   dateAtTime: "E, MMM d 'at' p",
   hoursAndMinutes: "HH:mm",
 };
+
+export const MAX_SCRIPT_BATCH_TARGETS = 5000;

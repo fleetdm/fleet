@@ -95,6 +95,11 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}
 
+	err = svc.failCancelledSetupExperienceInstalls(ctx, host, res)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
+	}
+
 	payload := &fleet.SetupExperienceStatusPayload{
 		BootstrapPackage:      bootstrapPkgResult,
 		ConfigurationProfiles: cfgProfResults,
@@ -142,6 +147,45 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	}
 
 	return payload, nil
+}
+
+func (svc *Service) failCancelledSetupExperienceInstalls(ctx context.Context, host *fleet.Host, results []*fleet.SetupExperienceStatusResult) error {
+	for _, r := range results {
+		if r.Status != fleet.SetupExperienceStatusCancelled {
+			continue
+		}
+		r.Status = fleet.SetupExperienceStatusFailure
+		level.Info(svc.logger).Log("msg", "marking setup experience software as failed due to cancellation", "host_uuid", host.UUID, "software_name", r.Name)
+		err := svc.ds.UpdateSetupExperienceStatusResult(ctx, r)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")
+		}
+		if r.IsForSoftware() {
+			softwarePackage := ""
+			installerMeta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *r.SoftwareInstallerID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "getting software installer metadata for cancelled setup experience software install")
+			}
+			if installerMeta != nil {
+				softwarePackage = installerMeta.Name
+			}
+			activity := fleet.ActivityTypeInstalledSoftware{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+				SoftwareTitle:   r.Name,
+				SoftwarePackage: softwarePackage,
+				InstallUUID:     *r.HostSoftwareInstallsExecutionID,
+				Status:          "failed",
+				SelfService:     false,
+			}
+			err = svc.NewActivity(ctx, nil, activity)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience software install")
+			}
+		}
+		continue
+	}
+	return nil
 }
 
 func isDeviceReleasedManually(ctx context.Context, ds fleet.Datastore, host *fleet.Host) (bool, error) {

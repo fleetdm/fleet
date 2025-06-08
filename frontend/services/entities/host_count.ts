@@ -54,6 +54,8 @@ export interface IHostCountLoadOptions {
   vulnerability?: string;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
+  configProfileStatus?: string;
+  configProfileUUID?: string;
 }
 
 export default {
@@ -83,6 +85,8 @@ export default {
     const vulnerability = options?.vulnerability;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
     const bootstrapPackageStatus = options?.bootstrapPackageStatus;
+    const configProfileStatus = options?.configProfileStatus;
+    const configProfileUUID = options?.configProfileUUID;
 
     const queryParams = {
       query: globalFilter,
@@ -113,6 +117,8 @@ export default {
         vulnerability,
         diskEncryptionStatus,
         bootstrapPackageStatus,
+        configProfileStatus,
+        configProfileUUID,
       }),
       label_id: label,
       status,

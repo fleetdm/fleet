@@ -27,7 +27,7 @@ func Up_20161118212557(tx *sql.Tx) error {
 			"PRIMARY KEY (`id`)," +
 			"UNIQUE KEY `idx_label_unique_name` (`name`)," +
 			"FULLTEXT KEY `labels_search` (`name`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }

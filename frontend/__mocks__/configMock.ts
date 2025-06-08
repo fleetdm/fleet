@@ -64,6 +64,7 @@ export const DEFAULT_LICENSE_MOCK: ILicense = {
   note: "",
   organization: "",
   managed_cloud: true,
+  allow_disable_telemetry: false,
 };
 
 const DEFAULT_CONFIG_MOCK: IConfig = {

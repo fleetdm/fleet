@@ -24,7 +24,7 @@ CREATE TABLE host_batteries (
   updated_at    TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   UNIQUE KEY idx_host_batteries_host_id_serial_number (host_id, serial_number)
-)`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")
 	}

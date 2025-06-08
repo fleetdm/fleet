@@ -1,4 +1,7 @@
 url: https://downloads.slack-edge.com/desktop-releases/linux/x64/4.41.105/slack-desktop-4.41.105-amd64.deb
 self_service: true
+categories:
+  - Productivity
+  - Communication
 labels_include_any:
   - "Debian-based Linux hosts"

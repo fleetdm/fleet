@@ -36,10 +36,6 @@ export default {
     enableCopy: {
       control: "boolean",
     },
-    copyButtonPosition: {
-      control: "radio",
-      options: ["inside", "outside"],
-    },
     enableShowSecret: {
       control: "boolean",
     },
@@ -110,10 +106,9 @@ WithCopyEnabled.args = {
   value: "This text can be copied",
 };
 
-export const WithCopyEnabledInsideInput = Template.bind({});
-WithCopyEnabledInsideInput.args = {
+export const WithCopyEnabledInput = Template.bind({});
+WithCopyEnabledInput.args = {
   ...WithCopyEnabled.args,
-  copyButtonPosition: "inside",
 };
 
 export const WithTooltip = Template.bind({});

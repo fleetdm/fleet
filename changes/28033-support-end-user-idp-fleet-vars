@@ -1,1 +1,0 @@
-* Added support for `FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` and `FLEET_VAR_HOST_END_USER_IDP_GROUPS` fleet variables in macOS MDM configuration profiles.

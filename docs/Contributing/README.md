@@ -1,34 +1,35 @@
-# Contributing
+# Fleet Contributor Documentation
 
-### [Building Fleet](./Building-Fleet.md) 
-Learn about building the code, development infrastructure, and database migrations.
+Welcome to the Fleet contributor documentation! This documentation is designed to help you contribute to the Fleet project.
 
-### [Build and run Fleetd from local code](./Run-Locally-Built-Fleetd.md)
-Building and running your modified code.
+## Documentation structure
 
-### [Testing](./Testing-and-local-development.md) 
-Look at Fleet's full test suite and integration tests.
+The documentation is organized into the following sections:
 
-### [Migrations](./Migrations.md)
-Learn about creating and updating database migrations.
+- [Getting Started](getting-started/README.md) - Setup, building, and testing Fleet
+- [Guides](guides/README.md) - How-to guides for common tasks
+- [Architecture](architecture/README.md) - High-level architecture documentation
+- [Product Groups](product-groups/README.md) - Documentation for specific product groups
+- [Workflows](workflows/README.md) - Development workflows
+- [Reference](reference/README.md) - API reference, configuration, etc.
+- [ADRs](adr/README.md) - Architectural Decision Records
+- [Research](research/) - Research documents for product groups
+- [Responsibilities](responsibilities/) - Responsibility documents for product groups
 
-### [Committing changes](./Committing-Changes.md) 
-Learn how to merge changes into the codebase.
+## Product groups
 
-### [Releasing Fleet](./Releasing-Fleet.md) 
-Learn the process for how to release Fleet.
+Fleet is organized into three main product groups:
 
-### [Seeding data](./Seeding-Data.md) 
-Learn how to add fake data to your development instance.
+- [MDM](product-groups/mdm/README.md) - Mobile Device Management
+- [Orchestration](product-groups/orchestration/README.md) - Device orchestration using osquery
+- [Software](product-groups/software/README.md) - Software inventory, vulnerability management, and software installation
 
-### [API for contributors](./API-for-contributors.md) 
-Get to grips with Fleet API routes. This documentation is helpful for developing or contributing to Fleet.
+## Contributing
 
-### [Deploying ChromeOS test extensions](./Deploying-chrome-test-ext.md) 
-Learn how to deploy a test version of the fleetd Chrome extension for debug purposes.
+If you're new to Fleet, we recommend starting with the [Getting Started](getting-started/README.md) section to set up your development environment.
 
-### [Upgrading the Go version](./Upgrading-go-version.md) 
-Learn how to update the version of Go used to build Fleet.
+Once you're set up, you can explore the [Guides](guides/README.md) section to learn how to contribute to specific areas of the project.
 
-### [FAQ](./FAQ.md) 
-Find commonly asked questions and answers about contributing to Fleet as part of our community.
+## Architectural Decision Records (ADRs)
+
+We use [Architectural Decision Records](adr/README.md) to document significant architectural decisions. If you're making a significant architectural change, please create an ADR to document your decision.

@@ -104,6 +104,8 @@ func (op Platform) IsSupported() bool {
 		"ubuntu_2304",
 		"ubuntu_2310",
 		"ubuntu_2404",
+		"ubuntu_2410",
+		"ubuntu_2504",
 		"rhel_05",
 		"rhel_06",
 		"rhel_07",

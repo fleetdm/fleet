@@ -235,16 +235,18 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 // //////////////////////////////////////////////////////////////////////////////
 
 type modifyAppConfigRequest struct {
-	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
-	DryRun bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Force     bool `json:"-" query:"force,optional"`     // if true, bypass strict incoming json validation
+	DryRun    bool `json:"-" query:"dry_run,optional"`   // if true, apply validation but do not save changes
+	Overwrite bool `json:"-" query:"overwrite,optional"` // if true, overwrite any existing settings with the incoming ones
 	json.RawMessage
 }
 
 func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyAppConfigRequest)
 	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
-		Force:  req.Force,
-		DryRun: req.DryRun,
+		Force:     req.Force,
+		DryRun:    req.DryRun,
+		Overwrite: req.Overwrite,
 	})
 	if err != nil {
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
@@ -349,6 +351,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if invalid.HasErrors() {
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
+	}
+
+	// If we're in overwrite mode, clear out any feautures that are not explicitly specified.
+	if applyOpts.Overwrite {
+		appConfig.Features = newAppConfig.Features
+		appConfig.SSOSettings = newAppConfig.SSOSettings
+		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
 	}
 
 	// We apply the config that is incoming to the old one
@@ -459,7 +468,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// If the license is Premium, we should always send usage statisics.
-	if license.IsPremium() {
+	if !license.IsAllowDisableTelemetry() {
 		appConfig.ServerSettings.EnableAnalytics = true
 	}
 
@@ -718,7 +727,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// svc.DeleteMDMAppleBootstrapPackage here as it would call the (non-premium)
 		// current service implementation. We have to go through the Enterprise
 		// extensions.
-		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil); err != nil {
+		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil, applyOpts.DryRun); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
 		}
 	}

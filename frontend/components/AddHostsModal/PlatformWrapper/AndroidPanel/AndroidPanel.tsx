@@ -42,7 +42,6 @@ const AndroidPanel = ({ enrollSecret }: IAndroidPanelProps) => {
       <InputField
         label="Send this to your end users:"
         enableCopy
-        copyButtonPosition="inside"
         readOnly
         inputWrapperClass
         name="enroll-link"

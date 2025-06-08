@@ -78,7 +78,7 @@ jobs:
           path: dist/orbit-macos_darwin_all/orbit
 
   goreleaser-linux:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
       id-token: write
@@ -103,6 +103,9 @@ jobs:
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
         with:
           go-version-file: "go.mod"
+
+      - name: Install musl tools
+        run: sudo apt update && sudo apt install -y musl-tools
 
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-linux.yml # v2.4.4

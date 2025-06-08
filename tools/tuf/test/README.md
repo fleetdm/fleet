@@ -38,9 +38,6 @@ GENERATE_MSI=1 \
 GENERATE_MSI_ARM64=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
-NUDGE=1 \
-SWIFT_DIALOG=1 \
-ESCROW_BUDDY=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
 DEBUG=1 \
 ./tools/tuf/test/main.sh
@@ -94,24 +91,33 @@ To add new updates (osqueryd or orbit), use `push_target.sh`.
 
 E.g. to add a new version of `orbit` for Windows:
 ```sh
+source ./tools/tuf/test/load_orbit_version_vars.sh
+
 # Compile a new version of Orbit:
-GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
+GOOS=windows GOARCH=amd64 go build \
+    -o orbit-windows.exe \
+    -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
+    -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$ORBIT_COMMIT" \
+    ./orbit/cmd/orbit
 
 # Push the compiled Orbit as a new version
-./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
+./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe $ORBIT_VERSION
 ```
 
 If the script was executed on a macOS host, the Orbit binary will be a universal binary. To push updates you can do:
 
 ```sh
+source ./tools/tuf/test/load_orbit_version_vars.sh
+
 # Compile a universal binary of Orbit:
 CGO_ENABLED=1 \
-ORBIT_VERSION=42 \
+ORBIT_VERSION=$ORBIT_VERSION \
+ORBIT_COMMIT=$ORBIT_COMMIT \
 ORBIT_BINARY_PATH="orbit-macos" \
 go run ./orbit/tools/build/build.go
 
 # Push the compiled Orbit as a new version
-./tools/tuf/test/push_target.sh macos orbit orbit-macos 43
+./tools/tuf/test/push_target.sh macos orbit orbit-macos $ORBIT_VERSION
 ```
 
 E.g. to add a new version of `osqueryd` for macOS:
@@ -126,11 +132,13 @@ NOTE: Contributors on macOS with Apple silicon ran into issues running osqueryd 
 
 E.g. to add a new version of `desktop` for macOS:
 ```sh
+source ./tools/tuf/test/load_orbit_version_vars.sh
+
 # Compile a new version of fleet-desktop
-make desktop-app-tar-gz
+FLEET_DESKTOP_VERSION=$ORBIT_VERSION make desktop-app-tar-gz
 
 # Push the desktop target as a new version
-./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz 43
+./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz $ORBIT_VERSION
 ```
 
 ### Troubleshooting

@@ -30,8 +30,9 @@ const (
 	CronMaintainedApps              CronScheduleName = "maintained_apps"
 	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
 	// every 1h.
-	CronRefreshVPPAppVersions     CronScheduleName = "refresh_vpp_app_versions"
-	CronAppleMDMIPhoneIPadReviver CronScheduleName = "apple_mdm_iphone_ipad_reviver"
+	CronRefreshVPPAppVersions         CronScheduleName = "refresh_vpp_app_versions"
+	CronAppleMDMIPhoneIPadReviver     CronScheduleName = "apple_mdm_iphone_ipad_reviver"
+	CronUpcomingActivitiesMaintenance CronScheduleName = "upcoming_activities_maintenance"
 )
 
 type CronSchedulesService interface {

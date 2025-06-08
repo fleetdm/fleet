@@ -331,33 +331,37 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       enabled: isRouteOk && isSoftwareEnabled,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
-      onSuccess: (data) => {
-        const hasSoftwareResults = !!data.software && data.software.length > 0;
-
-        if (hasSoftwareResults) {
-          setSoftwareTitleDetail &&
-            setSoftwareTitleDetail(
-              <LastUpdatedText
-                lastUpdatedAt={data.counts_updated_at}
-                customTooltipText={
-                  <>
-                    Fleet periodically queries all hosts to
-                    <br />
-                    retrieve software. Click to view
-                    <br />
-                    hosts for the most up-to-date lists.
-                  </>
-                }
-              />
-            );
-          setShowSoftwareCard(true);
-        } else if (!isViewingVulnerableSoftware) {
-          setShowSoftwareCard(false);
-        }
-        // For vulnerable software with no results, the count query will handle showing the card.
-      },
+      // Don't use onSuccess for UI state: it won't run for cached data, only after a new fetch
     }
   );
+
+  // Keeps UI state in sync with both cached and freshly fetched query results
+  useEffect(() => {
+    const hasSoftwareResults =
+      !!software?.software && software.software.length > 0;
+
+    if (hasSoftwareResults) {
+      setShowSoftwareCard(true);
+      setSoftwareTitleDetail(
+        <LastUpdatedText
+          lastUpdatedAt={software.counts_updated_at}
+          customTooltipText={
+            <>
+              Fleet periodically queries all hosts to
+              <br />
+              retrieve software. Click to view
+              <br />
+              hosts for the most up-to-date lists.
+            </>
+          }
+        />
+      );
+    } else if (!isViewingVulnerableSoftware) {
+      setShowSoftwareCard(false);
+      setSoftwareTitleDetail(null);
+    }
+    // For vulnerable software with no results, the count query will handle showing the card.
+  }, [software, isViewingVulnerableSoftware]);
 
   // If viewing vulnerable software and no results are returned,
   // fetch the count of non-vulnerable software to decide if the card should be shown.
@@ -629,6 +633,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
         setRefetchActivities={setRefetchActivities}
+        router={router}
       />
     ),
   });

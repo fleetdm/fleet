@@ -33,6 +33,9 @@ type User struct {
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
 	Teams []UserTeam `json:"teams"`
 
+	// Only used to to prevent duplicate invite acceptance
+	InviteID *uint `json:"-" db:"invite_id"`
+
 	Settings *UserSettings `json:"settings,omitempty"`
 	Deleted  bool          `json:"-" db:"deleted"`
 }
@@ -184,6 +187,7 @@ type UserPayload struct {
 	Teams                    *[]UserTeam   `json:"teams,omitempty"`
 	NewPassword              *string       `json:"new_password,omitempty"`
 	Settings                 *UserSettings `json:"settings,omitempty"`
+	InviteID                 *uint         `json:"-"`
 }
 
 func (p *UserPayload) VerifyInviteCreate() error {
@@ -332,6 +336,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.GlobalRole != nil {
 		user.GlobalRole = p.GlobalRole
+	}
+	if p.InviteID != nil {
+		user.InviteID = p.InviteID
 	}
 
 	return user, nil

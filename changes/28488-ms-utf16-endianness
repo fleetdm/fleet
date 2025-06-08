@@ -1,0 +1,1 @@
+Fixed issue where NDES SCEP admin page was parsed using wrong UTF16 endianness.

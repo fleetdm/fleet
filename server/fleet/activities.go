@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-//go:generate go run gen_activity_doc.go "../../docs/Contributing/Audit-logs.md"
+//go:generate go run gen_activity_doc.go "../../docs/Contributing/reference/audit-logs.md"
 
 type ContextKey string
 
@@ -1086,6 +1086,10 @@ func (a ActivityTypeReadHostDiskEncryptionKey) ActivityName() string {
 	return "read_host_disk_encryption_key"
 }
 
+func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
 func (a ActivityTypeReadHostDiskEncryptionKey) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a user reads the disk encryption key for a host.`,
 		`This activity contains the following fields:
@@ -1822,6 +1826,7 @@ type ActivityTypeUninstalledSoftware struct {
 	HostDisplayName string `json:"host_display_name"`
 	SoftwareTitle   string `json:"software_title"`
 	ExecutionID     string `json:"script_execution_id"`
+	SelfService     bool   `json:"self_service"`
 	Status          string `json:"status"`
 }
 
@@ -1840,11 +1845,13 @@ func (a ActivityTypeUninstalledSoftware) Documentation() (activity, details, det
 - "host_display_name": Display name of the host.
 - "software_title": Name of the software.
 - "script_execution_id": ID of the software uninstall script.
+- "self_service": Whether the uninstallation was initiated by the end user from the My device UI.
 - "status": Status of the software uninstallation.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
   "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
+  "self_service": false,
   "status": "uninstalled"
 }`
 }
@@ -2525,6 +2532,7 @@ type ActivityTypeRanScriptBatch struct {
 	ScriptName       string `json:"script_name"`
 	BatchExeuctionID string `json:"batch_execution_id"`
 	HostCount        uint   `json:"host_count"`
+	TeamID           *uint  `json:"team_id"`
 }
 
 func (a ActivityTypeRanScriptBatch) ActivityName() string {

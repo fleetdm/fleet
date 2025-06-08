@@ -15,6 +15,7 @@ import validEmail from "components/forms/validators/valid_email";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 import Card from "components/Card";
 
 import {
@@ -328,14 +329,24 @@ const Smtp = ({
         <GitOpsModeTooltipWrapper
           tipOffset={-8}
           renderChildren={(disableChildren) => (
-            <Button
-              type="submit"
-              disabled={Object.keys(formErrors).length > 0 || disableChildren}
+            <TooltipWrapper
+              tipContent={
+                disableChildren ? "" : "Saving changes will send a test email"
+              }
+              position="right"
               className="button-wrap"
-              isLoading={isUpdatingSettings}
+              tipOffset={8}
+              showArrow
+              underline={false}
             >
-              Save
-            </Button>
+              <Button
+                type="submit"
+                disabled={Object.keys(formErrors).length > 0 || disableChildren}
+                isLoading={isUpdatingSettings}
+              >
+                Save
+              </Button>
+            </TooltipWrapper>
           )}
         />
       </form>

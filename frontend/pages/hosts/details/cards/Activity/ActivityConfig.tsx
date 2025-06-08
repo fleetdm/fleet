@@ -14,6 +14,7 @@ import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import WipedHostActivityItem from "./ActivityItems/WipedHostActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
+import ReadHostDiskEncryptionKeyActivityItem from "./ActivityItems/ReadHostDiskEncryptionKey";
 import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
 import CanceledRunScriptActivityItem from "./ActivityItems/CanceledRunScriptActivityItem";
 import CanceledInstallSoftwareActivityItem from "./ActivityItems/CanceledInstallSoftwareActivityItem";
@@ -48,6 +49,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.WipedHost]: WipedHostActivityItem,
+  [ActivityType.ReadHostDiskEncryptionKey]: ReadHostDiskEncryptionKeyActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
   [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
   [ActivityType.UninstalledSoftware]: InstalledSoftwareActivityItem,

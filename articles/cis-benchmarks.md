@@ -52,7 +52,7 @@ If either of these conditions fails, the host is considered to be failing the po
 All CIS policies are stored under our restricted licensed folder `ee/cis/`. To easily convert the [CIS benchmarks YAML raw file](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/cis/macos-14/cis-policy-queries.yml) to a YAML array format compatible with Fleet GitOps, follow these steps:
 
 1. Install [yq](https://github.com/mikefarah/yq) if you don't have it already. (yq is a command-line YAML, JSON and XML processor.)
-2. Run this Shell script to transform the policies into [Fleet YAML]([https://fleetdm.com/docs/configuration/yaml-files](https://fleetdm.com/docs/configuration/yaml-files#policies)):
+2. Run this Shell script to transform the policies into [Fleet YAML](https://fleetdm.com/docs/configuration/yaml-files):
 
 ```
 #!/bin/bash

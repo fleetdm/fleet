@@ -318,20 +318,22 @@ build_changelog() {
         api_endpoint="https://api.openai.com/v1/chat/completions"
         output="null"
 
-        while [[ "$output" == "null" ]]; do
-            data_payload=$(jq -n \
-                              --arg prompt "$question" \
-                              --arg model "gpt-3.5-turbo" \
-                              '{model: $model, messages: [{"role": "user", "content": $prompt}]}')
+        # while [[ "$output" == "null" ]]; do
+        #     data_payload=$(jq -n \
+        #                       --arg prompt "$question" \
+        #                       --arg model "gpt-4o" \
+        #                       '{model: $model, messages: [{"role": "user", "content": $prompt}]}')
 
-            response=$(curl -s -X POST $api_endpoint \
-               -H "Content-Type: application/json" \
-               -H "Authorization: Bearer $open_api_key" \
-               --data "$data_payload")
+        #     response=$(curl -s -X POST $api_endpoint \
+        #        -H "Content-Type: application/json" \
+        #        -H "Authorization: Bearer $open_api_key" \
+        #        --data "$data_payload")
 
-            output=$(echo $response | jq -r .choices[0].message.content)
-            echo "${output}"
-        done
+        #     echo "${response}"
+
+        #     output=$(echo $response | jq -r .choices[0].message.content)
+        #     echo "${output}"
+        # done
 
         git checkout CHANGELOG.md
         if [[ "$target_date" == "" ]]; then
@@ -772,7 +774,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         prs_for_issue=$(gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)")
         echo -n "https://github.com/fleetdm/fleet/issues/$issue"
         if [[ "$prs_for_issue" == "" ]]; then
-            echo -n " - No PRs found, please verify they are not missing in the issue."
+            echo -n " - No PRs found."
         fi
         for val in $prs_for_issue; do
             echo -n " $val"

@@ -277,6 +277,9 @@ const PackageForm = ({
     onToggleAutomaticInstallCheckbox,
   ]);
 
+  // GitOps mode hides SoftwareOptionsSelector and TargetLabelSelector
+  const showOptionsTargetsSelectors = !gitOpsModeEnabled;
+
   return (
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
@@ -292,7 +295,7 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
-          gitopsCompatible={gitopsCompatible}
+          gitopsCompatible={false}
           gitOpsModeEnabled={gitOpsModeEnabled}
         />
         <div
@@ -304,49 +307,51 @@ const PackageForm = ({
               : "form"
           }
         >
-          <div className={`${baseClass}__form-frame`}>
-            <Card
-              paddingSize="medium"
-              borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-            >
-              <SoftwareOptionsSelector
-                formData={formData}
-                onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
-                onToggleSelfService={onToggleSelfServiceCheckbox}
-                onSelectCategory={onSelectCategory}
-                isCustomPackage
-                isEditingSoftware={isEditingSoftware}
-                isExePackage={isExePackage}
-                isTarballPackage={isTarballPackage}
-                onClickPreviewEndUserExperience={
-                  onClickPreviewEndUserExperience
-                }
-              />
-            </Card>
-            <Card
-              paddingSize="medium"
-              borderRadiusSize={isEditingSoftware ? "medium" : "large"}
-            >
-              <TargetLabelSelector
-                selectedTargetType={formData.targetType}
-                selectedCustomTarget={formData.customTarget}
-                selectedLabels={formData.labelTargets}
-                customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                className={`${baseClass}__target`}
-                onSelectTargetType={onSelectTargetType}
-                onSelectCustomTarget={onSelectCustomTarget}
-                onSelectLabel={onSelectLabel}
-                labels={labels || []}
-                dropdownHelpText={
-                  formData.targetType === "Custom" &&
-                  generateHelpText(
-                    formData.automaticInstall,
-                    formData.customTarget
-                  )
-                }
-              />
-            </Card>
-          </div>
+          {showOptionsTargetsSelectors && (
+            <div className={`${baseClass}__form-frame`}>
+              <Card
+                paddingSize="medium"
+                borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+              >
+                <SoftwareOptionsSelector
+                  formData={formData}
+                  onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
+                  onToggleSelfService={onToggleSelfServiceCheckbox}
+                  onSelectCategory={onSelectCategory}
+                  isCustomPackage
+                  isEditingSoftware={isEditingSoftware}
+                  isExePackage={isExePackage}
+                  isTarballPackage={isTarballPackage}
+                  onClickPreviewEndUserExperience={
+                    onClickPreviewEndUserExperience
+                  }
+                />
+              </Card>
+              <Card
+                paddingSize="medium"
+                borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+              >
+                <TargetLabelSelector
+                  selectedTargetType={formData.targetType}
+                  selectedCustomTarget={formData.customTarget}
+                  selectedLabels={formData.labelTargets}
+                  customTargetOptions={CUSTOM_TARGET_OPTIONS}
+                  className={`${baseClass}__target`}
+                  onSelectTargetType={onSelectTargetType}
+                  onSelectCustomTarget={onSelectCustomTarget}
+                  onSelectLabel={onSelectLabel}
+                  labels={labels || []}
+                  dropdownHelpText={
+                    formData.targetType === "Custom" &&
+                    generateHelpText(
+                      formData.automaticInstall,
+                      formData.customTarget
+                    )
+                  }
+                />
+              </Card>
+            </div>
+          )}
         </div>
         <PackageAdvancedOptions
           showSchemaButton={showSchemaButton}
@@ -365,34 +370,24 @@ const PackageForm = ({
           onChangeUninstallScript={onChangeUninstallScript}
         />
         <div className={`${baseClass}__action-buttons`}>
-          <GitOpsModeTooltipWrapper
-            tipOffset={6}
-            renderChildren={(disableChildren) =>
-              submitTooltipContent ? (
-                <TooltipWrapper
-                  tipContent={submitTooltipContent}
-                  underline={false}
-                  showArrow
-                  tipOffset={10}
-                  position="left"
-                >
-                  <Button
-                    type="submit"
-                    disabled={disableChildren || isSubmitDisabled}
-                  >
-                    {isEditingSoftware ? "Save" : "Add software"}
-                  </Button>
-                </TooltipWrapper>
-              ) : (
-                <Button
-                  type="submit"
-                  disabled={disableChildren || isSubmitDisabled}
-                >
-                  {isEditingSoftware ? "Save" : "Add software"}
-                </Button>
-              )
-            }
-          />
+          {submitTooltipContent ? (
+            <TooltipWrapper
+              tipContent={submitTooltipContent}
+              underline={false}
+              showArrow
+              tipOffset={10}
+              position="left"
+            >
+              <Button type="submit" disabled={isSubmitDisabled}>
+                {isEditingSoftware ? "Save" : "Add software"}
+              </Button>
+            </TooltipWrapper>
+          ) : (
+            <Button type="submit" disabled={isSubmitDisabled}>
+              {isEditingSoftware ? "Save" : "Add software"}
+            </Button>
+          )}
+
           <Button variant="inverse" onClick={onCancel}>
             Cancel
           </Button>

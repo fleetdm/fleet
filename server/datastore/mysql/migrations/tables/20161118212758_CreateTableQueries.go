@@ -23,7 +23,7 @@ func Up_20161118212758(tx *sql.Tx) error {
 			"`author_id` int(10) unsigned DEFAULT NULL," +
 			"PRIMARY KEY (`id`)," +
 			"FOREIGN KEY (`author_id`) REFERENCES `users`(`id`) ON DELETE SET NULL" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }

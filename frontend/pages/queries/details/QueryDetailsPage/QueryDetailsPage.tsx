@@ -351,7 +351,7 @@ const QueryDetailsPage = ({
                       destination on a schedule. When automations are <b>
                         on
                       </b>, <br />
-                      data is sent according to a query&apos;s frequency.
+                      data is sent according to a query&apos;s interval.
                     </>
                   }
                 >

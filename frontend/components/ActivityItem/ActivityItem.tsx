@@ -36,6 +36,7 @@ const generateActivityId = (
 export interface IShowActivityDetailsData {
   type: string;
   details?: IActivityDetails;
+  created_at?: string;
 }
 
 /**
@@ -46,6 +47,7 @@ export interface IShowActivityDetailsData {
 export type ShowActivityDetailsHandler = ({
   type,
   details,
+  created_at,
 }: IShowActivityDetailsData) => void;
 
 interface IActivityItemProps {
@@ -117,7 +119,11 @@ const ActivityItem = ({
     // added this stopPropagation as there is some weirdness around the event
     // bubbling up and calling the Modals onEnter handler.
     e.stopPropagation();
-    onShowDetails({ type: activity.type, details: activity.details });
+    onShowDetails({
+      type: activity.type,
+      details: activity.details,
+      created_at: activity.created_at,
+    });
   };
 
   const onCancelActivity = (e: React.MouseEvent<HTMLButtonElement>) => {

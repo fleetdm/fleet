@@ -20,7 +20,7 @@ terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_
 ### Deploying your code to the loadtesting environment
 
 > IMPORTANT:
-> - We advice to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
+> - We advise to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
 > - When performing a load test you target a specific branch and not `main` (referenced below as `$BRANCH_NAME`). The `main` branch changes often and it might trigger rebuilts of the images. The cloned repository that you will use to run the terraform operations doesn't need to be in `$BRANCH_NAME`, such `$BRANCH_NAME` is the Fleet version that will be deployed to the load test environment.
 > - These scripts were tested with terraform 1.10.4.
 
@@ -112,6 +112,21 @@ docker images | grep 'BRANCH_NAME' | awk '{print $3}'
 # you will end up with twice the hosts enrolled (half online, half offline).
 terraform apply -var tag=BRANCH_NAME -var loadtest_containers=XXX -target=aws_ecs_service.fleet -target=aws_ecs_task_definition.backend -target=aws_ecs_task_definition.migration -target=aws_s3_bucket_acl.osquery-results -target=aws_s3_bucket_acl.osquery-status -target=docker_registry_image.fleet
 ```
+
+NOTE: When performing a migration test, set `-var fleet_containers=0` and `-var loadtest_containers=XXX` where `XXX` is the current number of loadtest containers, when running the above command. This will bring down any running fleet containers during the migration, while leaving the loadtest containers up and running. 
+Once the re-deploy on the new branch is finished, you will need to run migrations again:
+
+```sh
+aws ecs run-task --region us-east-2 --cluster fleet-"$(terraform workspace show)"-backend --task-definition fleet-"$(terraform workspace show)"-migrate:"$(terraform output -raw fleet_migration_revision)" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets="$(terraform output -raw fleet_migration_subnets)",securityGroups="$(terraform output -raw fleet_migration_security_groups)"}"
+```
+
+Once the migrations have completed, run the following command to bring the fleet containers back up (substituing in the correct `BRANCH_NAME`, `loadtest_containers` and `fleet_containers` values):
+
+```sh
+terraform apply -var tag=BRANCH_NAME -var loadtest_containers=XXX -var fleet_containers=XX -target=aws_ecs_service.fleet -target=aws_ecs_task_definition.backend -target=aws_ecs_task_definition.migration -target=aws_s3_bucket_acl.osquery-results -target=aws_s3_bucket_acl.osquery-status -target=docker_registry_image.fleet -target=aws_appautoscaling_target.ecs_target
+```
+
+Using `-target=aws_appautoscaling_target.ecs_target` will prevent your instance from shutting down prematurely if there are performance issues, to allow for further investigation.
 
 ### Deploying code changes to osquery-perf
 

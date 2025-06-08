@@ -23,7 +23,7 @@ func Up_20211221110132(tx *sql.Tx) error {
 			PRIMARY KEY (id),
 			INDEX idx_host_emails_host_id_email (host_id, email),
 			INDEX idx_host_emails_email (email)
-		);
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	if _, err := tx.Exec(hostEmailsTable); err != nil {
 		return errors.Wrap(err, "create host_emails table")
