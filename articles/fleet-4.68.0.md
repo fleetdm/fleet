@@ -25,7 +25,7 @@ Security engineers can now send scheduled query results to a webhook URL. This m
 
 ### Deploy tarballs
 
-Fleet now supports deploying `.tar.gz` and `.tgz packages`. Security engineers no longer need separate hosting or deployment tools, simplifying the process of distributing software across hosts. Learn more in our [software deployment documentation](https://fleetdm.com/guides/deploy-software-packages).
+Fleet now supports deploying `.tar.gz` and `.tgz packages`. Security engineers no longer need separate hosting or deployment tools, simplifying the process of distributing software across hosts. Learn more in our [software deployment guide](https://fleetdm.com/guides/deploy-software-packages).
 
 ### SHA-256 verification
 
@@ -33,7 +33,7 @@ IT admins can now specify a `hash_sha256` when adding custom packages to Fleet v
 
 ### Certificate renewal
 
-Fleet can now automatically renew certificates from DigiCert, NDES, or custom certificate authorities (CA). This ensures end users can maintain seamless Wi-Fi and VPN access without manual certificate management. See the [WiFi and VPN certificate documentation](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) for more information.
+Fleet can now automatically renew certificates from DigiCert, NDES, or custom certificate authorities (CA). This ensures end users can maintain seamless Wi-Fi and VPN access without manual certificate management. See the [WiFi and VPN certificate guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) for more information.
 
 ### Configuration profile variables
 
@@ -41,7 +41,7 @@ IT admins can now insert end users' identity provider (IdP) usernames and groups
 
 ### Software self-service categories
 
-IT admins can now organize software in **Fleet Desktop > Self service** into categories like "🌎 Browsers," "👬 Communication," "🧰 Developer tools," and "🖥️ Productivity." This makes it easier for end users to quickly find and install the apps they need. See the [software self-service documentation](https://fleetdm.com/guides/software-self-service) for more information.
+IT admins can now organize software in **Fleet Desktop > Self service** into categories like "🌎 Browsers," "👬 Communication," "🧰 Developer tools," and "🖥️ Productivity." This makes it easier for end users to quickly find and install the apps they need. See the [software self-service guide](https://fleetdm.com/guides/software-self-service) for more information.
 
 ### Run scripts in bulk
 
@@ -57,7 +57,7 @@ A new `fleetctl generate-gitops` command now generates GitOps (YAML) files based
 
 ### Custom Fleet agent (fleetd) during new Mac setup (ADE)
 
-Fleet now allows IT admins to deploy a custom fleetd during Mac Setup Assistant (ADE). This makes it possible to custom the fleetd configuration to point hosts to a custom Fleet server URL during initial enrollment, meeting security requirements without manual reconfiguration. See the [macOS setup experience documentation](https://fleetdm.com/guides/macos-setup-experience#advanced) for more information.
+Fleet now allows IT admins to deploy a custom fleetd during Mac Setup Assistant (ADE). This makes it possible to custom the fleetd configuration to point hosts to a custom Fleet server URL during initial enrollment, meeting security requirements without manual reconfiguration. See the [macOS setup experience guide](https://fleetdm.com/guides/macos-setup-experience#advanced) for more information.
 
 ## Changes
 

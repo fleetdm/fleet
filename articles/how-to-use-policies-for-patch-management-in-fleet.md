@@ -24,7 +24,7 @@ Additionally, updated software often includes new features that can ultimately h
 
 In this article, we will be using Google Chrome to demonstrate the functionality, and I already have the latest version’s .pkg downloaded locally.
 
-Select the team you want the policy to run on. Navigate to **Software > Add Software**. Here you can use one of Fleet’s maintained apps, add from VPP or Custom Package. We will use Custom Package in this example and upload the Google Chrome.pkg mentioned previously. After upload, there are a couple of options for pre/post-install queries and scripts - you can read more about those options in our [uigde on deploying software](https://fleetdm.com/guides/deploy-software-packages).
+Select the team you want the policy to run on. Navigate to **Software > Add Software**. Here you can use one of Fleet’s maintained apps, add from VPP or Custom Package. We will use Custom Package in this example and upload the Google Chrome.pkg mentioned previously. After upload, there are a couple of options for pre/post-install queries and scripts - you can read more about those options in our [guide on deploying software](https://fleetdm.com/guides/deploy-software-packages).
 
 Navigate to **Policies**, select the team you want the policy to run in.
 

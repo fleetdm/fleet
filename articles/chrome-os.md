@@ -1,7 +1,7 @@
 # ChromeOS
 For visibility on ChromeOS hosts, Fleet provides the fleetd Chrome extension which provides similar functionality as osquery on other operating systems.
 
-Follow the instructions in our [host enrollment guide](https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks) to add Chromebooks to Fleet.
+Follow the instructions in our [host enrollment guide](https://fleetdm.com/guides/enroll-hosts#enroll-chromebooks) to add Chromebooks to Fleet.
 
 > The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
 
@@ -20,7 +20,7 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
   - `usb_devices`: https://github.com/fleetdm/fleet/issues/12780
 
 ## Debugging ChromeOS
-See our [fleetd Chrome extension testing guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/getting-started/testing-and-local-development.md#fleetd-chrome-extension) for debugging instructions.
+See our [fleetd Chrome extension testing docs](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/getting-started/testing-and-local-development.md#fleetd-chrome-extension) for debugging instructions.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
