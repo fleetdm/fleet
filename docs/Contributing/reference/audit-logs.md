@@ -1014,6 +1014,25 @@ This activity contains the following fields:
 }
 ```
 
+## updated_script
+
+Generated when a script is updated.
+
+This activity contains the following fields:
+- "script_name": Name of the script.
+- "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "script_name": "set-timezones.sh",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## created_windows_profile
 
 Generated when a user adds a new Windows profile to a team (or no team).

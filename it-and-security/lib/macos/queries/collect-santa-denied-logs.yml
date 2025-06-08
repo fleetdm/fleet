@@ -1,6 +1,6 @@
-- name: Collect santa denied logs
+- name: Collect Santa denied logs
   automations_enabled: true
-  description: Collects all santa denied logs from macOS hosts.
+  description: Collects all Santa denied logs from macOS hosts.
   discard_data: false
   interval: 300
   logging: snapshot

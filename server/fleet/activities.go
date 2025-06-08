@@ -158,7 +158,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeRanScript{},
 	ActivityTypeAddedScript{},
 	ActivityTypeDeletedScript{},
-	ActivityTypeEditedScript{},
+	ActivityTypeEditedScript{},  // via GitOps
+	ActivityTypeUpdatedScript{}, // via individual script update endpoint
 
 	ActivityTypeCreatedWindowsProfile{},
 	ActivityTypeDeletedWindowsProfile{},
