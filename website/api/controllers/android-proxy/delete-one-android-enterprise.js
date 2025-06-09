@@ -74,6 +74,10 @@ module.exports = {
       await pubsub.projects.topics.delete({
         topic: thisAndroidEnterprise.pubsubTopicName,
       });
+      // Delete the topic's subscription, which should have the same name as the topic.
+      await pubsub.projects.subscriptions.delete({
+        subscription: thisAndroidEnterprise.pubsubSubscriptionName,
+      });
       return;
     }).intercept((err)=>{
       return new Error(`When attempting to delete an android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
@@ -83,8 +87,8 @@ module.exports = {
     await AndroidEnterprise.destroyOne({ id: thisAndroidEnterprise.id });
 
 
-    // All done.
-    return;
+    // All done. Send back an empty JSON object as expected by Android Management API.
+    return {};
 
   }
 

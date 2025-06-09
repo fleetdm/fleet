@@ -53,6 +53,7 @@ module.exports = {
     let newPubSubTopicName = 'a' + sails.helpers.strings.uuid();// Google requires that topic names start with a letter, so we'll preprend an 'a' to the generated uuid.
     // Build the full pubsub topic name.
     let fullPubSubTopicName = `projects/${sails.config.custom.androidEnterpriseProjectId}/topics/${newPubSubTopicName}`;
+    let newSubscriptionName = `projects/${sails.config.custom.androidEnterpriseProjectId}/subscriptions/${newPubSubTopicName}`;
 
     // Complete the setup of the new Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
@@ -107,7 +108,6 @@ module.exports = {
         }
       });
 
-      let newSubscriptionName = `projects/${sails.config.custom.androidEnterpriseProjectId}/subscriptions/${newPubSubTopicName}`;
       // Create a new subscription for the created pubsub topic.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.subscriptions/create
       await pubsub.projects.subscriptions.create({
@@ -116,6 +116,7 @@ module.exports = {
           topic: fullPubSubTopicName,
           ackDeadlineSeconds: 60,
           messageRetentionDuration: '86400s',// 24 hours
+          expirationPolicy: {}, // never expire, so that customers can enable Android but actually enroll devices months later
           pushConfig: {
             pushEndpoint: pubsubPushUrl// Use the pubsubPushUrl provided by the Fleet server.
           }
@@ -146,6 +147,7 @@ module.exports = {
       fleetLicenseKey: fleetLicenseKey,
       androidEnterpriseId: newAndroidEnterpriseId.replace(/enterprises\//, ''),// Remove the /enterprises prefix from the androidEnterpriseId that we save in the website database.
       pubsubTopicName: fullPubSubTopicName,
+      pubsubSubscriptionName: newSubscriptionName,
       fleetServerSecret: newFleetServerSecret,
     });
 
