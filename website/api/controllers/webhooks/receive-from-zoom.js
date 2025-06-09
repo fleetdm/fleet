@@ -8,22 +8,23 @@ module.exports = {
 
 
   inputs: {
-    webhookSecret: {
-      type: 'string',
-      required: true
-    },
     event: {
       type: 'string',
+      required: true,
       isIn: [
         'revenue_accelerator.conversation_analysis_completed',
       ],
     },
+    event_ts: {// eslint-disable-line camelcase
+      type: 'number',
+    },
     payload: {
       type: {
-        account_id: 'string',
+        account_id: 'string',// eslint-disable-line camelcase
         object: {
-          conversation_id: 'string',
+          conversation_id: 'string',// eslint-disable-line camelcase
           source: 'string',
+          host_id: 'string'// eslint-disable-line camelcase
         }
       }
     }
@@ -31,11 +32,18 @@ module.exports = {
 
 
   exits: {
-
+    success: { description: 'A webhook event has successfully been received.'},
+    unexpectedEvent: {description: 'The receive-from-zoom webhook received an unexpected event.', responseType: 'badRequest'},
   },
 
 
-  fn: async function ({webhookSecret, event, payload }) {
+  fn: async function ({ payload }) {
+
+    if (!sails.config.custom.zoomWebhookSecret) {
+      throw new Error('No Zoom webhook secret configured!  (Please set `sails.config.custom.zoomWebhookSecret`.)');
+    }
+
+    let webhookSecret = this.req.get('x-webhook-secret');
 
     if(webhookSecret !== sails.config.custom.zoomWebhookSecret) {
       return this.res.unauthorized();
@@ -48,9 +56,11 @@ module.exports = {
         'Authorization': `Basic ${Buffer.from(`${sails.config.custom.zoomClientId}:${sails.config.custom.zoomClientSecret}`).toString('base64')}`,
       },
       data: {
-        grant_type: 'account_credentials',
-        account_id: sails.config.custom.zoomAccountId
+        grant_type: 'account_credentials',// eslint-disable-line camelcase
+        account_id: sails.config.custom.zoomAccountId// eslint-disable-line camelcase
       }
+    }).intercept((err)=>{
+      return new Error(`When sending a request to get a Zoom access token, an error occured. Full error ${require('util').inpsect(err, {depth: 3})}`);
     });
     let token = oauthResponse.access_token;
 
@@ -61,35 +71,51 @@ module.exports = {
       headers: {
         'Authorization': `Bearer ${token}`
       }
+    }).intercept((err)=>{
+      return new Error(`When sending a request to get information about a Zoom recording, an error occured. Full error ${require('util').inpsect(err, {depth: 3})}`);
     });
-    // console.log('call info \n ________')
-    // console.log(informationAboutThisCall);
-    // console.log('________')
+
+
     // Get a transcript of the call.
     let callTranscript = await sails.helpers.http.get.with({
       url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?page_size=300`,
       headers: {
         'Authorization': `Bearer ${token}`
       }
+    }).intercept((err)=>{
+      return new Error(`When sending a request to get a transcript of a Zoom recording, an error occured. Full error ${require('util').inpsect(err, {depth: 3})}`);
     });
-    // // TODO: If a next_page_token was provided, we need to get more pages.
-    // if(callTranscript.next_page_token) {
 
-    // }
-    // console.log('call transcript \n ________')
-    // console.log(callTranscript);
-    // console.log('________')
-    // // Get a transcript of a call
-    // // console.log(callInfo);
-    // console.log(`building complete transcript for ${informationAboutThisCall.topic}`);
+    let allSpeakersOnThisCall = [];
+    allSpeakersOnThisCall = allSpeakersOnThisCall.concat(callTranscript.participants);
+    let tokenForNextPageOfResults = callTranscript.next_page_token;
+    // If a next_page_token was provided in the response body, we do not have all of the transcript.
+    if(tokenForNextPageOfResults) {
+      await sails.helpers.flow.until(async()=>{
+        let thisPageOfCallInformation = await sails.helpers.http.get.with({
+          url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?next_page_token=${tokenForNextPageOfResults}`,
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }).intercept((err)=>{
+          return new Error(`When the receive-from-zoom webhook send a request to get a page of a call transcript (call id: ${idOfCallToGenerateTranscriptFor}) an error occured. Full error: ${require('util').inspect(err, {depth: null})}`)
+        });
+        allSpeakersOnThisCall = allSpeakersOnThisCall.concat(thisPageOfCallInformation.participants);
+        tokenForNextPageOfResults = thisPageOfCallInformation.next_page_token;
+        // Stop the until() helper when the response body does not contain a token for the next page of results.
+        return thisPageOfCallInformation.next_page_token === '';
+      }).intercept((err)=>{
+        return new Error(`When the receive-from-zoom webhook attempted to process multiple pages of a call transcript (call ID: ${idOfCallToGenerateTranscriptFor}). An error occured. full error ${require('util').inspect(err, {depth: null})}`);
+      });
+    }
 
     // Transcripts are ordered by an item_id, but separaterd by speaker.
     let allTranscriptLines = [];
-    for(let speaker of callTranscript.participants) {
-      for(let line of speaker.transcripts){
+    for(let speaker of allSpeakersOnThisCall) {
+      for(let line of speaker.transcripts) {
         // Rebuild a list of lines in the call transcript and attach the speakers name to eac hline in the transcript
         allTranscriptLines.push({
-          id: line.item_id,
+          id: Number(line.item_id),
           text: line.text,
           speaker: speaker.display_name,
         });
@@ -99,19 +125,25 @@ module.exports = {
     let allSpokenWordsOrderedById = _.sortBy(allTranscriptLines, 'id');
 
     let transcript = '';
+    let lastSpeaker;
     // Now iterate through the ordered list of transcript lines and build a full transcript.
-    for(let line of allSpokenWordsOrderedById){
-      transcript += `${line.speaker}: \n ${line.text} \n\n`;
+    for(let line of allSpokenWordsOrderedById) {
+      if(line.speaker !== lastSpeaker){
+        transcript += `\n${line.speaker}:\n${line.text}\n`;
+      } else {
+        transcript += `${line.text}\n`;
+      }
+      lastSpeaker = line.speaker;
     }
 
-
-    // Send a POST request to Zapier with the release object.
+    // Send a POST request to Zapier with the transcript and information about this recording.
     await sails.helpers.http.post.with({
       url: 'https://hooks.zapier.com/hooks/catch/3627242/2lp3acb/',
       data: {
         transcript: transcript,
         topic: informationAboutThisCall.topic,
-        participants: _.pluck(callTranscript.participants, 'display_name').join(','),
+        participants: _.pluck(allSpeakersOnThisCall, 'display_name').join(','),
+        participantEmails: _.pluck(allSpeakersOnThisCall, 'email').join(','),
         zoomUrl: informationAboutThisCall.conversation_url,
         startTime: informationAboutThisCall.meeting_start_time,
         webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
