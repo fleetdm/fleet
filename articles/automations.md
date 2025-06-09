@@ -1,6 +1,7 @@
 # Automations
 
-You can configure Fleet to trigger automations that reserve time in your end users' calendars (maintenance windows), send webhooks, or to create tickets.
+You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
+windows), trigger or send query results to webhooks, or create tickets.
 
 To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
 
@@ -20,7 +21,28 @@ Fleet checks whether to trigger policy automations once per day by default.
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 
-For tickets, a single ticket is created per newly failed policy (i.e., multiple tickets are not created if a policy is newly failing on more than one host during the same period).
+For tickets, a single ticket is created per newly failed policy (i.e., multiple tickets are not
+created if a policy is newly failing on more than one host during the same period).
+
+## Query automations
+
+Query automations let you send data gathered from macOS, Windows, and Linux hosts to a log
+destination. Data is sent according to a query's interval.
+
+### Webhook
+
+Each time a scheduled query runs, results are sent via webhook to your configured destination URL.
+To use Webhook logging for scheduled queries, run Fleet with these environment variables:
+
+```
+FLEET_OSQUERY_RESULT_LOG_PLUGIN="webhook"
+FLEET_WEBHOOK_STATUS_URL="<target_status_url>"
+FLEET_WEBHOOK_RESULT_URL="<target_result_url>" 
+```
+
+### Amazon Kinesis Data Firehose
+
+See [the log destination guide](https://fleetdm.com/guides/log-destinations#amazon-kinesis-data-firehose)
 
 ## Vulnerability automations
 
