@@ -2083,7 +2083,7 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return err
 	}
 
-	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, h.UUID, "Device")
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, h.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting mdm enrollment status for mdm apple remove profile command")
 	}
@@ -3935,6 +3935,10 @@ func ReconcileAppleProfiles(
 		return nil
 	}
 
+	// Map of host UUID->User Channel enrollment ID so that we can cache them per-device
+	// TODO EJM We may need a "bulk" method for loading these to reduce DB load
+	userEnrollmentMap := make(map[string]string)
+
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
 	}, nil)
@@ -4031,7 +4035,27 @@ func ReconcileAppleProfiles(
 			}
 			installTargets[p.ProfileUUID] = target
 		}
-		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+		if p.Scope == "User" {
+			userEnrollment, ok := userEnrollmentMap[p.HostUUID]
+			if !ok {
+				userNanoEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, p.HostUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
+				}
+				// TODO EJM We can't just error out here - need to do something different
+				if userNanoEnrollment == nil {
+					return ctxerr.New(ctx, fmt.Sprintf("no user enrollment found for host %s", p.HostUUID))
+				}
+				userEnrollment = userNanoEnrollment.ID
+				userEnrollmentMap[p.HostUUID] = userEnrollment
+			}
+			if userEnrollment != "" {
+				target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+			}
+		} else {
+			// TODO EJM rename hostUUIDs
+			target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+		}
 
 		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 			ProfileUUID:       p.ProfileUUID,
@@ -4077,7 +4101,28 @@ func ReconcileAppleProfiles(
 			}
 			removeTargets[p.ProfileUUID] = target
 		}
-		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+
+		// TODO EJM We should clean up this logic to share with install above
+		if p.Scope == "User" {
+			userEnrollment, ok := userEnrollmentMap[p.HostUUID]
+			if !ok {
+				userNanoEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, p.HostUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
+				}
+				// TODO EJM We can't just error out here - need to do something different
+				if userNanoEnrollment == nil {
+					return ctxerr.New(ctx, fmt.Sprintf("no user enrollment found for host %s", p.HostUUID))
+				}
+				userEnrollment = userNanoEnrollment.ID
+				userEnrollmentMap[p.HostUUID] = userEnrollment
+			}
+			if userEnrollment != "" {
+				target.hostUUIDs = append(target.hostUUIDs, userEnrollment)
+			}
+		} else {
+			target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+		}
 
 		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
 			ProfileUUID:       p.ProfileUUID,

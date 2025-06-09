@@ -1101,7 +1101,7 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
 	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
-	<key>PayloadVersion</key>
+	<key>PayloadVersion</key>∂
 	<integer>1</integer>
 </dict>
 </plist>`))

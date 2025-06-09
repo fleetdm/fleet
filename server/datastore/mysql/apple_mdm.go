@@ -1952,21 +1952,6 @@ INSERT INTO hosts (
 	})
 }
 
-func (ds *Datastore) GetNanoMDMEnrollmentByDeviceIDAndType(ctx context.Context, deviceId, enrollmentType string) (*fleet.NanoEnrollment, error) {
-	var nanoEnroll fleet.NanoEnrollment
-	// use writer as it is used just after creation in some cases
-	err := sqlx.GetContext(ctx, ds.writer(ctx), &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
-		FROM nano_enrollments WHERE device_id = ? AND type = ? AND enabled=1`, deviceId, enrollmentType)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, ctxerr.Wrapf(ctx, err, "getting data from nano_enrollments for id %s", id)
-	}
-
-	return &nanoEnroll, nil
-}
-
 func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
 	var nanoEnroll fleet.NanoEnrollment
 	// use writer as it is used just after creation in some cases
@@ -1977,6 +1962,21 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 			return nil, nil
 		}
 		return nil, ctxerr.Wrapf(ctx, err, "getting data from nano_enrollments for id %s", id)
+	}
+
+	return &nanoEnroll, nil
+}
+
+func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId string) (*fleet.NanoEnrollment, error) {
+	var nanoEnroll fleet.NanoEnrollment
+	// use writer as it is used just after creation in some cases
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
+		FROM nano_enrollments WHERE type = 'User' AND enabled = 1 AND device_id = ? LIMIT 1`, deviceId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from nano_enrollments for device id %s", deviceId)
 	}
 
 	return &nanoEnroll, nil
@@ -3015,7 +3015,8 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		ds.profile_identifier,
 		ds.profile_name,
 		ds.checksum,
-		ds.secrets_updated_at
+		ds.secrets_updated_at,
+		hmae.scope
 	FROM %s `,
 		generateEntitiesToInstallQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -3037,7 +3038,8 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 		hmae.operation_type,
 		COALESCE(hmae.detail, '') as detail,
 		hmae.status,
-		hmae.command_uuid
+		hmae.command_uuid,
+		hmae.scope
 	FROM %s`, generateEntitiesToRemoveQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
@@ -5512,7 +5514,8 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 				ds.secrets_updated_at,
                 ds.declaration_uuid,
                 ds.declaration_identifier,
-                ds.declaration_name
+                ds.declaration_name,
+				hmae.scope
             FROM
                 %s
         )
@@ -5525,7 +5528,8 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
 				hmae.secrets_updated_at,
                 hmae.declaration_uuid,
                 hmae.declaration_identifier,
-                hmae.declaration_name
+                hmae.declaration_name,
+				hmae.scope
             FROM
                 %s
         )
