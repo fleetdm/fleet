@@ -20,7 +20,7 @@ module.exports = {
   },
 
 
-  fn: async function ({androidEnterpriseId, enrollmentToken}) {
+  fn: async function ({androidEnterpriseId}) {
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.headers.authorization;
     let fleetServerSecret;
