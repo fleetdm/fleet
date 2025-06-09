@@ -63,28 +63,28 @@ func TestNewPlist(t *testing.T) {
 			out: `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-  <dict>
-    <key>items</key>
-    <array>
-      <dict>
-        <key>assets</key>
-        <array>
-          <dict>
-            <key>kind</key>
-            <string>software-package</string>
-            <key>sha256-size</key>
-            <integer>32</integer>
-            <key>sha256s</key>
-            <array>
-              <string>2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae</string>
-            </array>
-            <key>url</key>
-            <string>https://test.example.com</string>
-          </dict>
-        </array>
-      </dict>
-    </array>
-  </dict>
+<dict>
+  <key>items</key>
+  <array>
+    <dict>
+      <key>assets</key>
+      <array>
+        <dict>
+          <key>kind</key>
+          <string>software-package</string>
+          <key>sha256-size</key>
+          <integer>32</integer>
+          <key>sha256s</key>
+          <array>
+            <string>2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae</string>
+          </array>
+          <key>url</key>
+          <string>https://test.example.com</string>
+        </dict>
+      </array>
+    </dict>
+  </array>
+</dict>
 </plist>
 `,
 			err: nil,

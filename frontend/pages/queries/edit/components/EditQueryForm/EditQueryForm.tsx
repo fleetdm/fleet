@@ -30,7 +30,6 @@ import {
 } from "utilities/helpers";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
-  SCHEDULE_PLATFORM_DROPDOWN_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   INVALID_PLATFORMS_REASON,
@@ -40,6 +39,7 @@ import {
 import { getPathWithQueryParams } from "utilities/url";
 
 import usePlatformCompatibility from "hooks/usePlatformCompatibility";
+import usePlatformSelector from "hooks/usePlatformSelector";
 
 import { getErrorReason, IApiError } from "interfaces/errors";
 import {
@@ -199,6 +199,14 @@ const EditQueryForm = ({
   const [selectedTargetType, setSelectedTargetType] = useState("");
   const [selectedLabels, setSelectedLabels] = useState({});
 
+  const platformSelector = usePlatformSelector(
+    lastEditedQueryPlatforms,
+    baseClass,
+    false,
+    undefined,
+    undefined
+  );
+
   useEffect(() => {
     setSelectedTargetType(
       storedQuery?.labels_include_any?.length && isPremiumTier
@@ -326,25 +334,6 @@ const EditQueryForm = ({
     setShowAdvancedOptions(!showAdvancedOptions);
   };
 
-  const onChangeSelectPlatformOptions = useCallback(
-    (values: string) => {
-      const valArray = values.split(",");
-
-      // Remove All if another OS is chosen
-      // else if Remove OS if All is chosen
-      if (valArray.indexOf("") === 0 && valArray.length > 1) {
-        setLastEditedQueryPlatforms(
-          pull(valArray, "").join(",") as CommaSeparatedPlatformString
-        );
-      } else if (valArray.length > 1 && valArray.indexOf("") > -1) {
-        setLastEditedQueryPlatforms("");
-      } else {
-        setLastEditedQueryPlatforms(values as CommaSeparatedPlatformString);
-      }
-    },
-    [setLastEditedQueryPlatforms]
-  );
-
   const onChangeMinOsqueryVersionOptions = useCallback(
     (value: string) => {
       setLastEditedQueryMinOsqueryVersion(value);
@@ -377,6 +366,10 @@ const EditQueryForm = ({
     valid = isValidated;
 
     if (valid) {
+      const newPlatformString = platformSelector
+        .getSelectedPlatforms()
+        .join(",") as CommaSeparatedPlatformString;
+
       setIsSaveAsNewLoading(true);
       const apiProps = {
         description: lastEditedQueryDescription,
@@ -385,7 +378,7 @@ const EditQueryForm = ({
         observer_can_run: lastEditedQueryObserverCanRun,
         interval: lastEditedQueryFrequency,
         automations_enabled: lastEditedQueryAutomationsEnabled,
-        platform: lastEditedQueryPlatforms,
+        platform: newPlatformString,
         min_osquery_version: lastEditedQueryMinOsqueryVersion,
         logging: lastEditedQueryLoggingType,
         labels_include_any:
@@ -478,8 +471,15 @@ const EditQueryForm = ({
 
     if (valid) {
       if (!savedQueryMode) {
+        platformSelector.setSelectedPlatforms(
+          platformCompatibility.getCompatiblePlatforms()
+        );
         setShowSaveQueryModal(true);
       } else {
+        const newPlatformString = platformSelector
+          .getSelectedPlatforms()
+          .join(",") as CommaSeparatedPlatformString;
+
         onUpdate({
           // name should already be trimmed at this point due to associated onBlurs, but this
           // doesn't hurt
@@ -489,7 +489,7 @@ const EditQueryForm = ({
           observer_can_run: lastEditedQueryObserverCanRun,
           interval: lastEditedQueryFrequency,
           automations_enabled: lastEditedQueryAutomationsEnabled,
-          platform: lastEditedQueryPlatforms,
+          platform: newPlatformString,
           min_osquery_version: lastEditedQueryMinOsqueryVersion,
           logging: lastEditedQueryLoggingType,
           discard_data: lastEditedQueryDiscardData,
@@ -533,8 +533,8 @@ const EditQueryForm = ({
     return (
       <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
         <>
+          Schema
           <Icon name="info" size="small" />
-          Show schema
         </>
       </Button>
     );
@@ -717,7 +717,7 @@ const EditQueryForm = ({
           >
             <Button
               className={`${baseClass}__run`}
-              variant="blue-green"
+              variant="success"
               onClick={() => {
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
@@ -797,6 +797,7 @@ const EditQueryForm = ({
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) ||
       !!size(errors) ||
+      (savedQueryMode && !platformSelector.isAnyPlatformSelected) ||
       (selectedTargetType === "Custom" &&
         !Object.entries(selectedLabels).some(([, value]) => {
           return value;
@@ -843,7 +844,7 @@ const EditQueryForm = ({
                 onChange={onChangeSelectFrequency}
                 placeholder="Every day"
                 value={lastEditedQueryFrequency}
-                label="Frequency"
+                label="Interval"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 helpText="This is how often your query collects data."
               />
@@ -862,7 +863,7 @@ const EditQueryForm = ({
                         tipContent={
                           <>
                             Automations and reporting will be paused <br />
-                            for this query until a frequency is set.
+                            for this query until an interval is set.
                           </>
                         }
                         position="right"
@@ -900,6 +901,7 @@ const EditQueryForm = ({
               >
                 Observers can run
               </Checkbox>
+              {savedQueryMode && platformSelector.render()}
               {isPremiumTier && (
                 <TargetLabelSelector
                   selectedTargetType={selectedTargetType}
@@ -914,6 +916,7 @@ const EditQueryForm = ({
                       labels:
                     </span>
                   }
+                  suppressTitle
                 />
               )}
               <RevealButton
@@ -926,16 +929,6 @@ const EditQueryForm = ({
               />
               {showAdvancedOptions && (
                 <>
-                  <Dropdown
-                    options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
-                    placeholder="Select"
-                    label="Platform"
-                    onChange={onChangeSelectPlatformOptions}
-                    value={lastEditedQueryPlatforms.replace(/\s/g, "")} // NOTE: FE requires no whitespace to render UI
-                    multi
-                    wrapperClassName={`${baseClass}__form-field form-field--platform`}
-                    helpText="By default, your query collects data on all compatible platforms."
-                  />
                   <Dropdown
                     options={MIN_OSQUERY_VERSION_OPTIONS}
                     onChange={onChangeMinOsqueryVersionOptions}
@@ -989,7 +982,6 @@ const EditQueryForm = ({
                     renderChildren={(disableChildren) => (
                       <Button
                         className="save-loading"
-                        variant="brand"
                         onClick={
                           confirmChanges
                             ? toggleConfirmSaveChangesModal
@@ -1013,7 +1005,7 @@ const EditQueryForm = ({
             >
               <Button
                 className={`${baseClass}__run`}
-                variant="blue-green"
+                variant="success"
                 onClick={() => {
                   // calling `setEditingExistingQuery` here prevents
                   // inclusion of `query_id` in the subsequent `run` API call, which prevents counting
@@ -1059,6 +1051,7 @@ const EditQueryForm = ({
             backendValidators={backendValidators}
             isLoading={isQuerySaving}
             queryReportsDisabled={queryReportsDisabled}
+            platformSelector={platformSelector}
           />
         )}
         {showConfirmSaveChangesModal && (

@@ -21,8 +21,8 @@ import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import ResultsHeading from "components/queries/queryResults/QueryResultsHeading";
-import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
+import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
 
 import PolicyResultsTable from "../PolicyResultsTable/PolicyResultsTable";
 import PolicyQueriesErrorsTable from "../PolicyErrorsTable/PolicyErrorsTable";
@@ -58,7 +58,7 @@ const PolicyResults = ({
 }: IPolicyResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(PolicyContext);
 
-  const { hosts: hostResponses, hosts_count: hostsCount, errors } =
+  const { hosts: hostResponses, uiHostCounts, serverHostCounts, errors } =
     campaign || {};
 
   const totalRowsCount = get(campaign, ["hosts_count", "successful"], 0);
@@ -144,11 +144,11 @@ const PolicyResults = ({
         {" "}
         (Yes:{" "}
         <TooltipWrapper tipContent={`${yesCt} host${yesCt !== 1 ? "s" : ""}`}>
-          {Math.ceil((yesCt / hostsCount.successful) * 100)}%
+          {Math.round((yesCt / uiHostCounts.successful) * 100)}%
         </TooltipWrapper>
         , No:{" "}
         <TooltipWrapper tipContent={`${noCt} host${noCt !== 1 ? "s" : ""}`}>
-          {Math.floor((noCt / hostsCount.successful) * 100)}%
+          {Math.round((noCt / uiHostCounts.successful) * 100)}%
         </TooltipWrapper>
         )
       </span>
@@ -157,10 +157,10 @@ const PolicyResults = ({
 
   const renderResultsTable = () => {
     const emptyResults =
-      !hostResponses || !hostResponses.length || !hostsCount.successful;
+      !hostResponses || !hostResponses.length || !uiHostCounts.successful;
     const hasNoResultsYet = !isQueryFinished && emptyResults;
     const finishedWithNoResults =
-      isQueryFinished && (!hostsCount.successful || emptyResults);
+      isQueryFinished && (!uiHostCounts.successful || emptyResults);
 
     if (hasNoResultsYet) {
       return <AwaitingResults />;
@@ -188,7 +188,8 @@ const PolicyResults = ({
         <div className={`${baseClass}__results-table-header`}>
           <span className={`${baseClass}__results-meta`}>
             <span className={`${baseClass}__results-count`}>
-              {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+              {uiHostCounts.successful} result
+              {uiHostCounts.successful !== 1 && "s"}
             </span>
             {isQueryFinished && renderPassFailPcts()}
           </span>
@@ -233,13 +234,19 @@ const PolicyResults = ({
 
   return (
     <div className={baseClass}>
-      <ResultsHeading
-        respondedHosts={hostsCount.total}
-        targetsTotalCount={targetsTotalCount}
-        isQueryFinished={isQueryFinished}
+      <LiveResultsHeading
+        numHostsTargeted={targetsTotalCount}
+        numHostsResponded={uiHostCounts.total}
+        numHostsRespondedResults={serverHostCounts.countOfHostsWithResults}
+        numHostsRespondedNoErrorsAndNoResults={
+          serverHostCounts.countOfHostsWithNoResults
+        }
+        numHostsRespondedErrors={uiHostCounts.failed}
+        isFinished={isQueryFinished}
         onClickDone={onQueryDone}
         onClickRunAgain={onRunQuery}
         onClickStop={onStopQuery}
+        resultsType="policy"
       />
       <TabNav>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>

@@ -1,7 +1,7 @@
 import React from "react";
 import classnames from "classnames";
 
-import OsSetupPreview from "../../../../../../../../assets/images/os-setup-preview.gif";
+import EndUserAuthEndUserPreview from "../../../../../../../../assets/videos/end-user-auth-preview.mp4";
 
 const baseClass = "end-user-experience-preview";
 
@@ -18,19 +18,18 @@ const EndUserExperiencePreview = ({
     <div className={classes}>
       <h3>End user experience</h3>
       <p>
-        When the end user reaches the <b>Remote Management</b> screen in the
-        macOS Setup Assistant, they are asked to authenticate and agree to the
-        end user license agreement (EULA).
+        When the end user reaches the <b>Remote Management</b> screen, they are
+        first asked to authenticate and agree to the end user license agreement
+        (EULA).
       </p>
-      <p>
-        After, Fleet enrolls the Mac, applies macOS settings, and installs the
-        bootstrap package.
-      </p>
-      <img
-        className={`${baseClass}__preview-img`}
-        src={OsSetupPreview}
-        alt="End user experience during the macOS setup assistant with the user
-        logging in with their IdP provider"
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <video
+        className={`${baseClass}__preview-video`}
+        src={EndUserAuthEndUserPreview}
+        controls
+        autoPlay
+        loop
+        muted
       />
     </div>
   );

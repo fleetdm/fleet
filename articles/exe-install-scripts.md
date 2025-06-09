@@ -8,25 +8,144 @@ For EXE installers, there is no unique script or command that will work for all 
 
 Some EXE installers and uninstallers require additional switches or flags to run silently. Common flags include `/S`, `/q`, `/quiet`, `/silent`, or `--silent`.
 
-## Machine-scoped install scripts
+## Machine-scoped installs
 
 The recommended way to install software on Windows hosts is to use machine-scoped install scripts. These scripts install the software for all local users on the computer and run the installation process with administrator privileges.
 
-Fleet defaults to a machine-scoped install script when you add software using an EXE installer.
+Here's an example **install** script:
 
-## User-scoped install scripts
+```PowerShell
+$exeFilePath = "${env:INSTALLER_PATH}"
+
+try {
+
+# Add argument to install silently
+# Argument to make install silent depends on installer,
+# each installer might use different argument (usually it's "/S" or "/s")
+$processOptions = @{
+  FilePath = "$exeFilePath"
+  ArgumentList = "/S"
+  PassThru = $true
+  Wait = $true
+}
+    
+# Start process and track exit code
+$process = Start-Process @processOptions
+$exitCode = $process.ExitCode
+
+# Prints the exit code
+Write-Host "Install exit code: $exitCode"
+Exit $exitCode
+
+} catch {
+  Write-Host "Error: $_"
+  Exit 1
+}
+```
+
+Here's an example **uninstall** script:
+
+```PowerShell
+# Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
+# variable
+$softwareName = $PACKAGE_ID
+
+# It is recommended to use exact software name here if possible to avoid
+# uninstalling unintended software.
+$softwareNameLike = "*$softwareName*"
+
+# Some uninstallers require a flag to run silently.
+# Each uninstaller might use different argument (usually it's "/S" or "/s")
+$uninstallArgs = "/S"
+
+$machineKey = `
+ 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+$machineKey32on64 = `
+ 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+
+$exitCode = 0
+
+try {
+
+[array]$uninstallKeys = Get-ChildItem `
+    -Path @($machineKey, $machineKey32on64) `
+    -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-ItemProperty $_.PSPath }
+
+$foundUninstaller = $false
+foreach ($key in $uninstallKeys) {
+    # If needed, add -notlike to the comparison to exclude certain similar
+    # software
+    if ($key.DisplayName -like $softwareNameLike) {
+        $foundUninstaller = $true
+        # Get the uninstall command. Some uninstallers do not include
+        # 'QuietUninstallString' and require a flag to run silently.
+        $uninstallCommand = if ($key.QuietUninstallString) {
+            $key.QuietUninstallString
+        } else {
+            $key.UninstallString
+        }
+
+        # The uninstall command may contain command and args, like:
+        # "C:\Program Files\Software\uninstall.exe" --uninstall --silent
+        # Split the command and args
+        $splitArgs = $uninstallCommand.Split('"')
+        if ($splitArgs.Length -gt 1) {
+            if ($splitArgs.Length -eq 3) {
+                $uninstallArgs = "$( $splitArgs[2] ) $uninstallArgs".Trim()
+            } elseif ($splitArgs.Length -gt 3) {
+                Throw `
+                    "Uninstall command contains multiple quoted strings. " +
+                        "Please update the uninstall script.`n" +
+                        "Uninstall command: $uninstallCommand"
+            }
+            $uninstallCommand = $splitArgs[1]
+        }
+        Write-Host "Uninstall command: $uninstallCommand"
+        Write-Host "Uninstall args: $uninstallArgs"
+
+        $processOptions = @{
+            FilePath = $uninstallCommand
+            PassThru = $true
+            Wait = $true
+        }
+        if ($uninstallArgs -ne '') {
+            $processOptions.ArgumentList = "$uninstallArgs"
+        }
+
+        # Start process and track exit code
+        $process = Start-Process @processOptions
+        $exitCode = $process.ExitCode
+
+        # Prints the exit code
+        Write-Host "Uninstall exit code: $exitCode"
+        # Exit the loop once the software is found and uninstalled.
+        break
+    }
+}
+
+if (-not $foundUninstaller) {
+    Write-Host "Uninstaller for '$softwareName' not found."
+    # Change exit code to 0 if you don't want to fail if uninstaller is not
+    # found. This could happen if program was already uninstalled.
+    $exitCode = 1
+}
+
+} catch {
+    Write-Host "Error: $_"
+    $exitCode = 1
+}
+
+Exit $exitCode
+```
+
+## User-scoped installs
 
 Some software can only be installed for a specific user. In this case, you can use user-scoped install scripts. The software is installed only for the user currently logged in, and the installation process is run with the user's privileges.
 
-### Example user-scoped install script
+Here's an example **install** script:
 
-The install script creates a scheduled task that will automatically be run as the current (logged-in) user. The EXE installer is copied to a public directory accessible by the user, ensuring that even non-administrator users can run the scheduled task to complete the installation. After the task finishes, the installer and the task are deleted.
-
-The use of scheduled tasks allows the installer to run with user-level permissions, which is especially useful when installing software for non-admin users without requiring administrator credentials at the time of execution.
-
-Since the installation is run by the current user, the script does not output the installer's messages to the console. If you need to see the output, you can modify the script to redirect it to a file and append it to the script output.
-
-```powershell
+```PowerShell
 # Some installers require a flag to run silently.
 # Each installer might use a different argument (usually it's "/S" or "/s")
 $installArgs = "/S"
@@ -47,8 +166,7 @@ $exeFilePath = "${env:PUBLIC}\$exeFilename"
 $action = New-ScheduledTaskAction -Execute "$exeFilePath" `
     -Argument "$installArgs"
 $trigger = New-ScheduledTaskTrigger -AtLogOn
-$userName = Get-CimInstance -ClassName Win32_ComputerSystem |
-        Select-Object -expand UserName
+$userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' | Invoke-CimMethod -MethodName getowner).User
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
 
 # Create a task object with the properties defined above
@@ -112,13 +230,15 @@ Unregister-ScheduledTask -TaskName "$taskName" -Confirm:$false
 Exit $exitCode
 ```
 
-### Example user-scoped uninstall script
+The install script creates a scheduled task that will automatically be run as the current (logged-in) user. The EXE installer is copied to a public directory accessible by the user, ensuring that even non-administrator users can run the scheduled task to complete the installation. After the task finishes, the installer and the task are deleted.
 
-The uninstall script creates a scheduled task that will automatically be run as the current (logged-in) user. The uninstaller creates a separate PowerShell script for the user. After the task finishes, the script and the task are deleted.
+The use of scheduled tasks allows the installer to run with user-level permissions, which is especially useful when installing software for non-admin users without requiring administrator credentials at the time of execution.
 
-Since the uninstall script is run by the current user, it does not output its messages to the console. If you need to see the output, you can modify the main script to redirect it to a file and append it to the output.
+Since the installation is run by the current user, the script does not output the installer's messages to the console. If you need to see the output, you can modify the script to redirect it to a file and append it to the script output.
 
-```powershell
+Here's an example **uninstall** script:
+
+```PowerShell
 # Fleet extracts the name from the installer (EXE) and saves it to PACKAGE_ID
 # variable
 $softwareName = $PACKAGE_ID
@@ -219,60 +339,59 @@ $uninstallScriptPath = "${env:PUBLIC}/uninstall-$softwareName.ps1"
 $taskName = "fleet-uninstall-$softwareName"
 try {
     Set-Content -Path $uninstallScriptPath -Value $userScript -Force
-
+    
     # Task properties. The task will be started by the logged in user
     $action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
         -Argument "$uninstallScriptPath"
     $trigger = New-ScheduledTaskTrigger -AtLogOn
-    $userName = Get-CimInstance -ClassName Win32_ComputerSystem |
-            Select-Object -expand UserName
+    $userName = (Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' | Invoke-CimMethod -MethodName getowner).User
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries
-
+    
     # Create a task object with the properties defined above
     $task = New-ScheduledTask -Action $action -Trigger $trigger `
         -Settings $settings
-
+        
     # Register the task
     Register-ScheduledTask "$taskName" -InputObject $task -User "$userName"
-
+    
     # keep track of the start time to cancel if taking too long to start
     $startDate = Get-Date
-
+    
     # Start the task now that it is ready
     Start-ScheduledTask -TaskName "$taskName" -TaskPath "\"
-
+    
     # Wait for the task to be running
     $state = (Get-ScheduledTask -TaskName "$taskName").State
     Write-Host "ScheduledTask is '$state'"
-
+    
     while ($state  -ne "Running") {
         Write-Host "ScheduledTask is '$state'. Waiting to uninstall..."
-
+        
         $endDate = Get-Date
         $elapsedTime = New-Timespan -Start $startDate -End $endDate
         if ($elapsedTime.TotalSeconds -gt 120) {
             Throw "Timed-out waiting for scheduled task state."
         }
-
+        
         Start-Sleep -Seconds 1
         $state = (Get-ScheduledTask -TaskName "$taskName").State
     }
-
+    
     # Wait for the task to be done
     $state = (Get-ScheduledTask -TaskName "$taskName").State
     while ($state  -eq "Running") {
         Write-Host "ScheduledTask is '$state'. Waiting for .exe to complete..."
-
+        
         $endDate = Get-Date
         $elapsedTime = New-Timespan -Start $startDate -End $endDate
         if ($elapsedTime.TotalSeconds -gt 120) {
             Throw "Timed-out waiting for scheduled task state."
         }
-
+        
         Start-Sleep -Seconds 10
         $state = (Get-ScheduledTask -TaskName "$taskName").State
     }
-
+    
 } catch {
     Write-Host "Error: $_"
     $exitCode = 1
@@ -280,7 +399,7 @@ try {
     # Remove task
     Write-Host "Removing ScheduledTask: $taskName."
     Unregister-ScheduledTask -TaskName "$taskName" -Confirm:$false
-
+    
     # Remove user script
     Remove-Item -Path $uninstallScriptPath -Force
 }
@@ -318,6 +437,11 @@ Exit $LASTEXITCODE
     Exit 1
 }
 ```
+
+The uninstall script creates a scheduled task that will automatically be run as the current (logged-in) user. The uninstaller creates a separate PowerShell script for the user. After the task finishes, the script and the task are deleted.
+
+Since the uninstall script is run by the current user, it does not output its messages to the console. If you need to see the output, you can modify the main script to redirect it to a file and append it to the output.
+
 ## Conclusion
 
 EXE install scripts provide a flexible solution for installing software on Windows hosts when MSI installers are unavailable. By leveraging the power of PowerShell and scheduled tasks, IT administrators can easily automate both machine-scoped and user-scoped installations. Whether you're deploying software for all users on a computer or targeting a specific logged-in user, the provided scripts offer a robust starting point for handling EXE installations.

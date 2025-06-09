@@ -122,17 +122,21 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		return "", ctxerr.Wrap(ctx, err, "unescaping identifier in URL path")
 	}
 	parsedIDs := strings.Split(parsedID, ",")
-	if len(parsedIDs) != 2 || parsedIDs[0] == "" || parsedIDs[1] == "" {
+	if len(parsedIDs) < 2 || parsedIDs[0] == "" || parsedIDs[1] == "" {
 		// Return error that implements kithttp.StatusCoder interface
 		return "", &scepserver.BadRequestError{Message: "invalid identifier in URL path"}
 	}
 	hostUUID := parsedIDs[0]
 	profileUUID := parsedIDs[1]
+	caName := "NDES" // default
+	if len(parsedIDs) > 2 {
+		caName = parsedIDs[2]
+	}
 	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
 		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
 			profileUUID)}
 	}
-	profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID)
+	profile, err := svc.ds.GetHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting host MDM profile")
 	}
@@ -235,9 +239,9 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 			resp.StatusCode)})
 	}
 	// Make a transformer that converts MS-Win default to UTF8:
-	win16be := unicode.UTF16(unicode.BigEndian, unicode.IgnoreBOM)
-	// Make a transformer that is like win16be, but abides by BOM:
-	utf16bom := unicode.BOMOverride(win16be.NewDecoder())
+	win16le := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+	// Make a transformer that is like win16le, but abides by BOM:
+	utf16bom := unicode.BOMOverride(win16le.NewDecoder())
 
 	// Make a Reader that uses utf16bom:
 	unicodeReader := transform.NewReader(resp.Body, utf16bom)

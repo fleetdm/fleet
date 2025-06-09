@@ -1,4 +1,4 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
@@ -20,9 +20,10 @@ import FileProgressModal from "components/FileProgressModal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
-import PackageForm from "pages/SoftwarePage/components/PackageForm";
-import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 
 import { getErrorMessage } from "./helpers";
 
@@ -42,11 +43,15 @@ const SoftwareCustomPackage = ({
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
-  const [uploadProgress, setUploadProgress] = React.useState(0);
-  const [uploadDetails, setUploadDetails] = React.useState<IFileDetails | null>(
-    null
-  );
+  const { isPremiumTier, config } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
+  const [
+    showPreviewEndUserExperience,
+    setShowPreviewEndUserExperience,
+  ] = useState(false);
 
   const {
     data: labels,
@@ -82,6 +87,10 @@ const SoftwareCustomPackage = ({
     };
   }, [uploadDetails]);
 
+  const onClickPreviewEndUserExperience = () => {
+    setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
+  };
+
   const onCancel = () => {
     router.push(
       getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
@@ -112,7 +121,9 @@ const SoftwareCustomPackage = ({
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      await softwareAPI.addSoftwarePackage({
+      const {
+        software_package: { title_id: softwarePackageTitleId },
+      } = await softwareAPI.addSoftwarePackage({
         data: formData,
         teamId: currentTeamId,
         onUploadProgress: (progressEvent) => {
@@ -123,24 +134,27 @@ const SoftwareCustomPackage = ({
         },
       });
 
-      const newQueryParams: QueryParams = { team_id: currentTeamId };
-      if (formData.selfService) {
-        newQueryParams.self_service = true;
-      } else {
-        newQueryParams.available_for_install = true;
+      if (!gitOpsModeEnabled) {
+        renderFlash(
+          "success",
+          <>
+            <b>{formData.software?.name}</b> successfully added.
+            {formData.selfService
+              ? " The end user can install from Fleet Desktop."
+              : ""}
+          </>
+        );
       }
-      router.push(
-        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, newQueryParams)
-      );
 
-      renderFlash(
-        "success",
-        <>
-          <b>{formData.software?.name}</b> successfully added.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
+      const newQueryParams: QueryParams = {
+        team_id: currentTeamId,
+        gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
+      };
+      router.push(
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwarePackageTitleId.toString()),
+          newQueryParams
+        )
       );
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
@@ -154,7 +168,7 @@ const SoftwareCustomPackage = ({
     }
 
     if (isErrorLabels) {
-      return <DataError className={`${baseClass}__data-error`} />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     return (
@@ -166,13 +180,17 @@ const SoftwareCustomPackage = ({
           className={`${baseClass}__package-form`}
           onCancel={onCancel}
           onSubmit={onSubmit}
-          // TODO - unnecessary if all uses of `PackageForm` are gitops compatible - TBD by product
-          gitopsCompatible
+          onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
         />
         {uploadDetails && (
           <FileProgressModal
             fileDetails={uploadDetails}
             fileProgress={uploadProgress}
+          />
+        )}
+        {showPreviewEndUserExperience && (
+          <CategoriesEndUserExperienceModal
+            onCancel={onClickPreviewEndUserExperience}
           />
         )}
       </>

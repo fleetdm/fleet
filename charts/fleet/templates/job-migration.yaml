@@ -131,8 +131,12 @@ spec:
             {{- end }}
           privileged: false
           readOnlyRootFilesystem: true
-          runAsGroup: 3333
-          runAsUser: 3333
+          {{- if .Values.fleet.securityContext.runAsGroup }}
+          runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
+          runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+          {{- end }}
           runAsNonRoot: true
         volumeMounts:
           {{- if .Values.database.tls.enabled }}
@@ -160,9 +164,17 @@ spec:
             drop: [ALL]
           privileged: false
           readOnlyRootFilesystem: true
-          runAsGroup: 3333
-          runAsUser: 3333
+          {{- if .Values.fleet.securityContext.runAsGroup }}
+          runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
+          runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+          {{- end }}
           runAsNonRoot: true
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8}}
       {{- end }}
       serviceAccountName: fleet
       volumes:

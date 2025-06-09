@@ -19,6 +19,7 @@ const meta: Meta<typeof InputField> = {
     disabled: { control: "boolean" },
     blockAutoComplete: { control: "boolean" },
     enableCopy: { control: "boolean" },
+    enableShowSecret: { control: "boolean" },
     copyButtonPosition: {
       control: "radio",
       options: ["inside", "outside"],
@@ -112,7 +113,6 @@ export const WithCopyButton: Story = {
     label: "Input with Copy Button",
     value: "Click to copy this text",
     enableCopy: true,
-    copyButtonPosition: "outside",
   },
 };
 

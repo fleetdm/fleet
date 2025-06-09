@@ -34,7 +34,7 @@ import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 
 import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
@@ -77,7 +77,6 @@ interface ISoftwareTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  resetPageIndex: boolean;
   onAddFiltersClick: () => void;
 }
 
@@ -98,7 +97,6 @@ const SoftwareTable = ({
   currentPage,
   teamId,
   isLoading,
-  resetPageIndex,
   onAddFiltersClick,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
@@ -247,14 +245,13 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    if (row.original.id) {
-      const path = getPathWithQueryParams(
-        PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString()),
-        { team_id: teamId }
-      );
+    if (!row.original.id) return;
 
-      router.push(path);
-    }
+    const detailsPath = showVersions
+      ? PATHS.SOFTWARE_VERSION_DETAILS(row.original.id.toString())
+      : PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString());
+
+    router.push(getPathWithQueryParams(detailsPath, { team_id: teamId }));
   };
 
   const renderSoftwareCount = () => {
@@ -296,6 +293,7 @@ const SoftwareTable = ({
           value={softwareFilter}
           className={`${baseClass}__software-filter`}
           options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
+          isDisabled={teamId === undefined}
           onChange={(newValue: SingleValue<CustomOptionType>) =>
             newValue &&
             handleCustomFilterDropdownChange(
@@ -356,7 +354,7 @@ const SoftwareTable = ({
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        pageIndex={currentPage}
         defaultSearchQuery={query}
         manualSortBy
         pageSize={perPage}
@@ -379,7 +377,6 @@ const SoftwareTable = ({
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

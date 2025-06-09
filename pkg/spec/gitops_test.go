@@ -181,6 +181,17 @@ func TestValidGitOpsYaml(t *testing.T) {
 							assert.Empty(t, pkg.UninstallScript.Path)
 						}
 					}
+					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
+					for _, fma := range gitops.Software.FleetMaintainedApps {
+						switch fma.Slug {
+						case "slack/darwin":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Communication"})
+						case "box-drive/windows":
+							require.ElementsMatch(t, fma.Categories, []string{"Productivity", "Developer tools"})
+						default:
+							assert.FailNow(t, "unexpected slug found in gitops file", "slug: %s", fma.Slug)
+						}
+					}
 				} else {
 					// Check org settings
 					serverSettings, ok := gitops.OrgSettings["server_settings"]
@@ -215,6 +226,16 @@ func TestValidGitOpsYaml(t *testing.T) {
 					activityExpiryWindow, ok := activityExpirySettings["activity_expiry_window"].(float64)
 					require.True(t, ok)
 					require.Equal(t, 30, int(activityExpiryWindow))
+
+					// Check labels
+					require.Len(t, gitops.Labels, 2)
+					assert.Equal(t, "Global label numero uno", gitops.Labels[0].Name)
+					assert.Equal(t, "Global label numero dos", gitops.Labels[1].Name)
+					assert.Equal(t, "SELECT 1 FROM osquery_info", gitops.Labels[0].Query)
+					require.Len(t, gitops.Labels[1].Hosts, 2)
+					assert.Equal(t, "host1", gitops.Labels[1].Hosts[0])
+					assert.Equal(t, "host2", gitops.Labels[1].Hosts[1])
+
 				}
 
 				// Check controls
@@ -260,6 +281,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				if test.isTeam {
 					require.Len(t, gitops.Software.Packages, 2)
 					require.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Software.Packages[0].URL)
+					require.Equal(t, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", gitops.Software.Packages[0].SHA256)
 					require.False(t, gitops.Software.Packages[0].SelfService)
 					require.Equal(t, "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg", gitops.Software.Packages[1].URL)
 					require.True(t, gitops.Software.Packages[1].SelfService)
@@ -918,7 +940,7 @@ policies:
     package_path:
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "must include either a package path or app store app ID")
+	assert.ErrorContains(t, err, "install_software must include either a package_path, an app_store_id or a hash_sha256")
 
 	config = getTeamConfig([]string{"policies"})
 	config += `
@@ -947,6 +969,45 @@ software:
 	path, basePath := createTempFile(t, "", config)
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	assert.ErrorContains(t, err, fmt.Sprintf("software URL \"%s\" is too long, must be 4000 characters or less", tooBigURL))
+
+	// Software URL isn't a valid URL
+	config = getTeamConfig([]string{"software"})
+	invalidURL := "1.2.3://"
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, invalidURL)
+
+	path, basePath = createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("%s is not a valid URL", invalidURL))
+
+	// Software URL refers to a .exe but doesn't have (un)install scripts specified
+	config = getTeamConfig([]string{"software"})
+	exeURL := "https://download-installer.cdn.mozilla.net/pub/firefox/releases/136.0.4/win64/en-US/Firefox%20Setup%20136.0.4.exe?foo=bar"
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, exeURL)
+
+	path, basePath = createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", exeURL))
+
+	// Software URL refers to a .tar.gz but doesn't have (un)install scripts specified (URL doesn't exist as Firefox is all .tar.xz)
+	config = getTeamConfig([]string{"software"})
+	tgzURL := "https://download-installer.cdn.mozilla.net/pub/firefox/releases/137.0.2/linux-x86_64/en-US/firefox-137.0.2.tar.gz?foo=baz"
+	config += fmt.Sprintf(`
+software:
+  packages:
+    - url: %s
+`, tgzURL)
+
+	path, basePath = createTempFile(t, "", config)
+	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	assert.ErrorContains(t, err, fmt.Sprintf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", tgzURL))
 
 	// Policy references a VPP app not present on the team
 	config = getTeamConfig([]string{"policies"})
@@ -1122,4 +1183,13 @@ policies:
 `
 	_, err := gitOpsFromString(t, config)
 	assert.ErrorContains(t, err, "variables with \"FLEET_SECRET_\" prefix are only allowed")
+}
+
+func TestInvalidSoftwareInstallerHash(t *testing.T) {
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err := GitOpsFromFile("testdata/team_config_invalid_sha.yml", "./testdata", appConfig, nopLogf)
+	assert.ErrorContains(t, err, "must be a valid lower-case hex-encoded (64-character) SHA-256 hash value")
 }

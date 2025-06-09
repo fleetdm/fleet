@@ -28,7 +28,6 @@ const EmptyIntegrationsTable = ({
       }
       primaryButton={
         <Button
-          variant="brand"
           className={`${className}__add-button`}
           onClick={onActionButtonClick}
         >

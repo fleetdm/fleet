@@ -11,5 +11,6 @@
     "(cd /Users/$LOGGED_IN_USER; defaults delete com.box.desktop)",
     "echo \"${LOGGED_IN_USER} ALL = (root) NOPASSWD: /Library/Application\\ Support/Box/uninstall_box_drive_r\" >> /etc/sudoers.d/box_uninstall"
   ],
-  "post_uninstall_scripts": ["rm /etc/sudoers.d/box_uninstall"]
+  "post_uninstall_scripts": ["rm /etc/sudoers.d/box_uninstall"],
+  "default_categories": ["Productivity"]
 }

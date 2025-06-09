@@ -40,7 +40,6 @@ interface IPolicyRunScriptModal {
   onSubmit: (formData: IPolicyRunScriptFormData) => void;
   isUpdating: boolean;
   teamId: number;
-  gitOpsModeEnabled?: boolean;
 }
 
 const PolicyRunScriptModal = ({
@@ -48,7 +47,6 @@ const PolicyRunScriptModal = ({
   onSubmit,
   isUpdating,
   teamId,
-  gitOpsModeEnabled = false,
 }: IPolicyRunScriptModal) => {
   const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
 
@@ -66,7 +64,7 @@ const PolicyRunScriptModal = ({
     ({ queryKey: [queryKey] }) =>
       scriptsAPI.getScripts(omit(queryKey, "scope")),
     {
-      select: (data) => data.scripts,
+      select: (data) => data.scripts || [],
       ...DEFAULT_USE_QUERY_OPTIONS,
     }
   );
@@ -185,8 +183,8 @@ const PolicyRunScriptModal = ({
                   </span>
                 ) : null;
               }}
-              footer={
-                <p className="form-field__help-text">
+              helpText={
+                <>
                   If{" "}
                   <TooltipWrapper tipContent={compatibleTipContent}>
                     compatible
@@ -200,7 +198,7 @@ const PolicyRunScriptModal = ({
                     text="Learn more"
                     newTab
                   />
-                </p>
+                </>
               }
               isUpdating={isUpdating}
               onSubmit={onUpdate}

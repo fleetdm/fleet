@@ -28,12 +28,14 @@
               </div>
             </div>
           </div>
-          <a purpose="subpage-link" target="_blank" href="/releases" no-icon>Release notes</a>
-          <a purpose="subpage-link" href="/docs/contributing" target="_blank" no-icon>Contributing</a>
-          <a purpose="subpage-link" target="_blank" href="/support" no-icon>Support</a>
+          <a purpose="subpage-link" href="/new-license" no-icon>Get your license</a>
+          <a purpose="subpage-link" href="/docs/contributing" target="_blank" no-icon>Contribute</a>
+          <a purpose="subpage-link" href="/releases" no-icon>Release notes</a>
+          <a purpose="subpage-link" href="/support" no-icon>Support</a>
           <a purpose="subpage-link" href="/contact">Take a tour</a>
+          <a purpose="subpage-link" href="/better">“Why is Fleet on my computer?”</a>
         </div>
-        <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
+        <div class="d-none d-lg-block left-cta" purpose="swag-cta" v-if="showSwagForm && ['REST API', 'Fleet server configuration'].includes(thisPage.title)">
           <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">
             <div class="d-flex flex-column align-items-center">
             <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
@@ -51,6 +53,17 @@
             <p purpose="subtopics-heading" class="font-weight-bold">On this page:</p>
             <div purpose="subtopics" v-if="!_.isEmpty(subtopics)">
               <a purpose="subtopic-link" v-for="(subtopic, index) in subtopics" :href="subtopic.url">{{subtopic.title}}</a>
+              <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm && !['REST API', 'Fleet server configuration'].includes(thisPage.title)">
+                <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">
+                  <div class="d-flex flex-column align-items-center">
+                  <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
+                    <p class="mb-0">Request Fleet swag</p>
+                    <span>
+                      It's free <img purpose="right-arrow" class="d-inline" style="height: 16px; width: auto; margin-bottom: 2px;" alt="right arrow" src="/images/arrow-right-red-16x16@2x.png" />
+                    </span>
+                  </div>
+                </a>
+              </div>
             </div>
           </div>
           <div class="d-block d-lg-none" >
@@ -114,6 +127,7 @@
   <div purpose="table-of-contents-modal">
   <modal v-if="modal === 'table-of-contents'" @close="closeModal()">
     <div purpose="modal-links">
+      <div  purpose="modal-docs-links">
       <div v-for="page in findPagesByUrl()" :key="page.title">
         <p purpose="section-title">{{page.title}}</p>
         <div purpose="expanded-nav">
@@ -122,6 +136,13 @@
           </a>
         </div>
       </div>
+      </div>
+      <a purpose="modal-nav-link" target="_blank" href="/new-license" no-icon>Get your license</a>
+      <a purpose="modal-nav-link" href="/docs/contributing" target="_blank" no-icon>Contribute</a>
+      <a purpose="modal-nav-link" href="/releases" no-icon>Release notes</a>
+      <a purpose="modal-nav-link" href="/support" no-icon>Support</a>
+      <a purpose="modal-nav-link" href="/contact">Take a tour</a>
+      <a purpose="modal-nav-link" href="/better">“Why is Fleet on my computer?”</a>
     </div>
   </modal>
   </div>

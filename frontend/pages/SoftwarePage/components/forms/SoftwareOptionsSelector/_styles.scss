@@ -1,0 +1,40 @@
+.software-options-selector {
+  &__categories-selector {
+    display: flex;
+    flex-direction: column;
+    border-radius: $border-radius;
+    border: 1px solid $ui-fleet-black-10;
+    overflow-y: auto;
+  }
+
+  &__label {
+    width: 100%;
+    padding: $pad-small $pad-medium;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+
+    .form-field--checkbox {
+      width: auto;
+    }
+  }
+
+  &__label-name {
+    font-size: $x-small;
+  }
+
+  &__self-service {
+    display: flex;
+    flex-direction: column;
+    gap: $medium;
+  }
+
+  &__preview-button {
+    align-self: start;
+    margin-bottom: $pad-medium; // Larger padding when categories are shown
+  }
+}

@@ -10,17 +10,10 @@
 
   @include color-contrasted-sections;
   .header {
-    flex: 100%;
     display: flex;
     flex-direction: column;
   }
   .card {
-    &__header {
-      font-size: $medium;
-      font-weight: $bold;
-      margin: 0 0 $pad-medium 0;
-    }
-
     .list {
       list-style: none;
       padding: 0;
@@ -68,6 +61,19 @@
     .display-name {
       font-size: $large;
       font-weight: $bold;
+      @include ellipse-text(300px);
+
+      @media (min-width: $break-md) {
+        @include ellipse-text(500px);
+      }
+
+      @media (min-width: $break-lg) {
+        @include ellipse-text(800px);
+      }
+
+      @media (min-width: $break-xxl) {
+        @include ellipse-text(1000px);
+      }
     }
   }
 

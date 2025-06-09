@@ -2,6 +2,12 @@ package config
 
 import (
 	"bytes"
+	"context"
+	"crypto/tls"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,6 +18,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http2"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -126,42 +133,6 @@ func TestConfigOsqueryAsync(t *testing.T) {
 			yaml: `
 osquery:
   enable_async_host_processing: true`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set enabled yes",
-			yaml: `
-osquery:
-  enable_async_host_processing: yes`,
-			wantLabelCfg: AsyncProcessingConfig{
-				Enabled:                 true,
-				CollectInterval:         30 * time.Second,
-				CollectMaxJitterPercent: 10,
-				CollectLockTimeout:      1 * time.Minute,
-				CollectLogStatsInterval: 1 * time.Minute,
-				InsertBatch:             2000,
-				DeleteBatch:             2000,
-				UpdateBatch:             1000,
-				RedisPopCount:           1000,
-				RedisScanKeysCount:      1000,
-			},
-		},
-		{
-			desc: "yaml set enabled on",
-			yaml: `
-osquery:
-  enable_async_host_processing: on`,
 			wantLabelCfg: AsyncProcessingConfig{
 				Enabled:                 true,
 				CollectInterval:         30 * time.Second,
@@ -709,12 +680,18 @@ func TestValidateCloudfrontURL(t *testing.T) {
 		{"bad URL", "bozo!://example.com", "public", "private", "parse"},
 		{"non-HTTPS URL", "http://example.com", "public", "private", "cloudfront url scheme must be https"},
 		{"missing URL", "", "public", "private", "`s3_software_installers_cloudfront_url` must be set"},
-		{"missing public key", "https://example.com", "", "private",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
-		{"missing private key", "https://example.com", "public", "",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
-		{"missing keys", "https://example.com", "", "",
-			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set"},
+		{
+			"missing public key", "https://example.com", "", "private",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
+		{
+			"missing private key", "https://example.com", "public", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
+		{
+			"missing keys", "https://example.com", "", "",
+			"Both `s3_software_installers_cloudfront_url_signing_public_key_id` and `s3_software_installers_cloudfront_url_signing_private_key` must be set",
+		},
 	}
 
 	for _, c := range cases {
@@ -735,4 +712,82 @@ func TestValidateCloudfrontURL(t *testing.T) {
 			s3.ValidateCloudFrontURL(initFatal)
 		})
 	}
+}
+
+func TestServerConfigWithH2C(t *testing.T) {
+	ctx := context.Background()
+
+	// Create a simple mux
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		protocol := "HTTP/1.1"
+		if r.ProtoMajor == 2 {
+			protocol = "HTTP/2.0"
+		}
+		fmt.Fprintf(w, "ServerConfig test using %s", protocol)
+	})
+
+	// Create server config with a random available port
+	config := &ServerConfig{Address: ":0", ForceH2C: true}
+
+	// Create server using our ServerConfig
+	server := config.DefaultHTTPServer(ctx, mux)
+
+	// Start the server
+	listener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		t.Fatalf("Failed to listen: %v", err)
+	}
+
+	// Get the actual port
+	port := listener.Addr().(*net.TCPAddr).Port
+	serverURL := fmt.Sprintf("http://localhost:%d", port)
+
+	// Start server in a goroutine
+	go func() {
+		if err := server.Serve(listener); err != http.ErrServerClosed {
+			t.Logf("Server error: %v", err)
+		}
+	}()
+
+	// Ensure server is closed at the end of the test
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = server.Shutdown(ctx)
+	}()
+
+	// Test with HTTP/2 client
+	client := &http.Client{ // nolint:gocritic
+		Transport: &http2.Transport{
+			AllowHTTP: true,
+			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
+				return net.Dial(network, addr)
+			},
+		},
+	}
+
+	// Make request
+	req, err := http.NewRequest("GET", serverURL, nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Check response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read body: %v", err)
+	}
+
+	if !strings.Contains(string(body), "HTTP/2.0") {
+		t.Errorf("Expected HTTP/2.0 in response, got: %s", string(body))
+	}
+
+	t.Logf("Response from ServerConfig: %s", string(body))
 }

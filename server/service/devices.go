@@ -367,6 +367,39 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Get software MDM command results
+////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceMDMCommandResultsRequest struct {
+	Token       string `url:"token"`
+	CommandUUID string `url:"command_uuid"`
+}
+
+func (r *getDeviceMDMCommandResultsRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func getDeviceMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	_, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getMDMCommandResultsResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceMDMCommandResultsRequest)
+	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID)
+	if err != nil {
+		return getMDMCommandResultsResponse{
+			Err: err,
+		}, nil
+	}
+
+	return getMDMCommandResultsResponse{
+		Results: results,
+	}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Transparency URL Redirect
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -391,23 +424,34 @@ func (r transparencyURLResponse) HijackRender(ctx context.Context, w http.Respon
 func (r transparencyURLResponse) Error() error { return r.Err }
 
 func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	transparencyURL, err := svc.GetTransparencyURL(ctx)
+
+	return transparencyURLResponse{RedirectURL: transparencyURL, Err: err}, nil
+}
+
+func (svc *Service) GetTransparencyURL(ctx context.Context) (string, error) {
 	config, err := svc.AppConfigObfuscated(ctx)
 	if err != nil {
-		return transparencyURLResponse{Err: err}, nil
+		return "", err
 	}
 
 	license, err := svc.License(ctx)
 	if err != nil {
-		return transparencyURLResponse{Err: err}, nil
+		return "", err
 	}
 
 	transparencyURL := fleet.DefaultTransparencyURL
-	// Fleet Premium license is required for custom transparency url
+	// See #27309; overridden if on Fleet Premium and custom transparency URL is set
+	if svc.config.Partnerships.EnableSecureframe {
+		transparencyURL = fleet.SecureframeTransparencyURL
+	}
+
+	// Fleet Premium license is required for custom transparency URL
 	if license.IsPremium() && config.FleetDesktop.TransparencyURL != "" {
 		transparencyURL = config.FleetDesktop.TransparencyURL
 	}
 
-	return transparencyURLResponse{RedirectURL: transparencyURL}, nil
+	return transparencyURL, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

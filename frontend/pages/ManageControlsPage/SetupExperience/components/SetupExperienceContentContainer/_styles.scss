@@ -1,0 +1,10 @@
+.setup-experience-content-container {
+  max-width: $break-xxl;
+  display: grid;
+  grid-template-columns: minmax(150px, 450px) minmax(50%, 1fr);
+  gap: $pad-xxlarge;
+
+  @media (max-width: $break-md) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

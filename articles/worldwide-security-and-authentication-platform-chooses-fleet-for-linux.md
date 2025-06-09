@@ -1,4 +1,4 @@
-# Worldwide security and authentication platform chooses Fleet for Linux management
+# Worldwide security and authentication platform chooses Fleet for Linux MDM
 
 <div purpose="attribution-quote">
 
@@ -21,6 +21,8 @@ By adopting Fleet, they were able to unify their [device management](https://fle
 ## Results
 
 <div purpose="checklist">
+
+Reduced the time to request a certificate from 15 minutes to 3 seconds. 
 
 Fleet enabled Linux device management and replaced legacy tools for telemetry and system configuration. This reduced their previously typical compliance woes and lack of standard MDM features.
 
@@ -88,3 +90,4 @@ To learn more about how Fleet can support your organization, visit [fleetdm.com/
 <meta name="articleTitle" value="Worldwide security and authentication platform chooses Fleet for Linux management">
 <meta name="description" value="Worldwide security and authentication platform switches to Fleet for Linux device management">
 <meta name="showOnTestimonialsPageWithEmoji" value="🚪">
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" />

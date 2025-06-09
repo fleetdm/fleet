@@ -1,0 +1,122 @@
+name: Check critical vulnerabilities in released docker images
+
+on:
+  workflow_dispatch:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * *"
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-22.04
+    environment: Docker Hub
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Get last 5 minor releases
+        id: get_latest_releases
+        run: |
+          echo "FLEET_LATEST_RELEASES=$(go run ./tools/github-releases --last-minor-releases 5)" >> $GITHUB_OUTPUT
+
+      - name: Pull docker images
+        run: |
+          RELEASES="${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"
+          for version in $RELEASES; do
+            docker pull fleetdm/fleet:$version
+          done
+
+      - name: List fleet VEX files
+        id: generate_fleet_vex_files
+        run: |
+          VEX_FILES=$(ls -1 ./security/vex/fleet/ | while IFS= read -r line; do echo "./security/vex/fleet/$line"; done | tr '\n' ',' | sed 's/.$//')
+          echo $VEX_FILES
+          echo "FLEET_VEX_FILES=$VEX_FILES" >> $GITHUB_OUTPUT
+
+      # We use the trivy command and not the github action because it doesn't support loading
+      # VEX files yet and looks like we can't run the action on multiple images.
+      - name: Run trivy vulnerability scanner on fleetdm/fleet images
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+        run: |
+          mkdir trivy-download
+          cd trivy-download
+          curl -L https://github.com/aquasecurity/trivy/releases/download/v0.61.0/trivy_0.61.0_Linux-64bit.tar.gz --output trivy_0.61.0_Linux-64bit.tar.gz
+          tar -xf trivy_0.61.0_Linux-64bit.tar.gz
+          mv trivy ..
+          cd ..
+          chmod +x ./trivy
+          RELEASES="${{ steps.get_latest_releases.outputs.FLEET_LATEST_RELEASES }}"
+          for version in $RELEASES; do
+            ./trivy image \
+              --exit-code=1 \
+              --pkg-types=os,library \
+              --severity=CRITICAL \
+              --vex="${{ steps.generate_fleet_vex_files.outputs.FLEET_VEX_FILES }}" \
+              fleetdm/fleet:$version
+          done
+
+      - name: List fleetctl VEX files
+        id: generate_fleetctl_vex_files
+        run: |
+          VEX_FILES=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do echo "./security/vex/fleetctl/$line"; done | tr '\n' ',' | sed 's/.$//')
+          echo $VEX_FILES
+          echo "FLEETCTL_VEX_FILES=$VEX_FILES" >> $GITHUB_OUTPUT
+
+      # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
+      - name: Run trivy vulnerability scanner on latest released fleetdm/fleetctl image
+        env:
+          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
+          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
+        run: |
+          ./trivy image \
+            --exit-code=1 \
+            --pkg-types=os,library \
+            --severity=CRITICAL \
+            --vex="${{ steps.generate_fleetctl_vex_files.outputs.FLEETCTL_VEX_FILES }}" \
+            fleetdm/fleetctl:latest
+
+      - name: Slack notification
+        if: github.event.schedule == '0 6 * * *' && failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "⚠️ Check vulnerabilities in released docker images failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

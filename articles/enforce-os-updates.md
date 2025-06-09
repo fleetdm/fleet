@@ -6,6 +6,8 @@ In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hos
 
 ## Turning on enforcement
 
+For Apple (macOS, iOS, and iPadOS) hosts, Apple provides a [list of available OS versions](https://gdmf.apple.com/v2/pmv) in the Apple Software Lookup Service. The update will only be enforced if you use a version in that list.
+
 ### Fleet UI
 
 1. Head to the **Controls** > **OS updates** tab.
@@ -32,26 +34,19 @@ OS version enforcement options are declared within the [controls](https://fleetd
 
 ## End user experience
 
-### macOS
+### Apple (macOS, iOS, and iPadOS)
 
-When a minimum version is enforced, end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.
+On macOS hosts, when a minimum version is enforced, end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.
 
 > Certain user preferences may suppress macOS update notifications. To prevent users from being surprised by a forced update or unexpected restart, consider communicating OS update deadlines through additional channels.
 
+On iOS and iPadOS hosts, end users will see a notification in their Notification Center after the deadline. They can’t use their iPhone or iPad until the OS update is installed.
+
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
 
-For macOS devices that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest [available version](#available-macos-ios-and-ipados-versions) during ADE before device setup and enrollment can proceed.
+If you set a past date (ex. yesterday) as the deadline, the end user will immediately be prompted to install the update. If they don't, the update will automatically install in one hour. Similarly, if you set the deadline to today, end users will experience the same behavior if it's after 12 PM (end user local time).
 
-### iOS and iPadOS
-
-End users will see a notification in their Notification Center after the deadline when a minimum version is enforced. They can’t use their iPhone or iPad until the OS update is installed.
-
-For iOS and iPadOS devices that use Automated Device Enrollment (ADE), if the device is below the specified
-minimum version, it will be required to update to the latest [available version](#available-macos-ios-and-ipados-versions) during ADE before device setup and enrollment can proceed.
-
-### Available macOS, iOS, and iPadOS versions
-
-The Apple Software Lookup Service (available at [https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv)) is the official resource for obtaining a list of publicly available updates, upgrades, and Rapid Security Responses. Make sure to use versions available in GDMF; otherwise, the update will not be scheduled.
+For hosts that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest version during ADE before device setup and enrollment can proceed. You can find the latest version in the [Apple Software Lookup Service](https://gdmf.apple.com/v2/pmv). Apple's software updates are relatively large (up to several GBs) so ask your end users to connect to a Wi-Fi network that can handle large downloads during ADE.
 
 ### Windows
 
@@ -63,7 +58,7 @@ End users are encouraged to update Windows via the native Windows dialog.
 
 If an end user was on vacation when the deadline passed, the end user is given a grace period (configured) before the host automatically restarts.
 
-Fleet enforces OS updates for quality and feature updates. Read more about the types of Windows OS updates in the Microsoft documentation [here](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
+Fleet enforces OS updates for quality and feature updates. Microsoft provides documentation on [types of Windows updates](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
 
 ### macOS (below version 14.0)
 

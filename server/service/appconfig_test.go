@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -304,8 +305,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	ctx = test.UserContext(ctx, test.UserAdmin)
 
 	// Dry run
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Nil(t, teamID)
 		return true, nil
 	}
@@ -317,8 +318,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 
 	// Dry run fails
 	ds.IsEnrollSecretAvailableFuncInvoked = false
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Nil(t, teamID)
 		return false, nil
 	}
@@ -330,7 +331,7 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 
 	// Dry run with error
 	ds.IsEnrollSecretAvailableFuncInvoked = false
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return false, assert.AnError
 	}
 	err = svc.ApplyEnrollSecretSpec(
@@ -809,6 +810,25 @@ func TestTransparencyURL(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
 			}
+
+			expectedURL := fleet.DefaultTransparencyURL
+			expectedSecureframeURL := fleet.SecureframeTransparencyURL
+			if tt.expectedURL != "" {
+				expectedURL = tt.expectedURL
+				expectedSecureframeURL = tt.expectedURL
+			}
+
+			transparencyURL, err := svc.GetTransparencyURL(ctx)
+			require.NoError(t, err)
+			require.Equal(t, expectedURL, transparencyURL)
+
+			cfg := config.TestConfig()
+			cfg.Partnerships.EnableSecureframe = true
+			svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+			transparencyURL, err = svc.GetTransparencyURL(ctx)
+			require.NoError(t, err)
+			require.Equal(t, expectedSecureframeURL, transparencyURL)
 		})
 	}
 }
@@ -820,7 +840,8 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	cfg := config.TestConfig()
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	dsAppConfig := &fleet.AppConfig{
@@ -857,6 +878,19 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	ac, err := svc.AppConfigObfuscated(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com/transparency", ac.FleetDesktop.TransparencyURL)
+
+	// delivered URL should be the default one
+	transparencyUrl, err := svc.GetTransparencyURL(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.DefaultTransparencyURL, transparencyUrl)
+
+	// delivered URL should be the Secureframe one if we have that config value set
+	cfg.Partnerships.EnableSecureframe = true
+	svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+	transparencyUrl, err = svc.GetTransparencyURL(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SecureframeTransparencyURL, transparencyUrl)
 
 	// setting transparency url fails
 	raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: "https://f1337.com/transparency"})
@@ -919,6 +953,7 @@ func TestMDMAppleConfig(t *testing.T) {
 					EnableReleaseDeviceManually: optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -959,6 +994,7 @@ func TestMDMAppleConfig(t *testing.T) {
 					EnableReleaseDeviceManually: optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -984,6 +1020,7 @@ func TestMDMAppleConfig(t *testing.T) {
 					EnableReleaseDeviceManually: optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -1015,6 +1052,7 @@ func TestMDMAppleConfig(t *testing.T) {
 					EnableReleaseDeviceManually: optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -1049,6 +1087,7 @@ func TestMDMAppleConfig(t *testing.T) {
 					EnableReleaseDeviceManually: optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -1117,6 +1156,7 @@ func TestMDMAppleConfig(t *testing.T) {
 					EnableReleaseDeviceManually: optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
 				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
@@ -1408,15 +1448,16 @@ func TestModifyEnableAnalytics(t *testing.T) {
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
 	testCases := []struct {
-		name             string
-		expectedEnabled  bool
-		newEnabled       bool
-		initialEnabled   bool
-		licenseTier      string
-		initialURL       string
-		newURL           string
-		expectedURL      string
-		shouldFailModify bool
+		name                  string
+		expectedEnabled       bool
+		newEnabled            bool
+		initialEnabled        bool
+		licenseTier           string
+		allowDisableTelemetry bool
+		initialURL            string
+		newURL                string
+		expectedURL           string
+		shouldFailModify      bool
 	}{
 		{
 			name:            "fleet free",
@@ -1432,11 +1473,19 @@ func TestModifyEnableAnalytics(t *testing.T) {
 			newEnabled:      false,
 			licenseTier:     fleet.TierPremium,
 		},
+		{
+			name:                  "fleet premium with allow disable telemetry",
+			expectedEnabled:       false,
+			initialEnabled:        true,
+			newEnabled:            false,
+			licenseTier:           fleet.TierPremium,
+			allowDisableTelemetry: true,
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier, AllowDisableTelemetry: tt.allowDisableTelemetry}})
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
@@ -1762,6 +1811,7 @@ func TestAppConfigCAs(t *testing.T) {
 			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
 		}
 		mt.svc.config.Server.PrivateKey = "exists"
+		mt.svc.digiCertService = digicert.NewService()
 		addMockDatastoreForCA(t, mt)
 		return mt
 	}
@@ -1977,9 +2027,18 @@ func TestAppConfigCAs(t *testing.T) {
 			"one certificate user principal name")
 	})
 
+	t.Run("digicert empty user principal name", func(t *testing.T) {
+		mt := setUpDigiCert()
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames = []string{" "}
+		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
+		require.NoError(t, err)
+		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
+			"user principal name cannot be empty")
+	})
+
 	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + FleetVarHostEndUserEmailIDP + " ${FLEET_VAR_" + FleetVarHostHardwareSerial + "}"
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + " ${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -1993,7 +2052,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in common name", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + FleetVarHostEndUserEmailIDP + "}${FLEET_VAR_" + FleetVarHostHardwareSerial + "}"
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + "}${FLEET_VAR_" + fleet.FleetVarHostHardwareSerial + "}"
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -2007,7 +2066,7 @@ func TestAppConfigCAs(t *testing.T) {
 
 	t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
 		mt := setUpDigiCert()
-		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + FleetVarHostEndUserEmailIDP + " $FLEET_VAR_" + FleetVarHostHardwareSerial
+		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP + " $FLEET_VAR_" + fleet.FleetVarHostHardwareSerial
 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
 		require.NoError(t, err)
 		assert.Empty(t, mt.invalid.Errors)
@@ -2277,7 +2336,6 @@ func TestAppConfigCAs(t *testing.T) {
 		assert.Equal(t, caStatusDeleted, status.customSCEPProxy["delete"])
 		require.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 3)
 	})
-
 }
 
 type configCASuite struct {

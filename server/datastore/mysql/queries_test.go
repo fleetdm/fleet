@@ -52,6 +52,29 @@ func TestQueries(t *testing.T) {
 func testQueriesApply(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 
+	// Add a user-defined label
+	fooLabel, err := ds.NewLabel(
+		context.Background(),
+		&fleet.Label{
+			Name:                "Foo",
+			Query:               "select 1",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+	)
+	require.NoError(t, err)
+
+	barLabel, err := ds.NewLabel(
+		context.Background(),
+		&fleet.Label{
+			Name:                "Bar",
+			Query:               "select 1",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+	)
+	require.NoError(t, err)
+
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	groob := test.NewUser(t, ds, "Victor", "victor@fleet.co", true)
 
@@ -67,6 +90,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 			AutomationsEnabled: true,
 			Logging:            fleet.LoggingDifferential,
 			DiscardData:        true,
+			LabelsIncludeAny:   []fleet.LabelIdent{{LabelID: fooLabel.ID, LabelName: fooLabel.Name}},
 		},
 		{
 			Name:        "bar",
@@ -78,7 +102,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	}
 
 	// Zach creates some queries
-	err := ds.ApplyQueries(context.Background(), zwass.ID, expectedQueries, nil)
+	err = ds.ApplyQueries(context.Background(), zwass.ID, expectedQueries, nil)
 	require.NoError(t, err)
 
 	queries, count, _, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
@@ -95,6 +119,19 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 		require.Equal(t, zwass.Name, q.AuthorName)
 		require.True(t, q.Saved)
 	}
+
+	// Update the first query to have a different label
+	expectedQueries[0].LabelsIncludeAny = []fleet.LabelIdent{{LabelID: barLabel.ID, LabelName: barLabel.Name}}
+
+	err = ds.ApplyQueries(context.Background(), zwass.ID, expectedQueries, nil)
+	require.NoError(t, err)
+
+	queries, count, _, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, queries, len(expectedQueries))
+	require.Equal(t, count, len(expectedQueries))
+
+	test.QueryElementsMatch(t, expectedQueries, queries)
 
 	// Victor modifies a query (but also pushes the same version of the
 	// first query)

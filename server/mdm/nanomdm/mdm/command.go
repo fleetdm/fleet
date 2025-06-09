@@ -3,7 +3,7 @@ package mdm
 import (
 	"errors"
 
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 var (

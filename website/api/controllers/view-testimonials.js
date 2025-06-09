@@ -26,14 +26,18 @@ module.exports = {
 
     // Filter the testimonials by product category
     let testimonialOrderForMdm = [
+      'Bart Reardon',
       'Scott MacVicar',
-      'Chandra Majumdar',
-      'Nico Waisman',
+      'Mike Meyer',
+      'Tom Larkin',
       'Kenny Botelho',
-      'Eric Tan',
-      'Dan Grzelak',
       'Erik Gomez',
+      'Chandra Majumdar',
+      'Eric Tan',
       'Matt Carr',
+      'Nico Waisman',
+      'Dan Grzelak',
+      'u/Heteronymous',
     ];
     let testimonialsForMdm = _.filter(testimonials, (testimonial)=>{
       return _.contains(testimonial.productCategories, 'Device management') && _.contains(testimonialOrderForMdm, testimonial.quoteAuthorName);
@@ -47,13 +51,15 @@ module.exports = {
       return testimonialOrderForMdm.indexOf(a.quoteAuthorName) - testimonialOrderForMdm.indexOf(b.quoteAuthorName);
     });
     let testimonialOrderForSoftwareManagement = [
+      'Luis Madrigal',
+      'Arsenio Figueroa',
+      'Bart Reardon',
+      'Andre Shields',
       'Wes Whetstone',
-      'Erik Gomez',
+      'Nico Waisman',
       'Chandra Majumdar',
       'Kenny Botelho',
-      'Arsenio Figueroa',
-      'Andre Shields',
-      'Nico Waisman',
+      'Erik Gomez',
       'Eric Tan',
       'Dan Grzelak',
     ];
@@ -69,19 +75,22 @@ module.exports = {
       return testimonialOrderForSoftwareManagement.indexOf(a.quoteAuthorName) - testimonialOrderForSoftwareManagement.indexOf(b.quoteAuthorName);
     });
     let testimonialOrderForObservability = [
-      'Eric Tan',
-      'Arsenio Figueroa',
-      'Scott MacVicar',
-      'Chandra Majumdar',
-      'Kenny Botelho',
-      'Luis Madrigal',
-      'Brendan Shaklovitz',
-      'Erik Gomez',
-      'Charles Zaffery',
       'Ahmed Elshaer',
+      'Brendan Shaklovitz',
+      'Arsenio Figueroa',
+      'Luis Madrigal',
       'Andre Shields',
-      'Mike Arpaia',
       'Tom Larkin',
+      'Matt Carr',
+      'Eric Tan',
+      'Charles Zaffery',
+      'Kenny Botelho',
+      'Scott MacVicar',
+      'Erik Gomez',
+      'Mike Arpaia',
+      'Chandra Majumdar',
+      'Justin LaBo',
+      'tom larkin',
     ];
     let testimonialsForObservability = _.filter(testimonials, (testimonial)=>{
       return _.contains(testimonial.productCategories, 'Observability') && _.contains(testimonialOrderForObservability, testimonial.quoteAuthorName);

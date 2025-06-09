@@ -91,6 +91,7 @@ const EnrollSecretModal = ({
                 onClick={addNewSecretClick}
                 className={`${baseClass}__add-secret-btn`}
                 variant="text-icon"
+                iconStroke
               >
                 Add secret <Icon name="plus" />
               </Button>
@@ -98,9 +99,7 @@ const EnrollSecretModal = ({
           />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onReturnToApp} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onReturnToApp}>Done</Button>
         </div>
       </div>
     </Modal>

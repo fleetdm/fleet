@@ -292,7 +292,6 @@ const QueryDetailsPage = ({
                         );
                     }}
                     className={`${baseClass}__manage-automations button`}
-                    variant="brand"
                   >
                     Edit query
                   </Button>
@@ -309,7 +308,7 @@ const QueryDetailsPage = ({
                     >
                       <Button
                         className={`${baseClass}__run`}
-                        variant="blue-green"
+                        variant="success"
                         onClick={() => {
                           queryId &&
                             router.push(
@@ -352,7 +351,7 @@ const QueryDetailsPage = ({
                       destination on a schedule. When automations are <b>
                         on
                       </b>, <br />
-                      data is sent according to a query&apos;s frequency.
+                      data is sent according to a query&apos;s interval.
                     </>
                   }
                 >
@@ -402,12 +401,10 @@ const QueryDetailsPage = ({
       disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
-    // Loading state
     if (isLoading) {
       return <Spinner />;
     }
 
-    // Error state
     if (isApiError) {
       return <DataError />;
     }

@@ -23,7 +23,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -933,6 +933,9 @@ func newCleanupsAndAggregationSchedule(
 				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
 			},
 		),
+		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
+			return ds.RenewMDMManagedCertificates(ctx)
+		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -1010,26 +1013,23 @@ func newFrequentCleanupsSchedule(
 		schedule.WithAltLockID("leader_frequent_cleanups"),
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		// Run cleanup jobs first.
-		schedule.WithJob(
-			"redis_live_queries",
-			func(ctx context.Context) error {
-				// It's necessary to avoid lingering live queries in case of:
-				// - (Unknown) bug in the implementation, or,
-				// - Redis is so overloaded already that the lq.StopQuery in svc.CompleteCampaign fails to execute, or,
-				// - MySQL is so overloaded that ds.SaveDistributedQueryCampaign in svc.CompleteCampaign fails to execute.
-				names, err := lq.LoadActiveQueryNames()
-				if err != nil {
-					return err
-				}
-				ids := stringSliceToUintSlice(names, logger)
-				completed, err := ds.GetCompletedCampaigns(ctx, ids)
-				if err != nil {
-					return err
-				}
-				err = lq.CleanupInactiveQueries(ctx, completed)
+		schedule.WithJob("redis_live_queries", func(ctx context.Context) error {
+			// It's necessary to avoid lingering live queries in case of:
+			// - (Unknown) bug in the implementation, or,
+			// - Redis is so overloaded already that the lq.StopQuery in svc.CompleteCampaign fails to execute, or,
+			// - MySQL is so overloaded that ds.SaveDistributedQueryCampaign in svc.CompleteCampaign fails to execute.
+			names, err := lq.LoadActiveQueryNames()
+			if err != nil {
 				return err
-			},
-		),
+			}
+			ids := stringSliceToUintSlice(names, logger)
+			completed, err := ds.GetCompletedCampaigns(ctx, ids)
+			if err != nil {
+				return err
+			}
+			err = lq.CleanupInactiveQueries(ctx, completed)
+			return err
+		}),
 	)
 
 	return s, nil
@@ -1117,7 +1117,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	}
 
 	// If the license is Premium, we should always send usage statisics.
-	if !ac.ServerSettings.EnableAnalytics && !license.IsPremium(ctx) {
+	if !ac.ServerSettings.EnableAnalytics && license.IsAllowDisableTelemetry(ctx) {
 		return nil
 	}
 
@@ -1489,7 +1489,7 @@ func newMaintainedAppSchedule(
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintainedapps.Refresh(ctx, ds, logger)
+			return maintained_apps.Refresh(ctx, ds, logger)
 		}),
 	)
 
@@ -1513,6 +1513,53 @@ func newRefreshVPPAppVersionsSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
 			return vpp.RefreshVersions(ctx, ds)
+		}),
+	)
+
+	return s, nil
+}
+
+// newIPhoneIPadReviver sends APNs push notifications to iPhone/iPad devices
+// that were deleted from Fleet but are still enrolled in Fleet MDM as BYOD
+// devices (ADE devices are never deleted from Fleet, their phantom host entry
+// always persists).
+func newIPhoneIPadReviver(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronAppleMDMIPhoneIPadReviver)
+	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-reviver")
+	s := schedule.New(
+		ctx, name, instanceID, 1*time.Hour, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("cron_iphone_ipad_reviver", func(ctx context.Context) error {
+			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newUpcomingActivitiesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronUpcomingActivitiesMaintenance)
+		defaultInterval = 10 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
+			const maxUnblockHosts = 500
+			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
+			return err
 		}),
 	)
 

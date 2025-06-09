@@ -1,1 +1,0 @@
-- Fixed a false positive on macOS 15.3 by making sure we match the version format reported by Vulncheck.

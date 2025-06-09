@@ -23,10 +23,24 @@
       "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
     },
     {
+      "name": "Box Drive",
+      "slug": "box-drive/windows",
+      "platform": "windows",
+      "unique_identifier": "Box",
+      "description": "Box Drive is the desktop client for Box Cloud, enabling seamless access to your files without taking up local storage."
+    },
+    {
       "name": "Brave",
       "slug": "brave-browser/darwin",
       "platform": "darwin",
       "unique_identifier": "com.brave.Browser",
+      "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
+    },
+    {
+      "name": "Brave",
+      "slug": "brave-browser/windows",
+      "platform": "windows",
+      "unique_identifier": "Brave",
       "description": "Brave is a web browser designed with privacy, blocking ads and trackers by default while maintaining fast speed."
     },
     {
@@ -35,6 +49,20 @@
       "platform": "darwin",
       "unique_identifier": "com.cloudflare.1dot1dot1dot1.macos",
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Cloudflare WARP",
+      "slug": "cloudflare-warp/windows",
+      "platform": "windows",
+      "unique_identifier": "Cloudflare WARP",
+      "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
+    },
+    {
+      "name": "Amazon DCV",
+      "slug": "dcv-viewer/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.nicesoftware.dcvviewer",
+      "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
       "name": "Docker Desktop",
@@ -62,6 +90,13 @@
       "slug": "google-chrome/darwin",
       "platform": "darwin",
       "unique_identifier": "com.google.Chrome",
+      "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
+    },
+    {
+      "name": "Google Chrome",
+      "slug": "google-chrome/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Chrome",
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
@@ -100,13 +135,6 @@
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
     },
     {
-      "name": "Notion",
-      "slug": "notion/windows",
-      "platform": "windows",
-      "unique_identifier": "",
-      "description": ""
-    },
-    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
@@ -128,10 +156,24 @@
       "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
     },
     {
+      "name": "TeamViewer",
+      "slug": "teamviewer/windows",
+      "platform": "windows",
+      "unique_identifier": "TeamViewer",
+      "description": "TeamViewer is a versatile remote access and connectivity platform trusted for secure remote desktop control, support, and collaboration."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
       "unique_identifier": "com.microsoft.VSCode",
+      "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
+    },
+    {
+      "name": "Microsoft Visual Studio Code",
+      "slug": "visual-studio-code/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual Studio Code",
       "description": "Microsoft Visual Studio Code (VS Code) is an open-source, lightweight, and powerful code editor."
     },
     {

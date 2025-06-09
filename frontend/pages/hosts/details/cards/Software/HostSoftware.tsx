@@ -22,21 +22,26 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Card from "components/Card/Card";
+import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner";
-import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
+import SoftwareFiltersModal from "pages/SoftwarePage/components/modals/SoftwareFiltersModal";
 
 import {
   buildSoftwareFilterQueryParams,
   buildSoftwareVulnFiltersQueryParams,
-  getSoftwareFilterFromQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
-import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
+import {
+  getHostSoftwareFilterFromQueryParams,
+  getInstallErrorMessage,
+  getUninstallErrorMessage,
+} from "./helpers";
 
 const baseClass = "software-card";
 
@@ -77,6 +82,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   min_cvss_score?: string;
   max_cvss_score?: string;
   available_for_install?: string;
+  category_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -89,6 +95,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     queryParams
   );
   const availableForInstall = queryParams.available_for_install === "true";
+  const categoryId = queryParams?.category_id
+    ? parseInt(queryParams.category_id, 10)
+    : undefined;
 
   return {
     page,
@@ -101,6 +110,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     max_cvss_score: softwareVulnFilters.maxCvssScore,
     exploit: softwareVulnFilters.exploit,
     available_for_install: availableForInstall,
+    category_id: categoryId,
   };
 };
 
@@ -130,7 +140,7 @@ const HostSoftware = ({
 
   const isUnsupported =
     isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
-  const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
+  const softwareFilter = getHostSoftwareFilterFromQueryParams(queryParams);
 
   // disables install/uninstall actions after click
   const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
@@ -329,11 +339,6 @@ const HostSoftware = ({
     ]
   );
 
-  const getHostSoftwareFilterFromQueryParams = useCallback(() => {
-    const { available_for_install } = queryParams;
-    return available_for_install ? "installableSoftware" : "allSoftware";
-  }, [queryParams]);
-
   const tableConfig = useMemo(() => {
     return isMyDevicePage
       ? generateDeviceSoftwareTableConfig()
@@ -377,7 +382,12 @@ const HostSoftware = ({
     }
     return (
       <>
-        {isError && <DataError />}
+        {isError &&
+          (isMyDevicePage ? (
+            <DeviceUserError />
+          ) : (
+            <DataError verticalPaddingSize="pad-xxxlarge" />
+          ))}
         {!isError && (
           <HostSoftwareTable
             isLoading={
@@ -392,7 +402,7 @@ const HostSoftware = ({
             searchQuery={queryParams.query}
             page={queryParams.page}
             pagePath={pathname}
-            hostSoftwareFilter={getHostSoftwareFilterFromQueryParams()}
+            hostSoftwareFilter={softwareFilter}
             vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
             onAddFiltersClick={toggleSoftwareFiltersModal}
             pathPrefix={pathname}
@@ -415,17 +425,17 @@ const HostSoftware = ({
 
   return (
     <Card
+      className={baseClass}
       borderRadiusSize="xxlarge"
-      paddingSize="xxlarge"
+      paddingSize="xlarge"
       includeShadow
-      className={`${baseClass} ${isMyDevicePage ? "device-software" : ""}`}
     >
-      <div className={`card-header`}>Software</div>
-      {isMyDevicePage && (
-        <div className={`card-subheader`}>
-          Software installed on your device.
-        </div>
-      )}
+      <CardHeader
+        header="Software"
+        subheader={
+          isMyDevicePage ? "Software installed on your device." : undefined
+        }
+      />
       {renderHostSoftware()}
     </Card>
   );

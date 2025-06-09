@@ -13,9 +13,11 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
@@ -236,9 +238,11 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 }
 
 // copied from https://github.com/go-chi/chi/blob/c97bc988430d623a14f50b7019fb40529036a35a/middleware/realip.go#L42
-var trueClientIP = http.CanonicalHeaderKey("True-Client-IP")
-var xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
-var xRealIP = http.CanonicalHeaderKey("X-Real-IP")
+var (
+	trueClientIP  = http.CanonicalHeaderKey("True-Client-IP")
+	xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
+	xRealIP       = http.CanonicalHeaderKey("X-Real-IP")
+)
 
 func ExtractIP(r *http.Request) string {
 	ip := r.RemoteAddr
@@ -269,6 +273,10 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	// get the request path
 	path, _ := ctx.Value(kithttp.ContextKeyRequestPath).(string)
 	logger := level.Info(log.With(h.Logger, "path", path))
+
+	if startTime, ok := logging.StartTime(ctx); ok && !startTime.IsZero() {
+		logger = log.With(logger, "took", time.Since(startTime))
+	}
 
 	var ewi fleet.ErrWithInternal
 	if errors.As(err, &ewi) {
@@ -414,6 +422,12 @@ func MakeDecoder(
 				return nil, &fleet.BadRequestError{Message: "Expected JSON Body"}
 			}
 
+			isContentJson := r.Header.Get("Content-Type") == "application/json"
+			isCrossSite := r.Header.Get("Origin") != "" || r.Header.Get("Referer") != ""
+			if jsonExpected && isCrossSite && !isContentJson {
+				return nil, fleet.NewUserMessageError(errors.New("Expected Content-Type \"application/json\""), http.StatusUnsupportedMediaType)
+			}
+
 			err = DecodeQueryTagValue(r, fp)
 			if err != nil {
 				return nil, err
@@ -544,7 +558,8 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
-	opts []kithttp.ServerOption) http.Handler {
+	opts []kithttp.ServerOption,
+) http.Handler {
 	// TODO: some handlers don't have authz checks, and because the SkipAuth call is done only in the
 	// endpoint handler, any middleware that raises errors before the handler is reached will end up
 	// returning authz check missing instead of the more relevant error. Should be addressed as part

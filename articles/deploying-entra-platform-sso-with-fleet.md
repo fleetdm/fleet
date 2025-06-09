@@ -142,7 +142,7 @@ Lastly, they’ll be prompted to enable the Company Portal app to be used as a P
 
 ![Enable PSSO Passkey](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-passkey.gif)
 
-Once registration is complete, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the the entire authentication using the Secure Enclave-backed key.
+Once registration is complete, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the entire authentication using the Secure Enclave-backed key.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="ddribeiro">

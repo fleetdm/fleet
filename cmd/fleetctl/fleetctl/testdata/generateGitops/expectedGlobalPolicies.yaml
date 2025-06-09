@@ -1,0 +1,12 @@
+- calendar_events_enabled: false
+  critical: false
+  description: This is a global policy
+  install_software:
+    hash_sha256: team-software-hash __TEAM_SOFTWARE_COMMENT_TOKEN__
+  labels_include_any:
+  - Label A
+  - Label B
+  name: Global Policy
+  platform: darwin
+  query: SELECT * FROM global_policy WHERE id = 1
+  resolution: Do a global thing

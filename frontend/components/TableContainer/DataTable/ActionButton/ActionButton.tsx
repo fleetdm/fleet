@@ -1,21 +1,27 @@
 import React, { useCallback } from "react";
 import { kebabCase, noop } from "lodash";
+import classnames from "classnames";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
+
 import Button from "../../../buttons/Button";
 
 const baseClass = "action-button";
 export interface IActionButtonProps {
   name: string;
   buttonText: string | ((targetIds: number[]) => string);
-  onActionButtonClick?: (ids: number[]) => void;
+  onClick?: (ids: number[]) => void;
   targetIds?: number[]; // TODO figure out undefined case
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   iconSvg?: IconNames;
+  iconStroke?: boolean;
   iconPosition?: string;
+  isDisabled?: boolean;
+  tooltipContent?: React.ReactNode;
 }
 
 function useActionCallback(
@@ -33,14 +39,17 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
   const {
     name,
     buttonText,
-    onActionButtonClick,
+    onClick,
     targetIds = [],
-    variant = "brand",
+    variant = "default",
     hideButton,
     iconSvg,
+    iconStroke = false,
     iconPosition,
+    isDisabled,
+    tooltipContent,
   } = buttonProps;
-  const onButtonClick = useActionCallback(onActionButtonClick || noop);
+  const onButtonClick = useActionCallback(onClick || noop);
 
   // hideButton is intended to provide a flexible way to specify show/hide conditions via a boolean or a function that evaluates to a boolean
   // currently it is typed to accept an array of targetIds but this typing could easily be expanded to include other use cases
@@ -57,9 +66,19 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     return null;
   }
 
-  return (
-    <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
-      <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
+  const buttonClasses = classnames(
+    baseClass,
+    `${baseClass}__${kebabCase(name)}`,
+    { [`${baseClass}__disabled`]: isDisabled }
+  );
+
+  const renderButton = () => (
+    <div className={buttonClasses}>
+      <Button
+        onClick={() => onButtonClick(targetIds)}
+        variant={variant}
+        iconStroke={iconStroke}
+      >
         <>
           {iconPosition === "left" && iconSvg && <Icon name={iconSvg} />}
           {buttonText}
@@ -68,6 +87,24 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
       </Button>
     </div>
   );
+
+  if (tooltipContent) {
+    return (
+      <div className={baseClass}>
+        <TooltipWrapper
+          tipContent={tooltipContent}
+          position="top"
+          fixedPositionStrategy
+          underline={false}
+          clickable={false}
+          showArrow
+        >
+          {renderButton()}
+        </TooltipWrapper>
+      </div>
+    );
+  }
+  return renderButton();
 };
 
 export default ActionButton;

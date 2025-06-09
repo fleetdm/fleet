@@ -26,13 +26,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/smallstep/scep"
 )
@@ -66,6 +67,9 @@ type TestAppleMDMClient struct {
 	// fetchEnrollmentProfileFromDEP indicates whether this simulated device will fetch
 	// the enrollment profile from Fleet as if it were a device running the DEP flow.
 	fetchEnrollmentProfileFromDEP bool
+	// fetchEnrollmentProfileFromDEPUsingPost functions the same as fetchEnrollmentProfileFromDEP
+	// except that it uses a POST request instead of a GET request.
+	fetchEnrollmentProfileFromDEPUsingPost bool
 
 	// fetchEnrollmentProfileFromOTA indicates whether this simulated device will fetch
 	// the enrollment profile from Fleet as if it were a device running the OTA flow.
@@ -92,6 +96,13 @@ type TestMDMAppleClientOption func(*TestAppleMDMClient)
 func TestMDMAppleClientDebug() TestMDMAppleClientOption {
 	return func(c *TestAppleMDMClient) {
 		c.debug = true
+	}
+}
+
+func WithEnrollmentProfileFromDEPUsingPost() TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.fetchEnrollmentProfileFromDEPUsingPost = true
+		c.fetchEnrollmentProfileFromDEP = false
 	}
 }
 
@@ -185,12 +196,18 @@ func (c *TestAppleMDMClient) SetDEPToken(tok string) {
 	c.depURLToken = tok
 }
 
-// Enroll runs the MDM enroll protocol on the simulated device.
+// Enroll runs the MDM enroll protocol on the simulated device. It fetches the enrollment
+// profile from the Fleet server and then runs the SCEP enrollment, Authenticate and TokenUpdate
+// steps.
 func (c *TestAppleMDMClient) Enroll() error {
 	switch {
 	case c.fetchEnrollmentProfileFromDesktop:
 		if err := c.fetchEnrollmentProfileFromDesktopURL(); err != nil {
 			return fmt.Errorf("get enrollment profile from desktop URL: %w", err)
+		}
+	case c.fetchEnrollmentProfileFromDEPUsingPost:
+		if err := c.fetchEnrollmentProfileFromDEPURLUsingPost(); err != nil {
+			return fmt.Errorf("get enrollment profile using POST from DEP URL: %w", err)
 		}
 	case c.fetchEnrollmentProfileFromDEP:
 		if err := c.fetchEnrollmentProfileFromDEPURL(); err != nil {
@@ -224,8 +241,28 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURL() error {
+	di, err := EncodeDeviceInfo(fleet.MDMAppleMachineInfo{
+		Serial: c.SerialNumber,
+		UDID:   c.UUID,
+	})
+	if err != nil {
+		return fmt.Errorf("test client: encoding device info: %w", err)
+	}
 	return c.fetchEnrollmentProfile(
-		apple_mdm.EnrollPath + "?token=" + c.depURLToken,
+		apple_mdm.EnrollPath+"?token="+c.depURLToken+"&deviceinfo="+di, nil,
+	)
+}
+
+func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDEPURLUsingPost() error {
+	buf, err := MachineInfoAsPKCS7(fleet.MDMAppleMachineInfo{
+		Serial: c.SerialNumber,
+		UDID:   c.UUID,
+	})
+	if err != nil {
+		return fmt.Errorf("test client: encoding device info: %w", err)
+	}
+	return c.fetchEnrollmentProfile(
+		apple_mdm.EnrollPath+"?token="+c.depURLToken, buf,
 	)
 }
 
@@ -390,10 +427,19 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	return nil
 }
 
-func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string) error {
-	request, err := http.NewRequest("GET", c.fleetServerURL+path, nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
+func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (err error) {
+	var request *http.Request
+	if len(body) > 0 {
+		request, err = http.NewRequest("POST", c.fleetServerURL+path, bytes.NewReader(body))
+		if err != nil {
+			return fmt.Errorf("create request: %w", err)
+		}
+		request.Header.Set("Content-Type", "application/pkcs7-signature")
+	} else {
+		request, err = http.NewRequest("GET", c.fleetServerURL+path, nil)
+		if err != nil {
+			return fmt.Errorf("create request: %w", err)
+		}
 	}
 	// #nosec (this client is used for testing only)
 	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
@@ -407,7 +453,7 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string) error {
 	if response.StatusCode != http.StatusOK {
 		return fmt.Errorf("request error: %d, %s", response.StatusCode, response.Status)
 	}
-	body, err := io.ReadAll(response.Body)
+	rspBody, err := io.ReadAll(response.Body)
 	if err != nil {
 		return fmt.Errorf("read body: %w", err)
 	}
@@ -415,9 +461,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string) error {
 		return fmt.Errorf("close body: %w", err)
 	}
 
-	rawProfile := body
+	rawProfile := rspBody
 	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(body)
+		p7, err := pkcs7.Parse(rspBody)
 		if err != nil {
 			return fmt.Errorf("enrollment profile is not XML nor PKCS7 parseable: %w", err)
 		}
@@ -949,7 +995,7 @@ func RandUDID() string {
 
 type scepClient interface {
 	scepserver.Service
-	Supports(cap string) bool
+	Supports(capacity string) bool
 }
 
 func newSCEPClient(
@@ -998,4 +1044,49 @@ func makeClientSCEPEndpoints(instance string) (*scepserver.Endpoints, error) {
 			scepserver.DecodeSCEPResponse,
 			options...).Endpoint(),
 	}, nil
+}
+
+// EncodeDeviceInfo is a helper function to provide mock device info for the x-aspen-deviceinfo
+// header that is sent by the device during the Apple MDM enrollment process.
+func EncodeDeviceInfo(machineInfo fleet.MDMAppleMachineInfo) (string, error) {
+	sig, err := MachineInfoAsPKCS7(machineInfo)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(sig), nil
+}
+
+// MachineInfoAsPKCS7 marshals and signs Apple's machine info.
+func MachineInfoAsPKCS7(machineInfo fleet.MDMAppleMachineInfo) ([]byte, error) {
+	body, err := plist.Marshal(machineInfo)
+	if err != nil {
+		return nil, fmt.Errorf("marshal device info: %w", err)
+	}
+
+	// body is expected to be a PKCS7 signed message, although we don't currently verify the signature
+	signedData, err := pkcs7.NewSignedData(body)
+	if err != nil {
+		return nil, fmt.Errorf("create signed data: %w", err)
+	}
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, fmt.Errorf("generate RSA private key: %w", err)
+	}
+	crtBytes, err := depot.NewCACert().SelfSign(rand.Reader, key.Public(), key)
+	if err != nil {
+		return nil, fmt.Errorf("create self-signed certificate: %w", err)
+	}
+	crt, err := x509.ParseCertificate(crtBytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse self-signed certificate: %w", err)
+	}
+	if err := signedData.AddSigner(crt, key, pkcs7.SignerInfoConfig{}); err != nil {
+		return nil, fmt.Errorf("add signer: %w", err)
+	}
+	sig, err := signedData.Finish()
+	if err != nil {
+		return nil, fmt.Errorf("finish signing: %w", err)
+	}
+	return sig, nil
 }

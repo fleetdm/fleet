@@ -80,7 +80,7 @@ func TestLabelsAuth(t *testing.T) {
 		{
 			"team maintainer",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
-			true,
+			false,
 			false,
 		},
 		{
@@ -162,6 +162,7 @@ func testLabelsGetLabel(t *testing.T, ds *mysql.Datastore) {
 	labelVerify, _, err := svc.GetLabel(test.UserContext(ctx, test.UserAdmin), label.ID)
 	assert.Nil(t, err)
 	assert.Equal(t, label.ID, labelVerify.ID)
+	assert.Nil(t, label.AuthorID)
 }
 
 func testLabelsListLabels(t *testing.T, ds *mysql.Datastore) {
@@ -263,7 +264,14 @@ func TestLabelsWithReplica(t *testing.T) {
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "Adminboi",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "admin@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
 	// create a couple hosts
 	h1, err := ds.NewHost(ctx, &fleet.Host{
@@ -291,6 +299,7 @@ func TestLabelsWithReplica(t *testing.T) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID, h2.ID}, hostIDs)
 	require.Equal(t, 2, lbl.HostCount)
+	require.Equal(t, user.ID, *lbl.AuthorID)
 
 	// make the newly-created label available to the reader
 	opts.RunReplication("labels", "label_membership")
@@ -299,12 +308,14 @@ func TestLabelsWithReplica(t *testing.T) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
 	require.Equal(t, 1, lbl.HostCount)
+	require.Equal(t, user.ID, *lbl.AuthorID)
 
 	// reading this label without replication returns the old data as it only uses the reader
 	lbl, hostIDs, err = svc.GetLabel(ctx, lbl.ID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID, h2.ID}, hostIDs)
 	require.Equal(t, 2, lbl.HostCount)
+	require.Equal(t, user.ID, *lbl.AuthorID)
 
 	// running the replication makes the updated data available
 	opts.RunReplication("labels", "label_membership")
@@ -313,6 +324,7 @@ func TestLabelsWithReplica(t *testing.T) {
 	require.NoError(t, err)
 	require.ElementsMatch(t, []uint{h1.ID}, hostIDs)
 	require.Equal(t, 1, lbl.HostCount)
+	require.Equal(t, user.ID, *lbl.AuthorID)
 }
 
 func TestBatchValidateLabels(t *testing.T) {
@@ -418,4 +430,88 @@ func TestBatchValidateLabels(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewManualLabel(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		lbl.ID = 1
+		lbl.LabelMembershipType = fleet.LabelMembershipTypeManual
+		return lbl, nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+		return []uint{99, 100}, nil
+	}
+
+	t.Run("using hostnames", func(t *testing.T) {
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), labelID)
+			require.Equal(t, []uint{99, 100}, hostIds)
+			return nil, nil, nil
+		}
+		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name:  "foo",
+			Hosts: []string{"host1", "host2"},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("using IDs", func(t *testing.T) {
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), labelID)
+			require.Equal(t, []uint{1, 2}, hostIds)
+			return nil, nil, nil
+		}
+		_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+			Name:    "foo",
+			HostIDs: []uint{1, 2},
+		})
+		require.NoError(t, err)
+	})
+}
+
+func TestModifyManualLabel(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.LabelFunc = func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+		return &fleet.Label{
+			ID:                  lid,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		}, nil, nil
+	}
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+		return []uint{99, 100}, nil
+	}
+	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, filter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+		return nil, nil, nil
+	}
+
+	t.Run("using hostnames", func(t *testing.T) {
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), labelID)
+			require.Equal(t, []uint{99, 100}, hostIds)
+			return nil, nil, nil
+		}
+		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{
+			Hosts: []string{"host1", "host2"},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("using IDs", func(t *testing.T) {
+		ds.UpdateLabelMembershipByHostIDsFunc = func(ctx context.Context, labelID uint, hostIds []uint, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
+			require.Equal(t, uint(1), labelID)
+			require.Equal(t, []uint{1, 2}, hostIds)
+			return nil, nil, nil
+		}
+		_, _, err := svc.ModifyLabel(ctx, 1, fleet.ModifyLabelPayload{
+			HostIDs: []uint{1, 2},
+		})
+		require.NoError(t, err)
+	})
 }

@@ -1,5 +1,10 @@
 url: https://zoom.us/client/latest/ZoomInstaller.exe?archType=x64
 self_service: true
+categories:
+  - Communication
 labels_include_any:
   - "x86-based Windows hosts"
- 
+install_script:
+  path: ../scripts/default-exe-install-script.ps1
+uninstall_script:
+  path: ../scripts/uninstall-zoom.ps1

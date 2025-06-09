@@ -1,0 +1,341 @@
+<div id="configuration-builder" v-cloak>
+  <div class="d-lg-block d-none">
+  <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
+    <div purpose="header-background">
+      <div purpose="configuration-builder-header">
+        <div purpose="page-header" class="container-fluid d-flex justify-content-start align-items-center">
+          <a purpose="header-logo" href="/">
+            <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
+          </a>
+   <!--        <div purpose="search-bar" v-if="step === 'configuration-builder'">
+            <div purpose="disabled-search" class="d-flex w-100">
+              <div class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text border-0 bg-transparent pl-3" >
+                    <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                  </span>
+                </div>
+                <div class="form-control border-0 ">
+                <input class="docsearch-input pr-1"
+                  placeholder="Search" aria-label="Search"
+                  />
+                </div>
+              </div>
+            </div>
+            <div purpose="search-results">
+
+            </div>
+          </div> -->
+        </div>
+      </div>
+    </div>
+  </div>
+  <div purpose="page-container" class="container-fluid px-0">
+    <%
+      //
+      //  ╔═╗╦  ╔═╗╔╦╗╔═╗╔═╗╦═╗╔╦╗  ╔═╗╔═╗╦  ╔═╗╔═╗╔╦╗╔═╗╦═╗
+      //  ╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ╚═╗║╣ ║  ║╣ ║   ║ ║ ║╠╦╝
+      //  ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╚═╝╚═╝╩═╝╚═╝╚═╝ ╩ ╚═╝╩╚═
+    %>
+    <div purpose="platform-selector-step" v-if="step === 'platform-select'">
+      <div purpose="platform-selector" class="mx-auto my-auto">
+        <h2>Create a new configuration profile</h2>
+        <p class="mb-0">Choose an operating system to continue.</p>
+        <ajax-form :handle-submitting="handleSubmittingPlatformSelectForm" :form-errors.sync="formErrors" :form-data="platformSelectFormData" :form-rules="platformSelectFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+          <div purpose="platforms" id="platform" class="d-flex flex-row">
+            <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'macos' ? 'selected' : '' ]"  style="margin-right: 10px;" @click="platformSelectFormData.platform = 'macos'">
+              <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
+              macOS
+            </div>
+            <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'windows' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'windows'">
+              <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
+              Windows
+            </div>
+          </div>
+          <div class="invalid-feedback" v-if="formErrors.platform">Please select an option</div>
+          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing" v-if="platformSelectFormData.platform">Create</ajax-button>
+        </ajax-form>
+      </div>
+    </div>
+    <%
+      //
+      //  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗╦ ╦╦═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔╗ ╦ ╦╦╦  ╔╦╗╔═╗╦═╗
+      //  ║  ║ ║║║║╠╣ ║║ ╦║ ║╠╦╝╠═╣ ║ ║║ ║║║║  ╠╩╗║ ║║║   ║║║╣ ╠╦╝
+      //  ╚═╝╚═╝╝╚╝╚  ╩╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝  ╚═╝╚═╝╩╩═╝═╩╝╚═╝╩╚═
+    %>
+    <div purpose="platform-selector-step" v-if="step === 'configuration-builder'">
+      <%
+        //
+        //  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔═╗╦═╗╦ ╦  ╔═╗╔═╗╦  ╔═╗╔═╗╔╦╗╔═╗╦═╗
+        //  ║  ╠═╣ ║ ║╣ ║ ╦║ ║╠╦╝╚╦╝  ╚═╗║╣ ║  ║╣ ║   ║ ║ ║╠╦╝
+        //  ╚═╝╩ ╩ ╩ ╚═╝╚═╝╚═╝╩╚═ ╩   ╚═╝╚═╝╩═╝╚═╝╚═╝ ╩ ╚═╝╩╚═
+      %>
+      <div purpose="category-selector" >
+        <div purpose="category-options" v-if="selectedPlatform === 'windows'">
+          <a @click="clickExpandCategory('windows-privacy-and-security')" :class="[expandedCategory === 'windows-privacy-and-security' ? 'selected' : '' ]">Privacy & security</a>
+          <div purpose="subcategories" v-if="expandedCategory === 'windows-privacy-and-security'">
+            <a @click="clickSelectPayloadCategory('windows-device-lock')">Device lock</a>
+          </div>
+        </div>
+        <div purpose="category-options" v-if="selectedPlatform === 'macos'">
+          <a @click="clickExpandCategory('macos-privacy-and-security')" :class="[expandedCategory === 'macos-privacy-and-security' ? 'selected' : '' ]">Privacy & security</a>
+          <div purpose="subcategories" v-if="expandedCategory === 'macos-privacy-and-security'">
+            <a @click="clickSelectPayloadCategory('macos-device-lock')">Device lock</a>
+          </div>
+        </div>
+      </div>
+
+      <%
+        //
+        //  ╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔═╗╔═╗╦  ╔═╗╔═╗╔╦╗╔═╗╦═╗
+        //  ║ ║╠═╝ ║ ║║ ║║║║  ╚═╗║╣ ║  ║╣ ║   ║ ║ ║╠╦╝
+        //  ╚═╝╩   ╩ ╩╚═╝╝╚╝  ╚═╝╚═╝╩═╝╚═╝╚═╝ ╩ ╚═╝╩╚═
+      %>
+      <div purpose="selected-subcategory-and-options">
+        <div purpose="selected-subcategory" :class="[selectedPayloadCategory ? 'slide-in' : '' ]">
+          <div v-if="selectedPayloadCategory === 'macos-device-lock'">
+            <div purpose="subcategory-header">
+              <h2>Device lock</h2>
+              <p class="mb-0">
+                Settings related to screen lock and passwords. <a target="_blank" href="https://developer.apple.com/documentation/devicemanagement/passcode">Learn more</a>
+              </p>
+            </div>
+            <div purpose="subcategory-options">
+              <div purpose="option">
+                <label for="macos-enable-force-pin" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['macos-enable-force-pin'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['macos-enable-force-pin']" id="macos-enable-force-pin" @input="clickSelectPayload('macos-enable-force-pin')">
+                  Require device password
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Require a password to unlock the device">
+              </div>
+              <div purpose="option">
+                <label for="macos-enable-allow-simple-pin" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['macos-enable-allow-simple-pin'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['macos-enable-allow-simple-pin']" id="macos-enable-allow-simple-pin" @input="clickSelectPayload('macos-enable-allow-simple-pin')">
+                  Allow simple password
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.">
+              </div>
+              <div purpose="option">
+                <label for="macos-max-inactivity" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['macos-max-inactivity'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['macos-max-inactivity']" id="macos-max-inactivity" @input="clickSelectPayload('macos-max-inactivity')">
+                  Max inactivity time before device locks
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The number of minues a device can remain inactive before a password is required to unlock the device.">
+              </div>
+              <div purpose="option">
+                <label for="macos-min-length" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['macos-min-length'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['macos-min-length']" id="macos-min-length" @input="clickSelectPayload('macos-min-length')">
+                  Min passcode length
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The minimum number of characters a device's password must be">
+              </div>
+            </div>
+          </div>
+          <div v-if="selectedPayloadCategory === 'windows-device-lock'">
+            <div purpose="subcategory-header">
+              <h2>Device lock</h2>
+              <p class="mb-0">
+                Settings related to screen lock and passwords. <a target="_blank" href="https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock">Learn more</a>
+              </p>
+            </div>
+            <div purpose="subcategory-options">
+              <div purpose="option">
+                <label for="windows-device-lock-enable-device-lock" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-enable-device-lock'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-enable-device-lock']" id="windows-device-lock-enable-device-lock" @input="clickSelectPayload('windows-device-lock-enable-device-lock')">
+                  Enable device lock
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Require a password to unlock the device">
+              </div>
+              <div purpose="option">
+                <label for="windows-device-lock-require-alphanumeric-device-password" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-require-alphanumeric-device-password'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-require-alphanumeric-device-password']" id="windows-device-lock-require-alphanumeric-device-password" @input="clickSelectPayload('windows-device-lock-require-alphanumeric-device-password')">
+                  Require alphanumeric device password
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The minimum completxity for device passwords">
+              </div>
+              <div purpose="option">
+                <label for="windows-device-lock-max-inactivity-before-device-locks" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-max-inactivity-before-device-locks'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-max-inactivity-before-device-locks']" id="windows-device-lock-max-inactivity-before-device-locks" @input="clickSelectPayload('windows-device-lock-max-inactivity-before-device-locks')">
+                  Max inactivity time before device locks
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The number of seconds a device can remain inactive before a password is required to unlock the device.">
+              </div>
+              <div purpose="option">
+                <label for="windows-device-lock-min-password-length" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-min-password-length'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-min-password-length']" id="windows-device-lock-min-password-length" @input="clickSelectPayload('windows-device-lock-min-password-length')">
+                  Min password length
+                </label>
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The minimum number of characters a device's password must be">
+              </div>
+            </div>
+          </div>
+        </div>
+        <%
+          //
+          //  ╔═╗╔═╗╦ ╦╦  ╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+          //  ╠═╝╠═╣╚╦╝║  ║ ║╠═╣ ║║  ║ ║╠═╝ ║ ║║ ║║║║╚═╗
+          //  ╩  ╩ ╩ ╩ ╩═╝╚═╝╩ ╩═╩╝  ╚═╝╩   ╩ ╩╚═╝╝╚╝╚═╝
+        %>
+        <div purpose="payload-options">
+          <ajax-form :handle-submitting="handleSubmittingConfigurationBuilderForm" :form-errors.sync="formErrors" :form-data="configurationBuilderFormData" :form-rules="configurationBuilderFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+            <div purpose="options-container" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
+              <div purpose="payload-category" v-for="category in _.keysIn(selectedPayloadsGroupedByCategory)">
+                <div purpose="category-header">
+                  <h2 class="mb-0">{{category}}</h2>
+                  <div purpose="download-and-remove-buttons">
+                    <a purpose="form-button" @click="clickRemoveOneCategoryPayloadOptions(category)">Remove all</a>
+                    <ajax-button purpose="download-button" :syncing="syncing"><img alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
+                  </div>
+                </div>
+
+                <div purpose="payload-option" v-for="option in selectedPayloadsGroupedByCategory[category]">
+                  <div purpose="name-and-access-type" class="d-flex flex-row align-items-center justify-content-between w-100">
+                    <p class="mb-0"><strong>{{option.name}}</strong></p>
+                    <div class="d-flex flex-column" v-if="selectedPlatform === 'windows'">
+                      <select :class="[formErrors[option.uniqueSlug+'-access-type'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-access-type']" class="form-control" style="width: 120px">
+                        <option selected value="undefined" >Access type</option>
+                        <option :value="accessType" style="text-transform: uppercase;" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
+                      </select>
+                      <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-access-type']">Please select an<br> access type</div>
+                    </div>
+                  </div>
+                  <% // Number input %>
+                  <div purpose="option-value" v-if="['number'].includes(option.formInput.type)">
+                    <div class="d-flex flex-row align-items-center">
+                    <input :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :type="option.formInput.type" placeholder="0" :min="option.formInput.minValue" :max="option.formInput.maxValue">
+                    <span purpose="unit-label" v-if="option.formInput.unitLabel">{{option.formInput.unitLabel}}</span>
+                    </div>
+                    <div class="invalid-feedback d-block" v-if="formErrors[option.uniqueSlug+'-value'] && option.formInput.unitLabel">Please enter a number of {{option.formInput.unitLabel}}</div>
+                    <div class="invalid-feedback d-block" v-else-if="formErrors[option.uniqueSlug+'-value']">Please enter a value</div>
+                  </div>
+                  <% // Text input %>
+                  <div purpose="option-value" v-if="['text'].includes(option.formInput.type)">
+                    <input :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']"  class="form-control" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :type="option.formInput.type" placeholder="Please enter a value" >
+                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please enter a value</div>
+                  </div>
+                  <% // Radio input %>
+                  <div purpose="option-value" v-else-if="['radio'].includes(option.formInput.type)" :class="[formErrors[option.uniqueSlug+'-value'] ? 'is-invalid' : '']">
+                    <label purpose="form-option" class="form-control" :class="[configurationBuilderFormData[option.uniqueSlug+'-value'] === formInput.value ? 'selected' : '']" v-for="formInput of option.formInput.options">
+                      <input type="radio" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" :value="formInput.value" @input="clickClearOneFormError(option.uniqueSlug+'-value')">
+                      <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+                      {{formInput.name}}
+                    </label>
+                    <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-value']">Please select an option</div>
+                  </div>
+                  <%// Checkbox input %>
+                  <div purpose="option-value" v-else-if="['boolean'].includes(option.formInput.type)">
+                    <label purpose="form-option" class="form-control">
+                      <input type="checkbox" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-value']" @input="clickClearOneFormError(option.uniqueSlug+'-value')">
+                      <span purpose="custom-switch" :class="[configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'checked' : '']"><span purpose="custom-switch-status"></span></span>
+                      {{ configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'Yes' : 'No' }}
+                    </label>
+                  </div>
+                  <a @click="clickRemovePayloadOption(option)" purpose="remove-button">Remove</a>
+                </div>
+              </div>
+            </div>
+            <div purpose="bottom-download-bar" :class="[ selectedPayloadCategory ? 'slide-in' : '' ]">
+              <a purpose="new-button" @click="clickOpenResetFormModal()">Create new</a>
+              <ajax-button purpose="download-button" :syncing="syncing" v-if="selectedPayloads.length > 0">Download <img class="d-inline-flex" alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
+            </div>
+          </ajax-form>
+
+          <%// Empty state %>
+          <div purpose="empty-state-content" v-if="selectedPayloads.length === 0">
+            <div purpose="empty-box">
+            </div>
+            <p purpose="empty-state-note">
+              Choose from the categories on the left to add settings.
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div purpose="page-container" class="container-fluid px-0 d-flex d-lg-none">
+    <div purpose="screen-unsupported" class="mx-auto pt-5 mt-5 text-center d-flex flex-column align-items-center">
+      <img style="width: 160px" alt="This screen size not supported." class="mb-3" src="/images/config-editor-small-screen-160x80@2x.png">
+      <p class="mb-1">This screen size is not supported yet.</p>
+      <p>Please enlarge your browser or try again on a computer.</p>
+    </div>
+  </div>
+  <modal v-if="modal === 'reset-form'" hide-close-button="true" @close="closeModal()">
+    <div purpose="reset-form-modal">
+      <div purpose="modal-form">
+        <h3> Are you sure?</h3>
+        <p> Your current profile will be cleared</p>
+
+        <div purpose="modal-form-buttons">
+          <div purpose="modal-button-primary" @click="clickResetForm()">
+            I'm sure, create a new profile
+          </div>
+          <div purpose="modal-button-secondary" @click="modal = undefined">
+            No, take me back
+          </div>
+        </div>
+      </div>
+    </div>
+  </modal>
+  <modal v-if="modal === 'multiple-payloads-selected'" hide-close-button="true" @close="closeModal()">
+    <div purpose="multiple-payloads-modal">
+      <div purpose="modal-form">
+        <h3>Multiple payloads detected</h3>
+        <p>To avoid potential conflicts, we recommend downloading each payload individually.</p>
+        <p>Are you sure you want to continue?</p>
+
+        <div purpose="modal-form-buttons">
+          <div purpose="modal-button-primary" @click="openDownloadModal()">
+            Continue
+          </div>
+          <div purpose="modal-button-secondary" @click="modal = undefined">
+            No, take me back
+          </div>
+        </div>
+      </div>
+    </div>
+  </modal>
+  <modal v-if="modal === 'download-profile'" hide-close-button="true" @close="closeModal()">
+    <div purpose="download-profile-modal">
+      <div purpose="modal-form">
+        <h3>Download your configuration file</h3>
+        <ajax-form :handle-submitting="handleSubmittingDownloadProfileForm" :form-errors.sync="formErrors" :form-data="downloadProfileFormData" :form-rules="downloadProfileFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+          <div purpose="modal-form-option">
+            <label for="profile-name">Profile name <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The name shown to users in their settings. It does not need to be unique."></label>
+            <input type="text" :class="[formErrors.name ? 'is-invalid' : '']"  class="form-control" id="name" v-model="downloadProfileFormData.name">
+            <div class="invalid-feedback">Please enter a name for this profile.</div>
+          </div>
+          <div purpose="modal-form-option" v-if="selectedPlatform === 'macos'">
+            <label for="profile-identifier">Identifier <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="A unique reverse-DNS identifier for this payload. It's usually the same as the profile's top-level identifier with an extra part added to describe the specific payload (e.g. .gatekeeper, .wifi). macOS uses it to manage and update individual settings."></label>
+            <input type="text" :class="[formErrors.identifier ? 'is-invalid' : '']"  class="form-control" id="identifier" v-model="downloadProfileFormData.identifier">
+            <div class="invalid-feedback">Please enter a identifier for this profile.</div>
+          </div>
+          <div purpose="modal-form-option" v-if="selectedPlatform === 'macos'">
+            <label for="profile-uuid">UUID <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="A unique identifier for this payload, used to track and update the payload during profile replacements. Must be globally unique."></label>
+            <input type="text" :class="[formErrors.uuid ? 'is-invalid' : '']" class="form-control" id="uuid" v-model="downloadProfileFormData.uuid">
+            <div class="invalid-feedback">Please enter a UUID for this profile.</div>
+          </div>
+          <div purpose="modal-form-option">
+            <label for="profile-description">Description <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="A unique identifier for this payload, used to track and update the payload during profile replacements. Must be globally unique."></label>
+            <textarea  class="form-control" id="description" v-model="downloadProfileFormData.description"></textarea>
+          </div>
+          <div purpose="modal-form-buttons">
+            <ajax-button purpose="download-button" style="max-width: 130px; color: #FFF;" type="submit">
+              Download <img alt="download" class="d-inline-flex" src="/images/icon-download.png" style="height: 12px;">
+            </ajax-button>
+          </div>
+        </ajax-form>
+      </div>
+    </div>
+  </modal>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -339,6 +339,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2011-5049"}, // OS vulnerability
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:macos:*:*": {
+			excludedCVEs:      []string{"CVE-2024-6286"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
+			},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2024-4030"},
 			continuesToUpdate: true,

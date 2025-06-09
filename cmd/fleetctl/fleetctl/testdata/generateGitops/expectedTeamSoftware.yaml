@@ -1,0 +1,19 @@
+packages:
+  - hash_sha256: software-package-hash ___GITOPS_COMMENT_0___
+    install_script:
+      path: ../lib/some-team/scripts/my-software-package-darwin-install
+    labels_include_any:
+    - Label A
+    - Label B
+    post_install_script:
+      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
+    pre_install_query: 
+      path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
+    self_service: true
+    uninstall_script:
+      path: ../lib/some-team/scripts/my-software-package-darwin-uninstall
+app_store_apps:
+  - app_store_id: com.example.team-software
+    labels_exclude_any:
+     - Label C
+     - Label D

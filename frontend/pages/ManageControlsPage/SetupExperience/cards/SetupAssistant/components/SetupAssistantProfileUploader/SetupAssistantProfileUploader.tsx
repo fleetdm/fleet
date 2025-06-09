@@ -42,7 +42,7 @@ const SetupAssistantProfileUploader = ({
       const error = e as AxiosResponse<IApiError>;
       const errMessage = getErrorMessage(error);
       let errComponent = <>{errMessage}</>;
-      if (errMessage.includes("Couldn't upload")) {
+      if (errMessage.includes("Couldn't add")) {
         errComponent = (
           <>
             {errMessage}.{" "}

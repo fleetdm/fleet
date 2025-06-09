@@ -76,10 +76,6 @@ jobs:
         if: steps.js-cache.outputs.cache-hit != 'true'
         run: make deps-js
 
-      - name: Install Go Dependencies
-        if: steps.go-cache.outputs.cache-hit != 'true'
-        run: make deps-go
-
       - name: Generate static files
         run: |
           export PATH=$PATH:~/go/bin

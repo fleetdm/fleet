@@ -8,7 +8,14 @@ import PATHS from "router/paths";
 import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 
 import { secondsToDhms } from "utilities/helpers";
-import permissionsUtils from "utilities/permissions";
+import {
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+  isOnlyObserver,
+} from "utilities/permissions/permissions";
 import { getPathWithQueryParams } from "utilities/url";
 
 import {
@@ -123,8 +130,8 @@ const generateColumnConfigs = ({
   omitSelectionColumn = false,
 }: IGenerateColumnConfigs): IDataColumn[] => {
   const isCurrentTeamObserverOrGlobalObserver = currentTeamId
-    ? permissionsUtils.isTeamObserver(currentUser, currentTeamId)
-    : permissionsUtils.isOnlyObserver(currentUser);
+    ? isTeamObserver(currentUser, currentTeamId)
+    : isOnlyObserver(currentUser);
   const viewingTeamScope = currentTeamId !== API_ALL_TEAMS_ID;
 
   const tableHeaders: IDataColumn[] = [
@@ -141,35 +148,25 @@ const generateColumnConfigs = ({
         const { id, team_id, observer_can_run } = cellProps.row.original;
         return (
           <LinkCell
-            className="w400 query-name-cell"
-            value={
+            className="w400"
+            tooltipTruncate
+            value={cellProps.cell.value as string}
+            suffix={
               <>
-                <div className="query-name-text">{cellProps.cell.value}</div>
                 {!isCurrentTeamObserverOrGlobalObserver && observer_can_run && (
-                  <div className="observer-can-run-badge">
-                    <span
-                      className="observer-can-run-icon"
-                      data-tooltip-id={`observer-can-run-tooltip-${id}`}
-                    >
-                      <Icon
-                        className="observer-can-run-query-icon"
-                        name="query"
-                        size="small"
-                        color="core-fleet-blue"
-                      />
-                    </span>
-                    <ReactTooltip5
-                      className="observer-can-run-tooltip"
-                      disableStyleInjection
-                      place="top"
-                      opacity={1}
-                      id={`observer-can-run-tooltip-${id}`}
-                      offset={8}
-                      positionStrategy="fixed"
-                    >
-                      Observers can run this query.
-                    </ReactTooltip5>
-                  </div>
+                  <TooltipWrapper
+                    tipContent="Observers can run this query."
+                    underline={false}
+                    showArrow
+                    position="top"
+                  >
+                    <Icon
+                      className="observer-can-run-query-icon"
+                      name="query"
+                      size="small"
+                      color="ui-fleet-black-50"
+                    />
+                  </TooltipWrapper>
                 )}
                 {viewingTeamScope &&
                   // inherited
@@ -208,8 +205,8 @@ const generateColumnConfigs = ({
       },
     },
     {
-      title: "Frequency",
-      Header: "Frequency",
+      title: "Interval",
+      Header: "Interval",
       disableSortBy: true,
       accessor: "interval",
       Cell: (cellProps: INumberCellProps): JSX.Element => {
@@ -220,7 +217,7 @@ const generateColumnConfigs = ({
           <TextCell
             value={val}
             emptyCellTooltipText={
-              <>Assign a frequency to collect data at an interval.</>
+              <>Assign an interval to collect data on a schedule.</>
             }
           />
         );
@@ -281,7 +278,15 @@ const generateColumnConfigs = ({
       ),
     },
   ];
-  if (!isCurrentTeamObserverOrGlobalObserver && !omitSelectionColumn) {
+
+  const canEditQueries =
+    isGlobalAdmin(currentUser) ||
+    isGlobalMaintainer(currentUser) ||
+    (currentTeamId &&
+      (isTeamAdmin(currentUser, currentTeamId) ||
+        isTeamMaintainer(currentUser, currentTeamId)));
+
+  if (canEditQueries && !omitSelectionColumn) {
     tableHeaders.unshift({
       id: "selection",
       // TODO - improve typing of IHeaderProps instead of using any

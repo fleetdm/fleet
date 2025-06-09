@@ -4,7 +4,7 @@ import LastUpdatedText from "components/LastUpdatedText";
 const baseClass = "last-updated-host-count";
 
 interface ILastUpdatedHostCount {
-  hostCount?: string | number;
+  hostCount?: string | number | JSX.Element;
   lastUpdatedAt?: string;
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,11 +28,11 @@ type TestOrbitClient struct {
 	saveInstallerResultFn      func(*fleet.HostSoftwareInstallResultPayload) error
 }
 
-func (oc *TestOrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDir string) (string, error) {
+func (oc *TestOrbitClient) DownloadSoftwareInstallerFromURL(url string, filename string, downloadDir string, progressFunc func(int)) (string, error) {
 	return oc.downloadInstallerFromURLFn(url, filename, downloadDir)
 }
 
-func (oc *TestOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error) {
+func (oc *TestOrbitClient) DownloadSoftwareInstaller(installerID uint, downloadDir string, progressFunc func(int)) (string, error) {
 	return oc.downloadInstallerFn(installerID, downloadDir)
 }
 
@@ -250,11 +251,6 @@ func TestInstallerRun(t *testing.T) {
 
 	var removeAllFnCalled bool
 	var removedDir string
-	r.removeAllFn = func(s string) error {
-		removedDir = s
-		removeAllFnCalled = true
-		return nil
-	}
 
 	resetRunner := func() {
 		execCalled = false
@@ -264,6 +260,11 @@ func TestInstallerRun(t *testing.T) {
 		execExitCode = 0
 		execErr = nil
 		r.execCmdFn = execCmdDefaultFn
+		r.removeAllFn = func(s string) error {
+			removedDir = s
+			removeAllFnCalled = true
+			return nil
+		}
 
 		tmpDirFnCalled = false
 		tmpDir = ""
@@ -317,6 +318,96 @@ func TestInstallerRun(t *testing.T) {
 
 		require.True(t, getInstallerDetailsFnCalled)
 		require.Equal(t, installDetails.ExecutionID, installIdRequested)
+	})
+
+	t.Run(".tar.gz failed to extract", func(t *testing.T) {
+		resetAll()
+
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadInstallerFnCalled = true
+			return filepath.Join(downloadDir, fmt.Sprint(installerID)+".tar.gz"), nil
+		}
+
+		r.removeAllFn = func(s string) error {
+			removedDir = s
+			removeAllFnCalled = true
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "extracted")))
+			return nil
+		}
+
+		// will fail because we're trying to extract a file that doesn't exist (not mocking extract fn)
+		err := r.run(context.Background(), &config)
+		require.Error(t, err)
+
+		require.True(t, removeAllFnCalled)
+		require.True(t, tmpDirFnCalled)
+		require.Equal(t, tmpDir, removedDir)
+
+		require.NotNil(t, savedInstallerResult)
+		require.NotNil(t, savedInstallerResult.InstallScriptExitCode)
+		require.Equal(t, *savedInstallerResult.InstallScriptExitCode, fleet.ExitCodeInstallerDownloadFailed)
+		require.NotNil(t, savedInstallerResult.InstallScriptOutput)
+		require.Equal(t, *savedInstallerResult.InstallScriptOutput, "Installer extraction failed")
+		require.Nil(t, savedInstallerResult.PostInstallScriptExitCode)
+		require.Nil(t, savedInstallerResult.PostInstallScriptOutput)
+		require.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
+	})
+
+	t.Run("everything good for tarball", func(t *testing.T) {
+		resetAll()
+
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadInstallerFnCalled = true
+			return filepath.Join(downloadDir, fmt.Sprint(installerID)+".tar.gz"), nil
+		}
+
+		r.extractTarGzFn = func(path string, destDir string) error {
+			return nil
+		}
+
+		scriptExtension := ".sh"
+		if runtime.GOOS == "windows" {
+			scriptExtension = ".ps1"
+		}
+
+		r.removeAllFn = func(s string) error {
+			removedDir = s
+			removeAllFnCalled = true
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "install-script"+scriptExtension)))
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "post-install-script"+scriptExtension)))
+			require.NoError(t, os.Remove(filepath.Join(tmpDir, "extracted")))
+
+			return nil
+		}
+
+		err := r.run(context.Background(), &config)
+		require.NoError(t, err)
+
+		require.True(t, removeAllFnCalled)
+		require.Equal(t, tmpDir, removedDir)
+
+		require.True(t, tmpDirFnCalled)
+
+		require.True(t, execCalled)
+		require.Contains(t, executedScripts, filepath.Join(tmpDir, "install-script"+scriptExtension))
+		require.Contains(t, executedScripts, filepath.Join(tmpDir, "post-install-script"+scriptExtension))
+		require.Contains(t, execEnv, "INSTALLER_PATH="+filepath.Join(tmpDir, "extracted"))
+
+		require.True(t, queryFnCalled)
+		require.Equal(t, installDetails.PreInstallCondition, queryFnQuery)
+
+		require.NotNil(t, savedInstallerResult)
+		require.Equal(t, execExitCode, *savedInstallerResult.InstallScriptExitCode)
+		require.Equal(t, string(execOutput), *savedInstallerResult.InstallScriptOutput)
+		require.Equal(t, execExitCode, *savedInstallerResult.PostInstallScriptExitCode)
+		require.Equal(t, string(execOutput), *savedInstallerResult.PostInstallScriptOutput)
+		require.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
+
+		require.True(t, downloadInstallerFnCalled)
+
+		require.True(t, getInstallerDetailsFnCalled)
+		require.Equal(t, installDetails.ExecutionID, installIdRequested)
+		require.True(t, removeAllFnCalled)
 	})
 
 	t.Run("precondition negative", func(t *testing.T) {
@@ -434,7 +525,17 @@ func TestInstallerRun(t *testing.T) {
 		require.True(t, removeAllFnCalled)
 		require.True(t, tmpDirFnCalled)
 		require.Equal(t, tmpDir, removedDir)
+
+		require.NotNil(t, savedInstallerResult)
+		require.NotNil(t, savedInstallerResult.InstallScriptExitCode)
+		require.Equal(t, *savedInstallerResult.InstallScriptExitCode, fleet.ExitCodeInstallerDownloadFailed)
+		require.NotNil(t, savedInstallerResult.InstallScriptOutput)
+		require.Equal(t, *savedInstallerResult.InstallScriptOutput, "Installer download failed")
+		require.Nil(t, savedInstallerResult.PostInstallScriptExitCode)
+		require.Nil(t, savedInstallerResult.PostInstallScriptOutput)
+		require.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
 	})
+
 	t.Run("failed results upload", func(t *testing.T) {
 		var retries int
 		// set a shorter interval to speed up tests
@@ -721,7 +822,7 @@ func TestScriptsDisabled(t *testing.T) {
 	}
 	oc.getInstallerDetailsFn = getInstallerDetailsDefaultFn
 
-	out, err := r.installSoftware(context.Background(), "1")
+	out, err := r.installSoftware(context.Background(), "1", log.With().Logger())
 	require.NoError(t, err)
 	require.EqualValues(t, &fleet.HostSoftwareInstallResultPayload{
 		InstallUUID:               "1",

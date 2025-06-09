@@ -160,7 +160,7 @@ module.exports = {
         if(currentSelectedBuyingSituation === 'mdm') {
           // Since the mdm use case question is the only buying situation-specific question where a use case can't
           // be selected,  we'll check the user's previous answers before changing their psyStage
-          if(questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
+          if(typeof questionnaireProgress['what-do-you-manage-mdm'] !== 'undefined' && questionnaireProgress['what-do-you-manage-mdm'].mdmUseCase === 'no-use-case-yet'){
             // Check the user's answer to the have-you-ever-used-fleet question.
             psychologicalStage = '3 - Intrigued';
           } else {

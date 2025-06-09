@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mail"
-	"github.com/fleetdm/fleet/v4/server/service/internal/endpoints"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/go-kit/log/level"
@@ -132,7 +133,7 @@ func (r loginMfaResponse) Status() int { return http.StatusAccepted }
 func (r loginMfaResponse) Error() error { return r.Err }
 
 func loginEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*endpoints.LoginRequest)
+	req := request.(*contract.LoginRequest)
 	req.Email = strings.ToLower(req.Email)
 
 	user, session, err := svc.Login(ctx, req.Email, req.Password, req.SupportsEmailVerification)
@@ -392,6 +393,15 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 	metadata, err := sso.GetMetadata(&appConfig.SSOSettings.SSOProviderSettings)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, endpoint_utils.BadRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
+	}
+
+	parsedUrl, err := url.Parse(redirectURL)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url"))
+	}
+
+	if slices.Contains([]string{"javascript", "vbscript", "data"}, parsedUrl.Scheme) {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url scheme: "+parsedUrl.Scheme))
 	}
 
 	serverURL := appConfig.ServerSettings.ServerURL

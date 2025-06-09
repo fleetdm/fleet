@@ -218,7 +218,7 @@ For the address of the Redis server that Fleet should connect to, include the ho
 - Config file format:
   ```yaml
   redis:
-    address: 127.0.0.1:7369
+    address: 127.0.0.1:6379
   ```
 
 ### redis_username
@@ -604,6 +604,19 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
+### server_force_h2c
+
+Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
+is serving TLS, this setting is ignored if TLS is enabled. This configuration might be required if Fleet is hosted in certain
+cloud providers that have limitations on their API gateways, such as GCP Cloud Run.
+- Default value: false
+- Environment variable: FLEET_SERVER_FORCE_H2C
+- Config file format:
+  ```yaml
+  server:
+    force_h2c: true
+  ```
+
 ### server_private_key
 
 This key is required for enabling macOS MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
@@ -705,6 +718,8 @@ The license key provided to Fleet customers which provides access to Fleet Premi
   license:
     key: foobar
   ```
+
+> Wondering where to get a license key?  You can [grab a license](https://fleetdm.com/new-license) or if you have questions, [schedule a demo](https://fleetdm.com/contact).
 
 ## Session
 
@@ -2690,7 +2705,7 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/Configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ### mdm.apple_scep_signer_validity_days
 
@@ -2756,6 +2771,20 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+## Partnerships
+
+### partnerships_enable_secureframe
+
+When enabled, end user's who select **Fleet Desktop > About Fleet** will be navigated to the fleetdm.com/better page with [Secureframe](https://secureframe.com/) branding. See the page here: https://fleetdm.com/better?utm_content=secureframe
+
+- Default value: `false`
+- Environment variable: `FLEET_PARTNERSHIPS_ENABLE_SECUREFRAME`
+- Config file format:
+  ```
+  partnerships:
+    enable_secureframe: true
   ```
 
 <h2 id="running-with-systemd">Running with systemd</h2>

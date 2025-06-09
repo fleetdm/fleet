@@ -3,7 +3,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { pick, findIndex } from "lodash";
+import { pick } from "lodash";
 
 import { NotificationContext } from "context/notification";
 
@@ -13,7 +13,6 @@ import deviceUserAPI, {
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
-  IDeviceMappingResponse,
   IMacadminsResponse,
   IDeviceUserResponse,
   IHostDevice,
@@ -37,6 +36,8 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
+import SoftwareUninstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -69,12 +70,23 @@ import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
+import UserCard from "../cards/User";
+import {
+  generateChromeProfilesValues,
+  generateOtherEmailsValues,
+} from "../cards/User/helpers";
+import HostHeader from "../cards/HostHeader/HostHeader";
+import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceTableConfig";
+import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";
 
+const defaultCardClass = `${baseClass}__card`;
+const fullWidthCardClass = `${baseClass}__card--full-width`;
+
 const PREMIUM_TAB_PATHS = [
-  PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
+  PATHS.DEVICE_USER_DETAILS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
@@ -122,6 +134,13 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
+  const [selectedSelfServiceUuid, setSelectedSelfServiceUuid] = useState<
+    InstallOrCommandUuid | undefined
+  >(undefined);
+  const [
+    selectedSelfServiceScriptExecutionId,
+    setSelectedSelfServiceScriptExecutionId,
+  ] = useState<string | undefined>(undefined);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
@@ -146,20 +165,6 @@ const DeviceUserPage = ({
   const [sortCerts, setSortCerts] = useState<IListSort>({
     ...CERTIFICATES_DEFAULT_SORT,
   });
-
-  const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
-    ["deviceMapping", deviceAuthToken],
-    () =>
-      deviceUserAPI.loadHostDetailsExtension(deviceAuthToken, "device_mapping"),
-    {
-      enabled: !!deviceAuthToken,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IDeviceMappingResponse) => data.device_mapping,
-    }
-  );
 
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
@@ -208,7 +213,6 @@ const DeviceUserPage = ({
   );
 
   const refetchExtensions = () => {
-    deviceMapping !== null && refetchDeviceMapping();
     deviceCertificates && refetchDeviceCertificates();
   };
 
@@ -230,7 +234,7 @@ const DeviceUserPage = ({
   const {
     data: dupResponse,
     isLoading: isLoadingHost,
-    error: loadingDeviceUserError,
+    error: isDeviceUserError,
     refetch: refetchHostDetails,
   } = useQuery<IDeviceUserResponse, Error>(
     ["host", deviceAuthToken],
@@ -284,7 +288,7 @@ const DeviceUserPage = ({
             } else {
               renderFlash(
                 "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
+                "We're having trouble fetching fresh vitals for this host. Please try again later."
               );
               setShowRefetchSpinner(false);
             }
@@ -335,6 +339,20 @@ const DeviceUserPage = ({
   const toggleOSSettingsModal = useCallback(() => {
     setShowOSSettingsModal(!showOSSettingsModal);
   }, [showOSSettingsModal, setShowOSSettingsModal]);
+
+  const onShowInstallerDetails = useCallback(
+    (uuid?: InstallOrCommandUuid) => {
+      setSelectedSelfServiceUuid(uuid);
+    },
+    [setSelectedSelfServiceUuid]
+  );
+
+  const onShowUninstallDetails = useCallback(
+    (scriptExecutionId?: string) => {
+      setSelectedSelfServiceScriptExecutionId(scriptExecutionId);
+    },
+    [setSelectedSelfServiceScriptExecutionId]
+  );
 
   const onCancelPolicyDetailsModal = useCallback(() => {
     setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -409,8 +427,23 @@ const DeviceUserPage = ({
       tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
     }
 
-    const findSelectedTab = (pathname: string) =>
-      findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
+    const findSelectedTab = (pathname: string) => {
+      const cleanPath = pathname.split("?")[0];
+      // Filter tabPaths that are prefix of cleanPath
+      const matchingIndices = tabPaths
+        .map((tabPath, idx) => ({ tabPath, idx }))
+        .filter(({ tabPath }) => cleanPath.startsWith(tabPath));
+
+      if (matchingIndices.length === 0) {
+        return -1;
+      }
+
+      // Return the index of the longest matching prefix
+      return matchingIndices.reduce((best, current) =>
+        current.tabPath.length > best.tabPath.length ? current : best
+      ).idx;
+    };
+
     if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
       router.push(tabPaths[0]);
     }
@@ -419,6 +452,11 @@ const DeviceUserPage = ({
     // or team config (as applicable)
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
+
+    const showUsersCard =
+      host?.platform === "darwin" ||
+      generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
+      generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 
     return (
       <div className="core-wrapper">
@@ -446,16 +484,11 @@ const DeviceUserPage = ({
               diskIsEncrypted={host.disk_encryption_enabled}
               diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             />
-            <HostSummaryCard
+            <HostHeader
               summaryData={summaryData}
-              bootstrapPackageData={bootstrapPackageData}
-              isPremiumTier={isPremiumTier}
-              toggleOSSettingsModal={toggleOSSettingsModal}
-              hostSettings={host?.mdm.profiles ?? []}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionDropdown={renderActionButtons}
-              osSettings={host?.mdm.os_settings}
               deviceUser
             />
             <TabNav className={`${baseClass}__tab-nav`}>
@@ -464,14 +497,14 @@ const DeviceUserPage = ({
                 onSelect={(i) => router.push(tabPaths[i])}
               >
                 <TabList>
-                  <Tab>
-                    <TabText>Details</TabText>
-                  </Tab>
                   {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                     <Tab>
                       <TabText>Self-service</TabText>
                     </Tab>
                   )}
+                  <Tab>
+                    <TabText>Details</TabText>
+                  </Tab>
                   {isSoftwareEnabled && (
                     <Tab>
                       <TabText>Software</TabText>
@@ -485,14 +518,50 @@ const DeviceUserPage = ({
                     </Tab>
                   )}
                 </TabList>
+                {isPremiumTier && isSoftwareEnabled && hasSelfService && (
+                  <TabPanel>
+                    <SelfService
+                      contactUrl={orgContactURL}
+                      deviceToken={deviceAuthToken}
+                      isSoftwareEnabled
+                      pathname={location.pathname}
+                      queryParams={parseHostSoftwareQueryParams(location.query)}
+                      router={router}
+                      onShowInstallerDetails={onShowInstallerDetails}
+                      onShowUninstallDetails={onShowUninstallDetails}
+                    />
+                  </TabPanel>
+                )}
                 <TabPanel className={`${baseClass}__details-panel`}>
+                  <HostSummaryCard
+                    className={fullWidthCardClass}
+                    summaryData={summaryData}
+                    bootstrapPackageData={bootstrapPackageData}
+                    isPremiumTier={isPremiumTier}
+                    toggleOSSettingsModal={toggleOSSettingsModal}
+                    hostSettings={host?.mdm.profiles ?? []}
+                    osSettings={host?.mdm.os_settings}
+                  />
                   <AboutCard
+                    className={
+                      showUsersCard ? defaultCardClass : fullWidthCardClass
+                    }
                     aboutData={aboutData}
-                    deviceMapping={deviceMapping}
                     munki={deviceMacAdminsData?.munki}
                   />
+                  {showUsersCard && (
+                    <UserCard
+                      className={defaultCardClass}
+                      platform={host.platform}
+                      endUsers={host.end_users ?? []}
+                      enableAddEndUser={false}
+                      disableFullNameTooltip
+                      disableGroupsTooltip
+                    />
+                  )}
                   {isAppleHost && !!deviceCertificates?.certificates.length && (
                     <CertificatesCard
+                      className={fullWidthCardClass}
                       isMyDevicePage
                       data={deviceCertificates}
                       isError={isErrorDeviceCertificates}
@@ -510,18 +579,6 @@ const DeviceUserPage = ({
                     />
                   )}
                 </TabPanel>
-                {isPremiumTier && isSoftwareEnabled && hasSelfService && (
-                  <TabPanel>
-                    <SelfService
-                      contactUrl={orgContactURL}
-                      deviceToken={deviceAuthToken}
-                      isSoftwareEnabled
-                      pathname={location.pathname}
-                      queryParams={parseHostSoftwareQueryParams(location.query)}
-                      router={router}
-                    />
-                  </TabPanel>
-                )}
                 {isSoftwareEnabled && (
                   <TabPanel>
                     <SoftwareCard
@@ -601,12 +658,47 @@ const DeviceUserPage = ({
             }}
           />
         )}
+        {selectedSelfServiceUuid &&
+          "install_uuid" in selectedSelfServiceUuid &&
+          !!host && (
+            <SoftwareInstallDetailsModal
+              details={{
+                host_display_name: host.display_name,
+                install_uuid: selectedSelfServiceUuid.install_uuid,
+              }}
+              onCancel={() => setSelectedSelfServiceUuid(undefined)}
+              deviceAuthToken={deviceAuthToken}
+            />
+          )}
+        {selectedSelfServiceScriptExecutionId && !!host && (
+          <SoftwareUninstallDetailsModal
+            details={{
+              host_display_name: host.display_name,
+              script_execution_id: selectedSelfServiceScriptExecutionId,
+              status: "failed_uninstall",
+            }}
+            onCancel={() => setSelectedSelfServiceScriptExecutionId(undefined)}
+            deviceAuthToken={deviceAuthToken}
+          />
+        )}
+        {selectedSelfServiceUuid &&
+          "command_uuid" in selectedSelfServiceUuid &&
+          !!host && (
+            <AppInstallDetailsModal
+              details={{
+                host_display_name: host.display_name,
+                command_uuid: selectedSelfServiceUuid.command_uuid,
+              }}
+              onCancel={() => setSelectedSelfServiceUuid(undefined)}
+              deviceAuthToken={deviceAuthToken}
+            />
+          )}
         {selectedSoftwareDetails && !!host && (
           <SoftwareDetailsModal
             hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
-            hideInstallDetails
+            isDeviceUser
           />
         )}
         {selectedCertificate && (
@@ -641,7 +733,7 @@ const DeviceUserPage = ({
           </ul>
         </div>
       </nav>
-      {loadingDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
+      {isDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
     </div>
   );
 };

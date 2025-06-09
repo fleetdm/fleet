@@ -294,6 +294,34 @@ TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
 ACTION=release-to-production ./tools/tuf/releaser.sh
 ```
 
+### Doing a patch release of fleetd
+
+Patch releases follow the same process as releasing a minor version, except instead of checking out the `main` branch of Fleet locally, you check out a patch branch of Fleet, e.g.:
+
+```
+git checkout rc-minor-fleetd-v1.41.1
+```
+
+As always, the `VERSION` env var used when running `releaser.sh` should match the version of the fleetd release, e.g.
+
+```sh
+TUF_DIRECTORY=/Users/foobar/updates-staging.fleetdm.com \
+COMPONENT=fleetd \
+ACTION=release-to-edge \
+VERSION=1.41.1 # <-- note the patch version \
+KEYS_SOURCE_DIRECTORY=/Volumes/FLEET-UPD/keys \
+TARGETS_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TARGETS/password" \
+SNAPSHOT_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES SNAPSHOT/password" \
+TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
+GITHUB_USERNAME=foobar \
+GITHUB_TOKEN_1PASSWORD_PATH="Private/Github Token/password" \
+./tools/tuf/releaser.sh
+```
+
+See https://github.com/fleetdm/fleet/blob/main/orbit/TUF.md to find the latest released version.
+
+After following the rest of the "Releasing to edge" steps above, publish your release using the instructions in "Promoting from edge to stable" above as you would for a minor release, again remembering to set the `VERSION` accordingly.
+
 ## Testing and improving the script
 
 - You can specify `GIT_REPOSITORY_DIRECTORY` to set a separate path for the Fleet repository (it uses the current by default).

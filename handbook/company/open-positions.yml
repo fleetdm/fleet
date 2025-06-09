@@ -1,4 +1,4 @@
-# Example Open positon entry:
+# Example Open position entry:
 # - jobTitle:
 #   department: 
 #   hiringManagerName: 
@@ -11,6 +11,31 @@
 #     Add markdown content to this field.
 ################################################
 
+- jobTitle: 🚀 Customer Support Engineer
+  department: Sales
+  hiringManagerName: Zay Hanlon
+  hiringManagerGithubUsername: zayhanlon
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+  responsibilities: |
+      - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo. 
+      - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works. 
+      - ⏫ Work hand-in-hand with the customer success team by participating in calls with customers to discuss any support issues they may have.
+      - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
+      - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
+      - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
+      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+  experience: |
+      - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, or MacOS devices and MDM solutions like Jamf, Kandji, InTune, WS1, etc. Experience with AWS, SQL, Redis, Terraform, and osquery. 
+      - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
+      - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+      - 💭 Required: IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
+      - 💖 An excellent understanding of macOS, Windows, Linux core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
+      - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus. 
+      - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
+
+
+
+
 - jobTitle: 🚀 Software Engineer
   department: Engineering
   hiringManagerName: Luke Heath
@@ -22,7 +47,7 @@
       - 💭 Manage and optimize scalable distributed systems in the cloud.
       - 🤝 Collaborate closely with product managers to understand requirements and translate them into actionable specifications.
       - 🚀 Actively participate in all engineering scrum meetings, including sprint planning, daily standups, sprint demos, sprint retrospectives, and estimation sessions.
-      - 🌟 Contribute to the overall success of the [MDM](https://fleetdm.com/handbook/company/product-groups#mdm-group) product group by ensuring users receive valuable new features.
+      - 🌟 Contribute to the overall success of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) by ensuring users receive valuable new features .
   experience: |
       - 💭 3-5 years of experience in backend/SaaS development.
       - 🦉 Proficient in backend development. You practice OOP design and are comfortable in a lean software development environment. 
@@ -38,31 +63,87 @@
       - 🛠️ Technical: You understand the software development processes. You understand that software quality matters.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
       - ➕ Bonus: Cybersecurity or IT background.
-      
 
-- jobTitle: 🌐 Account Development Representative 
-  department: Digital Experience
-  hiringManagerName: Sam Pfluger
-  hiringManagerGithubUsername: Sampfluger88
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/sampfluger88/
-  onTargetEarnings: $65,000 - $80,000
+
+- jobTitle: 🎐 Solutions Consultant
+  department: Sales
+  hiringManagerName: Allen Houchins
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
+  hiringManagerGithubUsername: allenhouchins
+  onTargetEarnings: '$135,000 - $175,000'
   responsibilities: |
-      - 🔧 Manually research, collect, and organize CRM data.  
-      - 📈 Track and analyze sales performance using CRM software and other tools
-      - 🤝 Work with internal teams to develop and maintain external relationships.
-      - 🧑‍💼 Represent Fleet and interact with the community at events and meetups as well as using multiple social media platforms.
-      - 🗣️ Identify and pursue new business opportunities through research and networking.
-      - 🦺 Help manage the flow of "planned" and "unplanned" work using multiple tools and ticketing systems.
-      - 📣 Collaborate with internal teams (sales, marketing, product) to ensure alignment and effective communication. 
-      - 🧑‍💻 Work remotely, both within a team and individually, to help develop, document, and perform relevant responsibilities outlined at https://fleetdm.com/handbook/demand#responsibilities.
+      - ⏫ Work hand-in-hand with the Sales team by participating in calls with potential customers to show them a demonstration of Fleet in action.
+      - 📖 You’ll provide commentary, detailed technical explanations, examples from your experience, and answer customer questions based on your experience managing Apple, Windows, and Linux devices with MDM and other tools (osquery).
+      - 🏃‍♂️ Provide internal technical training, and participate in sales enablement activities to ensure our team is prepared to explain how Fleet works, where we fit in the Security and IT ecosystem, and how we can solve problems with our customers. 
   experience: |
-      - 🏃‍♂️ Strong desire to build a technical and operational-based skill set.
-      - 🚀 Detail-oriented, highly organized, and able to move quickly to solve complex problems using boring solutions.
-      - 🦉 Good understanding of Google Suite (Gmail, Google Calendar, Google Sheets, Google Docs, etc.) 
-      - 🫀 Experience dealing with sensitive personal information of team members and customers.
-      - ✍️ Strong writing and oral communication for general and technical topics.
-      - 💭 Capable of understanding and translating technical concepts and personas.
-      - 🛠️ Ability to work in a process-driven team-based environment.
+      - 🦉 3+ years of experience in a technical sales role (Solutions Consultant, Sales Engineer, Solutions Architect, Technical Account Manager, etc) in the device management or cybersecurity space.
+      - 🧑‍🔬 Experience working with Enterprise customers to help resolve complex technical issues.
+      - 💭 Cybersecurity or IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc. in addition to EDR platforms like Crowdstrike, SentinelOne, CarbonBlack, etc. 
+      - ➕ Familiarity with GitOps workflows and steps to contribute code in open source projects.
+      - 🛠️ Has deployed infrastructure via some form of CI tooling to at least one of the big cloud platforms and lived to tell the tale.
+      - 💖 An excellent understanding of macOS, Windows, Linux and core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
+      - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using Terminal to execute commands or run scripts.
+      - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our potential customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
+      - 💡 Excellent communication and collaboration skills, with the ability to work closely with sales, engineering, and product teams.
+      - 🌐 Coordinate with our Customer Success team to assist with any technical questions during renewal discussions. You’ll be a resource for existing customers too.
+      - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+      - 🤝 Collaboration: You work best in a participatory, team-based environment.
       - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-      - ➕ Bonus: Customer service\support background.
+      - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines/Torq, and open source tools. Experience working alongside IT, SRE, CPE, or SecOps teams.
+
+
+- jobTitle: 🫧 Head of Marketing
+  department: Marketing
+  hiringManagerName: Mike McNeil
+  hiringManagerGithubUsername: mikermcneil
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/mikermcneil/
+  responsibilities: |
+      - 🔗 Work closely with the CEO, CFO, and GTM leadership to scale Fleet's revenue engine, and own the pipeline number. 
+      - 🪶 Brainstorm content with industry experts, draft it with AI, [refine it](https://www.paulgraham.com/writing44.html), and own the content calendar.
+      - 🗺️ Run and attend digital events and physical events around the world.
+      - ⚡️ Focus the lasers and run 2 great campaigns per quarter that grow the company 25%+ each quarter.
+      - 🪴 Grow awareness for a widely-loved, fast-growing brand amongst enterprise IT and security teams.
+      - 🧠 Educate the world about [open device management](https://docs.google.com/document/u/0/d/1HNxFsz-LO82HQ4LPi5jYcIWeIgnddZHkMxxkBUidkEY/edit).
+  experience: |
+      - 💰 Led marketing during the journey between ~10-20M ARR at a B2B company.
+      - ☝️ Hands-on marketing experience as a team of 1.
+      - 🤘 Hands-on marketing experience with a team of >1.
+      - 🧑‍🎄 Experience marketing to enterprise accounts.
+      - 🧝 Experience marketing to IT engineers, security engineers, or DevOps teams.
+      - 🐙 Experience with open source and how to talk to users about it.
+      - 🧩 Think like an engineer: System-oriented. Iterative.
+      - 🧑‍🔧 You have low ego and will get your hands dirty. 
+
+
+
+- jobTitle: 🐋 Account Executive
+  department: Sales
+  hiringManagerName: Alex Mitchell
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
+  hiringManagerGithubUsername: alexmitchelliii
+  responsibilities: |
+      - 🖥️ Present and demonstrate the value of Fleet's products, services, and upgrades to help current and future customers find win-win commercial agreements.
+      - 🎯 Direct and participate in prospecting target companies, identifying key decision makers and influencers, leading when assigned/necessary/appropriate to help anticipate market trends and identify new opportunities for growth.
+      - 🛩️ Meet current and future customers where they are, literaly. Be proactive about meeting face to face to help understand them as people.
+      - 🧠 Work with Solutions Consultants to understand where prospects are technically, and remove any blockers to providing value to the organizations that work with Fleet.
+      - 📈 Use available data to identify opportunities and trends with individual prospects.
+      - 📣 Actively promote Fleet's product and services on social media and at in-person events and meetups.
+      - ⏫ Develop and own the relationships with Fleet's current and future customers, working closely with Customer Success to identify opportunities where Fleet can add value inside our current customer base.
+      - ❔ Follow MEDDPPICC process to qualify and progress opportunities to best help prospects solve problems.
+      - 🕴️ Utilize systems and tools such as salesforce to analyze pipeline and opportunity data and keep all information up to date for leadership reporting.
+      - 🦢 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on customer asks.
+      - 🤝 Collaborate with the marketing team to help execute and track marketing campaigns, in order to achieve quarterly pipeline and revenue targets.
+      - 🧑‍🔬 Perform processes as described in the [Sales](https://fleetdm.com/handbook/sales), [Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#go-to-market-groups), and other handbook pages.
+  experience: |
+      - 🦉 5+ years experience selling to enterprise customers.
+      - 📣 Have excellent communication and interpersonal skills.
+      - 🚀 Detail-oriented, highly organized, and able to move quickly to solve complex problems using boring solutions.
+      - 🧑‍💻 Love technology and can explain how things work in detail.
+      - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
+      - ⏩ Thrive in a complex, fast-paced, results driven environment with the ability to pivot to organizational changes easily.
+      - 📈 Shift gears between thinking and doing quickly to partner with various teams and stakeholders to drive sales.  
+      - 💭 You know how to manage manage your time and priorities between leads, complex sales opportunities, difficult escalations, challenging procurement processes, and other day-to-day responsibilities with the utmost care and organization.
+      - ✍ You have a strong understanding of the enterprise procurement process and the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and discuss the potential ROI of using Fleet to solve real problems in their organization.
+      - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+      - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
 

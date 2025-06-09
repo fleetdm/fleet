@@ -183,6 +183,7 @@ const DownloadInstallers = ({
     />
   );
 
+  // TODO: We should be rendering a Flash message instead
   if (isDownloadError) {
     return (
       <div className={`${baseClass}__error`}>

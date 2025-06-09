@@ -1,4 +1,8 @@
-import { size, startsWith } from "lodash";
+import { size } from "lodash";
+
+import validUrl from "components/forms/validators/valid_url";
+
+import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
 
 const validate = (formData) => {
   const errors = {};
@@ -6,10 +10,14 @@ const validate = (formData) => {
 
   if (!fleetWebAddress) {
     errors.server_url = "Fleet web address must be completed";
-  }
-
-  if (fleetWebAddress && !startsWith(fleetWebAddress, "https://")) {
-    errors.server_url = "Fleet web address must start with https://";
+  } else if (
+    !validUrl({
+      url: fleetWebAddress,
+      protocols: ["http", "https"],
+      allowLocalHost: true,
+    })
+  ) {
+    errors.server_url = INVALID_SERVER_URL_MESSAGE;
   }
 
   const valid = !size(errors);

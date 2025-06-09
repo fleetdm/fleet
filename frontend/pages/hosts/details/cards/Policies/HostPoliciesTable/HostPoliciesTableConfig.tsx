@@ -2,14 +2,17 @@ import React from "react";
 
 import { IHostPolicy } from "interfaces/policy";
 import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { noop } from "lodash";
 
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import Button from "components/buttons/Button";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
+interface IEnhancedHostPolicy extends IHostPolicy {
+  status: PolicyStatus | null;
+}
 interface IHeaderProps {
   column: {
     title: string;
@@ -17,19 +20,13 @@ interface IHeaderProps {
   };
 }
 
-type PolicyStatus = "pass" | "fail";
-
-interface IStatusCellValue {
-  displayName: string;
-  statusName: IndicatorStatus;
-  value: PolicyStatus;
-}
+export type PolicyStatus = "pass" | "fail" | "actionRequired"; // action required indicates a failed policy with conditional access enabled
 interface ICellProps {
   cell: {
     value: string;
   };
   row: {
-    original: IHostPolicy;
+    original: IEnhancedHostPolicy;
   };
 }
 
@@ -43,25 +40,35 @@ interface IDataColumn {
   sortType?: string;
 }
 
+const getPolicyStatus = (policy: IHostPolicy): PolicyStatus | null => {
+  if (policy.response === "pass") {
+    return "pass";
+  }
+  if (policy.response === "fail") {
+    if (policy.conditional_access_enabled) {
+      return "actionRequired";
+    }
+    return "fail";
+  }
+  // can occur when response === ""
+  return null;
+};
+
+const POLICY_STATUS_TO_INDICATOR_PARAMS: Record<
+  PolicyStatus,
+  [IndicatorStatus, string]
+> = {
+  pass: ["success", "Pass"],
+  fail: ["failure", "Fail"],
+  actionRequired: ["actionRequired", "Action required"],
+};
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generatePolicyTableHeaders = (
   togglePolicyDetails: (policy: IHostPolicy, teamId?: number) => void,
   currentTeamId?: number
 ): IDataColumn[] => {
-  const STATUS_CELL_VALUES: Record<PolicyStatus, IStatusCellValue> = {
-    pass: {
-      displayName: "Yes",
-      statusName: "success",
-      value: "pass",
-    },
-    fail: {
-      displayName: "No",
-      statusName: "error",
-      value: "fail",
-    },
-  };
-
   return [
     {
       title: "Name",
@@ -71,21 +78,7 @@ const generatePolicyTableHeaders = (
       Cell: (cellProps) => {
         const { name } = cellProps.row.original;
 
-        const onClickPolicyName = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-          togglePolicyDetails(cellProps.row.original);
-        };
-
-        return (
-          <Button
-            className="policy-info"
-            onClick={onClickPolicyName}
-            variant="text-icon"
-          >
-            <TooltipTruncatedText value={name} />
-          </Button>
-        );
+        return <LinkCell customOnClick={noop} tooltipTruncate value={name} />;
       },
     },
     {
@@ -97,19 +90,25 @@ const generatePolicyTableHeaders = (
         />
       ),
       disableSortBy: false,
-      sortType: "caseInsensitive",
-      accessor: "response",
+      sortType: "hostPolicyStatus",
+      accessor: "status",
       Cell: (cellProps) => {
-        if (cellProps.row.original.response === "") {
+        const {
+          row: {
+            original: { status },
+          },
+        } = cellProps;
+        if (status === null) {
           return <>{DEFAULT_EMPTY_CELL_VALUE}</>;
         }
-
-        const responseValue =
-          STATUS_CELL_VALUES[cellProps.row.original.response];
+        const [
+          indicatorStatus,
+          displayText,
+        ] = POLICY_STATUS_TO_INDICATOR_PARAMS[status];
         return (
           <StatusIndicatorWithIcon
-            value={responseValue.displayName}
-            status={responseValue.statusName}
+            value={displayText}
+            status={indicatorStatus}
           />
         );
       },
@@ -132,7 +131,7 @@ const generatePolicyTableHeaders = (
                       : PolicyResponse.FAILING,
                   team_id: currentTeamId,
                 }}
-                className="policy-link"
+                rowHover
               />
             )}
           </>
@@ -142,8 +141,13 @@ const generatePolicyTableHeaders = (
   ];
 };
 
-const generatePolicyDataSet = (policies: IHostPolicy[]): IHostPolicy[] => {
-  return policies;
+const generatePolicyDataSet = (
+  policies: IHostPolicy[]
+): IEnhancedHostPolicy[] => {
+  return policies.map((policy) => ({
+    ...policy,
+    status: getPolicyStatus(policy),
+  }));
 };
 
 export { generatePolicyTableHeaders, generatePolicyDataSet };

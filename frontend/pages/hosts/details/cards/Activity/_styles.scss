@@ -1,12 +1,12 @@
 .activity-card {
   position: relative;
 
-  h2 {
-    font-size: $medium;
-    margin: 0 0 $pad-large;
-  }
-
   &__loading-overlay {
+    // this is to center the loading spinner in the card
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
     height: 100%;
     width: 100%;
     position: absolute;
@@ -22,6 +22,6 @@
     font-size: $xx-small;
     position: absolute;
     top: 14px;
-    right: 0;
+    right: 14px;
   }
 }

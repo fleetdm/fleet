@@ -238,7 +238,7 @@ const Advanced = ({
               name="verifySSLCerts"
               value={verifySSLCerts}
               parseTarget
-              tooltipContent={
+              labelTooltipContent={
                 <>
                   Turn this off (not recommended) <br />
                   if you use a self-signed certificate{" "}
@@ -256,7 +256,7 @@ const Advanced = ({
               name="enableStartTLS"
               value={enableStartTLS}
               parseTarget
-              tooltipContent={
+              labelTooltipContent={
                 <>
                   Detects if STARTTLS is enabled <br />
                   in your SMTP server and starts <br />
@@ -278,7 +278,7 @@ const Advanced = ({
                   name="enableHostExpiry"
                   value={enableHostExpiry}
                   parseTarget
-                  tooltipContent={
+                  labelTooltipContent={
                     !disableChildren && (
                       <>
                         When enabled, allows automatic cleanup of
@@ -329,7 +329,7 @@ const Advanced = ({
                   name="deleteActivities"
                   value={deleteActivities}
                   parseTarget
-                  tooltipContent={
+                  labelTooltipContent={
                     !disableChildren && (
                       <>
                         When enabled, allows automatic cleanup of audit logs
@@ -373,7 +373,7 @@ const Advanced = ({
                   name="disableLiveQuery"
                   value={disableLiveQuery}
                   parseTarget
-                  tooltipContent={
+                  labelTooltipContent={
                     !disableChildren && (
                       <>
                         When enabled, disables the ability to run live queries{" "}
@@ -399,7 +399,7 @@ const Advanced = ({
                   name="disableScripts"
                   value={disableScripts}
                   parseTarget
-                  tooltipContent={
+                  labelTooltipContent={
                     !disableChildren && (
                       <>
                         Disabling script execution will block access to run
@@ -429,7 +429,7 @@ const Advanced = ({
                   name="disableAIFeatures"
                   value={disableAIFeatures}
                   parseTarget
-                  tooltipContent={
+                  labelTooltipContent={
                     !disableChildren && (
                       <>
                         When enabled, disables AI features such as pre-filling
@@ -459,7 +459,7 @@ const Advanced = ({
                   name="disableQueryReports"
                   value={disableQueryReports}
                   parseTarget
-                  tooltipContent={
+                  labelTooltipContent={
                     !disableChildren && (
                       <>
                         <>
@@ -486,20 +486,14 @@ const Advanced = ({
               )}
             />
           </div>
-          <GitOpsModeTooltipWrapper
-            tipOffset={-8}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                variant="brand"
-                disabled={Object.keys(formErrors).length > 0 || disableChildren}
-                className="save-loading button-wrap"
-                isLoading={isUpdatingSettings}
-              >
-                Save
-              </Button>
-            )}
-          />
+          <Button
+            type="submit"
+            disabled={Object.keys(formErrors).length > 0}
+            className="save-loading button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
         </form>
       </div>
     </div>

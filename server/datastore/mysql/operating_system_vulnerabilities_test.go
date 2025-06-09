@@ -239,6 +239,9 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, didInsertOrUpdate)
 
+	// make sure updated_at doesn't change on the next upsert call, as fields won't change
+	time.Sleep(1 * time.Second)
+
 	// Inserting the exact same vulnerability again should not insert and not update
 	didInsertOrUpdate, err = ds.InsertOSVulnerability(ctx, vulnsUpdate, fleet.MSRCSource)
 	require.NoError(t, err)

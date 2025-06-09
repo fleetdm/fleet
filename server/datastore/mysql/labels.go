@@ -15,6 +15,10 @@ import (
 )
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
+	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
+}
+
+func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
 		// label_membership_type or should those always be immutable?
@@ -28,8 +32,9 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			query,
 			platform,
 			label_type,
-			label_membership_type
-		) VALUES ( ?, ?, ?, ?, ?, ?)
+			label_membership_type,
+			author_id
+		) VALUES ( ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
@@ -37,7 +42,7 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			platform = VALUES(platform),
 			label_type = VALUES(label_type),
 			label_membership_type = VALUES(label_membership_type)
-	`
+		`
 
 		prepTx, ok := tx.(sqlx.PreparerContext)
 		if !ok {
@@ -53,7 +58,7 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			if s.Name == "" {
 				return ctxerr.New(ctx, "label name must not be empty")
 			}
-			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType)
+			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, authorID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
@@ -85,13 +90,13 @@ DELETE FROM label_membership WHERE label_id = ?
 			}
 
 			// Split hostnames into batches to avoid parameter limit in MySQL.
-			for _, hostnames := range batchHostnames(s.Hosts) {
+			for _, hostIdentifiers := range batchHostnames(s.Hosts) {
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
 				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT ?, id FROM hosts where hostname IN (?))
+INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?))
 `
-				sql, args, err := sqlx.In(sql, labelID, hostnames)
+				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
@@ -113,7 +118,12 @@ func batchHostnames(hostnames []string) [][]string {
 	// overflowing the MySQL max number of parameters (somewhere around 65,000
 	// but not well documented). Algorithm from
 	// https://github.com/golang/go/wiki/SliceTricks#batching-with-minimal-allocation
-	const batchSize = 50000 // Large, but well under the undocumented limit
+	//
+	// WARNING: This is used in ApplyLabelSpecsWithAuthor and the batch sizes have to be small
+	// enough to allow for three copies each hostname list in the query. The batch size is 20_000
+	// because 60_001 binding arguments is less than the maximum of 65,535.
+
+	const batchSize = 20_000 // Large, but well under the undocumented limit
 	batches := make([][]string, 0, (len(hostnames)+batchSize-1)/batchSize)
 
 	for batchSize < len(hostnames) {
@@ -260,8 +270,9 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		query,
 		platform,
 		label_type,
-		label_membership_type
-	) VALUES ( ?, ?, ?, ?, ?, ?)
+		label_membership_type,
+		author_id
+	) VALUES ( ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -272,6 +283,7 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label.Platform,
 		label.LabelType,
 		label.LabelMembershipType,
+		label.AuthorID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting label")

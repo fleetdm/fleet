@@ -261,14 +261,15 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
-	HostUUID      string             `db:"host_uuid" json:"-"`
-	CommandUUID   string             `db:"command_uuid" json:"-"`
-	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
-	Name          string             `db:"name" json:"name"`
-	Identifier    string             `db:"identifier" json:"-"`
-	Status        *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
-	Detail        string             `db:"detail" json:"detail"`
+	HostUUID           string             `db:"host_uuid" json:"-"`
+	CommandUUID        string             `db:"command_uuid" json:"-"`
+	ProfileUUID        string             `db:"profile_uuid" json:"profile_uuid"`
+	Name               string             `db:"name" json:"name"`
+	Identifier         string             `db:"identifier" json:"-"`
+	Status             *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType      MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail             string             `db:"detail" json:"detail"`
+	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"-"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
@@ -292,9 +293,11 @@ type HostMDMCertificateProfile struct {
 	ProfileUUID          string             `db:"profile_uuid"`
 	Status               *MDMDeliveryStatus `db:"status"`
 	ChallengeRetrievedAt *time.Time         `db:"challenge_retrieved_at"`
+	NotValidBefore       *time.Time         `db:"not_valid_before"`
 	NotValidAfter        *time.Time         `db:"not_valid_after"`
 	Type                 CAConfigAssetType  `db:"type"`
 	CAName               string             `db:"ca_name"`
+	Serial               *string            `db:"serial"`
 }
 
 type HostMDMProfileDetail string
@@ -350,17 +353,18 @@ func (p *MDMAppleProfilePayload) PendingInstallOnHost() bool {
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
-	ProfileUUID       string
-	ProfileIdentifier string
-	ProfileName       string
-	HostUUID          string
-	CommandUUID       string
-	OperationType     MDMOperationType
-	Status            *MDMDeliveryStatus
-	Detail            string
-	Checksum          []byte
-	SecretsUpdatedAt  *time.Time
-	IgnoreError       bool
+	ProfileUUID        string
+	ProfileIdentifier  string
+	ProfileName        string
+	HostUUID           string
+	CommandUUID        string
+	OperationType      MDMOperationType
+	Status             *MDMDeliveryStatus
+	Detail             string
+	Checksum           []byte
+	SecretsUpdatedAt   *time.Time
+	IgnoreError        bool
+	VariablesUpdatedAt *time.Time
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
@@ -460,6 +464,7 @@ type MDMAppleSetupPayload struct {
 	TeamID                      *uint `json:"team_id"`
 	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
 	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually"`
+	ManualAgentInstall          *bool `json:"manual_agent_install"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -667,7 +672,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 	var rawDecl MDMAppleRawDeclaration
 	if err := json.Unmarshal(raw, &rawDecl); err != nil {
-		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't upload. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
+		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't add. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
 	}
 
 	return &rawDecl, nil
@@ -781,8 +786,12 @@ type MDMAppleDDMManifest struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
-	Identifier  string `db:"identifier"`
-	ServerToken string `db:"token"`
+	DeclarationUUID string    `db:"declaration_uuid"`
+	Identifier      string    `db:"identifier"`
+	ServerToken     string    `db:"token"`
+	Status          *string   `db:"status"`
+	OperationType   *string   `db:"operation_type"`
+	UploadedAt      time.Time `db:"uploaded_at"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
@@ -972,11 +981,43 @@ type MDMAppleSoftwareUpdateAsset struct {
 	Build          string `json:"Build"`
 }
 
-type MDMBulkUpsertManagedCertificatePayload struct {
-	ProfileUUID          string
-	HostUUID             string
-	ChallengeRetrievedAt *time.Time
-	NotValidAfter        *time.Time
-	Type                 CAConfigAssetType
-	CAName               string
+type MDMManagedCertificate struct {
+	ProfileUUID          string            `db:"profile_uuid"`
+	HostUUID             string            `db:"host_uuid"`
+	ChallengeRetrievedAt *time.Time        `db:"challenge_retrieved_at"`
+	NotValidBefore       *time.Time        `db:"not_valid_before"`
+	NotValidAfter        *time.Time        `db:"not_valid_after"`
+	Type                 CAConfigAssetType `db:"type"`
+	CAName               string            `db:"ca_name"`
+	Serial               *string           `db:"serial"`
+}
+
+func (m MDMManagedCertificate) Equal(other MDMManagedCertificate) bool {
+	challengeEqual := m.ChallengeRetrievedAt == nil && other.ChallengeRetrievedAt == nil ||
+		m.ChallengeRetrievedAt != nil && other.ChallengeRetrievedAt != nil && m.ChallengeRetrievedAt.Equal(*other.ChallengeRetrievedAt)
+	validBeforeEqual := m.NotValidBefore == nil && other.NotValidBefore == nil ||
+		m.NotValidBefore != nil && other.NotValidBefore != nil && m.NotValidBefore.Equal(*other.NotValidBefore)
+	validAfterEqual := m.NotValidAfter == nil && other.NotValidAfter == nil ||
+		m.NotValidAfter != nil && other.NotValidAfter != nil && m.NotValidAfter.Equal(*other.NotValidAfter)
+	serialEqual := m.Serial == nil && other.Serial == nil ||
+		m.Serial != nil && other.Serial != nil && *m.Serial == *other.Serial
+	return m.ProfileUUID == other.ProfileUUID &&
+		m.HostUUID == other.HostUUID &&
+		challengeEqual &&
+		validBeforeEqual &&
+		validAfterEqual &&
+		m.Type == other.Type &&
+		m.CAName == other.CAName &&
+		serialEqual
+}
+
+// MDMAppleEnrolledDeviceInfo represents the information of a device enrolled
+// in Apple MDM. Used by the MDM flow to re-create an iDevice that has been
+// deleted from the hosts table but is still MDM-enrolled.
+type MDMAppleEnrolledDeviceInfo struct {
+	ID           string `db:"id"`
+	SerialNumber string `db:"serial_number"`
+	Authenticate string `db:"authenticate"`
+	Platform     string `db:"platform"`
+	EnrollTeamID *uint  `db:"enroll_team_id"`
 }

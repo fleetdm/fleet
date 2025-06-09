@@ -62,11 +62,30 @@ export interface ISoftwareInstallPolicy {
   name: string;
 }
 
+export type SoftwareCategory =
+  | "Browsers"
+  | "Communication"
+  | "Developer tools"
+  | "Productivity";
+
+export interface ISoftwarePackageStatus {
+  installed: number;
+  pending_install: number;
+  failed_install: number;
+  pending_uninstall: number;
+  failed_uninstall: number;
+}
+
+export interface ISoftwareAppStoreAppStatus {
+  installed: number;
+  pending: number;
+  failed: number;
+}
+
 export interface ISoftwarePackage {
   name: string;
-  last_install: string | null;
-  last_uninstall: string | null;
-  package_url: string;
+  title_id: number;
+  url: string;
   version: string;
   uploaded_at: string;
   install_script: string;
@@ -76,17 +95,14 @@ export interface ISoftwarePackage {
   automatic_install?: boolean; // POST only
   self_service: boolean;
   icon_url: string | null;
-  status: {
-    installed: number;
-    pending_install: number;
-    failed_install: number;
-    pending_uninstall: number;
-    failed_uninstall: number;
-  };
+  status: ISoftwarePackageStatus;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
+  categories?: SoftwareCategory[];
+  fleet_maintained_app_id?: number | null;
+  hash_sha256?: string | null;
 }
 
 export const isSoftwarePackage = (
@@ -102,19 +118,11 @@ export interface IAppStoreApp {
   icon_url: string;
   self_service: boolean;
   platform: typeof HOST_APPLE_PLATFORMS[number];
-  status: {
-    installed: number;
-    pending: number;
-    failed: number;
-  };
+  status: ISoftwareAppStoreAppStatus;
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   automatic_install?: boolean;
-  last_install?: {
-    install_uuid: string;
-    command_uuid: string;
-    installed_at: string;
-  } | null;
+  last_install?: IAppLastInstall | null;
   last_uninstall?: {
     script_execution_id: string;
     uninstalled_at: string;
@@ -122,6 +130,7 @@ export interface IAppStoreApp {
   version?: string;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface ISoftwareTitle {
@@ -186,6 +195,7 @@ export const SOURCE_TYPE_CONVERSION = {
   npm_packages: "Package (NPM)",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
+  tgz_packages: "Package (tar)",
   apps: "Application (macOS)",
   ios_apps: "Application (iOS)",
   ipados_apps: "Application (iPadOS)",
@@ -209,6 +219,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   portage_packages: "linux",
   rpm_packages: "linux",
   yum_sources: "linux",
+  tgz_packages: "linux",
   npm_packages: null,
   atom_packages: null,
   python_packages: null,
@@ -345,19 +356,33 @@ export interface IAppLastInstall {
   installed_at: string;
 }
 
+interface SignatureInformation {
+  installed_path: string;
+  team_identifier: string;
+  hash_sha256: string | null;
+}
+export interface ISoftwareLastUninstall {
+  install_uuid: string;
+  installed_at: string;
+}
+
 export interface ISoftwareInstallVersion {
   version: string;
+  bundle_identifier: string;
   last_opened_at: string | null;
   vulnerabilities: string[] | null;
   installed_paths: string[];
+  signature_information?: SignatureInformation[];
 }
 
 export interface IHostSoftwarePackage {
   name: string;
   self_service: boolean;
-  icon_url: string;
+  icon_url: string | null;
   version: string;
   last_install: ISoftwareLastInstall | null;
+  last_uninstall: ISoftwareLastUninstall | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface IHostAppStoreApp {
@@ -366,6 +391,7 @@ export interface IHostAppStoreApp {
   icon_url: string;
   version: string;
   last_install: IAppLastInstall | null;
+  categories?: SoftwareCategory[];
 }
 
 export interface IHostSoftware {
@@ -457,17 +483,31 @@ export interface IFleetMaintainedApp {
   id: number;
   name: string;
   version: string;
-  platform: Platform;
+  platform: FleetMaintainedAppPlatform;
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
+export type FleetMaintainedAppPlatform = Extract<
+  Platform,
+  "darwin" | "windows"
+>;
+
+export interface ICombinedFMA {
+  name: string;
+  macos: Omit<IFleetMaintainedApp, "name"> | null;
+  windows: Omit<IFleetMaintainedApp, "name"> | null;
+}
 export interface IFleetMaintainedAppDetails {
   id: number;
   name: string;
   version: string;
-  platform: Platform;
-  pre_install_script: string; // TODO: is this needed?
+  platform: FleetMaintainedAppPlatform;
+  pre_install_script: string;
   install_script: string;
-  post_install_script: string; // TODO: is this needed?
+  post_install_script: string;
   uninstall_script: string;
   url: string;
+  slug: string;
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
+  categories: SoftwareCategory[];
 }

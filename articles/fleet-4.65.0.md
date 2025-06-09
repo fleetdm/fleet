@@ -1,9 +1,5 @@
 # Fleet 4.65.0 | GitOps mode, automatically install software, certificates in host vitals
 
-<div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/z7pbLb9kp1c?si=xPhedv5F46oR8YR-" frameborder="0" allowfullscreen></iframe>
-</div>
-
 Fleet 4.65.0 is live. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.65.0) or continue reading to get the highlights.
 For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
@@ -19,23 +15,21 @@ You can now put Fleet in "GitOps mode" which puts the Fleet UI in a read-only mo
 
 ### Automatically install software
 
-Fleet now allows IT admins to install App Store apps on all your hosts without writing custom policies. This saves time when deploying apps across many hosts, making large-scale app deployment easier and more reliable. Learn more about installing software [here](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+Fleet now allows IT admins to [install App Store apps automatically](https://fleetdm.com/guides/automatic-software-install-in-fleet) on all your hosts without writing custom policies. This saves time when deploying apps across many hosts, making large-scale app deployment easier and more reliable.
 
 ### Certificates in host vitals
 
-The **Host details** page now displays a list of certificates for macOS, iOS, and iPadOS hosts. This helps IT teams quickly diagnose Wi-Fi or VPN connection issues by identifying missing or expired certificates that may be preventing network access. See more host vitals [here](https://fleetdm.com/vitals/battery).
+The **Host details** page now includes [certificates](https://fleetdm.com/vitals/host-certificates-mac-os#apple) for macOS, iOS, and iPadOS hosts as part of [host vitals](https://fleetdm.com/vitals). This helps IT teams quickly diagnose Wi-Fi or VPN connection issues by identifying missing or expired certificates that may be preventing network access.
 
 ## Changes
 
-### Security engineering
+### Security
 - Added UI for viewing certificate details on the host details and my device pages.
 - Added new features to include certificates in host vitals for macOS, iOS, and iPadOS.
 - Added the list host certificates (and list device's certificates) endpoints.
 - Improved the copy for the delete and transfer host modal to be more clear about the disk encryption key behavior.
 - Permit setting SSO metadata and metadata_url in gitops and UI.
 - Fixed an issue where the Show Query modal would truncate large queries.
-
-### Vulnerability management
 - Fixed Python for Windows software version mutation to avoid panics on software ingestion in some cases.
 - Prevented an invalid `FLEET_VULNERABILITIES_MAX_CONCURRENCY` value from causing deadlocks during vulnerability processing.
 - Updated default for vulnerabilities max concurrency from 5 to 1.
@@ -46,7 +40,7 @@ The **Host details** page now displays a list of certificates for macOS, iOS, an
 - Fixed an issue with increased resource usage during vulnerabilities processing by adding database indexes.
 - Fixed false-positives on released PowerShell versions for CVE-2025-21171 and all PowerShell versions on CVE-2023-48795.
 
-### IT engineering
+### IT
 - Implemented GitOps mode that locks settings in the UI that are managed by GitOps.
 - Allowed VPP apps to be automatically installed via a Fleet-created policy. 
 - Added ability for users to automatically install App Store Apps without writing a policy in the Fleet UI.

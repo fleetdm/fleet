@@ -1230,7 +1230,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
 
@@ -1270,7 +1269,6 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
       expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
   });

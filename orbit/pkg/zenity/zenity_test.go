@@ -27,12 +27,6 @@ func (m *mockExecCmd) runWithOutput(args ...string) ([]byte, int, error) {
 	return m.output, m.exitCode, nil
 }
 
-func (m *mockExecCmd) runWithStdin(args ...string) (func() error, error) {
-	m.capturedArgs = append(m.capturedArgs, args...)
-
-	return nil, nil
-}
-
 func TestShowEntryArgs(t *testing.T) {
 	testCases := []struct {
 		name         string
@@ -188,35 +182,6 @@ func TestShowInfoError(t *testing.T) {
 			}
 			err := z.ShowInfo(dialog.InfoOptions{})
 			require.ErrorIs(t, err, tt.expectedErr)
-		})
-	}
-}
-
-func TestProgressArgs(t *testing.T) {
-	testCases := []struct {
-		name         string
-		opts         dialog.ProgressOptions
-		expectedArgs []string
-	}{
-		{
-			name: "Basic Entry",
-			opts: dialog.ProgressOptions{
-				Title: "A Title",
-				Text:  "Some text",
-			},
-			expectedArgs: []string{"--progress", "--title=A Title", "--text=Some text", "--pulsate", "--no-cancel", "--auto-close"},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			mock := &mockExecCmd{}
-			z := &Zenity{
-				cmdWithCancel: mock.runWithStdin,
-			}
-			_, err := z.ShowProgress(tt.opts)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expectedArgs, mock.capturedArgs)
 		})
 	}
 }

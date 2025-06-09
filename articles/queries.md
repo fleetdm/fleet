@@ -2,7 +2,7 @@
 
 Queries in Fleet allow you to ask questions to help you manage, monitor, and identify threats on your devices. This guide will walk you through how to create, schedule, and run a query.
 
-> Note: Unless a logging infrastructure is configured on your Fleet server, osquery-related logs will be stored locally on each device. Read more [here](https://fleetdm.com/guides/log-destinations)
+> Unless a [log destination](https://fleetdm.com/guides/log-destinations) is configured, osquery logs will be stored locally on each device.
 
 > New users may find it helpful to start with Fleet's policies. You can find policies and queries from the community in Fleet's [query library](https://fleetdm.com/queries). To learn more about policies, see [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies) and [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies).
 
@@ -32,6 +32,11 @@ How to create a query:
 
 4. Select **Save**, enter a name and description for your query, select the frequency that the query should run at, and select **Save query**.
 
+## Targeting hosts using labels
+
+_Available in Fleet Premium._
+
+When creating or editing a query, you can restrict the set of hosts that it will run on by using [labels](https://fleetdm.com/guides/managing-labels-in-fleet).  By default, a new query will target all hosts, indicated by the **All Hosts** option being selected beneath the **Targets** setting.  If you select **Custom** instead, you will be able to select one or more labels for the query to target. Note that the query will run on any host that matches __any__ of the selected labels. To learn more about labels, see [Managing labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet).
 
 ## View a query report
 

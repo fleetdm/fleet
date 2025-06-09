@@ -27,10 +27,19 @@
       margin-bottom: 0px;
     }
   }
-
+  .header-hidden { // For scrolling the sidebars with the sticky header
+    transform: translateY(-81px);
+  }
   [purpose='platform-filters'] {
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 48px;
+    position: sticky;
+    top: 81px;
+    background: #FFF;
+    z-index: 4;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
     [purpose='platform-filter'] {
       width: 25%;
       display: flex;
@@ -43,6 +52,7 @@
         margin-right: 10px;
       }
       h1 {
+        scroll-margin-top: 120px;
         color: #192147;
         text-align: center;
         margin-bottom: 0px;
@@ -303,7 +313,7 @@
       height: 0px;
       position: absolute;
       right: 0;
-      top: 40px;
+      top: 14px;
     }
     pre {
       width: 100%;
@@ -475,6 +485,7 @@
     width: 100%;
     margin-bottom: 16px;
     margin-top: 16px;
+    overflow: hidden;
     p {
       color: var(--text-text-brand, #192147);
       margin-top: 0px;
@@ -608,7 +619,7 @@
     [purpose='schema-table'] {
       padding-top: 16px;
       [purpose='platform-logos'] {
-        top: 53px;
+        top: 32px;
       }
       [purpose='description-column'] {
         word-break: break-word;
@@ -645,6 +656,18 @@
       margin-right: 0px;
       border-bottom: 1px solid @core-vibrant-blue-15;
     }
+    [purpose='schema-table'] {
+      [purpose='platform-logos'] {
+        top: 32px;
+      }
+    }
+    [purpose='platform-filters'] {
+      [purpose='platform-filter'] {
+        img {
+          margin-right: 0px;
+        }
+      }
+    }
   }
 
   @media (max-width: 576px) {
@@ -677,6 +700,16 @@
       }
 
     }
+    [purpose='platform-filters'] {
+      [purpose='platform-filter'] {
+        max-width: 25%;
+        padding: 16px 24px 24px 24px;
+        &.selected {
+
+          padding: 16px 24px 22px 24px;
+        }
+      }
+    }
     [purpose='schema-table'] {
       h2 {
         margin-bottom: 72px;
@@ -691,7 +724,7 @@
         height: 24px;
         position: absolute;
         right: 0;
-        top: 95px;
+        top: 75px;
       }
       table {
         td:nth-child(3) {

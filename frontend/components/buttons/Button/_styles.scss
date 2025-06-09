@@ -11,8 +11,10 @@ $base-class: "button";
   background-color: $color;
 
   @if $inverse {
+    padding: $pad-small;
+
     &:hover {
-      background-color: rgba(#192147, 0.05);
+      background-color: rgba($core-fleet-black, 0.05);
 
       &:active {
         background-color: $ui-fleet-black-10;
@@ -85,7 +87,7 @@ $base-class: "button";
     align-items: center;
   }
 
-  &--brand {
+  &--default {
     @include button-variant(
       $core-vibrant-blue,
       $core-vibrant-blue-over,
@@ -96,7 +98,9 @@ $base-class: "button";
   }
 
   &--success {
-    @include button-variant($ui-success);
+    @include button-variant($ui-success, $ui-success-over, $ui-success-down);
+    display: flex;
+    text-wrap: nowrap;
   }
 
   &--alert {
@@ -116,27 +120,7 @@ $base-class: "button";
     }
   }
 
-  &--blue-green {
-    @include button-variant($ui-success);
-  }
-
-  &--grey {
-    @include button-variant(
-      $core-fleet-blue,
-      $core-fleet-blue-over,
-      $core-fleet-blue-down
-    );
-  }
-
-  &--warning {
-    @include button-variant($ui-warning);
-  }
-
-  &--link {
-    @include button-variant($core-fleet-purple);
-  }
-
-  &--label {
+  &--pill {
     @include button-variant(
       $ui-off-white,
       $core-vibrant-blue-over,
@@ -174,12 +158,6 @@ $base-class: "button";
     line-height: normal;
     text-align: left;
 
-    &:active {
-      color: $core-vibrant-blue-down;
-      box-shadow: none;
-      top: 0;
-    }
-
     &:focus {
       outline: none;
     }
@@ -192,15 +170,20 @@ $base-class: "button";
       text-decoration: underline;
     }
 
+    &:active {
+      color: $core-vibrant-blue-down;
+      box-shadow: none;
+      top: 0;
+    }
+
     &.light-text {
       font-weight: $regular;
     }
   }
 
-  // &--icon, &--small-icon used for no text and svg icons
+  // &--icon is used for svg icon buttons without text
   &--text-icon,
-  &--icon,
-  &--small-icon {
+  &--icon {
     @include button-variant(transparent);
     padding: 0;
     border: 0;
@@ -213,10 +196,6 @@ $base-class: "button";
 
     img {
       transform: scale(0.5);
-    }
-
-    &:active {
-      color: $core-vibrant-blue-down;
     }
 
     &:focus {
@@ -238,24 +217,43 @@ $base-class: "button";
 
     &:hover,
     &:focus {
-      color: $core-vibrant-blue;
+      color: $core-vibrant-blue-over;
 
       svg {
         path {
-          fill: $core-vibrant-blue;
+          fill: $core-vibrant-blue-over;
         }
       }
 
-      // The SVG icons in these buttons contain a `stroke` instead of a `fill`,
-      // so we need to modify that property instead. Adding a custom `fill`
-      // could make these icons render incorrectly.
-      &.input-field__copy-value-button,
-      &.windows-details-button,
-      [data-testid="chevron-right-icon"] {
+      &:active {
+        color: $core-vibrant-blue-down;
+
         svg {
           path {
-            fill: none;
-            stroke: $core-vibrant-blue-over;
+            fill: $core-vibrant-blue-down;
+          }
+        }
+      }
+
+      // If .button--icon-stroke is present, use stroke instead of fill
+      // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
+      // so we need to modify that property instead. Adding a custom `fill`
+      // could make these icons render incorrectly.
+      &.button--icon-stroke {
+        &:hover,
+        &:focus {
+          svg {
+            path {
+              fill: none; // Prevent fill from interfering
+              stroke: $core-vibrant-blue-over;
+            }
+          }
+          &:active {
+            svg {
+              path {
+                stroke: $core-vibrant-blue-down;
+              }
+            }
           }
         }
       }
@@ -268,51 +266,9 @@ $base-class: "button";
   }
 
   &--icon {
-    svg {
-      padding: $pad-icon;
-    }
-  }
-
-  &--small-icon {
+    height: initial; // Override 38px height
     svg {
       padding: $pad-small;
-    }
-  }
-
-  &--small-text-icon {
-    @include button-variant(transparent);
-    margin-left: $pad-medium;
-    padding: 4px;
-    border: 1px solid $ui-fleet-black-25;
-    box-shadow: none;
-    color: $core-fleet-black;
-    font-size: $xx-small;
-    font-weight: $bold;
-    cursor: pointer;
-    height: 28px;
-
-    img {
-      width: 12px;
-      height: 12px;
-      padding: $pad-small;
-    }
-
-    &:active {
-      color: $core-vibrant-blue-down;
-    }
-
-    &:focus-visible {
-      color: $core-vibrant-blue-over;
-      border: 1px;
-      border-radius: 2px; // Visble when tabbing
-      background: var(--Core-White, #fff);
-      outline: none;
-      box-shadow: 0px 0px 0px 2px #fff, 0px 0px 0px 4px #d9d9fe;
-    }
-
-    &:hover,
-    &:focus {
-      color: $core-vibrant-blue-over;
     }
   }
 
@@ -325,7 +281,10 @@ $base-class: "button";
     );
     color: $core-vibrant-blue;
     box-sizing: border-box;
-    padding: $pad-small;
+
+    .children-wrapper {
+      gap: $pad-small; // For icons next to text like Pagination buttons
+    }
   }
 
   &--inverse-alert {
@@ -336,27 +295,11 @@ $base-class: "button";
       $inverse: true
     );
     color: $core-vibrant-red;
-    border: 0;
     box-sizing: border-box;
-
-    &:hover,
-    &:focus {
-      border: 0;
-    }
-  }
-
-  &--block {
-    display: block;
-    width: 100%;
   }
 
   &--disabled {
     @include disabled;
-
-    &:hover,
-    &:focus {
-      cursor: default;
-    }
   }
 
   &--unstyled {
@@ -427,12 +370,6 @@ $base-class: "button";
         }
       }
     }
-  }
-
-  &--contextual-nav-item {
-    @include button-variant(transparent, $ui-vibrant-blue-10);
-    display: flex;
-    justify-content: space-between;
   }
 
   &--oversized {

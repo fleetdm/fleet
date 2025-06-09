@@ -113,10 +113,16 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 			operating_system_id = VALUES(operating_system_id),
 			source = VALUES(source),
 			resolved_in_version = VALUES(resolved_in_version),
-			updated_at = ?
+			updated_at = IF(
+				  VALUES(operating_system_id) = operating_system_id AND
+				  VALUES(source) = source
+				  AND VALUES(resolved_in_version) = resolved_in_version,
+			  updated_at,
+			  NOW()
+		  )
 	`
 
-	args = append(args, v.OSID, v.CVE, s, v.ResolvedInVersion, time.Now().UTC())
+	args = append(args, v.OSID, v.CVE, s, v.ResolvedInVersion)
 
 	res, err := ds.writer(ctx).ExecContext(ctx, sqlStmt, args...)
 	if err != nil {

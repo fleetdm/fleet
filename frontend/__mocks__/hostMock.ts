@@ -109,6 +109,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   users: [],
   policies: [],
   device_mapping: [],
+  end_users: [],
 };
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {
@@ -159,6 +160,7 @@ const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
     install_uuid: "123-abc",
     installed_at: "2022-01-01T12:00:00Z",
   },
+  last_uninstall: null,
 };
 
 export const createMockHostSoftwarePackage = (
@@ -195,6 +197,14 @@ const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
       last_opened_at: "2022-01-01T12:00:00Z",
       vulnerabilities: ["CVE-2020-0001"],
       installed_paths: ["/Applications/mock.app"],
+      bundle_identifier: "com.mock.software",
+      signature_information: [
+        {
+          installed_path: "/Applications/mock.app",
+          team_identifier: "12345TEAMIDENT",
+          hash_sha256: "mockhashhere",
+        },
+      ],
     },
   ],
 };

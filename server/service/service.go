@@ -62,6 +62,7 @@ type Service struct {
 
 	wstepCertManager  microsoft_mdm.CertManager
 	scepConfigService fleet.SCEPConfigService
+	digiCertService   fleet.DigiCertService
 }
 
 func (svc *Service) LookupGeoIP(ctx context.Context, ip string) *fleet.GeoLocation {
@@ -107,6 +108,7 @@ func NewService(
 	cronSchedulesService fleet.CronSchedulesService,
 	wstepCertManager microsoft_mdm.CertManager,
 	scepConfigService fleet.SCEPConfigService,
+	digiCertService fleet.DigiCertService,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -141,6 +143,7 @@ func NewService(
 		cronSchedulesService: cronSchedulesService,
 		wstepCertManager:     wstepCertManager,
 		scepConfigService:    scepConfigService,
+		digiCertService:      digiCertService,
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

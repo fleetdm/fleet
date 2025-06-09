@@ -26,6 +26,34 @@ type InstallerMetadata interface {
 	PolicyPlatform() (string, error)
 }
 
+type FMAInstallerMetadata struct {
+	Title    string
+	Platform string
+	Query    string
+}
+
+func (m FMAInstallerMetadata) PolicyName() (string, error) {
+	if m.Title == "" {
+		return "", ErrMissingTitle
+	}
+	return fmt.Sprintf("[Install software] %s", m.Title), nil
+}
+
+func (m FMAInstallerMetadata) PolicyDescription() (string, error) {
+	if m.Title == "" {
+		return "", ErrMissingTitle
+	}
+	return fmt.Sprintf("Policy triggers automatic install of %s on each host that's missing this software.", m.Title), nil
+}
+
+func (m FMAInstallerMetadata) PolicyQuery() (string, error) {
+	return m.Query, nil
+}
+
+func (m FMAInstallerMetadata) PolicyPlatform() (string, error) {
+	return m.Platform, nil
+}
+
 type MacInstallerMetadata struct {
 	BundleIdentifier string
 	// Title is the software title extracted from a software package.

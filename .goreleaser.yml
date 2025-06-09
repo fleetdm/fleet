@@ -119,10 +119,8 @@ dockers:
       - fleetctl
     dockerfile: tools/fleet-docker/Dockerfile
     image_templates:
-      - 'fleetdm/fleet:latest'
-      - 'fleetdm/fleet:{{ .Tag }}'
-      - 'fleetdm/fleet:{{ .Tag }}'
-      - 'fleetdm/fleet:v{{ .Major }}'
+      - "fleetdm/fleet:{{ .Tag }}"
+      - "fleetdm/fleet:v{{ .Major }}"
 
   - goos: linux
     goarch: amd64
@@ -132,13 +130,11 @@ dockers:
     build_flag_templates:
       - "--build-arg=binpath=fleetctl"
     image_templates:
-      - 'fleetdm/fleetctl:latest'
-      - 'fleetdm/fleetctl:{{ .Tag }}'
-      - 'fleetdm/fleetctl:{{ .Tag }}'
-      - 'fleetdm/fleetctl:v{{ .Major }}'
+      - "fleetdm/fleetctl:{{ .Tag }}"
+      - "fleetdm/fleetctl:v{{ .Major }}"
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 
 snapshot:
   version_template: "{{ .Tag }}-untagged"

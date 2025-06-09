@@ -126,7 +126,7 @@ type SoftwareInstaller struct {
 	// PostInstallScriptContentID is the ID of the post-install script content.
 	PostInstallScriptContentID *uint `json:"-" db:"post_install_script_content_id"`
 	// StorageID is the unique identifier for the software package in the software installer store.
-	StorageID string `json:"-" db:"storage_id"`
+	StorageID string `json:"hash_sha256" db:"storage_id"`
 	// Status is the status of the software installer package.
 	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 	// SoftwareTitle is the title of the software pointed installed by this installer.
@@ -136,8 +136,8 @@ type SoftwareInstaller struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
-	// FleetLibraryAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetLibraryAppID *uint `json:"-" db:"fleet_library_app_id"`
+	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -145,6 +145,11 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	// Source is the osquery source for this software.
+	Source string `json:"-" db:"source"`
+	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
+	// "Browsers", etc.
+	Categories []string `json:"categories"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -156,6 +161,10 @@ type SoftwarePackageResponse struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+	// HashSHA256 is the SHA256 hash of the software installer.
+	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
+	// ID of the Fleet Maintained App this package uses, if any
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
@@ -293,6 +302,7 @@ const (
 Exit code: %d (Failed)
 %s
 `
+	SoftwareInstallerDownloadFailedCopy = "Installing software...\nError: Software installer download failed."
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -313,13 +323,21 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 	if h.Output == nil || h.InstallScriptExitCode == nil {
 		return
 	}
-	if *h.InstallScriptExitCode == -2 {
+
+	switch *h.InstallScriptExitCode {
+	case 0:
+		// ok, continue
+	case ExitCodeScriptsDisabled:
 		*h.Output = SoftwareInstallerScriptsDisabledCopy
 		return
-	} else if *h.InstallScriptExitCode != 0 {
+	case ExitCodeInstallerDownloadFailed:
+		*h.Output = SoftwareInstallerDownloadFailedCopy
+		return
+	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
 		return
 	}
+
 	h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallSuccessCopy, *h.Output))
 
 	if h.PostInstallScriptExitCode == nil || h.PostInstallScriptOutput == nil {
@@ -343,32 +361,53 @@ func (s *HostSoftwareInstallerResultAuthz) AuthzType() string {
 }
 
 type UploadSoftwareInstallerPayload struct {
-	TeamID             *uint
-	InstallScript      string
-	PreInstallQuery    string
-	PostInstallScript  string
-	InstallerFile      *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
-	StorageID          string
-	Filename           string
-	Title              string
-	Version            string
-	Source             string
-	Platform           string
-	BundleIdentifier   string
-	SelfService        bool
-	UserID             uint
-	URL                string
-	FleetLibraryAppID  *uint
-	PackageIDs         []string
-	UninstallScript    string
-	Extension          string
-	InstallDuringSetup *bool    // keep saved value if nil, otherwise set as indicated
-	LabelsIncludeAny   []string // names of "include any" labels
-	LabelsExcludeAny   []string // names of "exclude any" labels
+	TeamID               *uint
+	InstallScript        string
+	PreInstallQuery      string
+	PostInstallScript    string
+	InstallerFile        *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StorageID            string
+	Filename             string
+	Title                string
+	Version              string
+	Source               string
+	Platform             string
+	BundleIdentifier     string
+	SelfService          bool
+	UserID               uint
+	URL                  string
+	FleetMaintainedAppID *uint
+	PackageIDs           []string
+	UninstallScript      string
+	Extension            string
+	InstallDuringSetup   *bool    // keep saved value if nil, otherwise set as indicated
+	LabelsIncludeAny     []string // names of "include any" labels
+	LabelsExcludeAny     []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// is nil if the labels have not been validated.
-	ValidatedLabels  *LabelIdentsWithScope
-	AutomaticInstall bool
+	ValidatedLabels       *LabelIdentsWithScope
+	AutomaticInstall      bool
+	AutomaticInstallQuery string
+	Categories            []string
+	CategoryIDs           []uint
+	// AddedAutomaticInstallPolicy is the auto-install policy that can be
+	// automatically created when a software installer is added to Fleet. This field should be set
+	// after software installer creation if AutomaticInstall is true.
+	AddedAutomaticInstallPolicy *Policy
+}
+
+type ExistingSoftwareInstaller struct {
+	InstallerID      uint     `db:"installer_id"`
+	TeamID           *uint    `db:"team_id"`
+	Filename         string   `db:"filename"`
+	Extension        string   `db:"extension"`
+	Version          string   `db:"version"`
+	Platform         string   `db:"platform"`
+	Source           string   `db:"source"`
+	BundleIdentifier *string  `db:"bundle_identifier"`
+	Title            string   `db:"title"`
+	PackageIDList    string   `db:"package_ids"`
+	PackageIDs       []string ``
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -398,6 +437,8 @@ type UpdateSoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// can be nil if the labels have not been validated or if the labels are not being updated.
 	ValidatedLabels *LabelIdentsWithScope
+	Categories      []string
+	CategoryIDs     []uint
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -421,15 +462,17 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 			return "apps", nil
 		}
 		return "pkg_packages", nil
+	case "tar.gz":
+		return "tgz_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
 }
 
-func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
+func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb", "rpm":
+	case "deb", "rpm", "tar.gz":
 		return "linux", nil
 	case "exe", "msi":
 		return "windows", nil
@@ -493,7 +536,9 @@ type SoftwarePackageOrApp struct {
 	PackageURL    *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
-	InstallDuringSetup *bool `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	InstallDuringSetup   *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	FleetMaintainedAppID *uint    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
+	Categories           []string `json:"categories,omitempty"`
 }
 
 type SoftwarePackageSpec struct {
@@ -506,6 +551,10 @@ type SoftwarePackageSpec struct {
 	LabelsIncludeAny  []string              `json:"labels_include_any"`
 	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
 
+	// FMA
+	Slug             *string `json:"slug"`
+	AutomaticInstall *bool   `json:"automatic_install"`
+
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
 	// side of processing. This is required to match a macos_setup.software to
@@ -514,12 +563,24 @@ type SoftwarePackageSpec struct {
 	// It must be JSON-marshaled because it gets set during gitops file processing,
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
-	ReferencedYamlPath string `json:"referenced_yaml_path"`
+	ReferencedYamlPath string   `json:"referenced_yaml_path"`
+	SHA256             string   `json:"hash_sha256"`
+	Categories         []string `json:"categories"`
+}
+
+type FleetMaintainedAppsSpec struct {
+	Slug             string   `json:"slug"`
+	AutomaticInstall *bool    `json:"automatic_install"`
+	SelfService      bool     `json:"self_service"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	Categories       []string `json:"categories"`
 }
 
 type SoftwareSpec struct {
-	Packages     optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
-	AppStoreApps optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
+	Packages            optjson.Slice[SoftwarePackageSpec]     `json:"packages,omitempty"`
+	FleetMaintainedApps optjson.Slice[FleetMaintainedAppsSpec] `json:"fleet_maintained_apps,omitempty"`
+	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a
@@ -594,6 +655,16 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 		return SoftwareInstallPending
 	}
 }
+
+const (
+	// ExitCodeScriptsDisabled is a special exit code returned by fleetd in the
+	// HostSoftwareInstallResultPayload when the install was attempted on a host with scripts
+	// disabled.
+	ExitCodeScriptsDisabled = -2
+	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
+	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
+	ExitCodeInstallerDownloadFailed = -3
+)
 
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.
 type SoftwareInstallerTokenMetadata struct {

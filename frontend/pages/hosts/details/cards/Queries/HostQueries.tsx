@@ -7,6 +7,7 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -156,12 +157,12 @@ const HostQueries = ({
 
   return (
     <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      largePadding
       className={baseClass}
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
     >
-      <p className="card__header">Queries</p>
+      <CardHeader header="Queries" />
       {renderHostQueries()}
     </Card>
   );

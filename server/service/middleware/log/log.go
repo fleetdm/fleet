@@ -37,3 +37,10 @@ func LogRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWrit
 		return ctx
 	}
 }
+
+func LogResponseEndMiddleware(logger kitlog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+		LogRequestEnd(logger)(r.Context(), w)
+	})
+}

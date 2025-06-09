@@ -28,24 +28,19 @@ import Card from "components/Card";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
 
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
 import FleetAppDetailsModal from "./FleetAppDetailsModal";
 
-import {
-  getErrorMessage,
-  getFleetAppPolicyDescription,
-  getFleetAppPolicyName,
-  getFleetAppPolicyQuery,
-} from "./helpers";
+import { getErrorMessage } from "./helpers";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
 const REQUEST_TIMEOUT_ERROR_MESSAGE =
-  "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
-const AUTOMATIC_POLICY_ERROR_MESSAGE =
-  "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.";
+  "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -131,6 +126,7 @@ const FleetMaintainedAppDetailsPage = ({
 
   const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
+
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
@@ -140,6 +136,10 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAddFleetAppSoftwareModal,
   ] = useState(false);
   const [showAppDetailsModal, setShowAppDetailsModal] = useState(false);
+  const [
+    showPreviewEndUserExperience,
+    setShowPreviewEndUserExperience,
+  ] = useState(false);
 
   const {
     data: fleetApp,
@@ -147,7 +147,7 @@ const FleetMaintainedAppDetailsPage = ({
     isError: isErrorFleetApp,
   } = useQuery(
     ["fleet-maintained-app", appId],
-    () => softwareAPI.getFleetMaintainedApp(appId),
+    () => softwareAPI.getFleetMaintainedApp(appId, teamId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
@@ -180,6 +180,10 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAppDetailsModal(true);
   };
 
+  const onClickPreviewEndUserExperience = () => {
+    setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
+  };
+
   const backToAddSoftwareUrl = getPathWithQueryParams(
     PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
     { team_id: teamId }
@@ -195,22 +199,21 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
-    let titleId: number | undefined;
     try {
-      const res = await softwareAPI.addFleetMaintainedApp(
-        parseInt(teamId, 10),
-        {
-          ...formData,
-          appId,
-        }
-      );
-      titleId = res.software_title_id;
+      const {
+        software_title_id: softwareFmaTitleId,
+      } = await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
+        ...formData,
+        appId,
+      });
 
       router.push(
-        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-          team_id: teamId,
-          available_for_install: true,
-        })
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
+          {
+            team_id: teamId,
+          }
+        )
       );
 
       renderFlash(
@@ -249,7 +252,7 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     if (isErrorFleetApp || isErrorLabels) {
-      return <DataError className={`${baseClass}__data-error`} />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (fleetApp) {
@@ -270,16 +273,25 @@ const FleetMaintainedAppDetailsPage = ({
             />
             <FleetAppDetailsForm
               labels={labels || []}
+              categories={fleetApp.categories}
               name={fleetApp.name}
               showSchemaButton={!isSidePanelOpen}
               defaultInstallScript={fleetApp.install_script}
               defaultPostInstallScript={fleetApp.post_install_script}
               defaultUninstallScript={fleetApp.uninstall_script}
+              teamId={teamId}
               onClickShowSchema={() => setSidePanelOpen(true)}
               onCancel={onCancel}
               onSubmit={onSubmit}
+              softwareTitleId={fleetApp.software_title_id}
+              onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
             />
           </div>
+          {showPreviewEndUserExperience && (
+            <CategoriesEndUserExperienceModal
+              onCancel={onClickPreviewEndUserExperience}
+            />
+          )}
         </>
       );
     }
@@ -308,6 +320,7 @@ const FleetMaintainedAppDetailsPage = ({
           name={fleetApp.name}
           platform={fleetApp.platform}
           version={fleetApp.version}
+          slug={fleetApp.slug}
           url={fleetApp.url}
           onCancel={() => setShowAppDetailsModal(false)}
         />

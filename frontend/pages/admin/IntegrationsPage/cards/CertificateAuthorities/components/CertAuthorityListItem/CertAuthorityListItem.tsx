@@ -47,6 +47,16 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
   );
 };
 
+const generateCertDetails = (certId: string) => {
+  if (certId.includes("ndes")) {
+    return "Microsoft Network Device Enrollment Service (NDES)";
+  } else if (certId.includes("digicert")) {
+    return "DigiCert";
+  }
+
+  return "Custom Simple Certificate Enrollment Protocol (SCEP)";
+};
+
 interface ICertAuthorityListItemProps {
   cert: ICertAuthorityListData;
   onClickEdit: () => void;
@@ -63,7 +73,7 @@ const CertAuthorityListItem = ({
       className={baseClass}
       graphic="file-certificate"
       title={cert.name}
-      details={cert.name}
+      details={generateCertDetails(cert.id)}
       actions={<Actions onEdit={onClickEdit} onDelete={onClickDelete} />}
     />
   );

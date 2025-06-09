@@ -7,9 +7,7 @@
     font-size: $x-small;
     font-weight: $bold;
   }
-
-  &__btn-label {
-    display: flex;
-    gap: $pad-small;
+  &__add-button {
+    height: auto;
   }
 }

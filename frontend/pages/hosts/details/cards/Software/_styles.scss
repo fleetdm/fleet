@@ -1,9 +1,4 @@
 .software-card {
-  .card-header {
-    font-weight: $bold;
-    margin: 0 0 $pad-large 0;
-  }
-
   .table-container {
     .stackable-header {
       min-width: initial; // Fix card overflow on low widths
@@ -12,6 +7,9 @@
 
   .table-container__search-input {
     width: 100%;
+  }
+
+  @media (min-width: ($break-md)) {
     min-width: 305px; // Custom to fit placeholder text
   }
 
@@ -21,8 +19,8 @@
 
   .host-software-table {
     &__software-filter {
-      min-width: 215px;
-      width: 215px; // Override .form-field 100%
+      min-width: 240px;
+      width: 240px; // Override .form-field 100%
     }
 
     &__filters {
@@ -32,6 +30,10 @@
       .children-wrapper {
         gap: $pad-small;
       }
+    }
+
+    .table-container__search-input .input-with-icon {
+      min-width: 305px; // Fit placeholder text
     }
 
     .data-table-block {
@@ -54,11 +56,12 @@
           }
           .Vulnerabilities__header {
             display: table-cell;
+            max-width: px-to-rem(140);
           }
           // this is called `id` only due to typing concerns in the table config – it is for the
-          // "Show details" column
+          // "Actions" column
           .id__header {
-            width: px-to-rem(90);
+            width: px-to-rem(72);
           }
           @media (max-width: ($break-xl - 1)) {
             .source__header {
@@ -105,22 +108,34 @@
                 width: 0;
               }
             }
+
+            // Very little real estate at 768px
+            @media (max-width: ($break-sm - 1)) {
+              .name__cell {
+                .software-name {
+                  max-width: 190px;
+                }
+              }
+
+              .Version__cell {
+                .text-cell {
+                  max-width: 95px;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      @media (max-width: ($break-sm - 1)) {
+        .data-table__table {
+          th,
+          td {
+            padding-left: $pad-medium;
+            padding-right: $pad-medium;
           }
         }
       }
     }
-  }
-}
-
-.device-software {
-  .card-header {
-    font-weight: $regular;
-    margin: 0 0 $pad-small 0;
-  }
-
-  .card-subheader {
-    margin: 0 0 $pad-large 0;
-    color: $ui-fleet-black-75;
-    font-size: $x-small;
   }
 }

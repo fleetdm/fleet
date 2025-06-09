@@ -53,7 +53,7 @@ const TeamHostExpiryToggle = ({
         value={teamExpiryEnabled || globalHostExpiryEnabled} // Still shows checkmark if global expiry is enabled though the checkbox will be disabled.
         disabled={globalHostExpiryEnabled || gitopsModeEnabled}
         helpText={renderHelpText()}
-        tooltipContent={
+        labelTooltipContent={
           <>
             When enabled, allows automatic cleanup of
             <br />

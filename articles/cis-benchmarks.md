@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_.
 
-CIS Benchmarks represent the consensus-based effort of cybersecurity experts globally to help you protect your systems against threats more confidently.
+CIS Benchmarks represent the consensus-based effort of cybersecurity experts to help you protect your systems against threats more confidently.
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
 Fleet has implemented native support for CIS Benchmarks for the following platforms:
@@ -14,7 +14,9 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](https://fleetdm.com/docs/rest-api/rest-api#policies) in Fleet. 
 
-These benchmarks are intended to gauge your organization's security posture, rather than the current state of a given host. A host may fail a CIS Benchmark policy despite having the correct settings enabled if there is no configuration profile or Group Policy Object (GPO) in place to enforce the setting. For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
+These policy queries are intended to assess your organization's security posture against the CIS benchmarks. Because the policy queries alone do not remediate security issues, a host may fail a CIS Benchmark policy if there is no device profile or script in place to enforce the setting. By enabling [automations](https://fleetdm.com/guides/automations#basic-article) in Fleet, these policy queries can used as the basis for managing security compliance and remediation in Fleet.
+
+For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
 
 ```sql
 SELECT 1 WHERE 
@@ -38,7 +40,7 @@ SELECT 1 WHERE
         );  
 ```
 
-Two things are being evaluated in this policy:
+This policy is evaluating 2 attributes:
 
 1. Is FileVault currently enabled?
 2. Is there a profile in place that prevents FileVault from being disabled?
@@ -47,27 +49,58 @@ If either of these conditions fails, the host is considered to be failing the po
 
 ## How to add CIS Benchmarks
 
-All CIS policies are stored under our restricted licensed folder `ee/cis/`.
+All CIS policies are stored under our restricted licensed folder `ee/cis/`. To easily convert the [CIS benchmarks YAML raw file](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/cis/macos-14/cis-policy-queries.yml) to a YAML array format compatible with Fleet GitOps, follow these steps:
 
-How to import them to Fleet:
-```sh
-# Download policy queries from Fleet's repository 
-# macOS 13
-wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/macos-13/cis-policy-queries.yml
+1. Install [yq](https://github.com/mikefarah/yq) if you don't have it already. (yq is a command-line YAML, JSON and XML processor.)
+2. Run this Shell script to transform the policies into [Fleet YAML](https://fleetdm.com/docs/configuration/yaml-files):
 
-# Windows 10 (note the same file name. Rename as needed.)
-wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/win-10/cis-policy-queries.yml
+```
+#!/bin/bash
+#shellcheck disable=SC2207
 
-# Windows 11 (note the same file name. Rename as needed.)
-wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/win-11/cis-policy-queries.yml
 
-# Apply the downloaded policies to Fleet for all files.
-fleetctl apply --context <context> -f <path-to-macOS-13-policies> --policies-team <team-name>
-fleetctl apply --context <context> -f <path-to-windows-10-policies> --policies-team <team-name>
-fleetctl apply --context <context> -f <path-to-windows-11-policies> --policies-team <team-name>
+# convert.cis.policy.queries.yml @2024 Fleet Device Management
+
+
+# CIS queries as written here:
+#    https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/cis-policy-queries.yml
+# must be converted to be uploaded via Fleet GitOps.
+#
+# This script takes as input the YAML from the file linked above & creates a new YAML array compatible with the "Separate file" format documented here:
+#    https://fleetdm.com/docs/configuration/yaml-files#separate-file
+
+
+# get CIS queries raw file from Fleet repo
+cisfile='https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/cis/macos-14/cis-policy-queries.yml'
+cispath='/private/tmp/cis.yml'
+# cisspfl='/private/tmp/cis.gitops.yml'
+
+/usr/bin/curl -X GET -LSs "$cisfile" -o "$cispath"
+
+
+# create CIS benchmark array
+IFS=$'\n'
+cisarry=($(/opt/homebrew/bin/yq '.spec.name' "$cispath" | /usr/bin/grep -v '\-\-\-'))
+
+for i in "${cisarry[@]}"
+do
+	cisname="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval '.name')"
+	cispfrm="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval '.platform')"
+	cisdscr="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval --unwrapScalar=true '.description')"
+	cisrslt="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval --unwrapScalar=true '.resolution')"
+	cisqrry="$(/opt/homebrew/bin/yq ".[] | select(.name == \"$i\") | (del(.platforms)) | (del(.purpose)) | (del(.tags)) | (del(.contributors))" "$cispath" | /opt/homebrew/bin/yq eval --unwrapScalar=true '.query')" 
+
+	printf "name: %s\nplatform: %s\ndescription: |\n%s\nresolution: |\n%s\nquery: |\n%s\n" "$cisname" "$cispfrm" "$cisdscr" "$cisrslt" "$cisqrry" | /usr/bin/sed 's/^/    /g;s/^[[:space:]]*name:/- name:/;s/^[[:space:]]*platform:/  platform:/;s/^[[:space:]]*description:/  description:/;s/^[[:space:]]*resolution:/  resolution:/;s/^[[:space:]]*query:/  query:/'
+
+# set -x
+# trap read debug
+
+done
 ```
 
-To apply the policies on a specific team use the `--policies-team` flag:
+3. The converted YAML is written to standard out in the Terminal. Copy/paste the CIS policies you wish to use into your own YAML file and run Fleet GitOps.
+
+If you're using `fleetctl apply`, you can apply the policies to a specific team use the `--policies-team` flag:
 ```sh
 fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 ```
@@ -109,9 +142,7 @@ Certain benchmarks cannot be automated by a policy in Fleet. For a list of speci
 - [Windows 11 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/README.md)
 
 ## Performance testing
-In August 2023, we completed scale testing on 10k Windows hosts and 70k macOS hosts. Ultimately, we validated both server and host performance at that scale.
-
-Detailed results are [here](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing).
+In August 2023, we completed [scale testing on 10k Windows hosts and 70k macOS hosts](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing). Ultimately, we validated both server and host performance at that scale.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="lucasmrod">

@@ -598,7 +598,7 @@ const SelectTargets = ({
         <Button
           className={`${baseClass}__btn`}
           type="button"
-          variant="blue-green"
+          variant="success"
           disabled={isFetchingCounts || !counts?.targets_count} // TODO: confirm
           onClick={onClickRun}
         >

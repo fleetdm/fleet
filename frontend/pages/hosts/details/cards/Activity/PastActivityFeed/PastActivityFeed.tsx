@@ -3,10 +3,8 @@ import React from "react";
 import { IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
 
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
-import Button from "components/buttons/Button";
 import DataError from "components/DataError";
+import Pagination from "components/Pagination";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
@@ -31,7 +29,7 @@ const PastActivityFeed = ({
   onPreviousPage,
 }: IPastActivityFeedProps) => {
   if (isError) {
-    return <DataError className={`${baseClass}__error`} />;
+    return <DataError verticalPaddingSize="pad-large" />;
   }
 
   if (!activities) {
@@ -66,28 +64,13 @@ const PastActivityFeed = ({
           );
         })}
       </div>
-      <div className={`${baseClass}__pagination`}>
-        <Button
-          disabled={!meta.has_previous_results}
-          onClick={onPreviousPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            <FleetIcon name="chevronleft" /> Previous
-          </>
-        </Button>
-        <Button
-          disabled={!meta.has_next_results}
-          onClick={onNextPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            Next <FleetIcon name="chevronright" />
-          </>
-        </Button>
-      </div>
+      <Pagination
+        disablePrev={!meta.has_previous_results}
+        disableNext={!meta.has_next_results}
+        hidePagination={!meta.has_next_results && !meta.has_previous_results}
+        onPrevPage={onPreviousPage}
+        onNextPage={onNextPage}
+      />
     </div>
   );
 };

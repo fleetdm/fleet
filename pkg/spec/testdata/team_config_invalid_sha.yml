@@ -1,0 +1,64 @@
+name: Team1
+team_settings:
+  secrets:
+  webhook_settings:
+    failing_policies_webhook:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: true
+    host_expiry_window: 30
+agent_options:
+  command_line_flags:
+    distributed_denylist_duration: 0
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/v1/osquery/log
+      pack_delimiter: /
+policies:
+queries:
+controls:
+  macos_settings:
+    custom_settings:
+  windows_settings:
+    custom_settings:
+  scripts:
+  enable_disk_encryption: true
+  macos_setup:
+    bootstrap_package: null
+    enable_end_user_authentication: false
+    macos_setup_assistant: null
+  macos_updates:
+    deadline: null
+    minimum_version: null
+  ios_updates:
+    deadline: null
+    minimum_version: null
+  ipados_updates:
+    deadline: null
+    minimum_version: null
+  windows_updates:
+    deadline_days: null
+    grace_period_days: null
+  macos_migration:
+    enable: false
+    mode: ""
+    webhook_url: ""
+  windows_enabled_and_configured: true
+  windows_migration_enabled: false
+software:
+  app_store_apps:
+    - app_store_id: "123456"
+  packages:
+    - path: ./microsoft-teams.invalid.sha.pkg.software.yml
+    - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
+      self_service: true

@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,12 +29,12 @@ func TestTimeout(t *testing.T) {
 	}))
 	defer mockDigiCertServer.Close()
 
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	config := fleet.DigiCertIntegration{
 		URL:       mockDigiCertServer.URL,
 		APIToken:  "api_token",
 		ProfileID: profileID,
 	}
-	err := VerifyProfileID(context.Background(), logger, config, WithTimeout(1*time.Millisecond))
+	s := NewService(WithTimeout(1 * time.Millisecond))
+	err := s.VerifyProfileID(context.Background(), config)
 	assert.ErrorContains(t, err, "deadline exceeded")
 }

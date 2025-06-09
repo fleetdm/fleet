@@ -2,7 +2,12 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
-import { IActivity, IActivityDetails } from "interfaces/activity";
+import {
+  IActivity,
+  IActivityDetails,
+  IHostPastActivity,
+  IHostUpcomingActivity,
+} from "interfaces/activity";
 import {
   addGravatarUrlToResource,
   internationalTimeFormat,
@@ -19,9 +24,19 @@ import { noop } from "lodash";
 
 const baseClass = "activity-item";
 
+const generateActivityId = (
+  activity: IActivity | IHostPastActivity | IHostUpcomingActivity
+) => {
+  if ("id" in activity) {
+    return `activity-${activity.id}`;
+  }
+  return `activity-${activity.uuid}`;
+};
+
 export interface IShowActivityDetailsData {
   type: string;
   details?: IActivityDetails;
+  created_at?: string;
 }
 
 /**
@@ -32,10 +47,11 @@ export interface IShowActivityDetailsData {
 export type ShowActivityDetailsHandler = ({
   type,
   details,
+  created_at,
 }: IShowActivityDetailsData) => void;
 
 interface IActivityItemProps {
-  activity: IActivity;
+  activity: IActivity | IHostPastActivity | IHostUpcomingActivity;
   children: React.ReactNode;
   /**
    * Set this to `true` when rendering only this activity by itself. This will
@@ -99,14 +115,23 @@ const ActivityItem = ({
     [`${baseClass}__no-details`]: hideShowDetails,
   });
 
-  const onShowActivityDetails = () => {
-    onShowDetails({ type: activity.type, details: activity.details });
+  const onShowActivityDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // added this stopPropagation as there is some weirdness around the event
+    // bubbling up and calling the Modals onEnter handler.
+    e.stopPropagation();
+    onShowDetails({
+      type: activity.type,
+      details: activity.details,
+      created_at: activity.created_at,
+    });
   };
 
   const onCancelActivity = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onCancel();
   };
+
+  const tooltipId = generateActivityId(activity);
 
   return (
     <div className={classNames}>
@@ -121,7 +146,8 @@ const ActivityItem = ({
         />
         <div className={`${baseClass}__avatar-lower-dash`} />
       </div>
-      <div
+      <button
+        disabled={hideShowDetails}
         className={`${baseClass}__details-wrapper`}
         onClick={onShowActivityDetails}
       >
@@ -133,7 +159,7 @@ const ActivityItem = ({
           <span
             className={`${baseClass}__details-bottomline`}
             data-tip
-            data-for={`activity-${activity.id}`}
+            data-for={tooltipId}
           >
             {activityCreatedAt && dateAgo(activityCreatedAt)}
           </span>
@@ -143,7 +169,7 @@ const ActivityItem = ({
               place="top"
               type="dark"
               effect="solid"
-              id={`activity-${activity.id}`}
+              id={tooltipId}
               backgroundColor={COLORS["tooltip-bg"]}
             >
               {internationalTimeFormat(activityCreatedAt)}
@@ -152,12 +178,17 @@ const ActivityItem = ({
         </div>
         <div className={`${baseClass}__details-actions`}>
           {!hideShowDetails && (
-            <Button variant="icon" onClick={onShowActivityDetails}>
+            <Button
+              className={`${baseClass}__action-button`}
+              variant="icon"
+              onClick={onShowActivityDetails}
+            >
               <Icon name="info-outline" />
             </Button>
           )}
           {!hideCancel && (
             <Button
+              className={`${baseClass}__action-button`}
               variant="icon"
               onClick={onCancelActivity}
               disabled={disableCancel}
@@ -170,7 +201,7 @@ const ActivityItem = ({
             </Button>
           )}
         </div>
-      </div>
+      </button>
     </div>
   );
 };

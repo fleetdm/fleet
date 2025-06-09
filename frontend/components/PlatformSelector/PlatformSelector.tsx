@@ -76,7 +76,7 @@ export const PlatformSelector = ({
 
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Target:</span>
+      <span className={labelClasses}>Target</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}
@@ -112,7 +112,6 @@ export const PlatformSelector = ({
         </Checkbox>
       </span>
       <div className="form-field__help-text">
-        Policy runs on all hosts with these platforms.
         {renderInstallSoftwareHelpText()}
       </div>
     </div>

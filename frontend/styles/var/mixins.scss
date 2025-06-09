@@ -123,6 +123,12 @@ $max-width: 2560px;
   filter: grayscale(0.5);
   pointer-events: none;
   cursor: default;
+
+  // Must override
+  &:hover,
+  &:focus {
+    cursor: default;
+  }
 }
 
 @mixin disabled-checkbox {
@@ -140,7 +146,9 @@ $max-width: 2560px;
   font-size: $xx-small;
   font-weight: $regular;
   @include grey-text;
-  .custom-link {
+
+  .custom-link,
+  button {
     font-size: inherit;
   }
 }
@@ -198,11 +206,11 @@ $max-width: 2560px;
   }
 }
 
-@mixin ellipse-text($width: auto) {
+@mixin ellipse-text($max-width: auto) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  width: $width;
+  max-width: $max-width;
 }
 
 @mixin copy-message {
@@ -241,6 +249,13 @@ $max-width: 2560px;
   z-index: 100;
   line-height: 1.375;
   white-space: initial;
+
+  // Hyphenated words will still break at hyphens first
+  //  while non-hyphenated strings will break only when necessary
+  overflow-wrap: break-word; // Preferred property for modern browsers
+  word-wrap: break-word; // Fallback for older browsers e.g. IE
+  word-break: break-word; // Ensures words break when necessary
+
   p {
     margin: 0;
   }

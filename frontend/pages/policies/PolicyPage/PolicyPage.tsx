@@ -75,6 +75,8 @@ const PolicyPage = ({
     setLastEditedQueryResolution,
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
+    setLastEditedQueryLabelsIncludeAny,
+    setLastEditedQueryLabelsExcludeAny,
     setPolicyTeamId,
   } = useContext(PolicyContext);
 
@@ -173,6 +175,12 @@ const PolicyPage = ({
         setLastEditedQueryResolution(returnedQuery.resolution);
         setLastEditedQueryCritical(returnedQuery.critical);
         setLastEditedQueryPlatform(returnedQuery.platform);
+        setLastEditedQueryLabelsIncludeAny(
+          returnedQuery.labels_include_any || []
+        );
+        setLastEditedQueryLabelsExcludeAny(
+          returnedQuery.labels_exclude_any || []
+        );
         // TODO(sarah): What happens if the team id in the policy response doesn't match the
         // url param? In theory, the backend should ensure this doesn't happen.
         setPolicyTeamId(

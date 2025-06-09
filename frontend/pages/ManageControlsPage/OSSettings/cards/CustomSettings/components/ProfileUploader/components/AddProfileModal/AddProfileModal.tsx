@@ -233,7 +233,6 @@ const AddProfileModal = ({
             <div className={`${baseClass}__button-wrap`}>
               <Button
                 className={`${baseClass}__add-profile-button`}
-                variant="brand"
                 onClick={onFileUpload}
                 isLoading={isLoading}
                 disabled={

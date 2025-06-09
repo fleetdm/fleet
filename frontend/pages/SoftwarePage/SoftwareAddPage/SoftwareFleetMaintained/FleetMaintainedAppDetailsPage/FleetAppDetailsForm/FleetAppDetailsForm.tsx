@@ -1,26 +1,54 @@
 import React, { useContext, useState } from "react";
-
 import { AppContext } from "context/app";
 
 import { ILabelSummary } from "interfaces/label";
+import { SoftwareCategory } from "interfaces/software";
 
-import RevealButton from "components/buttons/RevealButton";
-import Button from "components/buttons/Button";
-import Card from "components/Card";
-import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
-import TargetLabelSelector from "components/TargetLabelSelector";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
 } from "pages/SoftwarePage/helpers";
+import { getPathWithQueryParams } from "utilities/url";
+import paths from "router/paths";
 
-import AdvancedOptionsFields from "pages/SoftwarePage/components/AdvancedOptionsFields";
+import RevealButton from "components/buttons/RevealButton";
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import TargetLabelSelector from "components/TargetLabelSelector";
+import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
+import AdvancedOptionsFields from "pages/SoftwarePage/components/forms/AdvancedOptionsFields";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { generateFormValidation } from "./helpers";
 
 const baseClass = "fleet-app-details-form";
 
+export const softwareAlreadyAddedTipContent = (
+  softwareTitleId?: number,
+  teamId?: string
+) => {
+  const pathToSoftwareTitles = softwareTitleId
+    ? getPathWithQueryParams(
+        paths.SOFTWARE_TITLE_DETAILS(softwareTitleId.toString()),
+        {
+          team_id: teamId,
+        }
+      )
+    : "";
+  return (
+    <>
+      You already added this software.
+      <br />
+      <CustomLink
+        url={pathToSoftwareTitles}
+        text="View software"
+        variant="tooltip-link"
+      />
+    </>
+  );
+};
 export interface IFleetMaintainedAppFormData {
   selfService: boolean;
   automaticInstall: boolean;
@@ -31,6 +59,7 @@ export interface IFleetMaintainedAppFormData {
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
+  categories: string[];
 }
 
 export interface IFormValidation {
@@ -41,26 +70,34 @@ export interface IFormValidation {
 
 interface IFleetAppDetailsFormProps {
   labels: ILabelSummary[] | null;
+  categories?: SoftwareCategory[];
   name: string;
   defaultInstallScript: string;
   defaultPostInstallScript: string;
   defaultUninstallScript: string;
+  teamId?: string;
   showSchemaButton: boolean;
   onClickShowSchema: () => void;
+  onClickPreviewEndUserExperience: () => void;
   onCancel: () => void;
   onSubmit: (formData: IFleetMaintainedAppFormData) => void;
+  softwareTitleId?: number;
 }
 
 const FleetAppDetailsForm = ({
   labels,
+  categories,
   name: appName,
   defaultInstallScript,
   defaultPostInstallScript,
   defaultUninstallScript,
+  teamId,
   showSchemaButton,
   onClickShowSchema,
+  onClickPreviewEndUserExperience,
   onCancel,
   onSubmit,
+  softwareTitleId,
 }: IFleetAppDetailsFormProps) => {
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
     .gitops_mode_enabled;
@@ -77,6 +114,7 @@ const FleetAppDetailsForm = ({
     targetType: "All hosts",
     customTarget: "labelsIncludeAny",
     labelTargets: {},
+    categories: categories || [],
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: true,
@@ -138,15 +176,44 @@ const FleetAppDetailsForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  const onSelectCategory = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    let newCategories: string[];
+
+    if (value) {
+      // Add the name if not already present
+      newCategories = formData.categories.includes(name)
+        ? formData.categories
+        : [...formData.categories, name];
+    } else {
+      // Remove the name if present
+      newCategories = formData.categories.filter((cat) => cat !== name);
+    }
+
+    const newData = {
+      ...formData,
+      categories: newCategories,
+    };
+
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
     onSubmit(formData);
   };
 
-  const isSubmitDisabled = !formValidation.isValid;
   const gitOpsModeDisabledClass = gitOpsModeEnabled
     ? "form-fields--disabled"
     : "";
+  const isSoftwareAlreadyAdded = !!softwareTitleId;
+  const isSubmitDisabled = !formValidation.isValid || isSoftwareAlreadyAdded;
 
   return (
     <form className={`${baseClass}`} onSubmit={onSubmitForm}>
@@ -156,6 +223,9 @@ const FleetAppDetailsForm = ({
             formData={formData}
             onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
             onToggleSelfService={onToggleSelfServiceCheckbox}
+            onSelectCategory={onSelectCategory}
+            disableOptions={isSoftwareAlreadyAdded}
+            onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
           />
         </Card>
         <Card paddingSize="medium" borderRadiusSize="large">
@@ -173,6 +243,7 @@ const FleetAppDetailsForm = ({
             onSelectCustomTarget={onSelectCustomTargetOption}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
+            disableOptions={isSoftwareAlreadyAdded}
           />
         </Card>
       </div>
@@ -186,6 +257,7 @@ const FleetAppDetailsForm = ({
           hideText="Advanced options"
           caretPosition="after"
           onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+          disabled={isSoftwareAlreadyAdded}
         />
         {showAdvancedOptions && (
           <AdvancedOptionsFields
@@ -212,13 +284,24 @@ const FleetAppDetailsForm = ({
       <div className={`${baseClass}__action-buttons`}>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (
-            <Button
-              type="submit"
-              variant="brand"
-              disabled={disableChildren || isSubmitDisabled}
+            <TooltipWrapper
+              tipContent={softwareAlreadyAddedTipContent(
+                softwareTitleId,
+                teamId
+              )}
+              disableTooltip={!isSoftwareAlreadyAdded}
+              position="left"
+              showArrow
+              underline={false}
+              tipOffset={10}
             >
-              Add software
-            </Button>
+              <Button
+                type="submit"
+                disabled={disableChildren || isSubmitDisabled}
+              >
+                Add software
+              </Button>
+            </TooltipWrapper>
           )}
         />
         <Button onClick={onCancel} variant="inverse">

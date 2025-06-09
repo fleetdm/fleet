@@ -4,4 +4,17 @@
   border: 1px solid $ui-fleet-black-10;
   background-color: $ui-off-white;
   white-space: pre-wrap;
+
+  &-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &--code {
+    overflow-wrap: break-word;
+    overflow-y: auto;
+    font-family: "SourceCodePro", $monospace;
+    max-height: 300px;
+  }
 }

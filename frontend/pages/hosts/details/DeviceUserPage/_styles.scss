@@ -29,27 +29,22 @@
 
   &__details-panel {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: $pad-large;
+    gap: $pad-medium;
   }
 
-  &__error {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin: $pad-xlarge 0;
-
-    &__inner {
-      display: flex;
-      flex-direction: row;
+  @media screen and (min-width: $break-md) {
+    &__details-panel {
+      grid-template-columns: repeat(2, 1fr);
     }
-  }
 
-  &__device_mapping {
-    .device_mapping--tooltip {
-      flex-direction: column;
-      justify-content: start;
-      text-align: left;
+    // these are used for positiong the cards in the grid. place these classes
+    // on the cards depending on the layout needed.
+    &__card {
+      grid-column: span 1; // card will be 1 column x 1 row
+
+      &--full-width {
+        grid-column: span 2; // card will fill the whole row
+      }
     }
   }
 

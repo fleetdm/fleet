@@ -277,7 +277,7 @@ const QueriesTable = ({
           defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
           defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
           defaultSearchQuery={trimmedSearchQuery}
-          defaultPageIndex={page}
+          pageIndex={page}
           disableNextPage={!hasNextResults}
           showMarkAllPages={false}
           isAllPagesSelected={false}
@@ -286,7 +286,7 @@ const QueriesTable = ({
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "text-icon",
-            onActionButtonClick: onDeleteQueryClick,
+            onClick: onDeleteQueryClick,
           }}
           emptyComponent={() => EmptyTable(emptyParams)}
           renderCount={() =>

@@ -1,5 +1,4 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 import { formatInTimeZone } from "date-fns-tz";
 import {
@@ -21,14 +20,12 @@ import {
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import {
   humanHostMemory,
   wrapFleetHelper,
@@ -39,83 +36,16 @@ import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,
 } from "utilities/constants";
-import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 import {
-  HostMdmDeviceStatusUIState,
   generateLinuxDiskEncryptionSetting,
   generateWinDiskEncryptionSetting,
 } from "../../helpers";
-import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
 
-const baseClass = "host-summary";
-
-interface IRefetchButtonProps {
-  isDisabled: boolean;
-  isFetching: boolean;
-  tooltip?: React.ReactNode;
-  onRefetchHost: (
-    evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
-  ) => void;
-}
-
-const RefetchButton = ({
-  isDisabled,
-  isFetching,
-  tooltip,
-  onRefetchHost,
-}: IRefetchButtonProps) => {
-  const classNames = classnames({
-    tooltip: isDisabled,
-    "refetch-spinner": isFetching,
-    "refetch-btn": !isFetching,
-  });
-
-  const buttonText = isFetching
-    ? "Fetching fresh vitals...this may take a moment"
-    : "Refetch";
-
-  // add additonal props when we need to display a tooltip for the button
-  const conditionalProps: { "data-tip"?: boolean; "data-for"?: string } = {};
-
-  if (tooltip) {
-    conditionalProps["data-tip"] = true;
-    conditionalProps["data-for"] = "refetch-tooltip";
-  }
-
-  const renderTooltip = () => {
-    return (
-      <ReactTooltip
-        place="top"
-        effect="solid"
-        id="refetch-tooltip"
-        backgroundColor={COLORS["tooltip-bg"]}
-      >
-        <span className={`${baseClass}__tooltip-text`}>{tooltip}</span>
-      </ReactTooltip>
-    );
-  };
-
-  return (
-    <>
-      <div className={`${baseClass}__refetch`} {...conditionalProps}>
-        <Button
-          className={classNames}
-          disabled={isDisabled}
-          onClick={onRefetchHost}
-          variant="text-icon"
-        >
-          <Icon name="refresh" color="core-fleet-blue" size="small" />
-          {buttonText}
-        </Button>
-        {tooltip && renderTooltip()}
-      </div>
-    </>
-  );
-};
+const baseClass = "host-summary-card";
 
 interface IBootstrapPackageData {
   status?: BootstrapPackageStatus | "";
@@ -129,15 +59,9 @@ interface IHostSummaryProps {
   toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostSettings?: IHostMdmProfile[];
-  showRefetchSpinner: boolean;
-  onRefetchHost: (
-    evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
-  ) => void;
-  renderActionDropdown: () => JSX.Element | null;
-  deviceUser?: boolean;
   osVersionRequirement?: IAppleDeviceUpdates;
   osSettings?: IOSSettings;
-  hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
+  className?: string;
 }
 
 const DISK_ENCRYPTION_MESSAGES = {
@@ -197,14 +121,12 @@ const HostSummary = ({
   toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostSettings,
-  showRefetchSpinner,
-  onRefetchHost,
-  renderActionDropdown,
-  deviceUser,
   osVersionRequirement,
   osSettings,
-  hostMdmDeviceStatus,
+  className,
 }: IHostSummaryProps): JSX.Element => {
+  const classNames = classnames(baseClass, className);
+
   const {
     status,
     platform,
@@ -215,46 +137,6 @@ const HostSummary = ({
   const isAndroidHost = isAndroid(platform);
   const isChromeHost = platform === "chrome";
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
-
-  const renderRefetch = () => {
-    if (isAndroidHost) {
-      return null;
-    }
-
-    const isOnline = summaryData.status === "online";
-    let isDisabled = false;
-    let tooltip;
-
-    // we don't have a concept of "online" for iPads and iPhones, so always enable refetch
-    if (!isIosOrIpadosHost) {
-      // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
-      // this prop. When this is the case or when it is `unlocked`, we only take
-      // into account the host being online or offline for correctly render the
-      // refresh button. If we have a value for deviceStatus, we then need to also
-      // take it account for rendering the button.
-      if (
-        hostMdmDeviceStatus === undefined ||
-        hostMdmDeviceStatus === "unlocked"
-      ) {
-        isDisabled = !isOnline;
-        tooltip = !isOnline ? REFETCH_TOOLTIP_MESSAGES.offline : null;
-      } else {
-        isDisabled = true;
-        tooltip = !isOnline
-          ? REFETCH_TOOLTIP_MESSAGES.offline
-          : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
-      }
-    }
-
-    return (
-      <RefetchButton
-        isDisabled={isDisabled}
-        isFetching={showRefetchSpinner}
-        tooltip={tooltip}
-        onRefetchHost={onRefetchHost}
-      />
-    );
-  };
 
   const renderIssues = () => (
     <DataSet
@@ -466,175 +348,108 @@ const HostSummary = ({
     );
   };
 
-  const renderSummary = () => {
-    // for windows and linux hosts we have to manually add a profile for disk encryption
-    // as this is not currently included in the `profiles` value from the API
-    // response for windows and linux hosts.
-    if (
-      platform === "windows" &&
-      osSettings?.disk_encryption?.status &&
-      isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
-    ) {
-      const winDiskEncryptionSetting: IHostMdmProfile = generateWinDiskEncryptionSetting(
-        osSettings.disk_encryption.status,
-        osSettings.disk_encryption.detail
-      );
-      hostSettings = hostSettings
-        ? [...hostSettings, winDiskEncryptionSetting]
-        : [winDiskEncryptionSetting];
-    }
+  // for windows and linux hosts we have to manually add a profile for disk encryption
+  // as this is not currently included in the `profiles` value from the API
+  // response for windows and linux hosts.
+  if (
+    platform === "windows" &&
+    osSettings?.disk_encryption?.status &&
+    isWindowsDiskEncryptionStatus(osSettings.disk_encryption.status)
+  ) {
+    const winDiskEncryptionSetting: IHostMdmProfile = generateWinDiskEncryptionSetting(
+      osSettings.disk_encryption.status,
+      osSettings.disk_encryption.detail
+    );
+    hostSettings = hostSettings
+      ? [...hostSettings, winDiskEncryptionSetting]
+      : [winDiskEncryptionSetting];
+  }
 
-    if (
-      isDiskEncryptionSupportedLinuxPlatform(platform, os_version) &&
-      osSettings?.disk_encryption?.status &&
-      isLinuxDiskEncryptionStatus(osSettings.disk_encryption.status)
-    ) {
-      const linuxDiskEncryptionSetting: IHostMdmProfile = generateLinuxDiskEncryptionSetting(
-        osSettings.disk_encryption.status,
-        osSettings.disk_encryption.detail
-      );
-      hostSettings = hostSettings
-        ? [...hostSettings, linuxDiskEncryptionSetting]
-        : [linuxDiskEncryptionSetting];
-    }
+  if (
+    isDiskEncryptionSupportedLinuxPlatform(platform, os_version) &&
+    osSettings?.disk_encryption?.status &&
+    isLinuxDiskEncryptionStatus(osSettings.disk_encryption.status)
+  ) {
+    const linuxDiskEncryptionSetting: IHostMdmProfile = generateLinuxDiskEncryptionSetting(
+      osSettings.disk_encryption.status,
+      osSettings.disk_encryption.detail
+    );
+    hostSettings = hostSettings
+      ? [...hostSettings, linuxDiskEncryptionSetting]
+      : [linuxDiskEncryptionSetting];
+  }
 
-    return (
-      <Card
-        borderRadiusSize="xxlarge"
-        includeShadow
-        largePadding
-        className={`${baseClass}-card`}
-      >
-        {!isIosOrIpadosHost && !isAndroidHost && (
+  return (
+    <Card
+      borderRadiusSize="xxlarge"
+      paddingSize="xlarge"
+      includeShadow
+      className={classNames}
+    >
+      {!isIosOrIpadosHost && !isAndroidHost && (
+        <DataSet
+          title="Status"
+          value={
+            <StatusIndicator
+              value={status || ""} // temporary work around of integration test bug
+              tooltip={{
+                tooltipText: getHostStatusTooltipText(status),
+                position: "bottom",
+              }}
+            />
+          }
+        />
+      )}
+      {summaryData.issues?.total_issues_count > 0 &&
+        !isIosOrIpadosHost &&
+        !isAndroidHost &&
+        renderIssues()}
+      {isPremiumTier && renderHostTeam()}
+      {/* Rendering of OS Settings data */}
+      {isOsSettingsDisplayPlatform(platform, os_version) &&
+        isPremiumTier &&
+        hostSettings &&
+        hostSettings.length > 0 && (
           <DataSet
-            title="Status"
+            title="OS settings"
             value={
-              <StatusIndicator
-                value={status || ""} // temporary work around of integration test bug
-                tooltip={{
-                  tooltipText: getHostStatusTooltipText(status),
-                  position: "bottom",
-                }}
+              <OSSettingsIndicator
+                profiles={hostSettings}
+                onClick={toggleOSSettingsModal}
               />
             }
           />
         )}
-        {summaryData.issues?.total_issues_count > 0 &&
-          !isIosOrIpadosHost &&
-          !isAndroidHost &&
-          renderIssues()}
-        {isPremiumTier && renderHostTeam()}
-        {/* Rendering of OS Settings data */}
-        {isOsSettingsDisplayPlatform(platform, os_version) &&
-          isPremiumTier &&
-          hostSettings &&
-          hostSettings.length > 0 && (
-            <DataSet
-              title="OS settings"
-              value={
-                <OSSettingsIndicator
-                  profiles={hostSettings}
-                  onClick={toggleOSSettingsModal}
-                />
-              }
+      {bootstrapPackageData?.status && !isIosOrIpadosHost && !isAndroidHost && (
+        <DataSet
+          title="Bootstrap package"
+          value={
+            <BootstrapPackageIndicator
+              status={bootstrapPackageData.status}
+              onClick={toggleBootstrapPackageModal}
             />
-          )}
-        {bootstrapPackageData?.status &&
-          !isIosOrIpadosHost &&
-          !isAndroidHost && (
-            <DataSet
-              title="Bootstrap package"
-              value={
-                <BootstrapPackageIndicator
-                  status={bootstrapPackageData.status}
-                  onClick={toggleBootstrapPackageModal}
-                />
-              }
-            />
-          )}
-        {!isChromeHost && renderDiskSpaceSummary()}
-        {renderDiskEncryptionSummary()}
-        {!isIosOrIpadosHost && (
-          <DataSet
-            title="Memory"
-            value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
-          />
-        )}
-        {!isIosOrIpadosHost && (
-          <DataSet title="Processor type" value={summaryData.cpu_type} />
-        )}
-        {renderOperatingSystemSummary()}
-        {renderAgentSummary()}
-        {isPremiumTier &&
-          // TODO - refactor normalizeEmptyValues pattern
-          !!summaryData.maintenance_window &&
-          summaryData.maintenance_window !== "---" &&
-          renderMaintenanceWindow(summaryData.maintenance_window)}
-      </Card>
-    );
-  };
-
-  const lastFetched = summaryData.detail_updated_at ? (
-    <HumanTimeDiffWithFleetLaunchCutoff
-      timeString={summaryData.detail_updated_at}
-    />
-  ) : (
-    ": unavailable"
-  );
-
-  const renderDeviceStatusTag = () => {
-    if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
-
-    const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
-
-    const classNames = classnames(
-      `${baseClass}__device-status-tag`,
-      tag.tagType
-    );
-
-    return (
-      <>
-        <span className={classNames} data-tip data-for="tag-tooltip">
-          {tag.title}
-        </span>
-        <ReactTooltip
-          place="top"
-          effect="solid"
-          id="tag-tooltip"
-          backgroundColor={COLORS["tooltip-bg"]}
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            {tag.generateTooltip(platform)}
-          </span>
-        </ReactTooltip>
-      </>
-    );
-  };
-
-  return (
-    <div className={baseClass}>
-      <div className="header title">
-        <div className="title__inner">
-          <div className="display-name-container">
-            <h1 className="display-name">
-              {deviceUser
-                ? "My device"
-                : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE}
-            </h1>
-
-            {renderDeviceStatusTag()}
-
-            <div className={`${baseClass}__last-fetched`}>
-              {"Last fetched"} {lastFetched}
-              &nbsp;
-            </div>
-            {renderRefetch()}
-          </div>
-        </div>
-        {renderActionDropdown()}
-      </div>
-      {renderSummary()}
-    </div>
+          }
+        />
+      )}
+      {!isChromeHost && renderDiskSpaceSummary()}
+      {renderDiskEncryptionSummary()}
+      {!isIosOrIpadosHost && (
+        <DataSet
+          title="Memory"
+          value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
+        />
+      )}
+      {!isIosOrIpadosHost && (
+        <DataSet title="Processor type" value={summaryData.cpu_type} />
+      )}
+      {renderOperatingSystemSummary()}
+      {renderAgentSummary()}
+      {isPremiumTier &&
+        // TODO - refactor normalizeEmptyValues pattern
+        !!summaryData.maintenance_window &&
+        summaryData.maintenance_window !== "---" &&
+        renderMaintenanceWindow(summaryData.maintenance_window)}
+    </Card>
   );
 };
 

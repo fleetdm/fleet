@@ -1,4 +1,4 @@
-package maintainedapps
+package maintained_apps
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -53,26 +54,40 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 		)
 	}
 
+	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
+	if err != nil {
+		return nil, "", ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
+	}
+
+	return tfr, FilenameFromResponse(resp), nil
+}
+
+func FilenameFromResponse(resp *http.Response) string {
 	var filename string
 	cdh, ok := resp.Header["Content-Disposition"]
 	if ok && len(cdh) > 0 {
 		_, params, err := mime.ParseMediaType(cdh[0])
 		if err == nil {
 			filename = params["filename"]
+		} else {
+			// fallback for responses that include a filename in their content-disposition header
+			// but the header isn't technically RFC compliant
+			cdhParts := strings.Split(cdh[0], "filename=")
+			if len(cdhParts) > 1 {
+				unescapedFilename, err := url.QueryUnescape(cdhParts[1])
+				if err == nil {
+					filename = unescapedFilename
+				}
+			}
 		}
 	}
 
 	// Fall back on extracting the filename from the URL
 	// This is OK for the first 20 apps we support, but we should do something more robust once we
 	// support more apps.
-	if filename == "" {
+	if filename == "" && resp.Request.URL.Path != "" {
 		filename = path.Base(resp.Request.URL.Path)
 	}
 
-	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
-	if err != nil {
-		return nil, "", ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
-	}
-
-	return tfr, filename, nil
+	return filename
 }

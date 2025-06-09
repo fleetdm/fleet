@@ -172,6 +172,7 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[*github.com/fleetdm/fleet/v4/serve
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[*github.com/fleetdm/fleet/v4/server/fleet.MacOSSetupSoftware]	Value	[]*fleet.MacOSSetupSoftware
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	AppStoreID	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	PackagePath	string
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	ManualAgentInstall	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSMigration	fleet.MacOSMigration
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Mode	fleet.MacOSMigrationMode	string

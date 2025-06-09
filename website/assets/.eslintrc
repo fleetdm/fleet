@@ -57,6 +57,7 @@
     // Make sure backend globals aren't indadvertently tolerated in our client-side JS:
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     "sails": false,
+    "ƒ": false,
     "User": false,
     "HistoricalUsageSnapshot": false,
     "Quote": false,

@@ -14,6 +14,7 @@ read := "read"
 list := "list"
 write := "write"
 write_host_label := "write_host_label"
+cancel_host_activity := "cancel_host_activity"
 
 # User specific actions
 write_role := "write_role"
@@ -266,18 +267,25 @@ allow {
 	allowed_read_roles(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
-# Global gitops, admin and mantainers can write hosts.
+# Global gitops, admin and maintainers can write hosts.
 allow {
 	object.type == "host"
 	subject.global_role == [admin, maintainer, gitops][_]
 	action == write
 }
 
-# Global admin, mantainers and gitops can write labels to hosts.
+# Global admin, maintainers and gitops can write labels to hosts.
 allow {
 	object.type == "host"
 	subject.global_role == [admin, maintainer, gitops][_]
 	action == write_host_label
+}
+
+# Global admin and maintainers can cancel activities on a host.
+allow {
+	object.type == "host"
+	subject.global_role == [admin, maintainer][_]
+	action == cancel_host_activity
 }
 
 # Allow read for global observer and observer_plus, selective_read for gitops.
@@ -310,6 +318,13 @@ allow {
 	action == write_host_label
 }
 
+# Team admins and maintainers can cancel activities on a host of their own team.
+allow {
+	object.type == "host"
+	team_role(subject, object.team_id) == [admin, maintainer][_]
+	action == cancel_host_activity
+}
+
 # Allow read for host health for global admin/maintainer, team admins, observer.
 allow {
 	object.type == "host_health"
@@ -329,27 +344,37 @@ allow {
 # Labels
 ##
 
-# Global admins, maintainers, observer_plus and observers can read labels.
+# Global admins, maintainers, observer_plus, observers and gitops can read labels.
 allow {
   object.type == "label"
-	subject.global_role == [admin, maintainer, observer_plus, observer][_]
+	subject.global_role == [admin, maintainer, observer_plus, observer, gitops][_]
   action == read
 }
 
-# Team admins, maintainers, observer_plus and observers can read labels.
+# Team admins, maintainers, observer_plus, observers and gitops can read labels.
 allow {
 	object.type == "label"
   # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer, gitops][_]
 	action == read
 }
 
-# Only global admins, maintainers and gitops can write labels
+# Global admins, maintainers and gitops can write labels
 allow {
   object.type == "label"
   subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
+
+
+# Team admins and maintainers can write labels
+allow {
+  object.type == "label"
+  # If role is admin, maintainer or gitops on any team.
+  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  action == write
+}
+
 
 ##
 # Queries
@@ -1034,5 +1059,15 @@ allow {
 allow {
   object.type == "android_enterprise"
   subject.global_role == admin
+  action == [read, write][_]
+}
+
+##
+# SCIM (System for Cross-domain Identity Management)
+##
+# Global admins and maintainers can access SCIM.
+allow {
+  object.type == "scim_user"
+  subject.global_role == [admin, maintainer][_]
   action == [read, write][_]
 }

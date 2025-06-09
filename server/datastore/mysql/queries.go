@@ -41,90 +41,115 @@ func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []
 }
 
 func (ds *Datastore) applyQueriesInTx(ctx context.Context, authorID uint, queries []*fleet.Query) (err error) {
-	tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "begin applyQueriesInTx")
-	}
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		insertSql := `
+			INSERT INTO queries (
+				name,
+				description,
+				query,
+				author_id,
+				saved,
+				observer_can_run,
+				team_id,
+				team_id_char,
+				platform,
+				min_osquery_version,
+				schedule_interval,
+				automations_enabled,
+				logging_type,
+				discard_data
+			) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )
+			ON DUPLICATE KEY UPDATE
+				name = VALUES(name),
+				description = VALUES(description),
+				query = VALUES(query),
+				author_id = VALUES(author_id),
+				saved = VALUES(saved),
+				observer_can_run = VALUES(observer_can_run),
+				team_id = VALUES(team_id),
+				team_id_char = VALUES(team_id_char),
+				platform = VALUES(platform),
+				min_osquery_version = VALUES(min_osquery_version),
+				schedule_interval = VALUES(schedule_interval),
+				automations_enabled = VALUES(automations_enabled),
+				logging_type = VALUES(logging_type),
+				discard_data = VALUES(discard_data)
+		`
+		for _, q := range queries {
+			if err := q.Verify(); err != nil {
+				return ctxerr.Wrap(ctx, err)
+			}
+			stmt, args, err := sqlx.In(insertSql,
+				q.Name,
+				q.Description,
+				q.Query,
+				authorID,
+				q.ObserverCanRun,
+				q.TeamID,
+				q.TeamIDStr(),
+				q.Platform,
+				q.MinOsqueryVersion,
+				q.Interval,
+				q.AutomationsEnabled,
+				q.Logging,
+				q.DiscardData,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "exec queries prepare")
+			}
 
-	defer func() {
-		if err != nil {
-			rbErr := tx.Rollback()
-			// It seems possible that there might be a case in
-			// which the error we are dealing with here was thrown
-			// by the call to tx.Commit(), and the docs suggest
-			// this call would then result in sql.ErrTxDone.
-			if rbErr != nil && rbErr != sql.ErrTxDone {
-				panic(fmt.Sprintf("got err '%s' rolling back after err '%s'", rbErr, err))
+			var result sql.Result
+			if result, err = tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "exec queries insert")
+			}
+
+			// Get the ID of the row, if it was a new query.
+			id, _ := result.LastInsertId()
+			// If the ID is 0, it was an update, so we need to get the ID.
+			if id == 0 {
+				var (
+					rows *sql.Rows
+					err  error
+				)
+				// Get the query that was updated.
+				if q.TeamID == nil {
+					rows, err = tx.QueryContext(ctx, "SELECT id FROM queries WHERE name = ? AND team_id is NULL", q.Name)
+				} else {
+					rows, err = tx.QueryContext(ctx, "SELECT id FROM queries WHERE name = ? AND team_id = ?", q.Name, q.TeamID)
+				}
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "select queries id")
+				}
+				// Get the ID from the rows
+				if rows.Next() {
+					if err := rows.Scan(&id); err != nil {
+						return ctxerr.Wrap(ctx, err, "scan queries id")
+					}
+				} else {
+					return ctxerr.Wrap(ctx, err, "could not find query after update")
+				}
+				if err = rows.Err(); err != nil {
+					return ctxerr.Wrap(ctx, err, "err queries id")
+				}
+				if err := rows.Close(); err != nil {
+					return ctxerr.Wrap(ctx, err, "close queries id")
+				}
+
+			}
+			//nolint:gosec // dismiss G115
+			q.ID = uint(id)
+
+			err = ds.updateQueryLabelsInTx(ctx, q, tx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "exec queries update labels")
 			}
 		}
-	}()
-
-	insertSql := `
-		INSERT INTO queries (
-			name,
-			description,
-			query,
-			author_id,
-			saved,
-			observer_can_run,
-			team_id,
-			team_id_char,
-			platform,
-			min_osquery_version,
-			schedule_interval,
-			automations_enabled,
-			logging_type,
-			discard_data
-		) VALUES ( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )
-		ON DUPLICATE KEY UPDATE
-			name = VALUES(name),
-			description = VALUES(description),
-			query = VALUES(query),
-			author_id = VALUES(author_id),
-			saved = VALUES(saved),
-			observer_can_run = VALUES(observer_can_run),
-			team_id = VALUES(team_id),
-			team_id_char = VALUES(team_id_char),
-			platform = VALUES(platform),
-			min_osquery_version = VALUES(min_osquery_version),
-			schedule_interval = VALUES(schedule_interval),
-			automations_enabled = VALUES(automations_enabled),
-			logging_type = VALUES(logging_type),
-			discard_data = VALUES(discard_data)
-	`
-	stmt, err := tx.PrepareContext(ctx, insertSql)
+		return nil
+	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare queries insert")
+		return ctxerr.Wrap(ctx, err, "apply queries in tx")
 	}
-	defer stmt.Close()
-
-	for _, q := range queries {
-		if err := q.Verify(); err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-		_, err := stmt.ExecContext(
-			ctx,
-			q.Name,
-			q.Description,
-			q.Query,
-			authorID,
-			q.ObserverCanRun,
-			q.TeamID,
-			q.TeamIDStr(),
-			q.Platform,
-			q.MinOsqueryVersion,
-			q.Interval,
-			q.AutomationsEnabled,
-			q.Logging,
-			q.DiscardData,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "exec queries insert")
-		}
-	}
-
-	err = tx.Commit()
-	return ctxerr.Wrap(ctx, err, "commit queries tx")
+	return nil
 }
 
 func (ds *Datastore) deleteMultipleQueryResults(ctx context.Context, queryIDs []uint) (err error) {
@@ -256,9 +281,25 @@ func (ds *Datastore) NewQuery(
 	return query, nil
 }
 
+func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.updateQueryLabelsInTx(ctx, query, tx)
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating query labels")
+	}
+	return nil
+}
+
 // updates the LabelsIncludeAny for a query, using the string value of
 // the label. Labels IDs are populated
-func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) error {
+func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, query *fleet.Query, tx sqlx.ExtContext) error {
+	if tx == nil {
+		return ctxerr.New(ctx, "updateQueryLabelsInTx called with nil tx")
+	}
+
+	var err error
+
 	insertLabelSql := `
 		INSERT INTO query_labels (
 			query_id,
@@ -274,36 +315,30 @@ func (ds *Datastore) updateQueryLabels(ctx context.Context, query *fleet.Query) 
 		WHERE query_id = ?
 	`
 
-	if err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, deleteLabelStmt, query.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "removing old query labels")
-		}
-
-		if len(query.LabelsIncludeAny) == 0 {
-			return nil
-		}
-
-		labelNames := []string{}
-		for _, label := range query.LabelsIncludeAny {
-			labelNames = append(labelNames, label.LabelName)
-		}
-
-		labelStmt, args, err := sqlx.In(insertLabelSql, query.ID, labelNames)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "creating query label update statement")
-		}
-
-		if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "creating query labels")
-		}
-
-		return nil
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating query labels")
+	_, err = tx.ExecContext(ctx, deleteLabelStmt, query.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "removing old query labels")
 	}
 
-	if err := ds.loadLabelsForQueries(ctx, []*fleet.Query{query}); err != nil {
+	if len(query.LabelsIncludeAny) == 0 {
+		return nil
+	}
+
+	labelNames := []string{}
+	for _, label := range query.LabelsIncludeAny {
+		labelNames = append(labelNames, label.LabelName)
+	}
+
+	labelStmt, args, err := sqlx.In(insertLabelSql, query.ID, labelNames)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "creating query label update statement")
+	}
+
+	if _, err := tx.ExecContext(ctx, labelStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating query labels")
+	}
+
+	if err := loadLabelsForQueries(ctx, tx, []*fleet.Query{query}); err != nil {
 		return ctxerr.Wrap(ctx, err, "loading label names for inserted query")
 	}
 

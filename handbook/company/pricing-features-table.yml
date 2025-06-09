@@ -26,7 +26,7 @@
 #  ║║║╠═╣║║║╠═╣║ ╦║╣  ║║  ║  ║  ║ ║║ ║ ║║
 #  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╩═╝╚═╝╚═╝═╩╝
 - industryName: Managed cloud
-  description: Have Fleet host it for you (currently only available for customers with 300+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
+  description: Have Fleet host it for you (currently only available for customers with 700+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
   pricingTableCategories: [Deployment]
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Premium
@@ -216,7 +216,7 @@
 #  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Cross-platform MDM support
-  description: Apple, Windows, and Linux.
+  description: Apple, Windows (x64 and Arm), Linux (amd64 and Arm), and Android (coming soon).
   documentationUrl: https://fleetdm.com/announcements/debunk-the-cross-platform-myth
   tier: Premium
   jamfProHasFeature: appleOnly
@@ -229,7 +229,7 @@
 #  ║║║ ║║║║║  ║║║║║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
 #  ╩ ╩═╩╝╩ ╩  ╩ ╩╩╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: MDM migration #   « end-user initiated MDM migration, with interactive UI
-  description: Easily move your devices from your current MDM solution to Fleet.
+  description: Easily move your macOS, iOS/iPadOS, Windows, Linux, and Android (coming soon) devices from your current MDM solution to Fleet.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
@@ -326,6 +326,16 @@
       moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
     - description: See what servers someone is logged-in on
       moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
+- industryName: Human-endpoint mapping (IdP groups)
+  description: Add user information (e.g full name and groups) from your identity provider (e.g Okta) to your devices using the SCIM protocol.
+  documentationUrl: https://fleetdm.com/guides/map-end-user-info-to-host-from-okta-idp
+  pricingTableCategories: [Devices]
+  productCategories: [Endpoint operations,Device management]
+  tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  waysToUse:
+    - description: Add user information from your IdP to your devices via SCIM protocol.
 #  
 #  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
 #   ║║║╣ ╚╗╔╝║║  ║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
@@ -410,6 +420,7 @@
   productCategories: [Device management,Vulnerability management]
   pricingTableCategories: [Devices]
   waysToUse:
+    - description: Enforce OS updates on macOS, iOS/iPadOS, Windows, and Android (coming soon).
     - description: Enforce macOS updates via Nudge.
     - description: Progressively enhance from Nudge to DDM-based OS updates.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17295
@@ -645,9 +656,9 @@
   description: Secure your devices with remote lock and wipe commands if lost or stolen.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   waysToUse:
-    - description: High-level remote lock for macOS, Windows, and Linux.
+    - description: High-level remote lock for macOS, Windows, Linux, and Android (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
-    - description: High-level remote wipe for macOS, Windows, and Linux.
+    - description: High-level remote wipe for macOS, Windows, Linux, iOS/iPadOS, and Android (coming soon).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
   tier: Premium
   jamfProHasFeature: appleOnly
@@ -1070,6 +1081,7 @@
 #  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
 - industryName: Webhooks
   friendlyName: Automations
+  description: Configure automations that send webhooks to specific URLs when Fleet detects changes to host, policy, and CVE statuses.
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
@@ -1117,7 +1129,7 @@
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Grant Wi-Fi access
-  description: Help your end users connect to Wi-Fi by adding your Simple Certificate Enrollment Protocol (SCEP) server.                
+  description: Help your end users connect to Wi-Fi by adding your certificate authority (CA).                
   documentationUrl: https://fleetdm.com/guides/ndes-scep-proxy
   isExperimental: yes
   productCategories: [Device management]
@@ -1168,7 +1180,7 @@
 - industryName: Third-party orchestration
   friendlyName: Borrow off-the-shelf tactics from legendary brands
   documentationUrl: https://fleetdm.com/integrations
-  description: Plug Fleet into other frameworks and tools like Puppet, Vanta, etc.
+  description: Plug Fleet into other frameworks and tools like Tines, Torq, Vanta, etc.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
@@ -1176,10 +1188,9 @@
   tier: Premium
   waysToUse:
     - description: (Vanta) Trigger a workflow based on a failing policy.
-    - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
-    - description: (Torq) Build custom workflows that trigger in various situations.
+    - description: (Tines, Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
-  buzzwords: [Vanta,Puppet,Custom IdP]
+  buzzwords: [Vanta,Torq,Custom IdP]
 #  
 #  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦ 
 #  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝ 

@@ -16,7 +16,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/go-kit/log"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +44,7 @@ func TestDEPService(t *testing.T) {
 				err = json.Unmarshal(body, &got)
 				require.NoError(t, err)
 				require.Contains(t, got.URL, serverURL+"api/mdm/apple/enroll?token=")
-				require.Contains(t, got.ConfigurationWebURL, serverURL+"api/mdm/apple/enroll?token=")
+				assert.Empty(t, got.ConfigurationWebURL)
 				got.URL = ""
 				got.ConfigurationWebURL = ""
 				defaultProfile.AwaitDeviceConfigured = true // this is now always set to true

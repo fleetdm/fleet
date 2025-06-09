@@ -1,4 +1,4 @@
-FROM golang:1.23.4-alpine3.21@sha256:052793ea3143a235a5b2d815ccead8910cfe547b36a1f4c8b070015b89da5eab
+FROM golang:1.24.2-alpine3.21@sha256:7772cb5322baa875edd74705556d08f0eeca7b9c4b5367754ce3f2f00041ccee
 ARG TAG
 RUN apk add git
 RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git && cd /go/fleet/cmd/osquery-perf/ && go build .

@@ -19,11 +19,13 @@ module.exports = {
 
     // Create an empty object to store caught errors. We don't want this script to stop running if there is an error with a single Vanta integration, so instead, we'll store any errors that occur and bail early for that connection if any occur, and we'll log them individually before the script is done.
     let errorReportById = {};
+    // Create a second empty object to store errors from the hosts/:id endpoint. If a there is an error getting detailed information about a host, then the script will continue and the host will not be included in the hosts sent to Vanta.
+    let hostApiErrorReportById = {};
 
     // use sails.helpers.flow.simutaniouslyForEach to send data for each connection record.
     await sails.helpers.flow.simultaneouslyForEach(allActiveVantaConnections, async (vantaConnection)=>{
       let connectionIdAsString = String(vantaConnection.id);
-
+      hostApiErrorReportById[connectionIdAsString] = [];
       //  ┬─┐┌─┐┌─┐┬─┐┌─┐┌─┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐  ┌┬┐┌─┐┬┌─┌─┐┌┐┌
       //  ├┬┘├┤ ├┤ ├┬┘├┤ └─┐├─┤  ╚╗╔╝├─┤│││ │ ├─┤   │ │ │├┴┐├┤ │││
       //  ┴└─└─┘└  ┴└─└─┘└─┘┴ ┴   ╚╝ ┴ ┴┘└┘ ┴ ┴ ┴   ┴ └─┘┴ ┴└─┘┘└┘
@@ -210,18 +212,21 @@ module.exports = {
         }
 
         // Send a request to this host's API endpoint to get the required information about this host.
-        let detailedInformationAboutThisHost = await sails.helpers.http.get(
-          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
-          {},
-          {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
-        )
-        .retry()
-        .intercept((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
-          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(err.raw)}`);
-        });
-
-        if(!detailedInformationAboutThisHost.host) {
-          throw new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), the response from the Fleet API did not include a host. Response from the Fleet API: ${util.inspect(detailedInformationAboutThisHost)}`);
+        // Note: this section is in a try-catch block so we can handle errors sent from the retry() method.
+        let detailedInformationAboutThisHost;
+        try {
+          detailedInformationAboutThisHost = await sails.helpers.http.get(
+            updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
+            {},
+            {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
+          )
+          .retry();
+        } catch(error) {
+          hostApiErrorReportById[connectionIdAsString].push(new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`));
+        }
+        // If an error occured when sending a request to get detailed information about a host, skip this host for this run.
+        if(!detailedInformationAboutThisHost) {
+          return;
         }
 
         if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
@@ -263,7 +268,7 @@ module.exports = {
         errorReportById[connectionIdAsString] = new Error(`When building an array of macOS hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`);
       });// After every macOS host
 
-      if(errorReportById[connectionIdAsString]){// If an error occured while gathering detailed host information, we'll bail early for this connection.
+      if(errorReportById[connectionIdAsString]){// If an error occured (that was not related to an API request) while gathering detailed host information, we'll bail early for this connection.
         return;
       }
 
@@ -298,19 +303,22 @@ module.exports = {
         }
 
         // Send a request to this host's API endpoint to get the required information about this host.
-        let detailedInformationAboutThisHost = await sails.helpers.http.get(
-          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
-          {},
-          {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
-        )
-        .retry()
-        .intercept((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
-          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(err.raw)}`);
-        });
-
-        if(!detailedInformationAboutThisHost.host){
-          throw new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), the response from the Fleet API did not include a host. Response from the Fleet API: ${util.inspect(detailedInformationAboutThisHost)}`);
+        let detailedInformationAboutThisHost;
+        try {
+          detailedInformationAboutThisHost = await sails.helpers.http.get(
+            updatedRecord.fleetInstanceUrl + '/api/v1/fleet/hosts/'+encodeURIComponent(hostIdAsString),
+            {},
+            {'Authorization': 'bearer '+updatedRecord.fleetApiKey, 'User-Agent': userAgent}
+          )
+          .retry();
+        } catch(error) {
+          hostApiErrorReportById[connectionIdAsString].push(new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`));
         }
+        // If an error occured when sending a request to get detailed information about a host, add an error to the array of errors for this Vanta connection, and skip this host.
+        if(!detailedInformationAboutThisHost) {
+          return;
+        }
+
 
         if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
           // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`
@@ -347,7 +355,7 @@ module.exports = {
         errorReportById[connectionIdAsString] = new Error(`When building an array of Windows hosts for a Vanta connection (id: ${connectionIdAsString}), an error occured: ${err}`);
       });// After every Windows host
 
-      if(errorReportById[connectionIdAsString]){// If an error occured while gathering detailed host information, we'll bail early for this connection.
+      if(errorReportById[connectionIdAsString]){// If an error occured (that was not related to an API request) while gathering detailed host information, we'll bail early for this connection.
         return;
       }
       //  ┌─┐┬ ┬┌┐┌┌─┐  ┬ ┬┌─┐┌─┐┬─┐┌─┐  ┬ ┬┬┌┬┐┬ ┬  ╦  ╦┌─┐┌┐┌┌┬┐┌─┐
@@ -447,6 +455,18 @@ module.exports = {
         // If an error was logged for a VantaConnection, log the error, and increment the numberOfLoggedErrors
         numberOfLoggedErrors++;
         sails.log.warn('p1: An error occurred while syncing the vanta connection for VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+errorReportById[connectionIdAsString]);
+      }
+    }//∞
+
+    // Then log any non-critical errors related to failed API requests to the hosts/:id endpoint
+    for (let connectionIdAsString of Object.keys(hostApiErrorReportById)) {
+      if (hostApiErrorReportById[connectionIdAsString].length === 0) {
+        // If data was sent to Vanta sucessfully, do nothing.
+      } else {
+        // If an error was logged for a VantaConnection, log the error, and increment the numberOfLoggedErrors
+        for(let error of hostApiErrorReportById[connectionIdAsString]){
+          sails.log.warn('p1: An error occurred while sending API requests to get information about a host for a VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+error);
+        }
       }
     }//∞
 

@@ -1,30 +1,24 @@
 # How to uninstall Fleet's agent (fleetd)
 
-This guide walks you through the steps to remove fleetd from your device. After performing these steps, the device will display as an offline host in the Fleet UI until you manually remove it.
+How to remove fleetd from your device:
 
-## On macOS:
-Run the [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh) found in Fleet's GitHub 
+1. Download the uninstall script for [macOS](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh), [Windows](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1), or [Linux](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh).
 
----
+2. Run the script.
+- To run the script on macOS, open the **Terminal** app.
+- Navigate to the script's directory by running this command: `cd /path/to/your/script`
+- Make the script executable: `chmod +x uninstall-fleetd-macos.sh`
+- Run it: `sudo ./uninstall-fleetd-macos.sh`
 
-## On Windows:
-Use the "Add or remove programs" dialog to remove Fleet osquery.
+How to uninstall fleetd from a host via Fleet (remotely):
 
-![windows_uninstall](https://github.com/user-attachments/assets/4140e62b-f67a-4df6-85b0-430c2c624881)
+1. Add the uninstall script for [macOS](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh), [Windows](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1), or [Linux](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh) hosts to Fleet.
 
----
+2. Head to the host's **Host details** page and select **Actions > Run script** to run the script.
 
-## On Linux:
+After performing these steps, the host will display as an offline host in the Fleet UI until you delete it.
 
-Using Debian package manager (Debian, Ubuntu, etc.) :
-
-Run ```sudo apt remove fleet-osquery -y```
-
-Using yum Package Manager (RHEL, CentOS, etc.) :
-
-Run ```sudo rpm -e fleet-osquery-X.Y.Z.x86_64```
-
-Are you having trouble uninstalling Fleetd on macOS, Windows, or Linux? Get help on Slack in the [#fleet channel](https://fleetdm.com/slack).
+Are you having trouble uninstalling Fleetd on macOS, Windows, or Linux? Get help via one of our [support channels](https://fleetdm.com/support).
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Eric Shaw">

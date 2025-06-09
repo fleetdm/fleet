@@ -41,9 +41,7 @@ const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
         Automatically enroll newly purchased Apple hosts when they&apos;re first
         unboxed and set up by your end users.
       </p>
-      <Button variant="brand" onClick={onAddAbm}>
-        Add ABM
-      </Button>
+      <Button onClick={onAddAbm}>Add ABM</Button>
     </div>
   );
 };
@@ -161,11 +159,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
     // TODO: error UI
     if (showDataError) {
-      return (
-        <div>
-          <DataError />
-        </div>
-      );
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (abmTokens?.length === 0) {
@@ -206,9 +200,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
             {isPremiumTier &&
               abmTokens?.length !== 0 &&
               !!config?.mdm.enabled_and_configured && (
-                <Button variant="brand" onClick={onAddAbm}>
-                  Add ABM
-                </Button>
+                <Button onClick={onAddAbm}>Add ABM</Button>
               )}
           </div>
           <>{renderContent()}</>

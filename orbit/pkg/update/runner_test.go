@@ -145,8 +145,9 @@ func TestGetVersion(t *testing.T) {
 	}
 }
 
-func TestCompareVersion(t *testing.T) {
+func TestGetAndCompareVersion(t *testing.T) {
 	if runtime.GOOS == "windows" {
+		// windows filesystem writes require different cmd syntax
 		t.Skip("Skipping test on Windows")
 	}
 	t.Parallel()
@@ -208,9 +209,10 @@ func TestCompareVersion(t *testing.T) {
 
 				// "text file busy" is a Go issue when executing file just written: https://github.com/golang/go/issues/22315
 				var result *int
+				var newVersion string
 				retries := 0
 				for {
-					result, err = compareVersion(file.Name(), tc.oldVersion, "target")
+					newVersion, err = GetVersion(file.Name())
 					if err != nil {
 						t.Log(err)
 						if strings.Contains(err.Error(), "text file busy") {
@@ -227,6 +229,7 @@ func TestCompareVersion(t *testing.T) {
 						break
 					}
 				}
+				result = compareVersion(newVersion, tc.oldVersion, "target")
 				assert.Equal(t, tc.expected, result)
 			},
 		)

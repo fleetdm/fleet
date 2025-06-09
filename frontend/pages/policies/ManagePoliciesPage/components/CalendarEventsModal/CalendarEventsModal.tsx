@@ -15,7 +15,7 @@ import Modal from "components/Modal";
 import Icon from "components/Icon";
 import { IPaginatedListHandle } from "components/PaginatedList";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
-import CalendarPreview from "../../../../../../assets/images/calendar-preview-720x436@2x.png";
+import CalendarPreview from "../../../../../../assets/images/calendar-graphic.png";
 import PoliciesPaginatedList, {
   IFormPolicy,
 } from "../PoliciesPaginatedList/PoliciesPaginatedList";
@@ -174,9 +174,7 @@ const CalendarEventsModal = ({
           newTab
         />
         <div className="modal-cta-wrap">
-          <Button onClick={onExit} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onExit}>Done</Button>
         </div>
       </div>
     );
@@ -294,8 +292,8 @@ const CalendarEventsModal = ({
               </Button>
             );
           }}
-          footer={
-            <div className="form-field__help-text">
+          helpText={
+            <>
               A calendar event will be created for end users if one of their
               hosts fail any of these policies.{" "}
               <CustomLink
@@ -304,13 +302,13 @@ const CalendarEventsModal = ({
                 newTab
                 disableKeyboardNavigation={!formData.enabled}
               />
-            </div>
+            </>
           }
           isUpdating={isUpdating}
           onSubmit={onUpdateCalendarEvents}
           onCancel={onExit}
           teamId={teamId}
-          disabled={!formData.enabled}
+          disableList={!formData.enabled}
         />
       </div>
     </div>

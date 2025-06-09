@@ -52,6 +52,8 @@ const (
 
 	// SCEPProxyPath is the HTTP path that serves the SCEP proxy service. The path is followed by identifier.
 	SCEPProxyPath = "/mdm/scep/proxy/"
+
+	DEPSyncLimit = 200
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
@@ -159,13 +161,7 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 	// IT admin.
 	if jsonProf.ConfigurationWebURL == "" {
 		// If SSO is configured, use the `/mdm/sso` page which starts the SSO
-		// flow, otherwise use Fleet's enroll URL.
-		//
-		// Even though the DEP profile supports an `url` attribute, we should
-		// always still set configuration_web_url, otherwise the request method
-		// coming from Apple changes from GET to POST, and we want to preserve
-		// backwards compatibility.
-		jsonProf.ConfigurationWebURL = enrollURL
+		// flow, otherwise leave it blank.
 		endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
 		if team != nil {
 			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
@@ -175,9 +171,17 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 		}
 	}
 
-	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
-	// to get a token without SSO enabled
-	jsonProf.URL = jsonProf.ConfigurationWebURL
+	if jsonProf.ConfigurationWebURL != "" {
+		// ensure `url` is the same as `configuration_web_url`, to not leak the URL
+		// to get a token without SSO enabled
+		jsonProf.URL = jsonProf.ConfigurationWebURL
+	} else {
+		// Without configuration_web_url set, the host will send a POST request
+		// to `url` location to get the MDM profile.
+		// 2025-05-20 unofficial docs: https://github.com/4d-for-ios-sdk/Mobile-Device-Management-Protocol-Reference/blob/master/markdown/4-Profile_Management/4-Profile_Management.md#request-to-a-profile-url
+		jsonProf.URL = enrollURL
+	}
+
 	// always set await_device_configured to true - it will be released either
 	// automatically by Fleet or manually by the user if
 	// enable_release_device_manually is true.
@@ -335,7 +339,7 @@ func (d *DEPService) ValidateSetupAssistant(ctx context.Context, team *fleet.Tea
 			if errors.As(err, &httpErr) {
 				// We can count on this working because of how the godep.HTTPerror Error() method
 				// formats its output.
-				return ctxerr.Errorf(ctx, "Couldn't upload. %s", string(httpErr.Body))
+				return ctxerr.Errorf(ctx, "Couldn't add. %s", string(httpErr.Body))
 			}
 
 			return ctxerr.Wrap(ctx, err, "sending profile to Apple failed")
@@ -515,6 +519,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 				}
 				return err
 			}),
+			depsync.WithLimit(DEPSyncLimit),
 		)
 
 		if err := syncer.Run(ctx); err != nil {
@@ -578,7 +583,7 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	for _, device := range resp.Devices {
-		level.Debug(d.logger).Log(
+		level.Debug(d.logger).Log( // Keeping this at Debug level since this could generate a lot of log traffic (one per device)
 			"msg", "device",
 			"serial_number", device.SerialNumber,
 			"device_assigned_by", device.DeviceAssignedBy,
@@ -626,8 +631,13 @@ func (d *DEPService) processDeviceResponse(
 		}
 	}
 
+	// Devices just added to an MDM server must have their profile updated.
+	// In our testing, added devices with a profile_uuid (which were removed and then re-added, for example)
+	// may not be able to download the profile and enroll in MDM.
+	needProfileAssign := make(map[string]struct{})
 	for _, addedDevice := range addedDevices {
 		addedDevicesSlice = append(addedDevicesSlice, addedDevice)
+		needProfileAssign[addedDevice.SerialNumber] = struct{}{}
 	}
 	for _, modifiedDevice := range modifiedDevices {
 		modifiedSerials = append(modifiedSerials, modifiedDevice.SerialNumber)
@@ -693,7 +703,7 @@ func (d *DEPService) processDeviceResponse(
 		level.Debug(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
 	}
 
-	level.Debug(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
+	level.Info(kitlog.With(d.logger)).Log("msg", "devices to assign DEP profiles", "to_add", len(addedDevicesSlice), "to_remove",
 		strings.Join(deletedSerials, ", "), "to_modify", strings.Join(modifiedSerials, ", "))
 
 	// at this point, the hosts rows are created for the devices, with the
@@ -766,8 +776,9 @@ func (d *DEPService) processDeviceResponse(
 	for profUUID, devices := range profileToDevices {
 		var serials []string
 		for _, device := range devices {
-			_, ok := existingDeletedSerials[device.SerialNumber]
-			if device.ProfileUUID == profUUID && !ok {
+			_, deleted := existingDeletedSerials[device.SerialNumber]
+			_, needsProfile := needProfileAssign[device.SerialNumber]
+			if device.ProfileUUID == profUUID && !deleted && !needsProfile {
 				skippedSerials = append(skippedSerials, device.SerialNumber)
 				continue
 			}
@@ -787,10 +798,11 @@ func (d *DEPService) processDeviceResponse(
 		if len(skipSerials) > 0 {
 			// NOTE: the `dep_cooldown` job of the `integrations`` cron picks up the assignments
 			// after the cooldown period is over
-			level.Debug(logger).Log("msg", "process device response: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+			level.Info(logger).Log("msg", "process device response: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s",
+				skipSerials))
 		}
 		if len(assignSerials) == 0 {
-			level.Debug(logger).Log("msg", "process device response: no devices to assign profile")
+			level.Info(logger).Log("msg", "process device response: no devices to assign profile")
 			continue
 		}
 
@@ -802,14 +814,14 @@ func (d *DEPService) processDeviceResponse(
 				// the proper cooldowns are applied
 				level.Error(logger).Log(
 					"msg", "assign profile",
-					"devices", len(assignSerials),
+					"devices", len(serials),
 					"err", err,
 				)
 			}
 
 			logs := []interface{}{
 				"msg", "profile assigned",
-				"devices", len(assignSerials),
+				"devices", len(serials),
 			}
 			logs = append(logs, logCountsForResults(apiResp.Devices)...)
 			level.Info(logger).Log(logs...)
@@ -821,7 +833,8 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	if len(skippedSerials) > 0 {
-		level.Debug(kitlog.With(d.logger)).Log("msg", "found devices that already have the right profile, skipping assignment", "serials", fmt.Sprintf("%s", skippedSerials))
+		level.Info(kitlog.With(d.logger)).Log("msg", "found devices that already have the right profile, skipping assignment", "serials",
+			fmt.Sprintf("%s", skippedSerials))
 	}
 
 	return nil
@@ -1203,7 +1216,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	start := time.Now()
 	devices, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
+		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to refetch")
 	}
 	if len(devices) == 0 {
 		return nil
@@ -1302,4 +1315,34 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret st
 	}
 
 	return profileBuf.Bytes(), nil
+}
+
+func IOSiPadOSRevive(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger) error {
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
+		level.Debug(logger).Log("msg", "apple mdm is not configured, skipping run")
+		return nil
+	}
+
+	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 500)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list ios and ipados devices to revive")
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	if err := commander.SendNotifications(ctx, ids); err != nil {
+		var apnsErr *APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "error", apnsErr.Error())
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "sending push notifications")
+	}
+	return nil
 }

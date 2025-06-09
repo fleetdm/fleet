@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fleetdm/fleet/v4/server/service/internal/endpoints"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 )
 
 // Login attempts to login to the current Fleet instance. If login is successful,
 // an auth token is returned.
 func (c *Client) Login(email, password string) (string, error) {
-	params := endpoints.LoginRequest{
+	params := contract.LoginRequest{
 		Email:    email,
 		Password: password,
 	}

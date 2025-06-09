@@ -272,4 +272,9 @@
       margin-right: $pad-medium;
     }
   }
+
+  &__sql-editor-label-actions {
+    display: flex;
+    gap: $pad-medium;
+  }
 }

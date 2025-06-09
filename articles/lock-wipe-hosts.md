@@ -58,7 +58,7 @@ Add the `--help` flag to any command to learn more about how to use it.
 
 For macOS hosts, the `mdm unlock` command will return the six-digit PIN, which must be typed into the device in order to finish unlocking it. 
 
-*For Windows and Linux hosts, a script will run as part of the lock and unlock actions. Details for each script can be found in GitHub for [Windows](https://github.com/fleetdm/fleet/tree/main/scripts/mdm/windows) and [Linux](https://github.com/fleetdm/fleet/tree/main/scripts/mdm/linux) hosts.
+*For Windows and Linux hosts, a script will run as part of the lock and unlock actions. Details for each script can be found in GitHub for [Windows](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/windows_lock.ps1) and [Linux](https://github.com/fleetdm/fleet/tree/main/ee/server/service/embedded_scripts/linux_lock.sh) hosts.
 
 <meta name="articleTitle" value="Lock and wipe hosts">
 <meta name="authorFullName" value="JD Strong">

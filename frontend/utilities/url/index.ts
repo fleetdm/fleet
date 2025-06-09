@@ -46,6 +46,10 @@ interface IMutuallyExclusiveHostParams {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
+  configProfileStatus?: string;
+  configProfileUUID?: string;
+  scriptBatchExecutionStatus?: string;
+  scriptBatchExecutionId?: string;
 }
 
 export const parseQueryValueToNumberOrUndefined = (
@@ -216,6 +220,10 @@ export const reconcileMutuallyExclusiveHostParams = ({
   vulnerability,
   diskEncryptionStatus,
   bootstrapPackageStatus,
+  configProfileStatus,
+  configProfileUUID,
+  scriptBatchExecutionStatus,
+  scriptBatchExecutionId,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -270,6 +278,16 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     case !!bootstrapPackageStatus:
       return { bootstrap_package: bootstrapPackageStatus };
+    case !!configProfileUUID:
+      return {
+        profile_status: configProfileStatus,
+        profile_uuid: configProfileUUID,
+      };
+    case !!scriptBatchExecutionId:
+      return {
+        [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: scriptBatchExecutionStatus,
+        [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: scriptBatchExecutionId,
+      };
     default:
       return {};
   }

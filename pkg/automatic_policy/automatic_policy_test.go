@@ -63,6 +63,12 @@ func TestGenerateErrors(t *testing.T) {
 		PackageIDs:       []string{""},
 	})
 	require.ErrorIs(t, err, ErrMissingTitle)
+
+	_, err = Generate(FMAInstallerMetadata{})
+	require.ErrorIs(t, err, ErrMissingTitle)
+
+	_, err = FMAInstallerMetadata{}.PolicyDescription()
+	require.ErrorIs(t, err, ErrMissingTitle)
 }
 
 func TestGenerate(t *testing.T) {

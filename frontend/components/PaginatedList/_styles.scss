@@ -1,111 +1,109 @@
 .paginated-list {
+  gap: $pad-medium;
+  &__header {
+    padding: $pad-medium $pad-large;
+    font-size: $x-small;
+    border-bottom: 1px solid $ui-fleet-black-10;
+    background-color: $ui-off-white;
+  }
 
-    &__header {
-        padding: $pad-medium $pad-large;
-        font-size: $x-small;
-        border-bottom: 1px solid $ui-fleet-black-10;
-        background-color: $ui-off-white;
+  .loading-overlay {
+    display: flex;
+    flex-grow: 1;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 1;
+
+    .loading-spinner {
+      position: sticky;
+      top: 0px;
+      left: 0px;
+    }
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    align-self: stretch;
+    border-radius: 4px;
+    border: 1px solid $ui-fleet-black-10;
+    // negate ul padding
+    padding-left: 0;
+    margin: 0;
+  }
+
+  &__row {
+    display: flex;
+    max-width: 100%;
+    padding: 8px 12px;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    border-bottom: 1px solid $ui-fleet-black-10;
+    gap: 20px;
+
+    .form-field--checkbox {
+      flex: 1 1 0%;
+      /* This allows growing and shrinking */
+      min-width: 0;
+      /* This is crucial for proper shrinking */
     }
 
-    &__pagination-controls {
-        display: flex;
-        justify-content: flex-end;
+    .fleet-checkbox__tick {
+      flex: 0 0 auto;
+      /* This prevents growing and shrinking */
+      width: fit-content;
+      /* This ensures button isn't cut off */
     }
 
-    .loading-overlay {
-        display: flex;
-        flex-grow: 1;
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background-color: rgba(255, 255, 255, 0.8);
-        z-index: 1;
-
-        .loading-spinner {
-            position: sticky;
-            top: 0px;
-            left: 0px
-        }
-    }
-
-    &__list {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        align-self: stretch;
-        border-radius: 4px;
-        border: 1px solid $ui-fleet-black-10;
-        // negate ul padding
-        padding-left: 0;
-        margin: 0;
-    }
-
-    &__row {
-        display: flex;
-        max-width: 100%;
-        padding: 8px 12px;
-        justify-content: space-between;
-        align-items: center;
-        align-self: stretch;
-        border-bottom: 1px solid $ui-fleet-black-10;
-        gap: 20px;
-
-        .form-field--checkbox {
-            flex: 1 1 0%;
-            /* This allows growing and shrinking */
-            min-width: 0;
-            /* This is crucial for proper shrinking */
-        }
-
-        .fleet-checkbox__tick {
-            flex: 0 0 auto;
-            /* This prevents growing and shrinking */
-            width: fit-content;
-            /* This ensures button isn't cut off */
-        }
-
-        .fleet-checkbox__label {
-            display: flex;
-            white-space: nowrap;
-            flex: 1 1 0%;
-            /* This allows growing and shrinking */
-            min-width: 0;
-            /* This is crucial for proper shrinking */
-        }
-
-        &:hover {
-            background: $ui-off-white;
-            cursor: pointer;
-
-            label {
-                cursor: pointer;
-            }
-
-            .policy-row__preview-button {
-                visibility: visible;
-            }
-        }
-
-        &:first-child {
-            border-radius: 4px 4px 0 0;
-        }
-
-        &:last-child {
-            border-radius: 0 0 4px 4px;
-            border-bottom: none;
-        }
-    }
-
-    // For TooltipTruncatedText
     .fleet-checkbox__label {
-        display: flex;
+      display: flex;
+      white-space: nowrap;
+      flex: 1 1 0%;
+      /* This allows growing and shrinking */
+      min-width: 0;
+      /* This is crucial for proper shrinking */
+    }
+    &:not(.paginated-list__row--disabled):hover {
+      background: $ui-off-white;
+      cursor: pointer;
+
+      label {
+        cursor: pointer;
+      }
+
+      .policy-row__preview-button {
+        visibility: visible;
+      }
     }
 
-    &.form-fields {
-        &--disabled {
-            @include disabled;
-        }
+    &:first-child {
+      border-radius: 4px 4px 0 0;
     }
+
+    &:last-child {
+      border-radius: 0 0 4px 4px;
+      border-bottom: none;
+    }
+  }
+
+  // For TooltipTruncatedText
+  .fleet-checkbox__label {
+    display: flex;
+  }
+
+  &.form-fields {
+    &--disabled {
+      @include disabled;
+    }
+  }
+
+  .pagination {
+    margin-top: 0;
+  }
 }

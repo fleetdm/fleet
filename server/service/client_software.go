@@ -31,6 +31,23 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 	return responseBody.SoftwareTitles, nil
 }
 
+// GetSoftwareTitleByID retrieves a software title by ID.
+//
+//nolint:gocritic // ignore captLocal
+func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	var query string
+	if teamID != nil {
+		query = fmt.Sprintf("team_id=%d", *teamID)
+	}
+	verb, path := "GET", "/api/latest/fleet/software/titles/"+fmt.Sprint(ID)
+	var responseBody getSoftwareTitleResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.SoftwareTitle, nil
+}
+
 func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
@@ -42,7 +59,7 @@ func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.Softwa
 func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
-	if err := c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
+	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
 		return nil, err
 	}
 	if dryRun && resp.RequestUUID == "" {

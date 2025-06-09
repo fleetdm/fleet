@@ -73,7 +73,7 @@ const ManageControlsPage = ({
 }: IManageControlsPageProps): JSX.Element => {
   const page = parseInt(location?.query?.page || "", 10) || 0;
 
-  const { isFreeTier, isOnGlobalTeam, isPremiumTier } = useContext(AppContext);
+  const { config, isOnGlobalTeam, isPremiumTier } = useContext(AppContext);
 
   const {
     currentTeamId,
@@ -138,34 +138,39 @@ const ManageControlsPage = ({
     );
   };
 
+  const renderHeaderContent = () => {
+    if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
+      if (userTeams.length > 1 || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams}
+            selectedTeamId={currentTeamId}
+            onChange={handleTeamChange}
+            includeAll={false}
+            includeNoTeams
+          />
+        );
+      }
+      if (!isOnGlobalTeam && userTeams.length === 1) {
+        return <h1>{userTeams[0].name}</h1>;
+      }
+    }
+    return <h1>Controls</h1>;
+  };
+
+  const renderHeader = () => (
+    <div className={`${baseClass}__header`}>
+      <div className={`${baseClass}__text`}>
+        <div className={`${baseClass}__title`}>{renderHeaderContent()}</div>
+      </div>
+    </div>
+  );
+
   return (
     <MainContent>
       <div className={`${baseClass}__wrapper`}>
         <div className={`${baseClass}__header-wrap`}>
-          <div className={`${baseClass}__header-wrap`}>
-            <div className={`${baseClass}__header`}>
-              <div className={`${baseClass}__text`}>
-                <div className={`${baseClass}__title`}>
-                  {isFreeTier && <h1>Controls</h1>}
-                  {isPremiumTier &&
-                    userTeams &&
-                    (userTeams.length > 1 || isOnGlobalTeam) && (
-                      <TeamsDropdown
-                        currentUserTeams={userTeams}
-                        selectedTeamId={currentTeamId}
-                        onChange={handleTeamChange}
-                        includeAll={false}
-                        includeNoTeams
-                      />
-                    )}
-                  {isPremiumTier &&
-                    !isOnGlobalTeam &&
-                    userTeams &&
-                    userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
-                </div>
-              </div>
-            </div>
-          </div>
+          <div className={`${baseClass}__header-wrap`}>{renderHeader()}</div>
         </div>
         {renderBody()}
       </div>

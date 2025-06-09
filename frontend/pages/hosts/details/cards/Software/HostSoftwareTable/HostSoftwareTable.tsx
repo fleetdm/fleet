@@ -30,9 +30,9 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
 import EmptyTable from "components/EmptyTable";
@@ -301,10 +301,10 @@ const HostSoftwareTable = ({
         defaultSortHeader={sortHeader}
         defaultSortDirection={sortDirection}
         defaultSearchQuery={searchQuery}
-        defaultPageIndex={page}
+        pageIndex={page}
         disableNextPage={data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
-        inputPlaceHolder="Search by name" // TODO: "Search by name or vulnerability (CVE)"
+        inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
         customControl={

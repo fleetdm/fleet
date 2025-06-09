@@ -179,6 +179,30 @@ if [ -n "$GENERATE_MSI" ]; then
         --update-url=$MSI_TUF_URL
 fi
 
+if [ -n "$GENERATE_MSI_ARM64" ]; then
+    echo "Generating msi (arm64)..."
+    ./build/fleetctl package \
+        --type=msi \
+        --arch=arm64 \
+        ${FLEET_DESKTOP:+--fleet-desktop} \
+        --fleet-url=$MSI_FLEET_URL \
+        --enroll-secret=$ENROLL_SECRET \
+        ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
+        ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
+        ${INSECURE:+--insecure} \
+        ${DEBUG:+--debug} \
+        --update-roots="$ROOT_KEYS" \
+        --update-interval=10s \
+        --disable-open-folder \
+        ${USE_FLEET_CLIENT_CERTIFICATE:+--fleet-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
+        ${USE_FLEET_CLIENT_CERTIFICATE:+--fleet-tls-client-key=./tools/test-orbit-mtls/client.key} \
+        ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
+        ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
+        ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
+        ${ENABLE_SCRIPTS:+--enable-scripts} \
+        --update-url=$MSI_TUF_URL
+fi
+
 echo "Packages generated."
 
 if [[ $OSTYPE == 'darwin'* && -n "$INSTALL_PKG" ]]; then

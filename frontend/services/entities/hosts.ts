@@ -26,6 +26,8 @@ import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
 import { IHostCertificate } from "interfaces/certificates";
 import { IListOptions } from "interfaces/list_options";
 
+import { ScriptBatchExecutionStatus } from "./scripts";
+
 export interface ISortOption {
   key: string;
   direction: string;
@@ -53,6 +55,8 @@ export const HOSTS_QUERY_PARAMS = {
   OS_SETTINGS: "os_settings",
   DISK_ENCRYPTION: "os_settings_disk_encryption",
   SOFTWARE_STATUS: "software_status",
+  SCRIPT_BATCH_EXECUTION_STATUS: "script_batch_execution_status",
+  SCRIPT_BATCH_EXECUTION_ID: "script_batch_execution_id",
 } as const;
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
@@ -90,6 +94,10 @@ export interface ILoadHostsOptions {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
+  configProfileStatus?: string;
+  configProfileUUID?: string;
+  scriptBatchExecutionStatus?: ScriptBatchExecutionStatus;
+  scriptBatchExecutionId?: string;
 }
 
 export interface IExportHostsOptions {
@@ -122,6 +130,10 @@ export interface IExportHostsOptions {
   bootstrapPackageStatus?: BootstrapPackageStatus;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
+  configProfileUUID?: string;
+  configProfileStatus?: string;
+  scriptBatchExecutionStatus?: ScriptBatchExecutionStatus;
+  scriptBatchExecutionId?: string;
 }
 
 export interface IActionByFilter {
@@ -148,6 +160,8 @@ export interface IActionByFilter {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   vulnerability?: string;
+  scriptBatchExecutionStatus?: ScriptBatchExecutionStatus;
+  scriptBatchExecutionId?: string;
 }
 
 export interface IGetHostSoftwareResponse {
@@ -203,7 +217,7 @@ export interface IGetHostCertificatesResponse {
   };
 }
 
-export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
+export type ILoadHostDetailsExtension = "macadmins";
 
 const LABEL_PREFIX = "labels/";
 
@@ -335,6 +349,10 @@ export default {
     const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
     const vulnerability = options?.vulnerability;
+    const configProfileUUID = options?.configProfileUUID;
+    const configProfileStatus = options?.configProfileStatus;
+    const scriptBatchExecutionStatus = options?.scriptBatchExecutionStatus;
+    const scriptBatchExecutionId = options?.scriptBatchExecutionId;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -370,6 +388,10 @@ export default {
         bootstrapPackageStatus,
         diskEncryptionStatus,
         vulnerability,
+        configProfileUUID,
+        configProfileStatus,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
       }),
       status,
       label_id: label,
@@ -411,6 +433,10 @@ export default {
     osSettings,
     diskEncryptionStatus,
     bootstrapPackageStatus,
+    configProfileStatus,
+    configProfileUUID,
+    scriptBatchExecutionStatus,
+    scriptBatchExecutionId,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -449,6 +475,10 @@ export default {
         diskEncryptionStatus,
         osSettings,
         bootstrapPackageStatus,
+        configProfileStatus,
+        configProfileUUID,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
       }),
     };
 

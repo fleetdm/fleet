@@ -92,7 +92,7 @@ func (s *ThrottledStore) SetIfNotExistsWithTTL(key string, value int64, ttl time
 	return true, nil
 }
 
-func (s *ThrottledStore) CompareAndSwapWithTTL(key string, old, new int64, ttl time.Duration) (bool, error) {
+func (s *ThrottledStore) CompareAndSwapWithTTL(key string, old, isNew int64, ttl time.Duration) (bool, error) {
 	key = s.KeyPrefix + key
 
 	conn := s.Pool.Get()
@@ -110,7 +110,7 @@ func (s *ThrottledStore) CompareAndSwapWithTTL(key string, old, new int64, ttl t
 	}
 
 	script := redis.NewScript(1, compareAndSwapWithTTLScript)
-	swapped, err := redis.Bool(script.Do(conn, key, old, new, ttlSeconds))
+	swapped, err := redis.Bool(script.Do(conn, key, old, isNew, ttlSeconds))
 	if err != nil {
 		if strings.Contains(err.Error(), compareAndSwapNoKeyError) {
 			return false, nil

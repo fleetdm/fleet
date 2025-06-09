@@ -116,7 +116,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             disabled={!isPremiumTier || !mdmOn || gitOpsModeEnabled}
             value={autoMigration}
             onChange={onChangeAutoMigration}
-            tooltipContent={
+            labelTooltipContent={
               isPremiumTier ? "" : "This feature is included in Fleet Premium."
             }
           >
@@ -125,11 +125,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           <GitOpsModeTooltipWrapper
             tipOffset={8}
             renderChildren={(disableChildren) => (
-              <Button
-                variant="brand"
-                onClick={onSaveMdm}
-                disabled={disableChildren}
-              >
+              <Button onClick={onSaveMdm} disabled={disableChildren}>
                 Save
               </Button>
             )}

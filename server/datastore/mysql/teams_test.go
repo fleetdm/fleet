@@ -87,7 +87,7 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 				Mobileconfig: dummyMC,
 				TeamID:       &team.ID,
 			}
-			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP)
+			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP, nil)
 			require.NoError(t, err)
 
 			wcp, err := ds.NewMDMWindowsConfigProfile(context.Background(), fleet.MDMWindowsConfigProfile{
@@ -610,6 +610,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 					MacOSSetup: fleet.MacOSSetup{
 						BootstrapPackage:    optjson.SetString("bootstrap"),
 						MacOSSetupAssistant: optjson.SetString("assistant"),
+						ManualAgentInstall:  optjson.SetBool(true),
 					},
 					WindowsSettings: fleet.WindowsSettings{
 						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
@@ -644,6 +645,7 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				EnableReleaseDeviceManually: optjson.SetBool(false),
 				Script:                      optjson.String{Set: true},
 				Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+				ManualAgentInstall:          optjson.SetBool(true),
 			},
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),

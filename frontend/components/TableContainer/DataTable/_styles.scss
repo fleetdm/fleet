@@ -278,15 +278,28 @@ $shadow-transition-width: 10px;
           padding: $pad-small 0; // larger clickable area
 
           &:hover {
-            text-decoration: underline;
+            // Underlines only the text and not the suffix like badges
+            .tooltip-truncated-cell {
+              text-decoration: none;
+            }
+            .data-table__tooltip-truncated-text {
+              text-decoration: underline;
+            }
           }
+
           > div {
-            display: block;
+            display: flex;
+            align-items: center;
+            gap: $pad-small;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
           }
+          .truncated-tooltip {
+            font-weight: $regular;
+          }
         }
+
         // css to properly style link-cell with tooltip
         .link-cell-tooltip-wrapper {
           overflow: visible; // fixes tooltip overflow cut off by cell
@@ -354,60 +367,10 @@ $shadow-transition-width: 10px;
     z-index: 1;
   }
 
-  &__pagination {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: $pad-small;
-    margin-bottom: $pad-small;
-    margin-left: auto;
-    text-align: right;
-
-    button {
-      color: $core-vibrant-blue;
-      padding: 6px;
-      font-weight: $bold;
-
-      .fleeticon-chevronleft {
-        margin-right: $pad-small;
-
-        &:before {
-          font-size: 0.6rem;
-          font-weight: $bold;
-          position: relative;
-          top: -1px;
-        }
-      }
-
-      .fleeticon-chevronright {
-        margin-left: $pad-small;
-
-        &:before {
-          font-size: 0.6rem;
-          font-weight: $bold;
-          position: relative;
-          top: -1px;
-        }
-      }
-    }
-
-    button:hover,
-    button:focus {
-      background-color: $ui-vibrant-blue-10;
-    }
-
-    .button--disabled:hover,
-    .button--disabled:focus {
-      background-color: transparent;
-    }
-
-    button:last-child {
-      margin-left: $pad-large;
-    }
-  }
-
   &__footer {
     display: flex;
     align-items: center;
+    height: 50px; // Match pagination height as pagination is optionally rendered
   }
 
   &__table-help-text {

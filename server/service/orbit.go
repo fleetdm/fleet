@@ -174,6 +174,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		ctx,
 		nil,
 		fleet.ActivityTypeFleetEnrolled{
+			HostID:          host.ID,
 			HostSerial:      hostInfo.HardwareSerial,
 			HostDisplayName: host.DisplayName(),
 		},
@@ -309,7 +310,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	notifs.RunDiskEncryptionEscrow = host.IsLUKSSupported() &&
-		host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && svc.ds.IsHostPendingEscrow(ctx, host.ID)
+		host.DiskEncryptionEnabled != nil &&
+		*host.DiskEncryptionEnabled &&
+		svc.ds.IsHostPendingEscrow(ctx, host.ID)
 
 	// load the (active, ready to execute) pending software install executions for that host
 	pendingInstalls, err := svc.ds.ListReadyToExecuteSoftwareInstalls(ctx, host.ID)
@@ -853,11 +856,11 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 			}
-
 		}
 	}
 
-	if hsr != nil {
+	// don't create a "past" activity if the result was for a canceled activity
+	if hsr != nil && !hsr.Canceled {
 		var user *fleet.User
 		if hsr.UserID != nil {
 			user, err = svc.ds.UserByID(ctx, *hsr.UserID)
@@ -885,8 +888,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 
 		switch action {
 		case "uninstall":
-			// Get software title from execution ID
-			softwareTitleName, err := svc.ds.GetSoftwareTitleNameFromExecutionID(ctx, hsr.ExecutionID)
+			softwareTitleName, selfService, err := svc.ds.GetDetailsForUninstallFromExecutionID(ctx, hsr.ExecutionID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "get software title from execution ID")
 			}
@@ -903,6 +905,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					SoftwareTitle:   softwareTitleName,
 					ExecutionID:     hsr.ExecutionID,
 					Status:          activityStatus,
+					SelfService:     selfService,
 				},
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
@@ -1284,7 +1287,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
-	if err := svc.ds.SetHostSoftwareInstallResult(ctx, result); err != nil {
+	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")
 	}
 
@@ -1302,7 +1306,9 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 	}
 
-	if status := result.Status(); status != fleet.SoftwareInstallPending {
+	// do not create a "past" activity if the status is not terminal or if the activity
+	// was canceled.
+	if status := result.Status(); status != fleet.SoftwareInstallPending && !installWasCanceled {
 		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get host software installation result information")

@@ -5,19 +5,24 @@ import { AppContext } from "context/app";
 import {
   ICertificateIntegration,
   isDigicertCertIntegration,
+  isNDESCertIntegration,
 } from "interfaces/integration";
 import certificatesAPI from "services/entities/certificates";
 
 import Modal from "components/Modal";
 
-import DigicertForm from "../DigicertForm";
 import {
   generateDefaultFormData,
-  generateErrorMessage,
+  getErrorMessage,
   getCertificateAuthorityType,
+  updateFormData,
 } from "./helpers";
+
+import DigicertForm from "../DigicertForm";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { useCertAuthorityDataGenerator } from "../DeleteCertificateAuthorityModal/helpers";
+import NDESForm from "../NDESForm";
+import CustomSCEPForm from "../CustomSCEPForm";
 
 const baseClass = "edit-cert-authority-modal";
 
@@ -45,11 +50,7 @@ const EditCertAuthorityModal = ({
   const onChangeForm = (update: { name: string; value: string }) => {
     setFormData((prevFormData) => {
       if (!prevFormData) return prevFormData;
-
-      return {
-        ...prevFormData,
-        [update.name]: update.value,
-      };
+      return updateFormData(certAuthority, prevFormData, update);
     });
   };
 
@@ -64,16 +65,19 @@ const EditCertAuthorityModal = ({
       onExit();
       setConfig(newConfig);
     } catch (e) {
-      renderFlash("error", generateErrorMessage(e));
+      renderFlash("error", getErrorMessage(e));
     }
     setIsUpdating(false);
   };
 
   const getFormComponent = () => {
+    if (isNDESCertIntegration(certAuthority)) {
+      return NDESForm;
+    }
     if (isDigicertCertIntegration(certAuthority)) {
       return DigicertForm;
     }
-    return null;
+    return CustomSCEPForm;
   };
 
   const renderForm = () => {
@@ -82,9 +86,11 @@ const EditCertAuthorityModal = ({
 
     return (
       <FormComponent
+        // @ts-ignore TODO: figure out how to fix this type issue
         formData={formData}
         submitBtnText="Save"
         isSubmitting={isUpdating}
+        isEditing
         onChange={onChangeForm}
         onSubmit={onEditCertAuthority}
         onCancel={onExit}
@@ -98,6 +104,7 @@ const EditCertAuthorityModal = ({
       title="Edit certificate authority (CA)"
       width="large"
       onExit={onExit}
+      isContentDisabled={isUpdating}
     >
       {renderForm()}
     </Modal>

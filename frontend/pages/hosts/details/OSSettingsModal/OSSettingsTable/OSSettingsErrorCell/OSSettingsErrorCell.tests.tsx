@@ -100,4 +100,85 @@ describe("OSSettingsErrorCell", () => {
     expect(screen.getByText(/Learn more/)).toBeInTheDocument();
     expect(screen.getByText(/Learn more/).tagName.toLowerCase()).toBe("a");
   });
+
+  it("renders a formatted tooltip when the error message matches custom scep error patern", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles
+        hostId={1}
+        profile={createMockHostMdmProfile({
+          status: "failed",
+          detail: `Fleet couldn't populate $FLEET_VAR_CUSTOM_SCEP_URL_SCEP_WIFI because SCEP_WIFI certificate authority doesn't exist.`,
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("Settings > Integrations > Certificates")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/add it and resend the configuration profile/)
+    ).toBeInTheDocument();
+  });
+
+  it("renders a formatted tooltip when the error message matches digicert profile id error", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles
+        hostId={1}
+        profile={createMockHostMdmProfile({
+          status: "failed",
+          detail: `Couldn't get certificate from DigiCert for WIFI_CERTIFICATE. unexpected DigiCert status code for POST request: 410, errors: Profile with id {test-id} was deleted`,
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("Settings > Integrations > Certificates")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/correct it and resend/)).toBeInTheDocument();
+    expect(screen.getByText("WIFI_CERTIFICATE")).toBeInTheDocument();
+    expect(screen.getByText("Profile GUID")).toBeInTheDocument();
+  });
+
+  it("renders a formatted tooltip when the error message matches digicert deleted profile error", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles
+        hostId={1}
+        profile={createMockHostMdmProfile({
+          status: "failed",
+          detail: `Couldn't get certificate from DigiCert for WIFI_CERTIFICATE. unexpected DigiCert status code for POST request: 400, errors: Enrollment creation and Certificate issuance/renewal for deleted or suspended Profile are not supported.
+          Please contact system Administrator.`,
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("Settings > Integrations > Certificates")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/correct it and resend/)).toBeInTheDocument();
+    expect(screen.getByText("WIFI_CERTIFICATE")).toBeInTheDocument();
+    expect(screen.getByText("Profile GUID")).toBeInTheDocument();
+  });
+
+  it("renders a formatted tooltip when the error message matches digicert token patern", () => {
+    render(
+      <OSSettingsErrorCell
+        canResendProfiles
+        hostId={1}
+        profile={createMockHostMdmProfile({
+          status: "failed",
+          detail: `Couldn’t get certificate from DigiCert. The API token configured in DIGICERT_TEST certificate authority is invalid.`,
+        })}
+      />
+    );
+
+    expect(
+      screen.getByText("Settings > Integrations > Certificates")
+    ).toBeInTheDocument();
+    expect(screen.getByText(/correct it and resend/)).toBeInTheDocument();
+    expect(screen.getByText("DIGICERT_TEST")).toBeInTheDocument();
+    expect(screen.getByText("API token")).toBeInTheDocument();
+  });
 });

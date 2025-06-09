@@ -28,7 +28,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
@@ -58,7 +58,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
@@ -90,7 +90,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
@@ -121,7 +121,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
@@ -153,7 +153,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testCriticalPolicy].length}
       />
     );
 
@@ -191,7 +191,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testInheritedPolicy].length}
       />
     );
 
@@ -229,7 +229,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testGlobalPolicy].length}
       />
     );
 
@@ -257,9 +257,11 @@ describe("Policies table", () => {
       createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
     ];
 
+    const policiesList = [...testInheritedPolicies, ...testTeamPolicies];
+
     const { container, user } = render(
       <PoliciesTable
-        policiesList={[...testInheritedPolicies, ...testTeamPolicies]}
+        policiesList={policiesList}
         isLoading={false}
         onDeletePolicyClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
@@ -270,7 +272,7 @@ describe("Policies table", () => {
         renderPoliciesCount={() => null}
         canAddOrDeletePolicy
         hasPoliciesToDelete
-        resetPageIndex={false}
+        count={policiesList.length}
       />
     );
 

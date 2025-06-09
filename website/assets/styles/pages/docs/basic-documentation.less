@@ -358,7 +358,7 @@
       box-shadow: 1px 2px 2px rgba(197, 199, 209, 0.2);
       border-radius: 6px;
       padding: 20px;
-      margin-top: 8px;
+      margin-top: 24px;
       color: @core-fleet-black;
       width: 200px;
       position: sticky;
@@ -919,7 +919,10 @@
             padding-bottom: 16px;
 
           }
-
+          [purpose='modal-docs-links'] {
+            border-bottom: 1px solid @core-fleet-black-25;
+            margin-bottom: 16px;
+          }
           [purpose='modal-nav-link'] {
             font-family: Inter;
             font-size: 14px;
@@ -1032,6 +1035,15 @@
           transition-property: max-height;
           transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
           transition-duration: 500ms;
+          [purpose='swag-cta'] {
+            width: 190px;
+            position: static;
+            a {
+              &:hover {
+                background: none;
+              }
+            }
+          }
           a {
             display: block;
             color: #515774;

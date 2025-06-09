@@ -14,7 +14,13 @@
 
   .software-name {
     @include ellipse-text();
-    max-width: 250px;
+    max-width: 300px;
+  }
+
+  @media (max-width: ($break-md - 1)) {
+    .software-name {
+      max-width: 250px;
+    }
   }
 
   &__install-icon {

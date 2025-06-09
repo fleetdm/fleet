@@ -177,6 +177,10 @@ module.exports = {
         // e.g., 'Remaining time on 9 × Fleet premium hosts after 17 Feb 2024'
         return _.startsWith(item.description, 'Remaining');
       });
+      // If this no line item that starts with "Remaining" was found, select the first line item on the invoice.
+      if(!updatedSubscriptionInfo){
+        updatedSubscriptionInfo = itemsOnThisInvoice[0];
+      }
       // Convert the subscription cycle's period end timestamp from Stripe into a JS timestamp.
       // Note: with most subscription changes, this value will be indentical to the existing license key's expiration
       // timestamp. We do this here to handle situations where the subscription period has been adjusted in the Stripe UI.

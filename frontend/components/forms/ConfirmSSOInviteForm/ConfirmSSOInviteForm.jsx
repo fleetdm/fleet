@@ -36,7 +36,7 @@ class ConfirmSSOInviteForm extends Component {
             maxLength: "80",
           }}
         />
-        <Button onClick={handleSubmit} type="Submit" variant="brand">
+        <Button onClick={handleSubmit} type="Submit">
           Submit
         </Button>
       </form>

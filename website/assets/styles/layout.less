@@ -440,7 +440,7 @@ html, body {
     [purpose='header-nav-btn'][aria-expanded='true'] {
       font-weight: 700;
       outline: none;
-      color: @core-fleet-black-75;;
+      color: @core-fleet-black-75;
     }
     [purpose='header-nav-btn']:before {
       display: block;
@@ -468,6 +468,7 @@ html, body {
       cursor: pointer;
       display: inline-block;
       padding: 6px 16px;
+      text-decoration: none;
     }
     [purpose='header-nav-btn']:hover {
       font-weight: 700;
@@ -498,6 +499,11 @@ html, body {
         text-decoration: none;
         &:not(:last-of-type) {
           margin-bottom: 4px;
+        }
+        &[target='_blank'] {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
         }
       }
       a:hover {
@@ -625,6 +631,11 @@ html, body {
 }
 [purpose='page-wrap'].reduced-footer-links {
   padding-bottom: 96px;
+}
+[purpose='page-wrap'].header-hidden {
+  padding-top: 0px;
+  padding-bottom: 0px;
+  background: #F9FAFC;
 }
 
 // Landing page footer styles
@@ -841,5 +852,5 @@ body.detected-mobile {
 // Some utilities for the sticky nav behaviour.
 // Note: this will not be applied if a navigation menu open.
 .translate-y-0 {
-  transform: translateY(-235px);
+  transform: translateY(-81px);
 }

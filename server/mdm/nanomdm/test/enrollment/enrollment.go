@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/test"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/test/protocol"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 var ErrAlreadyEnrolled = errors.New("already enrolled")

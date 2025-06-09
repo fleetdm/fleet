@@ -13,7 +13,7 @@ import (
 // Ingester is responsible for ingesting the metadata for maintained apps for a given platform.
 // Each platform may have multiple sources for metadata (e.g. homebrew and autopkg for macOS). Each
 // source must have its own Ingester implementation.
-type Ingester func(ctx context.Context, logger kitlog.Logger, inputsPath string) ([]*FMAManifestApp, error)
+type Ingester func(ctx context.Context, logger kitlog.Logger, inputsPath string, slugFilter string) ([]*FMAManifestApp, error)
 
 const OutputPath = "ee/maintained-apps/outputs"
 
@@ -25,7 +25,7 @@ type FMAManifestApp struct {
 	Version            string     `json:"version"`
 	Queries            FMAQueries `json:"queries"`
 	InstallerURL       string     `json:"installer_url"`
-	UniqueIdentifier   string     `json:"unique_identifier"`
+	UniqueIdentifier   string     `json:"unique_identifier,omitempty"`
 	InstallScriptRef   string     `json:"install_script_ref"`
 	UninstallScriptRef string     `json:"uninstall_script_ref"`
 	InstallScript      string     `json:"-"`
@@ -33,6 +33,7 @@ type FMAManifestApp struct {
 	SHA256             string     `json:"sha256"`
 	Slug               string     `json:"-"`
 	Name               string     `json:"-"`
+	DefaultCategories  []string   `json:"default_categories"`
 }
 
 func (a *FMAManifestApp) Platform() string {

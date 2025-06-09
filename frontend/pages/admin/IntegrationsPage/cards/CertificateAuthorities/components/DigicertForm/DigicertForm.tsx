@@ -1,11 +1,17 @@
-import React, { useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
+
+import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import { validateFormData, IDigicertFormValidation } from "./helpers";
+import {
+  validateFormData,
+  IDigicertFormValidation,
+  generateFormValidations,
+} from "./helpers";
 
 const baseClass = "digicert-form";
 
@@ -23,6 +29,7 @@ interface IDigicertFormProps {
   formData: IDigicertFormData;
   submitBtnText: string;
   isSubmitting: boolean;
+  isEditing?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -32,14 +39,20 @@ const DigicertForm = ({
   formData,
   submitBtnText,
   isSubmitting,
+  isEditing = false,
   onChange,
   onSubmit,
   onCancel,
 }: IDigicertFormProps) => {
+  const { config } = useContext(AppContext);
+  const validations = useMemo(
+    () =>
+      generateFormValidations(config?.integrations.digicert ?? [], isEditing),
+    [config?.integrations.digicert, isEditing]
+  );
+
   const [formValidation, setFormValidation] = useState<IDigicertFormValidation>(
-    {
-      isValid: false,
-    }
+    () => validateFormData(formData, validations)
   );
 
   const {
@@ -59,7 +72,10 @@ const DigicertForm = ({
 
   const onInputChange = (update: { name: string; value: string }) => {
     setFormValidation(
-      validateFormData({ ...formData, [update.name]: update.value })
+      validateFormData(
+        { ...formData, [update.name]: update.value },
+        validations
+      )
     );
     onChange(update);
   };
@@ -73,9 +89,9 @@ const DigicertForm = ({
           value={name}
           onChange={onInputChange}
           error={formValidation.name?.message}
-          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_CERT_DATA_DIGICERT_WIFI)."
+          helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_DIGICERT_DATA_WIFI_CERTIFICATE)."
           parseTarget
-          placeholder="DIGICERT_WIFI"
+          placeholder="WIFI_CERTIFICATE"
         />
         <InputField
           name="url"

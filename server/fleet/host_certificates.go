@@ -69,7 +69,7 @@ func NewHostCertificateRecord(
 		// describes this as "Certificate key usage and extended key usage":
 		// https://github.com/osquery/osquery/blob/16bb01508eeca6d663b6d4f7e15034306be0fc3d/osquery/tables/system/posix/openssl_utils.cpp#L166
 		KeyUsage:                  "",
-		Serial:                    cert.SerialNumber.String(),
+		Serial:                    cert.SerialNumber.Text(16),
 		SigningAlgorithm:          cert.SignatureAlgorithm.String(),
 		SubjectCommonName:         cert.Subject.CommonName,
 		SubjectCountry:            firstOrEmpty(cert.Subject.Country),            // TODO: confirm methodology

@@ -178,7 +178,7 @@ func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fl
 	return &s, nil
 }
 
-func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 	secretTeamID := sql.NullInt64{}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &secretTeamID, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
@@ -187,7 +187,7 @@ func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string,
 		}
 		return false, ctxerr.Wrap(ctx, err, "check enroll secret availability")
 	}
-	if new {
+	if isNew {
 		// Secret is already in use, so a new team can't use it
 		return false, nil
 	}

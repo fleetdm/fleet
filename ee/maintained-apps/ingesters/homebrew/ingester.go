@@ -20,7 +20,7 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([]*maintained_apps.FMAManifestApp, error) {
+func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
 	level.Info(logger).Log("msg", "starting homebrew app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
@@ -59,11 +59,15 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string) ([
 			return nil, ctxerr.NewWithData(ctx, "missing name for app", map[string]any{"fileName": f.Name()})
 		}
 
+		if slugFilter != "" && !strings.Contains(input.Slug, slugFilter) {
+			continue
+		}
+
 		level.Info(i.logger).Log("msg", "ingesting homebrew app", "name", input.Name)
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "ingesting app")
+			return nil, ctxerr.Wrap(ctx, err, "ingesting homebrew app")
 		}
 
 		manifestApps = append(manifestApps, outApp)
@@ -144,6 +148,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
 	out.Slug = app.Slug
+	out.DefaultCategories = app.DefaultCategories
 	if len(app.PreUninstallScripts) != 0 {
 		cask.PreUninstallScripts = app.PreUninstallScripts
 	}
@@ -178,6 +183,7 @@ type inputApp struct {
 	Slug                 string   `json:"slug"`
 	PreUninstallScripts  []string `json:"pre_uninstall_scripts"`
 	PostUninstallScripts []string `json:"post_uninstall_scripts"`
+	DefaultCategories    []string `json:"default_categories"`
 }
 
 type brewCask struct {

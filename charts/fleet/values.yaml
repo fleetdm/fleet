@@ -3,7 +3,11 @@
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 imageRepository: fleetdm/fleet
-imageTag: v4.65.0 # Version of Fleet to deploy
+imageTag: v4.68.1 # Version of Fleet to deploy
+# imagePullSecrets is optional.
+# imagePullSecrets:
+#   - name: docker
+#   - name: internal
 podAnnotations: {} # Additional annotations to add to the Fleet pod
 serviceAnnotations: {} # Additional annotations to add to the Fleet service
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
@@ -51,10 +55,10 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-  tls:
-    - secretName: chart-example-tls
-      hosts:
-        - chart-example.local
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
 
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
@@ -103,7 +107,10 @@ fleet:
     licenseKey: license-key
   extraVolumes: []
   extraVolumeMounts: []
-
+  # Currently only passes runAsUser and runAsGroup
+  securityContext:
+    runAsUser: 3333
+    runAsGroup: 3333
 # Whether to make fleet vulnerability processing run in a dedicated container
 # if you set dedicated=false, you need to increase the main resources section
 # to 4Gi or the fleet container will be OOMKilled when vulnerability processing

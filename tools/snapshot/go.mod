@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4/tools/snapshot
 
-go 1.23.4
+go 1.24.2
 
 require (
 	github.com/manifoldco/promptui v0.9.0
