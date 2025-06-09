@@ -15024,13 +15024,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	// Do SCEP again, it should fail because the challenge is expired but a new challenge should be
 	// generated and the profile resent
-	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier2, nil, http.StatusBadRequest, nil, "operation",
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier2, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
-	body, err = io.ReadAll(scepRes.Body)
-	require.NoError(t, err)
-	pkiMessage, err = scep.ParsePKIMessage(body, scep.WithCACerts(certs))
-	require.NoError(t, err)
-	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
 	// Check profile status, raw status will be empty (awaiting the reconcile job)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status string
@@ -15073,6 +15068,14 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	checkChallenge(t, gotChallenge, false)  // old challenge deleted
 	checkChallenge(t, gotChallenge2, false) // old challenge deleted
 	checkChallenge(t, gotChallenge3, true)  // new challenge added
+
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier3, nil, http.StatusOK, nil, "operation",
+		"PKIOperation", "message", message)
+	body, err = io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	pkiMessage, err = scep.ParsePKIMessage(body, scep.WithCACerts(certs))
+	require.NoError(t, err)
+	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
 
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
