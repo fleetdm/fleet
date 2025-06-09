@@ -6,7 +6,7 @@ To learn how to use Fleet's maintenance windows, head to this [article](https://
 
 ## Activity automations
 
-Activity automations are triggered when an activity happens in Fleet (queries, scripts, logins, etc). See a list of all activities [here](https://fleetdm.com/docs/using-fleet/audit-logs).
+Activity automations are triggered when an activity happens in Fleet (queries, scripts, logins, etc). See our [Audit logs documentation](https://fleetdm.com/docs/using-fleet/audit-logs) for a list of all activity types.
 
 You can automatically send activites to a webhook URL or a [log destination](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
 
