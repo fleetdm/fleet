@@ -13277,6 +13277,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			SubjectCountry: "s" + name,
 			IssuerCountry:  "i" + name,
 			NotValidAfter:  notValidAfterTimes[i],
+			Source:         fleet.SystemHostCertificate,
 		})
 	}
 	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs))
