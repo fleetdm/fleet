@@ -98,7 +98,7 @@ func (ds *Datastore) getHostSoftwareInstalledPaths(
 	error,
 ) {
 	stmt := `
-		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier
+		SELECT t.id, t.host_id, t.software_id, t.installed_path, t.team_identifier, t.executable_sha256
 		FROM host_software_installed_paths t
 		WHERE t.host_id = ?
 	`
@@ -152,10 +152,13 @@ func hostSoftwareInstalledPathsDelta(
 			toDelete = append(toDelete, r.ID)
 			continue
 		}
-
+		var sha256 string
+		if r.ExecutableSHA256 != nil {
+			sha256 = *r.ExecutableSHA256
+		}
 		key := fmt.Sprintf(
-			"%s%s%s%s%s",
-			r.InstalledPath, fleet.SoftwareFieldSeparator, r.TeamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+			"%s%s%s%s%s%s%s",
+			r.InstalledPath, fleet.SoftwareFieldSeparator, r.TeamIdentifier, fleet.SoftwareFieldSeparator, sha256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 		)
 		iSPathLookup[key] = r
 
@@ -166,8 +169,8 @@ func hostSoftwareInstalledPathsDelta(
 	}
 
 	for key := range reported {
-		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 3)
-		installedPath, teamIdentifier, unqStr := parts[0], parts[1], parts[2]
+		parts := strings.SplitN(key, fleet.SoftwareFieldSeparator, 4)
+		installedPath, teamIdentifier, cdHash, unqStr := parts[0], parts[1], parts[2], parts[3]
 
 		// Shouldn't be a common occurence ... everything 'reported' should be in the the software table
 		// because this executes after 'ds.UpdateHostSoftware'
@@ -182,11 +185,17 @@ func hostSoftwareInstalledPathsDelta(
 			continue
 		}
 
+		var executableSHA256 *string
+		if cdHash != "" {
+			executableSHA256 = ptr.String(cdHash)
+		}
+
 		toInsert = append(toInsert, fleet.HostSoftwareInstalledPath{
-			HostID:         hostID,
-			SoftwareID:     s.ID,
-			InstalledPath:  installedPath,
-			TeamIdentifier: teamIdentifier,
+			HostID:           hostID,
+			SoftwareID:       s.ID,
+			InstalledPath:    installedPath,
+			TeamIdentifier:   teamIdentifier,
+			ExecutableSHA256: executableSHA256,
 		})
 	}
 
@@ -223,7 +232,7 @@ func insertHostSoftwareInstalledPaths(
 		return nil
 	}
 
-	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier) VALUES %s"
+	stmt := "INSERT INTO host_software_installed_paths (host_id, software_id, installed_path, team_identifier, executable_sha256) VALUES %s"
 	batchSize := 500
 
 	for i := 0; i < len(toInsert); i += batchSize {
@@ -235,10 +244,10 @@ func insertHostSoftwareInstalledPaths(
 
 		var args []interface{}
 		for _, v := range batch {
-			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier)
+			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier, v.ExecutableSHA256)
 		}
 
-		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?), ", len(batch)), ", ")
+		placeHolders := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?), ", len(batch)), ", ")
 		stmt := fmt.Sprintf(stmt, placeHolders)
 
 		_, err := tx.ExecContext(ctx, stmt, args...)
@@ -2898,6 +2907,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                 ua.execution_id AS last_install_install_uuid,
                 ua.created_at AS last_install_installed_at,
                 vaua.adam_id AS vpp_app_adam_id,
+				vat.self_service AS vpp_app_self_service,
                 'pending_install' AS status
             FROM
                 upcoming_activities ua
@@ -2928,6 +2938,7 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
                 hvsi.command_uuid AS last_install_install_uuid,
                 hvsi.created_at AS last_install_installed_at,
                 hvsi.adam_id AS vpp_app_adam_id,
+				vat.self_service AS vpp_app_self_service,
 				-- vppAppHostStatusNamedQuery(hvsi, ncr, status)
                 %s
             FROM
@@ -3142,6 +3153,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		"vpp_apps_platforms":    fleet.VPPAppsPlatforms,
 		"known_exploit":         1,
 	}
+	var hasCVEMetaFilters bool
+	if opts.KnownExploit || opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 {
+		hasCVEMetaFilters = true
+	}
+
 	bySoftwareTitleID := make(map[uint]*hostSoftware)
 	bySoftwareID := make(map[uint]*hostSoftware)
 
@@ -3215,7 +3231,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					s.SoftwareSource = installedTitle.SoftwareSource
 					s.Version = installedTitle.Version
 					s.BundleIdentifier = installedTitle.BundleIdentifier
-					delete(bySoftwareTitleID, s.ID)
+					if !opts.VulnerableOnly && !hasCVEMetaFilters {
+						// When we are filtering by vulnerable only
+						// we want to treat the installed vpp app as a regular software title
+						delete(bySoftwareTitleID, s.ID)
+					}
 				} else {
 					continue
 				}
@@ -3581,13 +3601,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				// it will be present in bySoftwareTitleID, because osquery returned it as inventory.
 				// We need to remove it from bySoftwareTitleID and add it to byVPPAdamID
 				if invetoriedSoftware, ok := bySoftwareTitleID[s.ID]; ok {
-					delete(bySoftwareTitleID, s.ID)
 					invetoriedSoftware.VPPAppAdamID = s.VPPAppAdamID
 					invetoriedSoftware.VPPAppVersion = s.VPPAppVersion
 					invetoriedSoftware.VPPAppPlatform = s.VPPAppPlatform
 					invetoriedSoftware.VPPAppIconURL = s.VPPAppIconURL
 					invetoriedSoftware.VPPAppSelfService = s.VPPAppSelfService
-					byVPPAdamID[*s.VPPAppAdamID] = invetoriedSoftware
+					if !opts.VulnerableOnly && !hasCVEMetaFilters {
+						// When we are filtering by vulnerable only
+						// we want to treat the installed vpp app as a regular software title
+						delete(bySoftwareTitleID, s.ID)
+						byVPPAdamID[*s.VPPAppAdamID] = invetoriedSoftware
+					}
 					hostVPPInstalledTitles[s.ID] = invetoriedSoftware
 				}
 			}
@@ -3741,21 +3765,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 
 		var cveMetaFilter string
-		var hasCVEMetaFilters bool
 		var cveMatchClause string
 		var cveNamedArgs []interface{}
 		var cveMatchArgs []interface{}
 		if opts.KnownExploit {
 			cveMetaFilter += "\nAND cve_meta.cisa_known_exploit = :known_exploit"
-			hasCVEMetaFilters = true
 		}
 		if opts.MinimumCVSS > 0 {
 			cveMetaFilter += "\nAND cve_meta.cvss_score >= :min_cvss"
-			hasCVEMetaFilters = true
 		}
 		if opts.MaximumCVSS > 0 {
 			cveMetaFilter += "\nAND cve_meta.cvss_score <= :max_cvss"
-			hasCVEMetaFilters = true
 		}
 		if hasCVEMetaFilters {
 			cveMetaFilter, cveNamedArgs, err = sqlx.Named(cveMetaFilter, namedArgs)
@@ -4013,6 +4033,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			pathSignatureInformation[ip.SoftwareID] = append(pathSignatureInformation[ip.SoftwareID], fleet.PathSignatureInformation{
 				InstalledPath:  ip.InstalledPath,
 				TeamIdentifier: ip.TeamIdentifier,
+				HashSha256:     ip.ExecutableSHA256,
 			})
 		}
 

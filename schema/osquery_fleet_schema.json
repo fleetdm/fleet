@@ -4462,6 +4462,74 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fconnectivity.yml&value=name%3A%20connectivity%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
+    "name": "containerd_containers",
+    "platforms": [
+      "linux"
+    ],
+    "description": "Information about containerd containers.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "namespace",
+        "type": "text",
+        "required": false,
+        "description": "Namespace of the container."
+      },
+      {
+        "name": "id",
+        "type": "text",
+        "required": false,
+        "description": "Container ID."
+      },
+      {
+        "name": "image",
+        "type": "text",
+        "required": false,
+        "description": "Image name."
+      },
+      {
+        "name": "image_digest",
+        "type": "text",
+        "required": false,
+        "description": "Image digest (SHA256)."
+      },
+      {
+        "name": "state",
+        "type": "text",
+        "required": false,
+        "description": "Container state (e.g. running, stopped)."
+      },
+      {
+        "name": "created",
+        "type": "integer",
+        "required": false,
+        "description": "Unix timestamp of when the container was created."
+      },
+      {
+        "name": "runtime",
+        "type": "text",
+        "required": false,
+        "description": "Name of the container runtime (e.g. io.containerd.runc.v2)."
+      },
+      {
+        "name": "command",
+        "type": "text",
+        "required": false,
+        "description": "Command used to start the container."
+      },
+      {
+        "name": "pid",
+        "type": "integer",
+        "required": false,
+        "description": "PID of the container process."
+      }
+    ],
+    "examples": "Get all containers from all namespaces:\n\n```\nSELECT * FROM containerd_containers;\n```\n\nGet only running containers in the `default` namespace:\n\n```\nSELECT * FROM containerd_containers WHERE namespace='default' AND state='running';\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd` table is available on Linux systems with containerd installed. It provides\ninformation about the containers managed by containerd, including their state, image, and runtime.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_containers` table for information about containers managed by Docker.",
+    "url": "https://fleetdm.com/tables/containerd_containers",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_containers.yml"
+  },
+  {
     "name": "corestorage_logical_volume_families",
     "platforms": [
       "darwin"
@@ -5437,6 +5505,37 @@
     ],
     "url": "https://fleetdm.com/tables/cryptoinfo",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cryptoinfo.yml"
+  },
+  {
+    "name": "cryptsetup_luks_salt",
+    "description": "Given an LUKS encrypted device path, returns all the LUKS2 key slots and their respective salts.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "device",
+        "description": "The device path used for querying the LUKS metadata, e.g. `/dev/vda3`",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "key_slot",
+        "description": "A 'key slot' that indicates where in the LUKS metadata header the user key is stored.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "salt",
+        "description": "Salt used during the encryption process of the LUKS user key.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/cryptsetup_luks_salt",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cryptsetup_luks_salt.yml"
   },
   {
     "name": "cryptsetup_status",
@@ -13591,7 +13690,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- This table should be used sparingly as it uses an Apple API which occasionally corrupts the underlying certificate. Learn more [here](https://github.com/fleetdm/fleet/issues/13065#issuecomment-1658849614).",
+    "notes": "- This table should be used sparingly as it uses an [Apple API which occasionally corrupts the underlying certificate](https://github.com/fleetdm/fleet/issues/13065#issuecomment-1658849614).",
     "examples": "Identify Macs that contain certificates related to Apple application signing\nand notarization. (replace with your Apple Developer ID string)\n\n```\nSELECT * FROM keychain_items WHERE label LIKE '%8EHZ83LZNU%';\n```",
     "columns": [
       {
@@ -14662,6 +14761,49 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/logon_sessions.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Flogon_sessions.yml&value=name%3A%20logon_sessions%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "lsblk",
+    "description": "Based on the output obtained by running `lsblk -n -O`",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "fullkey",
+        "description": "Flattened full key with '/' as separator, e.g. `blockdevices/15/min-io`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "JSON key or array index.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "JSON value",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "query",
+        "description": "Specifies a query to flatten with. This is used both for re-writing arrays into maps, and for filtering.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/lsblk",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/lsblk.yml"
   },
   {
     "name": "lxd_certificates",

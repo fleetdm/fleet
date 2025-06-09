@@ -51,6 +51,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfilesLotsOfHosts", testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts},
 		{"TestBatchResendProfileToHosts", testBatchResendProfileToHosts},
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
+		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
 	}
 
 	for _, c := range cases {
@@ -1072,6 +1073,9 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	// NOTE: this test is now a monster, it's pretty much impossible to change as it's too big
+	// to understand what the expected assertion 500 lines in is supposed to be. Please avoid
+	// adding to it.
 
 	hostIDsFromHosts := func(hosts ...*fleet.Host) []uint {
 		ids := make([]uint, len(hosts))
@@ -1963,12 +1967,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
-				ProfileUUID:      tm1Profiles[0].ProfileUUID,
-				Status:           &fleet.MDMDeliveryPending,
-				OperationType:    fleet.MDMOperationTypeRemove,
-				IdentifierOrName: tm1Profiles[0].Identifier,
-			},
-			{
 				ProfileUUID:      newTm1Profiles[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeInstall,
@@ -2304,7 +2302,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
-	assert.True(t, updates.AppleDeclaration)
+	assert.False(t, updates.AppleDeclaration) // host status for deleted declaration was already set on delete
 
 	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[0].UUID, nil))
 	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[1].UUID, nil))
@@ -2355,11 +2353,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -2489,11 +2482,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -2602,11 +2590,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -2743,11 +2726,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -2961,11 +2939,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -3134,11 +3107,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -3341,11 +3309,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -3567,11 +3530,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -3784,11 +3742,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -4004,11 +3957,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -4219,11 +4167,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -4430,11 +4373,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			},
 		},
 		darwinHosts[2]: {
-			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
 			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
@@ -4644,11 +4582,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -4857,11 +4790,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -5065,11 +4993,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -5270,11 +5193,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 		darwinHosts[2]: {
 			{
-				ProfileUUID:   globalProfiles[0].ProfileUUID,
-				Status:        &fleet.MDMDeliveryPending,
-				OperationType: fleet.MDMOperationTypeRemove,
-			},
-			{
 				ProfileUUID:   newGlobalProfiles[0].ProfileUUID,
 				Status:        &fleet.MDMDeliveryPending,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -5423,9 +5341,9 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 	macosBasicTeamProfNoLabelsSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      "macos-test",
-			OsqueryHostID: ptr.String("osquery-macos"),
-			NodeKey:       ptr.String("node-key-macos"),
+			Hostname:      "macos-test-1",
+			OsqueryHostID: ptr.String("osquery-macos-1"),
+			NodeKey:       ptr.String("node-key-macos-1"),
 			UUID:          uuid.NewString(),
 			Platform:      "darwin",
 		})
@@ -5433,7 +5351,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		nanoEnroll(t, ds, host, false)
 
 		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 1"})
 		require.NoError(t, err)
 
 		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
@@ -5470,7 +5388,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		nanoEnroll(t, ds, host, false)
 
 		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 2"})
 		require.NoError(t, err)
 
 		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
@@ -5549,7 +5467,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		nanoEnroll(t, ds, host, false)
 
 		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 3"})
 		require.NoError(t, err)
 
 		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
@@ -5645,7 +5563,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		nanoEnroll(t, ds, host, false)
 
 		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 4"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 4"})
 		require.NoError(t, err)
 
 		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
@@ -5716,6 +5634,204 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		return team.ID, host
 	}
 
+	macosInstallDateOverrideSetup := func() (uint, *fleet.Host) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-5",
+			OsqueryHostID: ptr.String("osquery-macos-5"),
+			NodeKey:       ptr.String("node-key-macos-5"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 5"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team 1
+		profiles := []*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "T5.1", "T5.1", "d"),
+			configProfileForTest(t, "T5.2", "T5.2", "e"),
+			configProfileForTest(t, "T5.3", "T5.3", "f"),
+		}
+
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		require.NoError(t, err)
+		assert.True(t, updates.AppleConfigProfile)
+		assert.False(t, updates.WindowsConfigProfile)
+		assert.False(t, updates.AppleDeclaration)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		// We cannot control the generated profile UUIDs here so we need to map them back to the
+		// created profiles for test correctness
+		for i := 0; i < len(profs); i++ {
+			for j := 0; j < len(profiles); j++ {
+				if profs[i].Identifier == profiles[j].Identifier {
+					profiles[j].ProfileUUID = profs[i].ProfileUUID
+					break
+				}
+			}
+		}
+
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE profile_uuid IN (?, ?, ?)",
+					baseEarliestInstallDate,
+					profiles[0].ProfileUUID,
+					profiles[1].ProfileUUID,
+					profiles[2].ProfileUUID,
+				)
+				return err
+			},
+		)
+
+		// Note what we're doing here is overriding install date for the first profile, creating an
+		// HMAP entry that doesn't override it for the second, then the third has no corresponding
+		// HMAP entry at all(which also means no override).
+		err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:        profiles[0].ProfileUUID,
+				ProfileIdentifier:  profiles[0].Identifier,
+				ProfileName:        profiles[0].Name,
+				HostUUID:           host.UUID,
+				CommandUUID:        uuid.NewString(),
+				VariablesUpdatedAt: &overrideEarliestInstallDate,
+				Status:             &fleet.MDMDeliveryVerified,
+				OperationType:      fleet.MDMOperationTypeInstall,
+			},
+			{
+				ProfileUUID:       profiles[1].ProfileUUID,
+				ProfileIdentifier: profiles[1].Identifier,
+				ProfileName:       profiles[1].Name,
+				HostUUID:          host.UUID,
+				CommandUUID:       uuid.NewString(),
+				Status:            &fleet.MDMDeliveryVerified,
+				OperationType:     fleet.MDMOperationTypeInstall,
+			},
+		})
+		require.NoError(t, err)
+		return team.ID, host
+	}
+
+	macosLabeledProfileRulesSetup := func() (uint, *fleet.Host) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-6",
+			OsqueryHostID: ptr.String("osquery-macos-6"),
+			NodeKey:       ptr.String("node-key-macos-6"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "macos team 6"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// Include any labels
+		includeAnyMatchedLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-macos-matched-label-1"})
+		require.NoError(t, err)
+		includeAnyMatchedLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-macos-matched-label-2"})
+		require.NoError(t, err)
+		includeAnyUnmatchedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-macos-unmatched-label"})
+		require.NoError(t, err)
+
+		// Include all labels
+		includeAllMatchedLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-macos-matched-label-1"})
+		require.NoError(t, err)
+		includeAllMatchedLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-macos-matched-label-2"})
+		require.NoError(t, err)
+		includeAllUnmatchedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-macos-unmatched-label"})
+		require.NoError(t, err)
+
+		// Exclude labels
+		excludeMatchedLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-macos-matched-label-1"})
+		require.NoError(t, err)
+		excludeMatchedLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-macos-matched-label-2"})
+		require.NoError(t, err)
+		excludeUnmatchedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-macos-unmatched-label"})
+		require.NoError(t, err)
+
+		// create profiles for team
+		// include_any_all_match_prof
+		// include_any_one_matches_prof
+		// include_all_all_match_prof
+		// exclude_none_match_prof
+		profiles := []*fleet.MDMAppleConfigProfile{
+			// Two profiles with no label rules, thus should always be included
+			configProfileForTest(t, "T6.1", "T6.1", "g"),
+			configProfileForTest(t, "T6.2", "T6.2", "h"),
+
+			// This profile will use an "include any" rule where the host has both of the labels, thus should be included
+			configProfileForTest(t, "include_any_all_match_prof", "include_any_all_match_prof", "i", includeAnyMatchedLabel1, includeAnyMatchedLabel2),
+			// This profile will use an "include any" rule where the host has one of the labels, thus should be included
+			configProfileForTest(t, "include_any_one_matches_prof", "include_any_one_matches_prof", "j", includeAnyMatchedLabel1, includeAnyUnmatchedLabel),
+			// This profile will use an "include any" rule where the host has none of the labels, thus should be excluded
+			configProfileForTest(t, "include_any_none_match_prof", "include_any_none_match_prof", "k", includeAnyUnmatchedLabel),
+
+			// This profile will use an "include all" rule where the host has all of the labels and thus should be included
+			configProfileForTest(t, "include_all_all_match_prof", "include_all_all_match_prof", "l", includeAllMatchedLabel1, includeAllMatchedLabel2),
+			// This profile will use an "include all" rule where the host has one of the labels and thus should be excluded
+			configProfileForTest(t, "include_all_one_matches_prof", "include_all_one_matches_prof", "m", includeAllMatchedLabel1, includeAllUnmatchedLabel),
+			// This profile will use an "include any" rule where the host has none of the labels and thus should be excluded
+			configProfileForTest(t, "include_all_none_match_prof", "include_all_none_match_prof", "n", includeAllUnmatchedLabel),
+
+			// This profile will use an "exclude" rule where the host has both of the labels, thus should be excluded
+			configProfileForTest(t, "exclude_all_match_prof", "exclude_all_match_prof", "o", excludeMatchedLabel1, excludeMatchedLabel2),
+			// This profile will use an "exclude" rule where the host has one of the labels, thus should be excluded
+			configProfileForTest(t, "exclude_one_matches_prof", "exclude_one_matches_prof", "p", excludeMatchedLabel1, excludeUnmatchedLabel),
+			// This profile will use an "exclude" rule where the host has none of the labels, thus should be included
+			configProfileForTest(t, "exclude_none_match_prof", "exclude_none_match_prof", "q", excludeUnmatchedLabel),
+		}
+
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		require.NoError(t, err)
+		assert.True(t, updates.AppleConfigProfile)
+		assert.False(t, updates.WindowsConfigProfile)
+		assert.False(t, updates.AppleDeclaration)
+
+		// Update labels with host membership
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)",
+					host.ID,
+					includeAnyMatchedLabel1.ID,
+					host.ID,
+					includeAnyMatchedLabel2.ID,
+					host.ID,
+					includeAllMatchedLabel1.ID,
+					host.ID,
+					includeAllMatchedLabel2.ID,
+					host.ID,
+					excludeMatchedLabel1.ID,
+					host.ID,
+					excludeMatchedLabel2.ID,
+				)
+				return err
+			},
+		)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 11)
+
+		return team.ID, host
+	}
+
 	// ===================================================
 	// Windows
 	// ===================================================
@@ -5732,7 +5848,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		windowsEnroll(t, ds, host)
 
 		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 5"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 1"})
 		require.NoError(t, err)
 
 		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
@@ -5740,8 +5856,8 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		// create profiles for team 1
 		profiles := []*fleet.MDMWindowsConfigProfile{
-			windowsConfigProfileForTest(t, "T5.1", "T5.1"),
-			windowsConfigProfileForTest(t, "T5.2", "T5.2"),
+			windowsConfigProfileForTest(t, "T1.1", "T1.1"),
+			windowsConfigProfileForTest(t, "T1.2", "T1.2"),
 		}
 
 		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil)
@@ -5769,7 +5885,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		windowsEnroll(t, ds, host)
 
 		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 6"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 2"})
 		require.NoError(t, err)
 
 		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
@@ -5777,8 +5893,8 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		// create profiles for team 1
 		profiles := []*fleet.MDMWindowsConfigProfile{
-			windowsConfigProfileForTest(t, "T6.1", "T6.1"),
-			windowsConfigProfileForTest(t, "T6.2", "T6.2"),
+			windowsConfigProfileForTest(t, "T2.1", "T2.1"),
+			windowsConfigProfileForTest(t, "T2.2", "T2.2"),
 			windowsConfigProfileForTest(t, "labeled_prof", "labeled_prof"),
 		}
 
@@ -5848,7 +5964,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		windowsEnroll(t, ds, host)
 
 		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 7"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 3"})
 		require.NoError(t, err)
 
 		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
@@ -5856,8 +5972,8 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		// create profiles for team 1
 		profiles := []*fleet.MDMWindowsConfigProfile{
-			windowsConfigProfileForTest(t, "T7.1", "T7.1"),
-			windowsConfigProfileForTest(t, "T7.2", "T3.7"),
+			windowsConfigProfileForTest(t, "T3.1", "T3.1"),
+			windowsConfigProfileForTest(t, "T3.2", "T3.7"),
 			windowsConfigProfileForTest(t, "labeled_prof_2", "labeled_prof_2"),
 		}
 
@@ -5944,7 +6060,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		windowsEnroll(t, ds, host)
 
 		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 8"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 4"})
 		require.NoError(t, err)
 
 		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
@@ -5952,8 +6068,8 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		// create profiles for team
 		profiles := []*fleet.MDMWindowsConfigProfile{
-			windowsConfigProfileForTest(t, "T8.1", "T8.1"),
-			windowsConfigProfileForTest(t, "T8.2", "T8.2"),
+			windowsConfigProfileForTest(t, "T4.1", "T4.1"),
+			windowsConfigProfileForTest(t, "T4.2", "T4.2"),
 			windowsConfigProfileForTest(t, "broken_label_prof", "broken_label_prof"),
 		}
 
@@ -6015,94 +6131,113 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		return team.ID, host
 	}
 
-	// ===================================================
-	// MacOS earliest install date override tests
-	// ===================================================
-	macosInstallDateOverrideSetup := func() (uint, *fleet.Host) {
+	windowsLabeledProfileRulesSetup := func() (uint, *fleet.Host) {
 		host, err := ds.NewHost(ctx, &fleet.Host{
-			Hostname:      "macos-test-9",
-			OsqueryHostID: ptr.String("osquery-macos-9"),
-			NodeKey:       ptr.String("node-key-macos-9"),
+			Hostname:      "windows-test-5",
+			OsqueryHostID: ptr.String("osquery-windows-5"),
+			NodeKey:       ptr.String("node-key-windows-5"),
 			UUID:          uuid.NewString(),
-			Platform:      "darwin",
+			Platform:      "windows",
 		})
 		require.NoError(t, err)
-		nanoEnroll(t, ds, host, false)
+		windowsEnroll(t, ds, host)
 
 		// create a team
-		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 9"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "windows team 5"})
 		require.NoError(t, err)
 
 		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
 		require.NoError(t, err)
 
-		// create profiles for team 1
-		profiles := []*fleet.MDMAppleConfigProfile{
-			configProfileForTest(t, "T9.1", "T9.1", "d"),
-			configProfileForTest(t, "T9.2", "T9.2", "e"),
-			configProfileForTest(t, "T9.3", "T9.3", "f"),
+		// Include any labels
+		includeAnyMatchedLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-windows-matched-label-1"})
+		require.NoError(t, err)
+		includeAnyMatchedLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-windows-matched-label-2"})
+		require.NoError(t, err)
+		includeAnyUnmatchedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-windows-unmatched-label"})
+		require.NoError(t, err)
+
+		// Include all labels
+		includeAllMatchedLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-windows-matched-label-1"})
+		require.NoError(t, err)
+		includeAllMatchedLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-windows-matched-label-2"})
+		require.NoError(t, err)
+		includeAllUnmatchedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-windows-unmatched-label"})
+		require.NoError(t, err)
+
+		// Exclude labels
+		excludeMatchedLabel1, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-windows-matched-label-1"})
+		require.NoError(t, err)
+		excludeMatchedLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-windows-matched-label-2"})
+		require.NoError(t, err)
+		excludeUnmatchedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-windows-unmatched-label"})
+		require.NoError(t, err)
+
+		// create profiles for team
+		// include_any_all_match_prof
+		// include_any_one_matches_prof
+		// include_all_all_match_prof
+		// exclude_none_match_prof
+		profiles := []*fleet.MDMWindowsConfigProfile{
+			// Two profiles with no label rules, thus should always be included
+			windowsConfigProfileForTest(t, "T5.1", "T5.1"),
+			windowsConfigProfileForTest(t, "T5.2", "T5.2"),
+
+			// This profile will use an "include any" rule where the host has both of the labels, thus should be included
+			windowsConfigProfileForTest(t, "include_any_all_match_prof", "include_any_all_match_prof", includeAnyMatchedLabel1, includeAnyMatchedLabel2),
+			// This profile will use an "include any" rule where the host has one of the labels, thus should be included
+			windowsConfigProfileForTest(t, "include_any_one_matches_prof", "include_any_one_matches_prof", includeAnyMatchedLabel1, includeAnyUnmatchedLabel),
+			// This profile will use an "include any" rule where the host has none of the labels, thus should be excluded
+			windowsConfigProfileForTest(t, "include_any_none_match_prof", "include_any_none_match_prof", includeAnyUnmatchedLabel),
+
+			// This profile will use an "include all" rule where the host has all of the labels and thus should be included
+			windowsConfigProfileForTest(t, "include_all_all_match_prof", "include_all_all_match_prof", includeAllMatchedLabel1, includeAllMatchedLabel2),
+			// This profile will use an "include all" rule where the host has one of the labels and thus should be excluded
+			windowsConfigProfileForTest(t, "include_all_one_matches_prof", "include_all_one_matches_prof", includeAllMatchedLabel1, includeAllUnmatchedLabel),
+			// This profile will use an "include any" rule where the host has none of the labels and thus should be excluded
+			windowsConfigProfileForTest(t, "include_all_none_match_prof", "include_all_none_match_prof", includeAllUnmatchedLabel),
+
+			// This profile will use an "exclude" rule where the host has both of the labels, thus should be excluded
+			windowsConfigProfileForTest(t, "exclude_all_match_prof", "exclude_all_match_prof", excludeMatchedLabel1, excludeMatchedLabel2),
+			// This profile will use an "exclude" rule where the host has one of the labels, thus should be excluded
+			windowsConfigProfileForTest(t, "exclude_one_matches_prof", "exclude_one_matches_prof", excludeMatchedLabel1, excludeUnmatchedLabel),
+			// This profile will use an "exclude" rule where the host has none of the labels, thus should be included
+			windowsConfigProfileForTest(t, "exclude_none_match_prof", "exclude_none_match_prof", excludeUnmatchedLabel),
 		}
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil)
 		require.NoError(t, err)
-		assert.True(t, updates.AppleConfigProfile)
-		assert.False(t, updates.WindowsConfigProfile)
+		assert.False(t, updates.AppleConfigProfile)
+		assert.True(t, updates.WindowsConfigProfile)
 		assert.False(t, updates.AppleDeclaration)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
-		require.NoError(t, err)
-		require.Len(t, profs, 3)
-
-		// We cannot control the generated profile UUIDs here so we need to map them back to the
-		// created profiles for test correctness
-		for i := 0; i < len(profs); i++ {
-			for j := 0; j < len(profiles); j++ {
-				if profs[i].Identifier == profiles[j].Identifier {
-					profiles[j].ProfileUUID = profs[i].ProfileUUID
-					break
-				}
-			}
-		}
-
+		// Update labels with host membership
 		ExecAdhocSQL(
 			t, ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(
 					context.Background(),
-					"UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE profile_uuid IN (?, ?, ?)",
-					baseEarliestInstallDate,
-					profiles[0].ProfileUUID,
-					profiles[1].ProfileUUID,
-					profiles[2].ProfileUUID,
+					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)",
+					host.ID,
+					includeAnyMatchedLabel1.ID,
+					host.ID,
+					includeAnyMatchedLabel2.ID,
+					host.ID,
+					includeAllMatchedLabel1.ID,
+					host.ID,
+					includeAllMatchedLabel2.ID,
+					host.ID,
+					excludeMatchedLabel1.ID,
+					host.ID,
+					excludeMatchedLabel2.ID,
 				)
 				return err
 			},
 		)
 
-		// Note what we're doing here is overriding install date for the first profile, creating an
-		// HMAP entry that doesn't override it for the second, then the third has no corresponding
-		// HMAP entry at all(which also means no override).
-		err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-			{
-				ProfileUUID:        profiles[0].ProfileUUID,
-				ProfileIdentifier:  profiles[0].Identifier,
-				ProfileName:        profiles[0].Name,
-				HostUUID:           host.UUID,
-				CommandUUID:        uuid.NewString(),
-				VariablesUpdatedAt: &overrideEarliestInstallDate,
-				Status:             &fleet.MDMDeliveryVerified,
-				OperationType:      fleet.MDMOperationTypeInstall,
-			},
-			{
-				ProfileUUID:       profiles[1].ProfileUUID,
-				ProfileIdentifier: profiles[1].Identifier,
-				ProfileName:       profiles[1].Name,
-				HostUUID:          host.UUID,
-				CommandUUID:       uuid.NewString(),
-				Status:            &fleet.MDMDeliveryVerified,
-				OperationType:     fleet.MDMOperationTypeInstall,
-			},
-		})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
 		require.NoError(t, err)
+		require.Len(t, profs, 11)
+
 		return team.ID, host
 	}
 
@@ -6151,19 +6286,40 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			},
 		},
 		{
+			name:      "macos basic team profiles no labels, install date overridden on first",
+			setupFunc: macosInstallDateOverrideSetup,
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T5.1": {Identifier: "T5.1", EarliestInstallDate: overrideEarliestInstallDate},
+				"T5.2": {Identifier: "T5.2", EarliestInstallDate: baseEarliestInstallDate},
+				"T5.3": {Identifier: "T5.3", EarliestInstallDate: baseEarliestInstallDate},
+			},
+		},
+		{
+			name:      "macos labels include any/all and exclude rules",
+			setupFunc: macosLabeledProfileRulesSetup,
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T6.1":                         {Identifier: "T6.1"},
+				"T6.2":                         {Identifier: "T6.2"},
+				"include_any_all_match_prof":   {Identifier: "include_any_all_match_prof"},
+				"include_any_one_matches_prof": {Identifier: "include_any_one_matches_prof"},
+				"include_all_all_match_prof":   {Identifier: "include_all_all_match_prof"},
+				"exclude_none_match_prof":      {Identifier: "exclude_none_match_prof"},
+			},
+		},
+		{
 			name:      "windows basic team profiles no labels",
 			setupFunc: windowsBasicTeamProfNoLabelsSetup,
 			wantWindows: map[string]*fleet.ExpectedMDMProfile{
-				"T5.1": {Name: "T5.1"},
-				"T5.2": {Name: "T5.2"},
+				"T1.1": {Name: "T1.1"},
+				"T1.2": {Name: "T1.2"},
 			},
 		},
 		{
 			name:      "windows labeled team profile",
 			setupFunc: windowsLabeledTeamProfSetup,
 			wantWindows: map[string]*fleet.ExpectedMDMProfile{
-				"T6.1":         {Name: "T6.1"},
-				"T6.2":         {Name: "T6.2"},
+				"T2.1":         {Name: "T2.1"},
+				"T2.2":         {Name: "T2.2"},
 				"labeled_prof": {Name: "labeled_prof"},
 			},
 		},
@@ -6173,8 +6329,8 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			// Our expected profiles should not include the labeled profile, because it
 			// maps to a label that is not applied to the host.
 			wantWindows: map[string]*fleet.ExpectedMDMProfile{
-				"T7.1": {Name: "T7.1"},
-				"T7.2": {Name: "T7.2"},
+				"T3.1": {Name: "T3.1"},
+				"T3.2": {Name: "T3.2"},
 			},
 		},
 		{
@@ -6183,17 +6339,20 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			// Our expected profiles should not include the labeled profile, because it is broken
 			// (the label was deleted)
 			wantWindows: map[string]*fleet.ExpectedMDMProfile{
-				"T8.1": {Name: "T8.1"},
-				"T8.2": {Name: "T8.2"},
+				"T4.1": {Name: "T4.1"},
+				"T4.2": {Name: "T4.2"},
 			},
 		},
 		{
-			name:      "macos basic team profiles no labels, install date overridden on first",
-			setupFunc: macosInstallDateOverrideSetup,
-			wantMac: map[string]*fleet.ExpectedMDMProfile{
-				"T9.1": {Identifier: "T9.1", EarliestInstallDate: overrideEarliestInstallDate},
-				"T9.2": {Identifier: "T9.2", EarliestInstallDate: baseEarliestInstallDate},
-				"T9.3": {Identifier: "T9.3", EarliestInstallDate: baseEarliestInstallDate},
+			name:      "windows labels include any/all and exclude rules",
+			setupFunc: windowsLabeledProfileRulesSetup,
+			wantWindows: map[string]*fleet.ExpectedMDMProfile{
+				"T5.1":                         {Name: "T5.1"},
+				"T5.2":                         {Name: "T5.2"},
+				"include_any_all_match_prof":   {Name: "include_any_all_match_prof"},
+				"include_any_one_matches_prof": {Name: "include_any_one_matches_prof"},
+				"include_all_all_match_prof":   {Name: "include_all_all_match_prof"},
+				"exclude_none_match_prof":      {Name: "exclude_none_match_prof"},
 			},
 		},
 	}
@@ -8019,7 +8178,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, appleProfsTm, windowsProfsTm, appleDeclsTm, nil)
 	require.NoError(t, err)
 
-	// collect the profile UUIDs in a lookup table by name
+	// collect the profiles in a lookup table by name
 	profNameToProf := make(map[string]*fleet.MDMConfigProfilePayload)
 	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -8086,29 +8245,6 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
 
-	toMDMAppleConfigProfile := func(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleConfigProfile {
-		return &fleet.MDMAppleConfigProfile{
-			Identifier:   p.Identifier,
-			Name:         p.Name,
-			ProfileUUID:  p.ProfileUUID,
-			Mobileconfig: p.Checksum, // not important for the test
-		}
-	}
-	toMDMWindowsConfigProfile := func(p *fleet.MDMConfigProfilePayload) *fleet.MDMWindowsConfigProfile {
-		return &fleet.MDMWindowsConfigProfile{
-			Name:        p.Name,
-			SyncML:      p.Checksum, // not important for the test
-			ProfileUUID: p.ProfileUUID,
-		}
-	}
-	toMDMAppleDecl := func(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleDeclaration {
-		return &fleet.MDMAppleDeclaration{
-			Name:            p.Name,
-			Identifier:      p.Identifier,
-			DeclarationUUID: p.ProfileUUID,
-		}
-	}
-
 	cases := []struct {
 		desc        string
 		profileUUID string
@@ -8116,21 +8252,31 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 		want        fleet.MDMConfigProfileStatus
 	}{
 		{
-			desc:        "macOS no team profile A1 all pending",
+			desc:        "macOS no team profile A1 all pending/NULL",
 			profileUUID: profNameToProf["A1"].ProfileUUID,
 			setup: func(t *testing.T) {
-				appleA1 := toMDMAppleConfigProfile(profNameToProf["A1"])
+				appleA1 := test.ToMDMAppleConfigProfile(profNameToProf["A1"])
 				forceSetAppleHostProfileStatus(t, ds, host1.UUID, appleA1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 				forceSetAppleHostProfileStatus(t, ds, host2.UUID, appleA1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
-				forceSetAppleHostProfileStatus(t, ds, host3.UUID, appleA1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+				forceSetAppleHostProfileStatus(t, ds, host3.UUID, appleA1, fleet.MDMOperationTypeInstall, "")
 			},
 			want: fleet.MDMConfigProfileStatus{Pending: 3},
+		},
+		{
+			desc:        "windows no team profile W1 all pending/NULL",
+			profileUUID: profNameToProf["W1"].ProfileUUID,
+			setup: func(t *testing.T) {
+				winW1 := test.ToMDMWindowsConfigProfile(profNameToProf["W1"])
+				forceSetWindowsHostProfileStatus(t, ds, host6.UUID, winW1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+				forceSetWindowsHostProfileStatus(t, ds, host7.UUID, winW1, fleet.MDMOperationTypeInstall, "")
+			},
+			want: fleet.MDMConfigProfileStatus{Pending: 2},
 		},
 		{
 			desc:        "windows no team profile W1 pending failed",
 			profileUUID: profNameToProf["W1"].ProfileUUID,
 			setup: func(t *testing.T) {
-				winW1 := toMDMWindowsConfigProfile(profNameToProf["W1"])
+				winW1 := test.ToMDMWindowsConfigProfile(profNameToProf["W1"])
 				forceSetWindowsHostProfileStatus(t, ds, host6.UUID, winW1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 				forceSetWindowsHostProfileStatus(t, ds, host7.UUID, winW1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 			},
@@ -8140,7 +8286,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "macOS no team decl D1 pending failed verified",
 			profileUUID: profNameToProf["D1"].ProfileUUID,
 			setup: func(t *testing.T) {
-				declD1 := toMDMAppleDecl(profNameToProf["D1"])
+				declD1 := test.ToMDMAppleDecl(profNameToProf["D1"])
 				forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, declD1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 				forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, declD1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 				forceSetAppleHostDeclarationStatus(t, ds, host3.UUID, declD1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
@@ -8151,7 +8297,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "macOS team profile A2 verifying verified",
 			profileUUID: profNameToProf["A2"].ProfileUUID,
 			setup: func(t *testing.T) {
-				appleA2 := toMDMAppleConfigProfile(profNameToProf["A2"])
+				appleA2 := test.ToMDMAppleConfigProfile(profNameToProf["A2"])
 				forceSetAppleHostProfileStatus(t, ds, host4.UUID, appleA2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 				forceSetAppleHostProfileStatus(t, ds, host5.UUID, appleA2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 			},
@@ -8161,7 +8307,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "macOS team decl D2 all failed",
 			profileUUID: profNameToProf["D2"].ProfileUUID,
 			setup: func(t *testing.T) {
-				declD2 := toMDMAppleDecl(profNameToProf["D2"])
+				declD2 := test.ToMDMAppleDecl(profNameToProf["D2"])
 				forceSetAppleHostDeclarationStatus(t, ds, host4.UUID, declD2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 				forceSetAppleHostDeclarationStatus(t, ds, host5.UUID, declD2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 			},
@@ -8171,7 +8317,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			desc:        "windows team profile W2 pending",
 			profileUUID: profNameToProf["W2"].ProfileUUID,
 			setup: func(t *testing.T) {
-				winW2 := toMDMWindowsConfigProfile(profNameToProf["W2"])
+				winW2 := test.ToMDMWindowsConfigProfile(profNameToProf["W2"])
 				forceSetWindowsHostProfileStatus(t, ds, host8.UUID, winW2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 			},
 			want: fleet.MDMConfigProfileStatus{Pending: 1},
@@ -8185,4 +8331,168 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.want, got)
 		})
 	}
+}
+
+func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	SetTestABMAssets(t, ds, "fleet")
+
+	// create some Apple and Windows profiles and declaration
+	appleProfs := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "A1", "A1", uuid.NewString()),
+		configProfileForTest(t, "A2", "A2", uuid.NewString()),
+		configProfileForTest(t, "A3", "A3", uuid.NewString()),
+	}
+	windowsProfs := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "W1", "W1"),
+		windowsConfigProfileForTest(t, "W2", "W2"),
+	}
+	appleDecls := []*fleet.MDMAppleDeclaration{
+		declForTest("D1", "D1", "{}"),
+		declForTest("D2", "D2", "{}"),
+	}
+	_, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, windowsProfs, appleDecls, nil)
+	require.NoError(t, err)
+
+	// collect the profiles in a lookup table by name
+	profNameToProf := make(map[string]*fleet.MDMConfigProfilePayload)
+	profs, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, prof := range profs {
+		profNameToProf[prof.Name] = prof
+	}
+
+	// delete all kinds of profiles without any host impacted
+	err = ds.DeleteMDMAppleConfigProfile(ctx, profNameToProf["A1"].ProfileUUID)
+	require.NoError(t, err)
+	err = ds.DeleteMDMWindowsConfigProfile(ctx, profNameToProf["W1"].ProfileUUID)
+	require.NoError(t, err)
+	err = ds.DeleteMDMAppleDeclaration(ctx, profNameToProf["D1"].ProfileUUID)
+	require.NoError(t, err)
+
+	// create some macOS and Windows hosts
+	host1 := test.NewHost(t, ds, "host1", "1", "h1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "h2key", "host2uuid", time.Now())
+	nanoEnroll(t, ds, host1, false)
+	nanoEnroll(t, ds, host2, false)
+
+	host3 := test.NewHost(t, ds, "host3", "3", "h3key", "host3uuid", time.Now())
+	host3.Platform = "windows"
+	err = ds.UpdateHost(ctx, host3)
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host3)
+
+	host4 := test.NewHost(t, ds, "host4", "4", "h4key", "host4uuid", time.Now())
+	host4.Platform = "windows"
+	err = ds.UpdateHost(ctx, host4)
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host4)
+
+	for _, h := range []*fleet.Host{host1, host2, host3, host4} {
+		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "")
+		require.NoError(t, err)
+	}
+
+	// set the declaration as pending install on host1, installed on host2
+	forceSetAppleHostDeclarationStatus(t, ds, host1.UUID, test.ToMDMAppleDecl(profNameToProf["D2"]), fleet.MDMOperationTypeInstall, "")
+	forceSetAppleHostDeclarationStatus(t, ds, host2.UUID, test.ToMDMAppleDecl(profNameToProf["D2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+
+	err = ds.DeleteMDMAppleDeclaration(ctx, profNameToProf["D2"].ProfileUUID)
+	require.NoError(t, err)
+
+	assertHostProfileOpStatus(t, ds, host1.UUID)
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	// set the Windows profile as pending install on host3, installed on host4
+	forceSetWindowsHostProfileStatus(t, ds, host3.UUID, test.ToMDMWindowsConfigProfile(profNameToProf["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	forceSetWindowsHostProfileStatus(t, ds, host4.UUID, test.ToMDMWindowsConfigProfile(profNameToProf["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+	assertHostProfileOpStatus(t, ds, host3.UUID,
+		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host4.UUID,
+		hostProfileOpStatus{profNameToProf["W2"].ProfileUUID, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall})
+
+	err = ds.DeleteMDMWindowsConfigProfile(ctx, profNameToProf["W2"].ProfileUUID)
+	require.NoError(t, err)
+
+	assertHostProfileOpStatus(t, ds, host3.UUID)
+	assertHostProfileOpStatus(t, ds, host4.UUID)
+
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+
+	// set the Apple profile as pending install on host1, installed on host2
+	forceSetAppleHostProfileStatus(t, ds, host1.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, "")
+	forceSetAppleHostProfileStatus(t, ds, host2.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	// enqueue the corresponding command for the installed profile
+	cmdUUID := uuid.New().String()
+	err = commander.InstallProfile(ctx, []string{host2.UUID}, appleProfs[1].Mobileconfig, cmdUUID)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE host_uuid = ? AND profile_uuid = ?`, cmdUUID, host2.UUID, profNameToProf["A2"].ProfileUUID)
+		return err
+	})
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryVerifying, fleet.MDMOperationTypeInstall},
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	err = ds.DeleteMDMAppleConfigProfile(ctx, profNameToProf["A2"].ProfileUUID)
+	require.NoError(t, err)
+
+	assertHostProfileOpStatus(t, ds, host1.UUID)
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	// nano command is still active because it was already completed (verifying)
+	var active bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &active, `SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, host2.UUID, cmdUUID)
+	})
+	require.True(t, active)
+
+	// set the Apple profile as actually pending install (not NULL) on host1
+	forceSetAppleHostProfileStatus(t, ds, host1.UUID, test.ToMDMAppleConfigProfile(profNameToProf["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
+	// enqueue the corresponding command for the installed profile
+	cmdUUID = uuid.New().String()
+	err = commander.InstallProfile(ctx, []string{host1.UUID}, appleProfs[2].Mobileconfig, cmdUUID)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET command_uuid = ? WHERE host_uuid = ? AND profile_uuid = ?`, cmdUUID, host1.UUID, profNameToProf["A3"].ProfileUUID)
+		return err
+	})
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profNameToProf["A3"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	err = ds.DeleteMDMAppleConfigProfile(ctx, profNameToProf["A3"].ProfileUUID)
+	require.NoError(t, err)
+
+	assertHostProfileOpStatus(t, ds, host1.UUID,
+		hostProfileOpStatus{profNameToProf["A3"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+	assertHostProfileOpStatus(t, ds, host2.UUID,
+		hostProfileOpStatus{profNameToProf["A2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove},
+		hostProfileOpStatus{profNameToProf["D2"].ProfileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove})
+
+	// nano command is now inactive because it was in a pending state and we want to prevent delivery
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &active, `SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, host1.UUID, cmdUUID)
+	})
+	require.False(t, active)
+
+	// listing the MDM commands does not return the inactive one
+	cmds, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{
+		User:            test.UserAdmin,
+		IncludeObserver: true,
+	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
+	require.NoError(t, err)
+	require.Len(t, cmds, 0)
 }

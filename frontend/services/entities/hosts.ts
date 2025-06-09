@@ -124,6 +124,8 @@ export interface IExportHostsOptions {
   bootstrapPackageStatus?: BootstrapPackageStatus;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
+  configProfileUUID?: string;
+  configProfileStatus?: string;
 }
 
 export interface IActionByFilter {
@@ -337,6 +339,8 @@ export default {
     const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
     const vulnerability = options?.vulnerability;
+    const configProfileUUID = options?.configProfileUUID;
+    const configProfileStatus = options?.configProfileStatus;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -372,6 +376,8 @@ export default {
         bootstrapPackageStatus,
         diskEncryptionStatus,
         vulnerability,
+        configProfileUUID,
+        configProfileStatus,
       }),
       status,
       label_id: label,

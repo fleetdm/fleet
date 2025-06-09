@@ -12,16 +12,16 @@ team_settings:
 agent_options:
 controls:
   ios_updates:
-    deadline: "2025-05-04"
-    minimum_version: "18.4.1"
+    deadline: "2025-06-01"
+    minimum_version: "18.5"
   ipados_updates:
-    deadline: "2025-05-04"
-    minimum_version: "18.4.1"
+    deadline: "2025-06-01"
+    minimum_version: "18.5"
   macos_settings:
     custom_settings:
       - path: ../lib/ios/configuration-profiles/lock-screen-message.mobileconfig
-      - path: ../lib/ios/declaration-profiles/passcode-settings.json
-      - path: ../lib/ios/declaration-profiles/software-update-settings.json
+      - path: ../lib/ios/declaration-profiles/Passcode settings.json
+      - path: ../lib/ios/declaration-profiles/Software Update settings.json
   scripts:
 policies:
 queries:

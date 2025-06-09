@@ -161,13 +161,7 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 	// IT admin.
 	if jsonProf.ConfigurationWebURL == "" {
 		// If SSO is configured, use the `/mdm/sso` page which starts the SSO
-		// flow, otherwise use Fleet's enroll URL.
-		//
-		// Even though the DEP profile supports an `url` attribute, we should
-		// always still set configuration_web_url, otherwise the request method
-		// coming from Apple changes from GET to POST, and we want to preserve
-		// backwards compatibility.
-		jsonProf.ConfigurationWebURL = enrollURL
+		// flow, otherwise leave it blank.
 		endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
 		if team != nil {
 			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
@@ -177,9 +171,17 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 		}
 	}
 
-	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
-	// to get a token without SSO enabled
-	jsonProf.URL = jsonProf.ConfigurationWebURL
+	if jsonProf.ConfigurationWebURL != "" {
+		// ensure `url` is the same as `configuration_web_url`, to not leak the URL
+		// to get a token without SSO enabled
+		jsonProf.URL = jsonProf.ConfigurationWebURL
+	} else {
+		// Without configuration_web_url set, the host will send a POST request
+		// to `url` location to get the MDM profile.
+		// 2025-05-20 unofficial docs: https://github.com/4d-for-ios-sdk/Mobile-Device-Management-Protocol-Reference/blob/master/markdown/4-Profile_Management/4-Profile_Management.md#request-to-a-profile-url
+		jsonProf.URL = enrollURL
+	}
+
 	// always set await_device_configured to true - it will be released either
 	// automatically by Fleet or manually by the user if
 	// enable_release_device_manually is true.

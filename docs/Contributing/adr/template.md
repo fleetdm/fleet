@@ -32,7 +32,7 @@ Describe the consequences of the decision, both positive and negative. This shou
 - Impact on existing systems or processes
 - Future considerations or follow-up decisions needed
 
-## Alternatives Considered
+## Alternatives considered
 
 Describe alternative solutions that were considered and why they were not chosen.
 

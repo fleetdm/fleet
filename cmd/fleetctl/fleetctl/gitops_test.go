@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -2808,4 +2809,212 @@ func TestGitOpsTeamWebhooks(t *testing.T) {
 	// Check that the team's host status webhook settings are enabled and set to the new values.
 	require.True(t, team.Config.WebhookSettings.HostStatusWebhook.Enable)
 	require.Equal(t, "http://coolwebhook.biz", team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+}
+
+func TestGitOpsFeatures(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{
+		Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+			AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"query_a": "SELECT 1", "query_b": "SELECT 2"}`)),
+			DetailQueryOverrides: map[string]*string{
+				"detail_query_a": ptr.String("SELECT a"),
+				"detail_query_b": nil,
+			},
+		},
+	}
+
+	globalFileUpdatedFeatures, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileUpdatedFeatures.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    enable_host_users: false
+    enable_software_inventory: true
+    additional_queries:
+      query_a: "SELECT 1"
+    detail_query_overrides:
+      detail_query_a: "SELECT it_works"
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets: [{"secret":"globalSecret"}]
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with updated feature settings.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileUpdatedFeatures.Name()})
+	require.NoError(t, err)
+	require.False(t, appConfig.Features.EnableHostUsers)
+	require.True(t, appConfig.Features.EnableSoftwareInventory)
+
+	// Parse the additional queries into a map.
+	var additionalQueries map[string]string
+	err = json.Unmarshal(*appConfig.Features.AdditionalQueries, &additionalQueries)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(additionalQueries))
+	require.Equal(t, "SELECT 1", additionalQueries["query_a"])
+	require.Equal(t, 1, len(appConfig.Features.DetailQueryOverrides))
+	require.Equal(t, "SELECT it_works", *appConfig.Features.DetailQueryOverrides["detail_query_a"])
+
+	// Do a GitOps run with no feature settings.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	require.False(t, appConfig.Features.EnableHostUsers)
+	require.False(t, appConfig.Features.EnableSoftwareInventory)
+	require.Nil(t, appConfig.Features.AdditionalQueries)
+	require.Nil(t, appConfig.Features.DetailQueryOverrides)
+}
+
+func TestGitOpsSSOSettings(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{
+		SSOSettings: &fleet.SSOSettings{
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID:  "some-entity-id",
+				IssuerURI: "https://example.com/saml",
+				Metadata:  "some-metadata",
+				IDPName:   "some-idp-name",
+			},
+			IDPImageURL:           "https://example.com/logo.png",
+			EnableSSO:             true,
+			EnableSSOIdPLogin:     true,
+			EnableJITProvisioning: true,
+			EnableJITRoleSync:     true,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with no sso settings.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	require.Nil(t, appConfig.SSOSettings)
+}
+
+func TestGitOpsSMTPSettings(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{
+		SMTPSettings: &fleet.SMTPSettings{
+			SMTPEnabled:              true,
+			SMTPConfigured:           true,
+			SMTPSenderAddress:        "http://example.com",
+			SMTPServer:               "server.example.com",
+			SMTPPort:                 587,
+			SMTPAuthenticationType:   "smoooth",
+			SMTPUserName:             "uzer",
+			SMTPPassword:             "pazzword",
+			SMTPEnableTLS:            true,
+			SMTPAuthenticationMethod: "crunchy",
+			SMTPDomain:               "smtp.example.com",
+			SMTPVerifySSLCerts:       true,
+			SMTPEnableStartTLS:       true,
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with no smtp settings.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	// Currently we do NOT clear the SMTP settings if they are not in the config,
+	// because the smtp_settings key is not documented in the GitOps config.
+	// TODO - update this test if we change this behavior.
+	require.Equal(t, &fleet.SMTPSettings{
+		SMTPEnabled:              true,
+		SMTPConfigured:           true,
+		SMTPSenderAddress:        "http://example.com",
+		SMTPServer:               "server.example.com",
+		SMTPPort:                 587,
+		SMTPAuthenticationType:   "smoooth",
+		SMTPUserName:             "uzer",
+		SMTPPassword:             "********",
+		SMTPEnableTLS:            true,
+		SMTPAuthenticationMethod: "crunchy",
+		SMTPDomain:               "smtp.example.com",
+		SMTPVerifySSLCerts:       true,
+		SMTPEnableStartTLS:       true,
+	}, appConfig.SMTPSettings)
+}
+
+func TestGitOpsMDMAuthSettings(t *testing.T) {
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	appConfig := fleet.AppConfig{
+		MDM: fleet.MDM{
+			EndUserAuthentication: fleet.MDMEndUserAuthentication{
+				SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:  "some-entity-id",
+					IssuerURI: "https://example.com/saml",
+					Metadata:  "some-metadata",
+					IDPName:   "some-idp-name",
+				},
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Do a GitOps run with no mdm end user auth settings.
+	_, err := RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+
+	require.NotNil(t, appConfig.MDM.EndUserAuthentication)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.EntityID)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IssuerURI)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.Metadata)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.MetadataURL)
+	require.Empty(t, appConfig.MDM.EndUserAuthentication.SSOProviderSettings.IDPName)
 }

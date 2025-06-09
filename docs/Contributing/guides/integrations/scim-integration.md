@@ -13,7 +13,7 @@
 
 Sample provisioning settings that work. Capabilities can be disabled and attributes can be removed as needed.
 
-![Okta to Fleet provisioning](./assets/SCIM-Okta-provisioning.png)
+![Okta to Fleet provisioning](../../assets/SCIM-Okta-provisioning.png)
 
 From our testing with Okta, we see the following behavior that is worth noting:
 - Okta does not use PATCH endpoint
@@ -47,14 +47,22 @@ Run test using [Runscope](https://www.runscope.com/). See [instructions](https:/
 ## Entra ID integration
 - [SCIM guide](https://learn.microsoft.com/en-us/entra/identity/app-provisioning/use-scim-to-provision-users-and-groups)
 - [SCIM validator](https://scimvalidator.microsoft.com/)
-  - Only test attributes that we implemented
+  - Note: only test attributes implemented by Fleet
+
+By default, Entra ID SCIM client is not fully SCIM 2.0 compliant. [See details](https://learn.microsoft.com/en-us/entra/identity/app-provisioning/application-provisioning-config-problem-scim-compatibility). Fleet server does not support Entra ID's non-SCIM compliant client. To use the SCIM compliant Entra ID client, you must append the following URL parameter to the Fleet server's path: `aadOptscim062020`. This parameter is processed by Entra ID, not by Fleet. So, the Fleet URL should look like this:
+
+```
+https://<server_url>/api/v1/fleet/scim?aadOptscim062020
+```
 
 ### Testing Entra ID integration
 
 Use [scimvalidator.microsoft.com](https://scimvalidator.microsoft.com/). Only test the attributes that we have implemented.
 
-![SCIM-Entra-ID-Validator-User-attributes.png](assets/SCIM-Entra-ID-Validator-User-attributes.png)
-![SCIM-Entra-ID-Validator-Group-attributes.png](assets/SCIM-Entra-ID-Validator-Group-attributes.png)
+We support the `emails` attribute, even though it is not called out in our customer-facing guide.
+
+![SCIM-Entra-ID-Validator-User-attributes.png](../../assets/SCIM-Entra-ID-Validator-User-attributes.png)
+![SCIM-Entra-ID-Validator-Group-attributes.png](../../assets/SCIM-Entra-ID-Validator-Group-attributes.png)
 
 To see our supported attributes, check the schema:
 ```
@@ -63,7 +71,7 @@ GET https://localhost:8080/api/latest/fleet/scim/Schemas
 
 Results (2025/05/06)
 
-![SCIM-Entra-ID-Validator-results.png](assets/SCIM-Entra-ID-Validator-results.png)
+![SCIM-Entra-ID-Validator-results.png](../../assets/SCIM-Entra-ID-Validator-results.png)
 
 ## Authentication
 

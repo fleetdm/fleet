@@ -24,7 +24,7 @@ Using Fleet, you can require end users to authenticate with your identity provid
 
 ### End user authentication
 
-1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
+1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL. If this URL is set incorrectly, end users won't be able to enroll. On iOS hosts, they'll see a "This screen size is not supported yet" error message.
 
 2. In your new SAML app, set **Name ID** to email (required). Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
 
@@ -44,7 +44,7 @@ Fleet supports installing a bootstrap package on macOS hosts that automatically 
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
-The bootstrap package, Fleet's agent (fleetd), and [custom OS settings (configuration profiles)](https://fleetdm.com/guides/custom-os-settings) are also delivered during [MDM migration](https://fleetdm.com/guides/mdm-migration). Only fleetd and configuration profiles are delivered when an enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`.
+The bootstrap package and Fleet's agent (fleetd) are also installed during [MDM migration](https://fleetdm.com/guides/mdm-migration) and when the enrollment profile is renewed manually by running `sudo profiles renew -type enrollment`. If you [manually install fleetd](#advanced), fleetd won't be installed.
 
 The following are examples of what some organizations deploy using a bootstrap package:
 
@@ -183,6 +183,8 @@ If you configure software and/or a script for setup experience, users will see a
 
 This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
 
+To replace the Fleet logo with your organization's logo, head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**. See recommended sizes for logos [here](https://fleetdm.com/docs/configuration/yaml-files#org-info).
+
 > The setup experience script always runs after setup experience software is installed. Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after setup the experience software/script. They aren't installed/run in any particular order.
 
 ### Install software
@@ -208,6 +210,24 @@ Fleet also provides a REST API for managing setup experience software and script
 ### Configuring via GitOps
 
 To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the GitOps reference documentation [here](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
+
+## Advanced
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+By default, Fleet's agent (fleetd) is automatically installed during automatic enrollment (ADE) on macOS hosts. To deploy a custom fleetd agent on macOS hosts that automatically enroll, you can use a bootstrap package.
+
+How to deploy a custom fleetd:
+
+1. Generate your fleetd package by running the command `fleetctl package`, ensuring you do **not** use the `--use-system-configuration` flag. 
+
+2. Add fleetd to your bootstrap package. To customize fleetd further, you can also add a script to modify fleetd's [launchd template](https://github.com/fleetdm/fleet/blob/fleet-v4.66.0/orbit/pkg/packaging/macos_templates.go#L96).
+
+3. In Fleet, head to **Controls > Setup Experience > Bootstrap package** and add your bootstrap package. Make sure to check the option **Install Fleet’s agent (fleetd) manually** and then select **Save**.
+
+4. Once the option to manually install Fleet's agent is checked, instead of using **Install software** and **Run script** options, include your software in the bootstrap package.
+
+If you deploy a custom fleetd, also add the software and scripts you want to install/run during out-of-the-box macOS setup to your bootstrap package. Fleet won't install the software and run the script [configured in setup experience](#software-and-script).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

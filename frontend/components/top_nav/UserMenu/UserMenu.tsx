@@ -227,7 +227,6 @@ const UserMenu = ({
       ...provided,
       padding: "10px 8px",
       fontSize: "15px",
-      borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
       color: COLORS["tooltip-bg"],
       whiteSpace: "nowrap",
@@ -236,6 +235,9 @@ const UserMenu = ({
       },
       "&:active": {
         backgroundColor: COLORS["ui-vibrant-blue-25"],
+      },
+      "&:last-child, &:nth-last-of-type(2)": {
+        borderTop: `1px solid ${COLORS["ui-fleet-black-10"]}`,
       },
     }),
   };

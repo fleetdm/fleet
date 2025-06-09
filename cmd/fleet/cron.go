@@ -1013,26 +1013,23 @@ func newFrequentCleanupsSchedule(
 		schedule.WithAltLockID("leader_frequent_cleanups"),
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		// Run cleanup jobs first.
-		schedule.WithJob(
-			"redis_live_queries",
-			func(ctx context.Context) error {
-				// It's necessary to avoid lingering live queries in case of:
-				// - (Unknown) bug in the implementation, or,
-				// - Redis is so overloaded already that the lq.StopQuery in svc.CompleteCampaign fails to execute, or,
-				// - MySQL is so overloaded that ds.SaveDistributedQueryCampaign in svc.CompleteCampaign fails to execute.
-				names, err := lq.LoadActiveQueryNames()
-				if err != nil {
-					return err
-				}
-				ids := stringSliceToUintSlice(names, logger)
-				completed, err := ds.GetCompletedCampaigns(ctx, ids)
-				if err != nil {
-					return err
-				}
-				err = lq.CleanupInactiveQueries(ctx, completed)
+		schedule.WithJob("redis_live_queries", func(ctx context.Context) error {
+			// It's necessary to avoid lingering live queries in case of:
+			// - (Unknown) bug in the implementation, or,
+			// - Redis is so overloaded already that the lq.StopQuery in svc.CompleteCampaign fails to execute, or,
+			// - MySQL is so overloaded that ds.SaveDistributedQueryCampaign in svc.CompleteCampaign fails to execute.
+			names, err := lq.LoadActiveQueryNames()
+			if err != nil {
 				return err
-			},
-		),
+			}
+			ids := stringSliceToUintSlice(names, logger)
+			completed, err := ds.GetCompletedCampaigns(ctx, ids)
+			if err != nil {
+				return err
+			}
+			err = lq.CleanupInactiveQueries(ctx, completed)
+			return err
+		}),
 	)
 
 	return s, nil
@@ -1120,7 +1117,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	}
 
 	// If the license is Premium, we should always send usage statisics.
-	if !ac.ServerSettings.EnableAnalytics && !license.IsPremium(ctx) {
+	if !ac.ServerSettings.EnableAnalytics && license.IsAllowDisableTelemetry(ctx) {
 		return nil
 	}
 
@@ -1540,6 +1537,29 @@ func newIPhoneIPadReviver(
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_reviver", func(ctx context.Context) error {
 			return apple_mdm.IOSiPadOSRevive(ctx, ds, commander, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newUpcomingActivitiesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronUpcomingActivitiesMaintenance)
+		defaultInterval = 10 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
+			const maxUnblockHosts = 500
+			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
+			return err
 		}),
 	)
 

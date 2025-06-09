@@ -89,3 +89,28 @@ func GenerateMDMAppleProfile(ident, displayName, uuid string) string {
 </plist>
 `, ident, displayName, uuid)
 }
+
+func ToMDMAppleConfigProfile(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleConfigProfile {
+	return &fleet.MDMAppleConfigProfile{
+		Identifier:   p.Identifier,
+		Name:         p.Name,
+		ProfileUUID:  p.ProfileUUID,
+		Mobileconfig: p.Checksum, // not important for the test
+	}
+}
+
+func ToMDMWindowsConfigProfile(p *fleet.MDMConfigProfilePayload) *fleet.MDMWindowsConfigProfile {
+	return &fleet.MDMWindowsConfigProfile{
+		Name:        p.Name,
+		SyncML:      p.Checksum, // not important for the test
+		ProfileUUID: p.ProfileUUID,
+	}
+}
+
+func ToMDMAppleDecl(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleDeclaration {
+	return &fleet.MDMAppleDeclaration{
+		Name:            p.Name,
+		Identifier:      p.Identifier,
+		DeclarationUUID: p.ProfileUUID,
+	}
+}

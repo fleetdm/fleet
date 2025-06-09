@@ -332,15 +332,23 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		lifecycleErrs := []error{}
+		serialsWithErrs := []string{}
 		for _, host := range hosts {
 			if fleet.MDMSupported(host.Platform) {
-				err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+				if err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 					Action:   mdmlifecycle.HostActionDelete,
 					Host:     host,
 					Platform: host.Platform,
-				})
-				return err
+				}); err != nil {
+					lifecycleErrs = append(lifecycleErrs, err)
+					serialsWithErrs = append(serialsWithErrs, host.HardwareSerial)
+				}
 			}
+		}
+		if len(lifecycleErrs) > 0 {
+			msg := fmt.Sprintf("failed to recreate pending host records for one or more MDM devices: %+v", serialsWithErrs)
+			return ctxerr.Wrap(ctx, errors.Join(lifecycleErrs...), msg)
 		}
 
 		return nil
@@ -556,6 +564,17 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 		// host once team_id is loaded.
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
+		}
+	}
+
+	// recalculate host failing_policies_count & total_issues_count, at most every minute
+	lastUpdated, err := svc.ds.GetHostIssuesLastUpdated(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking host's host_issues last updated:")
+	}
+	if time.Since(lastUpdated) > time.Minute {
+		if err := svc.ds.UpdateHostIssuesFailingPolicies(ctx, []uint{id}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "recalculate host failing policies count:")
 		}
 	}
 

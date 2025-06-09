@@ -110,14 +110,14 @@
 
   &__input-container.copy-enabled {
     position: relative;
+
+    .input-field {
+      padding-right: 35px; // horizontal scroll of long inputs will not be hidden by copy button
+    }
   }
 
   &__copied-confirmation {
-    font-size: $x-small;
-    background-color: $ui-light-grey;
-    border: solid 1px $ui-fleet-black-10;
-    border-radius: $border-radius-xlarge;
-    padding: $pad-xxsmall 6px;
+    @include copy-message;
   }
 
   &__copied-confirmation-outside {

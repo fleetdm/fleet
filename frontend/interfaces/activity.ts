@@ -128,6 +128,7 @@ export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.WipedHost
+  | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
@@ -171,9 +172,11 @@ export type IHostUpcomingActivity = Omit<
 };
 
 export interface IActivityDetails {
+  /** Useful for passing this data into an activity details modal */
+  created_at?: string;
   app_store_id?: number;
   bootstrap_package_name?: string;
-  batch_exection_id?: string;
+  batch_execution_id?: string;
   command_uuid?: string;
   deadline_days?: number;
   deadline?: string;

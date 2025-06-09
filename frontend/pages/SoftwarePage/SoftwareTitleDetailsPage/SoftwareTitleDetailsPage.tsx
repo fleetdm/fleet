@@ -35,7 +35,6 @@ const baseClass = "software-title-details-page";
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
-  team_id?: string;
 }
 
 type ISoftwareTitleDetailsPageProps = RouteComponentProps<
@@ -54,11 +53,14 @@ const SoftwareTitleDetailsPage = ({
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
+    config,
   } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
+  const autoOpenGitOpsYamlModal =
+    location.query.gitops_yaml === "true" && config?.gitops.gitops_mode_enabled;
 
   const {
     currentTeamId,
@@ -136,6 +138,7 @@ const SoftwareTitleDetailsPage = ({
     }
 
     const {
+      softwareTitleName,
       softwarePackage,
       name,
       version,
@@ -146,6 +149,7 @@ const SoftwareTitleDetailsPage = ({
 
     return (
       <SoftwareInstallerCard
+        softwareTitleName={softwareTitleName}
         softwareInstaller={softwarePackage}
         name={name}
         version={version}
@@ -154,9 +158,12 @@ const SoftwareTitleDetailsPage = ({
         isSelfService={isSelfService}
         softwareId={softwareId}
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        teamIdForApi={teamIdForApi}
         onDelete={onDeleteInstaller}
         refetchSoftwareTitle={refetchSoftwareTitle}
         isLoading={isSoftwareTitleLoading}
+        router={router}
+        gitOpsYamlParam={autoOpenGitOpsYamlModal}
       />
     );
   };

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm"
+
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -39,8 +41,9 @@ type DetailQuery struct {
 	Description string
 	// Query is the SQL query string.
 	Query string
-	// QueryFunc is optionally used to dynamically build a query.
-	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) string
+	// QueryFunc is optionally used to dynamically build a query. If false is returned, then the query should be
+	// ignored.
+	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool)
 	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
@@ -504,7 +507,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		// the `mdm_bridge` table is used, the `mdmlocalmanagement.dll`
 		// registers an MDM with ProviderID = `Local_Management`
 		//
-		// Entries also need to be filtered by their enrollment status, described [here][1]
+		// Entries also need to be filtered by their [Intune enrollmentState][1]
 		//
 		//   Member        Value  Description
 		//   unknown       0      Device enrollment state is unknown
@@ -516,39 +519,44 @@ var extraDetailQueries = map[string]DetailQuery{
 		//
 		// [1]: https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-enrollmentstate
 		Query: `
-                    WITH registry_keys AS (
-                        SELECT *
-                        FROM registry
-                        WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
-                    ),
-                    enrollment_info AS (
-                        SELECT
-                            MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-                            MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
-                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
-                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
-                            MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
-                        FROM registry_keys
-                        GROUP BY key
-                    ),
-                    installation_info AS (
-                        SELECT data AS installation_type
-                        FROM registry
-                        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-                        LIMIT 1
-                    )
-                    SELECT
-                        e.aad_resource_id,
-                        e.discovery_service_url,
-                        e.provider_id,
-                        i.installation_type
-                    FROM installation_info i
-                    LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
-		    -- coalesce to 'unknown' and keep that state in the list
-		    -- in order to account for hosts that might not have this
-		    -- key, and servers
-                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-                    LIMIT 1;
+					WITH registry_keys AS (
+						SELECT *
+						FROM registry
+						WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+					),
+					enrollment_info AS (
+						SELECT
+							MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+							MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+							MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+							MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+							MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+						FROM registry_keys
+						GROUP BY key
+					),
+					installation_info AS (
+						SELECT data AS installation_type
+						FROM registry
+						WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+						LIMIT 1
+					)
+					SELECT
+						e.aad_resource_id,
+						e.discovery_service_url,
+						e.provider_id,
+						i.installation_type
+					FROM installation_info i
+					LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+			-- coalesce to 'unknown' and keep that state in the list
+			-- in order to account for hosts that might not have this
+			-- key, and servers
+					WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+			-- old enrollments that aren't completely cleaned up may still be aronud
+			-- in the registry so we want to make sure we return the one with an actual
+			-- discovery URL set if there is one. LENGTH is used here to prefer those
+			-- with actual URLs over empty string/null if there are multiple
+					ORDER BY LENGTH(e.discovery_service_url) DESC
+					LIMIT 1;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,
 		Platforms:        []string{"windows"},
@@ -1214,7 +1222,7 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	//     (having big queries can cause performance issues or be denylisted).
 	"macos_codesign": {
 		Query: `
-		SELECT a.path, c.team_identifier
+		SELECT c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
 	`,
@@ -1222,21 +1230,35 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Platforms:   []string{"darwin"},
 		Discovery:   discoveryTable("codesign"),
 		SoftwareProcessResults: func(mainSoftwareResults, codesignResults []map[string]string) []map[string]string {
-			codesignInformation := make(map[string]string) // path -> team_identifier
+			type codesignResultRow struct {
+				teamIdentifier string
+				cdhashSHA256   string
+			}
+
+			codesignInformation := make(map[string]codesignResultRow) // path -> team_identifier
 			for _, codesignResult := range codesignResults {
-				codesignInformation[codesignResult["path"]] = codesignResult["team_identifier"]
+				var cdhashSha256 string
+				if hash, ok := codesignResult["cdhash_sha256"]; ok {
+					cdhashSha256 = hash
+				}
+
+				codesignInformation[codesignResult["path"]] = codesignResultRow{
+					teamIdentifier: codesignResult["team_identifier"],
+					cdhashSHA256:   cdhashSha256,
+				}
 			}
 			if len(codesignInformation) == 0 {
 				return mainSoftwareResults
 			}
 
 			for _, result := range mainSoftwareResults {
-				codesignInfo := codesignInformation[result["installed_path"]]
-				if codesignInfo == "" {
+				codesignInfo, ok := codesignInformation[result["installed_path"]]
+				if !ok {
 					// No codesign information for this application.
 					continue
 				}
-				result["team_identifier"] = codesignInfo
+				result["team_identifier"] = codesignInfo.teamIdentifier
+				result["cdhash_sha256"] = codesignInfo.cdhashSHA256
 			}
 
 			return mainSoftwareResults
@@ -1629,9 +1651,13 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 				return str
 			}
 			teamIdentifier := truncateString(row["team_identifier"], fleet.SoftwareTeamIdentifierMaxLength)
+			var cdhashSHA256 string
+			if hash, ok := row["cdhash_sha256"]; ok {
+				cdhashSHA256 = hash
+			}
 			key := fmt.Sprintf(
-				"%s%s%s%s%s",
-				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s",
+				installedPath, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdhashSHA256, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			sPaths[key] = struct{}{}
 		}
@@ -1750,19 +1776,6 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 			// it seems to be working now because the values are matching where they need to match.
 			// We should clean this up at some point, but for now we'll just check both.
 			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
-		}
-		if fleetEnrollRef != "" {
-			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-				if !fleet.IsNotFound(err) {
-					return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
-				}
-
-				level.Warn(logger).Log(
-					"component", "service",
-					"method", "directIngestMDMMac",
-					"msg", err.Error(),
-				)
-			}
 		}
 	}
 
@@ -2058,6 +2071,152 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
+var luksVerifyQuery = DetailQuery{
+	Platforms: fleet.HostLinuxOSs,
+	Discovery: fmt.Sprintf(
+		`SELECT 1 WHERE EXISTS (%s) AND EXISTS (%s);`,
+		discoveryTable("lsblk"),
+		discoveryTable("cryptsetup_luks_salt"),
+	),
+	QueryFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+		if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" || !host.IsLUKSSupported() {
+			return "", false
+		}
+
+		if _, err := ds.GetHostDiskEncryptionKey(ctx, host.ID); err != nil {
+			if fleet.IsNotFound(err) {
+				return "", false
+			}
+		}
+
+		// Returns the key_slot and salt of the LUKS block device where '/' is mounted.
+		query := `
+		WITH RECURSIVE
+		devices AS (
+			SELECT 
+				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
+				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
+				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
+				MAX(CASE WHEN key = 'fstype' THEN value ELSE NULL END) AS fstype,
+				MAX(CASE WHEN key = 'mountpoint' THEN value ELSE NULL END) as mountpoint
+			FROM lsblk
+			GROUP BY parent
+		HAVING path <> '' AND fstype <> ''
+		),
+		root_mount AS (
+			SELECT 
+				path, 
+				kname, 
+				-- if '/' is mounted in a LUKS FS, then we don't need to transverse the tree
+				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname, 
+				fstype 
+			FROM devices
+			WHERE mountpoint = '/'
+		),
+		luks_h(path, kname, pkname, fstype) AS (
+			SELECT 
+				rtm.path, 
+				rtm.kname, 
+				rtm.pkname, 
+				rtm.fstype 
+			FROM root_mount rtm
+			UNION
+		   SELECT 
+				dv.path,
+				dv.kname,
+				dv.pkname,
+				dv.fstype
+		   FROM devices dv 
+		   JOIN luks_h ON dv.kname=luks_h.pkname
+		)
+		SELECT salt, key_slot
+		FROM cryptsetup_luks_salt 
+		WHERE device = (SELECT path FROM luks_h WHERE fstype = 'crypto_LUKS' LIMIT 1)`
+		return query, true
+	},
+}
+
+// We need to define the ingest function inline like this because we need access to the server private key
+var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
+	ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	return func(
+		ctx context.Context,
+		logger log.Logger,
+		host *fleet.Host,
+		ds fleet.Datastore,
+		rows []map[string]string,
+	) error {
+		if len(rows) == 0 || host == nil || !host.IsLUKSSupported() {
+			return nil
+		}
+
+		dek, err := ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				level.Error(logger).Log(
+					"component", "service",
+					"method", "luksVerifyQueryIngester",
+					"msg", "unexpected missing LUKS2 disk encryption key",
+					"err", err,
+				)
+				return nil
+			}
+			level.Error(logger).Log(
+				"component", "service",
+				"method", "luksVerifyQueryIngester",
+				"msg", "unexpected error",
+				"err", err,
+			)
+			return err
+		}
+		if dek == nil || dek.Base64EncryptedSalt == "" || dek.KeySlot == nil {
+			return nil
+		}
+
+		storedSalt, err := decrypter(dek.Base64EncryptedSalt)
+		if err != nil {
+			level.Debug(logger).Log(
+				"component", "service",
+				"method", "luksVerifyQueryIngester",
+				"host", host.ID,
+				"err", err,
+			)
+			return err
+		}
+		storedKeySlot := fmt.Sprintf("%d", *dek.KeySlot)
+
+		var entryFound bool
+		for _, row := range rows {
+			hostSalt, okSalt := row["salt"]
+			hostKeySlot, okKeySlot := row["key_slot"]
+
+			if !okSalt || !okKeySlot {
+				level.Error(logger).Log(
+					"component", "service",
+					"method", "luksVerifyQueryIngester",
+					"host", host.ID,
+					"err", "luks_verify expected some salt and a key_slot",
+				)
+				continue
+			}
+			if hostSalt == storedSalt && hostKeySlot == storedKeySlot {
+				entryFound = true
+				break
+			}
+		}
+		if !entryFound {
+			level.Info(logger).Log(
+				"component", "service",
+				"method", "luksVerifyQueryIngester",
+				"host", host.ID,
+				"msg", "LUKS key do not match, deleting",
+			)
+			return ds.DeleteLUKSData(ctx, host.ID, *dek.KeySlot)
+		}
+		return nil
+	}
+}
+
 //go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
 
 func GetDetailQueries(
@@ -2110,6 +2269,15 @@ func GetDetailQueries(
 		}
 	}
 
+	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
+		luksVerifyQuery.DirectIngestFunc = luksVerifyQueryIngester(func(privateKey string) func(string) (string, error) {
+			return func(encrypted string) (string, error) {
+				return mdm.DecodeAndDecrypt(encrypted, privateKey)
+			}
+		}(fleetConfig.Server.PrivateKey))
+		generatedMap["luks_verify"] = luksVerifyQuery
+	}
+
 	if features != nil {
 		var unknownQueries []string
 
@@ -2152,7 +2320,7 @@ func buildConfigProfilesWindowsQuery(
 	logger log.Logger,
 	host *fleet.Host,
 	ds fleet.Datastore,
-) string {
+) (string, bool) {
 	var sb strings.Builder
 	sb.WriteString("<SyncBody>")
 	gotProfiles := false
@@ -2177,7 +2345,7 @@ func buildConfigProfilesWindowsQuery(
 			"method", "QueryFunc - windows config profiles",
 			"err", err,
 		)
-		return ""
+		return "", false
 	}
 	if !gotProfiles {
 		level.Debug(logger).Log(
@@ -2186,10 +2354,10 @@ func buildConfigProfilesWindowsQuery(
 			"msg", "host doesn't have profiles to check",
 			"host_id", host.ID,
 		)
-		return ""
+		return "", false
 	}
 	sb.WriteString("</SyncBody>")
-	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String())
+	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String()), true
 }
 
 func directIngestWindowsProfiles(

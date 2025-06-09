@@ -43,7 +43,9 @@ const SoftwareCustomPackage = ({
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, config } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
   const [
@@ -119,7 +121,9 @@ const SoftwareCustomPackage = ({
     // Note: This TODO is copied to onSaveSoftwareChanges in EditSoftwareModal
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      await softwareAPI.addSoftwarePackage({
+      const {
+        software_package: { title_id: softwarePackageTitleId },
+      } = await softwareAPI.addSoftwarePackage({
         data: formData,
         teamId: currentTeamId,
         onUploadProgress: (progressEvent) => {
@@ -130,24 +134,27 @@ const SoftwareCustomPackage = ({
         },
       });
 
-      const newQueryParams: QueryParams = { team_id: currentTeamId };
-      if (formData.selfService) {
-        newQueryParams.self_service = true;
-      } else {
-        newQueryParams.available_for_install = true;
+      if (!gitOpsModeEnabled) {
+        renderFlash(
+          "success",
+          <>
+            <b>{formData.software?.name}</b> successfully added.
+            {formData.selfService
+              ? " The end user can install from Fleet Desktop."
+              : ""}
+          </>
+        );
       }
-      router.push(
-        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, newQueryParams)
-      );
 
-      renderFlash(
-        "success",
-        <>
-          <b>{formData.software?.name}</b> successfully added.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
+      const newQueryParams: QueryParams = {
+        team_id: currentTeamId,
+        gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
+      };
+      router.push(
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwarePackageTitleId.toString()),
+          newQueryParams
+        )
       );
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
@@ -174,8 +181,6 @@ const SoftwareCustomPackage = ({
           onCancel={onCancel}
           onSubmit={onSubmit}
           onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
-          // TODO - unnecessary if all uses of `PackageForm` are gitops compatible - TBD by product
-          gitopsCompatible
         />
         {uploadDetails && (
           <FileProgressModal

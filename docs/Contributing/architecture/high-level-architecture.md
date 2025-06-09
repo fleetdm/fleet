@@ -1,7 +1,7 @@
 # High level architecture
 
 - [Overview](#overview)
-- [Main System Components](#main-system-components)
+- [Main system components](#main-system-components)
 
 ## Overview
 
@@ -32,7 +32,7 @@ At a high level, Fleet consists of:
 
 The diagrams below illustrate how these components interact and the data flow for different operations like live queries, scheduled queries, and vulnerability management.
 
-## Main System Components
+## Main system components
 
 ```mermaid
 graph LR;
@@ -104,7 +104,7 @@ graph LR;
 
 
 
-## The path of Live Query
+## The path of live query
 
 ### 1 - Fleet User initiates the query
 ```mermaid
@@ -145,7 +145,7 @@ graph LR;
 
 ```
 
-## The path of a scheduled Query
+## The path of a scheduled query
 
 ### 1 - Fleet User initiates the query
 ```mermaid

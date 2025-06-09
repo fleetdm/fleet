@@ -754,7 +754,22 @@ WHERE
 }
 
 func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
-	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profileUUID)
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := deleteMDMWindowsConfigProfile(ctx, tx, profileUUID); err != nil {
+			return err
+		}
+
+		// cancel any pending host installs immediately for this profile
+		if err := cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID}); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func deleteMDMWindowsConfigProfile(ctx context.Context, tx sqlx.ExtContext, profileUUID string) error {
+	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid=?`, profileUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
@@ -762,6 +777,31 @@ func (ds *Datastore) DeleteMDMWindowsConfigProfile(ctx context.Context, profileU
 	deleted, _ := res.RowsAffected() // cannot fail for mysql
 	if deleted != 1 {
 		return ctxerr.Wrap(ctx, notFound("MDMWindowsProfile").WithName(profileUUID))
+	}
+	return nil
+}
+
+func cancelWindowsHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+	// For Windows, we currently don't support sending a command to remove a
+	// profile that was installed, so all we need to do here is delete any
+	// host-profile tuple that had this profile (whether with operation install
+	// or remove, does not matter).
+	const delStmt = `
+	DELETE FROM
+		host_mdm_windows_profiles
+	WHERE profile_uuid IN (?)`
+
+	if len(profileUUIDs) == 0 {
+		return nil
+	}
+
+	stmt, args, err := sqlx.In(delStmt, profileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN to delete host_mdm_windows_profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host_mdm_windows_profiles for deleted profile")
 	}
 	return nil
 }
@@ -912,7 +952,7 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 }
 
 type statusCounts struct {
-	Status string `db:"status"`
+	Status string `db:"final_status"`
 	Count  uint   `db:"count"`
 }
 
@@ -958,7 +998,7 @@ SELECT
             'verified'
         ELSE
             ''
-    END AS status,
+    END AS final_status,
     SUM(1) AS count
 FROM
     hosts h
@@ -971,7 +1011,7 @@ WHERE
     hmdm.enrolled = 1 AND
     %s
 GROUP BY
-    status`,
+    final_status`,
 		subqueryFailed,
 		subqueryPending,
 		subqueryVerifying,
@@ -1090,7 +1130,7 @@ SELECT
         END)
     ELSE
         REPLACE((%s), 'bitlocker_', '')
-    END as status,
+    END as final_status,
     SUM(1) as count
 FROM
     hosts h
@@ -1104,7 +1144,7 @@ WHERE
     hmdm.enrolled = 1 AND
     %s
 GROUP BY
-    status`,
+    final_status`,
 		profilesStatus,
 		bitlockerStatus,
 		bitlockerStatus,
@@ -1828,11 +1868,30 @@ WHERE
   name NOT IN (?)
 `
 
+	const loadToBeDeletedProfilesNotInList = `
+SELECT
+	profile_uuid
+FROM
+	mdm_windows_configuration_profiles
+WHERE
+	team_id = ? AND
+	name NOT IN (?)
+`
+
 	const deleteAllProfilesForTeam = `
 DELETE FROM
   mdm_windows_configuration_profiles
 WHERE
   team_id = ?
+`
+
+	const loadToBeDeletedProfiles = `
+SELECT
+	profile_uuid
+FROM
+	mdm_windows_configuration_profiles
+WHERE
+	team_id = ?
 `
 
 	// For Windows profiles, if team_id and name are the same, we do an update. Otherwise, we do an insert.
@@ -1906,7 +1965,16 @@ ON DUPLICATE KEY UPDATE
 	)
 	// delete the obsolete profiles (all those that are not in keepNames)
 	var result sql.Result
+	var deletedProfileUUIDs []string
 	if len(keepNames) > 0 {
+		stmt, args, err = sqlx.In(loadToBeDeletedProfilesNotInList, profTeamID, keepNames)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "build statement to load obsolete profiles")
+		}
+		if err = sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, stmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "load obsolete profiles")
+		}
+
 		stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepNames)
 		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "indelete") {
 			if err == nil {
@@ -1922,6 +1990,10 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
 		}
 	} else {
+		if err = sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, loadToBeDeletedProfiles, profTeamID); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "load obsolete profiles")
+		}
+
 		if result, err = tx.ExecContext(ctx, deleteAllProfilesForTeam,
 			profTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "delete") {
 			if err == nil {
@@ -1933,6 +2005,12 @@ ON DUPLICATE KEY UPDATE
 	if result != nil {
 		rows, _ := result.RowsAffected()
 		updatedDB = rows > 0
+	}
+	if len(deletedProfileUUIDs) > 0 {
+		// cancel installs of the deleted profiles immediately
+		if err := cancelWindowsHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "cancel installs of deleted profiles")
+		}
 	}
 
 	// insert the new profiles and the ones that have changed

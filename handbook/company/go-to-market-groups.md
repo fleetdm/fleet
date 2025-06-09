@@ -16,8 +16,8 @@ When communicating with future or current customers, hand offs [between departme
 
 | GTM group                            | Goal |
 |:-------------------------------------|:------------------------------------|
-| [🦄<br>Unicorns](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 300+ hosts. 
-| [🌐<br>Buy<br>online](https://fleetdm.com/handbook/company/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 300 hosts that prefer a more self-service experience.
+| [🦄Unicorns](https://fleetdm.com/handbook/company/go-to-market-groups#unicorns)             | Provide the best possible customer experience for organizations with 700+ hosts. 
+| [🌐Buy online](https://fleetdm.com/handbook/company/go-to-market-groups#buy-online)         | Provide the best possible customer experience for organizations and contributors with less than 700 hosts that prefer a more self-service experience.
 
 
 ### 🦄 Unicorns
@@ -33,7 +33,7 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 | Account Development Rep (ADR)     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_  <br> [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)    | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ <br> [Raiven Williams](https://www.linkedin.com/in/raivenwilliams/) _([@bettapizza](https://github.com/bettapizza))_
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ 
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_  <br> [Jake Stenger](https://www.linkedin.com/in/jakestenger/) _([@jakestenger](https://github.com/jakestenger))_ <br> [Matt Rebelo](https://www.linkedin.com/in/matt-rebelo/) _([@reeblybeebly](https://github.com/reeblybeebly))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR), [kanban release board](https://github.com/fleetdm/confidential/issues#workspaces/g-unicorns-67b0e98321bc780010a6e78e/board), and [GitHub label](https://github.com/fleetdm/confidential/labels/%23g-unicorns) for this GTM group is `#g-unicorns`.
 
@@ -49,7 +49,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | Customer Success DRI              | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_
 | Customer Support Engineer (CSE)   |[Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C08C7ML9QKX), [kanban release board](https://github.com/orgs/fleetdm/projects/65), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-buy-online) for this GTM group is `#g-buy-online`.
 
 
 ## Customer support service level agreements (SLAs)
@@ -162,7 +162,7 @@ Event-goers expect a timely [follow-up from Fleet](https://fleetdm.com/handbook/
 
 #### Podcast
 
-Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
+Fleet has created a [podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
 
 
 #### Video

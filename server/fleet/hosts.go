@@ -221,6 +221,15 @@ type HostListOptions struct {
 	// ConnectedToFleetFilter filters hosts that have an active MDM
 	// connection with this Fleet instance.
 	ConnectedToFleetFilter *bool
+
+	// ProfileUUID is the UUID of the MDM configuration profile and filters hosts by that profile.
+	ProfileUUIDFilter *string
+	// ProfileStatus is the status of the MDM configuration profile and filters hosts by that status.
+	ProfileStatusFilter *OSSettingsStatus
+	// BatchScriptExecutionStatusFilter filters hosts by the status of a batch script execution.
+	BatchScriptExecutionStatusFilter BatchScriptExecutionStatus
+	// BatchScriptExecutionIDFilter filters hosts by the ID of a batch script execution.
+	BatchScriptExecutionIDFilter *string
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -249,7 +258,9 @@ func (h HostListOptions) Empty() bool {
 		h.MunkiIssueIDFilter == nil &&
 		h.LowDiskSpaceFilter == nil &&
 		h.OSSettingsFilter == "" &&
-		h.OSSettingsDiskEncryptionFilter == ""
+		h.OSSettingsDiskEncryptionFilter == "" &&
+		h.ProfileUUIDFilter == nil &&
+		h.ProfileStatusFilter == nil
 }
 
 type HostUser struct {
@@ -539,6 +550,28 @@ func (s DiskEncryptionStatus) IsValid() bool {
 		DiskEncryptionEnforcing,
 		DiskEncryptionFailed,
 		DiskEncryptionRemovingEnforcement:
+		return true
+	default:
+		return false
+	}
+}
+
+type BatchScriptExecutionStatus string
+
+const (
+	BatchScriptExecutionRan       BatchScriptExecutionStatus = "ran"
+	BatchScriptExecutionPending   BatchScriptExecutionStatus = "pending"
+	BatchScriptExecutionErrored   BatchScriptExecutionStatus = "errored"
+	BatchScriptExecutionCancelled BatchScriptExecutionStatus = "cancelled"
+)
+
+func (s BatchScriptExecutionStatus) IsValid() bool {
+	switch s {
+	case
+		BatchScriptExecutionRan,
+		BatchScriptExecutionPending,
+		BatchScriptExecutionErrored,
+		BatchScriptExecutionCancelled:
 		return true
 	default:
 		return false
@@ -1223,12 +1256,14 @@ type HostMDMCheckinInfo struct {
 }
 
 type HostDiskEncryptionKey struct {
-	HostID          uint      `json:"-" db:"host_id"`
-	Base64Encrypted string    `json:"-" db:"base64_encrypted"`
-	Decryptable     *bool     `json:"-" db:"decryptable"`
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
-	DecryptedValue  string    `json:"key" db:"-"`
-	ClientError     string    `json:"-" db:"client_error"`
+	HostID              uint      `json:"-" db:"host_id"`
+	Base64Encrypted     string    `json:"-" db:"base64_encrypted"`
+	Base64EncryptedSalt string    `json:"-" db:"base64_encrypted_salt"`
+	KeySlot             *uint     `json:"-" db:"key_slot"`
+	Decryptable         *bool     `json:"-" db:"decryptable"`
+	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
+	DecryptedValue      string    `json:"key" db:"-"`
+	ClientError         string    `json:"-" db:"client_error"`
 }
 
 // HostSoftwareInstalledPath represents where in the file system a software on a host was installed
@@ -1244,6 +1279,8 @@ type HostSoftwareInstalledPath struct {
 	// TeamIdentifier (not to be confused with Fleet's team IDs) is the Apple's "Team ID" (aka "Developer ID"
 	// or "Signing ID") of signed applications, see https://developer.apple.com/help/account/manage-your-team/locate-your-team-id.
 	TeamIdentifier string `db:"team_identifier"`
+	// A SHA256 hash of the executable file of the software.
+	ExecutableSHA256 *string `db:"executable_sha256"`
 }
 
 // HostMacOSProfile represents a macOS profile installed on a host as reported by the macos_profiles

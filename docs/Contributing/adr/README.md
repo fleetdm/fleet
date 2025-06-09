@@ -14,7 +14,7 @@ ADRs help teams:
 - Onboard new team members by providing context
 - Track the evolution of the system architecture over time
 
-## ADR Format
+## ADR format
 
 Each ADR follows a standard format:
 
@@ -25,7 +25,7 @@ Each ADR follows a standard format:
 5. **Consequences**: The consequences of the decision, both positive and negative
 6. **References**: Any references to related documents or resources
 
-## Creating a New ADR
+## Creating a new ADR
 
 To create a new ADR:
 
@@ -33,7 +33,7 @@ To create a new ADR:
 2. Fill in the template with your decision
 3. Submit a pull request with your new ADR
 
-## ADR Index
+## ADR index
 
 <!-- Add new ADRs to this list -->
 

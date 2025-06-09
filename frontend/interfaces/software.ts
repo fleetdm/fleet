@@ -84,9 +84,8 @@ export interface ISoftwareAppStoreAppStatus {
 
 export interface ISoftwarePackage {
   name: string;
-  last_install: string | null;
-  last_uninstall: string | null;
-  package_url: string;
+  title_id: number;
+  url: string;
   version: string;
   uploaded_at: string;
   install_script: string;
@@ -123,11 +122,7 @@ export interface IAppStoreApp {
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   automatic_install?: boolean;
-  last_install?: {
-    install_uuid: string;
-    command_uuid: string;
-    installed_at: string;
-  } | null;
+  last_install?: IAppLastInstall | null;
   last_uninstall?: {
     script_execution_id: string;
     uninstalled_at: string;
@@ -361,11 +356,23 @@ export interface IAppLastInstall {
   installed_at: string;
 }
 
+interface SignatureInformation {
+  installed_path: string;
+  team_identifier: string;
+  hash_sha256: string | null;
+}
+export interface ISoftwareLastUninstall {
+  install_uuid: string;
+  installed_at: string;
+}
+
 export interface ISoftwareInstallVersion {
   version: string;
+  bundle_identifier: string;
   last_opened_at: string | null;
   vulnerabilities: string[] | null;
   installed_paths: string[];
+  signature_information?: SignatureInformation[];
 }
 
 export interface IHostSoftwarePackage {
@@ -374,6 +381,7 @@ export interface IHostSoftwarePackage {
   icon_url: string | null;
   version: string;
   last_install: ISoftwareLastInstall | null;
+  last_uninstall: ISoftwareLastUninstall | null;
   categories?: SoftwareCategory[];
 }
 

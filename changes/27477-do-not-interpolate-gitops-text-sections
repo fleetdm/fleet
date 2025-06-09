@@ -1,1 +1,0 @@
-- Fixed an issue with the gitops command caused when trying to interpolate variables inside the 'description'/'remediation' sections.

@@ -15,6 +15,7 @@ export interface ILicense {
   organization: string;
   // Whether the Fleet instance is managed by FleetDM
   managed_cloud: boolean;
+  allow_disable_telemetry: boolean;
 }
 
 export interface IEndUserAuthentication {

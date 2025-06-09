@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import {
@@ -11,8 +11,10 @@ import {
 } from "interfaces/software";
 
 import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import Card from "components/Card";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import { dateAgo } from "utilities/date_format";
@@ -47,10 +49,18 @@ const SoftwareDetailsInfo = ({
   source,
   bundleIdentifier,
 }: ISoftwareDetailsInfoProps) => {
-  const { vulnerabilities, installed_paths } = installedVersion;
+  const {
+    vulnerabilities,
+    installed_paths: installedPaths,
+    signature_information: signatureInformation,
+  } = installedVersion;
 
   return (
-    <div className={`${baseClass}__details-info`}>
+    <Card
+      className={`${baseClass}__version-details`}
+      color="grey"
+      borderRadiusSize="medium"
+    >
       <div className={`${baseClass}__row`}>
         <DataSet title="Version" value={installedVersion.version} />
         <DataSet title="Type" value={formatSoftwareType({ source })} />
@@ -64,21 +74,6 @@ const SoftwareDetailsInfo = ({
           />
         )}
       </div>
-      {!!installed_paths?.length && (
-        <div className={`${baseClass}__row`}>
-          <DataSet
-            className={`${baseClass}__file-path-data-set`}
-            title={`File path${installed_paths.length > 1 ? "s" : ""}`}
-            value={
-              <div className={`${baseClass}__file-path-values`}>
-                {installed_paths.map((path) => (
-                  <span>{path}</span>
-                ))}
-              </div>
-            }
-          />
-        </div>
-      )}
       {vulnerabilities && vulnerabilities.length !== 0 && (
         <div className={`${baseClass}__row`}>
           <DataSet
@@ -87,7 +82,27 @@ const SoftwareDetailsInfo = ({
           />
         </div>
       )}
-    </div>
+      {!!installedPaths?.length &&
+        installedPaths.map((path) => {
+          // Find the signature info for this path
+          const sigInfo = signatureInformation?.find(
+            (info) => info.installed_path === path
+          );
+
+          return (
+            <div className={`${baseClass}__sig-info`}>
+              <DataSet orientation="horizontal" title="Path" value={path} />
+              {sigInfo?.hash_sha256 && (
+                <DataSet
+                  orientation="horizontal"
+                  title="Hash"
+                  value={sigInfo.hash_sha256}
+                />
+              )}
+            </div>
+          );
+        })}
+    </Card>
   );
 };
 
@@ -95,8 +110,7 @@ interface ISoftwareDetailsModalProps {
   hostDisplayName: string;
   software: IHostSoftware;
   onExit: () => void;
-  // install details will not be shown if Fleet doesn't have them, regardless of this setting
-  hideInstallDetails?: boolean;
+  isDeviceUser?: boolean;
 }
 
 const SoftwareDetailsContent = ({
@@ -197,25 +211,66 @@ const TabsContent = ({
 const SoftwareDetailsModal = ({
   hostDisplayName,
   software,
-  hideInstallDetails = false,
+  isDeviceUser = false,
   onExit,
 }: ISoftwareDetailsModalProps) => {
+  // install details will not be shown if Fleet doesn't have them, regardless of this setting
+  const hideInstallDetails = isDeviceUser;
+
+  // For scrollable modal
+  const [isTopScrolling, setIsTopScrolling] = useState(false);
+  const topDivRef = useRef<HTMLDivElement>(null);
+  const checkScroll = () => {
+    if (topDivRef.current) {
+      const isScrolling =
+        topDivRef.current.scrollHeight > topDivRef.current.clientHeight;
+      setIsTopScrolling(isScrolling);
+    }
+  };
+
   const hasLastInstall =
     hasHostSoftwarePackageLastInstall(software) ||
     hasHostSoftwareAppLastInstall(software);
-  return (
-    <Modal title={software.name} className={baseClass} onExit={onExit}>
-      <>
+
+  // For scrollable modal (re-rerun when reopened)
+  useEffect(() => {
+    checkScroll();
+    window.addEventListener("resize", checkScroll);
+    return () => window.removeEventListener("resize", checkScroll);
+  }, []);
+
+  const renderScrollableContent = () => {
+    return (
+      <div className={`${baseClass}__content`} ref={topDivRef}>
         {hasLastInstall && !hideInstallDetails ? (
           <TabsContent hostDisplayName={hostDisplayName} software={software} />
         ) : (
           <SoftwareDetailsContent software={software} />
         )}
-        <div className="modal-cta-wrap">
-          <Button type="submit" onClick={onExit}>
-            Done
-          </Button>
-        </div>
+      </div>
+    );
+  };
+  const renderFooter = () => (
+    <ModalFooter
+      isTopScrolling={isTopScrolling}
+      primaryButtons={
+        <Button type="submit" onClick={onExit}>
+          Done
+        </Button>
+      }
+    />
+  );
+
+  return (
+    <Modal
+      title={software.name}
+      className={baseClass}
+      onExit={onExit}
+      width="large"
+    >
+      <>
+        {renderScrollableContent()}
+        {renderFooter()}
       </>
     </Modal>
   );

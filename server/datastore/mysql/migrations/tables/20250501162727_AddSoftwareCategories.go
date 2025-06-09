@@ -12,9 +12,9 @@ func init() {
 func Up_20250501162727(tx *sql.Tx) error {
 	_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS software_categories  (
     		id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    		name VARCHAR(63) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+    		name VARCHAR(63) NOT NULL,
 			UNIQUE KEY idx_software_categories_name (name)
-			)`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	if err != nil {
 		return fmt.Errorf("failed to create software_categories table: %w", err)
 	}

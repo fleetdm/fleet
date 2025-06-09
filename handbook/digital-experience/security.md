@@ -858,8 +858,19 @@ Please also see [privacy](https://fleetdm.com/legal/privacy)
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Does Fleet possess an APEC PRP certification issued by a certification body (or Accountability Agent)? If not, is Fleet able to provide any evidence that the PRP requirements are being met as it relates to the Scoped Services provided to its customers? | Fleet has not undergone APEC PRP certification but has undergone an external security audit that included pen testing. For a complete list of subprocessors, please refer to our [trust page](https://trust.fleetdm.com/subprocessors). |
 
+## Use of AI
 
+| Question | Answer |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Do your systems or staff use artificial intelligence, machine learning, or automated decision making  (ChatGPT, Google Bard, etc.) to provide the in-scope services? | Yes. All AI functionality is opt-in. Fleet only uses AI in one place to help create descriptions of queries. |
 
+| Question | Answer |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Is client scoped data processed, aggregated, appended, profiled, or modeled using artificial intelligence, machine learning, or automated decision making (ChatGPT, Google Bard, etc.)? | No. |
+
+## Other questions
+
+Other commonly asked questions of Fleet can be found in our [SIG Lite](https://docs.google.com/spreadsheets/d/1XiGv_M6w2pcfe9zWp-Q9ssXi2A-vnTgs/edit?usp=sharing&ouid=113668214024041155485&rtpof=true&sd=true) or in [recently answered questionnaires](https://drive.google.com/drive/folders/1lP_YX7lGWOofjOISdTd15gJax_pn0cjY?usp=drive_link).  Other information sometimes asked about includes [customer support SLAs](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-agreements-slas) and [release testing](https://fleetdm.com/handbook/company/product-groups#release-testing). Technical information can often be found in [Fleet docs](https://fleetdm.com/docs/get-started/why-fleet). 
 
 ## Security policies
 
@@ -1770,6 +1781,14 @@ Fleet makes every effort to assure all third-party organizations are compliant a
 
 > Fleet is committed to ethical business practices and compliance with the law.  All Fleeties are required to comply with the "Foreign Corrupt Practices Act" and anti-bribery laws and regulations in applicable jurisdictions including, but not limited to, the "UK Bribery Act 2010", "European Commission on Anti-Corruption" and others.  The policies set forth in [this document](https://docs.google.com/document/d/16iHhLhAV0GS2mBrDKIBaIRe_pmXJrA1y7-gTWNxSR6c/edit?usp=sharing) go over Fleet's anti-corruption policy in detail.
 
+
+### Anti-harassment policy
+
+> Fleet is committed to maintaining a harassment free workplace based on mutual respect and compliance with the law.  All Fleeties are required to comply with [Fleet's anti-harassment policy](https://docs.google.com/document/d/1qalY5_OcnCbHOJYUOz8R5O92RLortYrKdxur6Ned7ac/edit?usp=sharing).
+
+### Investor policy
+
+> Fleet is committed to being open and transparent in communications and expectations with its investors and keeping the best interests of all stakeholders in mind while protecting confidential business information, complying with applicable laws, and practicing good ethics, in accordance with [these guidelines](https://docs.google.com/document/d/1cFB3b3XD9O6FAOeSy_F4L9ajrteJBhbkdelMUEbUXCo/edit?usp=sharing).
 
 ## Application security
 

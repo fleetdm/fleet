@@ -1,4 +1,4 @@
-# Disk Encryption Architecture
+# Disk encryption architecture
 
 This document provides an overview of Fleet's Disk Encryption architecture for MDM.
 
@@ -6,24 +6,24 @@ This document provides an overview of Fleet's Disk Encryption architecture for M
 
 Disk Encryption in Fleet's MDM allows for securing device data by encrypting the storage media. This document provides insights into the design decisions, system components, and interactions specific to the Disk Encryption functionality.
 
-## Architecture Overview
+## Architecture overview
 
 The Disk Encryption architecture leverages platform-specific encryption technologies (FileVault for macOS, BitLocker for Windows, LUKS via LVM for Linux) to encrypt device storage and securely manage recovery keys.
 
-## Key Components
+## Key components
 
 - **Encryption Configuration**: Settings and policies for configuring disk encryption.
 - **Key Management**: Secure storage and retrieval of encryption keys.
 - **Verification**: Mechanisms to verify the encryption status of devices.
 - **Recovery**: Processes for recovering access to encrypted devices.
 
-## Architecture Diagram
+## Architecture diagram
 
 ```
 [Placeholder for Disk Encryption Architecture Diagram]
 ```
 
-## Platform-Specific Implementation
+## Platform-specific implementation
 
 ### FileVault (macOS)
 
@@ -51,11 +51,11 @@ When disk encryption is enabled, the server sends a notification to orbit, who c
 
 After the disk is encrypted, orbit sends the key back to the server using an orbit-authenticated endpoint (`POST /api/fleet/orbit/disk_encryption_key`).
 
-## Key Storage and Security
+## Key storage and security
 
 Encryption keys are stored in the `host_disk_encryption_keys` table. The value for the key is encrypted using Fleet's CA certificate, and thus can only be decrypted if you have the CA private key.
 
-## Related Resources
+## Related resources
 
 - [MDM Product Group Documentation](../../product-groups/mdm/) - Documentation for the MDM product group
 - [MDM Development Guides](../../guides/mdm/) - Guides for MDM development

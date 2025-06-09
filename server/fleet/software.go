@@ -307,8 +307,9 @@ type HostSoftwareEntry struct {
 }
 
 type PathSignatureInformation struct {
-	InstalledPath  string `json:"installed_path"`
-	TeamIdentifier string `json:"team_identifier"`
+	InstalledPath  string  `json:"installed_path"`
+	TeamIdentifier string  `json:"team_identifier"`
+	HashSha256     *string `json:"hash_sha256"`
 }
 
 // HostSoftware is the set of software installed on a specific host

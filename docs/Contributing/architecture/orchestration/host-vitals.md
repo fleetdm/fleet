@@ -1,4 +1,4 @@
-# Host Vitals Architecture
+# Host vitals architecture
 
 This document provides an overview of Fleet's Host Vitals architecture.
 
@@ -6,26 +6,26 @@ This document provides an overview of Fleet's Host Vitals architecture.
 
 Host Vitals in Fleet provide real-time and historical information about the health and status of devices, including CPU usage, memory usage, disk usage, and uptime. This document provides insights into the design decisions, system components, and interactions specific to the Host Vitals functionality.
 
-## Architecture Overview
+## Architecture overview
 
 The Host Vitals architecture enables the collection, processing, and visualization of device health metrics across a fleet of devices. It leverages osquery's capabilities to collect system metrics and Fleet's infrastructure to process and display them.
 
-## Key Components
+## Key components
 
 - **Metrics Collection**: The process of collecting system metrics from devices.
 - **Metrics Processing**: The processing of collected metrics for storage and analysis.
 - **Metrics Storage**: The storage of metrics for historical analysis.
 - **Metrics Visualization**: The display of metrics in the Fleet UI.
 
-## Architecture Diagram
+## Architecture diagram
 
 ```
 [Placeholder for Host Vitals Architecture Diagram]
 ```
 
-## Metrics Collection Flow
+## Metrics collection flow
 
-### 1 - Agent Collects Metrics
+### 1 - Agent collects metrics
 
 ```
 osquery agent -> Server
@@ -34,7 +34,7 @@ osquery agent -> Server
 1. osquery agent collects system metrics using osquery tables.
 2. osquery agent sends the metrics to the Fleet server.
 
-### 2 - Server Processes and Stores Metrics
+### 2 - Server processes and stores metrics
 
 ```
 Server -> DB
@@ -43,7 +43,7 @@ Server -> DB
 1. Server processes the received metrics.
 2. Server stores the metrics in the database.
 
-### 3 - UI Displays Metrics
+### 3 - UI displays metrics
 
 ```
 UI -> Server -> DB
@@ -58,7 +58,7 @@ UI -> Server -> DB
 
 See the [host details API](https://fleetdm.com/docs/rest-api/rest-api#get-host) documentation for details on collected vitals.
 
-## Performance Considerations
+## Performance considerations
 
 Host Vitals collection can impact device and server performance, especially for large fleets. The following considerations should be taken into account:
 
@@ -66,7 +66,7 @@ Host Vitals collection can impact device and server performance, especially for 
 - **Metric Count**: Collecting more metrics can impact device and server performance.
 - **Fleet Size**: Collecting metrics from a large number of devices can impact server performance.
 
-## Related Resources
+## Related resources
 
 - [Host details API documentation](https://fleetdm.com/docs/rest-api/rest-api#get-host)
 - [Orchestration Product Group Documentation](../../product-groups/orchestration/) - Documentation for the Orchestration product group

@@ -705,10 +705,17 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
-			queries[queryName] = query.Query
+
 			if query.QueryFunc != nil && query.Query == "" {
-				queries[queryName] = query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				if !ok {
+					continue
+				}
+				queries[queryName] = query
+			} else {
+				queries[queryName] = query.Query
 			}
+
 			discoveryQuery := query.Discovery
 			if discoveryQuery == "" {
 				discoveryQuery = alwaysTrueQuery
@@ -1250,8 +1257,8 @@ func preProcessSoftwareResults(
 
 	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
 	preProcessSoftwareExtraResults(pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-	pythonPakcagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
-	preProcessSoftwareExtraResults(pythonPakcagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
+	preProcessSoftwareExtraResults(pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name

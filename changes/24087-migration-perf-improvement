@@ -1,1 +1,0 @@
-* Further improved performance on database migration from 4.66 and earlier for instances with large macOS host counts.

@@ -1216,6 +1216,10 @@ type ApplySpecOptions struct {
 	// NoCache indicates that cached_mysql calls should be bypassed on the server.
 	// This is needed where related data was just updated and we need that latest data from the DB.
 	NoCache bool
+	// Indicate whether or not the spec should be applied in overwrite mode.
+	// This means that any missing fields in the spec will be set to their default values.
+	// GitOps uses this mode.
+	Overwrite bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1250,6 +1254,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	}
 	if o.NoCache {
 		query.Set("no_cache", "true")
+	}
+	if o.Overwrite {
+		query.Set("overwrite", "true")
 	}
 	return query.Encode()
 }
@@ -1336,6 +1343,8 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+	// AllowDisableTelemetry allows specific customers to not send analytics
+	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {
@@ -1350,6 +1359,11 @@ func (l *LicenseInfo) ForceUpgrade() {
 	if l.Tier == tierBasicDeprecated {
 		l.Tier = TierPremium
 	}
+}
+
+// Both free and specific premium users are allowed to disable telemetry
+func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
+	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
 const (

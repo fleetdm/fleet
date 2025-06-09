@@ -478,15 +478,12 @@ func (c *Client) ApplyGroup(
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
-				if !opts.DryRun {
-					if err := c.UploadBootstrapPackageIfNeeded(pkg, uint(0)); err != nil {
-						return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
-					}
+				if err := c.UploadBootstrapPackageIfNeeded(pkg, uint(0), opts.DryRun); err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
-			case macosSetup.BootstrapPackage.Valid && !opts.DryRun &&
-				appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium():
+			case macosSetup.BootstrapPackage.Valid && appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium():
 				// bootstrap package is explicitly empty (only for GitOps)
-				if err := c.DeleteBootstrapPackageIfNeeded(uint(0)); err != nil {
+				if err := c.DeleteBootstrapPackageIfNeeded(uint(0), opts.DryRun); err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 			}
@@ -819,11 +816,11 @@ func (c *Client) ApplyGroup(
 				if bp, ok := tmBootstrapPackages[tmName]; ok {
 					switch {
 					case bp != nil:
-						if err := c.UploadBootstrapPackageIfNeeded(bp, tmID); err != nil {
+						if err := c.UploadBootstrapPackageIfNeeded(bp, tmID, opts.DryRun); err != nil {
 							return nil, nil, nil, nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
 						}
 					case appconfig != nil && appconfig.MDM.EnabledAndConfigured && appconfig.License.IsPremium(): // explicitly empty (only for GitOps)
-						if err := c.DeleteBootstrapPackageIfNeeded(tmID); err != nil {
+						if err := c.DeleteBootstrapPackageIfNeeded(tmID, opts.DryRun); err != nil {
 							return nil, nil, nil, nil, fmt.Errorf("deleting bootstrap package for team %q: %w", tmName, err)
 						}
 					}
@@ -1958,7 +1955,8 @@ func (c *Client) DoGitOps(
 	// Apply org settings, scripts, enroll secrets, team entities (software, scripts, etc.), and controls.
 	teamIDsByName, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, err := c.ApplyGroup(ctx, true, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
 		ApplySpecOptions: fleet.ApplySpecOptions{
-			DryRun: dryRun,
+			DryRun:    dryRun,
+			Overwrite: true,
 		},
 		ExpandEnvConfigProfiles: true,
 	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts)

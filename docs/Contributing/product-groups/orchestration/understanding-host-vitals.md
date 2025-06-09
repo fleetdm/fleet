@@ -198,38 +198,43 @@ WITH
 - Query:
 ```sql
 WITH registry_keys AS (
-                        SELECT *
-                        FROM registry
-                        WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
-                    ),
-                    enrollment_info AS (
-                        SELECT
-                            MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-                            MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
-                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
-                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
-                            MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
-                        FROM registry_keys
-                        GROUP BY key
-                    ),
-                    installation_info AS (
-                        SELECT data AS installation_type
-                        FROM registry
-                        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-                        LIMIT 1
-                    )
-                    SELECT
-                        e.aad_resource_id,
-                        e.discovery_service_url,
-                        e.provider_id,
-                        i.installation_type
-                    FROM installation_info i
-                    LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
-		    -- coalesce to 'unknown' and keep that state in the list
-		    -- in order to account for hosts that might not have this
-		    -- key, and servers
-                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-                    LIMIT 1;
+						SELECT *
+						FROM registry
+						WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+					),
+					enrollment_info AS (
+						SELECT
+							MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+							MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+							MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+							MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+							MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+						FROM registry_keys
+						GROUP BY key
+					),
+					installation_info AS (
+						SELECT data AS installation_type
+						FROM registry
+						WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+						LIMIT 1
+					)
+					SELECT
+						e.aad_resource_id,
+						e.discovery_service_url,
+						e.provider_id,
+						i.installation_type
+					FROM installation_info i
+					LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+			-- coalesce to 'unknown' and keep that state in the list
+			-- in order to account for hosts that might not have this
+			-- key, and servers
+					WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+			-- old enrollments that aren't completely cleaned up may still be aronud
+			-- in the registry so we want to make sure we return the one with an actual
+			-- discovery URL set if there is one. LENGTH is used here to prefer those
+			-- with actual URLs over empty string/null if there are multiple
+					ORDER BY LENGTH(e.discovery_service_url) DESC
+					LIMIT 1;
 ```
 
 ## munki_info
@@ -686,7 +691,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 
 - Query:
 ```sql
-SELECT a.path, c.team_identifier
+SELECT c.*
 		FROM apps a
 		JOIN codesign c ON a.path = c.path
 ```

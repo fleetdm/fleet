@@ -216,7 +216,8 @@ export const FileUploader = ({
           canEdit={canEdit}
           onFileSelect={onFileSelect}
           accept={accept}
-          gitOpsModeEnabled={gitopsCompatible && gitOpsModeEnabled}
+          gitopsCompatible={gitopsCompatible}
+          gitOpsModeEnabled={gitOpsModeEnabled}
         />
       ) : (
         renderFileUploader()

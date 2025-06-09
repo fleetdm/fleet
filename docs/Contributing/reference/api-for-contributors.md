@@ -13,6 +13,7 @@
 - [Scripts](#scripts)
 - [Software](#software)
 - [Users](#users)
+- [Conditional access](#conditional-access)
 
 > These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
@@ -3197,6 +3198,7 @@ Lists the software installed on the current device.
         "name": "GoogleChrome.pkg"
         "version": "125.12.2"
         "self_service": true,
+        "categories": ["Browsers"],
      	"last_install": {
           "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
       	  "installed_at": "2024-05-15T15:23:57Z"
@@ -3240,6 +3242,7 @@ Lists the software installed on the current device.
       "software_package": null,
       "app_store_app": {
         "app_store_id": "12345",
+        "categories": ["Browsers"],
         "version": "125.6",
         "self_service": false,
         "icon_url": "https://example.com/logo-light.jpg",
@@ -4352,7 +4355,9 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 | software  | object   | body  | The team's software that will be available for install.  |
 | software.packages   | array   | body  | An array of objects with values below. |
-| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). |
+| software.packages.hash_sha256                      | string   | body  | SHA256 hash of the package. If provided, must be 64 lower-case hex characters. One or both of sha256 or url must be provided. |
+| software.packages.url                      | string   | body  | URL to the software package (PKG, MSI, EXE or DEB). If sha256 is also provided and the installer isn't already uploaded with the same hash for that URL, call will fail if the downloaded installer doesn't match the hash. |
+| software.packages.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the package. |
 | software.packages.install_script           | string   | body  | Command that Fleet runs to install software. |
 | software.packages.pre_install_query        | string   | body  | Condition query that determines if the install will proceed. |
 | software.packages.post_install_script      | string   | body  | Script that runs after software install. |
@@ -4360,6 +4365,8 @@ This endpoint is asynchronous, meaning it will start a background process to dow
 | software.packages.self_service           | boolean   | body  | Specifies whether or not end users can install self-service. |
 | software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 | software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any labels in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
+
+`hash_sha256` can be provided alongside or as a replacement for `url`. If provided alongside `url`, adding software only succeeds if the software downloaded matches the specified hash. If provided without a URL, software with that hash must exist (either on that team or globally, depending on what level of access the API client is authorized at) prior to the GitOps run, whether from a previous GitOps run or an upload at the [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) endpoint, at which point Fleet will ensure the software package exists on the selected team with the specified configuration without needing to retrieve it again.
 
 #### Example
 
@@ -4414,7 +4421,8 @@ If `"status"` is `"failed"` then the `"message"` field contains the error messag
     {
       "team_id": 1,
       "title_id": 2751,
-      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi"
+      "url": "https://ftp.mozilla.org/pub/firefox/releases/129.0.2/win64/en-US/Firefox%20Setup%20129.0.2.msi",
+      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     }
   ]
 }
@@ -4443,6 +4451,7 @@ _Available in Fleet Premium._
 | dry_run   | bool   | query | If `true`, will validate the provided VPP apps and return any validation errors, but will not apply the changes.                                                                         |
 | app_store_apps | list   | body  | An array of objects. Each object contains `app_store_id` and `self_service`. |
 | app_store_apps | list   | body  | An array of objects with . Each object contains `app_store_id` and `self_service`. |
+| app_store_apps.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the app. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
 | app_store_apps.self_service | boolean   | body  | Whether the VPP app is "Self-service" or not. |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
@@ -4457,6 +4466,7 @@ _Available in Fleet Premium._
   "app_store_apps": [
     {
       "app_store_id": "597799333",
+      "categories": ["Browsers"],
       "self_service": false,
       "labels_include_any": [
         "Engineering",
@@ -4659,3 +4669,75 @@ param, this endpoint is considered a documented REST API endpoint
   "settings": {"hidden_host_columns": ["hostname"]},
 }
 ```
+
+---
+
+## Conditional access
+
+### Initiate Microsoft Entra conditional access
+
+Kick off authentication with Microsoft Entra to configure conditional access.
+
+`POST /api/v1/conditional-access/microsoft`
+
+#### Parameters
+
+| Name       | Type   | In   | Description                                                                                                                 |
+| ---------- | ------ | ---- | --------------------------------------------------------------------------------------------------------------------------- |
+| microsoft_tenant_id      | string | body | **Required.** The Microsoft Entra tenant ID. |
+
+
+
+##### Request body
+
+```json
+{
+  "fleet_license_key": "<LICENSE KEY>",
+  "microsoft_tenant_id": "<TENANT ID>"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "microsoft_authentication_url": "https://login.microsoftonline.com/<TENANT ID>/adminconsent?client_id=<CLIENT ID>"
+}
+
+```
+
+
+### Confirm Microsoft Entra conditional access configuration
+
+`POST /api/v1/conditional-access/confirm`
+
+Confirm whether admin consent has been granted in Microsoft Entra.
+
+#### Parameters
+
+None.
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "admin_consented": false
+}
+```
+
+### Delete Microsoft Entra conditional access
+
+`DELETE /api/v1/conditional-access/microsoft`
+
+#### Parameters
+
+None.
+
+##### Default response
+
+`Status: 200`
