@@ -32,16 +32,18 @@ CREATE TABLE IF NOT EXISTS host_certificate_sources  (
 	// if the certificate is soft-deleted, so that we know what source it was
 	// from.
 	_, err = tx.Exec(`
-INSERT INTO host_certificate_sources 
+INSERT INTO host_certificate_sources
 	(host_certificate_id, source, username)
-	SELECT 
-		id, 
-		'system', 
+	SELECT
+		id,
+		'system',
 		''
-	FROM 
+	FROM
 		host_certificates
 `)
-
+	if err != nil {
+		return fmt.Errorf("failed to insert into host_certificate_sources: %w", err)
+	}
 	return nil
 }
 
