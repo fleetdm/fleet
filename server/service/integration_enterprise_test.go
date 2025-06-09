@@ -13005,6 +13005,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	res = s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token, uninstallExecutionID), nil, http.StatusOK)
 	uninstallResult := getScriptResultResponse{}
 	err = json.NewDecoder(res.Body).Decode(&uninstallResult)
+	require.NoError(t, err)
 	require.Equal(t, host1.DisplayName(), uninstallResult.HostName)
 	require.Equal(t, uninstallExecutionID, uninstallResult.ExecutionID)
 	require.Nil(t, uninstallResult.ExitCode)
@@ -13032,6 +13033,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	res = s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token, uninstallExecutionID), nil, http.StatusOK)
 	uninstallResult = getScriptResultResponse{}
 	err = json.NewDecoder(res.Body).Decode(&uninstallResult)
+	require.NoError(t, err)
 	require.Equal(t, host1.DisplayName(), uninstallResult.HostName)
 	require.Equal(t, uninstallExecutionID, uninstallResult.ExecutionID)
 	require.Zero(t, *uninstallResult.ExitCode)
