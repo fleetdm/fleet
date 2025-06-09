@@ -98,7 +98,7 @@ module.exports = {
             'Authorization': `Bearer ${token}`
           }
         }).intercept((err)=>{
-          return new Error(`When the receive-from-zoom webhook send a request to get a page of a call transcript (call id: ${idOfCallToGenerateTranscriptFor}) an error occured. Full error: ${require('util').inspect(err, {depth: null})}`)
+          return new Error(`When the receive-from-zoom webhook send a request to get a page of a call transcript (call id: ${idOfCallToGenerateTranscriptFor}) an error occured. Full error: ${require('util').inspect(err, {depth: null})}`);
         });
         allSpeakersOnThisCall = allSpeakersOnThisCall.concat(thisPageOfCallInformation.participants);
         tokenForNextPageOfResults = thisPageOfCallInformation.next_page_token;
