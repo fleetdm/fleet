@@ -45,7 +45,7 @@ fleetctl run-script --script-path=/path/to/script --host=hostname
 
 ## Automatically run scripts
 
-You can [automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script) using fleet via Policy automations.
+You can [automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script) using Fleet via policy automations.
 
 ## Batch execute scripts
 
