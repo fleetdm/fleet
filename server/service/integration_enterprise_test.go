@@ -12733,6 +12733,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, status.UnlockScript.ExecutionID)),
 		http.StatusOK, &orbitScriptResp)
 
+	token := "secret_token"
+	createDeviceTokenForHost(t, s.ds, h.ID, token)
+
 	// Do uninstall on h
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
@@ -12750,6 +12753,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	details := make(map[string]interface{}, 5)
 	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &details))
 	assert.EqualValues(t, fleet.SoftwareUninstallPending, details["status"])
+
+	// should be visible from My device
+	s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token, uninstallExecutionID), nil, http.StatusOK)
 
 	// Check that status is reflected in software title response
 	titleResp = getSoftwareTitleResponse{}
@@ -12792,6 +12798,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	details = make(map[string]interface{}, 5)
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &details))
 	assert.Equal(t, "uninstalled", details["status"])
+
+	// should be visible from My device
+	s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token, uninstallExecutionID), nil, http.StatusOK)
 
 	// Software should be available for install again
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
@@ -12862,6 +12871,10 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	host1 := createOrbitEnrolledHost(t, "linux", "", s.ds)
 	token := "secret_token"
 	createDeviceTokenForHost(t, s.ds, host1.ID, token)
+
+	host2 := createOrbitEnrolledHost(t, "linux", "2", s.ds)
+	token2 := "secret_token2"
+	createDeviceTokenForHost(t, s.ds, host2.ID, token2)
 
 	// Create a label and assign it to the host
 	var labelResp createLabelResponse
@@ -12988,6 +13001,15 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	assert.Nil(t, listUpcomingAct.Activities[0].ActorID)
 	assert.False(t, listUpcomingAct.Activities[0].FleetInitiated)
 
+	// Check uninstall results via device endpoint before execution
+	res = s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token, uninstallExecutionID), nil, http.StatusOK)
+	uninstallResult := getScriptResultResponse{}
+	err = json.NewDecoder(res.Body).Decode(&uninstallResult)
+	require.Equal(t, host1.DisplayName(), uninstallResult.HostName)
+	require.Equal(t, uninstallExecutionID, uninstallResult.ExecutionID)
+	require.Nil(t, uninstallResult.ExitCode)
+	require.Equal(t, "", uninstallResult.Output)
+
 	// Host sends successful uninstall result
 	var orbitPostScriptResp orbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
@@ -13005,6 +13027,19 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &uninstallDetails))
 	assert.Equal(t, "uninstalled", uninstallDetails["status"])
 	assert.EqualValues(t, true, uninstallDetails["self_service"])
+
+	// Check uninstall results via device endpoint after execution
+	res = s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token, uninstallExecutionID), nil, http.StatusOK)
+	uninstallResult = getScriptResultResponse{}
+	err = json.NewDecoder(res.Body).Decode(&uninstallResult)
+	require.Equal(t, host1.DisplayName(), uninstallResult.HostName)
+	require.Equal(t, uninstallExecutionID, uninstallResult.ExecutionID)
+	require.Zero(t, *uninstallResult.ExitCode)
+	require.Equal(t, "ok", uninstallResult.Output)
+
+	// make sure uninstall endpoint errors properly
+	s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token2, uninstallExecutionID), nil, http.StatusNotFound)
+	s.DoRawNoAuth("GET", fmt.Sprintf("/api/v1/fleet/device/%s/software/uninstall/%s/results", token, uninstallExecutionID+`f`), nil, http.StatusNotFound)
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
@@ -13253,7 +13288,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true, "policy_id": null, "policy_name": null}`,
 			host.ID, host.DisplayName(), savedScriptExecID), 0)
 
-	// get the anoymous script result details
+	// get the anonymous script result details
 	var scriptRes getScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptExecID, nil, http.StatusOK, &scriptRes)
 	require.Equal(t, scriptExecID, scriptRes.ExecutionID)
