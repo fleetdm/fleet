@@ -49,14 +49,19 @@ func NewService(
 	fleetSvc fleet.Service,
 	licenseKey string,
 ) (android.Service, error) {
-	prx := androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
-	return NewServiceWithProxy(logger, ds, prx, fleetSvc)
+	var client androidmgmt.Client
+	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
+		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
+	} else {
+		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
+	}
+	return NewServiceWithClient(logger, ds, client, fleetSvc)
 }
 
-func NewServiceWithProxy(
+func NewServiceWithClient(
 	logger kitlog.Logger,
 	ds fleet.AndroidDatastore,
-	proxy androidmgmt.Client,
+	client androidmgmt.Client,
 	fleetSvc fleet.Service,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
@@ -68,7 +73,7 @@ func NewServiceWithProxy(
 		logger:            logger,
 		authz:             authorizer,
 		ds:                ds,
-		androidAPIClient:  proxy,
+		androidAPIClient:  client,
 		fleetSvc:          fleetSvc,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 	}, nil

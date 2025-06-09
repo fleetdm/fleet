@@ -72,11 +72,6 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 		t.Run(fmt.Sprintf("MDM enabled: %t", enabled), func(t *testing.T) {
 			appCfg.MDM.EnabledAndConfigured = enabled
 			appCfg.MDM.AndroidEnabledAndConfigured = enabled
-			if enabled {
-				t.Setenv("FLEET_DEV_ANDROID_ENABLED", "1")
-			} else {
-				t.Setenv("FLEET_DEV_ANDROID_ENABLED", "0")
-			}
 
 			logger := log.NewLogfmtLogger(os.Stdout)
 			h := ServeEndUserEnrollOTA(svc, "", ds, logger)

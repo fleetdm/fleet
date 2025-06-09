@@ -23,7 +23,7 @@ func TestEnterprisesAuth(t *testing.T) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithProxy(logger, fleetDS, &androidAPIClient, &fleetSvc)
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc)
 	require.NoError(t, err)
 
 	testCases := []struct {

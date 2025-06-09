@@ -31,7 +31,7 @@ type GoogleClient struct {
 var _ Client = &GoogleClient{}
 
 func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(string) string) Client {
-	androidServiceCredentials := getenv("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS")
+	androidServiceCredentials := getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	if androidServiceCredentials == "" {
 		return nil
 	}
@@ -60,7 +60,7 @@ func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(stri
 	}
 }
 
-func (g *GoogleClient) SignupURLsCreate(ctx context.Context, serverURL, callbackURL string) (*android.SignupDetails, error) {
+func (g *GoogleClient) SignupURLsCreate(ctx context.Context, _, callbackURL string) (*android.SignupDetails, error) {
 	if g == nil || g.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
@@ -111,14 +111,14 @@ func (g *GoogleClient) createPubSubTopic(ctx context.Context, pushURL string) (s
 		return "", fmt.Errorf("creating PubSub client: %w", err)
 	}
 	defer pubSubClient.Close()
-	pubSubTopic := "a" + uuid.NewString() // PubSub topic names must start with a letter
+	pubSubTopicAndSubscriptionID := "a" + uuid.NewString() // PubSub topic names must start with a letter
 	topicConfig := pubsub.TopicConfig{
 		// Message retention is free for 1 day, so we default to that.
 		// Both the topic and subscription retention durations should be 1 day since Google uses whatever is longer.
 		// https://cloud.google.com/pubsub/pricing
 		RetentionDuration: 24 * time.Hour,
 	}
-	topic, err := pubSubClient.CreateTopicWithConfig(ctx, pubSubTopic, &topicConfig)
+	topic, err := pubSubClient.CreateTopicWithConfig(ctx, pubSubTopicAndSubscriptionID, &topicConfig)
 	if err != nil {
 		return "", fmt.Errorf("creating PubSub topic: %w", err)
 	}
@@ -130,14 +130,14 @@ func (g *GoogleClient) createPubSubTopic(ctx context.Context, pushURL string) (s
 	if err := topic.IAM().SetPolicy(ctx, policy); err != nil {
 		return "", fmt.Errorf("setting PubSub subscription policy: %w", err)
 	}
-	// TODO(fleetdm.com): Retry SetPolicy since it may fail if IAM policies are being modified concurrently
 
 	// Note: We could add a second level of authentication for the subscription, where, upon receiving a message,
 	// Fleet server does an API call to Google to verify the message validity.
-	_, err = pubSubClient.CreateSubscription(ctx, pubSubTopic, pubsub.SubscriptionConfig{
+	_, err = pubSubClient.CreateSubscription(ctx, pubSubTopicAndSubscriptionID, pubsub.SubscriptionConfig{
 		Topic:             topic,
 		AckDeadline:       60 * time.Second,
 		RetentionDuration: 24 * time.Hour,
+		ExpirationPolicy:  time.Duration(0), // Should never expire
 		PushConfig: pubsub.PushConfig{
 			Endpoint: pushURL,
 		},
@@ -146,7 +146,7 @@ func (g *GoogleClient) createPubSubTopic(ctx context.Context, pushURL string) (s
 		return "", fmt.Errorf("creating PubSub subscription: %w", err)
 	}
 
-	// TODO(fleetdm.com): Cleanup the PubSub topics not associated with enterprises (e.g. if the enterprise creation fails)
+	// Note: Currently, we do not clean up the PubSub topic/subscription if the enterprise creation fails. This would be a nice enhancement.
 
 	return topic.String(), nil
 }
@@ -179,7 +179,8 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 		return errors.New("android management service not initialized")
 	}
 
-	// To find out the enterprise's PubSub topic, we need to get the enterprise first
+	// To find out the enterprise's PubSub topic, we need to get the enterprise first.
+	// We can also pull the topic from the DB, but this way is more reliable.
 	enterprise, err := g.mgmt.Enterprises.Get(enterpriseName).Context(ctx).Do()
 	if err != nil {
 		level.Error(g.logger).Log("msg", "getting enterprise; perhaps it was already deleted?", "err", err, "enterprise_name", enterpriseName)
@@ -199,8 +200,9 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 	if enterprise == nil || len(enterprise.PubsubTopic) == 0 {
 		return nil
 	}
-	topicID, err := getLastPart(ctx, enterprise.PubsubTopic)
-	if err != nil || len(topicID) == 0 {
+	// PubSub topic and subscription have the same ID (but not name) by convention.
+	topicAndSubscriptionID, err := getLastPart(ctx, enterprise.PubsubTopic)
+	if err != nil || len(topicAndSubscriptionID) == 0 {
 		level.Error(g.logger).Log("msg", "getting last part of PubSub topic", "err", err, "topic", enterprise.PubsubTopic)
 		return nil
 	}
@@ -210,19 +212,20 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 		return fmt.Errorf("creating PubSub client: %w", err)
 	}
 	defer pubSubClient.Close()
-	err = pubSubClient.Topic(topicID).Delete(ctx)
-	if err != nil {
-		return fmt.Errorf("deleting PubSub topic %s: %w", enterprise.PubsubTopic, err)
+	// Try to delete both the topic and subscription before checking for errors in case one fails but the other succeeds.
+	errTopic := pubSubClient.Topic(topicAndSubscriptionID).Delete(ctx)
+	errSub := pubSubClient.Subscription(topicAndSubscriptionID).Delete(ctx)
+	if errTopic != nil {
+		return fmt.Errorf("deleting PubSub topic %s: %w", enterprise.PubsubTopic, errTopic)
 	}
-	// Delete the subscription, which has the same ID as the topic.
-	err = pubSubClient.Subscription(topicID).Delete(ctx)
-	if err != nil {
-		return fmt.Errorf("deleting PubSub subscription %s: %w", topicID, err)
+	if errSub != nil {
+		return fmt.Errorf("deleting PubSub subscription %s: %w", topicAndSubscriptionID, errSub)
 	}
 
 	return nil
 }
 
+// SetAuthenticationSecret is not used by GoogleClient because this client gets its secret from env var.
 func (g *GoogleClient) SetAuthenticationSecret(_ string) error {
 	return nil
 }

@@ -24,7 +24,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	logger := log.NewLogfmtLogger(os.Stdout)
 	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
-	androidSvc, err := android_service.NewServiceWithProxy(
+	androidSvc, err := android_service.NewServiceWithClient(
 		logger,
 		ds,
 		&proxy,
