@@ -777,7 +777,7 @@ SELECT
 FROM
 	mdm_windows_configuration_profiles mwcp
 	JOIN mdm_configuration_profile_labels mcpl
-		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 1
 	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
@@ -815,9 +815,35 @@ HAVING
 	count_profile_labels > 0 AND
 	count_profile_labels = count_non_broken_labels AND
 	count_host_labels = 0
+
+UNION
+
+
+-- label-based profiles where the host is a member of at least one of the labels (include-any)
+SELECT
+	mwcp.profile_uuid AS profile_uuid,
+	name,
+	syncml AS raw_profile,
+	min(mwcp.uploaded_at) AS earliest_install_date,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) as count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels
+FROM
+	mdm_windows_configuration_profiles mwcp
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 0
+	LEFT OUTER JOIN label_membership lm
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	mwcp.team_id = ?
+GROUP BY
+	profile_uuid, name, syncml
+HAVING
+	count_profile_labels > 0 AND
+	count_host_labels > 0
 `
 	var profiles []*fleet.ExpectedMDMProfile
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID, hostID, teamID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID, hostID, teamID, hostID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running query for windows profiles")
 	}
@@ -884,7 +910,7 @@ FROM
 		GROUP BY checksum
 	) cs ON macp.checksum = cs.checksum
 	JOIN mdm_configuration_profile_labels mcpl
-		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0
+		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 1
 	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
@@ -929,10 +955,42 @@ HAVING
 	count_profile_labels > 0 AND
 	count_profile_labels = count_non_broken_labels AND
 	count_host_labels = 0
+
+UNION
+
+-- label-based profiles where the host is a member of at least one of the labels (include-any)
+SELECT
+	macp.profile_uuid AS profile_uuid,
+	macp.identifier AS identifier,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) AS count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels,
+	min(earliest_install_date) AS earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(uploaded_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0 AND mcpl.require_all = 0
+	LEFT OUTER JOIN label_membership lm
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	macp.team_id = ?
+GROUP BY
+	profile_uuid, identifier
+HAVING
+	count_profile_labels > 0 AND
+	count_host_labels > 0
 `
 
 	var rows []*fleet.ExpectedMDMProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, host.ID, teamID, host.ID, teamID, host.ID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
@@ -1696,7 +1754,7 @@ SELECT
 			'verified'
 		ELSE
 			''
-	END AS status,
+	END AS final_status,
 	SUM(1) AS count
 FROM
 	hosts h
@@ -1710,7 +1768,7 @@ WHERE
 	hmdm.enrolled = 1 AND
 	hmwp.profile_uuid = :profile_uuid
 GROUP BY
-	status`
+	final_status`
 
 	stmt, args, err := sqlx.Named(stmt, map[string]any{
 		"status_failed":         fleet.MDMDeliveryFailed,

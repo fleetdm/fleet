@@ -20,7 +20,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/65) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -43,6 +43,10 @@ The Digital Experience department is directly responsible for the culture, train
 5. Mark the Slack message as complete with the "✅" emoji.
 
 > For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+
+### Prepare "Let's get you set up!" meeting notes
+
+Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc. 
 
 
 ### Manage duplicate accounts in CRM
@@ -74,7 +78,6 @@ Each PR to the website is manually checked for quality and tested before going l
 2. [View the website locally](https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally) and follow the QA steps in the request ticket to test changes.
 
 3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
-
 
 
 ### Test fleetdm.com locally 
@@ -174,6 +177,12 @@ To generate a new page, you'll need:
 6. Replace the lorum ipsum and placeholder images on the generated page with the page's real content, and add a meta description and title by changing the `pageTitleForMeta` and `pageDescriptionForMeta in the page's `locals` in `website/config/routes.js`.
 -->
 
+### Check for new versions of osquery schema
+
+When a new version of osquery is released, the Fleet website needs to be updated to use the latest version of the osquery schema. To do this, we update the website's `versionOfOsquerySchemaToUseWhenGeneratingDocumentation` configuration variable in [website/config/custom.js](https://github.com/fleetdm/fleet/blob/6eb6884c4f02dc24b49f394abe9dde5fd1875c55/website/config/custom.js#L327). The osquery schema is combined with Fleet's [YAML overrides](https://github.com/fleetdm/fleet/tree/main/schema/tables) to generate the [JSON schema](https://github.com/fleetdm/fleet/blob/main/schema/osquery_fleet_schema.json) used by the query side panel in Fleet, as well as Fleetdm.com's [osquery table documentation](/tables).
+
+> Note: The version number used in the `versionOfOsquerySchemaToUseWhenGeneratingDocumentation` variable must correspond to a version of the JSON osquery schema in the [osquery/osquery-site repo](https://github.com/osquery/osquery-site/tree/main/src/data/osquery_schema_versions).
+
 
 ### Restart Algolia manually
 
@@ -233,18 +242,21 @@ Use the following steps to cancel a Fleet Premium subscription:
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 
+### Purchase a SaaS tool
+
+When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
+- Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
+- Avoid extra features you don't need, and if they're there anyway, avoid using them.
+- Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
+- Programability: Does it have a publicly documented legible REST API that requires at most a single API token?
+- Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
+
+
 ### Track a Fleet applicant
 
 Use the following steps to track a Fleet applicant:
 1. Once a day, check the [Fleet LinkedIn inbox](https://www.linkedin.com/company/71111416/admin/inbox/thread/2-YzE0M2M3YzgtMjQzZS00NDlhLWJjMGQtYWQwMTY1ODhlMmY3XzAxMA==/) for any applicants expressing interest in joining the team.
-2. If applicants have messaged fleet, navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the following from the candidate LinkedIn:
-  - **Full name**
-  - **LinkedIn URL**
-  - **Position**: if the position doesn't exist in the dropdown menu, click the "Positions" tab at the bottom of the page and add the missing position (get the correct job code from the ["Hiring plan and assumptions"](https://docs.google.com/spreadsheets/d/1Y9wXJjHqYUaBx79RfbYW19_RY9il6Dsw/edit?gid=33569091#gid=33569091) spreadsheet (Confidential Google doc)).
-  - **Interest expressed on**: Date they messaged Fleet
-  - **Location**: If US, State abbreviation. If non-US, Country listed on LinkedIn.
-  - **Notes**: Copy the message the candidate sent and paste it into this cell.
-  - **Has previous relationship with fleetie?: (if so, who?)
+2. Navigate to the ["🧑‍🚀 Candidates (HRIS)" spreadsheet](https://docs.google.com/spreadsheets/d/1Ujw1Et4IT6vG6i59dy31uB9UdV6EM6DDrWvKNOWA0bY/edit?gid=0#gid=0) (Confidential Google doc) and copy the relevant details from the candidate's LinkedIn:
 3. Using a Google doc comment, at-mention the hiring manager. If none exist or you aren't sure, at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team).
 
 
@@ -280,7 +292,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 7. If the previous user has not wiped the device, navigate to the host in dogfood, and click `actions` » `wipe` and wait until the device is finished and restarts.
 
 **If you need to manually recover a device or reinstall macOS**
-1. enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
+1. Enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
 2. Connect the device to WIFI.
 3. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
 4. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
@@ -318,9 +330,9 @@ You can confirm that the device has been ordered correctly by following these st
 - View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
 
 On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
-- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
+- If you have physical access to the macOS host, [add it via Apple Configurator](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web).
 - If you do not have physical access to the device, the user will need to undertake the following steps:
-  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+  - Install the fleetd package for your device from the [shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
   - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
   - In Fleet desktop, follow the instructions to turn on MDM.
   - Once complete, follow instructions to reset disk encryption key.
@@ -329,7 +341,7 @@ On occasion there will be a need to manually enroll a macOS host in dogfood. Thi
 
 ### Enroll a Windows or Ubuntu Linux device in dogfood
 
-To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from the [internal shared drive folder](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
 Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
 
 
@@ -914,7 +926,7 @@ To add the most recent connections from Linkedin to our CRM, follow these steps:
 Once a week, the Apprentice will review the "community activity report" and add the LinkedIn URLs into the campaign. This will send out a connection request to those who liked, shared, commented, etc. a post on LinkedIn. 
  1. Export the [community activity report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002j3wf2AA/view).
  2. Copy the LinkedIn URLs.
- 3. Paste the LinkedIn URLs [here](https://app.dripify.io/campaigns/1291030).
+ 3. Paste the LinkedIn URLs in the [appropriate Dripify campaign](https://app.dripify.io/campaigns/1291030).
 
  ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
 

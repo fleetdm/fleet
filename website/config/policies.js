@@ -69,5 +69,6 @@ module.exports.policies = {
   'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,
   'account/update-start-cta-visibility': true,
+  'view-configuration-builder': true,
   'android-proxy/*': true,
 };
