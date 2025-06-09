@@ -125,34 +125,36 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 func listHostCertsDB(ctx context.Context, tx sqlx.QueryerContext, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
 	stmt := `
 SELECT
-	id,
-	sha1_sum,
-	host_id,
-	created_at,
-	deleted_at,
-	not_valid_before,
-	not_valid_after,
-	certificate_authority,
-	common_name,
-	key_algorithm,
-	key_strength,
-	key_usage,
-	serial,
-	signing_algorithm,
-	subject_country,
-	subject_org,
-	subject_org_unit,
-	subject_common_name,
-	issuer_country,
-	issuer_org,
-	issuer_org_unit,
-	issuer_common_name,
-	source
+	hc.id,
+	hc.sha1_sum,
+	hc.host_id,
+	hc.created_at,
+	hc.deleted_at,
+	hc.not_valid_before,
+	hc.not_valid_after,
+	hc.certificate_authority,
+	hc.common_name,
+	hc.key_algorithm,
+	hc.key_strength,
+	hc.key_usage,
+	hc.serial,
+	hc.signing_algorithm,
+	hc.subject_country,
+	hc.subject_org,
+	hc.subject_org_unit,
+	hc.subject_common_name,
+	hc.issuer_country,
+	hc.issuer_org,
+	hc.issuer_org_unit,
+	hc.issuer_common_name,
+	hcs.source,
+	hcs.username
 FROM
-	host_certificates
+	host_certificates hc
+	INNER JOIN host_certificate_sources hcs ON hc.id = hcs.host_certificate_id
 WHERE
-	host_id = ?
-	AND deleted_at IS NULL`
+	hc.host_id = ?
+	AND hc.deleted_at IS NULL`
 
 	args := []interface{}{hostID}
 	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opts)
@@ -198,12 +200,11 @@ INSERT INTO host_certificates (
 	issuer_country,
 	issuer_org,
 	issuer_org_unit,
-	issuer_common_name,
-	source
+	issuer_common_name
 ) VALUES %s`
 
 	placeholders := make([]string, 0, len(certs))
-	const singleRowPlaceholderCount = 20
+	const singleRowPlaceholderCount = 19
 	args := make([]interface{}, 0, len(certs)*singleRowPlaceholderCount)
 	for _, cert := range certs {
 		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
@@ -211,7 +212,7 @@ INSERT INTO host_certificates (
 			cert.HostID, cert.SHA1Sum, cert.NotValidBefore, cert.NotValidAfter, cert.CertificateAuthority, cert.CommonName,
 			cert.KeyAlgorithm, cert.KeyStrength, cert.KeyUsage, cert.Serial, cert.SigningAlgorithm,
 			cert.SubjectCountry, cert.SubjectOrganization, cert.SubjectOrganizationalUnit, cert.SubjectCommonName,
-			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName, cert.Source)
+			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.Join(placeholders, ","))

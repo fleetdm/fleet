@@ -101,6 +101,7 @@ func NewHostCertificateRecord(
 		IssuerOrganization:        firstOrEmpty(cert.Issuer.Organization),       // TODO: confirm methodology
 		IssuerOrganizationalUnit:  firstOrEmpty(cert.Issuer.OrganizationalUnit), // TODO: confirm methodology
 		Source:                    SystemHostCertificate,                        // default to system host certificate, always 'system' for certs from MDM command for now
+		Username:                  "",                                           // always empty since this is a system certificate
 	}
 }
 
