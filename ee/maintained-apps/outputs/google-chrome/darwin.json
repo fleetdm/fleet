@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "136.0.7103.93",
+      "version": "137.0.7151.69",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.Chrome';"
       },
