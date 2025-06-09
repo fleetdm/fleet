@@ -28,11 +28,11 @@
 								<key>MachineIDKey</key>
 								<string>MachineUUID</string>
 								<key>MachineIDPlist</key>
-								<string>/Library/Preferences/com.company.machine-mapping.plist</string>
+								<string>/Library/Preferences/com.fleetdm.santa-machine-mapping.plist</string>
 								<key>MachineOwnerKey</key>
 								<string>Owner</string>
 								<key>MachineOwnerPlist</key>
-								<string>/Library/Preferences/com.company.machine-mapping.plist</string>
+								<string>/Library/Preferences/com.fleetdm.santa-machine-mapping.plist</string>
 								<key>ModeNotificationLockdown</key>
 								<string>Entering Lockdown mode</string>
 								<key>ModeNotificationMonitor</key>
@@ -40,7 +40,7 @@
 								<key>UnknownBlockMessage</key>
 								<string>This application has been blocked from executing.</string>
                                 <key>SyncBaseURL</key>
-	                            <string>https://santa.prod.fleet-sc.co/</string>
+	                            <string></string>
 							</dict>
 						</dict>
 					</array>
@@ -221,7 +221,7 @@
 	<key>PayloadDescription</key>
 	<string>Combined Santa Configuration Profiles</string>
 	<key>PayloadDisplayName</key>
-	<string>Santa configuration (moroz)</string>
+	<string>Santa configuration</string>
 	<key>PayloadIdentifier</key>
 	<string>com.northpolesec.santa.combined.profile</string>
 	<key>PayloadOrganization</key>
