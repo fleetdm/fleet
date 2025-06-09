@@ -14948,7 +14948,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	}, profileUUID, "scepName")
 
 	// Try again, it should fail because the challenge is no longer in the database
-	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	// Failed challenge doesn't resend the SCEP profile unless it is pending
 	s.awaitTriggerProfileSchedule(t)
@@ -14965,7 +14965,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	})
 
 	// Try to do SCEP with deleted challenge, it will fail but a new challenge will be generated and the profile resent
-	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	// Check profile status, raw status will be nil (awaiting the reconcile job)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -15026,6 +15026,11 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	// generated and the profile resent
 	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier2, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
+	body, err = io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	pkiMessage, err = scep.ParsePKIMessage(body, scep.WithCACerts(certs))
+	require.NoError(t, err)
+	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
 	// Check profile status, raw status will be empty (awaiting the reconcile job)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status string
