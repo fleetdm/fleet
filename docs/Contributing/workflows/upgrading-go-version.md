@@ -16,15 +16,7 @@ See the "Go linter" section below about upgrading the Go linter version.
 
 ### Go.mod
 
-Update the Go version in [the main go.mod file in Fleet](https://github.com/fleetdm/fleet/blob/main/go.mod) to the new version.
-
-Also update the version in the go.mod files of compiled tools including:
-
-  * [Bitlocker manager](https://github.com/fleetdm/fleet/blob/main/tools/mdm/windows/bitlocker/go.mod)
-  * [DB snapshot](https://github.com/fleetdm/fleet/blob/main/tools/snapshot/go.mod)
-  * [Fleet teams terraform provider](https://github.com/fleetdm/fleet/blob/main/tools/terraform/go.mod)
-
-Do a search for go.mod files to find others that may need updating!
+Run `make update-go version=1.24.4` and update the SHA256 of the updated Dockerfiles manually.
 
 ### Go Linter
 
