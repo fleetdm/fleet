@@ -118,7 +118,7 @@ func batchHostnames(hostnames []string) [][]string {
 	// overflowing the MySQL max number of parameters (somewhere around 65,000
 	// but not well documented). Algorithm from
 	// https://github.com/golang/go/wiki/SliceTricks#batching-with-minimal-allocation
-	const batchSize = 50000 // Large, but well under the undocumented limit
+	const batchSize = 20_000 // Large, but well under the undocumented limit
 	batches := make([][]string, 0, (len(hostnames)+batchSize-1)/batchSize)
 
 	for batchSize < len(hostnames) {
