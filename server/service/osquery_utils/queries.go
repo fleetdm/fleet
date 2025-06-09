@@ -715,7 +715,8 @@ var extraDetailQueries = map[string]DetailQuery{
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, "system" as source
+		serial, sha1, "system" as source,
+		path
 	FROM
 		certificates
 	WHERE
@@ -725,7 +726,8 @@ var extraDetailQueries = map[string]DetailQuery{
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, "user" as source
+		serial, sha1, "user" as source,
+		path
 	FROM
 		certificates
 	WHERE
@@ -2392,6 +2394,8 @@ func directIngestWindowsProfiles(
 	return microsoft_mdm.VerifyHostMDMProfiles(ctx, logger, ds, host, rawResponse)
 }
 
+var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
+
 func directIngestHostCertificates(
 	ctx context.Context,
 	logger log.Logger,
@@ -2429,6 +2433,18 @@ func directIngestHostCertificates(
 			continue
 		}
 
+		var username string
+		if source == fleet.UserHostCertificate {
+			// extract the username from the keychain path
+			matches := rxExtractUsernameFromHostCertPath.FindStringSubmatch(row["path"])
+			if len(matches) > 1 {
+				username = matches[1]
+			} else {
+				// if we cannot extract the username, we log it but continue
+				level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "could not extract username from path", "err", fmt.Errorf("no username found in path %q", row["path"]))
+			}
+		}
+
 		certs = append(certs, &fleet.HostCertificateRecord{
 			HostID:                    host.ID,
 			SHA1Sum:                   csum,
@@ -2450,6 +2466,7 @@ func directIngestHostCertificates(
 			IssuerOrganization:        issuer.Organization,
 			IssuerCommonName:          issuer.CommonName,
 			Source:                    source,
+			Username:                  username,
 		})
 	}
 

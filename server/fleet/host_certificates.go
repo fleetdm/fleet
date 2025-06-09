@@ -61,7 +61,8 @@ type HostCertificateRecord struct {
 	IssuerOrganizationalUnit  string `json:"-" db:"issuer_org_unit"`
 	IssuerCommonName          string `json:"-" db:"issuer_common_name"`
 
-	Source HostCertificateSource `json:"-" db:"source"`
+	Source   HostCertificateSource `json:"-" db:"source"`
+	Username string                `json:"-" db:"username"` // username that owns the certificate, only if source == 'user'
 }
 
 func NewHostCertificateRecord(
@@ -130,6 +131,7 @@ func (r *HostCertificateRecord) ToPayload() *HostCertificatePayload {
 		Serial:               r.Serial,
 		SigningAlgorithm:     r.SigningAlgorithm,
 		Source:               r.Source,
+		Username:             r.Username,
 		Subject:              subject,
 		Issuer:               issuer,
 	}
@@ -148,6 +150,7 @@ type HostCertificatePayload struct {
 	Serial               string                `json:"serial"`
 	SigningAlgorithm     string                `json:"signing_algorithm"`
 	Source               HostCertificateSource `json:"source"`
+	Username             string                `json:"username"`
 
 	Subject *HostCertificateNameDetails `json:"subject,omitempty"`
 	Issuer  *HostCertificateNameDetails `json:"issuer,omitempty"`
