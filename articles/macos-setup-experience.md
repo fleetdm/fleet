@@ -24,7 +24,7 @@ Using Fleet, you can require end users to authenticate with your identity provid
 
 ### End user authentication
 
-1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL.
+1. Create a new SAML app in your IdP. In your new app, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the SSO URL. If this URL is set incorrectly, end users won't be able to enroll. On iOS hosts, they'll see a "This screen size is not supported yet" error message.
 
 2. In your new SAML app, set **Name ID** to email (required). Fleet will trim this email and use it to populate and lock the macOS local account **Account Name**. For example, a "johndoe@example.com" email turn into a "johndoe" account name.
 

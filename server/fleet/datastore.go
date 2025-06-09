@@ -570,9 +570,10 @@ type Datastore interface {
 	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts HostSoftwareInstallOptions) (string, error)
 	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
-	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
-	// GetSoftwareTitleNameFromExecutionID returns the software title name associated with the provided software install execution ID.
-	GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error)
+	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error
+	// GetDetailsForUninstallFromExecutionID returns details from a software uninstall execution needed to create the corresponding activity
+	// Non-error returns are software title name and whether the uninstall was self-service, respectively
+	GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -1709,6 +1710,12 @@ type Datastore interface {
 	// received, it is the caller's responsibility to check if that was the case
 	// (with ExitCode being null).
 	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
+	// GetSelfServiceUninstallScriptExecutionResult returns the result of a host script
+	// execution if it was for the specified host and the script was for a self-service uninstall.
+	// It returns the host script results if no results have been received as long as the script
+	// has been activated in the unified queue (will return Not Found if the execution is still in
+	// upcoming_activities). It is the caller's responsibility to check if ExitCode is null.
+	GetSelfServiceUninstallScriptExecutionResult(ctx context.Context, execID string, hostID uint) (*HostScriptResult, error)
 	// ListPendingHostScriptExecutions returns all the pending host script executions, which are those that have yet
 	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
 	// globally disabled (uninstall/lock/unlock/wipe).
