@@ -86,7 +86,6 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	certs, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs, 2)
-	// default ordering is by common name ascending
 	require.Equal(t, expected2.Subject.CommonName, certs[0].CommonName)
 	require.Equal(t, expected2.Subject.CommonName, certs[0].SubjectCommonName)
 	require.Equal(t, fleet.SystemHostCertificate, certs[0].Source)
@@ -113,6 +112,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 
 	// re-add first certificate but as a "user" source
 	payload[0].Source = fleet.UserHostCertificate
+	payload[0].Username = "A"
 	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[0], payload[1]}))
 	certs4, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
@@ -120,9 +120,13 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected2.Subject.CommonName, certs4[0].CommonName)
 	require.Equal(t, expected2.Subject.CommonName, certs4[0].SubjectCommonName)
 	require.Equal(t, fleet.SystemHostCertificate, certs4[0].Source)
+	require.Equal(t, "", certs4[0].Username)
 	require.Equal(t, expected1.Subject.CommonName, certs4[1].CommonName)
 	require.Equal(t, expected1.Subject.CommonName, certs4[1].SubjectCommonName)
 	require.Equal(t, fleet.UserHostCertificate, certs4[1].Source)
+	require.Equal(t, "A", certs4[1].Username)
+
+	// TODO(mna): add tests with multiple sources for the same cert, add/remove/update
 }
 
 func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
