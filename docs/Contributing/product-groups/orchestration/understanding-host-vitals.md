@@ -27,7 +27,8 @@ SELECT
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, "system" as source
+		serial, sha1, "system" as source,
+		path
 	FROM
 		certificates
 	WHERE
@@ -37,7 +38,8 @@ SELECT
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, "user" as source
+		serial, sha1, "user" as source,
+		path
 	FROM
 		certificates
 	WHERE
