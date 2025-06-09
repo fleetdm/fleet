@@ -382,8 +382,10 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		return getScriptResultResponse{Err: err}, nil
 	}
 
-	// TODO: move this logic out of the endpoint function and consolidate in either the service
-	// method or the fleet package
+	return setUpGetScriptResultResponse(scriptResult), nil
+}
+
+func setUpGetScriptResultResponse(scriptResult *fleet.HostScriptResult) *getScriptResultResponse {
 	hostTimeout := scriptResult.HostTimeout(scripts.MaxServerWaitTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout, scriptResult.Timeout)
 
@@ -399,7 +401,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		ExecutionID:    scriptResult.ExecutionID,
 		Runtime:        scriptResult.Runtime,
 		CreatedAt:      scriptResult.CreatedAt,
-	}, nil
+	}
 }
 
 func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {

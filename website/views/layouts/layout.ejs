@@ -11,6 +11,7 @@
   var showAdminLinks;// Shows links to admin pages to admin users.
   var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
   var hideStartCTA;
+  var showConfigurationProfileLayout;
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
   var defaultMetaDescription = 'Open-source '+(['it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(primaryBuyingSituation) ? 'IT' : ['security-misc','security-vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
@@ -131,8 +132,9 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %> collapse"  id="navbarToggleExternalContent">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : showConfigurationProfileLayout ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
+      <% if(!showConfigurationProfileLayout) {%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
         <div purpose="header-background">
           <% if(!hideHeaderLinks) { %>
@@ -263,9 +265,10 @@
           <%} %>
         </div>
       </div>
+      <% } %>
 
       <%- body %>
-
+      <% if(!showConfigurationProfileLayout) {%>
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
       <% if(!hideFooterLinks) { %>
         <div class="invisible container-fluid" purpose="page-footer" data-hide-until-rendered data-nosnippet>
@@ -384,6 +387,7 @@
             </div>
           </div>
       <% } %>
+      <% } %>
     <%if(!hideStartCTA){%>
       <%- partial('../partials/continue.partial.ejs') %>
     <%}%>
@@ -449,6 +453,7 @@
     <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>

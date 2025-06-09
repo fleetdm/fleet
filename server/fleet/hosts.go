@@ -226,6 +226,10 @@ type HostListOptions struct {
 	ProfileUUIDFilter *string
 	// ProfileStatus is the status of the MDM configuration profile and filters hosts by that status.
 	ProfileStatusFilter *OSSettingsStatus
+	// BatchScriptExecutionStatusFilter filters hosts by the status of a batch script execution.
+	BatchScriptExecutionStatusFilter BatchScriptExecutionStatus
+	// BatchScriptExecutionIDFilter filters hosts by the ID of a batch script execution.
+	BatchScriptExecutionIDFilter *string
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -546,6 +550,28 @@ func (s DiskEncryptionStatus) IsValid() bool {
 		DiskEncryptionEnforcing,
 		DiskEncryptionFailed,
 		DiskEncryptionRemovingEnforcement:
+		return true
+	default:
+		return false
+	}
+}
+
+type BatchScriptExecutionStatus string
+
+const (
+	BatchScriptExecutionRan       BatchScriptExecutionStatus = "ran"
+	BatchScriptExecutionPending   BatchScriptExecutionStatus = "pending"
+	BatchScriptExecutionErrored   BatchScriptExecutionStatus = "errored"
+	BatchScriptExecutionCancelled BatchScriptExecutionStatus = "cancelled"
+)
+
+func (s BatchScriptExecutionStatus) IsValid() bool {
+	switch s {
+	case
+		BatchScriptExecutionRan,
+		BatchScriptExecutionPending,
+		BatchScriptExecutionErrored,
+		BatchScriptExecutionCancelled:
 		return true
 	default:
 		return false

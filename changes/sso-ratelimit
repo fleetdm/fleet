@@ -1,1 +1,1 @@
-* Added `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE` environment variable to allow increasing MDM SSO endpoint rate limit from 10 per minute.
+* Added `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE` environment variable to allow increasing MDM SSO endpoint rate limit from 10 per minute. When supplied, this parameter also splits MDM SSO into its own rate limit bucket (default is shared with login endpoints).
