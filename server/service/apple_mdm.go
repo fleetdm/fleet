@@ -4050,13 +4050,14 @@ func ReconcileAppleProfiles(
 				userEnrollmentMap[p.HostUUID] = userEnrollment
 			}
 			if userEnrollment != "" {
-				target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+				target.hostUUIDs = append(target.hostUUIDs, userEnrollment)
 			}
 		} else {
 			// TODO EJM rename hostUUIDs
 			target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
 		}
 
+		// TODO EJM scope
 		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 			ProfileUUID:       p.ProfileUUID,
 			HostUUID:          p.HostUUID,

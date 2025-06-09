@@ -204,7 +204,7 @@ FROM (
 		declaration_uuid AS profile_uuid,
 		team_id,
 		name,
-		'System' as scope,
+		scope,
 		'darwin' AS platform,
 		identifier,
 		token AS checksum,
