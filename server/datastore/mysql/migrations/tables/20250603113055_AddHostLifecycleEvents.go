@@ -27,7 +27,8 @@ func Up_20250603113055(tx *sql.Tx) error {
 		created_at DATETIME(6) NOT NULL DEFAULT NOW(6),
 		activity_id INT UNSIGNED,
 		INDEX idx_host_lifecycle_events_host_id(host_id),
-		INDEX idx_host_lifecycle_events_host_uuid(host_uuid)
+		INDEX idx_host_lifecycle_events_host_uuid(host_uuid),
+		INDEX idx_host_lifecycle_events_event_type(event_type)
 	) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 	`
 	_, err := tx.Exec(createStmt)
