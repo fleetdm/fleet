@@ -83,7 +83,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload))
 
 	// verify that we saved the records correctly
-	certs, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{})
+	certs, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs, 2)
 	// default ordering is by common name ascending
@@ -105,7 +105,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 
 	// simulate removal of a certificate
 	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1]}))
-	certs3, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{})
+	certs3, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs3, 1)
 	require.Equal(t, expected2.Subject.CommonName, certs3[0].CommonName)
@@ -114,7 +114,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	// re-add first certificate but as a "user" source
 	payload[0].Source = fleet.UserHostCertificate
 	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[0], payload[1]}))
-	certs4, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{})
+	certs4, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs4, 2)
 	require.Equal(t, expected2.Subject.CommonName, certs4[0].CommonName)
@@ -218,10 +218,9 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, host.UUID, payload))
 
 	// verify that we saved the records correctly
-	certs, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{})
+	certs, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs, 2)
-	// default ordering is by common name ascending
 	require.Equal(t, expected1.Subject.CommonName, certs[0].CommonName)
 	require.Equal(t, expected1.Subject.CommonName, certs[0].SubjectCommonName)
 	require.Equal(t, expected2.Subject.CommonName, certs[1].CommonName)
@@ -246,7 +245,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 
 	// simulate removal of a certificate
 	require.NoError(t, ds.UpdateHostCertificates(context.Background(), 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1]}))
-	certs3, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{})
+	certs3, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs3, 1)
 	require.Equal(t, expected2.Subject.CommonName, certs3[0].CommonName)

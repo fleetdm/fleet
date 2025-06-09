@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -18,18 +20,25 @@ func (ds *Datastore) ListHostCertificates(ctx context.Context, hostID uint, opts
 }
 
 func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+	type certSourceToSet struct {
+		Source   fleet.HostCertificateSource
+		Username string
+	}
+
 	incomingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(certs))
+	incomingSourcesBySHA1 := make(map[string][]certSourceToSet, len(certs))
 	for _, cert := range certs {
 		if cert.HostID != hostID {
 			// caller should ensure this does not happen
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
 		}
-		if _, ok := incomingBySHA1[strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))]; ok {
-			// TODO: sha1 is broken so this could be a sign of a problem, how should we handle?
-			level.Info(ds.logger).Log("msg", "host certificates: host has multiple certificates with the same SHA1, only the first will be recorded", "host_id", hostID, "sha1", string(cert.SHA1Sum))
-			continue
-		}
-		incomingBySHA1[strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))] = cert
+
+		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
+		incomingSourcesBySHA1[normalizedSHA1] = append(incomingSourcesBySHA1[normalizedSHA1], certSourceToSet{
+			Source:   cert.Source,
+			Username: cert.Username,
+		})
+		incomingBySHA1[normalizedSHA1] = cert
 	}
 
 	// get existing certs for this host; we'll use the reader because we expect certs to change
@@ -38,27 +47,35 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list host certificates for update")
 	}
+
 	existingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(existingCerts))
+	existingSourcesBySHA1 := make(map[string][]certSourceToSet, len(existingCerts))
 	for _, ec := range existingCerts {
-		existingBySHA1[strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))] = ec
+		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))
+		existingBySHA1[normalizedSHA1] = ec
+		existingSourcesBySHA1[normalizedSHA1] = append(existingSourcesBySHA1[normalizedSHA1], certSourceToSet{
+			Source:   ec.Source,
+			Username: ec.Username,
+		})
 	}
 
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
+	toSetSourcesBySHA1 := make(map[string][]certSourceToSet, len(incomingBySHA1))
 	for sha1, incoming := range incomingBySHA1 {
-		// TODO(mna): it's possible that the same cert exists in the system and
-		// login keychains (or in multiple login keychains), but we detect based on
-		// the SHA1-only (which presumably is the hash of the cert bytes, not any
-		// outside metadata such as the source keychain).
-		//
-		// My hunch on how to address this: insert only if it doesn't exist for the
-		// same combination of sha1 + source (system or user). If it exists for
-		// multiple login keychains, we don't care (we don't store which user has
-		// it in their keychain), but we do (probably) care if it's in system AND
-		// user keychains.
+		incomingSources := incomingSourcesBySHA1[sha1]
+		existingSources := existingSourcesBySHA1[sha1]
+		if !slices.Equal(incomingSources, existingSources) {
+			toSetSourcesBySHA1[sha1] = incomingSources
+		}
+
 		if _, ok := existingBySHA1[sha1]; ok {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
+
+			// when the certificate already exists, we only have to replace the
+			// certificate sources if there are some differences with the existing
+			// ones.
 		} else {
 			toInsert = append(toInsert, incoming)
 		}
@@ -112,14 +129,77 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		if err := insertHostCertsDB(ctx, tx, toInsert); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host certs")
 		}
+
+		if len(toSetSourcesBySHA1) > 0 {
+			// must reload the DB IDs to insert the host_certificates_sources rows
+			certIDsBySHA1, err := loadHostCertIDsForSHA1DB(ctx, tx, slices.Collect(maps.Keys(toSetSourcesBySHA1)))
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "load host certs ids")
+			}
+
+			toReplaceSources := make([]*fleet.HostCertificateRecord, 0, len(toSetSourcesBySHA1))
+			for sha1, sources := range toSetSourcesBySHA1 {
+				for _, source := range sources {
+					toReplaceSources = append(toReplaceSources, &fleet.HostCertificateRecord{
+						ID:       certIDsBySHA1[sha1],
+						Source:   source.Source,
+						Username: source.Username,
+					})
+				}
+			}
+			if err := replaceHostCertsSourcesDB(ctx, tx, toReplaceSources); err != nil {
+				return ctxerr.Wrap(ctx, err, "replace host certs sources")
+			}
+		}
+
 		if err := softDeleteHostCertsDB(ctx, tx, hostID, toDelete); err != nil {
 			return ctxerr.Wrap(ctx, err, "soft delete host certs")
 		}
+
 		if err := updateHostMDMManagedCertDetailsDB(ctx, tx, hostMDMManagedCertsToUpdate); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host mdm managed cert details")
 		}
 		return nil
 	})
+}
+
+func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, sha1s []string) (map[string]uint, error) {
+	fmt.Println(">>>>> LOADING FOR SHA1s: ", sha1s)
+	if len(sha1s) == 0 {
+		return nil, nil
+	}
+
+	binarySHA1s := make([][]byte, 0, len(sha1s))
+	for _, sha1 := range sha1s {
+		binarySHA1, _ := hex.DecodeString(sha1)
+		binarySHA1s = append(binarySHA1s, binarySHA1)
+	}
+
+	stmt := `
+	SELECT
+		hc.id,
+		hc.sha1_sum
+	FROM
+		host_certificates hc
+	WHERE
+		hc.sha1_sum IN (?)`
+
+	var certs []*fleet.HostCertificateRecord
+	stmt, args, err := sqlx.In(stmt, binarySHA1s)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building load host cert ids query")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &certs, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting host cert ids")
+	}
+
+	certIDsBySHA1 := make(map[string]uint, len(certs))
+	for _, cert := range certs {
+		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
+		certIDsBySHA1[normalizedSHA1] = cert.ID
+		fmt.Println(">>>> FOUND ID BY SHA: ", cert.ID, normalizedSHA1)
+	}
+	return certIDsBySHA1, nil
 }
 
 func listHostCertsDB(ctx context.Context, tx sqlx.QueryerContext, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
@@ -173,6 +253,50 @@ WHERE
 		}
 	}
 	return certs, metaData, nil
+}
+
+func replaceHostCertsSourcesDB(ctx context.Context, tx sqlx.ExtContext, toReplaceSources []*fleet.HostCertificateRecord) error {
+	if len(toReplaceSources) == 0 {
+		return nil
+	}
+
+	certIDs := make([]uint, 0, len(toReplaceSources))
+	for _, source := range toReplaceSources {
+		certIDs = append(certIDs, source.ID)
+	}
+
+	// delete existing sources
+	stmtDelete := `DELETE FROM host_certificate_sources WHERE host_certificate_id IN (?)`
+	stmtDelete, args, err := sqlx.In(stmtDelete, certIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building delete host cert sources query")
+	}
+	if _, err := tx.ExecContext(ctx, stmtDelete, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host cert sources")
+	}
+
+	// create incoming sources
+	stmtInsert := `
+	INSERT INTO host_certificate_sources (
+		host_certificate_id,
+		source,
+		username
+	) VALUES %s`
+
+	const singleRowPlaceholderCount = 3
+	placeholders := make([]string, 0, len(toReplaceSources))
+	args = make([]any, 0, len(toReplaceSources)*singleRowPlaceholderCount)
+	for _, source := range toReplaceSources {
+		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
+		fmt.Println(">>>>> INSERTING ", source.ID, source.Source, source.Username)
+		args = append(args, source.ID, source.Source, source.Username)
+	}
+
+	stmtInsert = fmt.Sprintf(stmtInsert, strings.Join(placeholders, ","))
+	if _, err := tx.ExecContext(ctx, stmtInsert, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting host cert sources")
+	}
+	return nil
 }
 
 func insertHostCertsDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.HostCertificateRecord) error {
