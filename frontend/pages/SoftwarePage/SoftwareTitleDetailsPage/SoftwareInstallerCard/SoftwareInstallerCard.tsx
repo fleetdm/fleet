@@ -138,7 +138,7 @@ export const SoftwareActionButtons = ({
     );
     options = options.map((option) => {
       // edit is disabled in gitOpsMode for VPP only
-      // delete is disabled in gitOpsMode for FMA and VPP onlu
+      // delete is disabled in gitOpsMode for software types that can't be added in GitOps mode (FMA, VPP)
       if (
         (option.value === "edit" && installerType === "vpp") ||
         (option.value === "delete" && (installerType === "vpp" || isFMA))
