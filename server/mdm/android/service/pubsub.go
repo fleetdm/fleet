@@ -210,7 +210,7 @@ func (svc *Service) validateDevice(ctx context.Context, device *androidmanagemen
 		return ctxerr.Errorf(ctx, "missing hardware info for Android device %s", device.Name)
 	}
 	if device.SoftwareInfo == nil {
-		return ctxerr.Errorf(ctx, "missing software info for Android device %s", device.Name)
+		return ctxerr.Errorf(ctx, "missing software info for Android device %s. Are policy statusReportingSettings set correctly?", device.Name)
 	}
 	if device.MemoryInfo == nil {
 		return ctxerr.Errorf(ctx, "missing memory info for Android device %s", device.Name)

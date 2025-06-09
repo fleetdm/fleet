@@ -89,11 +89,11 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 	}
 
 	type proxyEnterprise struct {
-		FleetLicenseKey string `json:"fleetLicenseKey"`
-		PubSubPushURL   string `json:"pubsubPushUrl"`
-		EnterpriseToken string `json:"enterpriseToken"`
-		SignupURLName   string `json:"signupUrlName"`
-		Enterprise      androidmanagement.Enterprise
+		FleetLicenseKey string                       `json:"fleetLicenseKey"`
+		PubSubPushURL   string                       `json:"pubsubPushUrl"`
+		EnterpriseToken string                       `json:"enterpriseToken"`
+		SignupURLName   string                       `json:"signupUrlName"`
+		Enterprise      androidmanagement.Enterprise `json:"enterprise"`
 	}
 
 	client := fleethttp.NewClient()
@@ -164,7 +164,9 @@ func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, ent
 	if p == nil || p.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
-	token, err := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx).Do()
+	call := p.mgmt.Enterprises.EnrollmentTokens.Create(enterpriseName, token).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	token, err := call.Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating enrollment token: %w", err)
 	}

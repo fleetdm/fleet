@@ -122,6 +122,8 @@ func (g *GoogleClient) createPubSubTopic(ctx context.Context, pushURL string) (s
 	if err != nil {
 		return "", fmt.Errorf("creating PubSub topic: %w", err)
 	}
+	// Grand Android device policy the right to publish
+	// See: https://developers.google.com/android/management/notifications
 	policy, err := topic.IAM().Policy(ctx) // Ensure the topic exists before creating the subscription
 	if err != nil {
 		return "", fmt.Errorf("getting PubSub topic policy: %w", err)
