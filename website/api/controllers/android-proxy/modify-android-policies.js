@@ -16,11 +16,6 @@ module.exports = {
       type: 'string',
       required: true,
     },
-    policy: {
-      type: {},
-      description: 'The policy on the Android enterprise that is being updated.',
-      moreInfoUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#Policy'
-    },
   },
 
 
@@ -29,7 +24,7 @@ module.exports = {
   },
 
 
-  fn: async function ({ androidEnterpriseId, policyId, policy }) {
+  fn: async function ({ androidEnterpriseId, policyId}) {
 
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.headers.authorization;
@@ -72,7 +67,7 @@ module.exports = {
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Policies.html#patch
       let patchPoliciesResponse = await androidmanagement.enterprises.policies.patch({
         name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
-        requestBody: policy
+        requestBody: this.req.body,
       });
       return patchPoliciesResponse.data;
     }).intercept((err) => {

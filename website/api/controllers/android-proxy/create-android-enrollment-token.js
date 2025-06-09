@@ -12,11 +12,6 @@ module.exports = {
       type: 'string',
       required: true,
     },
-    enrollmentToken: {
-      type: {},
-      required: true,
-      moreInfoUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens#EnrollmentToken',
-    }
   },
 
 
@@ -67,7 +62,7 @@ module.exports = {
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Enrollmenttokens.html#create
       let enrollmentTokenCreateResponse = await androidmanagement.enterprises.enrollmentTokens.create({
         parent: `enterprises/${androidEnterpriseId}`,
-        requestBody: enrollmentToken,
+        requestBody: this.req.body,
       });
       return enrollmentTokenCreateResponse.data;
     }).intercept((err)=>{

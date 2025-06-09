@@ -25,6 +25,7 @@ module.exports = {
     },
     enterprise: {
       type: {},
+      required: true,
       moreInfoUrl: ''
     }
   },
@@ -53,6 +54,7 @@ module.exports = {
     let newPubSubTopicName = 'a' + sails.helpers.strings.uuid();// Google requires that topic names start with a letter, so we'll preprend an 'a' to the generated uuid.
     // Build the full pubsub topic name.
     let fullPubSubTopicName = `projects/${sails.config.custom.androidEnterpriseProjectId}/topics/${newPubSubTopicName}`;
+    enterprise.pubsubTopic = fullPubSubTopicName;
     let newSubscriptionName = `projects/${sails.config.custom.androidEnterpriseProjectId}/subscriptions/${newPubSubTopicName}`;
 
     // Complete the setup of the new Android enterprise.
@@ -91,12 +93,14 @@ module.exports = {
       });
       let newPubSubTopicIamPolicy = getIamPolicyResponse.data;
 
+      // Grand Android device policy the right to publish
+      // See: https://developers.google.com/android/management/notifications
       // Default the policy bindings to an empty array if it is not set.
       newPubSubTopicIamPolicy.bindings = newPubSubTopicIamPolicy.bindings || [];
       // Add the Fleet android MDM service account to the policy bindings.
       newPubSubTopicIamPolicy.bindings.push({
         role: 'roles/pubsub.publisher',
-        members: ['serviceAccount:'+sails.config.custom.androidEnterpriseServiceAccountEmailAddress]
+        members: ['serviceAccount:android-cloud-policy@system.gserviceaccount.com']
       });
 
       // Update the pubsub topic's IAM policy
