@@ -711,6 +711,8 @@ type MDMConfig struct {
 	microsoftWSTEP        *tls.Certificate
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
+
+	SSORateLimitPerMinute int `yaml:"sso_rate_limit_per_minute"`
 }
 
 type CalendarConfig struct {
@@ -1421,6 +1423,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
+	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1710,6 +1713,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			SSORateLimitPerMinute:           man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),

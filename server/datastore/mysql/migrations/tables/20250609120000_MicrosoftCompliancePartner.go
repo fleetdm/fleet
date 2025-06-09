@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250529120000, Down_20250529120000)
+	MigrationClient.AddMigration(Up_20250609120000, Down_20250609120000)
 }
 
-func Up_20250529120000(tx *sql.Tx) error {
+func Up_20250609120000(tx *sql.Tx) error {
 	// microsoft_compliance_partner_integrations stores the Microsoft Compliance Partner integrations.
 	// On the first version this table will only contain one row (one tenant supported for all devices in Fleet).
 	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS microsoft_compliance_partner_integrations (
@@ -53,6 +53,6 @@ func Up_20250529120000(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250529120000(tx *sql.Tx) error {
+func Down_20250609120000(tx *sql.Tx) error {
 	return nil
 }

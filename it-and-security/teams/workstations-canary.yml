@@ -93,12 +93,15 @@ controls:
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
-      - path: ../lib/macos/declaration-profiles/passcode-settings.json
-      - path: ../lib/macos/declaration-profiles/software-update-settings.json
+      - path: ../lib/macos/declaration-profiles/Passcode settings.json
+      - path: ../lib/macos/declaration-profiles/Software Update settings.json
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
-      - path: ../lib/macos/configuration-profiles/santa-configuration-moroz.mobileconfig
+      - path: ../lib/macos/configuration-profiles/santa-configuration.mobileconfig
+        labels_include_any:
+          - "Santa test devices"
+      - path: ../lib/macos/configuration-profiles/santa-rules.mobileconfig
         labels_include_any:
           - "Santa test devices"
   macos_setup:
@@ -110,12 +113,11 @@ controls:
     minimum_version: "15.5"
   windows_settings:
     custom_settings:
-      - path: ../lib/windows/configuration-profiles/enable-firewall-all-domains.xml
-      - path: ../lib/windows/configuration-profiles/password.xml
-      - path: ../lib/windows/configuration-profiles/advanced-logging-powershell.xml
-      - path: ../lib/windows/configuration-profiles/autoset-time-date.xml
-      - path: ../lib/windows/configuration-profiles/disable-onedrive.xml
-      - path: ../lib/windows/configuration-profiles/disable-guest-account.xml
+      - path: ../lib/windows/configuration-profiles/Enable firewall.xml
+      - path: ../lib/windows/configuration-profiles/Password settings.xml
+      - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
+      - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
+      - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -136,6 +138,7 @@ controls:
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/macos/scripts/install-santa-extension.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -146,6 +149,7 @@ policies:
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
+  - path: ../lib/macos/policies/install-santa-extension.yml
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
@@ -155,11 +159,14 @@ policies:
   - path: ../lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
+  - path: ../lib/macos/queries/collect-santa-denied-logs.yml
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
+    - path: ../lib/macos/software/google-chrome.yml # Google Chrome for macOS
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
     - path: ../lib/macos/software/santa.yml # Santa for macOS
+    - path: ../lib/macos/software/zoom.yml # Zoom for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
@@ -172,6 +179,31 @@ software:
     - path: ../lib/windows/software/1password.yml # 1Password for Windows
   app_store_apps:
     - app_store_id: '803453959' # Slack Desktop
+      self_service: true
+      categories:
+        - Communication
+        - Productivity
+    - app_store_id: '409183694' # Keynote
+      self_service: true
+  fleet_maintained_apps:
+    - slug: brave-browser/darwin # Brave for macOS (ARM)
+      self_service: true
+      labels_include_any:
+        - Apple Silicon macOS hosts
+    - slug: brave-browser/windows # Brave for Windows
+      self_service: true
+    - slug: docker/darwin # Docker for macOS (ARM)
+      self_service: true
+      labels_include_any:
+        - Apple Silicon macOS hosts
+    - slug: microsoft-edge/darwin # Microsoft Edge for macOS
+      self_service: true
+    - slug: visual-studio-code/darwin # Microsoft Visual Studio for macOS (ARM)
+      self_service: true
+      labels_include_any:
+        - Apple Silicon macOS hosts
+    - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
+      self_service: true
       categories:
         - Communication
         - Productivity

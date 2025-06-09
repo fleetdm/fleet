@@ -531,13 +531,6 @@ const HostsFilterBlock = ({
         <FilterPill
           label={`OS settings: ${configProfile?.name}`}
           onClear={() => handleClearFilter(["profile_status", "profile_uuid"])}
-          tooltipDescription={
-            <>
-              OS settings:
-              <br />
-              {configProfile?.name}
-            </>
-          }
         />
       </>
     );

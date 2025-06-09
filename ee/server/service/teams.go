@@ -1436,7 +1436,7 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.MacOSSetup.BootstrapPackage.Set &&
 		spec.MDM.MacOSSetup.BootstrapPackage.Value == "" &&
 		oldMacOSSetup.BootstrapPackage.Value != "" {
-		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID); err != nil {
+		if err := svc.DeleteMDMAppleBootstrapPackage(ctx, &team.ID, opts.DryRun); err != nil {
 			return ctxerr.Wrapf(ctx, err, "clear bootstrap package for team %d", team.ID)
 		}
 	}

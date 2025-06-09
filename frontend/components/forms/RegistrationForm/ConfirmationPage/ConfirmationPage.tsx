@@ -12,6 +12,7 @@ interface IConfirmationPageProps {
   currentPage: boolean;
   formData: IRegistrationFormData;
   handleSubmit: React.FormEventHandler<HTMLFormElement>;
+  isLoading?: boolean;
 }
 
 const ConfirmationPage = ({
@@ -19,6 +20,7 @@ const ConfirmationPage = ({
   currentPage,
   formData,
   handleSubmit,
+  isLoading,
 }: IConfirmationPageProps): JSX.Element => {
   useEffect(() => {
     if (currentPage) {
@@ -102,7 +104,12 @@ const ConfirmationPage = ({
         your instance. Sending usage statistics from your Fleet instance is
         optional and can be disabled in settings.
       </p>
-      <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
+      <Button
+        type="submit"
+        tabIndex={tabIndex}
+        disabled={!currentPage}
+        isLoading={isLoading}
+      >
         Confirm
       </Button>
     </form>
