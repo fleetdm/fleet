@@ -4292,7 +4292,7 @@ Retrieves the certificates installed on a host.
         "common_name": "FleetDM"
       },
       "source": "system",
-      "username": "bob"
+      "username": ""
     }
   ],
   "meta": {
