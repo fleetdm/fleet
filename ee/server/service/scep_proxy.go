@@ -23,8 +23,10 @@ import (
 	"golang.org/x/text/transform"
 )
 
-var _ scepserver.ServiceWithIdentifier = (*scepProxyService)(nil)
-var challengeRegex = regexp.MustCompile(`(?i)The enrollment challenge password is: <B> (?P<password>\S*)`)
+var (
+	_              scepserver.ServiceWithIdentifier = (*scepProxyService)(nil)
+	challengeRegex                                  = regexp.MustCompile(`(?i)The enrollment challenge password is: <B> (?P<password>\S*)`)
+)
 
 const (
 	fullPasswordCache             = "The password cache is full."
@@ -110,7 +112,8 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 }
 
 func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier string, checkChallenge bool) (string,
-	error) {
+	error,
+) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting app config")
@@ -131,6 +134,10 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	caName := "NDES" // default
 	if len(parsedIDs) > 2 {
 		caName = parsedIDs[2]
+	}
+	var fleetChallenge string
+	if len(parsedIDs) > 3 {
+		fleetChallenge = parsedIDs[3]
 	}
 	if !strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix) {
 		return "", &scepserver.BadRequestError{Message: fmt.Sprintf("invalid profile UUID (only Apple config profiles are supported): %s",
@@ -175,6 +182,11 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		if !appConfig.Integrations.CustomSCEPProxy.Valid {
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
+		if checkChallenge {
+			if err := svc.handleFleetChallenge(ctx, fleetChallenge, hostUUID, profileUUID); err != nil {
+				return "", &scepserver.BadRequestError{Message: "custom scep challenge"}
+			}
+		}
 		for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
 			if ca.Name == profile.CAName {
 				scepURL = ca.URL
@@ -191,6 +203,32 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {
 	// NDES on Windows Server 2022 does not support this, as advertised via GetCACaps
 	return nil, errors.New("GetNextCACert is not implemented for SCEP proxy")
+}
+
+func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChallenge string, hostUUID string, profileUUID string) error {
+	if fleetChallenge == "" {
+		return ctxerr.New(ctx, "custom scep proxy: challenge cannot be empty")
+	}
+	valid, err := svc.ds.HasChallenge(ctx, fleetChallenge)
+	switch {
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge")
+	case !valid:
+		// Challenge validation failed, we need to resend the profile with a new challenge.
+		//
+		// FIXME: We really should have a more generic function to handle this, but our existing methods
+		// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
+		// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
+		// the existing flow and the implementation below is that we need to blank the command uuid in order
+		// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
+		// it just sends the old bytes again. It feels like we some leaky abstrations somewhere that we need
+		// to clean up.
+		if err = svc.ds.ResendHostCustomSCEPProfile(ctx, hostUUID, profileUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "custom scep proxy: resending host mdm profile")
+		}
+		return &scepserver.BadRequestError{Message: "custom scep proxy: invalid challenge"}
+	}
+	return nil
 }
 
 type SCEPConfigService struct {

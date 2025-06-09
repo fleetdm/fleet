@@ -2049,6 +2049,10 @@ type Datastore interface {
 	// ListHostMDMManagedCertificates returns the managed certificates for the given host UUID
 	ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*MDMManagedCertificate, error)
 
+	// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
+	// also deactivates prior nano commands for the profile UUID and host UUID.
+	ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
 
@@ -2116,6 +2120,19 @@ type Datastore interface {
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
 	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Challenges
+
+	// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges table.
+	NewChallenge(ctx context.Context) (string, error)
+	// HasChallenge checks if a valid challenge exists in the challenges table
+	// and deletes it if it does. If the challenge does not exist or is not valid (i.e. expired),
+	// an error is returned.
+	HasChallenge(ctx context.Context, challenge string) (bool, error)
+	// CleanupExpiredChallenges removes expired challenges from the challenges table,
+	// intended to be run as a cron job.
+	CleanupExpiredChallenges(ctx context.Context) (int64, error)
 }
 
 type AndroidDatastore interface {
