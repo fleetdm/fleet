@@ -4291,7 +4291,8 @@ Retrieves the certificates installed on a host.
         "organizational_unit": "Fleet Device Management Inc.",
         "common_name": "FleetDM"
       },
-      "source": "system"
+      "source": "system",
+      "username": "bob"
     }
   ],
   "meta": {
