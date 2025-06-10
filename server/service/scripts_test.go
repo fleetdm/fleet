@@ -980,6 +980,13 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		expectation   func(t *testing.T, req *wipeHostRequest)
 	}{
 		{
+			name: "empty body",
+			body: strings.NewReader(""),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.Nil(t, req.Metadata)
+			},
+		},
+		{
 			name: "doWipe",
 			body: strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`),
 			expectation: func(t *testing.T, req *wipeHostRequest) {

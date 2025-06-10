@@ -1313,15 +1313,24 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 // //////////////////////////////////////////////////////////////////////////////
 
 func (req *wipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	if r == nil {
+		return nil
+	}
+
 	decoder := json.NewDecoder(io.LimitReader(r, 100*1024))
 	metadata := fleet.MDMWipeMetadata{}
 	if err := decoder.Decode(&metadata); err != nil {
+		if err == io.EOF {
+			// OK ... body is optional
+			return nil
+		}
 		return &fleet.BadRequestError{
 			Message:     "failed to unmarshal request body",
 			InternalErr: err,
 		}
 	}
 	req.Metadata = &metadata
+
 	return nil
 }
 
