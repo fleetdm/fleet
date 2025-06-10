@@ -1320,9 +1320,8 @@ func (req *wipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.V
 			Message:     "failed to unmarshal request body",
 			InternalErr: err,
 		}
-	} else {
-		req.Metadata = &metadata
 	}
+	req.Metadata = &metadata
 	return nil
 }
 
