@@ -1,3 +1,14 @@
+## Orbit 1.43.0 (Jun 10, 2025)
+
+* Fixed an issue where the setup experience window would never finish and close if a software installer was deleted while it was running
+
+* Add `containerd_containers` table on Linux.
+
+* Revised "Migrate to Fleet" link anchor text.
+
+* Added a new Linux table 'lsblk' populated from the output of running 'lsblk -n -O'
+* Added a new Linux table 'cryptsetup_luks_salt', given a device path returns all the key_slots and salts of said device.
+
 ## Orbit 1.42.0 (May 15, 2025)
 
 * Made the macOS Setup Experience dialog more reliable by preventing system sleep while it is shown, changing the key combo to cmd+shift+x to exit, keeping it on top of all other windows and making sure it closes once it completes.

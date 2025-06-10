@@ -1,2 +1,0 @@
-* Added a new Linux table 'lsblk' populated from the output of running 'lsblk -n -O'
-* Added a new Linux table 'cryptsetup_luks_salt', given a device path returns all the key_slots and salts of said device.
