@@ -773,13 +773,13 @@ UPDATE
 SET
 	status = NULL,
 	command_uuid = '',
-	operation_type = ?,
 	detail = '',
 	retries = 0,
 	variables_updated_at = NOW(6)
 WHERE
 	profile_uuid = ? AND
-	host_uuid = ?`
+	host_uuid = ? AND
+	operation_type = ?`
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, deactivateNanoStmt, profUUID, hostUUID)
@@ -791,7 +791,7 @@ WHERE
 			level.Error(ds.logger).Log("msg", "resend custom scep profile: nano not deactivated", "host_uuid", hostUUID, "profile_uuid", profUUID)
 		}
 
-		res, err = tx.ExecContext(ctx, updateStmt, fleet.MDMOperationTypeInstall, profUUID, hostUUID)
+		res, err = tx.ExecContext(ctx, updateStmt, profUUID, hostUUID, fleet.MDMOperationTypeInstall)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resending host MDM profile")
 		}

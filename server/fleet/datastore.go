@@ -2132,10 +2132,10 @@ type Datastore interface {
 
 	// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges table.
 	NewChallenge(ctx context.Context) (string, error)
-	// HasChallenge checks if a valid challenge exists in the challenges table
-	// and deletes it if it does. If the challenge does not exist or is not valid (i.e. expired),
-	// an error is returned.
-	HasChallenge(ctx context.Context, challenge string) (bool, error)
+	// ConsumeChallenge checks if a valid challenge exists in the challenges table
+	// and deletes it if it does. The error will include sql.ErrNoRows if the challenge
+	// is not found or is expired.
+	ConsumeChallenge(ctx context.Context, challenge string) error
 	// CleanupExpiredChallenges removes expired challenges from the challenges table,
 	// intended to be run as a cron job.
 	CleanupExpiredChallenges(ctx context.Context) (int64, error)

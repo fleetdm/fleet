@@ -1368,7 +1368,7 @@ type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.Scim
 
 type NewChallengeFunc func(ctx context.Context) (string, error)
 
-type HasChallengeFunc func(ctx context.Context, challenge string) (bool, error)
+type ConsumeChallengeFunc func(ctx context.Context, challenge string) error
 
 type CleanupExpiredChallengesFunc func(ctx context.Context) (int64, error)
 
@@ -3392,8 +3392,8 @@ type DataStore struct {
 	NewChallengeFunc        NewChallengeFunc
 	NewChallengeFuncInvoked bool
 
-	HasChallengeFunc        HasChallengeFunc
-	HasChallengeFuncInvoked bool
+	ConsumeChallengeFunc        ConsumeChallengeFunc
+	ConsumeChallengeFuncInvoked bool
 
 	CleanupExpiredChallengesFunc        CleanupExpiredChallengesFunc
 	CleanupExpiredChallengesFuncInvoked bool
@@ -8112,11 +8112,11 @@ func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {
 	return s.NewChallengeFunc(ctx)
 }
 
-func (s *DataStore) HasChallenge(ctx context.Context, challenge string) (bool, error) {
+func (s *DataStore) ConsumeChallenge(ctx context.Context, challenge string) error {
 	s.mu.Lock()
-	s.HasChallengeFuncInvoked = true
+	s.ConsumeChallengeFuncInvoked = true
 	s.mu.Unlock()
-	return s.HasChallengeFunc(ctx, challenge)
+	return s.ConsumeChallengeFunc(ctx, challenge)
 }
 
 func (s *DataStore) CleanupExpiredChallenges(ctx context.Context) (int64, error) {

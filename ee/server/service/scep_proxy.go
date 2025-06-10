@@ -92,9 +92,11 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 	return res, num, nil
 }
 
+// NOTE: Any changes to this method must ensure that the challenge portion of the identifer is
+// properly validated using the before proceeding with the PKIOperation.
 func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, identifier string) ([]byte, error) {
 	// We only check for expired NDES challenge during this (the last) SCEP request to account for previous requests having large network delays
-	scepURL, err := svc.validateIdentifier(ctx, identifier, true)
+	scepURL, err := svc.validateIdentifier(ctx, identifier, true) // checkChallenge must be true to validate the challenge portion of the identifier
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +186,18 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		}
 		if checkChallenge {
 			if err := svc.handleFleetChallenge(ctx, fleetChallenge, hostUUID, profileUUID); err != nil {
-				return "", &scepserver.BadRequestError{Message: "custom scep challenge"}
+				// FIXME: The layered logging implementation of the scepProxyService not
+				// intuitive. Can we make it so that we return fleet.ErrWithInternal to
+				// better capture/log the context errors here?
+				svc.debugLogger.Log(
+					"msg", "custom scep proxy: failed to handle fleet challenge",
+					"host_uuid", hostUUID,
+					"profile_uuid", profileUUID,
+					"err", err.Error(),
+				)
+				return "", &scepserver.BadRequestError{
+					Message: "custom scep challenge failed",
+				}
 			}
 		}
 		for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
@@ -205,17 +218,18 @@ func (svc *scepProxyService) GetNextCACert(_ context.Context) ([]byte, error) {
 	return nil, errors.New("GetNextCACert is not implemented for SCEP proxy")
 }
 
+// handleFleetChallenge handles the validation of the fleet challenge for custom SCEP profiles as
+// well as resending the profile if the challenge cannot be validated. If it is valid, it returns
+// nil. If it cannot be validated or if any errors occur while validating or resending the profile,
+// it returns a concatenated error.
+//
+// TODO: Consider refactoring to differentiate between invalid challenge and other errors. As it
+// stands, we're resending the profile in both cases.
 func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChallenge string, hostUUID string, profileUUID string) error {
-	if fleetChallenge == "" {
-		return ctxerr.New(ctx, "custom scep proxy: challenge cannot be empty")
-	}
-	valid, err := svc.ds.HasChallenge(ctx, fleetChallenge)
-	switch {
-	case err != nil:
-		return ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge")
-	case !valid:
-		// Challenge validation failed, we need to resend the profile with a new challenge.
-		//
+	var errs []error
+
+	if err := svc.ds.ConsumeChallenge(ctx, fleetChallenge); err != nil {
+		errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: validating challenge"))
 		// FIXME: We really should have a more generic function to handle this, but our existing methods
 		// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
 		// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
@@ -223,11 +237,15 @@ func (svc *scepProxyService) handleFleetChallenge(ctx context.Context, fleetChal
 		// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
 		// it just sends the old bytes again. It feels like we some leaky abstrations somewhere that we need
 		// to clean up.
-		if err = svc.ds.ResendHostCustomSCEPProfile(ctx, hostUUID, profileUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "custom scep proxy: resending host mdm profile")
+		if err := svc.ds.ResendHostCustomSCEPProfile(ctx, hostUUID, profileUUID); err != nil {
+			errs = append(errs, ctxerr.Wrap(ctx, err, "custom scep proxy: resending host mdm profile"))
 		}
-		return &scepserver.BadRequestError{Message: "custom scep proxy: invalid challenge"}
 	}
+
+	if len(errs) > 0 {
+		return ctxerr.Wrap(ctx, errors.Join(errs...), "custom scep proxy: failed to handle fleet challenge")
+	}
+
 	return nil
 }
 
