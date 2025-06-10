@@ -33,6 +33,19 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
 		}
 
+		// NOTE: it is SUPER important that the sha1 sum was created with
+		// sha1.Sum(...) and NOT sha1.New().Sum(...), as the latter is a wrong use
+		// of the hash.Hash interface and it creates a longer byte slice that gets
+		// truncated when inserted in the DB table.
+		//
+		// That's because sha1.Sum takes the data to checksum as argument, while
+		// hash.Hash.Sum takes a byte slice to *store the checksum* of whatever was
+		// written to the hash.Hash interface! Subtle but critical difference.
+		//
+		// The correct usage (that would also work) of hash.Hash is:
+		//   h := sha1.New()
+		//   h.Write(data)
+		//   sha1Sum := h.Sum(nil)
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
 		incomingSourcesBySHA1[normalizedSHA1] = append(incomingSourcesBySHA1[normalizedSHA1], certSourceToSet{
 			Source:   cert.Source,
@@ -337,7 +350,6 @@ INSERT INTO host_certificates (
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting host certificates")
 	}
-
 	return nil
 }
 

@@ -13270,10 +13270,11 @@ func (s *integrationTestSuite) TestHostCertificates() {
 	}
 	certs := make([]*fleet.HostCertificateRecord, 0, len(certNames))
 	for i, name := range certNames {
+		sha1Sum := sha1.Sum([]byte(name))
 		certs = append(certs, &fleet.HostCertificateRecord{
 			HostID:         host.ID,
 			CommonName:     name,
-			SHA1Sum:        sha1.New().Sum([]byte(name)), // nolint: gosec
+			SHA1Sum:        sha1Sum[:],
 			SubjectCountry: "s" + name,
 			IssuerCountry:  "i" + name,
 			NotValidAfter:  notValidAfterTimes[i],
