@@ -184,7 +184,7 @@
     repo: "confidential"
 -
   task: "Vanta check" # TODO tie this to a responsibility
-  startedOn: "2024-04-01"
+  startedOn: "2025-06-09"
   frequency: "Weekly"
   description: "Look for any new actions in Vanta due in the upcoming weeks and create issues to ensure they're done on time."
   moreInfoUrl:
