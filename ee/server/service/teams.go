@@ -166,6 +166,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		windowsUpdatesUpdated         bool
 		macOSDiskEncryptionUpdated    bool
 		macOSEnableEndUserAuthUpdated bool
+		conditionalAccessUpdated      bool
 	)
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
@@ -274,6 +275,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			); err != nil {
 				return nil, ctxerr.Wrap(ctx, err)
 			}
+			conditionalAccessUpdated = team.Config.Integrations.ConditionalAccessEnabled.Value != payload.Integrations.ConditionalAccessEnabled.Value
 			team.Config.Integrations.ConditionalAccessEnabled = payload.Integrations.ConditionalAccessEnabled
 		}
 	}
@@ -410,6 +412,32 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if macOSEnableEndUserAuthUpdated {
 		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update macos setup enable end user auth")
+		}
+	}
+	// Create activity if conditional access was enabled or disabled for the team.
+	if conditionalAccessUpdated {
+		if team.Config.Integrations.ConditionalAccessEnabled.Value {
+			if err := svc.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeEnabledConditionalAccessAutomations{
+					TeamID:   &team.ID,
+					TeamName: team.Name,
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
+			}
+		} else {
+			if err := svc.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeDisabledConditionalAccessAutomations{
+					TeamID:   &team.ID,
+					TeamName: team.Name,
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
+			}
 		}
 	}
 	return team, err
@@ -1154,6 +1182,19 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 
+	if conditionalAccessEnabled.Set && conditionalAccessEnabled.Value {
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEnabledConditionalAccessAutomations{
+				TeamID:   &tm.ID,
+				TeamName: tm.Name,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for conditional access")
+		}
+	}
+
 	if enableDiskEncryption && appCfg.MDM.EnabledAndConfigured {
 		// TODO: Are we missing an activity or anything else for BitLocker here?
 		if err := svc.MDMAppleEnableFileVaultAndEscrow(ctx, &tm.ID); err != nil {
@@ -1362,6 +1403,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
 	}
 
+	oldConditionalAccessEnabled := team.Config.Integrations.ConditionalAccessEnabled.Value
 	if spec.Integrations.ConditionalAccessEnabled != nil {
 		if err := fleet.ValidateConditionalAccessIntegration(ctx,
 			svc,
@@ -1471,6 +1513,37 @@ func (svc *Service) editTeamFromSpec(
 	if mdmIPadOSUpdatesEdited {
 		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
 			return err
+		}
+	}
+
+	// Create activity if conditional access was enabled or disabled for the team.
+	if spec.Integrations.ConditionalAccessEnabled != nil {
+		if *spec.Integrations.ConditionalAccessEnabled {
+			if !oldConditionalAccessEnabled {
+				if err := svc.NewActivity(
+					ctx,
+					authz.UserFromContext(ctx),
+					fleet.ActivityTypeEnabledConditionalAccessAutomations{
+						TeamID:   &team.ID,
+						TeamName: team.Name,
+					},
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
+				}
+			}
+		} else {
+			if oldConditionalAccessEnabled {
+				if err := svc.NewActivity(
+					ctx,
+					authz.UserFromContext(ctx),
+					fleet.ActivityTypeDisabledConditionalAccessAutomations{
+						TeamID:   &team.ID,
+						TeamName: team.Name,
+					},
+				); err != nil {
+					return ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
+				}
+			}
 		}
 	}
 

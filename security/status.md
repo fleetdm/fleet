@@ -89,7 +89,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** The fleetctl tool is used by IT admins to generate packages so the vulnerable code cannot be controlled by attackers.
-- **Products:**: `fleetctl`,`pkg:golang/github.com/goreleaser/nfpm/v2`
+- **Products:**: `fleetctl`,`pkg:maven/commons-beanutils/commons-beanutils`
 - **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
 - **Timestamp:** 2025-06-02 07:33:44
 
