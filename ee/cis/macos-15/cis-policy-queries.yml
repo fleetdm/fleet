@@ -2163,14 +2163,14 @@ spec:
     SELECT 1 WHERE 
       EXISTS (
         SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.login.mcx.DisableAutoLoginClient' AND 
-            name='Disable' AND 
+            domain='com.apple.loginwindow' AND 
+            name='com.apple.login.mcx.DisableAutoLoginClient' AND 
             (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.login.mcx.DisableAutoLoginClient' AND 
-            name='Disable' AND 
+            domain='com.apple.loginwindow' AND 
+            name='com.apple.login.mcx.DisableAutoLoginClient' AND 
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
