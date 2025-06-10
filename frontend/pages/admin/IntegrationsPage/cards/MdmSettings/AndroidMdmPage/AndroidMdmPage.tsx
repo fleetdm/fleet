@@ -89,8 +89,18 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
         `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},top=${top},left=${left}`
       );
       setSetupSse(true);
-    } catch (e) {
-      renderFlash("error", "Couldn't connect. Please try again");
+    } catch (e: any) {
+      if (
+        e.data?.errors &&
+        e.data.errors[0].reason?.includes("android enterprise already exists")
+      ) {
+        renderFlash(
+          "error",
+          "Couldn't connect. Android enterprise already exists for this Fleet server. Please contact Fleet support for help."
+        );
+      } else {
+        renderFlash("error", "Couldn't connect. Please try again");
+      }
     }
     setFetchingSignupUrl(false);
   };
