@@ -935,6 +935,92 @@ const HostDetailsPage = ({
     (isIosOrIpadosHost || isDarwinHost) &&
     !!hostCertificates?.certificates.length;
 
+  const renderSoftwareCard = () => {
+    return (
+      <Card
+        className={`${baseClass}__software-card`}
+        borderRadiusSize="xxlarge"
+        paddingSize="xlarge"
+        includeShadow
+      >
+        {isPremiumTier ? (
+          <>
+            <TabList>
+              <Tab>Inventory</Tab>
+              <Tab>Library</Tab>
+            </TabList>
+            <TabPanel>
+              <SoftwareInventoryCard
+                id={host.id}
+                platform={host.platform}
+                softwareUpdatedAt={host.software_updated_at}
+                hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
+                hostScriptsEnabled={host.scripts_enabled || false}
+                isSoftwareEnabled={featuresConfig?.enable_software_inventory}
+                router={router}
+                queryParams={parseHostSoftwareQueryParams(location.query)}
+                pathname={location.pathname}
+                onShowSoftwareDetails={setSelectedSoftwareDetails}
+                hostTeamId={host.team_id || 0}
+                hostMDMEnrolled={host.mdm.connected_to_fleet}
+              />
+              {isDarwinHost && macadmins?.munki?.version && (
+                <MunkiIssuesCard
+                  isLoading={isLoadingHost}
+                  munkiIssues={macadmins.munki_issues}
+                  deviceType={host?.platform === "darwin" ? "macos" : ""}
+                />
+              )}
+            </TabPanel>
+            <TabPanel>
+              <SoftwareLibraryCard
+                id={host.id}
+                platform={host.platform}
+                softwareUpdatedAt={host.software_updated_at}
+                hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
+                hostScriptsEnabled={host.scripts_enabled || false}
+                isSoftwareEnabled={featuresConfig?.enable_software_inventory}
+                router={router}
+                queryParams={{
+                  ...parseHostSoftwareQueryParams(location.query),
+                  available_for_install: true,
+                }}
+                pathname={location.pathname}
+                onShowSoftwareDetails={onShowSoftwareDetails}
+                hostTeamId={host.team_id || 0}
+                hostMDMEnrolled={host.mdm.connected_to_fleet}
+              />
+            </TabPanel>
+          </>
+        ) : (
+          <>
+            <SoftwareInventoryCard
+              id={host.id}
+              platform={host.platform}
+              softwareUpdatedAt={host.software_updated_at}
+              hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
+              hostScriptsEnabled={host.scripts_enabled || false}
+              isSoftwareEnabled={featuresConfig?.enable_software_inventory}
+              router={router}
+              queryParams={parseHostSoftwareQueryParams(location.query)}
+              pathname={location.pathname}
+              onShowSoftwareDetails={setSelectedSoftwareDetails}
+              hostTeamId={host.team_id || 0}
+              hostMDMEnrolled={host.mdm.connected_to_fleet}
+            />
+            {isDarwinHost && macadmins?.munki?.version && (
+              <MunkiIssuesCard
+                isLoading={isLoadingHost}
+                munkiIssues={macadmins.munki_issues}
+                deviceType={host?.platform === "darwin" ? "macos" : ""}
+              />
+            )}
+          </>
+        )}
+      </Card>
+    );
+  };
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -1101,71 +1187,7 @@ const HostDetailsPage = ({
                   selectedIndex={getSoftwareTabIndex(location.pathname)}
                   onSelect={(i) => navigateToSoftwareTab(i)}
                 >
-                  <Card
-                    className={`${baseClass}__software-card`}
-                    borderRadiusSize="xxlarge"
-                    paddingSize="xlarge"
-                    includeShadow
-                  >
-                    <TabList>
-                      <Tab>Inventory</Tab>
-                      <Tab>Library</Tab>
-                    </TabList>
-                    <TabPanel>
-                      <SoftwareInventoryCard
-                        id={host.id}
-                        platform={host.platform}
-                        softwareUpdatedAt={host.software_updated_at}
-                        hostCanWriteSoftware={
-                          !!host.orbit_version || isIosOrIpadosHost
-                        }
-                        hostScriptsEnabled={host.scripts_enabled || false}
-                        isSoftwareEnabled={
-                          featuresConfig?.enable_software_inventory
-                        }
-                        router={router}
-                        queryParams={parseHostSoftwareQueryParams(
-                          location.query
-                        )}
-                        pathname={location.pathname}
-                        onShowSoftwareDetails={setSelectedSoftwareDetails}
-                        hostTeamId={host.team_id || 0}
-                        hostMDMEnrolled={host.mdm.connected_to_fleet}
-                      />
-                      {isDarwinHost && macadmins?.munki?.version && (
-                        <MunkiIssuesCard
-                          isLoading={isLoadingHost}
-                          munkiIssues={macadmins.munki_issues}
-                          deviceType={
-                            host?.platform === "darwin" ? "macos" : ""
-                          }
-                        />
-                      )}
-                    </TabPanel>
-                    <TabPanel>
-                      <SoftwareLibraryCard
-                        id={host.id}
-                        platform={host.platform}
-                        softwareUpdatedAt={host.software_updated_at}
-                        hostCanWriteSoftware={
-                          !!host.orbit_version || isIosOrIpadosHost
-                        }
-                        hostScriptsEnabled={host.scripts_enabled || false}
-                        isSoftwareEnabled={
-                          featuresConfig?.enable_software_inventory
-                        }
-                        router={router}
-                        queryParams={{
-                          ...parseHostSoftwareQueryParams(location.query),
-                          available_for_install: true,
-                        }}
-                        pathname={location.pathname}
-                        onShowSoftwareDetails={onShowSoftwareDetails}
-                        hostTeamId={host.team_id || 0}
-                        hostMDMEnrolled={host.mdm.connected_to_fleet}
-                      />
-                    </TabPanel>
-                  </Card>
+                  {renderSoftwareCard()}
                 </Tabs>
               </TabNav>
             </TabPanel>
