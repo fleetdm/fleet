@@ -1255,9 +1255,9 @@ to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
 
 To use webhook logging for query results, the following two Fleet config values must *both* be set:
 
-### Set log method to 'webhook' in one of 3 ways:
-- command line flag `--osquery_result_log_plugin="webhook"`
-- Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN="webhook"`
+### Set log method to 'webhook' by
+- command line flag `--osquery_result_log_plugin="webhook"`,
+- Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN="webhook"`, or
 - Config file:
   ```yaml
   osquery:
@@ -1266,9 +1266,9 @@ To use webhook logging for query results, the following two Fleet config values 
 
 and
 
-### Set the desired result URL:
-- command line flag `--webhook_result_url="<target_result_url>"`
-- Environment variable: `FLEET_WEBHOOK_RESULT_URL="<target_result_url>"`
+### Set the desired result URL by
+- command line flag `--webhook_result_url="<target_result_url>"`,
+- Environment variable: `FLEET_WEBHOOK_RESULT_URL="<target_result_url>"`, or
 - Config file:
   ```yaml
   webhook:
