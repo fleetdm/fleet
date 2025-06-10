@@ -1267,7 +1267,7 @@ To use webhook logging for query results, the following two Fleet config values 
 and
 
 ### Set the desired result URL by
-- command line flag `--webhook_result_url="<target_result_url>"`,
+- Command line flag: `--webhook_result_url="<target_result_url>"`,
 - Environment variable: `FLEET_WEBHOOK_RESULT_URL="<target_result_url>"`, or
 - Config file:
   ```yaml
