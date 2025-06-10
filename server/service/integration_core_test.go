@@ -13270,7 +13270,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 	}
 	certs := make([]*fleet.HostCertificateRecord, 0, len(certNames))
 	for i, name := range certNames {
-		sha1Sum := sha1.Sum([]byte(name))
+		sha1Sum := sha1.Sum([]byte(name)) // nolint:gosec
 		certs = append(certs, &fleet.HostCertificateRecord{
 			HostID:         host.ID,
 			CommonName:     name,
