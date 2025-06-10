@@ -3936,7 +3936,6 @@ func ReconcileAppleProfiles(
 	}
 
 	// Map of host UUID->User Channel enrollment ID so that we can cache them per-device
-	// TODO EJM We may need a "bulk" method for loading these to reduce DB load
 	userEnrollmentMap := make(map[string]string)
 
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
@@ -4036,7 +4035,9 @@ func ReconcileAppleProfiles(
 			}
 			installTargets[p.ProfileUUID] = target
 		}
-		if p.Scope == "User" {
+
+		sentToUserChannel := false
+		if p.Scope == fleet.PayloadScopeUser {
 			userEnrollment, ok := userEnrollmentMap[p.HostUUID]
 			if !ok {
 				userNanoEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, p.HostUUID)
@@ -4044,16 +4045,22 @@ func ReconcileAppleProfiles(
 					return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
 				}
 				// TODO EJM We can't just error out here - need to do something different
-				if userNanoEnrollment == nil {
-					return ctxerr.New(ctx, fmt.Sprintf("no user enrollment found for host %s", p.HostUUID))
+				if userNanoEnrollment != nil {
+					userEnrollment = userNanoEnrollment.ID
+					userEnrollmentMap[p.HostUUID] = userEnrollment
+				} else {
+					level.Warn(logger).Log("msg", "host does not have a user enrollment, falling back to system enrollment for user scoped profile",
+						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
 				}
-				userEnrollment = userNanoEnrollment.ID
-				userEnrollmentMap[p.HostUUID] = userEnrollment
 			}
 			if userEnrollment != "" {
+				sentToUserChannel = true
 				target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
 			}
-		} else {
+		}
+
+		if !sentToUserChannel {
+			p.Scope = fleet.PayloadScopeSystem
 			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
 
@@ -4103,17 +4110,18 @@ func ReconcileAppleProfiles(
 			removeTargets[p.ProfileUUID] = target
 		}
 
-		// TODO EJM We should clean up this logic to share with install above
-		if p.Scope == "User" {
+		if p.Scope == fleet.PayloadScopeUser {
 			userEnrollment, ok := userEnrollmentMap[p.HostUUID]
 			if !ok {
 				userNanoEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, p.HostUUID)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
 				}
-				// TODO EJM We can't just error out here - need to do something different
+				// TODO Jordan Is there a better way to handle this?
 				if userNanoEnrollment == nil {
-					return ctxerr.New(ctx, fmt.Sprintf("no user enrollment found for host %s", p.HostUUID))
+					level.Warn(logger).Log("msg", "host does not have a user enrollment, cannot remove user scoped profile",
+						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
+					continue
 				}
 				userEnrollment = userNanoEnrollment.ID
 				userEnrollmentMap[p.HostUUID] = userEnrollment

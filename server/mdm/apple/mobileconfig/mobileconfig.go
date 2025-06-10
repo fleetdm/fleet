@@ -136,10 +136,10 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	if p.PayloadDisplayName == "" {
 		return nil, errors.New("empty PayloadDisplayName in profile")
 	}
-	// TODO EJM PayloadScope is optional and according to
+	// PayloadScope is optional and according to
 	// Apple(https://developer.apple.com/business/documentation/Configuration-Profile-Reference.pdf
 	// p6) defaults to "User". We've always sent them to the Device channel but now we're saying
-	// "User" means use the user channel. For backwards compatibility  I am maintaining existing
+	// "User" means use the user channel. For backwards compatibility we are maintaining existing
 	// behavior of defaulting to device channel below but we should consider whether this is correct.
 	if p.PayloadScope == "" {
 		p.PayloadScope = "System"

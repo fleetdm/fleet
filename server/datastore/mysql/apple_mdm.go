@@ -639,7 +639,6 @@ WHERE
 	return profiles, nil
 }
 
-// TODO EJM Update?
 func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string,
 	profileUUID string, caName string,
 ) (*fleet.HostMDMCertificateProfile, error) {
@@ -873,7 +872,6 @@ func (ds *Datastore) GetVPPCommandResults(ctx context.Context, commandUUID strin
 		ctx,
 		ds.reader(ctx),
 		&results,
-		// TODO EJM Maybe update for user channel?
 		`
 SELECT
     ncr.id as host_uuid,
@@ -928,7 +926,6 @@ WHERE ua.id IS NOT NULL OR hvsi.id IS NOT NULL
 }
 
 func (ds *Datastore) GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
-	// TODO EJM Maybe update for user channel?
 	query := `
 SELECT
     ncr.id as host_uuid,
@@ -967,7 +964,8 @@ func (ds *Datastore) ListMDMAppleCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMAppleCommand, error) {
-	// TODO EJM Maybe update for user channel?
+	// TODO Jordan Do we need to update this for the user channel? We don't yet allow raw commands sent
+	// to it so I think no?
 	stmt := fmt.Sprintf(`
 SELECT
     nvq.id as device_id,
@@ -1091,7 +1089,6 @@ func (ds *Datastore) MDMAppleListDevices(ctx context.Context) ([]fleet.MDMAppleD
 		ctx,
 		ds.writer(ctx),
 		&devices,
-		// TODO EJM Maybe update for user channel?
 		`
 SELECT
     d.id,
@@ -2045,7 +2042,6 @@ VALUES
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
-  -- TODO EJM Not sure if Scope should be changeable?
   scope = VALUES(scope),
   checksum = VALUES(checksum),
   name = VALUES(name),
@@ -2754,7 +2750,6 @@ func generateDesiredStateQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
-	// TODO EJM Maybe update for user channel?
 	return os.Expand(`
 	-- non label-based entities
 	SELECT
@@ -3067,7 +3062,6 @@ func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, uuids []st
 		return nil, nil
 	}
 
-	// TODO EJM should we get scope?
 	stmt := `
           SELECT profile_uuid, mobileconfig as mobileconfig
           FROM mdm_apple_configuration_profiles WHERE profile_uuid IN (?)
