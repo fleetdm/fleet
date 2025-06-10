@@ -55,6 +55,7 @@ type Settings struct {
 	AssertionConsumerServiceURL string
 	SessionStore                SessionStore
 	OriginalURL                 string
+	CacheLifetime               uint
 }
 
 func GetMetadata(config *fleet.SSOProviderSettings) (*Metadata, error) {

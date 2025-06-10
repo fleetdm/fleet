@@ -703,6 +703,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 		AssertionConsumerServiceURL: appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 "/api/v1/fleet/mdm/sso/callback",
+		CacheLifetime:               uint(svc.config.Auth.SSOCacheLifetime.Seconds()),
 	}
 
 	idpURL, err := sso.CreateAuthorizationRequest(&authSettings, settings.EntityID)

@@ -75,10 +75,14 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 	}
 
 	// cache metadata so we can check the signatures on the response we get from the IDP
+	lifetime := settings.CacheLifetime
+	if lifetime == 0 {
+		lifetime = cacheLifetime
+	}
 	err = settings.SessionStore.create(requestID,
 		settings.OriginalURL,
 		metadataWriter.String(),
-		cacheLifetime,
+		lifetime,
 	)
 	if err != nil {
 		return "", fmt.Errorf("caching metadata while creating auth request: %w", err)

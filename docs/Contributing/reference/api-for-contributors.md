@@ -3049,6 +3049,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results)
 - [Install self-service software](#install-self-service-software)
 - [Uninstall software via self-service](#uninstall-software-via-self-service)
+- [Get device's software uninstall results](#get-devices-software-uninstall-results)
 - [Get device's policies](#get-devices-policies)
 - [Get device's certificate](#get-devices-certificate)
 - [Get device's API features](#get-devices-api-features)
@@ -3368,6 +3369,43 @@ Uninstalls software from a host via the My device page.
 | software_title_id | integer    | path | **Required**. The software title's ID.           |
 
 #### Example
+
+### Get device's software uninstall results
+
+_Available in Fleet Premium._
+
+`GET /api/v1/fleet/device/{token}/software/uninstall/result/{execution_id}`
+
+Get the results of a software uninstall if it was performed on the authenticated host.
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| token | string | path | **Required**. The device's authentication token. |
+| execution_id | string | path | **Required**. The uninstall script execution ID. |
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/result/b15ce221-e22e-4c6a-afe7-5b3400a017da`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "script_contents": "#!/bin/bash\necho 'Uninstalling software...'\nexit 0",
+  "script_id": null,
+  "exit_code": 0,
+  "output": "Uninstalling software...",
+  "message": "",
+  "hostname": "Marko's MacBook Pro",
+  "host_timeout": false,
+  "host_id": 123,
+  "execution_id": "b15ce221-e22e-4c6a-afe7-5b3400a017da",
+  "runtime": 1,
+  "created_at": "2023-04-04T00:00:00Z"
+}
+```
 
 `POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/123`
 

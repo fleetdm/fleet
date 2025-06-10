@@ -137,8 +137,9 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
-	BcryptCost  int `yaml:"bcrypt_cost"`
-	SaltKeySize int `yaml:"salt_key_size"`
+	BcryptCost       int           `yaml:"bcrypt_cost"`
+	SaltKeySize      int           `yaml:"salt_key_size"`
+	SSOCacheLifetime time.Duration `yaml:"sso_cache_lifetime"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -1085,6 +1086,8 @@ func (man Manager) addConfigs() {
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
 		"Size of salt for passwords")
+	man.addConfigDuration("auth.sso_cache_lifetime", 300*time.Second,
+		"Lifetime of SSO authorization request cache")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1495,8 +1498,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKey:                  man.getConfigString("server.private_key"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
+			BcryptCost:       man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:      man.getConfigInt("auth.salt_key_size"),
+			SSOCacheLifetime: man.getConfigDuration("auth.sso_cache_lifetime"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -2024,8 +2028,9 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			BcryptCost:  6, // Low cost keeps tests fast
-			SaltKeySize: 24,
+			BcryptCost:       6, // Low cost keeps tests fast
+			SaltKeySize:      24,
+			SSOCacheLifetime: 300 * time.Second,
 		},
 		Session: SessionConfig{
 			KeySize:  64,
