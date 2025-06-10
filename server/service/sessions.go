@@ -401,6 +401,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 redirectURL,
+		SessionTTL:                  uint(svc.config.Auth.SsoSessionValidityPeriod.Seconds()),
 	}
 
 	// If issuer is not explicitly set, default to host name.
