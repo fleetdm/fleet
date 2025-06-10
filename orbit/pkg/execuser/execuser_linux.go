@@ -19,30 +19,34 @@ import (
 
 // run uses sudo to run the given path as login user.
 func run(path string, opts eopts) (lastLogs string, err error) {
-	args, err := getUserAndDisplayArgs(path, opts)
+	args, env, err := getUserAndDisplayArgs(path, opts)
 	if err != nil {
 		return "", fmt.Errorf("get args: %w", err)
 	}
 
-	args = append(args,
+	env = append(env,
 		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
 		//
 		// Fleet Desktop doesn't use libayatana-appindicator3 since 1.18.3, but we need to
 		// keep this to support older versions of Fleet Desktop.
 		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
-		path,
 	)
+
+	env = append(env, path)
 
 	if len(opts.args) > 0 {
 		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
+			env = append(env, arg[0], arg[1])
 		}
 	}
 
-	cmd := exec.Command("sudo", args...)
+	args = append(args, "-c", strings.Join(env, " "))
+
+	cmd := exec.Command("runuser", args...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
-	log.Printf("cmd=%s", cmd.String())
+	// log.Printf("cmd=%s", cmd.String())
+	log.Info().Str("cmd", cmd.String()).Msg("running command")
 
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("open path %q: %w", path, err)
@@ -52,7 +56,7 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 
 // run uses sudo to run the given path as login user and waits for the process to finish.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
-	args, err := getUserAndDisplayArgs(path, opts)
+	args, env, err := getUserAndDisplayArgs(path, opts)
 	if err != nil {
 		return nil, -1, fmt.Errorf("get args: %w", err)
 	}
@@ -118,10 +122,10 @@ func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
 	return stdin, nil
 }
 
-func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
+func getUserAndDisplayArgs(path string, opts eopts) ([]string, []string, error) {
 	user, err := getLoginUID()
 	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
+		return nil, nil, fmt.Errorf("get user: %w", err)
 	}
 
 	log.Info().Str("user", user.name).Int64("id", user.id).Msg("attempting to get user session type and display")
@@ -171,18 +175,19 @@ func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 		Str("session_type", userDisplaySessionType.String()).
 		Msg("running sudo")
 
-	args := argsForSudo(user, opts)
+	args := []string{"-l", user.name}
+	env := make([]string, 0)
 
 	if userDisplaySessionType == guiSessionTypeWayland {
-		args = append(args, "WAYLAND_DISPLAY="+display)
+		env = append(env, "WAYLAND_DISPLAY="+display)
 		// For xdg-open to work on a Wayland session we still need to set the DISPLAY variable.
 		x11Display := ":" + strings.TrimPrefix(display, "wayland-")
-		args = append(args, "DISPLAY="+x11Display)
+		env = append(env, "DISPLAY="+x11Display)
 	} else {
-		args = append(args, "DISPLAY="+display)
+		env = append(env, "DISPLAY="+display)
 	}
 
-	args = append(args,
+	env = append(env,
 		// DBUS_SESSION_BUS_ADDRESS sets the location of the user login session bus.
 		// Required by the libayatana-appindicator3 library to display a tray icon
 		// on the desktop session.
@@ -192,7 +197,7 @@ func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.id),
 	)
 
-	return args, nil
+	return args, env, nil
 }
 
 type user struct {
