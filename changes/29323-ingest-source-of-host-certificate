@@ -1,1 +1,1 @@
-* Added the `source` field for host certificates, reporting 'system' or 'user' based on which keychain it was from (for `macOS`, it will be 'user' if coming from the "login" keychain).
+* Added the `source` and `username` fields for host certificates, reporting 'system' or 'user' based on which keychain it was from (for `macOS`, it will be 'user' if coming from the "login" keychain), and the corresponding `username` if the source is 'user'.
