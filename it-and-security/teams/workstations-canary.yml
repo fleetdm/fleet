@@ -186,12 +186,11 @@ software:
     - app_store_id: '409183694' # Keynote
       self_service: true
   fleet_maintained_apps:
+    # macOS apps
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
-    - slug: brave-browser/windows # Brave for Windows
-      self_service: true
     - slug: docker/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -202,13 +201,10 @@ software:
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
-    - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
-      self_service: true
-      categories:
-        - Communication
-        - Productivity
     - slug: microsoft-teams/darwin # Microsoft Teams for macOS
       self_service: true
-      categories:
-        - Communication
-        - Productivity
+    # Windows apps
+    - slug: brave-browser/windows # Brave for Windows
+      self_service: true
+    - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
+      self_service: true
