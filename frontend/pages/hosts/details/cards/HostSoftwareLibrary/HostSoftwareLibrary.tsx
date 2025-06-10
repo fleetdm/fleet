@@ -8,7 +8,7 @@ import hostAPI, {
   IHostSoftwareQueryKey,
 } from "services/entities/hosts";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { HostPlatform, isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { HostPlatform, isAndroid } from "interfaces/platform";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
