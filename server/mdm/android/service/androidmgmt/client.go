@@ -13,9 +13,10 @@ type Client interface {
 	// See: https://developers.google.com/android/management/reference/rest/v1/signupUrls/create
 	SignupURLsCreate(ctx context.Context, serverURL, callbackURL string) (*android.SignupDetails, error)
 
-	// EnterprisesCreate creates an enterprise as well as the PubSub subscription to receive notifications from Google.
+	// EnterprisesCreate creates an enterprise as well as the PubSub topic/subscription to receive notifications from Google.
 	// This is the last step in the enterprise signup flow.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/create
+	// For PubSub integration, see: https://developers.google.com/android/management/notifications
 	EnterprisesCreate(ctx context.Context, req EnterprisesCreateRequest) (EnterprisesCreateResponse, error)
 
 	// EnterprisesPoliciesPatch updates or creates a policy.
@@ -27,7 +28,7 @@ type Client interface {
 	EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
 		token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
-	// EnterpriseDelete permanently deletes an enterprise and all accounts and data associated with it.
+	// EnterpriseDelete permanently deletes an enterprise and all accounts and data associated with it, including PubSub topic/subscription.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/delete
 	EnterpriseDelete(ctx context.Context, enterpriseName string) error
 
@@ -51,9 +52,9 @@ type EnterprisesCreateRequest struct {
 type EnterprisesCreateResponse struct {
 	// EnterpriseName is the Google name of the Android Enterprise, like: enterprise/LC00r8aycu
 	EnterpriseName string
-	// FleetServerSecret is the secret used to authenticate with fleetdm.com.
+	// FleetServerSecret is the secret used to authenticate with fleetdm.com. It is encrypted at rest.
 	FleetServerSecret string
-	// TopicName is the Google PubSub topic name, like: projects/project_id/topics/topic_id. It is only present Google API is used
+	// TopicName is the Google PubSub topic name, like: projects/project_id/topics/topic_id. It is only present Google API client is used
 	// directly (no proxy). We save it for debugging purposes.
 	TopicName string
 }

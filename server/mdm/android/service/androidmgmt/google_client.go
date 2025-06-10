@@ -20,6 +20,7 @@ import (
 )
 
 // GoogleClient connects directly to Google's Android Management API. It is intended to be used for development/debugging.
+// To enable, set the following env vars: FLEET_DEV_ANDROID_GOOGLE_CLIENT=1 and FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS=$(cat credentials.json)
 type GoogleClient struct {
 	logger                    kitlog.Logger
 	mgmt                      *androidmanagement.Service
@@ -80,7 +81,7 @@ func (g *GoogleClient) EnterprisesCreate(ctx context.Context, req EnterprisesCre
 		return res, errors.New("android management service not initialized")
 	}
 
-	topicName, err := g.createPubSubTopic(ctx, req.PubSubPushURL)
+	topicName, err := g.createPubSub(ctx, req.PubSubPushURL)
 	if err != nil {
 		return res, fmt.Errorf("creating PubSub topic: %w", err)
 	}
@@ -105,7 +106,8 @@ func (g *GoogleClient) EnterprisesCreate(ctx context.Context, req EnterprisesCre
 	return res, nil
 }
 
-func (g *GoogleClient) createPubSubTopic(ctx context.Context, pushURL string) (string, error) {
+// createPubSub creates the PubSub topic and subscription
+func (g *GoogleClient) createPubSub(ctx context.Context, pushURL string) (string, error) {
 	pubSubClient, err := pubsub.NewClient(ctx, g.androidProjectID, option.WithCredentialsJSON([]byte(g.androidServiceCredentials)))
 	if err != nil {
 		return "", fmt.Errorf("creating PubSub client: %w", err)
@@ -122,7 +124,8 @@ func (g *GoogleClient) createPubSubTopic(ctx context.Context, pushURL string) (s
 	if err != nil {
 		return "", fmt.Errorf("creating PubSub topic: %w", err)
 	}
-	// Grand Android device policy the right to publish
+
+	// Grant Android device policy the right to publish
 	// See: https://developers.google.com/android/management/notifications
 	policy, err := topic.IAM().Policy(ctx) // Ensure the topic exists before creating the subscription
 	if err != nil {

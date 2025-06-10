@@ -40,10 +40,12 @@ func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string
 	}
 
 	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	// We use the same client that we use to directly connect to Google to minimize issues/maintenance.
+	// But we point it to our proxy endpoint instead of Google.
 	mgmt, err := androidmanagement.NewService(ctx,
 		option.WithEndpoint(proxyEndpoint),
 		option.WithLogger(slogLogger),
-		// The API key is required but not used by this client. Instead, we use the FleetServerSecret as a bearer token.
+		// The API key is required to exist but not used by this client. Instead, we use the FleetServerSecret as a bearer token.
 		option.WithAPIKey("not_used"),
 		option.WithHTTPClient(fleethttp.NewClient()),
 	)
@@ -64,6 +66,8 @@ func (p *ProxyClient) SetAuthenticationSecret(secret string) error {
 	return nil
 }
 
+// SignupURLsCreate hits the unauthenticated endpoint of the proxy. If a record already exists for this serverURL,
+// then the proxy will return a conflict error.
 func (p *ProxyClient) SignupURLsCreate(ctx context.Context, serverURL, callbackURL string) (*android.SignupDetails, error) {
 	if p == nil || p.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
@@ -83,6 +87,9 @@ func (p *ProxyClient) SignupURLsCreate(ctx context.Context, serverURL, callbackU
 	}, nil
 }
 
+// EnterprisesCreate hits a custom endpoint of the proxy that does not exactly match the Google API's counterpart.
+// The reason is that we are passing additional information such as license key, pubSubURL, etc. Because of that,
+// we use a separate HTTP client in this method.
 func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCreateRequest) (EnterprisesCreateResponse, error) {
 	if p == nil || p.mgmt == nil {
 		return EnterprisesCreateResponse{}, errors.New("android management service not initialized")
