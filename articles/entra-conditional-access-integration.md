@@ -181,7 +181,9 @@ IMPORTANT: If a device is not MDM-enrolled to Fleet then it will be marked as "n
 
 ### Disabling "Conditional Access" on a team
 
-To disable "Conditional Access" on a team go to `Policies` > `Select team` > `Automations` > `Conditional access` > `Disable`.
+If you need all your hosts on a team to be marked as "Compliant" (e.g. to unblock access to a resource) go to `Policies` > `Select team` > `Automations` > `Conditional access`, uncheck all policies and hit `Save`. The hosts will be marked as "Compliant" the next time they check in with policy results (within one hour, or by refetching manually).
+
+To disable the "Conditional Access" feature on a team go to `Policies` > `Select team` > `Automations` > `Conditional access` > `Disable`.
 Once disabled, hosts will not be reporting compliance status to Entra anymore.
 
 ## GitOps
