@@ -1,13 +1,16 @@
 ## Orbit 1.43.0 (Jun 10, 2025)
 
-* Fixed an issue where the setup experience window would never finish and close if a software installer was deleted while it was running
+* Fixed an issue where the setup experience window would never finish and close if a software installer was deleted while it was running.
 
 * Add `containerd_containers` table on Linux.
 
 * Revised "Migrate to Fleet" link anchor text.
 
-* Added a new Linux table 'lsblk' populated from the output of running 'lsblk -n -O'
-* Added a new Linux table 'cryptsetup_luks_salt', given a device path returns all the key_slots and salts of said device.
+* Added two new Linux tables:
+  * `lsblk`: populated from the output of running `lsblk -n -O`.
+  * `cryptsetup_luks_salt`: given a device path it returns all the key_slots and salts of said device.
+
+* Added new column `cdhash_sha256` to `codesign` table.
 
 ## Orbit 1.42.0 (May 15, 2025)
 
