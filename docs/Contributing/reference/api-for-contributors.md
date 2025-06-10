@@ -3049,7 +3049,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results)
 - [Install self-service software](#install-self-service-software)
 - [Uninstall software via self-service](#uninstall-software-via-self-service)
-- [Get self-service uninstall results](#get-self-service-uninstall-results)
+- [Get uninstall results via self-service](#get-uninstall-results-via-self-service)
 - [Get device's policies](#get-devices-policies)
 - [Get device's certificate](#get-devices-certificate)
 - [Get device's API features](#get-devices-api-features)
@@ -3376,9 +3376,9 @@ Uninstalls software from a host via the My device page.
 
 `Status: 202`
 
-#### Get self-service uninstall results
+#### Get uninstall results via self-service
 
-Gets the result of a self-service uninstall performed on a host via the My device page.
+Gets the result of a uninstall performed on a host, viewed from the My device page.
 
 `GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`
 
