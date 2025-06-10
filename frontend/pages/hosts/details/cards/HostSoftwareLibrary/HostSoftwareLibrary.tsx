@@ -39,7 +39,7 @@ interface IHostInstallersProps {
   queryParams: ReturnType<typeof parseHostSoftwareLibraryQueryParams>;
   pathname: string;
   hostTeamId: number;
-  onShowSoftwareDetails: (software: IHostSoftware) => void;
+  onShowSoftwareDetails: (software?: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
   hostScriptsEnabled?: boolean;
   hostMDMEnrolled?: boolean;
@@ -201,6 +201,7 @@ const HostSoftwareLibrary = ({
       router,
       teamId: hostTeamId,
       baseClass,
+      onShowSoftwareDetails,
     });
   }, [
     router,

@@ -101,6 +101,10 @@
             .status__cell {
               display: table-cell;
               width: auto;
+
+              .component__tooltip-wrapper {
+                margin: 0; // Override 10px vertical margin
+              }
             }
             .Version__cell {
               display: table-cell;
