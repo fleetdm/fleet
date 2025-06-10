@@ -38,18 +38,24 @@
             <p>Run a local demo of the Fleet server:</p>
             <div purpose="terminal-commands">
               <div purpose="command-container">
-                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-if="userHasTrialLicense && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
                 <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
               </div>
               <a purpose="command-copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
             </div>
+            <blockquote purpose="tip" v-if="!userHasTrialLicense && !me">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>To demo Fleet Premium features, <a href="/login">log in</a> or <a href="/register">create an account</a> to get your trial license key.</p>
+              </div>
+            </blockquote>
             <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
                 <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
               </div>
             </blockquote>
-            <blockquote purpose="tip" v-if="trialLicenseKey && !userHasExpiredTrialLicense">
+            <blockquote purpose="tip" v-if="userHasTrialLicense && !userHasExpiredTrialLicense">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
                 <p>This license key is valid for 30 days.</p>
@@ -79,18 +85,24 @@
             <p>Run a local demo of the Fleet server:</p>
             <div purpose="terminal-commands">
               <div purpose="command-container">
-                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-if="userHasTrialLicense && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
                 <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
               </div>
               <a purpose="copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
             </div>
+            <blockquote purpose="tip" v-if="!userHasTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>To demo Fleet Premium features, <a href="/login">log in</a> or <a href="/register">create an account</a> to get your trial license key.</p>
+              </div>
+            </blockquote>
             <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
                 <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
               </div>
             </blockquote>
-            <blockquote purpose="tip" v-if="trialLicenseKey && !userHasExpiredTrialLicense">
+            <blockquote purpose="tip" v-if="userHasTrialLicense && !userHasExpiredTrialLicense">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
                 <p>This license key is valid for 30 days.</p>
@@ -120,18 +132,24 @@
             <p>Run a local demo of the Fleet server:</p>
             <div purpose="terminal-commands">
               <div purpose="command-container">
-                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-if="userHasTrialLicense && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
                 <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
               </div>
               <a purpose="command-copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
             </div>
+            <blockquote purpose="tip" v-if="!userHasTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>To demo Fleet Premium features, <a href="/login">log in</a> or <a href="/register">create an account</a> to get your trial license key.</p>
+              </div>
+            </blockquote>
             <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
                 <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
               </div>
             </blockquote>
-            <blockquote purpose="tip" v-if="trialLicenseKey && !userHasExpiredTrialLicense">
+            <blockquote purpose="tip" v-if="userHasTrialLicense && !userHasExpiredTrialLicense">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
                 <p>This license key is valid for 30 days.</p>
@@ -168,18 +186,24 @@
             <p>Run a local demo of the Fleet server:</p>
             <div purpose="terminal-commands">
               <div purpose="command-container">
-                <code v-if="trialLicenseKey && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
+                <code v-if="userHasTrialLicense && !userHasExpiredTrialLicense">{{fleetctlPreviewTerminalCommand[selectedPlatform]}} --license-key {{trialLicenseKey}}</code>
                 <code v-else>{{fleetctlPreviewTerminalCommand[selectedPlatform]}}</code>
               </div>
               <a purpose="command-copy-button" @click="clickCopyTerminalCommand(selectedPlatform)"></a>
             </div>
+            <blockquote purpose="tip" v-if="!userHasTrialLicense">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>To demo Fleet Premium features, <a href="/login">log in</a> or <a href="/register">create an account</a> to get your trial license key.</p>
+              </div>
+            </blockquote>
             <blockquote purpose="tip" v-if="userHasExpiredTrialLicense">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
                 <p>Your Fleet Premium trial license has expired. You can still run the free version of Fleet locally.</p>
               </div>
             </blockquote>
-            <blockquote purpose="tip" v-if="trialLicenseKey && !userHasExpiredTrialLicense">
+            <blockquote purpose="tip" v-if="userHasTrialLicense && !userHasExpiredTrialLicense">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div class="d-block">
                 <p>This license key is valid for 30 days.</p>
@@ -192,21 +216,6 @@
             <p class="mb-0"><strong>Password</strong>: preview1337#</p>
           </div>
         </div>
-      </div>
-    </div>
-    <div v-if="me">
-      <h2 class="pt-0">Need help?</h2>
-      <p><a purpose="contact-link" href="/contact">Get in touch</a> with us.</p>
-    </div>
-    <div v-else>
-      <h2 class="pt-0">Next steps</h2>
-      <div purpose="next-steps" class="d-flex flex-sm-row flex-column align-items-center">
-        <a purpose="docs-button" href="/docs" class="btn btn-primary">
-          Read the docs
-        </a>
-        <animated-arrow-button href="/docs/deploying" class="d-flex">
-          Deploy to production
-        </animated-arrow-button>
       </div>
     </div>
   </div>
