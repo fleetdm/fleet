@@ -770,7 +770,7 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 
 Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
 
-`POST /api/v1/fleet/certificate_authories/:id/certificate`
+`POST /api/v1/fleet/certificate_authorities/:id/certificate`
 
 #### Parameters
 
@@ -783,7 +783,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is supp
 
 #### Example
 
-`POST /api/v1/fleet/certificates`
+`POST /api/v1/fleet/certificate_authorities/:id/certificate`
 
 ##### Request body
 
