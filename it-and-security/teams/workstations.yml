@@ -165,3 +165,8 @@ software:
       categories:
         - Communication
         - Productivity
+    - slug: microsoft-teams/darwin # Microsoft Teams for macOS
+      self_service: true
+      categories:
+        - Communication
+        - Productivity
