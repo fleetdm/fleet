@@ -45,6 +45,19 @@ The current Fleet server is structured using a **layered architecture** with cle
 **Pilot approach:**
 The pilot introduces an Android-specific Go package within the service layer with its own dedicated handler and service implementations. This package aims to better encapsulate feature logic, providing a clearer boundary and reducing the risk of cross-feature impact. While the new package still interacts with the shared datastore layer and MySQL database, resulting in some necessary coupling at the data layer, the service package keeps its logic as focused and decoupled as possible. The cross-cutting concerns, such as authentication/authorization, are also shared.
 
+Directory structure:
+
+```
+server/
+└── mdm/
+    └── android/
+        └── service/
+            ├── endpoint_utils.go
+            ├── handler.go
+            ├── pubsub.go
+            └── service.go
+```
+
 ## Consequences 🎭
 
 **Benefits:** ✨
@@ -61,7 +74,7 @@ The pilot introduces an Android-specific Go package within the service layer wit
 
 **Impact:** 💫
 
-* 🌊 Minimal disruption to current workflows, as changes are isolated to the service layer.
+* 🌊 Minimal disruption to current workflows, as changes are isolated to the service layer of a specific feature.
 * 🏗️ Sets a precedent and provides a template for future service package separation.
 
 **Future considerations:** 🔮
@@ -94,7 +107,7 @@ The pilot introduces an Android-specific Go package within the service layer wit
 * **Cons:** Adds additional layers and abstraction, may increase development overhead for simpler features, potential learning curve.
 * **Reason not chosen:** While hexagonal architecture offers valuable separation of concerns, the service-oriented architecture offers more immediate incremental benefits with less overhead and a lower barrier to adoption in the existing codebase.
 
-*Note:* A move to a service-oriented architecture does not prevent us from using hexagonal architecture in the future.
+*Note:* A move to a service-oriented architecture does not prevent us from also using hexagonal architecture where needed.
 
 ## References 📖
 
