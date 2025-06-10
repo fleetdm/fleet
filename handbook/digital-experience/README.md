@@ -682,7 +682,8 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       [email subject]
       link: drive.google.com/[destinationFolderID]
    ```
-
+   
+<!-- Weekly update is now automated. See https://zapier.com/webintent/edit-zap/302812151
 ### Send the weekly update
 
 We like to be open about milestones and announcements. Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
@@ -703,7 +704,7 @@ We like to be open about milestones and announcements. Every Friday, e-group mem
 3. In the "Weekly update" column (column E) for that row, double-click into that cell and change the "⚡️" to "🔭" in the beginning of the formula.  
 4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
 5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
-
+-->
 
 ### Prepare for the All hands
 
