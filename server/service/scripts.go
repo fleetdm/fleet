@@ -2,14 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"io"
-	"math"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -1308,54 +1308,22 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	return "", fleet.ErrMissingLicense
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Wipe host
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 
-func (wipeHostRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	//  We need to manually decode the request because the metadata provided via the body is optional
-	req := wipeHostRequest{}
-
-	hostID, err := endpoint_utils.UintFromRequest(r, "id")
-	if err != nil {
-		return nil, err
-	}
-	if hostID > math.MaxUint {
-		return nil, &fleet.BadRequestError{
-			Message: fmt.Sprintf("host ID %d is out of range", hostID),
-		}
-	}
-	req.HostID = uint(hostID)
-
-	body, errR := io.ReadAll(io.LimitReader(r.Body, 100*1024))
-	errC := r.Body.Close()
-	if errR != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "failed to read request body",
-			InternalErr: errR,
-		}
-	}
-	if errC != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "failed to close request body",
-			InternalErr: errC,
-		}
-	}
-
-	if len(body) == 0 {
-		// Body is optional so this is OK...
-		return &req, nil
-	}
-
+func (req *wipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	decoder := json.NewDecoder(io.LimitReader(r, 100*1024))
 	metadata := fleet.MDMWipeMetadata{}
-	if err := json.Unmarshal(body, &metadata); err != nil {
-		return nil, &fleet.BadRequestError{
+	if err := decoder.Decode(&metadata); err != nil {
+		return &fleet.BadRequestError{
 			Message:     "failed to unmarshal request body",
 			InternalErr: err,
 		}
+	} else {
+		req.Metadata = &metadata
 	}
-	req.Metadata = &metadata
-	return &req, nil
+	return nil
 }
 
 type wipeHostRequest struct {

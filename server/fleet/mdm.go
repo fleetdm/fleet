@@ -1008,5 +1008,5 @@ type MDMConfigProfileStatus struct {
 
 // MDMWipeMetadata specifies optional metadata for the remote wipe command
 type MDMWipeMetadata struct {
-	Windows *MDMWindowsWipeMetadata `json:"windows"`
+	Windows *MDMWindowsWipeMetadata
 }
