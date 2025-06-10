@@ -56,7 +56,7 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 
 // run uses sudo to run the given path as login user and waits for the process to finish.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
-	args, env, err := getUserAndDisplayArgs(path, opts)
+	args, _, err := getUserAndDisplayArgs(path, opts)
 	if err != nil {
 		return nil, -1, fmt.Errorf("get args: %w", err)
 	}
@@ -94,7 +94,7 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 }
 
 func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
-	args, err := getUserAndDisplayArgs(path, opts)
+	args, _, err := getUserAndDisplayArgs(path, opts)
 	if err != nil {
 		return nil, fmt.Errorf("get args: %w", err)
 	}
