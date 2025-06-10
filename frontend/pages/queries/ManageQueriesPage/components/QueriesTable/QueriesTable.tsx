@@ -286,7 +286,7 @@ const QueriesTable = ({
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "text-icon",
-            onActionButtonClick: onDeleteQueryClick,
+            onClick: onDeleteQueryClick,
           }}
           emptyComponent={() => EmptyTable(emptyParams)}
           renderCount={() =>

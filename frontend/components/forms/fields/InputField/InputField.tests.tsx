@@ -107,7 +107,7 @@ describe("InputField Component", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: /copy/i })).toBeInTheDocument();
+    expect(screen.getByTestId("copy-icon")).toBeInTheDocument();
   });
 
   test("calls onBlur when input loses focus", async () => {

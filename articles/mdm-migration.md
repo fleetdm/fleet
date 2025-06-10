@@ -20,7 +20,7 @@ To migrate hosts, we will do the following steps:
 
 ### Step 1: Enroll hosts to Fleet
 
-1. First, enroll your hosts to Fleet by installing Fleet's agent (fleetd). Learn how [here](https://fleetdm.com/guides/enroll-hosts).
+1. First, [enroll your hosts](https://fleetdm.com/guides/enroll-hosts) to Fleet by installing Fleet's agent (fleetd).
 2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 
 ### Step 2: Assign hosts in Apple Business Manager (ABM) to Fleet
@@ -55,6 +55,8 @@ Configuration:
 
 > Available in Fleet Premium
 
+![Fleet's MDM migration dialog](../website/assets/images/articles/mdm-migration-dialog.png)
+
 End user experience:
 
 - To watch an animation of the end user experience during the migration workflow, head to **Settings > Integrations > Mobile device management (MDM)** in the Fleet UI, and scroll down to the **End user migration workflow** section.
@@ -70,10 +72,10 @@ Fleet UI:
 2. Scroll down to the **End user migration workflow** section and select the toggle to enable the workflow.
 3. Under **Mode**, choose a mode, enter the webhook URL for your automation tool (e.g., Tines) under **Webhook URL**, and select **Save**.
 4. During the end user migration workflow, an end user's device will have its selected system theme (light or dark) applied. If your logo is not easy to see on both light and dark backgrounds, you can optionally set a logo for each theme:
-Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**.
+Head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**. See [configuration docs](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended sizes for logos.
 5. During migration, end users will see a button that says "Unsure? Contact IT". Head to **Settings** > **Organization settings** > **Organization info** > **Organization support URL** to direct users to your help desk if they have any questions. 
 
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration)
+Fleet API: MDM migration settings are configured via the [`mdm.macos_migration`](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-migration) field on the [Modify configuration API endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration).
 
 GitOps:
   - To manage macOS MDM migration configuration using Fleet's best practice GitOps, check out the `macos_migration` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-migration).
@@ -91,7 +93,7 @@ _Available in Fleet Premium_
 
 When migrating from a previous MDM, end users must restart or log out of their device to escrow FileVault keys to Fleet. The **My device** page in Fleet Desktop will present users with instructions on how to reset their key.
 
-To start, enforce FileVault disk encryption and escrow recovery keys in Fleet. Learn how [here](https://fleetdm.com/guides/enforce-disk-encryption).
+To start, [enforce FileVault disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) in Fleet.
 
 After turning on disk encryption in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 

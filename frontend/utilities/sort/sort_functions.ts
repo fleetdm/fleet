@@ -56,9 +56,26 @@ const hasLength = (a: unknown[], b: unknown[]): number => {
   return 0;
 };
 
+const POLICY_STATUS_PRECEDENCE = ["actionRequired", "fail", "pass"];
+
+const hostPolicyStatus = (a: unknown, b: unknown): number => {
+  const [aI, bI] = [
+    POLICY_STATUS_PRECEDENCE.indexOf(a as string),
+    POLICY_STATUS_PRECEDENCE.indexOf(b as string),
+  ];
+  if (aI > bI) {
+    return 1;
+  }
+  if (aI === bI) {
+    return 0;
+  }
+  return -1;
+};
+
 export default {
   booleanAsc,
   caseInsensitiveAsc,
   dateStringsAsc,
   hasLength,
+  hostPolicyStatus,
 };

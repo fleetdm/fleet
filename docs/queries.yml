@@ -292,35 +292,43 @@ spec:
   description: Retrieves information about the mobile device management (MDM) solution a windows device is enrolled in.
   query: |
     WITH registry_keys AS (
-                            SELECT *
-                            FROM registry
-                            WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
-                        ),
-                        enrollment_info AS (
-                            SELECT
-                                MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-                                MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
-                                MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
-                                MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
-                                MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
-                            FROM registry_keys
-                            GROUP BY key
-                        ),
-                        installation_info AS (
-                            SELECT data AS installation_type
-                            FROM registry
-                            WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-                            LIMIT 1
-                        )
-                        SELECT
-                            e.aad_resource_id,
-                            e.discovery_service_url,
-                            e.provider_id,
-                            i.installation_type
-                        FROM installation_info i
-                        LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
-                        WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-                        LIMIT 1
+                SELECT *
+                FROM registry
+                WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+              ),
+              enrollment_info AS (
+                SELECT
+                  MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+                  MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+                  MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+                  MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                  MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
+                FROM registry_keys
+                GROUP BY key
+              ),
+              installation_info AS (
+                SELECT data AS installation_type
+                FROM registry
+                WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+                LIMIT 1
+              )
+              SELECT
+                e.aad_resource_id,
+                e.discovery_service_url,
+                e.provider_id,
+                i.installation_type
+              FROM installation_info i
+              LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+          -- coalesce to 'unknown' and keep that state in the list
+          -- in order to account for hosts that might not have this
+          -- key, and servers
+              WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
+          -- old enrollments that aren't completely cleaned up may still be aronud
+          -- in the registry so we want to make sure we return the one with an actual
+          -- discovery URL set if there is one. LENGTH is used here to prefer those
+          -- with actual URLs over empty string/null if there are multiple
+              ORDER BY LENGTH(e.discovery_service_url) DESC
+              LIMIT 1;
   powershell: >-
     $installationKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion"
 
@@ -809,7 +817,7 @@ spec:
      FROM users LEFT JOIN cached_groups USING (gid)
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
-      name AS name,
+      COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
       COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
       bundle_identifier AS bundle_identifier,
       '' AS extension_id,
@@ -979,7 +987,7 @@ spec:
   platform: darwin
   description: A software override query to append codesign information to macOS software entries. Requires fleetd
   query: |
-    SELECT a.path, c.team_identifier
+    SELECT c.*
         FROM apps a
         JOIN codesign c ON a.path = c.path
   discovery: codesign
@@ -2551,7 +2559,7 @@ spec:
   name: Get Shimcache table
   platform: windows
   description: Returns forensic data showing evidence of likely file execution, in addition to the last modified timestamp of the file, order of execution, full file path order of execution, and the order in which files were executed.
-  query: select * from Shimcache
+  query: select * from shimcache
   purpose: Informational
   tags: hunting
   contributors: puffyCid

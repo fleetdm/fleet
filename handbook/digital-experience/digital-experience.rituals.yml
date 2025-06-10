@@ -1,10 +1,10 @@
 # https://github.com/fleetdm/fleet/pull/13084
 - 
-  task: "Complete Digital Experience KPIs and send weekly update"
+  task: "Complete Digital Experience KPIs"
   startedOn: "2024-08-30" 
   frequency: "Weekly"
   description: "Complete Digital Experience KPIs for this week"
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
+  moreInfoUrl: 
   dri: "SFriendLee"
 - 
   task: "Confirm consultant hours"
@@ -233,4 +233,34 @@
   description: "Check out the meeting booking flow that you get when you schedule a demo from Fleet's contact form, and make sure there is plenty of availability for the rest of the day in US PT thru ET, with significant spots open in the morning (US time) for folks in EMEA and at least one or two spots open in the evening (US time) for folks in APAC / Hawaii."
   moreInfoUrl: ""
   dri: "onasismunro"
+-
+  task: "Connect with active community members"
+  startedOn: "2025-04-25"
+  frequency: "Weekly"
+  description: "Connect with active community members"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#connect-with-active-community-members"
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
+-
+  task: "Prepare Let's get you set up meeting notes"
+  startedOn: "2025-05-30"
+  frequency: "Weekly"
+  description: "Before each group call, copy the attendees from the Lets get you set up! (group office hours) calendar event and paste them into the correct section of the [Let's get you set up! meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#prepare-lets-get-you-set-up-meeting-notes"
+  dri: "onasismunro"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
+-
+  task: "Check for new versions of osquery schema"
+  startedOn: "2025-06-03"
+  frequency: "Monthly"
+  description: "Make sure the website is using the latest version of the osquery schema."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-for-new-versions-of-osquery-schema"
+  dri: "eashaw"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "fleet"
 

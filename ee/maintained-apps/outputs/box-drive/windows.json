@@ -8,7 +8,10 @@
       "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive-2.44.209.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "de1e8a93",
-      "sha256": "d52c46b8b1c3ee383f712c1e1672eccde790bf8a3cf52d28440be89220924a1b"
+      "sha256": "d52c46b8b1c3ee383f712c1e1672eccde790bf8a3cf52d28440be89220924a1b",
+      "default_categories": [
+        "Productivity"
+      ]
     }
   ],
   "refs": {

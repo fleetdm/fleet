@@ -8,7 +8,10 @@
       "installer_url": "https://e3.boxcdn.net/desktop/releases/mac/BoxDrive-2.43.205.pkg",
       "install_script_ref": "31e1a311",
       "uninstall_script_ref": "d9e98295",
-      "sha256": "200c5fa6d8eec5516924938d46e7fa6122fdc189044fd935e8c155faa5beaf3d"
+      "sha256": "200c5fa6d8eec5516924938d46e7fa6122fdc189044fd935e8c155faa5beaf3d",
+      "default_categories": [
+        "Productivity"
+      ]
     }
   ],
   "refs": {

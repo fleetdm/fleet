@@ -113,7 +113,7 @@ func TestInstallUninstallAuth(t *testing.T) {
 	ds.GetAnyScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
 		return []byte("script"), nil
 	}
-	ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
+	ds.InsertSoftwareUninstallRequestFunc = func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 		return nil
 	}
 
@@ -194,6 +194,41 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	// Host scripts disabled
 	host.ScriptsEnabled = ptr.Bool(false)
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
+}
+
+func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "1Password",
+			Platform:         "darwin",
+			UniqueIdentifier: "com.1password.1password",
+			Slug:             "1password/darwin",
+		}, nil
+	}
+	payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin")}
+	err := svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	assert.Contains(t, payload.URL, "1password")
+	assert.NotEmpty(t, payload.SHA256)
+	assert.NotEmpty(t, payload.InstallScript)
+	assert.NotEmpty(t, payload.UninstallScript)
+	assert.True(t, payload.FleetMaintained)
+
+	// when a slug empty, we no-op and return the payload as is
+	payload = fleet.SoftwareInstallerPayload{URL: "https://fleetdm.com"}
+	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	require.NoError(t, err)
+	assert.Nil(t, payload.Slug)
+	assert.Equal(t, "https://fleetdm.com", payload.URL)
+	assert.Empty(t, payload.SHA256)
+	assert.Empty(t, payload.InstallScript)
+	assert.Empty(t, payload.UninstallScript)
+	assert.False(t, payload.FleetMaintained)
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {

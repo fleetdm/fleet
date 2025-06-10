@@ -67,8 +67,9 @@ module.exports.policies = {
   'view-app-details': true,
   'view-meetups': true,
   'view-os-settings': true,
+  'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,
   'account/update-start-cta-visibility': true,
   'microsoft-proxy/receive-redirect-from-microsoft': true,
-
+  'view-configuration-builder': true,
 };

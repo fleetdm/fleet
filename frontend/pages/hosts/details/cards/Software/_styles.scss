@@ -19,8 +19,8 @@
 
   .host-software-table {
     &__software-filter {
-      min-width: 215px;
-      width: 215px; // Override .form-field 100%
+      min-width: 240px;
+      width: 240px; // Override .form-field 100%
     }
 
     &__filters {
@@ -30,6 +30,10 @@
       .children-wrapper {
         gap: $pad-small;
       }
+    }
+
+    .table-container__search-input .input-with-icon {
+      min-width: 305px; // Fit placeholder text
     }
 
     .data-table-block {

@@ -104,7 +104,7 @@ const CurrentVersionSection = ({
     if (isError) {
       return (
         <DataError
-          className={`${baseClass}__error`}
+          verticalPaddingSize="pad-xxxlarge"
           description="Refresh the page to try again."
           excludeIssueLink
         />

@@ -332,15 +332,23 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		lifecycleErrs := []error{}
+		serialsWithErrs := []string{}
 		for _, host := range hosts {
 			if fleet.MDMSupported(host.Platform) {
-				err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+				if err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 					Action:   mdmlifecycle.HostActionDelete,
 					Host:     host,
 					Platform: host.Platform,
-				})
-				return err
+				}); err != nil {
+					lifecycleErrs = append(lifecycleErrs, err)
+					serialsWithErrs = append(serialsWithErrs, host.HardwareSerial)
+				}
 			}
+		}
+		if len(lifecycleErrs) > 0 {
+			msg := fmt.Sprintf("failed to recreate pending host records for one or more MDM devices: %+v", serialsWithErrs)
+			return ctxerr.Wrap(ctx, errors.Join(lifecycleErrs...), msg)
 		}
 
 		return nil
@@ -556,6 +564,17 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 		// host once team_id is loaded.
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
+		}
+	}
+
+	// recalculate host failing_policies_count & total_issues_count, at most every minute
+	lastUpdated, err := svc.ds.GetHostIssuesLastUpdated(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking host's host_issues last updated:")
+	}
+	if time.Since(lastUpdated) > time.Minute {
+		if err := svc.ds.UpdateHostIssuesFailingPolicies(ctx, []uint{id}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "recalculate host failing policies count:")
 		}
 	}
 
@@ -1209,6 +1228,8 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	var profiles []fleet.HostMDMProfile
+	var mdmLastEnrollment *time.Time
+	var mdmLastCheckedIn *time.Time
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
@@ -1270,6 +1291,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
 				}
+
+				// fetch host last seen at and last enrolled at times, currently only supported for
+				// Apple platforms
+				mdmLastEnrollment, mdmLastCheckedIn, err = svc.ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
+				}
 			}
 		}
 	}
@@ -1320,26 +1348,29 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	host.Policies = policies
 
-	endUsers, err := svc.getEndUsers(ctx, host.ID)
+	endUsers, err := getEndUsers(ctx, svc.ds, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get end users for host")
 	}
 
 	return &fleet.HostDetail{
-		Host:              *host,
-		Labels:            labels,
-		Packs:             packs,
-		Batteries:         &bats,
-		MaintenanceWindow: nextMw,
-		EndUsers:          endUsers,
+		Host:               *host,
+		Labels:             labels,
+		Packs:              packs,
+		Batteries:          &bats,
+		MaintenanceWindow:  nextMw,
+		EndUsers:           endUsers,
+		LastMDMEnrolledAt:  mdmLastEnrollment,
+		LastMDMCheckedInAt: mdmLastCheckedIn,
 	}, nil
 }
 
-func (svc *Service) getEndUsers(ctx context.Context, hostID uint) ([]fleet.HostEndUser, error) {
-	scimUser, err := svc.ds.ScimUserByHostID(ctx, hostID)
+func getEndUsers(ctx context.Context, ds fleet.Datastore, hostID uint) ([]fleet.HostEndUser, error) {
+	scimUser, err := ds.ScimUserByHostID(ctx, hostID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get scim user by host id")
 	}
+
 	var endUsers []fleet.HostEndUser
 	if scimUser != nil {
 		endUser := fleet.HostEndUser{
@@ -1355,10 +1386,12 @@ func (svc *Service) getEndUsers(ctx context.Context, hostID uint) ([]fleet.HostE
 		}
 		endUsers = append(endUsers, endUser)
 	}
-	deviceMapping, err := svc.ds.ListHostDeviceMapping(ctx, hostID)
+
+	deviceMapping, err := ds.ListHostDeviceMapping(ctx, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host device mapping")
 	}
+
 	if len(deviceMapping) > 0 {
 		endUser := fleet.HostEndUser{}
 		for _, email := range deviceMapping {
@@ -1377,6 +1410,7 @@ func (svc *Service) getEndUsers(ctx context.Context, hostID uint) ([]fleet.HostE
 			endUsers = append(endUsers, endUser)
 		}
 	}
+
 	return endUsers, nil
 }
 
@@ -2769,7 +2803,34 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	opts.IsMDMEnrolled = mdmEnrolled
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
-	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+	}
+
+	if len(software) > 0 {
+		var titleIDs []uint
+		softwareByTitleID := make(map[uint]*fleet.HostSoftwareWithInstaller)
+		for _, s := range software {
+			titleIDs = append(titleIDs, s.ID)
+			softwareByTitleID[s.ID] = s
+		}
+		categories, err := svc.ds.GetCategoriesForSoftwareTitles(ctx, titleIDs, host.TeamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "getting categories for software titles")
+		}
+
+		for id, c := range categories {
+			if s, ok := softwareByTitleID[id]; ok && s.IsAppStoreApp() {
+				softwareByTitleID[id].AppStoreApp.Categories = c
+			}
+			if s, ok := softwareByTitleID[id]; ok && s.IsPackage() {
+				softwareByTitleID[id].SoftwarePackage.Categories = c
+			}
+
+		}
+	}
+
+	return software, meta, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

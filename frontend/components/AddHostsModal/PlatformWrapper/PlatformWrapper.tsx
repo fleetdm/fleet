@@ -3,8 +3,6 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
-// @ts-ignore
-import { stringToClipboard } from "utilities/copy_text";
 import { IConfig } from "interfaces/config";
 
 import Button from "components/buttons/Button";
@@ -80,7 +78,6 @@ const PlatformWrapper = ({
 }: IPlatformWrapperProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
   const [hostType, setHostType] = useState<"workstation" | "server">(
     "workstation"
   );
@@ -237,27 +234,7 @@ const PlatformWrapper = ({
         } --enroll-secret=${enrollSecret}`;
   };
 
-  const renderLabel = (packageType: string, installerString: string) => {
-    const onCopyInstaller = (evt: React.MouseEvent) => {
-      evt.preventDefault();
-
-      stringToClipboard(installerString)
-        .then(() =>
-          setCopyMessage((prev) => ({ ...prev, [packageType]: "Copied!" }))
-        )
-        .catch(() =>
-          setCopyMessage((prev) => ({ ...prev, [packageType]: "Copy failed" }))
-        );
-
-      // Clear message after 1 second
-      setTimeout(
-        () => setCopyMessage((prev) => ({ ...prev, [packageType]: "" })),
-        1000
-      );
-
-      return false;
-    };
-
+  const renderLabel = (packageType: string) => {
     return (
       <>
         {packageType !== "plain-osquery" && (
@@ -273,62 +250,7 @@ const PlatformWrapper = ({
             </a>
             :
           </span>
-        )}{" "}
-        <span className="buttons">
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__installer-copy-icon`}
-            onClick={onCopyInstaller}
-          >
-            <Icon name="copy" />
-          </Button>
-          {copyMessage[packageType] && (
-            <span
-              className={`${baseClass}__copy-message`}
-            >{`${copyMessage[packageType]} `}</span>
-          )}
-        </span>
-      </>
-    );
-  };
-
-  const renderChromeOSLabel = (label: string, value: string) => {
-    const onCopyChromeOSLabel = (evt: React.MouseEvent) => {
-      evt.preventDefault();
-
-      stringToClipboard(value)
-        .then(() => setCopyMessage((prev) => ({ ...prev, [label]: "Copied!" })))
-        .catch(() =>
-          setCopyMessage((prev) => ({
-            ...prev,
-            [label]: "Copy failed",
-          }))
-        );
-
-      // Clear message after 1 second
-      setTimeout(
-        () => setCopyMessage((prev) => ({ ...prev, [label]: "" })),
-        1000
-      );
-
-      return false;
-    };
-
-    return (
-      <>
-        {label}
-        <span className="buttons">
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__chromeos-copy-icon`}
-            onClick={onCopyChromeOSLabel}
-          >
-            <Icon name="copy" />
-          </Button>
-          {copyMessage[label] && (
-            <span className={`${baseClass}__copy-message`}>Copied!</span>
-          )}
-        </span>
+        )}
       </>
     );
   };
@@ -392,30 +314,24 @@ const PlatformWrapper = ({
             readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
             name="Extension ID"
-            label={renderChromeOSLabel(
-              "Extension ID",
-              CHROME_OS_INFO.extensionId
-            )}
+            enableCopy
+            label="Extension ID"
             value={CHROME_OS_INFO.extensionId}
           />
           <InputField
             readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
             name="Installation URL"
-            label={renderChromeOSLabel(
-              "Installation URL",
-              CHROME_OS_INFO.installationUrl
-            )}
+            enableCopy
+            label="Installation URL"
             value={CHROME_OS_INFO.installationUrl}
           />
           <InputField
             readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
             name="Policy for extension"
-            label={renderChromeOSLabel(
-              "Policy for extension",
-              CHROME_OS_INFO.policyForExtension
-            )}
+            enableCopy
+            label="Policy for extension"
             type="textarea"
             value={CHROME_OS_INFO.policyForExtension}
           />
@@ -440,10 +356,8 @@ const PlatformWrapper = ({
               readOnly
               inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
               name="installer"
-              label={renderLabel(
-                packageType,
-                renderInstallerString(packageType)
-              )}
+              enableCopy
+              label={renderLabel(packageType)}
               type="textarea"
               value={renderInstallerString(packageType)}
               helpText="Distribute your package to add hosts to Fleet."
@@ -536,10 +450,8 @@ const PlatformWrapper = ({
                   readOnly
                   inputWrapperClass={`${baseClass}__run-osquery-input`}
                   name="run-osquery"
-                  label={renderLabel(
-                    "plain-osquery",
-                    "osqueryd --flagfile=flagfile.txt --verbose"
-                  )}
+                  enableCopy
+                  label={renderLabel("plain-osquery")}
                   type="text"
                   value="osqueryd --flagfile=flagfile.txt --verbose"
                 />
@@ -581,7 +493,8 @@ const PlatformWrapper = ({
           readOnly
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
           name="installer"
-          label={renderLabel(packageType, renderInstallerString(packageType))}
+          enableCopy
+          label={renderLabel(packageType)}
           type="textarea"
           value={renderInstallerString(packageType)}
           helpText={packageTypeHelpText}

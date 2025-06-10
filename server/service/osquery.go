@@ -705,10 +705,17 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
-			queries[queryName] = query.Query
+
 			if query.QueryFunc != nil && query.Query == "" {
-				queries[queryName] = query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				if !ok {
+					continue
+				}
+				queries[queryName] = query
+			} else {
+				queries[queryName] = query.Query
 			}
+
 			discoveryQuery := query.Discovery
 			if discoveryQuery == "" {
 				discoveryQuery = alwaysTrueQuery
@@ -762,10 +769,29 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
+func (svc *Service) disablePoliciesDuringSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
+	if host.Platform != string(fleet.MacOSPlatform) {
+		return false, nil
+	}
+	inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+	}
+	return inSetupExperience, nil
+}
+
 // policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
 // It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
 // assigned to such host.
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (policyQueries map[string]string, noPoliciesForHost bool, err error) {
+	disablePolicies, err := svc.disablePoliciesDuringSetupExperience(ctx, host)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+	}
+	if disablePolicies {
+		level.Debug(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
+		return nil, false, nil
+	}
 	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
 	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, false, nil
@@ -1231,8 +1257,8 @@ func preProcessSoftwareResults(
 
 	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
 	preProcessSoftwareExtraResults(pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-	pythonPakcagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
-	preProcessSoftwareExtraResults(pythonPakcagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
+	preProcessSoftwareExtraResults(pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
@@ -2277,7 +2303,7 @@ func (svc *Service) preProcessOsqueryResults(
 	}
 
 	queriesDBData = make(map[string]*fleet.Query)
-	for _, queryResult := range unmarshaledResults {
+	for i, queryResult := range unmarshaledResults {
 		if queryResult == nil {
 			// These are results that could not be unmarshaled.
 			continue
@@ -2292,18 +2318,42 @@ func (svc *Service) preProcessOsqueryResults(
 			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
 		}
-		if _, ok := queriesDBData[queryResult.QueryName]; ok {
-			// Already loaded.
-			continue
+
+		existingQuery, foundQuery := queriesDBData[queryResult.QueryName]
+		if !foundQuery {
+			query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+			if err != nil {
+				level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+				continue
+			}
+			queriesDBData[queryResult.QueryName] = query
+			existingQuery = query
 		}
-		query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+
+		updatedResult, err := addQueryIDToLogResult(ctx, osqueryResults[i], existingQuery.ID)
 		if err != nil {
-			level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+			level.Debug(svc.logger).Log("msg", "inserting query id into query result", "err", err, "query_id", existingQuery.ID)
 			continue
 		}
-		queriesDBData[queryResult.QueryName] = query
+
+		// Set the updated query results if we find query ID. This is used one level up by the logger
+		osqueryResults[i] = updatedResult
 	}
 	return unmarshaledResults, queriesDBData
+}
+
+func addQueryIDToLogResult(ctx context.Context, logResult json.RawMessage, queryID uint) (json.RawMessage, error) {
+	var query map[string]json.RawMessage
+	if err := json.Unmarshal(logResult, &query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to unmarshal query result to insert query id")
+	}
+
+	query["query_id"] = json.RawMessage(strconv.FormatUint(uint64(queryID), 10))
+	newResult, err := json.Marshal(query)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to marshal query result with query id")
+	}
+	return newResult, nil
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {

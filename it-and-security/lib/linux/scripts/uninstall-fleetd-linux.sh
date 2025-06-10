@@ -25,7 +25,7 @@ function remove_fleet {
     # Reload systemd configuration
     systemctl daemon-reload
     
-    echo "Fleet has been successfully removed from the system."
+    echo "Fleetd has been successfully removed from the system."
 }
 
 if [ "$1" = "remove" ]; then
@@ -38,7 +38,7 @@ if [ "$1" = "remove" ]; then
     remove_fleet >>/tmp/fleet_remove_log.txt 2>&1
 else
     # We are in the parent shell, start the detached child and return success
-    echo "Removing fleet, system will be unenrolled in 15 seconds..."
+    echo "Removing fleetd, system will be unenrolled in 15 seconds..."
     echo "Executing detached child process"
     
     # We are root

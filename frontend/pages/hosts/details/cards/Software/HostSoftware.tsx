@@ -24,8 +24,9 @@ import { AppContext } from "context/app";
 import Card from "components/Card/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner";
-import SoftwareFiltersModal from "pages/SoftwarePage/components/SoftwareFiltersModal";
+import SoftwareFiltersModal from "pages/SoftwarePage/components/modals/SoftwareFiltersModal";
 
 import {
   buildSoftwareFilterQueryParams,
@@ -81,6 +82,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   min_cvss_score?: string;
   max_cvss_score?: string;
   available_for_install?: string;
+  category_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -93,6 +95,9 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     queryParams
   );
   const availableForInstall = queryParams.available_for_install === "true";
+  const categoryId = queryParams?.category_id
+    ? parseInt(queryParams.category_id, 10)
+    : undefined;
 
   return {
     page,
@@ -105,6 +110,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     max_cvss_score: softwareVulnFilters.maxCvssScore,
     exploit: softwareVulnFilters.exploit,
     available_for_install: availableForInstall,
+    category_id: categoryId,
   };
 };
 
@@ -376,7 +382,12 @@ const HostSoftware = ({
     }
     return (
       <>
-        {isError && <DataError />}
+        {isError &&
+          (isMyDevicePage ? (
+            <DeviceUserError />
+          ) : (
+            <DataError verticalPaddingSize="pad-xxxlarge" />
+          ))}
         {!isError && (
           <HostSoftwareTable
             isLoading={

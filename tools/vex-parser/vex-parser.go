@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 )
 
 type OpenVEXDocument struct {
@@ -15,13 +17,17 @@ type OpenVEXDocument struct {
 }
 
 type Statement struct {
-	Vulnerability Vulnerability `json:"vulnerability"`
-	Status        string        `json:"status"`
-	StatusNotes   string        `json:"status_notes"`
-	Products      []Product     `json:"products"`
-	Justification string        `json:"justification,omitempty"`
-	Timestamp     string        `json:"timestamp,omitempty"`
+	Vulnerability   Vulnerability `json:"vulnerability"`
+	Status          string        `json:"status"`
+	StatusNotes     string        `json:"status_notes"`
+	Products        []Product     `json:"products"`
+	Justification   string        `json:"justification"`
+	Aliases         []string      `json:"aliases"`
+	ActionStatement string        `json:"action_statement"`
+	Timestamp       string        `json:"timestamp"`
 }
+
+const timeFormat = "2006-01-02T15:04:05.999999Z07:00"
 
 type Vulnerability struct {
 	Name string `json:"name"`
@@ -44,59 +50,100 @@ func parseOpenVEX(filePath string) (*OpenVEXDocument, error) {
 	return &vex, nil
 }
 
-func generateMarkdown(vex *OpenVEXDocument) string {
+func generateMarkdown(vex *OpenVEXDocument) (string, error) {
 	var sb strings.Builder
+	cve := vex.Statements[0].Vulnerability.Name
+	for _, stmt := range vex.Statements[1:] {
+		if stmt.Vulnerability.Name != cve {
+			return "", fmt.Errorf("VEX statement does not match CVE: %s vs %s", stmt.Vulnerability.Name, cve)
+		}
+	}
+	sb.WriteString(fmt.Sprintf("### [%s](https://nvd.nist.gov/vuln/detail/%s)\n", cve, cve))
+	sort.Slice(vex.Statements, func(i, j int) bool {
+		ti, _ := time.Parse(timeFormat, vex.Statements[i].Timestamp)
+		tj, _ := time.Parse(timeFormat, vex.Statements[j].Timestamp)
+		return ti.After(tj)
+	})
+	multipleStatements := len(vex.Statements) > 1
 	for _, stmt := range vex.Statements {
-		sb.WriteString(fmt.Sprintf("### %s\n", stmt.Vulnerability.Name))
+		if multipleStatements {
+			sb.WriteString("#### Statement:\n")
+		}
+		if len(stmt.Aliases) > 0 {
+			sb.WriteString(fmt.Sprintf("- **Aliases:** %s", strings.Join(stmt.Aliases, ",")))
+		}
 		sb.WriteString(fmt.Sprintf("- **Author:** %s\n", vex.Author))
 		sb.WriteString(fmt.Sprintf("- **Status:** `%s`\n", stmt.Status))
-		sb.WriteString(fmt.Sprintf("- **Status notes:** %s\n", stmt.StatusNotes))
-		if len(stmt.Products) > 0 {
-			sb.WriteString("- **Products:**\n")
-			for _, product := range stmt.Products {
-				sb.WriteString(fmt.Sprintf("  - `%s`\n", product.ID))
+		if stmt.StatusNotes != "" {
+			statusNotes := stmt.StatusNotes
+			if !strings.HasSuffix(statusNotes, ".") {
+				statusNotes += "."
 			}
+			sb.WriteString(fmt.Sprintf("- **Status notes:** %s\n", statusNotes))
 		}
+		sb.WriteString("- **Products:**: ")
+		var ids []string
+		for _, product := range stmt.Products {
+			ids = append(ids, "`"+product.ID+"`")
+		}
+		sb.WriteString(strings.Join(ids, ",") + "\n")
 		if stmt.Justification != "" {
 			sb.WriteString(fmt.Sprintf("- **Justification:** `%s`\n", stmt.Justification))
 		}
+		if stmt.ActionStatement != "" {
+			sb.WriteString(fmt.Sprintf("- **Action statement:** `%s`\n", stmt.ActionStatement))
+		}
 		if stmt.Timestamp != "" {
-			sb.WriteString(fmt.Sprintf("- **Timestamp:** %s\n", stmt.Timestamp))
+			t, err := time.Parse(timeFormat, stmt.Timestamp)
+			if err != nil {
+				return "", fmt.Errorf("parsing timestamp %s for %s: %s", stmt.Timestamp, stmt.Vulnerability.Name, err)
+			}
+			sb.WriteString(fmt.Sprintf("- **Timestamp:** %s\n", t.Format(time.DateTime)))
 		}
 		sb.WriteString("\n")
 	}
 
-	return sb.String()
+	return sb.String(), nil
 }
 
-func outputMarkdown(vexPath string) {
+func outputMarkdown(vexPath string) error {
 	vex, err := parseOpenVEX(vexPath)
 	if err != nil {
-		fmt.Printf("Error parsing OpenVEX file %q: %s\n", vexPath, err)
-		return
+		return err
 	}
 
-	md := generateMarkdown(vex)
+	md, err := generateMarkdown(vex)
+	if err != nil {
+		return err
+	}
 	fmt.Print(md)
+	return nil
 }
 
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: go run main.go /path/to/directory/with/vex.json/files/")
-		return
+		os.Exit(1)
 	}
 
 	vexPath := os.Args[1]
 	vexPaths, err := filepath.Glob(filepath.Join(vexPath, "*.vex.json"))
 	if err != nil {
 		fmt.Printf("Error processing directory %q: %v\n", vexPath, err)
+		os.Exit(1)
 	}
 	if len(vexPaths) == 0 {
 		fmt.Printf("No vulnerabilities tracked at the moment.\n\n")
 		return
 	}
 
+	sort.Slice(vexPaths, func(i, j int) bool {
+		return vexPaths[i] > vexPaths[j]
+	})
 	for _, vexPath := range vexPaths {
-		outputMarkdown(vexPath)
+		if err := outputMarkdown(vexPath); err != nil {
+			fmt.Printf("Error parsing OpenVEX file %q: %s\n", vexPath, err)
+			os.Exit(1)
+		}
 	}
 }

@@ -116,7 +116,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
             disabled={!isPremiumTier || !mdmOn || gitOpsModeEnabled}
             value={autoMigration}
             onChange={onChangeAutoMigration}
-            tooltipContent={
+            labelTooltipContent={
               isPremiumTier ? "" : "This feature is included in Fleet Premium."
             }
           >

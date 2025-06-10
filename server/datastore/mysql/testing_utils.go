@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -430,11 +431,12 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
 		"app_config_json":                  true,
-		"migration_status_tables":          true,
-		"osquery_options":                  true,
+		"fleet_variables":                  true,
+		"mdm_apple_declaration_categories": true,
 		"mdm_delivery_status":              true,
 		"mdm_operation_types":              true,
-		"mdm_apple_declaration_categories": true,
+		"migration_status_tables":          true,
+		"osquery_options":                  true,
 	}
 	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }
@@ -840,4 +842,77 @@ func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{},
 		return result, ctxerr.Wrap(ctx, err, "rows error")
 	}
 	return result, nil
+}
+
+// NormalizeSQL normalizes the SQL statement by removing extra spaces and new lines, etc.
+func NormalizeSQL(query string) string {
+	query = strings.ToUpper(query)
+	query = strings.TrimSpace(query)
+
+	transformations := []struct {
+		pattern     *regexp.Regexp
+		replacement string
+	}{
+		{
+			// Remove comments
+			regexp.MustCompile(`(?m)--.*$|/\*(?s).*?\*/`),
+			"",
+		},
+		{
+			// Normalize whitespace
+			regexp.MustCompile(`\s+`),
+			" ",
+		},
+		{
+			// Replace spaces around ','
+			regexp.MustCompile(`\s*,\s*`),
+			",",
+		},
+		{
+			// Replace extra spaces before (
+			regexp.MustCompile(`\s*\(\s*`),
+			" (",
+		},
+		{
+			// Replace extra spaces before (
+			regexp.MustCompile(`\s*\)\s*`),
+			") ",
+		},
+	}
+	for _, tx := range transformations {
+		query = tx.pattern.ReplaceAllString(query, tx.replacement)
+	}
+	return query
+}
+
+func checkUpcomingActivities(t *testing.T, ds *Datastore, host *fleet.Host, execIDs ...string) {
+	ctx := t.Context()
+
+	type upcoming struct {
+		ExecutionID    string `db:"execution_id"`
+		ActivatedAtSet bool   `db:"activated_at_set"`
+	}
+
+	var got []upcoming
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &got,
+			`SELECT
+					execution_id,
+					(activated_at IS NOT NULL) as activated_at_set
+				FROM upcoming_activities
+				WHERE host_id = ?
+				ORDER BY IF(activated_at IS NULL, 0, 1) DESC, priority DESC, created_at ASC`, host.ID)
+	})
+
+	var want []upcoming
+	if len(execIDs) > 0 {
+		want = make([]upcoming, len(execIDs))
+		for i, execID := range execIDs {
+			want[i] = upcoming{
+				ExecutionID:    execID,
+				ActivatedAtSet: i == 0,
+			}
+		}
+	}
+	require.Equal(t, want, got)
 }

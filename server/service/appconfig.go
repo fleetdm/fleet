@@ -52,9 +52,10 @@ type appConfigResponseFields struct {
 	// Email is returned when the email backend is something other than SMTP, for example SES
 	Email *fleet.EmailConfig `json:"email,omitempty"`
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
-	SandboxEnabled bool  `json:"sandbox_enabled,omitempty"`
-	Err            error `json:"error,omitempty"`
-	AndroidEnabled bool  `json:"android_enabled,omitempty"`
+	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
+	Err            error               `json:"error,omitempty"`
+	AndroidEnabled bool                `json:"android_enabled,omitempty"`
+	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -130,6 +131,10 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return nil, err
 	}
+	partnerships, err := svc.PartnershipsConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
@@ -198,6 +203,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Email:           emailConfig,
 			SandboxEnabled:  svc.SandboxEnabled(),
 			AndroidEnabled:  os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
+			Partnerships:    partnerships,
 		},
 	}
 	return response, nil
@@ -229,16 +235,18 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 // //////////////////////////////////////////////////////////////////////////////
 
 type modifyAppConfigRequest struct {
-	Force  bool `json:"-" query:"force,optional"`   // if true, bypass strict incoming json validation
-	DryRun bool `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Force     bool `json:"-" query:"force,optional"`     // if true, bypass strict incoming json validation
+	DryRun    bool `json:"-" query:"dry_run,optional"`   // if true, apply validation but do not save changes
+	Overwrite bool `json:"-" query:"overwrite,optional"` // if true, overwrite any existing settings with the incoming ones
 	json.RawMessage
 }
 
 func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyAppConfigRequest)
 	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
-		Force:  req.Force,
-		DryRun: req.DryRun,
+		Force:     req.Force,
+		DryRun:    req.DryRun,
+		Overwrite: req.Overwrite,
 	})
 	if err != nil {
 		return appConfigResponse{appConfigResponseFields: appConfigResponseFields{Err: err}}, nil
@@ -345,6 +353,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// If we're in overwrite mode, clear out any feautures that are not explicitly specified.
+	if applyOpts.Overwrite {
+		appConfig.Features = newAppConfig.Features
+		appConfig.SSOSettings = newAppConfig.SSOSettings
+		appConfig.MDM.EndUserAuthentication = newAppConfig.MDM.EndUserAuthentication
+	}
+
 	// We apply the config that is incoming to the old one
 	appConfig.EnableStrictDecoding()
 	if err := json.Unmarshal(p, &appConfig); err != nil {
@@ -399,6 +414,12 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	} else {
 		appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually = oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually
 	}
+	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
+		if !license.IsPremium() {
+			invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
 
 	var legacyUsedWarning error
 	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
@@ -447,7 +468,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// If the license is Premium, we should always send usage statisics.
-	if license.IsPremium() {
+	if !license.IsAllowDisableTelemetry() {
 		appConfig.ServerSettings.EnableAnalytics = true
 	}
 
@@ -706,7 +727,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// svc.DeleteMDMAppleBootstrapPackage here as it would call the (non-premium)
 		// current service implementation. We have to go through the Enterprise
 		// extensions.
-		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil); err != nil {
+		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil, applyOpts.DryRun); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
 		}
 	}
@@ -1332,7 +1353,7 @@ func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
 	fleetVars := findFleetVariables(cn)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_common_name", "FLEET_VAR_"+fleetVar+" is not allowed in CA Common Name (CN)")
@@ -1350,7 +1371,7 @@ func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
 	fleetVars := findFleetVariables(seatID)
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_seat_id", "FLEET_VAR_"+fleetVar+" is not allowed in DigiCert Seat ID")
@@ -1377,7 +1398,7 @@ func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.Inva
 	fleetVars := findFleetVariables(userPrincipalNames[0])
 	for fleetVar := range fleetVars {
 		switch fleetVar {
-		case FleetVarHostEndUserEmailIDP, FleetVarHostHardwareSerial:
+		case fleet.FleetVarHostEndUserEmailIDP, fleet.FleetVarHostHardwareSerial:
 			// ok
 		default:
 			invalid.Append("integrations.digicert.certificate_user_principal_names",
@@ -1487,6 +1508,9 @@ func (svc *Service) validateMDM(
 	}
 	if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication && !license.IsPremium() {
 		invalid.Append("macos_setup.enable_end_user_authentication", ErrMissingLicense.Error())
+	}
+	if mdm.MacOSSetup.ManualAgentInstall.Valid && oldMdm.MacOSSetup.ManualAgentInstall.Value != mdm.MacOSSetup.ManualAgentInstall.Value && !license.IsPremium() {
+		invalid.Append("macos_setup.manual_agent_install", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !license.IsPremium() {
 		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())

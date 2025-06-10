@@ -84,8 +84,11 @@ policies:
   - name: 😊😊 Failing policy
     platform: linux
     description: This policy should always fail.
-    resolution: There is no resolution for this policy.
-    query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+    resolution: |
+      Automated method:
+      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:
+      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed "s/${origExpire}/expire-after:60d OR 5G/" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;
+    query: SELECT 1;
 agent_options:
   command_line_flags:
     distributed_denylist_duration: 0

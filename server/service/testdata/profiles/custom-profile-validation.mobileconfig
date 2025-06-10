@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+                <key>Username</key>
+                <string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+                <key>LocalPart</key>
+								<string>${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}</string>
+                <key>Groups</key>
+                <string>$FLEET_VAR_HOST_END_USER_IDP_GROUPS</string>
+                <key>Other</key>
+                <string>%s</string>
+            </dict>
+        </array>
+        <key>PayloadDisplayName</key>
+        <string>Various settings</string>
+        <key>PayloadIdentifier</key>
+        <string>Fleet.custom.VariousSettings</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>4CD1BD66-1D2C-4E9E-9E18-9BCD400CDEDD</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+    </dict>
+</plist>

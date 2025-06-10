@@ -2,6 +2,7 @@ import React from "react";
 import { AxiosResponse } from "axios";
 import { IApiError } from "interfaces/errors";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+import CustomLink from "components/CustomLink";
 
 export const parseFile = async (file: File): Promise<[string, string]> => {
   // get the file name and extension
@@ -34,6 +35,20 @@ const generateUnsupportedVariableErrMsg = (errMsg: string) => {
   return varName
     ? `Couldn't add. Variable "${varName[0]}" doesn't exist.`
     : DEFAULT_ERROR_MESSAGE;
+};
+
+const generateLearnMoreErrMsg = (errMsg: string, learnMoreUrl: string) => {
+  return (
+    <>
+      Couldn&apos;t add. {errMsg}{" "}
+      <CustomLink
+        url={learnMoreUrl}
+        text="Learn more"
+        variant="flash-message-link"
+        newTab
+      />
+    </>
+  );
 };
 
 /** We want to add some additional messageing to some of the error messages so
@@ -95,5 +110,38 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     return generateUnsupportedVariableErrMsg(apiReason);
   }
 
-  return `Couldn't add. ${apiReason}` || DEFAULT_ERROR_MESSAGE;
+  if (
+    apiReason.includes(
+      "can't be used if variables for SCEP URL and Challenge are not specified"
+    )
+  ) {
+    return generateLearnMoreErrMsg(
+      apiReason,
+      "https://fleetdm.com/learn-more-about/certificate-authorities"
+    );
+  }
+
+  if (
+    apiReason.includes(
+      "SCEP profile for custom SCEP certificate authority requires"
+    )
+  ) {
+    return generateLearnMoreErrMsg(
+      apiReason,
+      "https://fleetdm.com/learn-more-about/custom-scep-configuration-profile"
+    );
+  }
+
+  if (
+    apiReason.includes(
+      "SCEP profile for NDES certificate authority requires: $FLEET_VAR_NDES_SCEP_CHALLENGE"
+    )
+  ) {
+    return generateLearnMoreErrMsg(
+      apiReason,
+      "https://fleetdm.com/learn-more-about/ndes-scep-configuration-profile"
+    );
+  }
+
+  return `${apiReason}` || DEFAULT_ERROR_MESSAGE;
 };

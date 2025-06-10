@@ -90,6 +90,47 @@ export default {
     return sendRequest("POST", path);
   },
 
+  uninstallSelfServiceSoftware: (
+    deviceToken: string,
+    softwareTitleId: number
+  ) => {
+    const { DEVICE_SOFTWARE_UNINSTALL } = endpoints;
+    return sendRequest(
+      "POST",
+      DEVICE_SOFTWARE_UNINSTALL(deviceToken, softwareTitleId)
+    );
+  },
+
+  /** Gets more info on FMA/custom package install for device user */
+  getSoftwareInstallResult: (deviceToken: string, uuid: string) => {
+    const { DEVICE_SOFTWARE_INSTALL_RESULTS } = endpoints;
+    const path = DEVICE_SOFTWARE_INSTALL_RESULTS(deviceToken, uuid);
+
+    return sendRequest("GET", path);
+  },
+
+  /** Gets more info on FMA/custom package uninstall for device user */
+  getSoftwareUninstallResult: (
+    deviceToken: string,
+    scriptExecutionId: string
+  ) => {
+    const { DEVICE_SOFTWARE_UNINSTALL_RESULTS } = endpoints;
+    const path = DEVICE_SOFTWARE_UNINSTALL_RESULTS(
+      deviceToken,
+      scriptExecutionId
+    );
+
+    return sendRequest("GET", path);
+  },
+
+  /** Gets more info on VPP install for device user */
+  getVppCommandResult: (deviceToken: string, uuid: string) => {
+    const { DEVICE_VPP_COMMAND_RESULTS } = endpoints;
+    const path = DEVICE_VPP_COMMAND_RESULTS(deviceToken, uuid);
+
+    return sendRequest("GET", path);
+  },
+
   getDeviceCertificates: ({
     token,
     page,

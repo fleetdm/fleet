@@ -1,11 +1,11 @@
 import React from "react";
-import { noop } from "lodash";
 import { screen, fireEvent } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
 import { createMockHostSummary } from "__mocks__/hostMock";
 
+import { BootstrapPackageStatus } from "interfaces/mdm";
 import HostSummary from "./HostSummary";
 
 describe("Host Summary section", () => {
@@ -22,18 +22,95 @@ describe("Host Summary section", () => {
       });
       const summaryData = createMockHostSummary({});
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-        />
-      );
+      render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.queryByText("Issues")).not.toBeInTheDocument();
     });
   });
+
+  describe("Team data", () => {
+    it("renders the team name when present", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = createMockHostSummary({ team_name: "Engineering" });
+      render(<HostSummary summaryData={summaryData} isPremiumTier />);
+      expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
+        "Engineering"
+      );
+    });
+
+    it("renders 'No team' when team_name is '---'", () => {
+      const render = createCustomRenderer({
+        /* ...context... */
+      });
+      const summaryData = createMockHostSummary({ team_name: "---" });
+      render(<HostSummary summaryData={summaryData} isPremiumTier />);
+      expect(screen.getByText("No team")).toBeInTheDocument();
+    });
+  });
+
+  describe("Disk encryption data", () => {
+    it("renders 'On' for macOS when enabled", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        disk_encryption_enabled: true,
+      });
+      render(<HostSummary summaryData={summaryData} />);
+      expect(screen.getByText("Disk encryption")).toBeInTheDocument();
+      expect(screen.getByText("On")).toBeInTheDocument();
+    });
+
+    it("renders 'Off' for Windows when disabled", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = createMockHostSummary({
+        platform: "windows",
+        disk_encryption_enabled: false,
+      });
+      render(<HostSummary summaryData={summaryData} />);
+      expect(screen.getByText("Disk encryption")).toBeInTheDocument();
+      expect(screen.getByText("Off")).toBeInTheDocument();
+    });
+
+    it("renders Chromebook message for Chrome platform", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = createMockHostSummary({ platform: "chrome" });
+      render(<HostSummary summaryData={summaryData} />);
+      expect(screen.getByText("Always on")).toBeInTheDocument();
+    });
+  });
+
   describe("Agent data", () => {
     it("with all info present, render Agent header with orbit_version and tooltip with all 3 data points", async () => {
       const render = createCustomRenderer({
@@ -50,14 +127,7 @@ describe("Host Summary section", () => {
       const osqueryVersion = summaryData.osquery_version as string;
       const fleetdVersion = summaryData.fleet_desktop_version as string;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-        />
-      );
+      render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
 
@@ -89,14 +159,7 @@ describe("Host Summary section", () => {
       const orbitVersion = summaryData.orbit_version as string;
       const osqueryVersion = summaryData.osquery_version as string;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-        />
-      );
+      render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
 
@@ -127,20 +190,14 @@ describe("Host Summary section", () => {
 
       const fleetdChromeVersion = summaryData.osquery_version as string;
 
-      const { user } = render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-        />
-      );
+      const { user } = render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
       await user.hover(screen.getByText(new RegExp(fleetdChromeVersion, "i")));
       expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
     });
   });
+
   describe("iOS and iPadOS data", () => {
     it("for iOS, renders Team, Disk space, and Operating system data only", async () => {
       const render = createCustomRenderer({
@@ -164,15 +221,7 @@ describe("Host Summary section", () => {
       const diskSpaceAvailable = summaryData.gigs_disk_space_available as string;
       const osVersion = summaryData.os_version as string;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-          isPremiumTier
-        />
-      );
+      render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
       expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
         teamName
@@ -183,7 +232,6 @@ describe("Host Summary section", () => {
       expect(
         screen.getByText("Operating system").nextElementSibling
       ).toHaveTextContent(osVersion);
-      expect(screen.queryByText("Refetch")).toBeInTheDocument();
 
       expect(screen.queryByText("Status")).not.toBeInTheDocument();
       expect(screen.queryByText("Memory")).not.toBeInTheDocument();
@@ -213,15 +261,7 @@ describe("Host Summary section", () => {
       const diskSpaceAvailable = summaryData.gigs_disk_space_available as string;
       const osVersion = summaryData.os_version as string;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-          isPremiumTier
-        />
-      );
+      render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
       expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
         teamName
@@ -232,7 +272,6 @@ describe("Host Summary section", () => {
       expect(
         screen.getByText("Operating system").nextElementSibling
       ).toHaveTextContent(osVersion);
-      expect(screen.queryByText("Refetch")).toBeInTheDocument();
 
       expect(screen.queryByText("Status")).not.toBeInTheDocument();
       expect(screen.queryByText("Memory")).not.toBeInTheDocument();
@@ -241,6 +280,7 @@ describe("Host Summary section", () => {
       expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
     });
   });
+
   describe("Maintenance window data", () => {
     it("renders maintenance window data with timezone", async () => {
       const render = createCustomRenderer({
@@ -261,18 +301,37 @@ describe("Host Summary section", () => {
       });
       const prettyStartTime = /Jun 24 at 8:48 PM/;
 
-      render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-          isPremiumTier
-        />
-      );
+      render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
       expect(screen.getByText("Scheduled maintenance")).toBeInTheDocument();
       expect(screen.getByText(prettyStartTime)).toBeInTheDocument();
+    });
+  });
+
+  describe("Bootstrap package data", () => {
+    it("renders Bootstrap package indicator when status is present", () => {
+      const toggleBootstrapPackageModal = jest.fn();
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = createMockHostSummary({ platform: "darwin" });
+      const bootstrapPackageData = {
+        status: "installed" as BootstrapPackageStatus,
+      };
+      render(
+        <HostSummary
+          summaryData={summaryData}
+          bootstrapPackageData={bootstrapPackageData}
+          toggleBootstrapPackageModal={toggleBootstrapPackageModal}
+        />
+      );
+      expect(screen.getByText("Bootstrap package")).toBeInTheDocument();
     });
   });
 });

@@ -32,7 +32,7 @@ const UpcomingActivityFeed = ({
   onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
   if (isError) {
-    return <DataError />;
+    return <DataError verticalPaddingSize="pad-large" />;
   }
 
   if (!activities) {

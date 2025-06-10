@@ -168,8 +168,12 @@ spec:
                 {{- end }}
               privileged: false
               readOnlyRootFilesystem: true
+              {{- if .Values.fleet.securityContext.runAsGroup }}
               runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+              {{- end }}
+              {{- if .Values.fleet.securityContext.runAsUser }}
               runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+              {{- end }}
               runAsNonRoot: true
             volumeMounts:
               - name: tmp
@@ -199,9 +203,17 @@ spec:
                 drop: [ALL]
               privileged: false
               readOnlyRootFilesystem: true
+              {{- if .Values.fleet.securityContext.runAsGroup }}
               runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+              {{- end }}
+              {{- if .Values.fleet.securityContext.runAsUser }}
               runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+              {{- end }}
               runAsNonRoot: true
+          {{- end }}
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12}}
           {{- end }}
           serviceAccountName: fleet
           volumes:

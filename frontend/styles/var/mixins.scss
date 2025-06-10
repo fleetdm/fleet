@@ -123,6 +123,12 @@ $max-width: 2560px;
   filter: grayscale(0.5);
   pointer-events: none;
   cursor: default;
+
+  // Must override
+  &:hover,
+  &:focus {
+    cursor: default;
+  }
 }
 
 @mixin disabled-checkbox {
@@ -140,7 +146,9 @@ $max-width: 2560px;
   font-size: $xx-small;
   font-weight: $regular;
   @include grey-text;
-  .custom-link {
+
+  .custom-link,
+  button {
     font-size: inherit;
   }
 }

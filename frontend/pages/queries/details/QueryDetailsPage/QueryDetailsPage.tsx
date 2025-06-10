@@ -351,7 +351,7 @@ const QueryDetailsPage = ({
                       destination on a schedule. When automations are <b>
                         on
                       </b>, <br />
-                      data is sent according to a query&apos;s frequency.
+                      data is sent according to a query&apos;s interval.
                     </>
                   }
                 >
@@ -401,12 +401,10 @@ const QueryDetailsPage = ({
       disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
-    // Loading state
     if (isLoading) {
       return <Spinner />;
     }
 
-    // Error state
     if (isApiError) {
       return <DataError />;
     }

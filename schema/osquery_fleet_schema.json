@@ -167,7 +167,7 @@
     "columns": [
       {
         "name": "allow_signed_enabled",
-        "description": "1 If allow signed mode is enabled else 0",
+        "description": "1 If allow signed mode is enabled else 0 (not supported on macOS 15+)",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -176,7 +176,7 @@
       },
       {
         "name": "firewall_unload",
-        "description": "1 If firewall unloading enabled else 0",
+        "description": "1 If firewall unloading enabled else 0 (not supported on macOS 15+)",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -203,7 +203,7 @@
       },
       {
         "name": "logging_option",
-        "description": "Firewall logging option",
+        "description": "Firewall logging option (not supported on macOS 15+)",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -245,7 +245,7 @@
     "columns": [
       {
         "name": "path",
-        "description": "Path to the executable that is excepted",
+        "description": "Path to the executable that is excepted. On macOS 15+ this can also be a bundle identifier",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -266,7 +266,7 @@
   },
   {
     "name": "alf_explicit_auths",
-    "description": "ALF services explicitly allowed to perform networking.",
+    "description": "ALF services explicitly allowed to perform networking. Not supported on macOS 15+ (returns no results).",
     "url": "https://fleetdm.com/tables/alf_explicit_auths",
     "platforms": [
       "darwin"
@@ -278,7 +278,7 @@
     "columns": [
       {
         "name": "process",
-        "description": "Process name explicitly allowed",
+        "description": "Process name that is explicitly allowed",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -824,6 +824,15 @@
       },
       {
         "name": "sha1",
+        "description": "A unique hash that identifies this policy.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "sha256",
         "description": "A unique hash that identifies this policy.",
         "type": "text",
         "notes": "",
@@ -2243,7 +2252,7 @@
         "description": "One of the following: \"Good\" describes a well-performing battery, \"Fair\" describes a functional battery with limited capacity, or \"Poor\" describes a battery that's not capable of providing power",
         "type": "text",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -2255,7 +2264,7 @@
         "description": "One of the following: \"Normal\" indicates the condition of the battery is within normal tolerances, \"Service Needed\" indicates that the battery should be checked out by a licensed Mac repair service, \"Permanent Failure\" indicates the battery needs replacement",
         "type": "text",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -2267,7 +2276,7 @@
         "description": "The date the battery was manufactured UNIX Epoch",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -4453,6 +4462,74 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fconnectivity.yml&value=name%3A%20connectivity%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
+    "name": "containerd_containers",
+    "platforms": [
+      "linux"
+    ],
+    "description": "Information about containerd containers.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "namespace",
+        "type": "text",
+        "required": false,
+        "description": "Namespace of the container."
+      },
+      {
+        "name": "id",
+        "type": "text",
+        "required": false,
+        "description": "Container ID."
+      },
+      {
+        "name": "image",
+        "type": "text",
+        "required": false,
+        "description": "Image name."
+      },
+      {
+        "name": "image_digest",
+        "type": "text",
+        "required": false,
+        "description": "Image digest (SHA256)."
+      },
+      {
+        "name": "state",
+        "type": "text",
+        "required": false,
+        "description": "Container state (e.g. running, stopped)."
+      },
+      {
+        "name": "created",
+        "type": "integer",
+        "required": false,
+        "description": "Unix timestamp of when the container was created."
+      },
+      {
+        "name": "runtime",
+        "type": "text",
+        "required": false,
+        "description": "Name of the container runtime (e.g. io.containerd.runc.v2)."
+      },
+      {
+        "name": "command",
+        "type": "text",
+        "required": false,
+        "description": "Command used to start the container."
+      },
+      {
+        "name": "pid",
+        "type": "integer",
+        "required": false,
+        "description": "PID of the container process."
+      }
+    ],
+    "examples": "Get all containers from all namespaces:\n\n```\nSELECT * FROM containerd_containers;\n```\n\nGet only running containers in the `default` namespace:\n\n```\nSELECT * FROM containerd_containers WHERE namespace='default' AND state='running';\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent\n([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nThe `containerd` table is available on Linux systems with containerd installed. It provides\ninformation about the containers managed by containerd, including their state, image, and runtime.\n\nThis table is useful for systems using containerd as a container runtime, such as those running\nKubernetes. See the `docker_containers` table for information about containers managed by Docker.",
+    "url": "https://fleetdm.com/tables/containerd_containers",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/containerd_containers.yml"
+  },
+  {
     "name": "corestorage_logical_volume_families",
     "platforms": [
       "darwin"
@@ -4914,7 +4991,7 @@
         "description": "The number of efficiency cores of the CPU. Only available on Apple Silicon",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -4926,7 +5003,7 @@
         "description": "The number of performance cores of the CPU. Only available on Apple Silicon",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -5428,6 +5505,37 @@
     ],
     "url": "https://fleetdm.com/tables/cryptoinfo",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cryptoinfo.yml"
+  },
+  {
+    "name": "cryptsetup_luks_salt",
+    "description": "Given an LUKS encrypted device path, returns all the LUKS2 key slots and their respective salts.",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "device",
+        "description": "The device path used for querying the LUKS metadata, e.g. `/dev/vda3`",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "key_slot",
+        "description": "A 'key slot' that indicates where in the LUKS metadata header the user key is stored.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "salt",
+        "description": "Salt used during the encryption process of the LUKS user key.",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/cryptsetup_luks_salt",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cryptsetup_luks_salt.yml"
   },
   {
     "name": "cryptsetup_status",
@@ -6516,7 +6624,7 @@
       },
       {
         "name": "label",
-        "description": "",
+        "description": "The partition name as stored in the partition table",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -6525,7 +6633,7 @@
       },
       {
         "name": "type",
-        "description": "",
+        "description": "Filesystem type if recognized, otherwise, 'meta', 'normal', or 'unallocated'",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -6534,7 +6642,7 @@
       },
       {
         "name": "offset",
-        "description": "",
+        "description": "Byte offset from the start of the volume",
         "type": "bigint",
         "notes": "",
         "hidden": false,
@@ -6570,7 +6678,7 @@
       },
       {
         "name": "flags",
-        "description": "",
+        "description": "Value that describes the partition (TSK_VS_PART_FLAG_ENUM)",
         "type": "integer",
         "notes": "",
         "hidden": false,
@@ -6580,6 +6688,84 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/sleuthkit/device_partitions.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fdevice_partitions.yml&value=name%3A%20device_partitions%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "deviceguard_status",
+    "description": "Retrieve DeviceGuard info of the machine.",
+    "url": "https://fleetdm.com/tables/deviceguard_status",
+    "platforms": [
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "columns": [
+      {
+        "name": "version",
+        "description": "The version number of the Device Guard build.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "instance_identifier",
+        "description": "The instance ID of Device Guard.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "vbs_status",
+        "description": "The status of the virtualization based security settings. Returns UNKNOWN if an error is encountered.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "code_integrity_policy_enforcement_status",
+        "description": "The status of the code integrity policy enforcement settings. Returns UNKNOWN if an error is encountered.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "configured_security_services",
+        "description": "The list of configured Device Guard services. Returns UNKNOWN if an error is encountered.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "running_security_services",
+        "description": "The list of running Device Guard services. Returns UNKNOWN if an error is encountered.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "umci_policy_status",
+        "description": "The status of the User Mode Code Integrity security settings. Returns UNKNOWN if an error is encountered.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/deviceguard_status.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fdeviceguard_status.yml&value=name%3A%20deviceguard_status%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "disk_encryption",
@@ -6847,7 +7033,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\n- Available for ChromeOS 91+.",
+    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- On ChromeOS, this table will only display information about _removable_ storage media, such as USB sticks or external hard drives.\n- Available for ChromeOS 91+.",
     "examples": "```\nSELECT * FROM disk_info;\n```",
     "columns": [
       {
@@ -7014,6 +7200,130 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dns_cache.yml"
+  },
+  {
+    "name": "dns_lookup_events",
+    "description": "DNS lookups performed through the Windows DNS stack.",
+    "url": "https://fleetdm.com/tables/dns_lookup_events",
+    "platforms": [
+      "windows"
+    ],
+    "evented": true,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect * from dns_lookup_events;\n```",
+    "columns": [
+      {
+        "name": "eid",
+        "description": "Event ID",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "time",
+        "description": "Event timestamp in Unix format",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "time_windows",
+        "description": "Event timestamp in Windows format",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "datetime",
+        "description": "Event timestamp in DATETIME format",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pid",
+        "description": "Process ID of process making the lookup",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "Path to binary of process making the lookup (sometimes unavailable for very short-lived processes)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "username",
+        "description": "User rights - primary token username",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "name",
+        "description": "Name being queried in lookup",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "type",
+        "description": "DNS record type of lookup as string",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "type_id",
+        "description": "Integer type ID for record type",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "status",
+        "description": "Response status code",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "response",
+        "description": "Results returned by lookup",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/dns_lookup_events.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fdns_lookup_events.yml&value=name%3A%20dns_lookup_events%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "dns_resolvers",
@@ -7911,6 +8221,24 @@
       {
         "name": "memory_cached",
         "description": "Memory cached",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "memory_inactive_file",
+        "description": "Memory inactive file",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "memory_total_inactive_file",
+        "description": "Memory total inactive file",
         "type": "bigint",
         "notes": "",
         "hidden": false,
@@ -9460,6 +9788,15 @@
         "index": false
       },
       {
+        "name": "pidversion",
+        "description": "Process ID version",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
         "name": "path",
         "description": "Path of executed file",
         "type": "text",
@@ -9480,6 +9817,42 @@
       {
         "name": "original_parent",
         "description": "Original parent process ID in case of reparenting",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "session_id",
+        "description": "The identifier of the session that contains the process group.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "responsible_pid",
+        "description": "The pid of the process responsible for this process.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "responsible_pidversion",
+        "description": "The pidversion of the process responsible for this process.",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "parent_pidversion",
+        "description": "The pidversion of the parent process.",
         "type": "bigint",
         "notes": "",
         "hidden": false,
@@ -10347,6 +10720,15 @@
       {
         "name": "type",
         "description": "File status",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "symlink_target_path",
+        "description": "Full path of the symlink target if any",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -11681,6 +12063,24 @@
         "index": false
       },
       {
+        "name": "auto_updates",
+        "description": "1 if the cask auto-updates otherwise 0",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "app_name",
+        "description": "Name of the installed App (for Casks)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
         "name": "prefix",
         "description": "Homebrew install prefix",
         "type": "text",
@@ -11691,66 +12091,6 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/homebrew_packages.yml"
-  },
-  {
-    "name": "hvci_status",
-    "description": "Retrieve HVCI info of the machine.",
-    "url": "https://fleetdm.com/tables/hvci_status",
-    "platforms": [
-      "windows"
-    ],
-    "evented": false,
-    "cacheable": false,
-    "notes": "",
-    "columns": [
-      {
-        "name": "version",
-        "description": "The version number of the Device Guard build.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "instance_identifier",
-        "description": "The instance ID of Device Guard.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "vbs_status",
-        "description": "The status of the virtualization based security settings. Returns UNKNOWN if an error is encountered.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "code_integrity_policy_enforcement_status",
-        "description": "The status of the code integrity policy enforcement settings. Returns UNKNOWN if an error is encountered.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "umci_policy_status",
-        "description": "The status of the User Mode Code Integrity security settings. Returns UNKNOWN if an error is encountered.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      }
-    ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/hvci_status.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fhvci_status.yml&value=name%3A%20hvci_status%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "ibridge_info",
@@ -13350,7 +13690,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- This table should be used sparingly as it uses an Apple API which occasionally corrupts the underlying certificate. Learn more [here](https://github.com/fleetdm/fleet/issues/13065#issuecomment-1658849614).",
+    "notes": "- This table should be used sparingly as it uses an [Apple API which occasionally corrupts the underlying certificate](https://github.com/fleetdm/fleet/issues/13065#issuecomment-1658849614).",
     "examples": "Identify Macs that contain certificates related to Apple application signing\nand notarization. (replace with your Apple Developer ID string)\n\n```\nSELECT * FROM keychain_items WHERE label LIKE '%8EHZ83LZNU%';\n```",
     "columns": [
       {
@@ -14421,6 +14761,49 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/logon_sessions.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Flogon_sessions.yml&value=name%3A%20logon_sessions%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "lsblk",
+    "description": "Based on the output obtained by running `lsblk -n -O`",
+    "evented": false,
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "platforms": [
+      "linux"
+    ],
+    "columns": [
+      {
+        "name": "fullkey",
+        "description": "Flattened full key with '/' as separator, e.g. `blockdevices/15/min-io`.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "parent",
+        "description": "Parent key when keys are nested in the document.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "key",
+        "description": "JSON key or array index.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "value",
+        "description": "JSON value",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "query",
+        "description": "Specifies a query to flatten with. This is used both for re-writing arrays into maps, and for filtering.",
+        "required": false,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/lsblk",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/lsblk.yml"
   },
   {
     "name": "lxd_certificates",
@@ -15531,7 +15914,7 @@
     "columns": [
       {
         "name": "domain",
-        "description": "System or manager-chosen domain key",
+        "description": "System or manager-chosen domain key. Equivalent to a configuration profile's `PayloadType`",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -15567,7 +15950,7 @@
       },
       {
         "name": "username",
-        "description": "policy only applies to the listed user. Blank if global.",
+        "description": "Policy only applies to the listed user. Blank if global.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -18025,7 +18408,7 @@
         "description": "Optional extra release specification",
         "type": "text",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -21869,7 +22252,7 @@
       },
       {
         "name": "total_size",
-        "description": "Total virtual memory size",
+        "description": "Total virtual memory size (Linux, Windows) or 'footprint' (macOS)",
         "type": "bigint",
         "notes": "",
         "hidden": false,
@@ -22106,7 +22489,7 @@
         "description": "The full hierarchical path of the process's control group",
         "type": "text",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -22203,6 +22586,24 @@
       {
         "name": "identifying_number",
         "description": "Product identification such as a serial number on software, or a die number on a hardware chip.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "package_family_name",
+        "description": "A combination of PackageName and PublisherHash that is used to uniquely identify applications across versions and architectures.",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "upgrade_code",
+        "description": "Specific to MSI applications, a GUID used to identify a product suite across multiple versions.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -22573,7 +22974,7 @@
   },
   {
     "name": "python_packages",
-    "description": "Python packages installed in a system.",
+    "description": "Python packages installed in a system. NOTE: when querying on windows, even without a users cross join, all user installed python packages will be returned. This special behavior is to not break original functionality.",
     "url": "https://fleetdm.com/tables/python_packages",
     "platforms": [
       "darwin",
@@ -22593,6 +22994,15 @@
         "hidden": false,
         "required": false,
         "index": false
+      },
+      {
+        "name": "uid",
+        "description": "The local user that owns the python package",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
       },
       {
         "name": "version",
@@ -23281,33 +23691,6 @@
         "index": false
       },
       {
-        "name": "update_url",
-        "description": "Extension-supplied update URI",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "author",
-        "description": "Optional extension author",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "developer_id",
-        "description": "Optional developer identifier",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
         "name": "description",
         "description": "Optional extension description text",
         "type": "text",
@@ -23318,7 +23701,7 @@
       },
       {
         "name": "path",
-        "description": "Path to extension XAR bundle",
+        "description": "Path to the Info.plist describing the extension",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -23337,15 +23720,6 @@
       {
         "name": "copyright",
         "description": "A human-readable copyright notice for the bundle",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "extension_type",
-        "description": "Extension Type: WebOrAppExtension or LegacyExtension",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -23740,7 +24114,7 @@
         "description": "(Intel) Secure mode: 0 disabled, 1 full security, 2 medium security",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -23752,7 +24126,7 @@
         "description": "(Apple Silicon) Human-readable description: 'Full Security', 'Reduced Security', or 'Permissive Security'",
         "type": "text",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -23764,7 +24138,7 @@
         "description": "(Apple Silicon) Allow user management of kernel extensions from identified developers (1 if allowed)",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -23776,7 +24150,7 @@
         "description": "(Apple Silicon) Allow remote (MDM) management of kernel extensions and automatic software updates (1 if allowed)",
         "type": "integer",
         "notes": "",
-        "hidden": false,
+        "hidden": true,
         "required": false,
         "index": false,
         "platforms": [
@@ -23788,7 +24162,7 @@
         "description": "Whether setup mode is enabled",
         "type": "integer",
         "notes": "",
-        "hidden": true,
+        "hidden": false,
         "required": false,
         "index": false,
         "platforms": [
@@ -24942,6 +25316,15 @@
         "index": false
       },
       {
+        "name": "hash_executable",
+        "description": "Set to 1 to also hash the executable, or 0 otherwise. Default is 1",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
         "name": "arch",
         "description": "If applicable, the arch of the signed code",
         "type": "text",
@@ -25214,7 +25597,7 @@
   },
   {
     "name": "socket_events",
-    "description": "Track network socket opens and closes.",
+    "description": "Track network socket bind, connect, and accepts.",
     "url": "https://fleetdm.com/tables/socket_events",
     "platforms": [
       "darwin",
@@ -25226,7 +25609,7 @@
     "columns": [
       {
         "name": "action",
-        "description": "The socket action (bind, listen, close)",
+        "description": "The socket action (bind, connect, accept)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -25264,15 +25647,6 @@
         "name": "auid",
         "description": "Audit User ID",
         "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "status",
-        "description": "Either 'succeeded', 'failed', 'in_progress' (connect() on non-blocking socket) or 'no_client' (null accept() on non-blocking socket)",
-        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25376,6 +25750,18 @@
         "hidden": true,
         "required": false,
         "index": false
+      },
+      {
+        "name": "status",
+        "description": "Either 'succeeded', 'failed', 'in_progress' (connect() on non-blocking socket) or 'no_client' (null accept() on non-blocking socket)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "linux"
+        ]
       }
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/posix/socket_events.table",
@@ -26707,7 +27093,7 @@
   },
   {
     "name": "time_machine_backups",
-    "description": "Backups to drives using TimeMachine.",
+    "description": "Backups to drives using TimeMachine. This table requires Full Disk Access (FDA) permission.",
     "url": "https://fleetdm.com/tables/time_machine_backups",
     "platforms": [
       "darwin"
@@ -26740,7 +27126,7 @@
   },
   {
     "name": "time_machine_destinations",
-    "description": "Locations backed up to using Time Machine.",
+    "description": "Locations backed up to using Time Machine. This table requires Full Disk Access (FDA) permission.",
     "url": "https://fleetdm.com/tables/time_machine_destinations",
     "platforms": [
       "darwin"
@@ -26972,6 +27358,15 @@
         "name": "timestamp",
         "description": "unix timestamp associated with the entry",
         "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "timestamp_double",
+        "description": "floating point timestamp associated with the entry",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27519,6 +27914,33 @@
         "index": false
       },
       {
+        "name": "key_group_name",
+        "description": "The group of the private key. Supported for a subset of key_types implemented by OpenSSL",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "key_length",
+        "description": "The cryptographic length of the cryptosystem to which the private key belongs, in bits. Definition of cryptographic length is specific to cryptosystem. -1 if unavailable",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "key_security_bits",
+        "description": "The number of security bits of the private key, bits of security as defined in NIST SP800-57. -1 if unavailable",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
         "name": "pid_with_namespace",
         "description": "Pids that contain a namespace",
         "type": "integer",
@@ -27744,6 +28166,18 @@
         "index": false,
         "platforms": [
           "Linux"
+        ]
+      },
+      {
+        "name": "include_remote",
+        "description": "1 to include remote (LDAP/AD) accounts (default 0). Warning: without any uid/username filtering it may list whole LDAP directories",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "linux"
         ]
       },
       {
@@ -28148,6 +28582,15 @@
         "name": "uid",
         "description": "The local user that owns the plugin",
         "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "vscode_edition",
+        "description": "VSCode or VSCode Insiders",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -30353,15 +30796,6 @@
         "index": false
       },
       {
-        "name": "transaction_id",
-        "description": "ID used during bulk update",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
         "name": "matches",
         "description": "List of YARA matches",
         "type": "text",
@@ -30414,6 +30848,18 @@
         "hidden": true,
         "required": false,
         "index": false
+      },
+      {
+        "name": "transaction_id",
+        "description": "ID used during bulk update",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yara_events.yml"
@@ -30548,6 +30994,15 @@
         "index": false
       },
       {
+        "name": "source",
+        "description": "Source file",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
         "name": "baseurl",
         "description": "Repository base URL",
         "type": "text",
@@ -30559,6 +31014,15 @@
       {
         "name": "mirrorlist",
         "description": "Mirrorlist URL",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "metalink",
+        "description": "Metalink URL",
         "type": "text",
         "notes": "",
         "hidden": false,

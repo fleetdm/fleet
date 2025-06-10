@@ -1,0 +1,26 @@
+features:
+  enable_host_users: true
+  enable_software_inventory: true
+host_expiry_settings:
+  host_expiry_enabled: false
+  host_expiry_window: 1
+integrations:
+  google_calendar:
+    enable_calendar_events: true
+    webhook_url: https://some-team-google-calendar-webhook.com
+secrets:
+- secret: some-team-secret
+webhook_settings:
+  failing_policies_webhook:
+    destination_url: https://some-team-failing_policies-webhook.com
+    enable_failing_policies_webhook: false
+    host_batch_size: 4
+    policy_ids:
+    - 1
+    - 2
+    - 3
+  host_status_webhook:
+    days_count: 3
+    destination_url: https://some-team-host-status-webhook.com
+    enable_host_status_webhook: false
+    host_percentage: 2

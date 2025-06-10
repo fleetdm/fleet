@@ -78,7 +78,7 @@ const AdminWrapper = ({
   return (
     <MainContent className={classNames}>
       <div className={`${baseClass}_wrapper`}>
-        <TabNav>
+        <TabNav sticky>
           <h1>Settings</h1>
           <Tabs
             selectedIndex={getTabIndex(pathname)}

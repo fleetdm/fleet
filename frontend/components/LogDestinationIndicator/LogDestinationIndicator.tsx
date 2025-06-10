@@ -2,9 +2,11 @@ import React from "react";
 import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { LogDestination } from "interfaces/config";
 
 interface ILogDestinationIndicatorProps {
-  logDestination: string;
+  logDestination: LogDestination;
+  webhookDestination?: string;
   excludeTooltip?: boolean;
 }
 
@@ -17,6 +19,7 @@ const generateClassTag = (rawValue: string): string => {
 
 const LogDestinationIndicator = ({
   logDestination,
+  webhookDestination,
   excludeTooltip = false,
 }: ILogDestinationIndicatorProps) => {
   const classTag = generateClassTag(logDestination);
@@ -41,6 +44,8 @@ const LogDestinationIndicator = ({
         return "Apache Kafka";
       case "stdout":
         return "Standard output (stdout)";
+      case "webhook":
+        return "Webhook";
       case "":
         return "Not configured";
       default:
@@ -97,6 +102,13 @@ const LogDestinationIndicator = ({
           <>
             Each time a query runs, the data is sent to <br />
             standard output(stdout) on the Fleet server.
+          </>
+        );
+      case "webhook":
+        return (
+          <>
+            Each time a query runs, the data is sent via webhook to:{" "}
+            {webhookDestination}.
           </>
         );
       case "":

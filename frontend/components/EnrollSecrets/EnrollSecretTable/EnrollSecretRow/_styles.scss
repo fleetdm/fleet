@@ -5,19 +5,10 @@
     // this is doubled to make an 8px space due to presence of width:0 relatively-positioned 2nd flex child
     gap: 4px;
 
-    .buttons {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .form-field {
+      margin-bottom: 0;
     }
-  }
 
-  .form-field {
-    margin-bottom: 0;
-    width: 500px; // TODO: configurable from classname in reusable component
-  }
-
-  &__secret-input {
     .form-field__label {
       position: relative;
       font-size: $x-small;
@@ -26,38 +17,9 @@
       height: 0;
       min-height: 0;
     }
-
-    .input-field {
-      &--disabled {
-        letter-spacing: 0;
-        padding-right: 66px; // Text box does not overlap with icons
-      }
-
-      &--password {
-        letter-spacing: 4px;
-      }
-    }
   }
 
-  &__copy-message {
-    @include copy-message;
-  }
-
-  &__action-overlay {
+  &__edit-delete-btns {
     display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    position: relative;
-    width: 0;
-    left: -16px;
-
-    .buttons {
-      padding-left: 10px;
-      background-color: $ui-light-grey;
-    }
-
-    span {
-      font-weight: $regular;
-    }
   }
 }

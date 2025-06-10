@@ -51,6 +51,7 @@ import {
 } from "utilities/constants";
 import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import CustomLink from "components/CustomLink";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -894,6 +895,17 @@ export function getCustomDropdownOptions(
         ...defaultOptions,
       ];
 }
+
+export const getGitOpsModeTipContent = (repoURL: string) => (
+  <>
+    <span>
+      Manage in{" "}
+      <CustomLink newTab text="YAML" variant="tooltip-link" url={repoURL} />
+      <br />
+    </span>
+    <span>GitOps mode enabled</span>
+  </>
+);
 
 export default {
   addGravatarUrlToResource,

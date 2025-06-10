@@ -18,7 +18,6 @@ org_settings:
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
       idp_name: Google Workspace
-      issuer_uri: $DOGFOOD_SSO_ISSUER_URI
       metadata: |-
         $DOGFOOD_END_USER_SSO_METADATA
       metadata_url: ""
@@ -35,7 +34,7 @@ org_settings:
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
   org_info:
-    contact_url: https://fleetdm.com/company/contact
+    contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""
     org_logo_url_light_background: ""
     org_name: Fleet
@@ -53,13 +52,11 @@ org_settings:
     server_url: https://dogfood.fleetdm.com
   sso_settings:
     enable_jit_provisioning: true
-    enable_jit_role_sync: false
     enable_sso: true
-    enable_sso_idp_login: false
+    enable_sso_idp_login: true
     entity_id: dogfood.fleetdm.com
     idp_image_url: ""
     idp_name: Google Workspace
-    issuer_uri: $DOGFOOD_SSO_ISSUER_URI
     metadata: |-
       $DOGFOOD_SSO_METADATA
     metadata_url: ""
@@ -104,3 +101,4 @@ labels:
   - path: ./lib/all/labels/virtual-machines.yml
   - path: ./lib/all/labels/santa-test-devices.yml
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
+  - path: ./lib/all/labels/apple-silicon-macos-hosts.yml

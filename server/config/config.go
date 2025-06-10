@@ -137,8 +137,9 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
-	BcryptCost  int `yaml:"bcrypt_cost"`
-	SaltKeySize int `yaml:"salt_key_size"`
+	BcryptCost               int           `yaml:"bcrypt_cost"`
+	SaltKeySize              int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod time.Duration `yaml:"sso_session_validity_period"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -509,6 +510,11 @@ type FilesystemConfig struct {
 	MaxBackups           int    `json:"max_backups" yaml:"max_backups"`
 }
 
+type WebhookConfig struct {
+	StatusURL string `json:"status_url" yaml:"status_url"`
+	ResultURL string `json:"result_url" yaml:"result_url"`
+}
+
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
 type KafkaRESTConfig struct {
 	StatusTopic      string `json:"status_topic" yaml:"status_topic"`
@@ -601,6 +607,7 @@ type FleetConfig struct {
 	SES              SESConfig
 	PubSub           PubSubConfig
 	Filesystem       FilesystemConfig
+	Webhook          WebhookConfig
 	KafkaREST        KafkaRESTConfig
 	License          LicenseConfig
 	Vulnerabilities  VulnerabilitiesConfig
@@ -616,6 +623,7 @@ type FleetConfig struct {
 
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
+	EnablePrimo       bool `yaml:"enable_primo"`
 }
 
 type MDMConfig struct {
@@ -688,6 +696,8 @@ type MDMConfig struct {
 	microsoftWSTEP        *tls.Certificate
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
+
+	SSORateLimitPerMinute int `yaml:"sso_rate_limit_per_minute"`
 }
 
 type CalendarConfig struct {
@@ -1076,6 +1086,8 @@ func (man Manager) addConfigs() {
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
 		"Size of salt for passwords")
+	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
+		"Timeout from SSO start to SSO callback")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1163,6 +1175,7 @@ func (man Manager) addConfigs() {
 
 	// Email
 	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
+
 	// SES
 	man.addConfigString("ses.region", "", "AWS Region to use")
 	man.addConfigString("ses.endpoint_url", "", "AWS Service Endpoint to use (leave empty for default service endpoints)")
@@ -1298,6 +1311,10 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("filesystem.max_age", 28, "Maximum number of days to retain old log files based on the timestamp encoded in their filename. Setting to zero wil retain old log files indefinitely (only valid if enable_log_rotation is true) default is 28 days")
 	man.addConfigInt("filesystem.max_backups", 3, "Maximum number of old log files to retain. Setting to zero will retain all old log files (only valid if enable_log_rotation is true) default is 3")
 
+	// Webhook
+	man.addConfigString("webhook.status_url", "", "Webhook URL for osquery status logs")
+	man.addConfigString("webhook.result_url", "", "Webhook URL for osquery result logs")
+
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
 	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
@@ -1393,6 +1410,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
+	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1402,6 +1420,7 @@ func (man Manager) addConfigs() {
 
 	// Partnerships
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
+	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1479,8 +1498,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKey:                  man.getConfigString("server.private_key"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
+			BcryptCost:               man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:              man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod: man.getConfigDuration("auth.sso_session_validity_period"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -1592,6 +1612,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxAge:               man.getConfigInt("filesystem.max_age"),
 			MaxBackups:           man.getConfigInt("filesystem.max_backups"),
 		},
+		Webhook: WebhookConfig{
+			StatusURL: man.getConfigString("webhook.status_url"),
+			ResultURL: man.getConfigString("webhook.result_url"),
+		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
 			ResultTopic:      man.getConfigString("kafkarest.result_topic"),
@@ -1672,12 +1696,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			SSORateLimitPerMinute:           man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
 		},
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
+			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
 		},
 	}
 
@@ -2002,8 +2028,9 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			BcryptCost:  6, // Low cost keeps tests fast
-			SaltKeySize: 24,
+			BcryptCost:               6, // Low cost keeps tests fast
+			SaltKeySize:              24,
+			SsoSessionValidityPeriod: 5 * time.Minute,
 		},
 		Session: SessionConfig{
 			KeySize:  64,

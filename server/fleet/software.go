@@ -240,6 +240,7 @@ type SoftwareTitleListResult struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
 }
 
 type SoftwareTitleListOptions struct {
@@ -306,8 +307,9 @@ type HostSoftwareEntry struct {
 }
 
 type PathSignatureInformation struct {
-	InstalledPath  string `json:"installed_path"`
-	TeamIdentifier string `json:"team_identifier"`
+	InstalledPath  string  `json:"installed_path"`
+	TeamIdentifier string  `json:"team_identifier"`
+	HashSha256     *string `json:"hash_sha256"`
 }
 
 // HostSoftware is the set of software installed on a specific host
@@ -471,6 +473,8 @@ type VPPBatchPayload struct {
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string `json:"labels_include_any"`
+	// Categories is the list of names of software categories associated with this VPP app.
+	Categories []string `json:"categories"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -480,4 +484,13 @@ type VPPBatchPayloadWithPlatform struct {
 	InstallDuringSetup *bool               `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string            `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string            `json:"labels_include_any"`
+	// Categories is the list of names of software categories associated with this VPP app.
+	Categories []string `json:"categories"`
+	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
+	CategoryIDs []uint `json:"-"`
+}
+
+type SoftwareCategory struct {
+	ID   uint   `db:"id"`
+	Name string `db:"name"`
 }

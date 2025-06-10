@@ -62,6 +62,7 @@ export const GITHUB_NEW_ISSUE_LINK =
 
 /** website links */
 export const FLEET_WEBSITE_URL = "https://fleetdm.com";
+export const TRANSPARENCY_LINK = `${FLEET_WEBSITE_URL}/better`;
 export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
 export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
 export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
@@ -378,6 +379,8 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
+export const PRIMO_TOOLTIP = "Teams are disabled while using Primo";
+
 /** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {
   config: {},
@@ -451,3 +454,5 @@ export const DATE_FNS_FORMAT_STRINGS = {
   dateAtTime: "E, MMM d 'at' p",
   hoursAndMinutes: "HH:mm",
 };
+
+export const MAX_SCRIPT_BATCH_TARGETS = 5000;

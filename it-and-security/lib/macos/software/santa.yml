@@ -1,2 +1,5 @@
-url: https://github.com/northpolesec/santa/releases/download/2025.3/santa-2025.3.pkg
+url: https://github.com/northpolesec/santa/releases/download/2025.5/santa-2025.5.pkg
 self_service: true
+categories:
+labels_include_any:
+  - "Santa test devices"

@@ -12,11 +12,11 @@ The Fleet frontend is a Single Page Application using React with Typescript and 
 ## Running the Fleet web app
 
 For details instruction on building and serving the Fleet web application
-consult the [Contributing documentation](../docs/Contributing/README.md).
+consult the [Contributing documentation](../docs/Contributing/getting-started/README.md).
 
 ## Testing
 
-Visit the [overview of Fleet UI testing](../docs/Contributing/Fleet-UI-Testing.md) for more information on our testing strategy, philosophies, and tools.
+Visit the [overview of Fleet UI testing](../docs/Contributing/guides/ui/fleet-ui-testing.md) for more information on our testing strategy, philosophies, and tools.
 
 To run unit or integration tests in `ComponentName.tests.tsx`, run `yarn test -- ComponentName.tests.tsx`. To [test all Javascript components](https://fleetdm.com/docs/contributing/testing-and-local-development#javascript-unit-tests) run `yarn test`.
 

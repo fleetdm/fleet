@@ -6,9 +6,11 @@ import (
 )
 
 type DigiCertCertificate struct {
-	PfxData       []byte
-	Password      string
-	NotValidAfter time.Time
+	PfxData        []byte
+	Password       string
+	NotValidBefore time.Time
+	NotValidAfter  time.Time
+	SerialNumber   string
 }
 
 type DigiCertService interface {

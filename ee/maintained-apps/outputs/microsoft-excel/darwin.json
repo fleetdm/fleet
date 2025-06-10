@@ -8,7 +8,10 @@
       "installer_url": "https://officecdnmac.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/Microsoft_Excel_16.96.25041326_Installer.pkg",
       "install_script_ref": "553c4a28",
       "uninstall_script_ref": "6694909e",
-      "sha256": "df40883d83d07f9f46a6fd88836d96cc22f22314792827fc7b2a2a11015c99e6"
+      "sha256": "df40883d83d07f9f46a6fd88836d96cc22f22314792827fc7b2a2a11015c99e6",
+      "default_categories": [
+        "Productivity"
+      ]
     }
   ],
   "refs": {

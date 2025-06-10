@@ -39,6 +39,7 @@
     "Promise": true,
     "sails": true,
     "_": true,
+    "ƒ": true,
 
     // Models:
     "User": true,

@@ -163,7 +163,8 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
 
-	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	// filevault profile is a fleet-controlled profile that doesn't use any Fleet variables
+	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp, nil)
 	return ctxerr.Wrap(ctx, err, "enabling FileVault")
 }
 
@@ -216,6 +217,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.ManualAgentInstall != nil {
+		if ac.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
+			ac.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
@@ -255,7 +263,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return err
 	}
 	if !ac.MDM.EnabledAndConfigured {
-		return &fleet.MDMNotConfiguredError{}
+		return fleet.ErrMDMNotConfigured
 	}
 
 	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
@@ -279,7 +287,7 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	return nil
 }
 
-func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error {
+func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleBootstrapPackage{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -295,8 +303,14 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		ptrTeamId = &teamID
 	}
 
-	hashBuf := bytes.NewBuffer(nil)
-	if err := file.CheckPKGSignature(io.TeeReader(pkg, hashBuf)); err != nil {
+	// Read the pkg into a buffer
+	buff := bytes.NewBuffer(nil)
+	if _, err := io.Copy(buff, pkg); err != nil {
+		return err
+	}
+	buffReader := bytes.NewReader(buff.Bytes())
+
+	if err := file.CheckPKGSignature(buffReader); err != nil {
 		msg := "invalid package"
 		if errors.Is(err, file.ErrInvalidType) || errors.Is(err, file.ErrNotSigned) {
 			msg = err.Error()
@@ -308,10 +322,26 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		}
 	}
 
-	pkgBuf := bytes.NewBuffer(nil)
+	buffReader.Reset(buff.Bytes())
+	hasDistribution, err := file.XARHasDistribution(buffReader)
+	if err != nil {
+		return &fleet.BadRequestError{
+			Message:     err.Error(),
+			InternalErr: err,
+		}
+	}
+	if !hasDistribution {
+		return &fleet.BadRequestError{Message: fleet.BootstrapPkgNotDistributionErrMsg}
+	}
+
+	buffReader.Reset(buff.Bytes())
 	hash := sha256.New()
-	if _, err := io.Copy(hash, io.TeeReader(hashBuf, pkgBuf)); err != nil {
+	if _, err := io.Copy(hash, buffReader); err != nil {
 		return err
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	bp := &fleet.MDMAppleBootstrapPackage{
@@ -319,7 +349,7 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		Name:   name,
 		Token:  uuid.New().String(),
 		Sha256: hash.Sum(nil),
-		Bytes:  pkgBuf.Bytes(),
+		Bytes:  buff.Bytes(),
 	}
 	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp, svc.bootstrapPackageStore); err != nil {
 		return err
@@ -363,7 +393,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageMetadata(ctx context.Context, tea
 	return meta, nil
 }
 
-func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error {
+func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint, dryRun bool) error {
 	var tmID uint
 	if teamID != nil {
 		tmID = *teamID
@@ -387,6 +417,10 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 	meta, err := svc.ds.GetMDMAppleBootstrapPackageMeta(ctx, tmID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
+	}
+
+	if dryRun {
+		return nil
 	}
 
 	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
@@ -668,6 +702,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 		Metadata:                    metadata,
 		AssertionConsumerServiceURL: appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
+		SessionTTL:                  uint(svc.config.Auth.SsoSessionValidityPeriod.Seconds()),
 		OriginalURL:                 "/api/v1/fleet/mdm/sso/callback",
 	}
 
@@ -705,7 +740,8 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 }
 
 func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (profileToken string, enrollmentReference string,
-	eulaToken string, err error) {
+	eulaToken string, err error,
+) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")

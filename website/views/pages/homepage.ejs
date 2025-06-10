@@ -11,6 +11,7 @@
                 every
                 <div purpose="option-container" class="pl-2 d-flex flex-column">
                   <span purpose="hero-ticker-option" class="visible">OS</span>
+                  <span purpose="hero-ticker-option">audit</span>
                   <span purpose="hero-ticker-option">script</span>
                   <span purpose="hero-ticker-option">config</span>
                   <span purpose="hero-ticker-option">question</span>
@@ -20,24 +21,22 @@
                   <span purpose="hero-ticker-option">server</span>
                   <span purpose="hero-ticker-option">cloud instance</span>
                   <span purpose="hero-ticker-option">container</span>
-                  <span purpose="hero-ticker-option">robot</span>
-                  <span purpose="hero-ticker-option">satellite</span>
-                  <span purpose="hero-ticker-option">telescope</span>
                   <span purpose="hero-ticker-option">tablet</span>
                   <span purpose="hero-ticker-option">hospital</span>
                   <span purpose="hero-ticker-option">factory</span>
-                  <span purpose="hero-ticker-option">audit</span>
                   <span purpose="hero-ticker-option">report</span>
-                  <span purpose="hero-ticker-option">decision</span>
                   <span purpose="hero-ticker-option">new hire</span>
                   <span purpose="hero-ticker-option">offboard</span>
                   <span purpose="hero-ticker-option">employee</span>
-                  <span purpose="hero-ticker-option">local LLM</span>
+                  <span purpose="hero-ticker-option">agent</span>
+                  <span purpose="hero-ticker-option">robot</span>
+                  <span purpose="hero-ticker-option">satellite</span>
+                  <span purpose="hero-ticker-option">telescope</span>
                   <span purpose="hero-ticker-option">computer</span>
                 </div>
               </div>
             </h1>
-            <p><%= primaryBuyingSituation === 'vm'? 'Replace the sprawl with secure, open-source reporting that works the way you want.' : primaryBuyingSituation === 'eo-security'? 'Replace the sprawl with secure, open-source telemetry that works the way you want.' : 'Freedom at every level. Device management your way with all the features you need. No surprises!' %></p>
+            <p><%= primaryBuyingSituation === 'security-vm'? 'Replace the sprawl with secure, open-source reporting that works the way you want.' : primaryBuyingSituation === 'security-misc'? 'Replace the sprawl with secure, open-source telemetry that works the way you want.' : 'Freedom at every level. Device management your way with all the features you need—no surprises.' %></p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="/docs/get-started/why-fleet">Learn how</a>
               <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
@@ -84,7 +83,7 @@
   <%/* Homepage content */%>
   <div purpose="homepage-content" class="container">
     <div purpose="page-section">
-    <% if(!primaryBuyingSituation){ %>
+    <% if(true){ %>
       <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="category-switch-option" :class="[selectedCategory === 'mdm' ? 'selected' : '']" @click="selectedCategory = 'mdm'">Device management</div>
         <div purpose="category-switch-option" :class="[selectedCategory === 'software-management' ? 'selected' : '']" @click="selectedCategory = 'software-management'">Software management</div>
@@ -242,12 +241,12 @@
        <% } %>
       <div purpose="page-section">
         <div purpose="comparison-section">
-          <% if(primaryBuyingSituation === 'mdm'){%>
+          <% if(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation)){ %>
             <h2>Toe-to-toe with the big players</h2>
           <%} else {%>
             <h2>Is it any good?</h2>
           <%}%>
-          <% if(primaryBuyingSituation === 'mdm'){ %>
+          <% if(['it-major-mdm', 'it-gap-filler-mdm', 'mdm'].includes(primaryBuyingSituation)){ %>
             <p>Considering a move to Fleet as a multi-platform, open-source MDM alternative? See how we compare:</p>
           <% } else { %>
             <p>Considering a move to Fleet? See how we compare:</p>
@@ -312,7 +311,7 @@
 
               <div purpose="table-row">
                 <div purpose="feature-name">
-                  <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint. Access over 300 tables of system state data. Use presets or create your own queries."></p>
+                  <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you data down to the chip level on every endpoint, server, and cloud instance. Access over 300 tables of system state data. Use presets or create your own queries."></p>
 
                 </div>
                 <div purpose="fleet-column">
@@ -497,7 +496,7 @@
                   <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
                 </div>
                 <div purpose="comparison-column" v-else-if="comparisonMode === 'intune'">
-                  <p>6 Hours</p>
+                  <p>6 hours</p>
                 </div>
                 <div purpose="comparison-column" v-else-if="['puppet', 'chef', 'ansible'].includes(comparisonMode)">
                   <p>One-off scripts</p>
@@ -1048,15 +1047,15 @@
   <div purpose="bottom-gradient">
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
-        <h4>For teams with lots of computing devices</h4>
+        <h4>Deploy anywhere</h4>
         <h1 class="mx-auto <%= primaryBuyingSituation%>">
           <%=
-            (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'vm') ? 'Focus on vulnerabilities, not vendors' // vm
-            : (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'eo-security') ? 'Easily get security data'// eo-security
-            : (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'eo-it') ? 'One agent for every ' : // eo-it
+            (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'security-vm') ? 'Focus on vulnerabilities, not vendors' // vm
+            : (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'security-misc') ? 'Easily get security data'// eo-security
+            : (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'it-misc') ? 'One agent for every ' : // eo-it
             'One agent for every '// mdm or default (no buying situation)
           %>
-            <% if(['eo-it', 'mdm', undefined].includes(primaryBuyingSituation)){%>
+            <% if(!['security-misc', 'security-vm'].includes(primaryBuyingSituation)){%>
             <br>
               <div purpose="ticker-container" class="d-flex align-items-center mx-auto flex-row text-nowrap">
                 <div purpose="option-container" class="pl-2 d-flex flex-column">

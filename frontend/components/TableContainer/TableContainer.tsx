@@ -9,7 +9,7 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import { COLORS } from "styles/var/colors";
 
@@ -31,8 +31,9 @@ interface IRowProps extends Row {
   };
 }
 
+// TODO - there are 2 `IActionButtonProps` - reconcile
 interface ITableContainerActionButtonProps extends IActionButtonProps {
-  gitOpsModeCompatible?: boolean;
+  disabledTooltipContent?: React.ReactNode;
 }
 
 interface ITableContainerProps<T = any> {
@@ -114,6 +115,8 @@ interface ITableContainerProps<T = any> {
   disableTableHeader?: boolean;
   /** Set to true to persist the row selections across table data filters */
   persistSelectedRows?: boolean;
+  /** Set to `true` to not display the footer section of the table */
+  hideFooter?: boolean;
   /** handler called when the  `clear selection` button is called */
   onClearSelection?: () => void;
 }
@@ -161,6 +164,7 @@ const TableContainer = <T,>({
   pageSize = DEFAULT_PAGE_SIZE,
   selectedDropdownFilter,
   searchQueryColumn,
+  hideFooter,
   onQueryChange,
   customControl,
   customFiltersButton,
@@ -294,30 +298,12 @@ const TableContainer = <T,>({
   const renderFilterActionButton = () => {
     // always !!actionButton here, this is for type checker
     if (actionButton) {
-      if (actionButton.gitOpsModeCompatible) {
-        return (
-          <GitOpsModeTooltipWrapper
-            tipOffset={8}
-            renderChildren={(disableChildren) => (
-              <Button
-                disabled={disableActionButton || disableChildren}
-                onClick={actionButton.onActionButtonClick}
-                variant={actionButton.variant || "default"}
-                className={`${baseClass}__table-action-button`}
-              >
-                <>
-                  {actionButton.buttonText}
-                  {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
-                </>
-              </Button>
-            )}
-          />
-        );
-      }
-      return (
+      const button = (
         <Button
-          disabled={disableActionButton}
-          onClick={actionButton.onActionButtonClick}
+          disabled={
+            !!actionButton.disabledTooltipContent || disableActionButton
+          }
+          onClick={actionButton.onClick}
           variant={actionButton.variant || "default"}
           className={`${baseClass}__table-action-button`}
         >
@@ -327,9 +313,20 @@ const TableContainer = <T,>({
           </>
         </Button>
       );
+      return actionButton.disabledTooltipContent ? (
+        <TooltipWrapper
+          tipContent={actionButton.disabledTooltipContent}
+          position="top"
+          underline={false}
+          showArrow
+          tipOffset={8}
+        >
+          {button}
+        </TooltipWrapper>
+      ) : (
+        button
+      );
     }
-    // should never reach here
-    return null;
   };
 
   const renderFilters = useCallback(() => {
@@ -558,6 +555,7 @@ const TableContainer = <T,>({
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
                 persistSelectedRows={persistSelectedRows}
+                hideFooter={hideFooter}
               />
             </div>
           </>

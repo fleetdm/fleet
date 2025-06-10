@@ -222,11 +222,7 @@
   }
 
   &__status-filter {
-    width: 175px;
-
-    @media (min-width: $table-controls-break) {
-      width: 190px;
-    }
+    width: 195px;
 
     .Select-menu-outer {
       width: 364px;

@@ -154,11 +154,7 @@ const VppPage = ({ router }: IVppPageProps) => {
 
     // TODO: error UI
     if (showDataError) {
-      return (
-        <div>
-          <DataError />
-        </div>
-      );
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (vppTokens?.length === 0) {

@@ -12,10 +12,9 @@ export type ButtonVariant =
   | "text-link" // Underlines on hover
   | "text-icon"
   | "icon" // Buttons without text
-  | "small-icon" // Buttons without text
   | "inverse"
   | "inverse-alert"
-  | "unstyled"
+  | "unstyled" // Avoid as much as possible (used in registration breadcrumbs, 404/500, an old button dropdown)
   | "unstyled-modal-query"
   | "oversized";
 
@@ -39,6 +38,8 @@ export interface IButtonProps {
       ) => void);
   isLoading?: boolean;
   customOnKeyDown?: (e: React.KeyboardEvent) => void;
+  /** Required for buttons that contain SVG icons using`stroke` instead of`fill` for proper hover styling */
+  iconStroke?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -109,6 +110,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       variant,
       isLoading,
       customOnKeyDown,
+      iconStroke,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -116,6 +118,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       className,
       {
         [`${baseClass}--disabled`]: disabled,
+        [`${baseClass}--icon-stroke`]: iconStroke,
       }
     );
     const onWhite =

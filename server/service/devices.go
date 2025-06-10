@@ -367,6 +367,39 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Get software MDM command results
+////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceMDMCommandResultsRequest struct {
+	Token       string `url:"token"`
+	CommandUUID string `url:"command_uuid"`
+}
+
+func (r *getDeviceMDMCommandResultsRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+func getDeviceMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	_, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getMDMCommandResultsResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceMDMCommandResultsRequest)
+	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID)
+	if err != nil {
+		return getMDMCommandResultsResponse{
+			Err: err,
+		}, nil
+	}
+
+	return getMDMCommandResultsResponse{
+		Results: results,
+	}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Transparency URL Redirect
 ////////////////////////////////////////////////////////////////////////////////
 

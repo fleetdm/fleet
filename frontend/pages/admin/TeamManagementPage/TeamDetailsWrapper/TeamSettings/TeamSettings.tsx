@@ -283,7 +283,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
 
   const renderForm = () => {
     if (errorLoadGlobalConfig || errorLoadTeamConfig) {
-      return <DataError />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
     if (isLoadingTeamConfig || isLoadingAppConfig) {
       return <Spinner />;
@@ -297,7 +297,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           parseTarget
           value={formData.teamHostStatusWebhookEnabled}
           helpText="This will trigger webhooks specific to this team, separate from the global host status webhook."
-          tooltipContent="Send an alert if a portion of your hosts go offline."
+          labelTooltipContent="Send an alert if a portion of your hosts go offline."
           disabled={gitopsModeEnabled}
         >
           Enable host status webhook

@@ -144,11 +144,11 @@ const PolicyResults = ({
         {" "}
         (Yes:{" "}
         <TooltipWrapper tipContent={`${yesCt} host${yesCt !== 1 ? "s" : ""}`}>
-          {Math.ceil((yesCt / uiHostCounts.successful) * 100)}%
+          {Math.round((yesCt / uiHostCounts.successful) * 100)}%
         </TooltipWrapper>
         , No:{" "}
         <TooltipWrapper tipContent={`${noCt} host${noCt !== 1 ? "s" : ""}`}>
-          {Math.floor((noCt / uiHostCounts.successful) * 100)}%
+          {Math.round((noCt / uiHostCounts.successful) * 100)}%
         </TooltipWrapper>
         )
       </span>
@@ -188,7 +188,8 @@ const PolicyResults = ({
         <div className={`${baseClass}__results-table-header`}>
           <span className={`${baseClass}__results-meta`}>
             <span className={`${baseClass}__results-count`}>
-              {totalRowsCount} result{totalRowsCount !== 1 && "s"}
+              {uiHostCounts.successful} result
+              {uiHostCounts.successful !== 1 && "s"}
             </span>
             {isQueryFinished && renderPassFailPcts()}
           </span>

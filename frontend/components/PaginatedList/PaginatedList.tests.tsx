@@ -5,6 +5,12 @@ import { renderWithSetup } from "test/test-utils";
 
 import PaginatedList, { IPaginatedListHandle } from "./PaginatedList";
 
+// to test:
+// setDirtyOnClickRow?: boolean;
+// useCheckBoxes?: boolean;
+// /** Allow the parent to trigger the loading overlay */
+// ancestralUpdating?: boolean;
+
 describe("PaginatedList", () => {
   interface ITestItem {
     id: number;
@@ -85,7 +91,7 @@ describe("PaginatedList", () => {
       <PaginatedList<ITestItem>
         fetchPage={fetchLargePage}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
       />
@@ -108,7 +114,7 @@ describe("PaginatedList", () => {
         idKey="key"
         labelKey="val"
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
       />
@@ -132,7 +138,7 @@ describe("PaginatedList", () => {
       <PaginatedList<ITestItem>
         fetchPage={fetchLargePage}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected="checkMeBruh"
       />
@@ -157,7 +163,7 @@ describe("PaginatedList", () => {
       <PaginatedList<ITestItem>
         fetchPage={fetchLargePage}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={(item) => item.favoriteIceCreamFlavor === "Dirt"}
       />
@@ -182,7 +188,7 @@ describe("PaginatedList", () => {
       <PaginatedList<ITestItem>
         fetchPage={fetchSmallPage}
         pageSize={2}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
       />
@@ -241,7 +247,7 @@ describe("PaginatedList", () => {
         fetchPage={fetchTinyPage}
         fetchCount={() => Promise.resolve(3)}
         pageSize={1}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
       />
@@ -289,7 +295,7 @@ describe("PaginatedList", () => {
       <PaginatedList<ITestItem>
         fetchPage={fetchLargePage}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
         renderItemRow={(item) => <span>{item.favoriteIceCreamFlavor}</span>}
@@ -312,7 +318,7 @@ describe("PaginatedList", () => {
       <PaginatedList<ITestItem>
         fetchPage={fetchLargePage}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
         renderItemLabel={(item) => <span>{item.favoriteIceCreamFlavor}</span>}
@@ -340,7 +346,7 @@ describe("PaginatedList", () => {
         ref={paginatedListRef}
         fetchPage={fetchLargePage}
         pageSize={10}
-        onToggleItem={onToggleItem}
+        onClickRow={onToggleItem}
         onUpdate={jest.fn()}
         isSelected="checkMeBruh"
       />
@@ -368,7 +374,7 @@ describe("PaginatedList", () => {
         ref={paginatedListRef}
         fetchPage={fetchLargePage}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
         renderItemRow={(item, onChange) => (
@@ -408,7 +414,7 @@ describe("PaginatedList", () => {
         ref={paginatedListRef}
         fetchPage={fetchLargePage}
         pageSize={10}
-        onToggleItem={jest.fn((item) => item)}
+        onClickRow={jest.fn((item) => item)}
         onUpdate={onUpdate}
         isSelected={jest.fn()}
       />
@@ -431,7 +437,7 @@ describe("PaginatedList", () => {
       <PaginatedList<ITestItem>
         fetchPage={fetchLargePage}
         pageSize={10}
-        onToggleItem={jest.fn()}
+        onClickRow={jest.fn()}
         onUpdate={jest.fn()}
         isSelected={jest.fn()}
         disabled

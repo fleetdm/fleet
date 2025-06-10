@@ -36,6 +36,7 @@ const generateActivityId = (
 export interface IShowActivityDetailsData {
   type: string;
   details?: IActivityDetails;
+  created_at?: string;
 }
 
 /**
@@ -46,6 +47,7 @@ export interface IShowActivityDetailsData {
 export type ShowActivityDetailsHandler = ({
   type,
   details,
+  created_at,
 }: IShowActivityDetailsData) => void;
 
 interface IActivityItemProps {
@@ -113,8 +115,15 @@ const ActivityItem = ({
     [`${baseClass}__no-details`]: hideShowDetails,
   });
 
-  const onShowActivityDetails = () => {
-    onShowDetails({ type: activity.type, details: activity.details });
+  const onShowActivityDetails = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // added this stopPropagation as there is some weirdness around the event
+    // bubbling up and calling the Modals onEnter handler.
+    e.stopPropagation();
+    onShowDetails({
+      type: activity.type,
+      details: activity.details,
+      created_at: activity.created_at,
+    });
   };
 
   const onCancelActivity = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -137,7 +146,8 @@ const ActivityItem = ({
         />
         <div className={`${baseClass}__avatar-lower-dash`} />
       </div>
-      <div
+      <button
+        disabled={hideShowDetails}
         className={`${baseClass}__details-wrapper`}
         onClick={onShowActivityDetails}
       >
@@ -168,12 +178,17 @@ const ActivityItem = ({
         </div>
         <div className={`${baseClass}__details-actions`}>
           {!hideShowDetails && (
-            <Button variant="icon" onClick={onShowActivityDetails}>
+            <Button
+              className={`${baseClass}__action-button`}
+              variant="icon"
+              onClick={onShowActivityDetails}
+            >
               <Icon name="info-outline" />
             </Button>
           )}
           {!hideCancel && (
             <Button
+              className={`${baseClass}__action-button`}
               variant="icon"
               onClick={onCancelActivity}
               disabled={disableCancel}
@@ -186,7 +201,7 @@ const ActivityItem = ({
             </Button>
           )}
         </div>
-      </div>
+      </button>
     </div>
   );
 };

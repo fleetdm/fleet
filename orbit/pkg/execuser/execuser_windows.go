@@ -65,23 +65,25 @@ const (
 	TokenImpersonazion
 )
 
+// Some Windows API functions pass these in a 32 bit DWORD others a 16 bit WORD.
+// Not clear what the optimal type is in go, so casting may be required
 type SW int
 
 const (
 	SW_HIDE            SW = 0
-	SW_SHOWNORMAL         = 1
-	SW_NORMAL             = 1
-	SW_SHOWMINIMIZED      = 2
-	SW_SHOWMAXIMIZED      = 3
-	SW_MAXIMIZE           = 3
-	SW_SHOWNOACTIVATE     = 4
-	SW_SHOW               = 5
-	SW_MINIMIZE           = 6
-	SW_SHOWMINNOACTIVE    = 7
-	SW_SHOWNA             = 8
-	SW_RESTORE            = 9
-	SW_SHOWDEFAULT        = 10
-	SW_MAX                = 1
+	SW_SHOWNORMAL      SW = 1
+	SW_NORMAL          SW = 1
+	SW_SHOWMINIMIZED   SW = 2
+	SW_SHOWMAXIMIZED   SW = 3
+	SW_MAXIMIZE        SW = 3
+	SW_SHOWNOACTIVATE  SW = 4
+	SW_SHOW            SW = 5
+	SW_MINIMIZE        SW = 6
+	SW_SHOWMINNOACTIVE SW = 7
+	SW_SHOWNA          SW = 8
+	SW_RESTORE         SW = 9
+	SW_SHOWDEFAULT     SW = 10
+	SW_MAX             SW = 1
 )
 
 type WTS_SESSION_INFO struct {
@@ -91,9 +93,9 @@ type WTS_SESSION_INFO struct {
 }
 
 const (
-	CREATE_UNICODE_ENVIRONMENT uint16 = 0x00000400
-	CREATE_NO_WINDOW                  = 0x08000000
-	CREATE_NEW_CONSOLE                = 0x00000010
+	CREATE_UNICODE_ENVIRONMENT int = 0x00000400
+	CREATE_NO_WINDOW           int = 0x08000000
+	CREATE_NEW_CONSOLE         int = 0x00000010
 )
 
 // run uses the Windows API to run a child process as the current login user.
@@ -142,11 +144,11 @@ func getCurrentUserSessionId() (windows.Handle, error) {
 	}
 
 	// TODO(lucas): Check which sessions is assigned to current log in user.
-	if sessionId, _, err := procWTSGetActiveConsoleSessionId.Call(); sessionId == 0xFFFFFFFF {
+	sessionId, _, err := procWTSGetActiveConsoleSessionId.Call()
+	if sessionId == 0xFFFFFFFF {
 		return 0xFFFFFFFF, fmt.Errorf("get current user session token: call native WTSGetActiveConsoleSessionId: %s", err)
-	} else {
-		return windows.Handle(sessionId), nil
 	}
+	return windows.Handle(sessionId), nil
 }
 
 // wtsEnumerateSession will call the native
@@ -154,9 +156,9 @@ func getCurrentUserSessionId() (windows.Handle, error) {
 // to a Golang friendly version
 func wtsEnumerateSessions() ([]*WTS_SESSION_INFO, error) {
 	var (
-		sessionInformation windows.Handle      = windows.Handle(0)
-		sessionCount       int                 = 0
-		sessionList        []*WTS_SESSION_INFO = make([]*WTS_SESSION_INFO, 0)
+		sessionInformation windows.Handle = windows.Handle(0)
+		sessionCount       int
+		sessionList        = make([]*WTS_SESSION_INFO, 0)
 	)
 
 	if returnCode, _, err := procWTSEnumerateSessionsW.Call(WTS_CURRENT_SERVER_HANDLE, 0, 1, uintptr(unsafe.Pointer(&sessionInformation)), uintptr(unsafe.Pointer(&sessionCount))); returnCode == 0 {
@@ -178,8 +180,8 @@ func wtsEnumerateSessions() ([]*WTS_SESSION_INFO, error) {
 // into the provided session ID
 func duplicateUserTokenFromSessionID(sessionId windows.Handle) (windows.Token, error) {
 	var (
-		impersonationToken windows.Handle = 0
-		userToken          windows.Token  = 0
+		impersonationToken windows.Handle
+		userToken          windows.Token
 	)
 
 	if returnCode, _, err := procWTSQueryUserToken.Call(uintptr(sessionId), uintptr(unsafe.Pointer(&impersonationToken))); returnCode == 0 {
@@ -206,8 +208,8 @@ func startProcessAsCurrentUser(appPath, cmdLine, workDir string) error {
 		startupInfo windows.StartupInfo
 		processInfo windows.ProcessInformation
 
-		commandLine uintptr = 0
-		workingDir  uintptr = 0
+		commandLine uintptr
+		workingDir  uintptr
 
 		err error
 	)
@@ -226,7 +228,7 @@ func startProcessAsCurrentUser(appPath, cmdLine, workDir string) error {
 
 	// TODO(lucas): Test out creation flags and startup info values.
 	creationFlags := CREATE_UNICODE_ENVIRONMENT | CREATE_NEW_CONSOLE
-	startupInfo.ShowWindow = SW_SHOW
+	startupInfo.ShowWindow = uint16(SW_SHOW)
 	startupInfo.Desktop = windows.StringToUTF16Ptr("winsta0\\default")
 
 	if len(cmdLine) > 0 {

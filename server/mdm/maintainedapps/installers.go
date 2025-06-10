@@ -54,6 +54,15 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 		)
 	}
 
+	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
+	if err != nil {
+		return nil, "", ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
+	}
+
+	return tfr, FilenameFromResponse(resp), nil
+}
+
+func FilenameFromResponse(resp *http.Response) string {
 	var filename string
 	cdh, ok := resp.Header["Content-Disposition"]
 	if ok && len(cdh) > 0 {
@@ -76,14 +85,9 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 	// Fall back on extracting the filename from the URL
 	// This is OK for the first 20 apps we support, but we should do something more robust once we
 	// support more apps.
-	if filename == "" {
+	if filename == "" && resp.Request.URL.Path != "" {
 		filename = path.Base(resp.Request.URL.Path)
 	}
 
-	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
-	if err != nil {
-		return nil, "", ctxerr.Wrapf(ctx, err, "reading installer %q contents", installerURL)
-	}
-
-	return tfr, filename, nil
+	return filename
 }
