@@ -2482,6 +2482,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       p2,
@@ -2489,6 +2490,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       p2,
@@ -2496,6 +2498,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       p3,
@@ -2503,6 +2506,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID,
 				OperationType:     fleet.MDMOperationTypeRemove,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       p3,
@@ -2510,6 +2514,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeRemove,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       p4,
@@ -2517,6 +2522,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 		}, copies)
 		return nil
@@ -2576,6 +2582,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					OperationType:     fleet.MDMOperationTypeRemove,
 					Status:            nil,
 					CommandUUID:       "",
+					Scope:             fleet.PayloadScopeSystem,
 				},
 				{
 					ProfileUUID:       p3,
@@ -2584,6 +2591,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					OperationType:     fleet.MDMOperationTypeRemove,
 					Status:            nil,
 					CommandUUID:       "",
+					Scope:             fleet.PayloadScopeSystem,
 				},
 			}, payload)
 		}
@@ -2613,6 +2621,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            nil,
 					CommandUUID:       "",
+					Scope:             fleet.PayloadScopeSystem,
 				},
 				{
 					ProfileUUID:       p2,
@@ -2621,6 +2630,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            nil,
 					CommandUUID:       "",
+					Scope:             fleet.PayloadScopeSystem,
 				},
 				{
 					ProfileUUID:       p2,
@@ -2629,6 +2639,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            nil,
 					CommandUUID:       "",
+					Scope:             fleet.PayloadScopeSystem,
 				},
 				{
 					ProfileUUID:       p4,
@@ -2637,6 +2648,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					OperationType:     fleet.MDMOperationTypeInstall,
 					Status:            nil,
 					CommandUUID:       "",
+					Scope:             fleet.PayloadScopeSystem,
 				},
 			}, payload)
 		}
@@ -2701,6 +2713,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       p2,
@@ -2708,6 +2721,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       p2,
@@ -2715,6 +2729,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 			{
 				ProfileUUID:       p4,
@@ -2722,6 +2737,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
 				Status:            &fleet.MDMDeliveryPending,
+				Scope:             fleet.PayloadScopeSystem,
 			},
 		}, copies)
 		return nil
@@ -2884,6 +2900,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		OperationType:     fleet.MDMOperationTypeInstall,
 		Status:            &fleet.MDMDeliveryPending,
 		CommandUUID:       cmdUUID,
+		Scope:             fleet.PayloadScopeSystem,
 	}
 	populateTargets()
 	profileContents := map[string]mobileconfig.Mobileconfig{
@@ -2900,6 +2917,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 			assert.Equal(t, cmdUUID, p.CommandUUID)
 			assert.Equal(t, hostUUID, p.HostUUID)
 			assert.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
+			assert.Equal(t, fleet.PayloadScopeSystem, p.Scope)
 		}
 		return nil
 	}
@@ -3182,6 +3200,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryPending,
 			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeSystem,
 		}
 	}
 	addProfileToInstall(hostUUID, "p1", "com.add.profile")
