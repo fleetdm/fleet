@@ -22,7 +22,7 @@ const (
 
 	// context key for the retry number of a job, made available via the context
 	// to the job processor.
-	retryNumberCtxKey = ctxKey(0)
+	// retryNumberCtxKey = ctxKey(0)
 )
 
 const (
@@ -209,7 +209,7 @@ func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 		args = *job.Args
 	}
 
-	ctx = context.WithValue(ctx, retryNumberCtxKey, job.Retries)
+	// ctx = context.WithValue(ctx, retryNumberCtxKey, job.Retries)
 	return j.Run(ctx, args)
 }
 
