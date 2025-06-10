@@ -77,6 +77,7 @@ func (p *ProxyClient) SignupURLsCreate(ctx context.Context, serverURL, callbackU
 	signupURL, err := call.Do()
 	switch {
 	case isErrorCode(err, http.StatusConflict):
+		// The frontend looks for the text in this error. Please update the frontend code if modifying this error.
 		return nil, android.NewConflictError(fmt.Errorf("android enterprise already exists. Contact Fleet support for help: %w", err))
 	case err != nil:
 		return nil, fmt.Errorf("creating signup url: %w", err)

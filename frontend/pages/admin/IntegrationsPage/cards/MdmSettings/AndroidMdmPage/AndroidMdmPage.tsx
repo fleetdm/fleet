@@ -96,7 +96,16 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
       ) {
         renderFlash(
           "error",
-          "Couldn't connect. Android enterprise already exists for this Fleet server. Please contact Fleet support for help."
+          <>
+            Couldn't connect. Android enterprise already exists for this Fleet
+            server. For help, please contact{" "}
+            <CustomLink
+              text="Fleet support"
+              url="https://fleetdm.com/support"
+              newTab
+              variant="flash-message-link"
+            />{" "}
+          </>
         );
       } else {
         renderFlash("error", "Couldn't connect. Please try again");
