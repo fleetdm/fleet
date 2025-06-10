@@ -25,7 +25,7 @@ Also, IT admins can now edit scripts within the Fleet UI. This eliminates the ne
 
 ### Fleetctl for Windows and Linux ARM
 
-Fleet users with Window or Linux ARM workstations can now use the fleetctl command-line interface (CLI) to run scripts, queries, and more. This expands Fleet’s CLI capabilities, allowing users to manage hosts on their preferred operating system (OS). Learn more about fleetctl [here](https://fleetdm.com/guides/fleetctl).
+Fleet users with Window or Linux ARM workstations can now use the [fleetctl](https://fleetdm.com/guides/fleetctl) command-line interface (CLI) to run scripts, queries, and more. This expands Fleet’s CLI capabilities, allowing users to manage hosts on their preferred operating system (OS).
 
 ## Changes
 

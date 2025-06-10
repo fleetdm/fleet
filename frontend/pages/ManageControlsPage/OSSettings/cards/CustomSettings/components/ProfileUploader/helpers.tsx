@@ -143,5 +143,5 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     );
   }
 
-  return `Couldn't add. ${apiReason}` || DEFAULT_ERROR_MESSAGE;
+  return `${apiReason}` || DEFAULT_ERROR_MESSAGE;
 };

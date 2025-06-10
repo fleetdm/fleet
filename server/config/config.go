@@ -137,8 +137,9 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
-	BcryptCost  int `yaml:"bcrypt_cost"`
-	SaltKeySize int `yaml:"salt_key_size"`
+	BcryptCost               int           `yaml:"bcrypt_cost"`
+	SaltKeySize              int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod time.Duration `yaml:"sso_session_validity_period"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -695,6 +696,8 @@ type MDMConfig struct {
 	microsoftWSTEP        *tls.Certificate
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
+
+	SSORateLimitPerMinute int `yaml:"sso_rate_limit_per_minute"`
 }
 
 type CalendarConfig struct {
@@ -1083,6 +1086,8 @@ func (man Manager) addConfigs() {
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
 		"Size of salt for passwords")
+	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
+		"Timeout from SSO start to SSO callback")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1405,6 +1410,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
+	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1492,8 +1498,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKey:                  man.getConfigString("server.private_key"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
+			BcryptCost:               man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:              man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod: man.getConfigDuration("auth.sso_session_validity_period"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -1689,6 +1696,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			SSORateLimitPerMinute:           man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
@@ -2020,8 +2028,9 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			BcryptCost:  6, // Low cost keeps tests fast
-			SaltKeySize: 24,
+			BcryptCost:               6, // Low cost keeps tests fast
+			SaltKeySize:              24,
+			SsoSessionValidityPeriod: 5 * time.Minute,
 		},
 		Session: SessionConfig{
 			KeySize:  64,

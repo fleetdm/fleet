@@ -489,6 +489,15 @@ module.exports.routes = {
     }
   },
 
+
+  'GET /configuration-builder': {
+    action: 'view-configuration-builder',
+    locals: {
+      showConfigurationProfileLayout: true,
+      hideStartCTA: true,
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -847,7 +856,7 @@ module.exports.routes = {
   'GET /learn-more-about/enabling-calendar-api': 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com',
   'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
   'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
-  'GET /learn-more-about/rotating-enroll-secrets': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/fleetctl-apply.md#rotating-enroll-secrets',
+  'GET /learn-more-about/rotating-enroll-secrets': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/cli/fleetctl-apply.md#rotating-enroll-secrets',
   'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/guides/windows-mdm-setup',

@@ -26,7 +26,7 @@
 #  ║║║╠═╣║║║╠═╣║ ╦║╣  ║║  ║  ║  ║ ║║ ║ ║║
 #  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╩═╝╚═╝╚═╝═╩╝
 - industryName: Managed cloud
-  description: Have Fleet host it for you (currently only available for customers with 300+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
+  description: Have Fleet host it for you (currently only available for customers with 700+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
   pricingTableCategories: [Deployment]
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Premium
@@ -1081,6 +1081,7 @@
 #  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
 - industryName: Webhooks
   friendlyName: Automations
+  description: Configure automations that send webhooks to specific URLs when Fleet detects changes to host, policy, and CVE statuses.
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]

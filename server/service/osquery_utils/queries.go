@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/mdm"
 	"net"
 	"net/url"
 	"regexp"
@@ -14,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/mdm"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -506,7 +507,7 @@ var extraDetailQueries = map[string]DetailQuery{
 		// the `mdm_bridge` table is used, the `mdmlocalmanagement.dll`
 		// registers an MDM with ProviderID = `Local_Management`
 		//
-		// Entries also need to be filtered by their enrollment status, described [here][1]
+		// Entries also need to be filtered by their [Intune enrollmentState][1]
 		//
 		//   Member        Value  Description
 		//   unknown       0      Device enrollment state is unknown

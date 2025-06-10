@@ -432,9 +432,9 @@ type UpdateSoftwareTitleNameFunc func(ctx context.Context, id uint, name string)
 
 type InsertSoftwareInstallRequestFunc func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error)
 
-type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
+type InsertSoftwareUninstallRequestFunc func(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error
 
-type GetSoftwareTitleNameFromExecutionIDFunc func(ctx context.Context, executionID string) (string, error)
+type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executionID string) (string, bool, error)
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
 
@@ -1107,6 +1107,8 @@ type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.
 type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (hsr *fleet.HostScriptResult, action string, err error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
+
+type GetSelfServiceUninstallScriptExecutionResultFunc func(ctx context.Context, execID string, hostID uint) (*fleet.HostScriptResult, error)
 
 type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error)
 
@@ -1983,8 +1985,8 @@ type DataStore struct {
 	InsertSoftwareUninstallRequestFunc        InsertSoftwareUninstallRequestFunc
 	InsertSoftwareUninstallRequestFuncInvoked bool
 
-	GetSoftwareTitleNameFromExecutionIDFunc        GetSoftwareTitleNameFromExecutionIDFunc
-	GetSoftwareTitleNameFromExecutionIDFuncInvoked bool
+	GetDetailsForUninstallFromExecutionIDFunc        GetDetailsForUninstallFromExecutionIDFunc
+	GetDetailsForUninstallFromExecutionIDFuncInvoked bool
 
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
@@ -2993,6 +2995,9 @@ type DataStore struct {
 
 	GetHostScriptExecutionResultFunc        GetHostScriptExecutionResultFunc
 	GetHostScriptExecutionResultFuncInvoked bool
+
+	GetSelfServiceUninstallScriptExecutionResultFunc        GetSelfServiceUninstallScriptExecutionResultFunc
+	GetSelfServiceUninstallScriptExecutionResultFuncInvoked bool
 
 	ListPendingHostScriptExecutionsFunc        ListPendingHostScriptExecutionsFunc
 	ListPendingHostScriptExecutionsFuncInvoked bool
@@ -4816,18 +4821,18 @@ func (s *DataStore) InsertSoftwareInstallRequest(ctx context.Context, hostID uin
 	return s.InsertSoftwareInstallRequestFunc(ctx, hostID, softwareInstallerID, opts)
 }
 
-func (s *DataStore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error {
+func (s *DataStore) InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error {
 	s.mu.Lock()
 	s.InsertSoftwareUninstallRequestFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertSoftwareUninstallRequestFunc(ctx, executionID, hostID, softwareInstallerID)
+	return s.InsertSoftwareUninstallRequestFunc(ctx, executionID, hostID, softwareInstallerID, selfService)
 }
 
-func (s *DataStore) GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error) {
+func (s *DataStore) GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error) {
 	s.mu.Lock()
-	s.GetSoftwareTitleNameFromExecutionIDFuncInvoked = true
+	s.GetDetailsForUninstallFromExecutionIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareTitleNameFromExecutionIDFunc(ctx, executionID)
+	return s.GetDetailsForUninstallFromExecutionIDFunc(ctx, executionID)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
@@ -7180,6 +7185,13 @@ func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID str
 	s.GetHostScriptExecutionResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostScriptExecutionResultFunc(ctx, execID)
+}
+
+func (s *DataStore) GetSelfServiceUninstallScriptExecutionResult(ctx context.Context, execID string, hostID uint) (*fleet.HostScriptResult, error) {
+	s.mu.Lock()
+	s.GetSelfServiceUninstallScriptExecutionResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSelfServiceUninstallScriptExecutionResultFunc(ctx, execID, hostID)
 }
 
 func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {

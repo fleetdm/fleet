@@ -253,7 +253,7 @@ Anyone in the product group can initiate an air guitar session.
 
 Please read carefully and [pay special attention](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) to UI wireframes.
 
-While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see breakpoints in the user story template [here](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review. 
+While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see [breakpoints in the user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review. 
 
 Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases! When you think you've discovered a blocker, here's how to proceed:
 
@@ -540,7 +540,7 @@ The on-call developer is asked to read, understand, test, correct, and improve a
 
 Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. 
 
-See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22).
+See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. [Outstanding documentation issues](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22) use the `:improve documentation` tag.
 
 - **Engineering alerts**
 The on-call developer is responsible for triaging new alerts in the #help-engineering Slack channel, such as failing unit tests. If the on-call developer has the ability to make the fix, they should do so. Otherwise, they should request help from the appropriate team. Filing a bug is also an option if the issue is not urgent.
@@ -583,33 +583,33 @@ In the Slack reminder thread, the on-call developer includes their retrospective
 
 We have certain design conventions that we include in Fleet. We will document more of these over time.
 
-**Design system**
+### Design system
 
 The 🧩 ["Design System"](https://www.figma.com/file/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-System-(current)?type=design&mode=design&t=BytcobQwypszkxf5-1) component library in Figma is the source of truth for components. Components in the product (documented in [Storybook](https://fleetdm.com/storybook/)) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). As new components are being created, or existing components are being updated, ensure updates are applied to both the Figma Library and Storybook and guidelines are documented in Figma.
 
-**Table empty states**
+### Table empty states
 
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
-**Images**
+### Images
 
 Simple icons (aka any images used in the icon [design system component](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system-(current)?node-id=12-2&t=iO2vXbQ9Sc1kFVEJ-1)) are exported as SVGs. All other images are exported as PNGs, following the [Fleet website image](https://github.com/fleetdm/fleet/tree/main/website/assets/images) naming conventions.
 
-**Form behavior**
+### Form behavior
 
 Pressing the return or enter key with an open form will cause the form to be submitted.
 
-**Internal links**
+### Internal links
 
 For text links that navigate the user to a different page within the Fleet UI, use the `$core-blue` color and `xs-bold` styling. You'll also want to make sure to use the underline style for when the user hovers over these links.
 
-**External links**
+### External links
 
 For a link that navigates the user to an external site (e.g., fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
 
 When including an external link, specify a [redirect on fleetdm.com](https://github.com/fleetdm/fleet/blob/7b751fa50a9a7f81112c5e65334ab05fa2e9e216/website/config/routes.js#L491-L518) rather than the original link. That way, if the URL changes, we can fix it immediately via a PR to the website and users will not need to upgrade to benefit from the fix. Once the design is settled, make a PR for the redirect as part of preparing the story for development.
 
-**Tooltips**
+### Tooltips
 
 All tooltips change the cursor to a question mark on hover. All tooltips have a solid background color.
 
@@ -619,29 +619,29 @@ There are two types of tooltips. The two types of tooltips have some unique styl
 
 2. Tooltips for buttons, bubbles, table row elements, and other non-text elements appear when hovering over the element. These tooltips use center-aligned text. These tooltips include a centered arrow.
 
-**Bold text**
+### Bold text
 
-For copy in the Fleet UI and Fleet documentation, use bold text when referencing UI elements such as buttons, links, column names, form field names, page names, and section names. For an example, check out the bold text in the docs [here](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#step-1-enforce-disk-encryption).
+For copy in the Fleet UI and Fleet documentation, use bold text when referencing UI elements such as buttons, links, column names, form field names, page names, and section names. For an example, check out the bold text in the [guide on enforcing disk encryption](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#step-1-enforce-disk-encryption).
 
 This way, if a user is scanning instructions, the bold text tells them what UI element they should look for.
 
-In the docs, if a UI element is part of a section title (already bold) use double quotes. For an example, see this section title [here](https://fleetdm.com/docs/get-started/faq#what-happened-to-the-schedule-page).
+In the docs, if a UI element is part of a section title (already bold) use double quotes, as shown in the [explanation of MDM on/off in "Why this way"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-mdm-on-off-instead-of-mdm-enrolled-unenrolled).
 
-**Copy in parentheses (additional information)**
+### Copy in parentheses (additional information)
 
 When writing copy, consider whether additional information is necessary before adding it as a new sentence or in parentheses. If the information is needed, use parentheses with an incomplete sentence to keep the copy shorter.
 
-**Writing the time**
+### Writing the time
 
 When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
 
-**Writing error messages**
+### Writing error messages
 
 When writing error messages in the UI or CLI, follow these rules:
 - If the solution to the error isn't obvious, write a message with the **error** followed by the **solution**. For example, "No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
 - If the solution is obvious when additional info is provided, write a message with the **error** followed by **additional info**. For example, "You don’t have permission to run the script. Only users with the maintainer role and above can run scripts."
 
-**Fleetctl commands with `--hosts` or `--host` flag**
+### Fleetctl commands with `--hosts` or `--host` flag
 
 When designing CLI experience for commands that target hosts (e.g. `fleetctl query` or `fleetctl mdm run-command` when including the `--hosts` or `--host` flag), if a non-existing host is specified, use a single error message such as: `Error: No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.`
 
@@ -744,6 +744,8 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
 The Account Executive (AE) schedules this meeting before Fleet commits to one or more new customer promises. It's meant to streamline communication and encourage getting the best product decisions.
 
 If the buyer (aka the "Santa") hasn't reviewed the price in the first order form or we don't have a date attached to the promise(s), then we're not ready for this call.
+
+On the order form, customer promises are reprented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
 
 **Participants:** AE, SC, CTO, VP of Customer Success, and Head of Product Design.  (+ temporarily: CRO)
 
