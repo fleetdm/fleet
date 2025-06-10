@@ -15,37 +15,10 @@ interface IHashCellProps {
   onClickMultipleHashes: (software: IHostSoftware) => void;
 }
 
-// Utility to generate a random hex string of length 64 (SHA256-like)
-const randomHash = () =>
-  Array.from({ length: 64 }, () =>
-    Math.floor(Math.random() * 16).toString(16)
-  ).join("");
-
-// Utility to generate 0, 1, or 2 hashes randomly
-const randomHashes = () => {
-  const count = Math.floor(Math.random() * 3); // 0, 1, or 2
-  return Array.from({ length: count }, randomHash);
-};
-
-// Dummy data generator for ISoftwareInstallVersion[]
-const generateDummyInstalledVersion = () => {
-  // 50% chance of null, otherwise array of 1-2 items
-  if (Math.random() < 0.5) return null;
-  const numVersions = 1 + Math.floor(Math.random() * 2); // 1 or 2
-  return Array.from({ length: numVersions }, () => ({
-    signature_information: [
-      {
-        hash_sha256: randomHashes(),
-      },
-    ],
-  }));
-};
-
 const HashCell = ({
   installedVersion,
   onClickMultipleHashes,
 }: IHashCellProps) => {
-  const installedVersion2 = generateDummyInstalledVersion();
   const [copyMessage, setCopyMessage] = useState("");
 
   const onCopySha256 = (hash: string) => (evt: React.MouseEvent) => {
@@ -84,7 +57,7 @@ const HashCell = ({
   };
 
   const allSignatureInformation = flatMap(
-    installedVersion2,
+    installedVersion,
     (v) => v.signature_information ?? []
   );
 
@@ -96,7 +69,7 @@ const HashCell = ({
   const uniqueHashCount = uniqueHash.size;
 
   // 0 hashes
-  if (installedVersion2 === null || uniqueHashCount === 0) {
+  if (installedVersion === null || uniqueHashCount === 0) {
     return (
       <TextCell className={baseClass} value={DEFAULT_EMPTY_CELL_VALUE} grey />
     );

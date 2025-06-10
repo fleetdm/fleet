@@ -50,13 +50,12 @@ export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
-type ITableNumberCellProps = INumberCellProps<IHostSoftware>;
 type ITableStringCellProps = IStringCellProps<IHostSoftware>;
 type IInstalledStatusCellProps = CellProps<
   IHostSoftware,
   IHostSoftware["status"]
 >;
-type IInstalledVersionsCellProps = CellProps<
+type IVersionsCellProps = CellProps<
   IHostSoftware,
   IHostSoftware["installed_versions"]
 >;
@@ -74,7 +73,7 @@ export interface generateActionsProps {
   hostMDMEnrolled?: boolean;
 }
 
-interface IHostSWLibraryTableHeaderProps {
+interface IHostSWLibraryTableHeaders {
   userHasSWWritePermission: boolean;
   hostScriptsEnabled?: boolean;
   hostCanWriteSoftware: boolean;
@@ -83,12 +82,13 @@ interface IHostSWLibraryTableHeaderProps {
   teamId: number;
   hostMDMEnrolled?: boolean;
   baseClass: string;
+  onShowSoftwareDetails?: (software?: IHostSoftware) => void;
 }
 
 interface IInstallerStatusActionsProps {
   software: IHostSoftware;
   onInstallOrUninstall: () => void;
-  onClickUninstallAction: (software: IHostSoftware) => void;
+  onClickUninstallAction: (software?: IHostSoftware) => void;
   baseClass: string;
 }
 
@@ -210,7 +210,8 @@ export const generateHostSWLibraryTableHeaders = ({
   teamId,
   hostMDMEnrolled,
   baseClass,
-}: IHostSWLibraryTableHeaderProps): ISoftwareTableConfig[] => {
+  onShowSoftwareDetails,
+}: IHostSWLibraryTableHeaders): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
       Header: (cellProps: ITableHeaderProps) => (
@@ -238,28 +239,16 @@ export const generateHostSWLibraryTableHeaders = ({
       },
     },
     {
-      Header: () => (
-        <HeaderCell
-          disableSortBy
-          value={
-            <TooltipWrapper
-              tipContent={
-                <>
-                  The status of the last time <br />
-                  Fleet attempted an install <br />
-                  or uninstall.
-                </>
-              }
-            >
-              Install status
-            </TooltipWrapper>
-          }
-        />
-      ),
+      Header: () => <HeaderCell disableSortBy value="Status" />,
       disableSortBy: true,
       accessor: "status",
       Cell: ({ row: { original } }: IInstalledStatusCellProps) => {
-        return <InstallStatusCell {...original} />;
+        return (
+          <InstallStatusCell
+            software={original}
+            onShowSoftwareDetails={onShowSoftwareDetails}
+          />
+        );
       },
     },
     {
@@ -270,20 +259,20 @@ export const generateHostSWLibraryTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IInstalledVersionsCellProps) => {
+      Cell: (cellProps: IVersionsCellProps) => {
         return <VersionCell versions={cellProps.cell.value} />;
       },
     },
     {
-      Header: "Installer version",
-      id: "installer_version",
+      Header: "Library version",
+      id: "library_version",
       disableSortBy: true,
       // we use function as accessor because we have two columns that
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) =>
         originalRow.software_package || originalRow.app_store_app,
-      Cell: (cellProps: IInstalledVersionsCellProps) => {
+      Cell: (cellProps: IVersionsCellProps) => {
         const softwareTitle = cellProps.row.original;
         const installerData = softwareTitle.software_package
           ? softwareTitle.software_package

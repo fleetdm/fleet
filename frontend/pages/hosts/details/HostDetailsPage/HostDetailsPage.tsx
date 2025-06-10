@@ -685,6 +685,15 @@ const HostDetailsPage = ({
       : router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
   };
 
+  const onShowSoftwareDetails = useCallback(
+    (software?: IHostSoftware) => {
+      if (software) {
+        setSelectedSoftwareDetails(software);
+      }
+    },
+    [setSelectedSoftwareDetails]
+  );
+
   const onCancelRunScriptDetailsModal = useCallback(() => {
     setScriptExecutiontId("");
     // refetch activities to make sure they up-to-date with what was displayed in the modal
@@ -1151,7 +1160,7 @@ const HostDetailsPage = ({
                           available_for_install: true,
                         }}
                         pathname={location.pathname}
-                        onShowSoftwareDetails={setSelectedSoftwareDetails}
+                        onShowSoftwareDetails={onShowSoftwareDetails}
                         hostTeamId={host.team_id || 0}
                         hostMDMEnrolled={host.mdm.connected_to_fleet}
                       />

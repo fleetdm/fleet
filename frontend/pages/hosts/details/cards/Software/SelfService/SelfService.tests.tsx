@@ -28,7 +28,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     category_id: undefined,
   },
   router: createMockRouter(),
-  onShowInstallerDetails: noop,
+  onShowInstallDetails: noop,
   onShowUninstallDetails: noop,
 };
 
@@ -107,7 +107,7 @@ describe("SelfService", () => {
           category_id: undefined,
         }}
         router={createMockRouter()}
-        onShowInstallerDetails={noop}
+        onShowInstallDetails={noop}
         onShowUninstallDetails={noop}
       />
     );
@@ -116,7 +116,7 @@ describe("SelfService", () => {
     await screen.findByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-table__status--test")
+      screen.getByTestId("install-status-cell__status--test")
     ).toHaveTextContent("Installed");
 
     expect(screen.getByRole("button", { name: "Reinstall" })).toBeEnabled();
@@ -142,7 +142,7 @@ describe("SelfService", () => {
     await screen.findByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-table__status--test")
+      screen.getByTestId("install-status-cell__status--test")
     ).toHaveTextContent("Failed");
 
     expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
@@ -168,7 +168,7 @@ describe("SelfService", () => {
     await screen.findByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-table__status--test")
+      screen.getByTestId("install-status-cell__status--test")
     ).toHaveTextContent("Failed");
 
     expect(screen.getByRole("button", { name: "Install" })).toBeEnabled();
@@ -196,7 +196,7 @@ describe("SelfService", () => {
     await screen.findAllByText("test-software");
 
     expect(
-      screen.queryByTestId("self-service-table__status--test")
+      screen.queryByTestId("install-status-cell__status--test")
     ).not.toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: "Install" })).toBeEnabled();
@@ -222,7 +222,7 @@ describe("SelfService", () => {
     await screen.findAllByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-table__status--test")
+      screen.getByTestId("install-status-cell__status--test")
     ).toHaveTextContent("Installing...");
 
     expect(screen.getByRole("button", { name: "Install" })).toBeDisabled();
@@ -248,7 +248,7 @@ describe("SelfService", () => {
     await screen.findAllByText("test-software");
 
     expect(
-      screen.getByTestId("self-service-table__status--test")
+      screen.getByTestId("install-status-cell__status--test")
     ).toHaveTextContent("Uninstalling...");
 
     expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled();
