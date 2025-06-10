@@ -72,10 +72,6 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
-
-			// when the certificate already exists, we only have to replace the
-			// certificate sources if there are some differences with the existing
-			// ones.
 		} else {
 			toInsert = append(toInsert, incoming)
 		}
@@ -164,7 +160,6 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 }
 
 func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, sha1s []string) (map[string]uint, error) {
-	fmt.Println(">>>>> LOADING FOR SHA1s: ", sha1s)
 	if len(sha1s) == 0 {
 		return nil, nil
 	}
@@ -197,7 +192,6 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, sha1s
 	for _, cert := range certs {
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
 		certIDsBySHA1[normalizedSHA1] = cert.ID
-		fmt.Println(">>>> FOUND ID BY SHA: ", cert.ID, normalizedSHA1)
 	}
 	return certIDsBySHA1, nil
 }
@@ -288,7 +282,6 @@ func replaceHostCertsSourcesDB(ctx context.Context, tx sqlx.ExtContext, toReplac
 	args = make([]any, 0, len(toReplaceSources)*singleRowPlaceholderCount)
 	for _, source := range toReplaceSources {
 		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
-		fmt.Println(">>>>> INSERTING ", source.ID, source.Source, source.Username)
 		args = append(args, source.ID, source.Source, source.Username)
 	}
 
