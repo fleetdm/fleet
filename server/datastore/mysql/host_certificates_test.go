@@ -13,7 +13,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -159,13 +158,6 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.ingest[i].Source, cert.Source, "index %d", i)
 			require.Equal(t, c.ingest[i].Username, cert.Username, "index %d", i)
 		}
-
-		fmt.Println(">>>> ")
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			DumpTable(t, q, "host_certificates", "id", "common_name", "deleted_at")
-			DumpTable(t, q, "host_certificate_sources")
-			return err
-		})
 	}
 }
 
