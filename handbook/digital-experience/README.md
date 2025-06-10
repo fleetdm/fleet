@@ -943,7 +943,7 @@ Go to [GitHub's terms of services](https://docs.github.com/en/free-pro-team@late
 
 ### Monitor SOC 2 compliance in Vanta
 
-1. Login to Vanta at the beginning of the week to check what tests are coming due or need remediation.  
+1. Login to Vanta at the beginning of the week every Monday to check what tests are coming due or need remediation and make sure GitHub issues have been created for every test coming due over the next 3 weeks.   
 2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
 3. Click on a test, then click on "Tasks".  
 4. Click on "Create task." Then "Create GitHub issue."
