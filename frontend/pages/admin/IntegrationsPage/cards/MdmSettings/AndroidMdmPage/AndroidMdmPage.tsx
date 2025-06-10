@@ -12,7 +12,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import mdmAndroidAPI from "services/entities/mdm_android";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
@@ -101,10 +101,10 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
             Fleet server. For help, please contact{" "}
             <CustomLink
               text="Fleet support"
-              url="https://fleetdm.com/support"
+              url={SUPPORT_LINK}
               newTab
               variant="flash-message-link"
-            />{" "}
+            />
           </>
         );
       } else {
