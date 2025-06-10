@@ -53,7 +53,6 @@ type appConfigResponseFields struct {
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
 	Err            error               `json:"error,omitempty"`
-	AndroidEnabled bool                `json:"android_enabled,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
 }
 
