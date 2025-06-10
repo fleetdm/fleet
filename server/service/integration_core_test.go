@@ -13293,6 +13293,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		require.Equal(t, "s"+want, cert.Subject.Country)
 		require.NotNil(t, cert.Issuer)
 		require.Equal(t, "i"+want, cert.Issuer.Country)
+		require.Equal(t, fleet.SystemHostCertificate, cert.Source)
 	}
 
 	certResp = listHostCertificatesResponse{}
@@ -13307,6 +13308,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		require.Equal(t, "s"+want, cert.Subject.Country)
 		require.NotNil(t, cert.Issuer)
 		require.Equal(t, "i"+want, cert.Issuer.Country)
+		require.Equal(t, fleet.SystemHostCertificate, cert.Source)
 	}
 
 	// non-existing host

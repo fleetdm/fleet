@@ -52,7 +52,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 				CommonName:   "issuer.test.example.com",
 				Organization: []string{"Issuer"},
 			},
-			SerialNumber: big.NewInt(rand.Int64()),
+			SerialNumber: big.NewInt(rand.Int64()), // nolint:gosec
 			KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 			ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 
