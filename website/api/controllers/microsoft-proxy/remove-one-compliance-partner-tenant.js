@@ -35,12 +35,7 @@ module.exports = {
     if(!informationAboutThisTenant) {
       throw 'tenantNotFound';
     }
-    if(sails.config.custom.sendMockProxyResponsesForDevelopment) {
-      sails.log(`Sending mock success response without communicating with the Microsoft API because 'sails.config.custom.sendMockProxyResponsesForDevelopment' is set to true`);
-      sails.log(`(Would have deprovisioned Fleet's compliance partner application on the requesting tenant.)`);
-      await MicrosoftComplianceTenant.destroyOne({id: informationAboutThisTenant.id});
-      return;
-    }
+
     // If setup was completed, we will need to deprovision this Complaince tenant, otherwise, we will only delete the databse record.
     if(informationAboutThisTenant.setupCompleted){
 

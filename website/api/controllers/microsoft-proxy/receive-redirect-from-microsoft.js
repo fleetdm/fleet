@@ -49,19 +49,6 @@ module.exports = {
     } else {
       let fleetInstanceUrlToRedirectTo = informationAboutThisTenant.fleetInstanceUrl + '/settings/integrations/conditional-access';
 
-      if(sails.config.custom.sendMockProxyResponsesForDevelopment) {
-        sails.log(`Sending mock success response without communicating with the Microsoft API because 'sails.config.custom.sendMockProxyResponsesForDevelopment' is set to true`);
-        // Update the databse record to show that setup was completed for this compliance tenant.
-        sails.log(`(Would have provisioned Fleet's compliance partner application on the new tenant, created a new compliance policy, and assigned the created policy to all users.)`);
-        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({
-          setupCompleted: true,
-          adminConsented: true,
-          stateTokenForAdminConsent: undefined,
-        });
-
-        // Redirect the user to their Fleet instance.
-        return fleetInstanceUrlToRedirectTo;
-      }
       // Use the microsoftProcy.getAccessTokenAndApiUrls helper to get an access token and API urls for this tenant.
       let accessTokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
         complianceTenantRecordId: informationAboutThisTenant.id

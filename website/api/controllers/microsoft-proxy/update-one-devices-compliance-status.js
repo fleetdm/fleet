@@ -68,15 +68,6 @@ module.exports = {
       return new Error({error: 'No MicrosoftComplianceTenant record was found that matches the provided entra_tenant_id and fleet_server_secret combination.'});
     }
 
-    if(sails.config.custom.sendMockProxyResponsesForDevelopment) {
-      sails.log(`Sending mock success response without communicating with the Microsoft API because 'sails.config.custom.sendMockProxyResponsesForDevelopment' is set to true`);
-      sails.log(`(Would have sent a compliance status update to microsoft for a host.)`);
-
-      return {
-        message_id: sails.helpers.strings.random.with({len:15}),// eslint-disable-line camelcase
-      };
-    }
-
     let tokenAndApiUrls = await sails.helpers.microsoftProxy.getAccessTokenAndApiUrls.with({
       complianceTenantRecordId: informationAboutThisTenant.id
     });
