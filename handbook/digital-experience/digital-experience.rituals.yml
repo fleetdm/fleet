@@ -186,7 +186,7 @@
   task: "Vanta check" # TODO tie this to a responsibility
   startedOn: "2025-06-09"
   frequency: "Weekly"
-  description: "Look for any new actions in Vanta due in the upcoming weeks and create issues to ensure they're done on time."
+  description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
   moreInfoUrl:
   dri: "hollidayn"
   autoIssue:
