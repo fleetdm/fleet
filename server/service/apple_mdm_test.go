@@ -2873,7 +2873,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	var targets map[string]*cmdTarget
 	populateTargets := func() {
 		targets = map[string]*cmdTarget{
-			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", hostUUIDs: []string{hostUUID}},
+			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", enrollmentIDs: []string{hostUUID}},
 		}
 	}
 	hostProfilesToInstallMap := make(map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, 1)
@@ -3057,7 +3057,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	for profUUID, target := range targets {
 		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
 		assert.NotEqual(t, cmdUUID, target.cmdUUID)
-		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
+		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
 		assert.Equal(t, challenge, string(profileContents[profUUID]))
 	}
 
@@ -3080,7 +3080,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	for profUUID, target := range targets {
 		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
 		assert.NotEqual(t, cmdUUID, target.cmdUUID)
-		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
+		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
 		assert.Equal(t, expectedURL, string(profileContents[profUUID]))
 	}
 
@@ -3115,7 +3115,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	for profUUID, target := range targets {
 		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
 		assert.NotEqual(t, cmdUUID, target.cmdUUID)
-		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
+		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
 		assert.Equal(t, email, string(profileContents[profUUID]))
 	}
 
@@ -3139,7 +3139,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	for profUUID, target := range targets {
 		assert.NotEqual(t, profUUID, "p1") // new temporary UUID generated for specific host
 		assert.NotEqual(t, cmdUUID, target.cmdUUID)
-		assert.Equal(t, []string{hostUUID}, target.hostUUIDs)
+		assert.Equal(t, []string{hostUUID}, target.enrollmentIDs)
 		assert.Equal(t, "serial1", string(profileContents[profUUID]))
 	}
 
@@ -3159,9 +3159,9 @@ func TestPreprocessProfileContents(t *testing.T) {
 	// multiple profiles, multiple hosts
 	populateTargets = func() {
 		targets = map[string]*cmdTarget{
-			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", hostUUIDs: []string{hostUUID, "host-2"}},  // fails
-			"p2": {cmdUUID: cmdUUID, profIdent: "com.add.profile2", hostUUIDs: []string{hostUUID, "host-3"}}, // works
-			"p3": {cmdUUID: cmdUUID, profIdent: "com.add.profile3", hostUUIDs: []string{hostUUID, "host-4"}}, // no variables
+			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", enrollmentIDs: []string{hostUUID, "host-2"}},  // fails
+			"p2": {cmdUUID: cmdUUID, profIdent: "com.add.profile2", enrollmentIDs: []string{hostUUID, "host-3"}}, // works
+			"p3": {cmdUUID: cmdUUID, profIdent: "com.add.profile3", enrollmentIDs: []string{hostUUID, "host-4"}}, // no variables
 		}
 	}
 	populateTargets()
@@ -3220,7 +3220,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Nil(t, targets["p2"])    // renamed
 	assert.NotNil(t, targets["p3"]) // normal, no variables
 	for profUUID, target := range targets {
-		assert.Contains(t, [][]string{{hostUUID}, {"host-3"}, {hostUUID, "host-4"}}, target.hostUUIDs)
+		assert.Contains(t, [][]string{{hostUUID}, {"host-3"}, {hostUUID, "host-4"}}, target.enrollmentIDs)
 		if profUUID == "p3" {
 			assert.Equal(t, cmdUUID, target.cmdUUID)
 		} else {
@@ -4389,7 +4389,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	// this is a func to re-create it each time because calling the preprocess function modifies this
 	populateTargets := func() {
 		targets = map[string]*cmdTarget{
-			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", hostUUIDs: []string{hostUUID}},
+			"p1": {cmdUUID: cmdUUID, profIdent: "com.add.profile", enrollmentIDs: []string{hostUUID}},
 		}
 	}
 	hostProfilesToInstallMap := map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{

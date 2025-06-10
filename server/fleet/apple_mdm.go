@@ -281,6 +281,7 @@ type HostMDMAppleProfile struct {
 	OperationType      MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail             string             `db:"detail" json:"detail"`
 	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"-"`
+	Scope              PayloadScope       `db:"scope" json:"scope"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
@@ -343,7 +344,7 @@ type MDMAppleProfilePayload struct {
 	Detail            string             `db:"detail"`
 	CommandUUID       string             `db:"command_uuid"`
 	IgnoreError       bool               `db:"ignore_error"`
-	Scope             string             `db:"scope"`
+	Scope             PayloadScope       `db:"scope"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
@@ -377,6 +378,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	SecretsUpdatedAt   *time.Time
 	IgnoreError        bool
 	VariablesUpdatedAt *time.Time
+	Scope              PayloadScope
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk

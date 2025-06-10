@@ -3833,7 +3833,7 @@ func SendPushesToPendingDevices(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
-	uuids, err := ds.GetHostUUIDsWithPendingMDMAppleCommands(ctx)
+	uuids, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting host uuids with pending commands")
 	}
@@ -3916,9 +3916,9 @@ func ReconcileAppleDeclarations(
 // multiple hosts at the same time. Note that the same command uuid is used
 // for all hosts in a given install/remove target operation.
 type cmdTarget struct {
-	cmdUUID   string
-	profIdent string
-	hostUUIDs []string
+	cmdUUID       string
+	profIdent     string
+	enrollmentIDs []string
 }
 
 func ReconcileAppleProfiles(
@@ -4019,6 +4019,7 @@ func ReconcileAppleProfiles(
 					Status:            pp.Status,
 					CommandUUID:       pp.CommandUUID,
 					Detail:            pp.Detail,
+					Scope:             pp.Scope,
 				}
 				hostProfiles = append(hostProfiles, hostProfile)
 				hostProfilesToInstallMap[hostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
@@ -4050,14 +4051,12 @@ func ReconcileAppleProfiles(
 				userEnrollmentMap[p.HostUUID] = userEnrollment
 			}
 			if userEnrollment != "" {
-				target.hostUUIDs = append(target.hostUUIDs, userEnrollment)
+				target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
 			}
 		} else {
-			// TODO EJM rename hostUUIDs
-			target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
 
-		// TODO EJM scope
 		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
 			ProfileUUID:       p.ProfileUUID,
 			HostUUID:          p.HostUUID,
@@ -4068,6 +4067,7 @@ func ReconcileAppleProfiles(
 			ProfileName:       p.ProfileName,
 			Checksum:          p.Checksum,
 			SecretsUpdatedAt:  p.SecretsUpdatedAt,
+			Scope:             p.Scope,
 		}
 		hostProfiles = append(hostProfiles, hostProfile)
 		hostProfilesToInstallMap[hostProfileUUID{HostUUID: p.HostUUID, ProfileUUID: p.ProfileUUID}] = hostProfile
@@ -4119,10 +4119,10 @@ func ReconcileAppleProfiles(
 				userEnrollmentMap[p.HostUUID] = userEnrollment
 			}
 			if userEnrollment != "" {
-				target.hostUUIDs = append(target.hostUUIDs, userEnrollment)
+				target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
 			}
 		} else {
-			target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+			target.enrollmentIDs = append(target.enrollmentIDs, p.HostUUID)
 		}
 
 		hostProfiles = append(hostProfiles, &fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -4136,6 +4136,7 @@ func ReconcileAppleProfiles(
 			Checksum:          p.Checksum,
 			SecretsUpdatedAt:  p.SecretsUpdatedAt,
 			IgnoreError:       p.IgnoreError,
+			Scope:             p.Scope,
 		})
 	}
 
@@ -4209,12 +4210,12 @@ func ReconcileAppleProfiles(
 		switch op {
 		case fleet.MDMOperationTypeInstall:
 			if _, ok := profilesWithSecrets[profUUID]; ok {
-				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+				err = commander.EnqueueCommandInstallProfileWithSecrets(ctx, target.enrollmentIDs, profileContents[profUUID], target.cmdUUID)
 			} else {
-				err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+				err = commander.InstallProfile(ctx, target.enrollmentIDs, profileContents[profUUID], target.cmdUUID)
 			}
 		case fleet.MDMOperationTypeRemove:
-			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
+			err = commander.RemoveProfile(ctx, target.enrollmentIDs, target.profIdent, target.cmdUUID)
 		}
 
 		var e *apple_mdm.APNSDeliveryError
@@ -4440,8 +4441,8 @@ func preprocessProfileContents(
 		// We store the timestamp when the challenge was retrieved to know if it has expired.
 		var managedCertificatePayloads []*fleet.MDMManagedCertificate
 		// We need to update the profiles of each host with the new command UUID
-		profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
-		for _, hostUUID := range target.hostUUIDs {
+		profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.enrollmentIDs))
+		for _, hostUUID := range target.enrollmentIDs {
 			tempProfUUID := uuid.NewString()
 			// Use the same UUID for command UUID, which will be the primary key for nano_commands
 			tempCmdUUID := tempProfUUID
@@ -4699,9 +4700,9 @@ func preprocessProfileContents(
 			}
 			if !failed {
 				addedTargets[tempProfUUID] = &cmdTarget{
-					cmdUUID:   tempCmdUUID,
-					profIdent: target.profIdent,
-					hostUUIDs: []string{hostUUID},
+					cmdUUID:       tempCmdUUID,
+					profIdent:     target.profIdent,
+					enrollmentIDs: []string{hostUUID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
 				profilesToUpdate = append(profilesToUpdate, profile)
@@ -5242,8 +5243,8 @@ func markProfilesFailed(
 	detail string,
 	variablesUpdatedAt *time.Time,
 ) (bool, error) {
-	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.hostUUIDs))
-	for _, hostUUID := range target.hostUUIDs {
+	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.enrollmentIDs))
+	for _, hostUUID := range target.enrollmentIDs {
 		profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
 		if !ok { // Should never happen
 			continue

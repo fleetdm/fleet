@@ -428,13 +428,14 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 		return ctxerr.Wrap(ctx, err, "deleting host_mdm_apple_profiles that have not been sent to host")
 	}
 
-	// TODO EJM update for user channel
 	const deactivateNanoStmt = `
 	UPDATE
 		nano_enrollment_queue
+		JOIN nano_enrollments ne
+		    ON nano_enrollment_queue.id = ne.id
 		JOIN host_mdm_apple_profiles hmap
 			ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND
-				hmap.host_uuid = nano_enrollment_queue.id
+				hmap.host_uuid = ne.device_id
 	SET
 		nano_enrollment_queue.active = 0
 	WHERE
@@ -590,7 +591,8 @@ profile_identifier AS identifier,
 -- aggregation functions.
 COALESCE(status, '%s') AS status,
 COALESCE(operation_type, '') AS operation_type,
-COALESCE(detail, '') AS detail
+COALESCE(detail, '') AS detail,
+scope
 FROM
   host_mdm_apple_profiles
 WHERE
@@ -607,7 +609,8 @@ declaration_identifier AS identifier,
 -- aggregation functions.
 COALESCE(status, '%s') AS status,
 COALESCE(operation_type, '') AS operation_type,
-COALESCE(detail, '') AS detail
+COALESCE(detail, '') AS detail,
+scope
 FROM
   host_mdm_apple_declarations
 WHERE
@@ -636,6 +639,7 @@ WHERE
 	return profiles, nil
 }
 
+// TODO EJM Update?
 func (ds *Datastore) GetHostMDMCertificateProfile(ctx context.Context, hostUUID string,
 	profileUUID string, caName string,
 ) (*fleet.HostMDMCertificateProfile, error) {
@@ -2367,7 +2371,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		ds.profile_identifier as profile_identifier,
 		ds.profile_name as profile_name,
 		ds.checksum as checksum,
-		ds.secrets_updated_at as secrets_updated_at
+		ds.secrets_updated_at as secrets_updated_at,
+		ds.scope as scope
 	FROM ( %s ) as ds
 		LEFT JOIN host_mdm_apple_profiles hmap
 			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
@@ -2450,7 +2455,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		hmap.status as status,
 		hmap.operation_type as operation_type,
 		COALESCE(hmap.detail, '') as detail,
-		hmap.command_uuid as command_uuid
+		hmap.command_uuid as command_uuid,
+		hmap.scope as scope
 	FROM ( %s ) as ds
 		RIGHT JOIN host_mdm_apple_profiles hmap
 			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
@@ -2569,7 +2575,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 					operation_type,
 					status,
 					command_uuid,
-					detail
+					detail,
+					scope
 				)
 				VALUES %s
 				ON DUPLICATE KEY UPDATE
@@ -2578,7 +2585,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 					command_uuid = VALUES(command_uuid),
 					checksum = VALUES(checksum),
 				    secrets_updated_at = VALUES(secrets_updated_at),
-					detail = VALUES(detail)
+					detail = VALUES(detail),
+					scope = VALUES(scope)
 			`, strings.TrimSuffix(valuePart, ","))
 
 		_, err := tx.ExecContext(ctx, baseStmt, args...)
@@ -2619,10 +2627,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 					OperationType:     pp.OperationType,
 					Detail:            pp.Detail,
 					CommandUUID:       pp.CommandUUID,
+					Scope:             pp.Scope,
 				}
 				pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, p.SecretsUpdatedAt,
-					pp.OperationType, pp.Status, pp.CommandUUID, pp.Detail)
-				psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
+					pp.OperationType, pp.Status, pp.CommandUUID, pp.Detail, p.Scope)
+				psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
 				batchCount++
 
 				if batchCount >= batchSize {
@@ -2647,10 +2656,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			Status:            nil,
 			CommandUUID:       "",
 			Detail:            "",
+			Scope:             p.Scope,
 		}
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, p.SecretsUpdatedAt,
-			fleet.MDMOperationTypeInstall, nil, "", "")
-		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
+			fleet.MDMOperationTypeInstall, nil, "", "", p.Scope)
+		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
 		batchCount++
 
 		if batchCount >= batchSize {
@@ -2684,10 +2694,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			Status:            nil,
 			CommandUUID:       "",
 			Detail:            "",
+			Scope:             p.Scope,
 		}
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, p.SecretsUpdatedAt,
-			fleet.MDMOperationTypeRemove, nil, "", "")
-		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
+			fleet.MDMOperationTypeRemove, nil, "", "", p.Scope)
+		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
 		batchCount++
 
 		if batchCount >= batchSize {
@@ -3102,7 +3113,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               checksum,
               secrets_updated_at,
               ignore_error,
-              variables_updated_at
+              variables_updated_at,
+			  scope
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
@@ -3116,7 +3128,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid),
-              variables_updated_at = VALUES(variables_updated_at)`,
+              variables_updated_at = VALUES(variables_updated_at),
+			  scope = VALUS(scope)`,
 			strings.TrimSuffix(valuePart, ","), fleet.MDMOperationTypeRemove,
 		)
 
@@ -3133,7 +3146,7 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	}
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
 			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError, p.VariablesUpdatedAt,
@@ -5927,13 +5940,13 @@ GROUP BY h.id`
 	return devices, nil
 }
 
-func (ds *Datastore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) (uuids []string, err error) {
-	// TODO EJM This name should probably change also worth checking nano_enrollments.enabled?
+func (ds *Datastore) GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) (uuids []string, err error) {
 	const stmt = `
 SELECT DISTINCT neq.id
 FROM nano_enrollment_queue neq
+INNER JOIN nano_enrollments ne ON ne.id = neq.id
 LEFT JOIN nano_command_results ncr ON ncr.command_uuid = neq.command_uuid AND ncr.id = neq.id
-WHERE neq.active = 1 AND ncr.status IS NULL
+WHERE neq.active = 1 AND ne.enabled=1 AND ncr.status IS NULL
 AND neq.created_at >= NOW() - INTERVAL 7 DAY
 LIMIT 500
 `
@@ -6376,7 +6389,6 @@ func (ds *Datastore) CleanupHostMDMCommands(ctx context.Context) error {
 }
 
 func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
-	// TODO EJM Do we need to update this function?
 	// Delete pending commands that don't have a corresponding entry in nano_enrollment_queue.
 	// This could occur when the host re-enrolls in MDM with outstanding Pending commands.
 	// This could also occur due to errors (i.e., large server/DB load) or server being stopped while processing the profiles.
@@ -6384,7 +6396,10 @@ func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	stmt := fmt.Sprintf(`
 		DELETE hmap FROM host_mdm_apple_profiles AS hmap
         -- ANTIJOIN: Delete rows that don't have a corresponding entry in nano_enrollment_queue
-		LEFT JOIN nano_enrollment_queue neq ON hmap.host_uuid = neq.id AND hmap.command_uuid = neq.command_uuid AND neq.active = 1
+		-- Note that a given host may have multiple nano_enrollments(device and user) and thus we
+		-- need to account for the use of either of them in the join
+		LEFT JOIN (nano_enrollment_queue neq INNER JOIN nano_enrollments ne ON neq.id = ne.id AND ne.enabled = 1)
+		ON ne.device_id = hmap.host_uuid AND hmap.command_uuid = neq.command_uuid AND neq.active = 1
 		WHERE neq.id IS NULL AND (hmap.status IS NULL OR hmap.status = '%s') AND hmap.updated_at < NOW() - INTERVAL 1 HOUR`,
 		fleet.MDMDeliveryPending)
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
