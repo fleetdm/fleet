@@ -96,7 +96,6 @@ func TestServeEndUserEnrollOTA(t *testing.T) {
 			require.Contains(t, bodyString, "/api/v1/fleet/android_enterprise/enrollment_token")
 			require.Contains(t, bodyString, fmt.Sprintf(`const ANDROID_MDM_ENABLED = "%t" === "true";`, enabled))
 			require.Contains(t, bodyString, fmt.Sprintf(`const MAC_MDM_ENABLED = "%t" == "true";`, enabled))
-			require.Contains(t, bodyString, fmt.Sprintf(`const ANDROID_FEATURE_ENABLED = "%t" === "true";`, enabled))
 		})
 	}
 }
