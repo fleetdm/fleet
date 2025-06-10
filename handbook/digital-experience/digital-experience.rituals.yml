@@ -185,10 +185,10 @@
 -
   task: "Vanta check" # TODO tie this to a responsibility
   startedOn: "2024-04-01"
-  frequency: "Monthly"
-  description: "Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time."
+  frequency: "Weekly"
+  description: "Look for any new actions in Vanta due in the upcoming weeks and create issues to ensure they're done on time."
   moreInfoUrl:
-  dri: "sampfluger88"
+  dri: "hollidayn"
   autoIssue:
     labels: [ "#g-digital-experience" ]
     repo: "confidential"
