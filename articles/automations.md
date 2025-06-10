@@ -31,14 +31,18 @@ destination. Data is sent according to a query's interval.
 
 ### Webhook
 
-Each time a scheduled query runs, results are sent via webhook to your configured destination URL.
-To use Webhook logging for scheduled queries, run Fleet with these environment variables:
+Results from scheduled queries can be written to an arbitrary external webhook of your choosing.
+First, follow the [configuration docs](https://fleetdm.com/docs/deploying/configuration#webhook).
+Then in the UI:
 
-```
-FLEET_OSQUERY_RESULT_LOG_PLUGIN="webhook"
-FLEET_WEBHOOK_STATUS_URL="<target_status_url>"
-FLEET_WEBHOOK_RESULT_URL="<target_result_url>" 
-```
+1. Navigate to the Queries page, select the relevant team, and click "Manage automations"
+2. In the modal that opens, confirm that you see "Log destination: Webhook", and when you hover over
+   "Webhook", you see "Each time a query runs, the data is sent via webhook to:
+   <target_result_url>"
+3. Select the queries that you want to send data to this webhook
+4. Click "Save"
+
+Results from the selected scheduled queries will be sent to the configured results URL. *Not configurable per-query.*
 
 ### Amazon Kinesis Data Firehose
 
