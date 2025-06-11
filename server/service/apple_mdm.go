@@ -3939,6 +3939,7 @@ func ReconcileAppleProfiles(
 
 	// Map of host UUID->User Channel enrollment ID so that we can cache them per-device
 	userEnrollmentMap := make(map[string]string)
+	userEnrollmentsToHostUUIDsMap := make(map[string]string) // the same thing in reverse
 
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
@@ -4050,6 +4051,7 @@ func ReconcileAppleProfiles(
 				if userNanoEnrollment != nil {
 					userEnrollment = userNanoEnrollment.ID
 					userEnrollmentMap[p.HostUUID] = userEnrollment
+					userEnrollmentsToHostUUIDsMap[userEnrollment] = p.HostUUID
 				} else {
 					level.Warn(logger).Log("msg", "host does not have a user enrollment, falling back to system enrollment for user scoped profile",
 						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
@@ -4127,6 +4129,7 @@ func ReconcileAppleProfiles(
 				}
 				userEnrollment = userNanoEnrollment.ID
 				userEnrollmentMap[p.HostUUID] = userEnrollment
+				userEnrollmentsToHostUUIDsMap[userEnrollment] = p.HostUUID
 			}
 			if userEnrollment != "" {
 				target.enrollmentIDs = append(target.enrollmentIDs, userEnrollment)
@@ -4193,7 +4196,7 @@ func ReconcileAppleProfiles(
 	err = preprocessProfileContents(ctx, appConfig, ds,
 		eeservice.NewSCEPConfigService(logger, nil),
 		digicert.NewService(digicert.WithLogger(logger)),
-		logger, installTargets, profileContents, hostProfilesToInstallMap)
+		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
 	if err != nil {
 		return err
 	}
@@ -4318,6 +4321,7 @@ func preprocessProfileContents(
 	targets map[string]*cmdTarget,
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
 ) error {
 	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile
 	// contents, generating a unique profile for each host. For a 2KB profile and
@@ -4371,7 +4375,7 @@ func preprocessProfileContents(
 		for fleetVar := range fleetVars {
 			switch {
 			case fleetVar == fleet.FleetVarNDESSCEPChallenge || fleetVar == fleet.FleetVarNDESSCEPProxyURL:
-				configured, err := isNDESSCEPConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, profUUID, target)
+				configured, err := isNDESSCEPConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, target)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking NDES SCEP configuration")
 				}
@@ -4395,7 +4399,7 @@ func preprocessProfileContents(
 				if digiCertCAs == nil {
 					digiCertCAs = make(map[string]*fleet.DigiCertIntegration)
 				}
-				configured, err := isDigiCertConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, digiCertCAs, profUUID, target, caName, fleetVar)
+				configured, err := isDigiCertConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, digiCertCAs, profUUID, target, caName, fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking DigiCert configuration")
 				}
@@ -4414,7 +4418,7 @@ func preprocessProfileContents(
 				if customSCEPCAs == nil {
 					customSCEPCAs = make(map[string]*fleet.CustomSCEPProxyIntegration)
 				}
-				configured, err := isCustomSCEPConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, customSCEPCAs, profUUID, target, caName,
+				configured, err := isCustomSCEPConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, customSCEPCAs, profUUID, target, caName,
 					fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking custom SCEP configuration")
@@ -4428,7 +4432,7 @@ func preprocessProfileContents(
 				// Otherwise, error out since this variable is unknown
 				detail := fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
 					fleetVar)
-				_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, detail, variablesUpdatedAt)
+				_, err := markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, detail, variablesUpdatedAt)
 				if err != nil {
 					return err
 				}
@@ -4996,10 +5000,11 @@ func (d *digiCertVarsFound) SetPassword(value string) (*digiCertVarsFound, bool)
 
 func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
 	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "DigiCert integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "DigiCert integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
 	if _, ok := digiCertCAs[caName]; ok {
 		return true, nil
@@ -5016,7 +5021,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 		}
 	}
 	if !configured || digiCertCA == nil {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
 			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
 	}
 
@@ -5024,7 +5029,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 	asset, err := ds.GetCAConfigAsset(ctx, digiCertCA.Name, fleet.CAConfigDigiCert)
 	switch {
 	case fleet.IsNotFound(err):
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
 			fmt.Sprintf("DigiCert CA '%s' is missing API token. Please configure in Settings > Integrations > Certificates.", caName), ptr.Time(time.Now().UTC()))
 	case err != nil:
 		return false, ctxerr.Wrap(ctx, err, "getting CA config asset")
@@ -5092,13 +5097,13 @@ func (n *ndesVarsFound) SetRenewalID() (*ndesVarsFound, bool) {
 }
 
 func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
-	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, profUUID string, target *cmdTarget,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, userEnrollmentsToHostUUIDsMap map[string]string, profUUID string, target *cmdTarget,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
 	if !appConfig.Integrations.NDESSCEPProxy.Valid {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
 			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.", ptr.Time(time.Now().UTC()))
 	}
 	return appConfig.Integrations.NDESSCEPProxy.Valid, nil
@@ -5205,10 +5210,11 @@ func (cs *customSCEPVarsFound) SetRenewalID() (*customSCEPVarsFound, bool) {
 
 func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
 	customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
 	if _, ok := customSCEPCAs[caName]; ok {
 		return true, nil
@@ -5225,7 +5231,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 		}
 	}
 	if !configured || scepCA == nil {
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
 			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
 	}
 
@@ -5233,7 +5239,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 	asset, err := ds.GetCAConfigAsset(ctx, scepCA.Name, fleet.CAConfigCustomSCEPProxy)
 	switch {
 	case fleet.IsNotFound(err):
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, profUUID,
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
 			fmt.Sprintf("Custom SCEP CA '%s' is missing a challenge. Please configure in Settings > Integrations > Certificates.", caName), ptr.Time(time.Now().UTC()))
 	case err != nil:
 		return false, ctxerr.Wrap(ctx, err, "getting custom SCEP CA config asset")
@@ -5249,15 +5255,23 @@ func markProfilesFailed(
 	ds fleet.Datastore,
 	target *cmdTarget,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
 	profUUID string,
 	detail string,
 	variablesUpdatedAt *time.Time,
 ) (bool, error) {
 	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.enrollmentIDs))
-	for _, hostUUID := range target.enrollmentIDs {
-		profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
-		if !ok { // Should never happen
-			continue
+	for _, enrollmentID := range target.enrollmentIDs {
+		profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: enrollmentID, ProfileUUID: profUUID}]
+		if !ok {
+			// If sending to the user channel the enrollmentID will have to be mapped back to the host UUID.
+			hostUUID, ok := userEnrollmentsToHostUUIDsMap[enrollmentID]
+			if ok {
+				profile, ok = hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+			}
+			if !ok {
+				continue
+			}
 		}
 		profile.Status = &fleet.MDMDeliveryFailed
 		profile.Detail = detail
