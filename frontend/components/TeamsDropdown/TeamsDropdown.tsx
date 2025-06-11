@@ -122,6 +122,11 @@ const TeamsDropdown = ({
 
   // see https://react-select.com/styles#the-styles-prop
   const customStyles: StylesConfig<INumberDropdownOption, false> = {
+    // container: (baseStyles) => ({
+    //   ...baseStyles,
+    //   width: "100%",
+    //   overflow: "hidden",
+    // }),
     control: (baseStyles, state) => ({
       ...baseStyles,
       display: "flex",
@@ -219,6 +224,17 @@ const TeamsDropdown = ({
     valueContainer: (baseStyles) => ({
       ...baseStyles,
       padding: 0,
+      // overflow: "hidden",
+    }),
+    input: (baseStyles) => ({
+      ...baseStyles,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      // Ensure the cursor remains visible during typing
+      // caretColor: COLORS["core-fleet-black"],
+      // Prevent the input from expanding beyond its container
+      // maxWidth: "100%",
     }),
     option: (baseStyles, state) => ({
       ...baseStyles,
