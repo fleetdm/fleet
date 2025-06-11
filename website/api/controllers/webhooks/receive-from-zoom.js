@@ -60,7 +60,7 @@ module.exports = {
         account_id: sails.config.custom.zoomAccountId// eslint-disable-line camelcase
       }
     }).intercept((err)=>{
-      return new Error(`When sending a request to get a Zoom access token, an error occured. Full error ${require('util').inpsect(err, {depth: 3})}`);
+      return new Error(`When sending a request to get a Zoom access token, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
     });
     let token = oauthResponse.access_token;
 
@@ -72,7 +72,7 @@ module.exports = {
         'Authorization': `Bearer ${token}`
       }
     }).intercept((err)=>{
-      return new Error(`When sending a request to get information about a Zoom recording, an error occured. Full error ${require('util').inpsect(err, {depth: 3})}`);
+      return new Error(`When sending a request to get information about a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
     });
 
 
@@ -83,7 +83,7 @@ module.exports = {
         'Authorization': `Bearer ${token}`
       }
     }).intercept((err)=>{
-      return new Error(`When sending a request to get a transcript of a Zoom recording, an error occured. Full error ${require('util').inpsect(err, {depth: 3})}`);
+      return new Error(`When sending a request to get a transcript of a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
     });
 
     let allSpeakersOnThisCall = [];
