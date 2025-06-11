@@ -3049,6 +3049,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results)
 - [Install self-service software](#install-self-service-software)
 - [Uninstall software via self-service](#uninstall-software-via-self-service)
+- [Get uninstall results via self-service](#get-uninstall-results-via-self-service)
 - [Get device's policies](#get-devices-policies)
 - [Get device's certificate](#get-devices-certificate)
 - [Get device's API features](#get-devices-api-features)
@@ -3337,7 +3338,7 @@ This endpoint returns the results for a specific MDM command associated with a s
 
 Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must have a `self_service` flag `true` to be installed.
 
-`POST /api/v1/fleet/device/{token}/software/install/:software_title_id`
+`POST /api/v1/fleet/device/{token}/software/install/{software_title_id}`
 
 ##### Parameters
 
@@ -3374,6 +3375,41 @@ Uninstalls software from a host via the My device page.
 ##### Default response
 
 `Status: 202`
+
+#### Get uninstall results via self-service
+
+Gets the result of a uninstall performed on a host, viewed from the My device page.
+
+`GET /api/v1/fleet/device/{token}/software/uninstall/{execution_id}/results`
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                   |
+| ----         | ------ | ---- | --------------------------------------------  |
+| execution_id | string | path | **Required**. The execution id of the script. |
+
+#### Example
+
+`GET /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/uninstall/22aada07-dc73-41f2-8452-c0987543fd29/results`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "script_contents": "echo 'hello'",
+  "exit_code": 0,
+  "output": "hello",
+  "message": "",
+  "hostname": "Test Host",
+  "host_timeout": false,
+  "host_id": 1,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "runtime": 20,
+  "created_at": "2024-09-11T20:30:24Z"
+}
+```
 
 #### Get device's policies
 
