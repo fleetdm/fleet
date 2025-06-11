@@ -1,7 +1,4 @@
-const pxToRem = (px: number): string => {
-  const baseSize = 16; // Assuming the base font size is 16px
-  return `${px / baseSize}rem`;
-};
+import pxToRem from "./helpers";
 
 export const PADDING = {
   "pad-auto": "auto",
