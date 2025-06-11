@@ -56,25 +56,27 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 
 // run uses sudo to run the given path as login user and waits for the process to finish.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
-	args, _, err := getUserAndDisplayArgs(path, opts)
+	args, env, err := getUserAndDisplayArgs(path, opts)
 	if err != nil {
 		return nil, -1, fmt.Errorf("get args: %w", err)
 	}
 
-	args = append(args, path)
+	env = append(env, path)
 
 	if len(opts.args) > 0 {
 		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
+			env = append(env, arg[0], arg[1])
 		}
 	}
+
+	args = append(args, "-c", strings.Join(env, " "))
 
 	// Prefix with "timeout" and "sudo" if applicable
 	var cmdArgs []string
 	if opts.timeout > 0 {
 		cmdArgs = append(cmdArgs, "timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds())))
 	}
-	cmdArgs = append(cmdArgs, "sudo")
+	cmdArgs = append(cmdArgs, "runuser")
 	cmdArgs = append(cmdArgs, args...)
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...) // #nosec G204
@@ -240,6 +242,8 @@ func getLoginUID() (*user, error) {
 	if err != nil {
 		return nil, err
 	}
+	username = "scott"
+	uid = 1000
 	return &user{
 		name: username,
 		id:   uid,
