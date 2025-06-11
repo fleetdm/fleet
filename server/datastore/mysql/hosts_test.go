@@ -7441,10 +7441,11 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.True(t, added)
 
 	// Add a host certificate
+	sha1Sum := sha1.Sum([]byte("foo"))
 	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
 		HostID:     host.ID,
 		CommonName: "foo",
-		SHA1Sum:    sha1.New().Sum([]byte("foo")),
+		SHA1Sum:    sha1Sum[:],
 	}}))
 
 	// create an android device from this host
