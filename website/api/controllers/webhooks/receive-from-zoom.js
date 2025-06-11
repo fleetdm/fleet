@@ -142,8 +142,8 @@ module.exports = {
       data: {
         transcript: transcript,
         topic: informationAboutThisCall.topic,
-        participants: _.pluck(allSpeakersOnThisCall, 'display_name').join(','),
-        participantEmails: _.pluck(allSpeakersOnThisCall, 'email').join(','),
+        participants: _.pluck(allSpeakersOnThisCall, 'display_name').join(', '),
+        participantEmails: _.pluck(allSpeakersOnThisCall, 'email').join(', '),
         zoomUrl: informationAboutThisCall.conversation_url,
         startTime: informationAboutThisCall.meeting_start_time,
         webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
