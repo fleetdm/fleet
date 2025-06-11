@@ -1,3 +1,0 @@
-- Dial in "manage automations" button
-- Confirm in all instances of `TeamsDropdown`, `TeamsHeader`, `TeamDetailsWeapper`. The last two
-  wrap the first.
