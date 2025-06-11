@@ -7444,10 +7444,11 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.True(t, added)
 
 	// Add a host certificate
+	sha1Sum := sha1.Sum([]byte("foo"))
 	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
 		HostID:     host.ID,
 		CommonName: "foo",
-		SHA1Sum:    sha1.New().Sum([]byte("foo")),
+		SHA1Sum:    sha1Sum[:],
 	}}))
 
 	// create an android device from this host
@@ -7469,6 +7470,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.BatchExecuteScript(ctx, nil, script.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName")
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

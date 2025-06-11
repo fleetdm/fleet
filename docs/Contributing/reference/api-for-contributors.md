@@ -4726,7 +4726,7 @@ None.
 
 ```json
 {
-  "admin_consented": false
+  "configuration_completed": false
 }
 ```
 
