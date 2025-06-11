@@ -504,6 +504,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		Checksum:         cp.Checksum,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
+		Scope:            string(cp.Scope),
 		LabelsIncludeAll: cp.LabelsIncludeAll,
 		LabelsIncludeAny: cp.LabelsIncludeAny,
 		LabelsExcludeAny: cp.LabelsExcludeAny,

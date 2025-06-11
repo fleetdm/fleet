@@ -3558,6 +3558,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Platform:    "darwin",
 		Identifier:  tm2ProfF.Identifier,
 		Checksum:    tm2ProfF.Checksum,
+		Scope:       string(fleet.PayloadScopeSystem),
 		// labels are ordered by name
 		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
@@ -3614,6 +3615,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Platform:    "darwin",
 		Identifier:  tm2ProfF.Identifier,
 		Checksum:    tm2ProfF.Checksum,
+		Scope:       string(fleet.PayloadScopeSystem),
 		// labels are ordered by name
 		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},

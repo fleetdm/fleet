@@ -186,7 +186,7 @@ FROM (
 		profile_uuid,
 		team_id,
 		name,
-		'System' as scope,
+		'' as scope,
 		'windows' as platform,
 		'' as identifier,
 		'' as checksum,
