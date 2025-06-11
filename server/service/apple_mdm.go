@@ -3835,16 +3835,16 @@ func SendPushesToPendingDevices(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
-	uuids, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	enrollmentIDs, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting host uuids with pending commands")
 	}
 
-	if len(uuids) == 0 {
+	if len(enrollmentIDs) == 0 {
 		return nil
 	}
 
-	if err := commander.SendNotifications(ctx, uuids); err != nil {
+	if err := commander.SendNotifications(ctx, enrollmentIDs); err != nil {
 		var apnsErr *apple_mdm.APNSDeliveryError
 		if errors.As(err, &apnsErr) {
 			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "error", apnsErr.Error())
