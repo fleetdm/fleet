@@ -342,7 +342,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	var teamID int64
 	var teamName *string
 	if query.TeamID != nil {
-		teamID = int64(*query.TeamID)
+		teamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 		if err != nil {
 			return nil, err
@@ -483,7 +483,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	var teamID int64
 	var teamName *string
 	if query.TeamID != nil {
-		teamID = int64(*query.TeamID)
+		teamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 		if err != nil {
 			return nil, err
@@ -568,7 +568,7 @@ func (svc *Service) DeleteQuery(ctx context.Context, teamID *uint, name string) 
 	var logTeamID int64
 	var teamName *string
 	if query.TeamID != nil {
-		logTeamID = int64(*query.TeamID)
+		logTeamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 		if err != nil {
 			return err
@@ -635,7 +635,7 @@ func (svc *Service) DeleteQueryByID(ctx context.Context, id uint) error {
 	var logTeamID int64
 	var teamName *string
 	if query.TeamID != nil {
-		logTeamID = int64(*query.TeamID)
+		logTeamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 		if err != nil {
 			return err
@@ -700,7 +700,7 @@ func (svc *Service) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 
 		// Capture team information for activity logging.
 		if query.TeamID != nil {
-			logTeamID = int64(*query.TeamID)
+			logTeamID = int64(*query.TeamID) //nolint:gosec // dismiss G115
 			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, query.TeamID, nil)
 			if err != nil {
 				return 0, err

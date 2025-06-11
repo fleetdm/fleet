@@ -347,7 +347,7 @@ type ActivityTypeCreatedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
 	TeamID   int64   `json:"team_id"`
-	TeamName *string `json:"team_name"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedPolicy) ActivityName() string {
@@ -372,7 +372,7 @@ type ActivityTypeEditedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
 	TeamID   *uint   `json:"team_id"`
-	TeamName *string `json:"team_name"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedPolicy) ActivityName() string {
@@ -397,7 +397,7 @@ type ActivityTypeDeletedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
 	TeamID   int64   `json:"team_id"`
-	TeamName *string `json:"team_name"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedPolicy) ActivityName() string {
@@ -462,7 +462,7 @@ type ActivityTypeCreatedSavedQuery struct {
 	ID       uint    `json:"query_id"`
 	Name     string  `json:"query_name"`
 	TeamID   int64   `json:"team_id"`
-	TeamName *string `json:"team_name"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
@@ -487,7 +487,7 @@ type ActivityTypeEditedSavedQuery struct {
 	ID       uint    `json:"query_id"`
 	Name     string  `json:"query_name"`
 	TeamID   int64   `json:"team_id"`
-	TeamName *string `json:"team_name"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedSavedQuery) ActivityName() string {
@@ -511,7 +511,7 @@ func (a ActivityTypeEditedSavedQuery) Documentation() (activity string, details 
 type ActivityTypeDeletedSavedQuery struct {
 	Name     string  `json:"query_name"`
 	TeamID   int64   `json:"team_id"`
-	TeamName *string `json:"team_name"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
@@ -533,7 +533,7 @@ func (a ActivityTypeDeletedSavedQuery) Documentation() (activity string, details
 type ActivityTypeDeletedMultipleSavedQuery struct {
 	IDs      []uint  `json:"query_ids"`
 	Teamid   int64   `json:"team_id"`
-	TeamName *string `json:"team_name"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
