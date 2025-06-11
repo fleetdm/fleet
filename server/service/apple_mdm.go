@@ -4456,14 +4456,16 @@ func preprocessProfileContents(
 		var managedCertificatePayloads []*fleet.MDMManagedCertificate
 		// We need to update the profiles of each host with the new command UUID
 		profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.enrollmentIDs))
-		for _, hostUUID := range target.enrollmentIDs {
+		for _, enrollmentID := range target.enrollmentIDs {
 			tempProfUUID := uuid.NewString()
 			// Use the same UUID for command UUID, which will be the primary key for nano_commands
 			tempCmdUUID := tempProfUUID
-			profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+			profile, ok := getHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, enrollmentID, profUUID)
 			if !ok { // Should never happen
 				continue
 			}
+			// Fetch the host UUID, which may not be the same as the Enrollment ID, from the profile
+			hostUUID := profile.HostUUID
 			profile.CommandUUID = tempCmdUUID
 			profile.VariablesUpdatedAt = variablesUpdatedAt
 
@@ -4716,7 +4718,7 @@ func preprocessProfileContents(
 				addedTargets[tempProfUUID] = &cmdTarget{
 					cmdUUID:       tempCmdUUID,
 					profIdent:     target.profIdent,
-					enrollmentIDs: []string{hostUUID},
+					enrollmentIDs: []string{enrollmentID},
 				}
 				profileContents[tempProfUUID] = mobileconfig.Mobileconfig(hostContents)
 				profilesToUpdate = append(profilesToUpdate, profile)
@@ -5250,6 +5252,25 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 	return true, nil
 }
 
+func getHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
+	enrollmentID,
+	profUUID string,
+) (*fleet.MDMAppleBulkUpsertHostProfilePayload, bool) {
+	var profile *fleet.MDMAppleBulkUpsertHostProfilePayload
+	var ok bool
+	profile, ok = hostProfilesToInstallMap[hostProfileUUID{HostUUID: enrollmentID, ProfileUUID: profUUID}]
+	if !ok {
+		var hostUUID string
+		// If sending to the user channel the enrollmentID will have to be mapped back to the host UUID.
+		hostUUID, ok = userEnrollmentsToHostUUIDsMap[enrollmentID]
+		if ok {
+			profile, ok = hostProfilesToInstallMap[hostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+		}
+	}
+	return profile, ok
+}
+
 func markProfilesFailed(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -5262,7 +5283,7 @@ func markProfilesFailed(
 ) (bool, error) {
 	profilesToUpdate := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(target.enrollmentIDs))
 	for _, enrollmentID := range target.enrollmentIDs {
-		profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: enrollmentID, ProfileUUID: profUUID}]
+		profile, ok := getHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, enrollmentID, profUUID)
 		if !ok {
 			// If sending to the user channel the enrollmentID will have to be mapped back to the host UUID.
 			hostUUID, ok := userEnrollmentsToHostUUIDsMap[enrollmentID]

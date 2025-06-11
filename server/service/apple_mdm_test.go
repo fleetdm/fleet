@@ -2634,7 +2634,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
 			failedCount++
-			require.Len(t, payload, 3) // the 2 remove ops
+			require.Len(t, payload, 3) // the 3 remove ops
 			require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 				{
 					ProfileUUID:       p3,
@@ -2674,6 +2674,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
 	t.Run("fail enqueue install ops", func(t *testing.T) {
@@ -2747,6 +2748,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
 	// Zero profiles to remove
@@ -2889,6 +2891,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
 	t.Run("preprocessor fails on $FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP, func(t *testing.T) {
@@ -2914,6 +2917,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
 	t.Run("bad $FLEET_VAR", func(t *testing.T) {
@@ -2921,13 +2925,10 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		failedCall = false
 		var hostUUIDs []string
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
-			fmt.Printf("failedCheck called with %v\n", payload)
 			if len(payload) > 0 {
 				failedCount++
 			}
 			for _, p := range payload {
-				fmt.Printf("payload: %v\n", p)
-				fmt.Printf("hostUUID: %v\n", p.HostUUID)
 				assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
 				assert.Contains(t, p.Detail, "FLEET_VAR_BOZO")
 				for i, hu := range hostUUIDs {
@@ -2959,13 +2960,10 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		})
 
 		profilesToInstall, _ := ds.ListMDMAppleProfilesToInstallFunc(ctx)
-		fmt.Println("profilesToInstall")
 		hostUUIDs = make([]string, 0, len(profilesToInstall))
 		for _, p := range profilesToInstall {
-			fmt.Printf("profile: %v\n", p)
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
 		}
-		fmt.Printf("%v\n", hostUUIDs)
 
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
@@ -2975,6 +2973,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
 		checkAndReset(t, true, &ds.BulkUpsertMDMAppleHostProfilesFuncInvoked)
+		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 		// Check that individual updates were not done (bulk update should be done)
 		checkAndReset(t, false, &ds.UpdateOrDeleteHostMDMAppleProfileFuncInvoked)
 	})
