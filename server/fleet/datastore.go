@@ -1041,6 +1041,10 @@ type Datastore interface {
 	// UpdateJobs updates an existing job. Call this after processing a job.
 	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
 
+	// CleanupWorkerJobs deletes jobs in a final state that are older than the
+	// provided durations. It returns the number of jobs deleted and an error.
+	CleanupWorkerJobs(ctx context.Context, failedSince, completedSince time.Duration) (int64, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 

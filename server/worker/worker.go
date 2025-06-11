@@ -12,8 +12,6 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type ctxKey int
-
 const (
 	maxRetries = 5
 	// nvdCVEURL is the base link to a CVE on the NVD website, only the CVE code
