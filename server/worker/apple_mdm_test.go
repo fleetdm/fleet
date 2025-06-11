@@ -3,6 +3,7 @@ package worker
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -603,6 +604,101 @@ func TestAppleMDM(t *testing.T) {
 		require.Equal(t, fleet.JobStateQueued, jobs[0].State)
 		require.Equal(t, appleMDMJobName, jobs[0].Name)
 		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+	})
+
+	t.Run("automatic release retries", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+
+		// the release device job got enqueued, and it will constantly re-enqueue
+		// itself because the command is never acknowledged
+		var (
+			previousID     uint
+			firstStartedAt time.Time
+		)
+		for i := 0; i <= 10; i++ {
+			jobs, err := ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute)) // release job is always added with a delay
+			require.NoError(t, err)
+			require.Len(t, jobs, 1)
+
+			releaseJob := jobs[0]
+			require.Equal(t, fleet.JobStateQueued, releaseJob.State)
+			require.Equal(t, appleMDMJobName, releaseJob.Name)
+			require.NotEqual(t, previousID, releaseJob.ID)
+			previousID = releaseJob.ID
+
+			var args appleMDMArgs
+			err = json.Unmarshal([]byte(*releaseJob.Args), &args)
+			require.NoError(t, err)
+			require.Equal(t, args.Task, AppleMDMPostDEPReleaseDeviceTask)
+			require.EqualValues(t, i, args.ReleaseDeviceAttempt)
+
+			if i == 0 {
+				// first time, there is no release device started at
+				require.Nil(t, args.ReleaseDeviceStartedAt)
+			} else {
+				require.NotNil(t, args.ReleaseDeviceStartedAt)
+				if i == 1 {
+					firstStartedAt = *args.ReleaseDeviceStartedAt
+				} else {
+					require.True(t, firstStartedAt.Equal(*args.ReleaseDeviceStartedAt))
+				}
+			}
+
+			if i == 10 {
+				// finally, after 10 attempts, update the release started at to make it
+				// meet the maximum wait time and actually do the release on the next
+				// processing.
+				startedAt := firstStartedAt.Add(-time.Hour)
+				args.ReleaseDeviceStartedAt = &startedAt
+				b, err := json.Marshal(args)
+				require.NoError(t, err)
+				mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `UPDATE jobs SET args = ? WHERE id = ?`, string(b), releaseJob.ID)
+					return err
+				})
+			}
+			// update the job to make it available to run immediately
+			releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
+			_, err = ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
+			require.NoError(t, err)
+
+			// run the worker, should succeed and re-enqueue a new job with the same args
+			err = w.ProcessJobs(ctx)
+			require.NoError(t, err)
+		}
+
+		// on the last processing, it did end up releasing the device due to the
+		// limit of attempts and wait delay being reached.
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "DeviceConfigured"}, getEnqueuedCommandTypes(t))
+
+		// job queue is now empty
+		jobs, err := ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, jobs, 0)
 	})
 }
 
