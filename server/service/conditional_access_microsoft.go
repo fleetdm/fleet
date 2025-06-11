@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log/level"
@@ -140,6 +141,15 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 	if err := svc.ds.ConditionalAccessMicrosoftMarkSetupDone(ctx); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "failed to mark setup_done=true")
 	}
+
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
+	); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "create activity for conditional access integration microsoft")
+	}
+
 	return true, nil
 }
 
@@ -195,6 +205,14 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 	// Delete integration in datastore.
 	if err := svc.ds.ConditionalAccessMicrosoftDelete(ctx); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to delete integration in datastore")
+	}
+
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for deletion of conditional access integration microsoft")
 	}
 
 	return nil
