@@ -40,7 +40,7 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		}
 	}
 
-	args = append(args, "-c", fmt.Sprintf("\"%s\"", strings.Join(env, " ")))
+	args = append(args, "-c", fmt.Sprintf("%s %s", strings.Join(env, " "), path))
 
 	cmd := exec.Command("runuser", args...)
 	cmd.Stderr = os.Stderr
