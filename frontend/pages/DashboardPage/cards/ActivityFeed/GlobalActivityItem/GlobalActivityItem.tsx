@@ -1186,7 +1186,7 @@ const TAGGED_TEMPLATES = {
     } else if (activity.details?.team_name) {
       teamText = (
         <>
-          to the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> team
         </>
       );
     } else {
@@ -1195,7 +1195,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a query <b>{activity.details?.query_name}</b> {teamText}
+        created a query <b>{activity.details?.query_name}</b> {teamText}.
       </>
     );
   },
@@ -1215,7 +1215,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the query <b>{activity.details?.query_name}</b> {teamText}
+        edited the query <b>{activity.details?.query_name}</b> {teamText}.
       </>
     );
   },
@@ -1226,7 +1226,7 @@ const TAGGED_TEMPLATES = {
     } else if (activity.details?.team_name) {
       teamText = (
         <>
-          from the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> team
         </>
       );
     } else {
@@ -1235,7 +1235,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the query <b>{activity.details?.query_name}</b> {teamText}
+        deleted the query <b>{activity.details?.query_name}</b> {teamText}.
       </>
     );
   },
@@ -1252,7 +1252,7 @@ const TAGGED_TEMPLATES = {
     } else if (activity.details?.team_name) {
       teamText = (
         <>
-          to the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> team
         </>
       );
     } else {
@@ -1262,7 +1262,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a policy <b>{activity.details?.policy_name}</b> {teamText}
+        created a policy <b>{activity.details?.policy_name}</b> {teamText}.
       </>
     );
   },
@@ -1289,7 +1289,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the policy <b>{activity.details?.policy_name}</b> {teamText}
+        edited the policy <b>{activity.details?.policy_name}</b> {teamText}.
       </>
     );
   },
@@ -1306,7 +1306,7 @@ const TAGGED_TEMPLATES = {
     } else if (activity.details?.team_name) {
       teamText = (
         <>
-          from the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> team
         </>
       );
     } else {
@@ -1316,7 +1316,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the policy <b>{activity.details?.policy_name}</b> {teamText}
+        deleted the policy <b>{activity.details?.policy_name}</b> {teamText}.
       </>
     );
   },
