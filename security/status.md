@@ -85,17 +85,6 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleetctl` docker image
 
-<<<<<<< HEAD
-=======
-### [CVE-2025-48734](https://nvd.nist.gov/vuln/detail/CVE-2025-48734)
-- **Author:** @lucasmrod
-- **Status:** `not_affected`
-- **Status notes:** The fleetctl tool is used by IT admins to generate packages so the vulnerable code cannot be controlled by attackers.
-- **Products:**: `fleetctl`,`pkg:maven/commons-beanutils/commons-beanutils`
-- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
-- **Timestamp:** 2025-06-02 07:33:44
-
->>>>>>> 1c5700a8c4 (Microsoft Compliance Partner backend changes (#29540))
 ### [CVE-2025-46569](https://nvd.nist.gov/vuln/detail/CVE-2025-46569)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
