@@ -3281,8 +3281,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// get the existing profiles work
 	expectedProfiles := []fleet.MDMConfigProfilePayload{
-		{ProfileUUID: noTeamAppleProfUUID, Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil},
-		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID},
+		{ProfileUUID: noTeamAppleProfUUID, Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil, Scope: string(fleet.PayloadScopeSystem)},
+		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID, Scope: string(fleet.PayloadScopeSystem)},
 		{ProfileUUID: noTeamWinProfUUID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
 		{ProfileUUID: teamWinProfUUID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
 		{
@@ -3292,13 +3292,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 			},
 		},
 		{
-			ProfileUUID: uuidAppleWithLabel, Platform: "darwin", Name: "apple-profile-with-labels", Identifier: "ident-with-labels", TeamID: nil,
+			ProfileUUID: uuidAppleWithLabel, Platform: "darwin", Name: "apple-profile-with-labels", Identifier: "ident-with-labels", TeamID: nil, Scope: string(fleet.PayloadScopeSystem),
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
 			},
 		},
 		{
-			ProfileUUID: uuidAppleWithInclAnyLabel, Platform: "darwin", Name: "apple-profile-with-incl-any-labels", Identifier: "ident-with-incl-any-labels", TeamID: nil,
+			ProfileUUID: uuidAppleWithInclAnyLabel, Platform: "darwin", Name: "apple-profile-with-incl-any-labels", Identifier: "ident-with-incl-any-labels", TeamID: nil, Scope: string(fleet.PayloadScopeSystem),
 			LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
 				{LabelID: labelBar.ID, LabelName: labelBar.Name},
 				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
