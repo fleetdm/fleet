@@ -606,7 +606,7 @@ func TestAppleMDM(t *testing.T) {
 		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
 	})
 
-	t.Run("automatic release retries", func(t *testing.T) {
+	t.Run("automatic release retries and give up", func(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
 
@@ -693,6 +693,71 @@ func TestAppleMDM(t *testing.T) {
 
 		// on the last processing, it did end up releasing the device due to the
 		// limit of attempts and wait delay being reached.
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "DeviceConfigured"}, getEnqueuedCommandTypes(t))
+
+		// job queue is now empty
+		jobs, err := ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute))
+		require.NoError(t, err)
+		require.Len(t, jobs, 0)
+	})
+
+	t.Run("automatic release succeeds after a few attempts", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err := QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true)
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+
+		for i := 0; i <= 4; i++ {
+			jobs, err := ds.GetQueuedJobs(ctx, 2, time.Now().UTC().Add(time.Minute)) // release job is always added with a delay
+			require.NoError(t, err)
+			require.Len(t, jobs, 1)
+
+			releaseJob := jobs[0]
+			require.Equal(t, fleet.JobStateQueued, releaseJob.State)
+			require.Equal(t, appleMDMJobName, releaseJob.Name)
+
+			if i == 4 {
+				// after 4 attempts, record a result for the command so it gets released
+				mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) 
+						SELECT ?, command_uuid, ?, ? FROM nano_commands`,
+						h.UUID, "Acknowledged", `<?xml`)
+					return err
+				})
+			}
+			// update the job to make it available to run immediately
+			releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
+			_, err = ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
+			require.NoError(t, err)
+
+			// run the worker, should succeed and re-enqueue a new job with the same args
+			err = w.ProcessJobs(ctx)
+			require.NoError(t, err)
+		}
+
+		// on the last processing, it did release the device due to all pending
+		// commands being completed.
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "DeviceConfigured"}, getEnqueuedCommandTypes(t))
 
 		// job queue is now empty
