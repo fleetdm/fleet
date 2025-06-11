@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -25,6 +26,7 @@ func (ds *Datastore) NewChallenge(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	fmt.Println("New challenge created:", challenge)
 	return challenge, nil
 }
 
@@ -32,40 +34,58 @@ func (ds *Datastore) NewChallenge(ctx context.Context) (string, error) {
 // and deletes it if it does. The error will include sql.ErrNoRows if the challenge
 // is not found or is expired.
 func (ds *Datastore) ConsumeChallenge(ctx context.Context, challenge string) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return consumeChallengeTx(ctx, tx, challenge)
-	})
-}
-
-func consumeChallengeTx(ctx context.Context, tx sqlx.ExtContext, challenge string) error {
 	if challenge == "" {
-		return ctxerr.Wrap(ctx, sql.ErrNoRows, "empty challenge") // no challenge provided, treat as invalid
+		// no challenge provided, treat as invalid
+		return ctxerr.Wrap(ctx, sql.ErrNoRows, "consume challenge called with empty challenge")
 	}
+	// use transaction to ensure atomicity of the challenge check and deletion
+	var valid bool
+	// msg will hold the reason for invalidation if applicable because any transaction err means
+	// we want to retry/rollback, rather when we want to return a validation error to the caller
+	var msg string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// check if matching challenge exists and retrieve its creation time
+		var createdAt time.Time
+		if err := sqlx.GetContext(ctx, tx, &createdAt, `SELECT created_at FROM challenges WHERE challenge = ?`, challenge); err != nil {
+			if err == sql.ErrNoRows {
+				// invalid, challenge not found
+				msg = "challenge not found"
+				return nil
+			}
+			// some other error, return it
+			return ctxerr.Wrap(ctx, err, "get challenge")
+		}
+		// delete challenge regardless of validity
+		r, err := tx.ExecContext(ctx, `DELETE FROM challenges WHERE challenge = ?`, challenge)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete challenge")
+		}
+		if rowCt, _ := r.RowsAffected(); rowCt < 1 {
+			// unlikely to happen since just checked existence and we're in a transaction,
+			// but we'll treat as invalid so we log as error for debugging purposes just in case
+			msg = "challenge not found for deletion"
+			return nil
+		}
+		// check expiry
+		if time.Since(createdAt) <= fleet.OneTimeChallengeTTL {
+			valid = true
+		} else {
+			msg = "challenge expired"
+		}
+		return nil
+	})
 
-	// check if matching challenge exists and retrieve its creation time
-	var createdAt time.Time
-	if err := sqlx.GetContext(ctx, tx, &createdAt, `SELECT created_at FROM challenges WHERE challenge = ?`, challenge); err != nil {
-		return ctxerr.Wrap(ctx, err, "check challenge existence")
+	switch {
+	case err != nil:
+		// if we encountered an error during the transaction, return it
+		return ctxerr.Wrap(ctx, err, "consume challenge transaction")
+	case valid:
+		// challenge consumed successfully
+		return nil
+	default:
+		// challenge was invalid or expired, treat as not found
+		return ctxerr.Wrap(ctx, sql.ErrNoRows, msg)
 	}
-
-	// delete challenge regardless of validity
-	result, err := tx.ExecContext(ctx, `DELETE FROM challenges WHERE challenge = ?`, challenge)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete challenge")
-	}
-	rowCt, _ := result.RowsAffected()
-	if rowCt < 1 {
-		// unlikely to happen since just checked existence and we're in a transaction, but error
-		// for debugging purposes just in case
-		return ctxerr.Wrap(ctx, sql.ErrNoRows, "expected challenge not found for deletion")
-	}
-
-	// check if challenge is still valid (not expired)
-	if time.Since(createdAt) > fleet.OneTimeChallengeTTL {
-		return ctxerr.Wrap(ctx, sql.ErrNoRows, "expired challenge")
-	}
-
-	return nil
 }
 
 // CleanupExpiredChallenges removes expired challenges from the challenges table.

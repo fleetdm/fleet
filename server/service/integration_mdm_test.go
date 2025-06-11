@@ -14775,18 +14775,18 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	// checkChallenge is a helper function to check if the challenge exists in the database.
 	checkChallenge := func(t *testing.T, challenge string, expectFound bool) {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			var foundChallenge bool
-			stmt := "SELECT 1 WHERE EXISTS (SELECT * FROM challenges where challenge = ?)"
+			var foundChallenge string
+			stmt := "SELECT challenge FROM challenges where challenge = ?"
 			err := sqlx.GetContext(context.Background(), q, &foundChallenge, stmt, challenge)
 			switch {
 			case errors.Is(err, sql.ErrNoRows):
 				require.False(t, expectFound)
-				require.False(t, foundChallenge)
+				require.Empty(t, foundChallenge)
 				return nil
 			default:
 				require.NoError(t, err, "Failed to check challenge existence in the database")
-				require.True(t, expectFound)
-				require.True(t, foundChallenge)
+				require.True(t, expectFound, fmt.Sprintf("found challenge %s, but expected not to find it", foundChallenge))
+				require.NotEmpty(t, foundChallenge, "challenge should not be empty in the database")
 				return nil
 			}
 		})
@@ -14937,17 +14937,17 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	// Check that the challenge is removed from the database after PKIOperation
 	checkChallenge(t, gotChallenge, false)
 
-	// Host acknowledges the profile and we mark it as verified
+	// Host acknowledges the profile and it is marked as verifying
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 	assert.Nil(t, cmd)
-	verifySCEPProfile(t, host, fleet.HostMacOSProfile{
-		Identifier:  "I0",
-		DisplayName: "N0",
-		InstallDate: time.Now(),
-	}, profileUUID, "scepName")
 
-	// Try again, it should fail because the challenge is no longer in the database
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	profileUUIDTest := checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryVerifying, "")
+	require.Equal(t, profileUUID, profileUUIDTest, "Expected the same profile UUID after re-sending the SCEP profile")
+
+	// Try again, it should fail because the profile is not pending
 	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	// Failed challenge doesn't resend the SCEP profile unless it is pending
@@ -14959,12 +14959,15 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	// Mark the profile as pending so that it can be resent
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := "UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?"
-		_, err := q.ExecContext(context.Background(), stmt, nil, host.UUID, profileUUID)
+		r, err := q.ExecContext(context.Background(), stmt, nil, host.UUID, profileUUID)
 		require.NoError(t, err, "Failed to update profile status in the database")
+		rowsAffected, _ := r.RowsAffected()
+		require.Equal(t, int64(1), rowsAffected, "Expected to update 1 row for the profile status")
 		return nil
 	})
 
-	// Try to do SCEP with deleted challenge, it will fail but a new challenge will be generated and the profile resent
+	// Try to do SCEP with deleted challenge, it will fail because challenge is no longer in the datastore
+	// but a new challenge will be generated and the profile resent
 	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
 		"PKIOperation", "message", message)
 	// Check profile status, raw status will be nil (awaiting the reconcile job)
@@ -15009,6 +15012,9 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	checkChallenge(t, gotChallenge, false) // old challenge deleted
 	checkChallenge(t, gotChallenge2, true) // new challenge added
 
+	// Check the host details
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	profileUUID2 := checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryPending, "")
 	require.Equal(t, profileUUID, profileUUID2, "Expected the same profile UUID after re-sending the SCEP profile")
 
@@ -15035,6 +15041,13 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		require.Empty(t, status, "Expected profile status to be empty after re-sending the SCEP profile")
 		return nil
 	})
+
+	// Check hosts details, derived status should still be pending
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	profileUUID2 = checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryPending, "")
+	require.Equal(t, profileUUID, profileUUID2, "Expected the same profile UUID after re-sending the SCEP profile")
+
 	// Reconcile profiles, raw status becomes pending
 	s.awaitTriggerProfileSchedule(t)
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
