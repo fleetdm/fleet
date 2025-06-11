@@ -859,6 +859,15 @@ var windowsUpdateHistory = DetailQuery{
 	DirectIngestFunc: directIngestWindowsUpdateHistory,
 }
 
+// entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
+var entraIDDetails = DetailQuery{
+	// The query ingests Entra's Device ID and User Principal Name of the account that logged in to the device (using Company Portal.app).
+	Query: `SELECT * FROM (SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' LIMIT 1)
+		CROSS JOIN (SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1);`,
+	Platforms:        []string{"darwin"},
+	DirectIngestFunc: directIngestEntraIDDetails,
+}
+
 var softwareMacOS = DetailQuery{
 	// Note that we create the cached_users CTE (the WITH clause) in order to suggest to SQLite
 	// that it generates the users once instead of once for each UNIONed query. We use CROSS JOIN to
@@ -1516,6 +1525,34 @@ func directIngestWindowsUpdateHistory(
 	}
 
 	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
+}
+
+func directIngestEntraIDDetails(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// Device maybe hasn't logged in to Entra ID yet.
+		return nil
+	}
+	row := rows[0]
+
+	deviceID := row["device_id"]
+	if deviceID == "" {
+		return ctxerr.New(ctx, "empty Entra ID device_id")
+	}
+	userPrincipalName := row["user_principal_name"]
+	if userPrincipalName == "" {
+		return ctxerr.New(ctx, "empty Entra ID user_principal_name")
+	}
+
+	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
+	}
+	return nil
 }
 
 func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
@@ -2231,11 +2268,16 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 
 //go:generate go run gen_queries_doc.go "../../../docs/Contributing/product-groups/orchestration/understanding-host-vitals.md"
 
+type Integrations struct {
+	ConditionalAccessMicrosoft bool
+}
+
 func GetDetailQueries(
 	ctx context.Context,
 	fleetConfig config.FleetConfig,
 	appConfig *fleet.AppConfig,
 	features *fleet.Features,
+	integrations Integrations,
 ) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
@@ -2279,6 +2321,10 @@ func GetDetailQueries(
 			}
 			generatedMap[key] = query
 		}
+	}
+
+	if integrations.ConditionalAccessMicrosoft {
+		generatedMap["conditional_access_microsoft_device_id"] = entraIDDetails
 	}
 
 	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
