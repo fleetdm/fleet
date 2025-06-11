@@ -1005,3 +1005,8 @@ type MDMConfigProfileStatus struct {
 	Pending   uint `json:"pending" db:"pending"`
 	Failed    uint `json:"failed" db:"failed"`
 }
+
+// MDMWipeMetadata specifies optional metadata for the remote wipe command
+type MDMWipeMetadata struct {
+	Windows *MDMWindowsWipeMetadata
+}
