@@ -14,7 +14,7 @@ import (
 
 const (
 	samlVersion   = "2.0"
-	cacheLifetime = 300 // five minutes
+	cacheLifetime = uint(300) // in seconds (5 minutes)
 )
 
 // RelayState sets optional relay state
@@ -74,12 +74,13 @@ func CreateAuthorizationRequest(settings *Settings, issuer string, options ...fu
 		return "", fmt.Errorf("encoding metadata creating auth request: %w", err)
 	}
 
+	sessionLifetime := cacheLifetime
+	if settings.SessionTTL > 0 {
+		sessionLifetime = settings.SessionTTL
+	}
+
 	// cache metadata so we can check the signatures on the response we get from the IDP
-	err = settings.SessionStore.create(requestID,
-		settings.OriginalURL,
-		metadataWriter.String(),
-		cacheLifetime,
-	)
+	err = settings.SessionStore.create(requestID, settings.OriginalURL, metadataWriter.String(), sessionLifetime)
 	if err != nil {
 		return "", fmt.Errorf("caching metadata while creating auth request: %w", err)
 	}

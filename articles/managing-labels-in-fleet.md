@@ -66,7 +66,7 @@ fleetctl get labels
 
 
 
-* **Targeting extensions with labels**: Labels can also target extensions to specific hosts. You can find more details on this functionality [here](https://fleetdm.com/docs/configuration/agent-configuration#targeting-extensions-with-labels).
+* **Targeting extensions with labels**: Labels can also [target extensions to specific hosts](https://fleetdm.com/docs/configuration/agent-configuration#targeting-extensions-with-labels).
 
 
 ### Conclusion

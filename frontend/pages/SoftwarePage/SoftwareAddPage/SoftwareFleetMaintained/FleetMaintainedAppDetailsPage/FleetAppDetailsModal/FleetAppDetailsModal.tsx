@@ -77,10 +77,7 @@ const FleetAppDetailsModal = ({
           {slug && (
             <DataSet
               title={
-                <TooltipWrapper
-                  tipContent={SLUG_TOOLTIP_MESSAGE}
-                  position="top-start"
-                >
+                <TooltipWrapper tipContent={SLUG_TOOLTIP_MESSAGE}>
                   Fleet-maintained app slug
                 </TooltipWrapper>
               }
@@ -110,10 +107,7 @@ const FleetAppDetailsModal = ({
           {url && (
             <DataSet
               title={
-                <TooltipWrapper
-                  tipContent={URL_TOOLTIP_MESSAGE}
-                  position="top-start"
-                >
+                <TooltipWrapper tipContent={URL_TOOLTIP_MESSAGE}>
                   URL
                 </TooltipWrapper>
               }

@@ -13,13 +13,11 @@ Script execution is disabled by default. Continue reading to learn how to enable
 
 If you use Fleet's macOS MDM features, scripts are automatically enabled for macOS hosts that have MDM turned on. You're set!
 
-If you don't use MDM features, to enable scripts, we'll deploy a fleetd agent with scripts enabled:
+If you don't use MDM features, to enable scripts, we'll [deploy a fleetd agent](https://fleetdm.com/guides/enroll-hosts) with scripts enabled:
 
 1. Generate a new fleetd agent for macOS, Windows, or Linux using the `fleetctl package` command with the `--enable-scripts` flag. 
 
 2. Deploy fleetd to your hosts. If your hosts already have fleetd installed, you can deploy the new fleetd on-top of the old installation.
-
-Learn more about generating a fleetd agent and deploying it [here](https://fleetdm.com/guides/enroll-hosts).
 
 ## Manually run scripts
 
@@ -47,11 +45,11 @@ fleetctl run-script --script-path=/path/to/script --host=hostname
 
 ## Automatically run scripts
 
-Learn more about automatically running scripts [here](https://fleetdm.com/guides/policy-automation-run-script).
+You can [automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script) using Fleet via policy automations.
 
 ## Batch execute scripts
 
-You can execute a script  on a large number of hosts at the same time using the Fleet UI or Fleet API.
+You can execute a script on a large number of hosts at the same time using the Fleet UI or Fleet API.
 
 Fleet UI:
 

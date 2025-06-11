@@ -4,7 +4,7 @@ As of version 4.63.0 Fleet added [SLSA attestations](https://slsa.dev/) to our r
 
 ## What is software attestation?
 
-A software attestation is a cryptographically-signed statement provided by a software creator that certifies the build process and provenance of one or more software _artifacts_ (which might be files, container images, or other outputs). In other words, it's a promise to our users that the software we're providing was built by us, using a process that they can trust and verify. We utilize the SLSA framework for attestations which you can read more about [here](https://slsa.dev/).  After each release, attestations are added to https://github.com/fleetdm/fleet/attestations.
+A software attestation is a cryptographically-signed statement provided by a software creator that certifies the build process and provenance of one or more software _artifacts_ (which might be files, container images, or other outputs). In other words, it's a promise to our users that the software we're providing was built by us, using a process that they can trust and verify. We use the [SLSA framework](https://slsa.dev/) for attestations.  After each release, attestations are added to https://github.com/fleetdm/fleet/attestations.
 
 ## Verifying a release
 

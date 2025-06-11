@@ -90,13 +90,13 @@ DELETE FROM label_membership WHERE label_id = ?
 			}
 
 			// Split hostnames into batches to avoid parameter limit in MySQL.
-			for _, hostnames := range batchHostnames(s.Hosts) {
+			for _, hostIdentifiers := range batchHostnames(s.Hosts) {
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
 				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT ?, id FROM hosts where hostname IN (?))
+INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?))
 `
-				sql, args, err := sqlx.In(sql, labelID, hostnames)
+				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
@@ -118,7 +118,12 @@ func batchHostnames(hostnames []string) [][]string {
 	// overflowing the MySQL max number of parameters (somewhere around 65,000
 	// but not well documented). Algorithm from
 	// https://github.com/golang/go/wiki/SliceTricks#batching-with-minimal-allocation
-	const batchSize = 50000 // Large, but well under the undocumented limit
+	//
+	// WARNING: This is used in ApplyLabelSpecsWithAuthor and the batch sizes have to be small
+	// enough to allow for three copies each hostname list in the query. The batch size is 20_000
+	// because 60_001 binding arguments is less than the maximum of 65,535.
+
+	const batchSize = 20_000 // Large, but well under the undocumented limit
 	batches := make([][]string, 0, (len(hostnames)+batchSize-1)/batchSize)
 
 	for batchSize < len(hostnames) {

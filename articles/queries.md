@@ -2,7 +2,7 @@
 
 Queries in Fleet allow you to ask questions to help you manage, monitor, and identify threats on your devices. This guide will walk you through how to create, schedule, and run a query.
 
-> Note: Unless a logging infrastructure is configured on your Fleet server, osquery-related logs will be stored locally on each device. Read more [here](https://fleetdm.com/guides/log-destinations)
+> Unless a [log destination](https://fleetdm.com/guides/log-destinations) is configured, osquery logs will be stored locally on each device.
 
 > New users may find it helpful to start with Fleet's policies. You can find policies and queries from the community in Fleet's [query library](https://fleetdm.com/queries). To learn more about policies, see [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies) and [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies).
 

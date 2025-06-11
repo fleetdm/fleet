@@ -18,7 +18,7 @@ How to uninstall fleetd from a host via Fleet (remotely):
 
 After performing these steps, the host will display as an offline host in the Fleet UI until you delete it.
 
-Are you having trouble uninstalling Fleetd on macOS, Windows, or Linux? Get help [here](https://fleetdm.com/slack).
+Are you having trouble uninstalling Fleetd on macOS, Windows, or Linux? Get help via one of our [support channels](https://fleetdm.com/support).
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Eric Shaw">

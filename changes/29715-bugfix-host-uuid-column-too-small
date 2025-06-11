@@ -1,0 +1,1 @@
+* Fixed a database bug where the `host_uuid` column was too small in some secondary tables related to ADE-enrollment and IdP accounts.

@@ -4,6 +4,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import FileSaver from "file-saver";
 import { ISoftwarePackage } from "interfaces/software";
 
@@ -87,10 +88,13 @@ const ViewYamlModal = ({
   const hyphenatedSoftwareTitle = hyphenateString(softwareTitleName);
 
   const onDownloadPreInstallQuery = (evt: React.MouseEvent) => {
+    const softwareExtension = getExtensionFromFileName(name);
+    const preInstallQueryContent = `- name: "[Pre-install software] ${softwareTitleName} (${softwareExtension})"\n  query: ${preInstallQuery}`;
+
     handleDownload({
       evt,
-      content: preInstallQuery,
-      filename: `pre-install-query-${hyphenatedSoftwareTitle}.sh`,
+      content: preInstallQueryContent,
+      filename: `pre-install-query-${hyphenatedSoftwareTitle}.yml`,
       filetype: "text/yml",
       errorMsg:
         "Your pre-install query could not be downloaded. Please create YAML file (.yml) manually.",
@@ -140,7 +144,7 @@ const ViewYamlModal = ({
             the next GitOps run, and edited installers will cause the GitOps run
             to fail.&nbsp;
             <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/yaml-software`}
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/yaml-packages`}
               text="How to use YAML"
               newTab
               multiline
@@ -158,7 +162,6 @@ const ViewYamlModal = ({
           <InputField
             enableCopy
             readOnly
-            inputWrapperClass
             name="filename"
             label="Filename"
             value={`${hyphenatedSoftwareTitle}.yml`}

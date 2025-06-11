@@ -372,7 +372,7 @@ const DropdownWrapper = ({
     },
     singleValue: (provided) => ({
       ...provided,
-      fontSize: "16px",
+      fontSize: "14px",
       margin: 0,
       padding: 0,
     }),

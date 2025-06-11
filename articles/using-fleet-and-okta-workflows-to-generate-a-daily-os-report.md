@@ -116,7 +116,7 @@ With all of the parts needed for the post, we use a final `Compose` card to stri
 ![Okta workflow Compose card composing Slack message.](../website/assets/images/articles/using-fleet-and-okta-workflows-image8-500x426@2x.png "Okta workflow Compose card composing Slack message.")
 
 
-Using one of my favorite cards, the `Construct` we create the key:value pair for our Slack message. So, for example, to post to the Slack API, we need a couple of values like, `channel` and `text`. And since we are using our friendly bot, we throw in the `username` as well. Check out the Slack docs [here](https://api.slack.com/methods/chat.postMessage) for the different keys you can use in the chat.postMessage API method, it's extensive!
+Using one of my favorite cards, the `Construct` we create the key:value pair for our Slack message. So, for example, to post to the Slack API, we need a couple of values like, `channel` and `text`. And since we are using our friendly bot, we throw in the `username` as well. Check out the [Slack API docs](https://api.slack.com/methods/chat.postMessage) for the different keys you can use in the chat.postMessage API method, it's extensive!
 
 ```{
 

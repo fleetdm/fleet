@@ -7,7 +7,7 @@
 
     &-label {
       line-height: 38px;
-      font-size: $small;
+      font-size: $x-small;
     }
   }
 
@@ -20,7 +20,7 @@
   }
   &__label {
     display: block;
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
     color: $core-fleet-black;
     margin-bottom: $pad-xsmall;
@@ -78,13 +78,13 @@
     cursor: pointer;
 
     .Select-value {
-      font-size: $small;
+      font-size: $x-small;
       background-color: $ui-light-grey;
     }
   }
 
   .Select-value {
-    font-size: $small;
+    font-size: $x-small;
     border-radius: $border-radius;
     background-color: $ui-light-grey;
 
@@ -106,7 +106,7 @@
         top: -5px;
         left: -5px;
         visibility: visible;
-        font-size: $small;
+        font-size: $x-small;
         color: $ui-gray;
         text-indent: 0;
       }
@@ -120,7 +120,7 @@
     }
 
     .Select-value-label {
-      font-size: $small;
+      font-size: $x-small;
       color: $core-fleet-black;
       vertical-align: middle;
     }
@@ -194,7 +194,7 @@
       .Select-value {
         .Select-value-label {
           color: $core-fleet-black;
-          font-size: $small;
+          font-size: $x-small;
         }
       }
     }
@@ -271,13 +271,13 @@
 
   .Select-placeholder {
     color: $core-fleet-blue;
-    font-size: $small;
+    font-size: $x-small;
     line-height: 34px;
     box-sizing: border-box;
   }
   .Select-input {
     color: $core-fleet-blue;
-    font-size: $small;
+    font-size: $x-small;
     box-sizing: border-box;
     height: 34px;
 

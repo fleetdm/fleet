@@ -70,13 +70,12 @@
       > input {
         line-height: 53px;
         color: $core-fleet-black;
-        font-size: $small;
+        font-size: $x-small;
       }
     }
 
     .Select-placeholder {
       line-height: 53px;
-      font-size: $small;
       color: $ui-fleet-black-50;
     }
 
@@ -153,7 +152,7 @@
     }
 
     .Select-value-label {
-      font-size: $small;
+      font-size: $x-small;
       color: $ui-fleet-black-75;
       font-size: $x-small;
       padding: 0 0 0 $pad-medium;

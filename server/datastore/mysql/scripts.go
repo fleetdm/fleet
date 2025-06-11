@@ -352,8 +352,8 @@ func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint,
 }
 
 type scriptExecutionSearchOpts struct {
-	IncludeCanceled            bool
-	SelfServiceUninstallHostID uint
+	IncludeCanceled bool
+	UninstallHostID uint
 }
 
 func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
@@ -361,7 +361,7 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
 }
 
 func (ds *Datastore) GetSelfServiceUninstallScriptExecutionResult(ctx context.Context, execID string, hostID uint) (*fleet.HostScriptResult, error) {
-	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID, scriptExecutionSearchOpts{SelfServiceUninstallHostID: hostID})
+	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID, scriptExecutionSearchOpts{UninstallHostID: hostID})
 }
 
 func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string, opts scriptExecutionSearchOpts) (*fleet.HostScriptResult, error) {
@@ -373,10 +373,10 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 	}
 
 	uninstallCondition := ""
-	if opts.SelfServiceUninstallHostID > 0 {
+	if opts.UninstallHostID > 0 {
 		uninstallCondition = `JOIN host_software_installs hsi ON hsi.execution_id = hsr.execution_id
-			AND hsi.uninstall = TRUE AND hsi.self_service = TRUE AND hsr.host_id = ?`
-		activeParams = append(activeParams, opts.SelfServiceUninstallHostID)
+			AND hsi.uninstall = TRUE AND hsr.host_id = ?`
+		activeParams = append(activeParams, opts.UninstallHostID)
 	}
 
 	activeParams = append(activeParams, execID)

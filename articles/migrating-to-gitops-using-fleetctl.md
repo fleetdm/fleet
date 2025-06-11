@@ -2,7 +2,7 @@
 
 ## Introduction
 
-At Fleet, we are strong proponents of using [GitOps](https://fleetdm.com/guides/sysadmin-diaries-gitops-a-strategic-advantage#basic-article) to manage your configuration (you can read more about our rationale [here](https://fleetdm.com/guides/articles/preventing-mistakes-with-gitops)). But what if you already have a Fleet instance with complex configuration or a large numbers of labels, policies, queries or software installers? How can you migrate your configuration management to GitOps while ensuring that nothing is lost in the shuffle?
+At Fleet, we are strong proponents of using [GitOps](https://fleetdm.com/guides/sysadmin-diaries-gitops-a-strategic-advantage#basic-article) to manage your configuration, as it [improves reliability, reduces errors, and enables consistent, auditable management of your device infrastructure](https://fleetdm.com/guides/articles/preventing-mistakes-with-gitops). But what if you already have a Fleet instance with complex configuration or a large numbers of labels, policies, queries or software installers? How can you migrate your configuration management to GitOps while ensuring that nothing is lost in the shuffle?
 
 Enter `fleetctl generate-gitops`.
 

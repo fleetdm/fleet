@@ -22,6 +22,7 @@ spec:
   selector:
     app: fleet
     chart: fleet
+    component: fleet-server
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
   ports:

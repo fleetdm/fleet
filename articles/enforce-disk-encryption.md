@@ -24,13 +24,13 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [Fleet's GitOp
 
 #### Fleet API: 
 
-API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement).
+You can use the [Update disk encryption enforcement API endpoint](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement) to manage disk encryption settings via the API.
 
 ### Disk encryption status
 
 In the Fleet UI, head to the **Controls > OS settings > Disk encryption** tab. You will see a table that shows the status of disk encryption on your hosts. 
 
-* Verified: the host turned disk encryption on and sent their key to Fleet. Fleet verified with osquery. See instructions for viewing the disk encryption key [here](#view-disk-encryption-key).
+* Verified: the host turned disk encryption on and sent their key to Fleet, and Fleet has verified the key with osquery. The [encryption key can be viewed within Fleet](#view-disk-encryption-key).
 
 * Verifying: the host acknowledged the MDM command to install the disk encryption profile. Fleet is verifying with osquery and retrieving the disk encryption key.
 
