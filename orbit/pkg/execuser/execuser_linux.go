@@ -32,6 +32,10 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
 	)
 
+	for _, nv := range opts.env {
+		env = append(env, fmt.Sprintf("%s=%s", nv[0], nv[1]))
+	}
+
 	env = append(env, path)
 
 	if len(opts.args) > 0 {
