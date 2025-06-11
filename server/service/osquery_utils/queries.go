@@ -715,11 +715,23 @@ var extraDetailQueries = map[string]DetailQuery{
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1
+		serial, sha1, "system" as source,
+		path
 	FROM
 		certificates
 	WHERE
-		path = '/Library/Keychains/System.keychain';`,
+		path = '/Library/Keychains/System.keychain'
+	UNION
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, "user" as source,
+		path
+	FROM
+		certificates
+	WHERE
+		path LIKE '/Users/%/Library/Keychains/login.keychain-db';`,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestHostCertificates,
 	},
@@ -2093,7 +2105,7 @@ var luksVerifyQuery = DetailQuery{
 		query := `
 		WITH RECURSIVE
 		devices AS (
-			SELECT 
+			SELECT
 				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
 				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
 				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
@@ -2104,33 +2116,33 @@ var luksVerifyQuery = DetailQuery{
 		HAVING path <> '' AND fstype <> ''
 		),
 		root_mount AS (
-			SELECT 
-				path, 
-				kname, 
+			SELECT
+				path,
+				kname,
 				-- if '/' is mounted in a LUKS FS, then we don't need to transverse the tree
-				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname, 
-				fstype 
+				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname,
+				fstype
 			FROM devices
 			WHERE mountpoint = '/'
 		),
 		luks_h(path, kname, pkname, fstype) AS (
-			SELECT 
-				rtm.path, 
-				rtm.kname, 
-				rtm.pkname, 
-				rtm.fstype 
+			SELECT
+				rtm.path,
+				rtm.kname,
+				rtm.pkname,
+				rtm.fstype
 			FROM root_mount rtm
 			UNION
-		   SELECT 
+		   SELECT
 				dv.path,
 				dv.kname,
 				dv.pkname,
 				dv.fstype
-		   FROM devices dv 
+		   FROM devices dv
 		   JOIN luks_h ON dv.kname=luks_h.pkname
 		)
 		SELECT salt, key_slot
-		FROM cryptsetup_luks_salt 
+		FROM cryptsetup_luks_salt
 		WHERE device = (SELECT path FROM luks_h WHERE fstype = 'crypto_LUKS' LIMIT 1)`
 		return query, true
 	},
@@ -2382,6 +2394,8 @@ func directIngestWindowsProfiles(
 	return microsoft_mdm.VerifyHostMDMProfiles(ctx, logger, ds, host, rawResponse)
 }
 
+var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
+
 func directIngestHostCertificates(
 	ctx context.Context,
 	logger log.Logger,
@@ -2412,6 +2426,24 @@ func directIngestHostCertificates(
 			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
 			continue
 		}
+		source := fleet.HostCertificateSource(row["source"])
+		if !source.IsValid() {
+			// should never happen as the source is hard-coded in the query
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "invalid certificate source", "err", fmt.Errorf("invalid source %s", row["source"]))
+			continue
+		}
+
+		var username string
+		if source == fleet.UserHostCertificate {
+			// extract the username from the keychain path
+			matches := rxExtractUsernameFromHostCertPath.FindStringSubmatch(row["path"])
+			if len(matches) > 1 {
+				username = matches[1]
+			} else {
+				// if we cannot extract the username, we log it but continue
+				level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "could not extract username from path", "err", fmt.Errorf("no username found in path %q", row["path"]))
+			}
+		}
 
 		certs = append(certs, &fleet.HostCertificateRecord{
 			HostID:                    host.ID,
@@ -2433,6 +2465,8 @@ func directIngestHostCertificates(
 			IssuerOrganizationalUnit:  issuer.OrganizationalUnit,
 			IssuerOrganization:        issuer.Organization,
 			IssuerCommonName:          issuer.CommonName,
+			Source:                    source,
+			Username:                  username,
 		})
 	}
 
