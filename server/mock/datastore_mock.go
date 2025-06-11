@@ -1368,6 +1368,12 @@ type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, erro
 
 type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
 
+type NewChallengeFunc func(ctx context.Context) (string, error)
+
+type ConsumeChallengeFunc func(ctx context.Context, challenge string) error
+
+type CleanupExpiredChallengesFunc func(ctx context.Context) (int64, error)
+
 type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, tenantID string, proxyServerSecret string) error
 
 type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error)
@@ -3401,6 +3407,15 @@ type DataStore struct {
 
 	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
 	UpdateScimLastRequestFuncInvoked bool
+
+	NewChallengeFunc        NewChallengeFunc
+	NewChallengeFuncInvoked bool
+
+	ConsumeChallengeFunc        ConsumeChallengeFunc
+	ConsumeChallengeFuncInvoked bool
+
+	CleanupExpiredChallengesFunc        CleanupExpiredChallengesFunc
+	CleanupExpiredChallengesFuncInvoked bool
 
 	ConditionalAccessMicrosoftCreateIntegrationFunc        ConditionalAccessMicrosoftCreateIntegrationFunc
 	ConditionalAccessMicrosoftCreateIntegrationFuncInvoked bool
@@ -8135,6 +8150,27 @@ func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *flee
 	s.UpdateScimLastRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
+}
+
+func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.NewChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewChallengeFunc(ctx)
+}
+
+func (s *DataStore) ConsumeChallenge(ctx context.Context, challenge string) error {
+	s.mu.Lock()
+	s.ConsumeChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) CleanupExpiredChallenges(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.CleanupExpiredChallengesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredChallengesFunc(ctx)
 }
 
 func (s *DataStore) ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID string, proxyServerSecret string) error {
