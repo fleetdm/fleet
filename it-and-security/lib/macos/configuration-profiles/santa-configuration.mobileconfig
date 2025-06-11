@@ -4,7 +4,31 @@
 <dict>
 	<key>PayloadContent</key>
 	<array>
-		<!-- Santa Main Configuration -->
+		<dict>
+			<key>PayloadDescription</key>
+			<string>Allows Santa background tasks without notifications</string>
+			<key>PayloadDisplayName</key>
+			<string>Background Apps</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.santa.servicemanagement</string>
+			<key>PayloadOrganization</key>
+			<string>My Company</string>
+			<key>PayloadType</key>
+			<string>com.apple.servicemanagement</string>
+			<key>PayloadUUID</key>
+			<string>1161A7ED-2E7B-4744-B933-D3B9F58A1AAE</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Rules</key>
+			<array>
+				<dict>
+					<key>RuleType</key>
+					<string>TeamIdentifier</string>
+					<key>RuleValue</key>
+					<string>ZMCG7MLDV9</string>
+				</dict>
+			</array>
+		</dict>
 		<dict>
 			<key>PayloadContent</key>
 			<dict>
@@ -19,46 +43,44 @@
 								<string>This application has been blocked by a security policy.</string>
 								<key>ClientMode</key>
 								<integer>1</integer>
-								<key>EnablePageZeroProtection</key>
-								<false/>
-								<key>EnableSilentMode</key>
-								<false/>
 								<key>FileChangesRegex</key>
 								<string>^/(?!(?:private/tmp|Library/(?:Caches|Managed Installs/Logs|(?:Managed )?Preferences))/)</string>
 								<key>MachineIDKey</key>
 								<string>MachineUUID</string>
 								<key>MachineIDPlist</key>
-								<string>/Library/Preferences/com.fleetdm.santa-machine-mapping.plist</string>
+								<string>/Library/Preferences/com.company.machine-mapping.plist</string>
 								<key>MachineOwnerKey</key>
 								<string>Owner</string>
 								<key>MachineOwnerPlist</key>
-								<string>/Library/Preferences/com.fleetdm.santa-machine-mapping.plist</string>
+								<string>/Library/Preferences/com.company.machine-mapping.plist</string>
 								<key>ModeNotificationLockdown</key>
 								<string>Entering Lockdown mode</string>
 								<key>ModeNotificationMonitor</key>
 								<string>Entering Monitor mode&lt;br/&gt;Please be careful!</string>
-								<key>UnknownBlockMessage</key>
-								<string>This application has been blocked from executing.</string>
-                                <key>SyncBaseURL</key>
-	                            <string></string>
+								<key>SyncBaseURL</key>
+								<string></string>
 							</dict>
 						</dict>
 					</array>
 				</dict>
 			</dict>
+			<key>PayloadDescription</key>
+			<string>Manages Santa's configuration settings</string>
+			<key>PayloadDisplayName</key>
+			<string>Santa Configuration</string>
 			<key>PayloadEnabled</key>
 			<true/>
 			<key>PayloadIdentifier</key>
-			<string>0342c558-a101-4a08-a0b9-40cc00039ea5</string>
+			<string>com.fleetdm.santa.preferences</string>
+			<key>PayloadOrganization</key>
+			<string>My Company</string>
 			<key>PayloadType</key>
 			<string>com.apple.ManagedClient.preferences</string>
 			<key>PayloadUUID</key>
-			<string>0342c558-a101-4a08-a0b9-40cc00039ea5</string>
+			<string>359E3C7D-396F-4C45-99E7-F429620B9B21</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 		</dict>
-		
-		<!-- Santa Notifications Settings -->
 		<dict>
 			<key>NotificationSettings</key>
 			<array>
@@ -81,12 +103,14 @@
 					<false/>
 				</dict>
 			</array>
+			<key>PayloadDescription</key>
+			<string>Configures notification settings for Santa</string>
 			<key>PayloadDisplayName</key>
-			<string>Notifications Payload</string>
+			<string>Notifications Settings</string>
 			<key>PayloadIdentifier</key>
-			<string>com.northpolesec.santa.notificationsettings.F1817DA0-0044-43DD-9540-36EBC60FDA8F</string>
+			<string>com.fleetdm.santa.notificationsettings</string>
 			<key>PayloadOrganization</key>
-			<string></string>
+			<string>My Company</string>
 			<key>PayloadType</key>
 			<string>com.apple.notificationsettings</string>
 			<key>PayloadUUID</key>
@@ -94,21 +118,56 @@
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 		</dict>
-		
-		<!-- Santa TCC Configuration -->
+		<dict>
+			<key>AllowedSystemExtensionTypes</key>
+			<dict>
+				<key>ZMCG7MLDV9</key>
+				<array>
+					<string>EndpointSecurityExtension</string>
+				</array>
+			</dict>
+			<key>AllowedSystemExtensions</key>
+			<dict>
+				<key>ZMCG7MLDV9</key>
+				<array>
+					<string>com.northpolesec.santa.daemon</string>
+				</array>
+			</dict>
+			<key>NonRemovableSystemExtensions</key>
+			<dict>
+				<key>ZMCG7MLDV9</key>
+				<array>
+					<string>com.northpolesec.santa.daemon</string>
+				</array>
+			</dict>
+			<key>PayloadDescription</key>
+			<string>Allow Santa's system extension and prevent removal</string>
+			<key>PayloadDisplayName</key>
+			<string>System Extension</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.santa.system-extension</string>
+			<key>PayloadOrganization</key>
+			<string>My Company</string>
+			<key>PayloadType</key>
+			<string>com.apple.system-extension-policy</string>
+			<key>PayloadUUID</key>
+			<string>67EF74B6-F4FB-49FC-A086-5DE3E61B838A</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
 		<dict>
 			<key>PayloadDescription</key>
-			<string>Configures Privacy Preferences Policy Control settings</string>
+			<string>Allows full-disk access for Santa</string>
 			<key>PayloadDisplayName</key>
-			<string>Santa - Privacy Preferences Policy Control</string>
+			<string>TCC Permissions</string>
 			<key>PayloadIdentifier</key>
-			<string>com.northpolesec.santa.TCC.configuration-profile-policy.2416BA4B-CBFC-4719-B02F-20251B881D6F</string>
+			<string>com.fleetdm.santa.tcc</string>
 			<key>PayloadOrganization</key>
-			<string></string>
+			<string>My Company</string>
 			<key>PayloadType</key>
 			<string>com.apple.TCC.configuration-profile-policy</string>
 			<key>PayloadUUID</key>
-			<string>2416BA4B-CBFC-4719-B02F-20251B881D6F</string>
+			<string>8339162A-75E7-4E07-91DC-45DC939A4764</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 			<key>Services</key>
@@ -143,97 +202,28 @@
 						<key>StaticCode</key>
 						<false/>
 					</dict>
-					<dict>
-						<key>Allowed</key>
-						<true/>
-						<key>CodeRequirement</key>
-						<string>identifier "com.northpolesec.santa" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = ZMCG7MLDV9</string>
-						<key>Comment</key>
-						<string></string>
-						<key>Identifier</key>
-						<string>com.northpolesec.santa</string>
-						<key>IdentifierType</key>
-						<string>bundleID</string>
-						<key>StaticCode</key>
-						<false/>
-					</dict>
 				</array>
 			</dict>
-		</dict>
-		
-		<!-- Santa System Extensions -->
-		<dict>
-			<key>PayloadUUID</key>
-			<string>98D01A7B-ADC1-43C8-AB8E-8BDC25FCA3C9</string>
-			<key>PayloadType</key>
-			<string>com.apple.system-extension-policy</string>
-			<key>PayloadOrganization</key>
-			<string></string>
-			<key>PayloadIdentifier</key>
-			<string>com.northpolesec.santa.system-extension-policy.98D01A7B-ADC1-43C8-AB8E-8BDC25FCA3C9</string>
-			<key>PayloadDisplayName</key>
-			<string>Santa - System extensions</string>
-			<key>PayloadDescription</key>
-			<string/>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-			<key>PayloadEnabled</key>
-			<true/>
-			<key>AllowUserOverrides</key>
-			<true/>
-			<key>AllowedSystemExtensions</key>
-			<dict>
-				<key>ZMCG7MLDV9</key>
-				<array>
-					<string>com.northpolesec.santa.daemon</string>
-				</array>
-			</dict>
-			<key>AllowedSystemExtensionTypes</key>
-			<dict>
-				<key>ZMCG7MLDV9</key>
-				<array>
-					<string>EndpointSecurityExtension</string>
-				</array>
-			</dict>
-		</dict>
-		
-		<!-- Santa Service Management -->
-		<dict>
-			<key>PayloadIdentifier</key>
-			<string>servicemanagement.santa.example.mobileconfig</string>
-			<key>PayloadUUID</key>
-			<string>0d4e2ece-dfa7-4103-97ff-e91a9f842a1d</string>
-			<key>PayloadType</key>
-			<string>com.apple.servicemanagement</string>
-			<key>Rules</key>
-			<array>
-				<dict>
-					<key>RuleType</key>
-					<string>TeamIdentifier</string>
-					<key>RuleValue</key>
-					<string>ZMCG7MLDV9</string>
-				</dict>
-			</array>
 		</dict>
 	</array>
-	
-	<!-- Payload Metadata for the combined profile -->
 	<key>PayloadDescription</key>
-	<string>Combined Santa Configuration Profiles</string>
+	<string>Santa configuration including background apps, settings, notifications, system extension, and TCC permissions</string>
 	<key>PayloadDisplayName</key>
 	<string>Santa configuration</string>
-	<key>PayloadIdentifier</key>
-	<string>com.northpolesec.santa.combined.profile</string>
-	<key>PayloadOrganization</key>
-	<string></string>
-	<key>PayloadRemovalDisallowed</key>
+	<key>PayloadEnabled</key>
 	<true/>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.santa.configuration</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
 	<key>PayloadScope</key>
 	<string>System</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>bd9a82f5-2b45-41f4-8afe-d62ad46e3683</string>
+	<string>BBA4AD4E-9A70-4EF7-B33A-072D05B128C0</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>

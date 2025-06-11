@@ -13269,13 +13269,15 @@ func (s *integrationTestSuite) TestHostCertificates() {
 	}
 	certs := make([]*fleet.HostCertificateRecord, 0, len(certNames))
 	for i, name := range certNames {
+		sha1Sum := sha1.Sum([]byte(name)) // nolint:gosec
 		certs = append(certs, &fleet.HostCertificateRecord{
 			HostID:         host.ID,
 			CommonName:     name,
-			SHA1Sum:        sha1.New().Sum([]byte(name)), // nolint: gosec
+			SHA1Sum:        sha1Sum[:],
 			SubjectCountry: "s" + name,
 			IssuerCountry:  "i" + name,
 			NotValidAfter:  notValidAfterTimes[i],
+			Source:         fleet.SystemHostCertificate,
 		})
 	}
 	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs))
@@ -13291,6 +13293,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		require.Equal(t, "s"+want, cert.Subject.Country)
 		require.NotNil(t, cert.Issuer)
 		require.Equal(t, "i"+want, cert.Issuer.Country)
+		require.Equal(t, fleet.SystemHostCertificate, cert.Source)
 	}
 
 	certResp = listHostCertificatesResponse{}
@@ -13305,6 +13308,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		require.Equal(t, "s"+want, cert.Subject.Country)
 		require.NotNil(t, cert.Issuer)
 		require.Equal(t, "i"+want, cert.Issuer.Country)
+		require.Equal(t, fleet.SystemHostCertificate, cert.Source)
 	}
 
 	// non-existing host

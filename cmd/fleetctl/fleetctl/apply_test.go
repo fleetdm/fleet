@@ -1826,16 +1826,11 @@ func TestApplyLabels(t *testing.T) {
 	}
 
 	name = writeTmpYml(t, builtinLabelSpec)
-	assert.Equal(t, "[+] applied 1 labels\n", RunAppForTest(t, []string{"apply", "-f", name}))
-	assert.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
-	assert.True(t, ds.LabelsByNameFuncInvoked)
-
-	// Apply built-in label (with changes)
-	ubuntuLabel.Description = "CHANGED"
-	name = writeTmpYml(t, builtinLabelSpec)
 	_, err = RunAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
-	require.ErrorContains(t, err, "cannot modify or add built-in label")
+	assert.ErrorContains(t, err, "Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
+	assert.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
+	assert.False(t, ds.LabelsByNameFuncInvoked)
 }
 
 func TestApplyPacks(t *testing.T) {
