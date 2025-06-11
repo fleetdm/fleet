@@ -556,6 +556,8 @@ type GetPoliciesWithAssociatedScriptFunc func(ctx context.Context, teamID uint, 
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
+type GetPoliciesForConditionalAccessFunc func(ctx context.Context, teamID uint) ([]uint, error)
+
 type AsyncBatchInsertPolicyMembershipFunc func(ctx context.Context, batch []fleet.PolicyMembershipResult) error
 
 type AsyncBatchUpdatePolicyTimestampFunc func(ctx context.Context, ids []uint, ts time.Time) error
@@ -1366,11 +1368,19 @@ type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, erro
 
 type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
 
-type NewChallengeFunc func(ctx context.Context) (string, error)
+type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, tenantID string, proxyServerSecret string) error
 
-type ConsumeChallengeFunc func(ctx context.Context, challenge string) error
+type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error)
 
-type CleanupExpiredChallengesFunc func(ctx context.Context) (int64, error)
+type ConditionalAccessMicrosoftMarkSetupDoneFunc func(ctx context.Context) error
+
+type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
+
+type LoadHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error)
+
+type CreateHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+
+type SetHostConditionalAccessStatusFunc func(ctx context.Context, hostID uint, managed bool, compliant bool) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2173,6 +2183,9 @@ type DataStore struct {
 
 	GetCalendarPoliciesFunc        GetCalendarPoliciesFunc
 	GetCalendarPoliciesFuncInvoked bool
+
+	GetPoliciesForConditionalAccessFunc        GetPoliciesForConditionalAccessFunc
+	GetPoliciesForConditionalAccessFuncInvoked bool
 
 	AsyncBatchInsertPolicyMembershipFunc        AsyncBatchInsertPolicyMembershipFunc
 	AsyncBatchInsertPolicyMembershipFuncInvoked bool
@@ -3389,14 +3402,26 @@ type DataStore struct {
 	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
 	UpdateScimLastRequestFuncInvoked bool
 
-	NewChallengeFunc        NewChallengeFunc
-	NewChallengeFuncInvoked bool
+	ConditionalAccessMicrosoftCreateIntegrationFunc        ConditionalAccessMicrosoftCreateIntegrationFunc
+	ConditionalAccessMicrosoftCreateIntegrationFuncInvoked bool
 
-	ConsumeChallengeFunc        ConsumeChallengeFunc
-	ConsumeChallengeFuncInvoked bool
+	ConditionalAccessMicrosoftGetFunc        ConditionalAccessMicrosoftGetFunc
+	ConditionalAccessMicrosoftGetFuncInvoked bool
 
-	CleanupExpiredChallengesFunc        CleanupExpiredChallengesFunc
-	CleanupExpiredChallengesFuncInvoked bool
+	ConditionalAccessMicrosoftMarkSetupDoneFunc        ConditionalAccessMicrosoftMarkSetupDoneFunc
+	ConditionalAccessMicrosoftMarkSetupDoneFuncInvoked bool
+
+	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
+	ConditionalAccessMicrosoftDeleteFuncInvoked bool
+
+	LoadHostConditionalAccessStatusFunc        LoadHostConditionalAccessStatusFunc
+	LoadHostConditionalAccessStatusFuncInvoked bool
+
+	CreateHostConditionalAccessStatusFunc        CreateHostConditionalAccessStatusFunc
+	CreateHostConditionalAccessStatusFuncInvoked bool
+
+	SetHostConditionalAccessStatusFunc        SetHostConditionalAccessStatusFunc
+	SetHostConditionalAccessStatusFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5268,6 +5293,13 @@ func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fle
 	s.GetCalendarPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCalendarPoliciesFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error) {
+	s.mu.Lock()
+	s.GetPoliciesForConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPoliciesForConditionalAccessFunc(ctx, teamID)
 }
 
 func (s *DataStore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch []fleet.PolicyMembershipResult) error {
@@ -8105,23 +8137,51 @@ func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *flee
 	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
 }
 
-func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {
+func (s *DataStore) ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID string, proxyServerSecret string) error {
 	s.mu.Lock()
-	s.NewChallengeFuncInvoked = true
+	s.ConditionalAccessMicrosoftCreateIntegrationFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewChallengeFunc(ctx)
+	return s.ConditionalAccessMicrosoftCreateIntegrationFunc(ctx, tenantID, proxyServerSecret)
 }
 
-func (s *DataStore) ConsumeChallenge(ctx context.Context, challenge string) error {
+func (s *DataStore) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
 	s.mu.Lock()
-	s.ConsumeChallengeFuncInvoked = true
+	s.ConditionalAccessMicrosoftGetFuncInvoked = true
 	s.mu.Unlock()
-	return s.ConsumeChallengeFunc(ctx, challenge)
+	return s.ConditionalAccessMicrosoftGetFunc(ctx)
 }
 
-func (s *DataStore) CleanupExpiredChallenges(ctx context.Context) (int64, error) {
+func (s *DataStore) ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context) error {
 	s.mu.Lock()
-	s.CleanupExpiredChallengesFuncInvoked = true
+	s.ConditionalAccessMicrosoftMarkSetupDoneFuncInvoked = true
 	s.mu.Unlock()
-	return s.CleanupExpiredChallengesFunc(ctx)
+	return s.ConditionalAccessMicrosoftMarkSetupDoneFunc(ctx)
+}
+
+func (s *DataStore) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
+	s.mu.Lock()
+	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *DataStore) LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*fleet.HostConditionalAccessStatus, error) {
+	s.mu.Lock()
+	s.LoadHostConditionalAccessStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.LoadHostConditionalAccessStatusFunc(ctx, hostID)
+}
+
+func (s *DataStore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error {
+	s.mu.Lock()
+	s.CreateHostConditionalAccessStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateHostConditionalAccessStatusFunc(ctx, hostID, deviceID, userPrincipalName)
+}
+
+func (s *DataStore) SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed bool, compliant bool) error {
+	s.mu.Lock()
+	s.SetHostConditionalAccessStatusFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetHostConditionalAccessStatusFunc(ctx, hostID, managed, compliant)
 }
