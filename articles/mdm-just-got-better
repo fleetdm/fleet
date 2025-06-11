@@ -1,0 +1,45 @@
+# MDM just got better: Apple’s biggest IT updates at WWDC25
+
+macOS 26 Tahoe, iOS 26, iPadOS 26, watchOS 26, and visionOS 26 bring meaningful changes for Apple admins and IT teams. Hidden in the WWDC25 documentation are updates that quietly transform how organizations onboard, migrate, and manage Apple devices at scale.
+
+### Setup Assistant and Platform SSO now work together
+
+Setup Assistant on macOS now supports full integration with Platform Single Sign-On (SSO). Devices can authenticate with your Identity Provider (IdP) during Automated Device Enrollment and create local user accounts using synced display names and photos. Enrollment can now be silent using Managed Device Attestation, with fewer setup screens to complete.
+
+Guest mode now supports login on shared Macs, users can tap to log in using iPhone or Apple Watch, and Managed Apple ID sign-in has been improved. These changes make onboarding faster and more consistent, with fewer steps and stronger identity controls.
+
+### MDM migration
+
+Apple Business Manager and Apple School Manager now support MDM migration for macOS without wiping or using custom scripts. This removes the need for vendor-specific tools or manual cleanup during transitions.
+
+iOS and iPadOS devices can now migrate with persistent prompts, reboot enforcement, and preservation of Activation Lock and FileVault keys. Settings and apps can be restored if the new MDM delivers them promptly. These updates lower the operational cost of switching MDM providers or consolidating systems.
+
+### Declarative MDM expands
+
+Declarative Device Management now includes App Management on macOS, letting devices apply settings locally without needing instructions from the MDM server. DelayOSUpdates now supports business hour deferrals, and declarative software update support is available on Apple TV and Vision Pro. Status reporting has also been expanded to show app update states.
+
+These changes increase automation and reduce server dependency, especially in larger deployments.
+
+### Quiet updates that still matter
+
+- Remotely clear Mac passcodes without wiping the device  
+- Preserve installed apps during Return to Service  
+- Battery health reporting now on iPad  
+- Configurator and Shortcuts can automate device staging  
+- Manage Safari settings: bookmarks, homepages, private browsing  
+- Export unmanaged Apple IDs for auditing  
+
+Other changes include temporary AirPods pairing, messaging app restrictions, and privacy-focused content filtering using PIR and OHTTP.
+
+### Where Fleet fits in
+
+Apple’s updates reflect a shift toward more flexible and automated device management. Fleet already supports declarative MDM on macOS, iOS, and iPadOS, and integrates with Apple Business Manager for zero-touch provisioning. You can migrate devices to Fleet without wiping, and track changes with versioned, code-based configuration.
+
+Fleet is cross-platform, so you can manage macOS, Windows, and Linux devices in one place. With Fleet Desktop, end users can see what’s being collected—giving teams transparency without relying on blind trust.
+
+<meta name="articleTitle" value="MDM just got better: Apple’s biggest IT updates at WWDC25">
+<meta name="authorFullName" value="Adam Baali">
+<meta name="authorGitHubUsername" value="AdamBaali">
+<meta name="category" value="announcements">
+<meta name="publishedOn" value="2025-06-11">
+<meta name="description" value="Key WWDC25 updates for Apple IT—and how Fleet supports them today.">
