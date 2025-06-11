@@ -60,11 +60,12 @@ type appleMDMArgs struct {
 	// associated with the device.
 	//
 	// FIXME: Rename this to IdPAccountUUID or something similar.
-	EnrollReference        string   `json:"enroll_reference,omitempty"`
-	EnrollmentCommands     []string `json:"enrollment_commands,omitempty"`
-	Platform               string   `json:"platform,omitempty"`
-	UseWorkerDeviceRelease bool     `json:"use_worker_device_release,omitempty"`
-	ReleaseDeviceAttempt   int      `json:"release_device_attempt,omitempty"` // number of attempts to release the device
+	EnrollReference        string     `json:"enroll_reference,omitempty"`
+	EnrollmentCommands     []string   `json:"enrollment_commands,omitempty"`
+	Platform               string     `json:"platform,omitempty"`
+	UseWorkerDeviceRelease bool       `json:"use_worker_device_release,omitempty"`
+	ReleaseDeviceAttempt   int        `json:"release_device_attempt,omitempty"`    // number of attempts to release the device
+	ReleaseDeviceStartedAt *time.Time `json:"release_device_started_at,omitempty"` // time when the release device task first started
 }
 
 // Run executes the apple_mdm job.
@@ -289,28 +290,42 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	// We opted "yes" to all those, and we want to release after a few minutes,
 	// not hours, so we'll allow only a couple retries.
 
+	const (
+		maxWaitTime         = 15 * time.Minute
+		minAttempts         = 10
+		nextAttemptMinDelay = 30 * time.Second
+	)
+
 	args.ReleaseDeviceAttempt++
+	if args.ReleaseDeviceStartedAt == nil {
+		now := time.Now().UTC()
+		args.ReleaseDeviceStartedAt = &now
+	}
+
 	level.Debug(a.Log).Log(
 		"task", "runPostDEPReleaseDevice",
 		"msg", fmt.Sprintf("awaiting commands %v and profiles to settle for host %s", args.EnrollmentCommands, args.HostUUID),
 		"attempt", args.ReleaseDeviceAttempt,
+		"started_at", args.ReleaseDeviceStartedAt.Format(time.RFC3339),
 	)
 
-	// if retryNum, _ := ctx.Value(retryNumberCtxKey).(int); retryNum > 2 {
-	if args.ReleaseDeviceAttempt > 14 { // ~15 minutes, a litle more with retry delays and worker scheduling
-		// give up and release the device
-		a.Log.Log("info", "releasing device after too many attempts", "host_uuid", args.HostUUID, "attempts", args.ReleaseDeviceAttempt)
+	// if we've reached the minimum number of attempts and the maximum time to
+	// wait, we release the device even if some commands or profiles are still
+	// pending.
+	if args.ReleaseDeviceAttempt >= minAttempts && time.Since(*args.ReleaseDeviceStartedAt) >= maxWaitTime {
+		a.Log.Log("info", "releasing device after too many attempts or too long wait", "host_uuid", args.HostUUID, "attempts", args.ReleaseDeviceAttempt)
 		if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
 			return ctxerr.Wrapf(ctx, err, "failed to enqueue DeviceConfigured command after %d attempts", args.ReleaseDeviceAttempt)
 		}
 		return nil
 	}
 
-	requeueTask := func() error {
-		// re-enqueue the same job, but now ReleaseDeviceAttempt has been
-		// incremented, and run it not before a delay so it doesn't run again until
-		// the next worker cycle.
-		_, err := QueueJobWithDelay(ctx, a.Datastore, appleMDMJobName, args, 30*time.Second)
+	reenqueueTask := func() error {
+		// re-enqueue the same job, but now
+		// ReleaseDeviceAttempt/ReleaseDeviceStartedAt have been incremented/set,
+		// and run it not before a delay so it doesn't run again until the next
+		// worker cycle.
+		_, err := QueueJobWithDelay(ctx, a.Datastore, appleMDMJobName, args, nextAttemptMinDelay)
 		return err
 	}
 
@@ -337,7 +352,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		if !completed {
 			// DEP enrollment commands are not done being delivered to that device,
 			// cannot release it now.
-			if err := requeueTask(); err != nil {
+			if err := reenqueueTask(); err != nil {
 				return fmt.Errorf("failed to re-enqueue task: %w", err)
 			}
 			return nil
@@ -364,7 +379,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		// if it has any pending profiles, then its profiles are not done being
 		// delivered (installed or removed).
 		if prof.Status == nil || *prof.Status == fleet.MDMDeliveryPending {
-			if err := requeueTask(); err != nil {
+			if err := reenqueueTask(); err != nil {
 				return fmt.Errorf("failed to re-enqueue task: %w", err)
 			}
 			return nil
