@@ -91,12 +91,12 @@ func testCleanupWorkerJobs(t *testing.T, ds *Datastore) {
 
 	setJobTimestamp := func(j *fleet.Job, subtract time.Duration) {
 		j.NotBefore = time.Now().UTC().Add(-subtract)
-		j, err = ds.UpdateJob(ctx, j.ID, j)
+		_, err = ds.UpdateJob(ctx, j.ID, j)
 		require.NoError(t, err)
 	}
 	setJobStatus := func(j *fleet.Job, state fleet.JobState) {
 		j.State = state
-		j, err = ds.UpdateJob(ctx, j.ID, j)
+		_, err = ds.UpdateJob(ctx, j.ID, j)
 		require.NoError(t, err)
 	}
 
