@@ -43,16 +43,6 @@ SELECT
 SELECT email FROM users
 ```
 
-## conditional_access_microsoft_device_id
-
-- Platforms: darwin
-
-- Query:
-```sql
-SELECT * FROM (SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' LIMIT 1)
-		CROSS JOIN (SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1);
-```
-
 ## disk_encryption_darwin
 
 - Platforms: darwin
