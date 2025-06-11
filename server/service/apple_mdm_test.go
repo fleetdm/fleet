@@ -2329,17 +2329,17 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	p1, p2, p3, p4 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
 	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 		return []*fleet.MDMAppleProfilePayload{
-			{ProfileUUID: p1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID},
-			{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID},
-			{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID2},
-			{ProfileUUID: p4, ProfileIdentifier: "com.add.profile.four", HostUUID: hostUUID2},
+			{ProfileUUID: p1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem},
+			{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem},
+			{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID2, Scope: fleet.PayloadScopeSystem},
+			{ProfileUUID: p4, ProfileIdentifier: "com.add.profile.four", HostUUID: hostUUID2, Scope: fleet.PayloadScopeSystem},
 		}, nil
 	}
 
 	ds.ListMDMAppleProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 		return []*fleet.MDMAppleProfilePayload{
-			{ProfileUUID: p3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID},
-			{ProfileUUID: p3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID2},
+			{ProfileUUID: p3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID, Scope: fleet.PayloadScopeSystem},
+			{ProfileUUID: p3, ProfileIdentifier: "com.remove.profile", HostUUID: hostUUID2, Scope: fleet.PayloadScopeSystem},
 		}, nil
 	}
 

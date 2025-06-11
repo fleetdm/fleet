@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250530103810, Down_20250530103810)
+	MigrationClient.AddMigration(Up_20250609103810, Down_20250609103810)
 }
 
-func Up_20250530103810(tx *sql.Tx) error {
+func Up_20250609103810(tx *sql.Tx) error {
 	if !columnExists(tx, "mdm_apple_configuration_profiles", "scope") {
 		_, err := tx.Exec(`
 		ALTER TABLE mdm_apple_configuration_profiles
@@ -51,6 +51,6 @@ func Up_20250530103810(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250530103810(tx *sql.Tx) error {
+func Down_20250609103810(tx *sql.Tx) error {
 	return nil
 }
