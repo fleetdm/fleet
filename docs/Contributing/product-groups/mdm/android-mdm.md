@@ -24,7 +24,7 @@ To do so:
 
 ## Run an Android MDM environment with a local proxy
 
-If you're hosting your own fleetdm.com instance, you need to set the following in `website/config/custom.js`:
+If you're hosting your own Fleet website instance, you need to set the following in `website/config/custom.js`:
 
 ```javascript
   // Android proxy
