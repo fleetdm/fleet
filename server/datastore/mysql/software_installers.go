@@ -527,21 +527,21 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 		clearFleetMaintainedAppID = ", fleet_maintained_app_id = NULL"
 	}
 
-	stmt := fmt.Sprintf(`UPDATE software_installers SET
-	storage_id = ?,
-	filename = ?,
-	version = ?,
-	package_ids = ?,
-	install_script_content_id = ?,
-	pre_install_query = ?,
-	post_install_script_content_id = ?,
-    uninstall_script_content_id = ?,
-    self_service = ?,
-	user_id = ?,
-	user_name = (SELECT name FROM users WHERE id = ?),
-	user_email = (SELECT email FROM users WHERE id = ?)%s%s
-	WHERE id = ?`, touchUploaded, clearFleetMaintainedAppID)
-
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		stmt := fmt.Sprintf(`UPDATE software_installers SET
+			storage_id = ?,
+			filename = ?,
+			version = ?,
+			package_ids = ?,
+			install_script_content_id = ?,
+			pre_install_query = ?,
+			post_install_script_content_id = ?,
+			uninstall_script_content_id = ?,
+			self_service = ?,
+			user_id = ?,
+			user_name = (SELECT name FROM users WHERE id = ?),
+			user_email = (SELECT email FROM users WHERE id = ?)%s%s
+			WHERE id = ?`, touchUploaded, clearFleetMaintainedAppID)
 
 		args := []interface{}{
 			payload.StorageID,

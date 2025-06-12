@@ -388,7 +388,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.PackageIDs = payloadForNewInstallerFile.PackageIDs
 
 			dirty["Package"] = true
-
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
