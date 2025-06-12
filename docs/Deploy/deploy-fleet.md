@@ -9,7 +9,13 @@ You can deploy Fleet anywhere, or we can [host it for you](/docs/get-started/faq
             <p>Deploy to Render in 5 minutes</p>
         </div>
     </a>
-    <a href="#aws">
+    <a href="#stratavector" id="deploy-stratevector">
+        <div>
+            <img src="/images/docs/render-logo-147x80@2x.png">
+            <p>Run Fleet as a fully managed cloud service on Stratavector</p>
+        </div>
+    </a>    
+    <a href="#aws" id="deploy-aws">
         <div>
         <img src="/images/docs/aws-logo-133x80@2x.png">
         <p>Scale on AWS with Terraform</p>
