@@ -198,7 +198,9 @@ type MDMAppleConfigProfile struct {
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
 	// Scope is the PayloadScope attribute of the profile. It is used to determine how the profile
-	// is applied. EJM TODO more detail here
+	// is applied. Valid values are "User" and "System". System profiles are applied to the
+	// device channel whereas User scoped profiles are applied to the user channel if it exists for
+	// a given host, otherwise the device channel.
 	Scope PayloadScope `db:"scope" json:"scope"`
 	// Name corresponds to the payload display name of the associated mobileconfig payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.

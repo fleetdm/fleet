@@ -46,6 +46,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
+		{"TestDeleteMDMAppleConfigProfileWithPendingInstalls", testDeleteMDMAppleConfigProfileWithPendingInstalls},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
@@ -206,7 +207,7 @@ func testNewMDMAppleConfigProfileLabels(t *testing.T, ds *Datastore) {
 
 func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	initialCP := storeDummyConfigProfileForTest(t, ds)
+	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
 
 	// cannot create another profile with the same identifier if it is on the same team
 	duplicateCP := fleet.MDMAppleConfigProfile{
@@ -343,7 +344,7 @@ func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	// first via the deprecated ID
-	initialCP := storeDummyConfigProfileForTest(t, ds)
+	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
 	err := ds.DeleteMDMAppleConfigProfileByDeprecatedID(ctx, initialCP.ProfileID)
 	require.NoError(t, err)
 	_, err = ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, initialCP.ProfileID)
@@ -353,7 +354,7 @@ func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// next via the uuid
-	initialCP = storeDummyConfigProfileForTest(t, ds)
+	initialCP = storeDummyConfigProfilesForTest(t, ds, 1)[0]
 	err = ds.DeleteMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
 	require.NoError(t, err)
 	_, err = ds.GetMDMAppleConfigProfile(ctx, initialCP.ProfileUUID)
@@ -391,6 +392,8 @@ func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datast
 	var userEnrollmentIDs []string
 	var deviceProfiles []*fleet.MDMAppleConfigProfile
 	var userProfiles []*fleet.MDMAppleConfigProfile
+	numHosts := 2
+	profiles := storeDummyConfigProfilesForTest(t, ds, numHosts*2)
 	for i := 0; i < 2; i++ {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
@@ -402,44 +405,17 @@ func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datast
 		require.Equal(t, h.UUID, userEnrollment.DeviceID)
 		userEnrollmentIDs = append(userEnrollmentIDs, userEnrollment.ID)
 
-		deviceProfiles = append(deviceProfiles, storeDummyConfigProfileForTest(t, ds))
-		userProfiles = append(userProfiles, storeDummyConfigProfileForTest(t, ds))
-
-		err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-			{
-				ProfileUUID:       deviceProfiles[i].ProfileUUID,
-				ProfileIdentifier: deviceProfiles[0].Identifier,
-				ProfileName:       profiles[0].Name,
-				HostUUID:          testUUID,
-				Status:            &fleet.MDMDeliveryVerifying,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				CommandUUID:       "command-uuid",
-				Checksum:          []byte("csum"),
-				Scope:             fleet.PayloadScopeSystem,
-			}, // JORDAN EJM TODO EJM JORDAN!
-			{
-				ProfileUUID:       profiles[0].ProfileUUID,
-				ProfileIdentifier: profiles[0].Identifier,
-				ProfileName:       profiles[0].Name,
-				HostUUID:          testUUID,
-				Status:            &fleet.MDMDeliveryVerifying,
-				OperationType:     fleet.MDMOperationTypeInstall,
-				CommandUUID:       "command-uuid",
-				Checksum:          []byte("csum"),
-				Scope:             fleet.PayloadScopeSystem,
-			},
-		},
-		)
-		require.NoError(t, err)
+		deviceProfiles = append(deviceProfiles, profiles[i*2])
+		userProfiles = append(userProfiles, profiles[(i*2)+1])
 	}
 
 	ids, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
 	require.Empty(t, ids)
 
-	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < numHosts; i++ {
 		// insert a device channel profile install and user channel profile install for each host
 		uuid1 := uuid.New().String()
 		rawCmd1 := createRawAppleCmd("InstallProfile", uuid1)
@@ -449,6 +425,33 @@ func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datast
 		uuid2 := uuid.New().String()
 		rawCmd2 := createRawAppleCmd("InstallProfile", uuid2)
 		err = commander.EnqueueCommand(ctx, []string{userEnrollmentIDs[i]}, rawCmd2)
+		require.NoError(t, err)
+
+		err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:       deviceProfiles[i].ProfileUUID,
+				ProfileIdentifier: deviceProfiles[i].Identifier,
+				ProfileName:       deviceProfiles[i].Name,
+				HostUUID:          hosts[i].UUID,
+				Status:            &fleet.MDMDeliveryPending,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				CommandUUID:       uuid1,
+				Checksum:          []byte("csum"),
+				Scope:             fleet.PayloadScopeSystem,
+			},
+			{
+				ProfileUUID:       userProfiles[i].ProfileUUID,
+				ProfileIdentifier: userProfiles[i].Identifier,
+				ProfileName:       userProfiles[i].Name,
+				HostUUID:          hosts[i].UUID,
+				Status:            &fleet.MDMDeliveryPending,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				CommandUUID:       uuid2,
+				Checksum:          []byte("csum-user"),
+				Scope:             fleet.PayloadScopeUser,
+			},
+		},
+		)
 		require.NoError(t, err)
 	}
 
@@ -470,11 +473,16 @@ func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datast
 	require.NoError(t, err)
 	_, err = ds.GetMDMAppleConfigProfile(ctx, userProfiles[0].ProfileUUID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// User enrollment ID for host 0 should be no longer in the list
+	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{hosts[1].UUID, userEnrollmentIDs[1]}, ids)
 }
 
 func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	initialCP := storeDummyConfigProfileForTest(t, ds)
+	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
 
 	err := ds.DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx, initialCP.TeamID, initialCP.Identifier)
 	require.NoError(t, err)
@@ -486,25 +494,29 @@ func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datast
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
-func storeDummyConfigProfileForTest(t *testing.T, ds *Datastore) *fleet.MDMAppleConfigProfile {
-	dummyMC := mobileconfig.Mobileconfig([]byte("DummyTestMobileconfigBytes"))
-	dummyCP := fleet.MDMAppleConfigProfile{
-		Name:         "DummyTestName",
-		Identifier:   "DummyTestIdentifier",
-		Mobileconfig: dummyMC,
-		TeamID:       nil,
+func storeDummyConfigProfilesForTest(t *testing.T, ds *Datastore, howMany int) []*fleet.MDMAppleConfigProfile {
+	storedCPs := make([]*fleet.MDMAppleConfigProfile, howMany, howMany)
+	for i := range howMany {
+		dummyMC := mobileconfig.Mobileconfig([]byte(fmt.Sprintf("DummyTestMobileconfigBytes-%d", i)))
+		dummyCP := fleet.MDMAppleConfigProfile{
+			Name:         fmt.Sprintf("DummyTestName-%d", i),
+			Identifier:   fmt.Sprintf("DummyTestIdentifier-%d", i),
+			Mobileconfig: dummyMC,
+			TeamID:       nil,
+		}
+
+		ctx := t.Context()
+
+		newCP, err := ds.NewMDMAppleConfigProfile(ctx, dummyCP, nil)
+		require.NoError(t, err)
+		checkConfigProfile(t, dummyCP, *newCP)
+		storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
+		require.NoError(t, err)
+		checkConfigProfile(t, *newCP, *storedCP)
+		storedCPs[i] = storedCP
 	}
 
-	ctx := t.Context()
-
-	newCP, err := ds.NewMDMAppleConfigProfile(ctx, dummyCP, nil)
-	require.NoError(t, err)
-	checkConfigProfile(t, dummyCP, *newCP)
-	storedCP, err := ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
-	require.NoError(t, err)
-	checkConfigProfile(t, *newCP, *storedCP)
-
-	return storedCP
+	return storedCPs
 }
 
 func checkConfigProfile(t *testing.T, expected, actual fleet.MDMAppleConfigProfile) {
@@ -7739,7 +7751,7 @@ func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
 
 func testMDMManagedDigicertCertificates(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	initialCP := storeDummyConfigProfileForTest(t, ds)
+	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),

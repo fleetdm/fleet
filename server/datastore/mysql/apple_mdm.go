@@ -964,11 +964,11 @@ func (ds *Datastore) ListMDMAppleCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMAppleCommand, error) {
-	// TODO Jordan Do we need to update this for the user channel? We don't yet allow raw commands sent
-	// to it so I think no?
+	// Note that right now we are explicitly filtering by type = 'Device' but we may want to change
+	// the API to allow and show user commands in the future
 	stmt := fmt.Sprintf(`
 SELECT
-    nvq.id as device_id,
+    ne.device_id as device_id,
     nvq.command_uuid,
     COALESCE(NULLIF(nvq.status, ''), 'Pending') as status,
     COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
@@ -978,9 +978,13 @@ SELECT
 FROM
     nano_view_queue nvq
 INNER JOIN
+	nano_enrollments ne
+ON
+	nvq.id = ne.id AND type = 'Device'
+INNER JOIN
     hosts h
 ON
-    nvq.id = h.uuid
+    ne.id = h.uuid
 WHERE
    nvq.active = 1 AND
     %s

@@ -4050,7 +4050,6 @@ func ReconcileAppleProfiles(
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
 				}
-				// TODO EJM We can't just error out here - need to do something different
 				if userNanoEnrollment != nil {
 					userEnrollment = userNanoEnrollment.ID
 					userEnrollmentMap[p.HostUUID] = userEnrollment
