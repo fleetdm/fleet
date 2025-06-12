@@ -496,6 +496,12 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 	return nil
 }
 
+func (ds *Datastore) ClearFleetMaintainedAppID(ctx context.Context, installerID uint) error {
+	stmt := `UPDATE software_installers SET fleet_maintained_app_id = NULL WHERE id = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, installerID)
+	return ctxerr.Wrap(ctx, err, "clearing fleet_maintained_app_id")
+}
+
 func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
 	if payload.InstallScript == nil || payload.UninstallScript == nil || payload.PreInstallQuery == nil || payload.SelfService == nil {
 		return ctxerr.Wrap(ctx, errors.New("missing installer update payload fields"), "update installer record")

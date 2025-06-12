@@ -1876,6 +1876,11 @@ type Datastore interface {
 	// for which fields must be set.
 	SaveInstallerUpdates(ctx context.Context, payload *UpdateSoftwareInstallerPayload) error
 
+	// ClearFleetMaintainedAppID sets the fleet_maintained_app_id column to NULL for the specified installer.
+	// This is used when a software installer is updated with a new package, ensuring that any previous
+	// association with a Fleet Maintained App (FMA) is removed.
+	ClearFleetMaintainedAppID(ctx context.Context, installerID uint) error
+
 	// UpdateInstallerSelfServiceFlag sets an installer's self-service flag without modifying anything else
 	UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error
 
