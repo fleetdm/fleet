@@ -14,15 +14,15 @@ Fleet 4.66.0 is now available. See the complete [changelog](https://github.com/f
 
 ### Fleet-maintained apps for Windows
 
-Fleet now supports Fleet-maintained apps for Windows. This allows IT admins to easily manage and deploy trusted applications at scale, without manually packaging or scripting installations. More about Fleet-maintained apps [here](https://fleetdm.com/guides/fleet-maintained-apps).
+Fleet now supports [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps) for Windows. This allows IT admins to easily manage and deploy trusted applications at scale, without manually packaging or scripting installations.
 
 ### DigiCert certificate integration
 
-Fleet now integrates with DigiCert Trust Lifecycle Manager, enabling admins to deploy DigiCert certificates directly to their macOS devices via configuration profiles. This simplifies certificate management and helps streamline the provisioning process. Learn how [here](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#digicert).
+Fleet now integrates with DigiCert Trust Lifecycle Manager, enabling admins to [deploy DigiCert certificates](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#digicert) directly to their macOS devices via configuration profiles. This simplifies certificate management and helps streamline the provisioning process.
 
 ### Custom SCEP server support
 
-Admins can now use their own custom Simple Certificate Enrollment Protocol (SCEP) servers with Fleet. This integration allows deployment of certificates to Macs through configuration profiles, while ensuring all traffic to the SCEP server is routed through Fleet. Learn how [here](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#custom-scep-server).
+Admins can now use their own [custom Simple Certificate Enrollment Protocol (SCEP) servers](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#custom-scep-server) with Fleet. This integration allows deployment of certificates to Macs through configuration profiles, while ensuring all traffic to the SCEP server is routed through Fleet.
 
 ## Changes
 

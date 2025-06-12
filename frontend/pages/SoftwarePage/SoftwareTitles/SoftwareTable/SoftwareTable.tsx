@@ -293,6 +293,7 @@ const SoftwareTable = ({
           value={softwareFilter}
           className={`${baseClass}__software-filter`}
           options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
+          isDisabled={teamId === undefined}
           onChange={(newValue: SingleValue<CustomOptionType>) =>
             newValue &&
             handleCustomFilterDropdownChange(

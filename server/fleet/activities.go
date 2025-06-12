@@ -158,7 +158,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeRanScript{},
 	ActivityTypeAddedScript{},
 	ActivityTypeDeletedScript{},
-	ActivityTypeEditedScript{},
+	ActivityTypeEditedScript{},  // via GitOps
+	ActivityTypeUpdatedScript{}, // via individual script update endpoint
 
 	ActivityTypeCreatedWindowsProfile{},
 	ActivityTypeDeletedWindowsProfile{},
@@ -205,6 +206,11 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCanceledInstallSoftware{},
 	ActivityTypeCanceledUninstallSoftware{},
 	ActivityTypeCanceledInstallAppStoreApp{},
+
+	ActivityTypeAddedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
+	ActivityTypeEnabledConditionalAccessAutomations{},
+	ActivityTypeDisabledConditionalAccessAutomations{},
 }
 
 type ActivityDetails interface {
@@ -2505,5 +2511,65 @@ func (a ActivityTypeRanScriptBatch) Documentation() (string, string, string) {
   "script_name": "set-timezones.sh",
   "batch_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "host_count": 12
+}`
+}
+
+type ActivityTypeAddedConditionalAccessIntegrationMicrosoft struct{}
+
+func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) ActivityName() string {
+	return "added_conditional_access_integration_microsoft"
+}
+
+func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
+	return "Generated when Microsoft Entra is connected for conditonal access.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeDeletedConditionalAccessIntegrationMicrosoft struct{}
+
+func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) ActivityName() string {
+	return "deleted_conditional_access_integration_microsoft"
+}
+
+func (a ActivityTypeDeletedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
+	return "Generated when Microsoft Entra is integration is disconnected.",
+		"This activity does not contain any detail fields.", ""
+}
+
+type ActivityTypeEnabledConditionalAccessAutomations struct {
+	TeamID   *uint  `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityTypeEnabledConditionalAccessAutomations) ActivityName() string {
+	return "enabled_conditional_access_automations"
+}
+
+func (a ActivityTypeEnabledConditionalAccessAutomations) Documentation() (string, string, string) {
+	return "Generated when conditional access automations are enabled for a team.",
+		`This activity contains the following field:
+- "team_id": The ID of the team  ("null" for "No team").
+- "team_name": The name of the team (empty for "No team").`, `{
+  "team_id": 5,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDisabledConditionalAccessAutomations struct {
+	TeamID   *uint  `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityTypeDisabledConditionalAccessAutomations) ActivityName() string {
+	return "disabled_conditional_access_automations"
+}
+
+func (a ActivityTypeDisabledConditionalAccessAutomations) Documentation() (string, string, string) {
+	return "Generated when conditional access automations are disabled for a team.",
+		`This activity contains the following field:
+- "team_id": The ID of the team (` + "`null`" + ` for "No team").
+- "team_name": The name of the team (empty for "No team").`, `{
+  "team_id": 5,
+  "team_name": "Workstations"
 }`
 }

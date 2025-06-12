@@ -19,16 +19,17 @@ This guide provides a list of the supported log destinations in Fleet.
 
 ### In this guide:
 
-- [Amazon Kinesis Data Firehose](#amazon-kinesis-data-firehose)
-- [Snowflake](#snowflake)
-- [Splunk](#splunk)
-- [Amazon Kinesis Data Streams](#amazon-kinesis-data-streams)
-- [AWS Lambda](#aws-lambda)
-- [Google Cloud Pub/Sub](#google-cloud-pubsub)
-- [Apache Kafka](#apache-kafka)
-- [Stdout](#stdout)
-- [Filesystem](#filesystem)
-- [Sending logs outside of Fleet](#sending-logs-outside-of-fleet)
+  - [Amazon Kinesis Data Firehose](#amazon-kinesis-data-firehose)
+  - [Webhook](#webhook)
+  - [Snowflake](#snowflake)
+  - [Splunk](#splunk)
+  - [Amazon Kinesis Data Streams](#amazon-kinesis-data-streams)
+  - [AWS Lambda](#aws-lambda)
+  - [Google Cloud Pub/Sub](#google-cloud-pubsub)
+  - [Apache Kafka](#apache-kafka)
+  - [Stdout](#stdout)
+  - [Filesystem](#filesystem)
+  - [Sending logs outside of Fleet](#sending-logs-outside-of-fleet)
 
 ## Amazon Kinesis Data Firehose
 
@@ -40,6 +41,10 @@ Logs are written to [Amazon Kinesis Data Firehose (Firehose)](https://aws.amazon
 This is a very good method for aggregating osquery logs into [Amazon S3](https://aws.amazon.com/s3/).
 
 Note that Firehose logging has limits [discussed in the documentation](https://docs.aws.amazon.com/firehose/latest/dev/limits.html). When Fleet encounters logs that are too big for Firehose, notifications will be output in the Fleet logs and those logs _will not_ be sent to Firehose.
+
+## Webhook
+
+See [webhook configuration docs](https://fleetdm.com/docs/deploying/configuration#webhook)
 
 ## Snowflake
 
@@ -84,7 +89,7 @@ resource "aws_kinesis_firehose_delivery_stream" "test_stream" {
 }
 ```
 
-For the latest configuration go to HashiCorp's Terraform docs [here](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination).
+For the latest configuration go to [HashiCorp's Terraform docs](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination).
 
 ## Amazon Kinesis Data Streams
 

@@ -129,7 +129,7 @@ It contains all the necessary information that a device needs to automatically e
 
 [Example](https://fleetdm.com/example-dep-profile)
 
-See all fields [here](https://developer.apple.com/documentation/devicemanagement/profile).
+See [Apple's Profile documentation](https://developer.apple.com/documentation/devicemanagement/profile) for all fields.
 
 ### Commands
 

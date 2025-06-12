@@ -7,7 +7,7 @@
           <a purpose="header-logo" href="/">
             <img alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
           </a>
-          <div purpose="search-bar" v-if="step === 'configuration-builder'">
+   <!--        <div purpose="search-bar" v-if="step === 'configuration-builder'">
             <div purpose="disabled-search" class="d-flex w-100">
               <div class="input-group">
                 <div class="input-group-prepend">
@@ -25,7 +25,7 @@
             <div purpose="search-results">
 
             </div>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
@@ -96,8 +96,8 @@
           <div v-if="selectedPayloadCategory === 'macos-device-lock'">
             <div purpose="subcategory-header">
               <h2>Device lock</h2>
-              <p>
-                Settings related to screen lock and passwords. <a target="_blank" href="/tables/screenlock#apple">Learn more</a>
+              <p class="mb-0">
+                Settings related to screen lock and passwords. <a target="_blank" href="https://developer.apple.com/documentation/devicemanagement/passcode">Learn more</a>
               </p>
             </div>
             <div purpose="subcategory-options">
@@ -138,8 +138,8 @@
           <div v-if="selectedPayloadCategory === 'windows-device-lock'">
             <div purpose="subcategory-header">
               <h2>Device lock</h2>
-              <p>
-                Settings related to screen lock and passwords. <a target="_blank" href="/tables/screenlock#apple">Learn more</a>
+              <p class="mb-0">
+                Settings related to screen lock and passwords. <a target="_blank" href="https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock">Learn more</a>
               </p>
             </div>
             <div purpose="subcategory-options">
@@ -189,7 +189,7 @@
             <div purpose="options-container" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
               <div purpose="payload-category" v-for="category in _.keysIn(selectedPayloadsGroupedByCategory)">
                 <div purpose="category-header">
-                  <h2>{{category}}</h2>
+                  <h2 class="mb-0">{{category}}</h2>
                   <div purpose="download-and-remove-buttons">
                     <a purpose="form-button" @click="clickRemoveOneCategoryPayloadOptions(category)">Remove all</a>
                     <ajax-button purpose="download-button" :syncing="syncing"><img alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
@@ -238,13 +238,13 @@
                       {{ configurationBuilderFormData[option.uniqueSlug+'-value'] ? 'Yes' : 'No' }}
                     </label>
                   </div>
-                  <a @click="clickRemovePayloadOption(option)" purpose="form-button">Remove</a>
+                  <a @click="clickRemovePayloadOption(option)" purpose="remove-button">Remove</a>
                 </div>
               </div>
             </div>
-            <div purpose="bottom-download-bar" :class="[selectedPayloads.length > 0 ? 'slide-in' : '' ]">
+            <div purpose="bottom-download-bar" :class="[ selectedPayloadCategory ? 'slide-in' : '' ]">
               <a purpose="new-button" @click="clickOpenResetFormModal()">Create new</a>
-              <ajax-button purpose="download-button" :syncing="syncing">Download <img class="d-inline-flex" alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
+              <ajax-button purpose="download-button" :syncing="syncing" v-if="selectedPayloads.length > 0">Download <img class="d-inline-flex" alt="download" src="/images/icon-download.png" style="height: 12px;"></ajax-button>
             </div>
           </ajax-form>
 
@@ -294,7 +294,7 @@
         <p>Are you sure you want to continue?</p>
 
         <div purpose="modal-form-buttons">
-          <div purpose="modal-button-primary" @click="modal = 'download-profile'">
+          <div purpose="modal-button-primary" @click="openDownloadModal()">
             Continue
           </div>
           <div purpose="modal-button-secondary" @click="modal = undefined">
@@ -310,12 +310,23 @@
         <h3>Download your configuration file</h3>
         <ajax-form :handle-submitting="handleSubmittingDownloadProfileForm" :form-errors.sync="formErrors" :form-data="downloadProfileFormData" :form-rules="downloadProfileFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
           <div purpose="modal-form-option">
-            <label for="profile-name">Profile name</label>
-            <input type="text" class="form-control" id="profile-name" v-model="downloadProfileFormData.name">
+            <label for="profile-name">Profile name <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The name shown to users in their settings. It does not need to be unique."></label>
+            <input type="text" :class="[formErrors.name ? 'is-invalid' : '']"  class="form-control" id="name" v-model="downloadProfileFormData.name">
+            <div class="invalid-feedback">Please enter a name for this profile.</div>
+          </div>
+          <div purpose="modal-form-option" v-if="selectedPlatform === 'macos'">
+            <label for="profile-identifier">Identifier <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="A unique reverse-DNS identifier for this payload. It's usually the same as the profile's top-level identifier with an extra part added to describe the specific payload (e.g. .gatekeeper, .wifi). macOS uses it to manage and update individual settings."></label>
+            <input type="text" :class="[formErrors.identifier ? 'is-invalid' : '']"  class="form-control" id="identifier" v-model="downloadProfileFormData.identifier">
+            <div class="invalid-feedback">Please enter a identifier for this profile.</div>
+          </div>
+          <div purpose="modal-form-option" v-if="selectedPlatform === 'macos'">
+            <label for="profile-uuid">UUID <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="A unique identifier for this payload, used to track and update the payload during profile replacements. Must be globally unique."></label>
+            <input type="text" :class="[formErrors.uuid ? 'is-invalid' : '']" class="form-control" id="uuid" v-model="downloadProfileFormData.uuid">
+            <div class="invalid-feedback">Please enter a UUID for this profile.</div>
           </div>
           <div purpose="modal-form-option">
-            <label for="profile-description">Description</label>
-            <textarea class="form-control mb-3" id="profile-description" v-model="downloadProfileFormData.description"></textarea>
+            <label for="profile-description">Description <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="A unique identifier for this payload, used to track and update the payload during profile replacements. Must be globally unique."></label>
+            <textarea  class="form-control" id="description" v-model="downloadProfileFormData.description"></textarea>
           </div>
           <div purpose="modal-form-buttons">
             <ajax-button purpose="download-button" style="max-width: 130px; color: #FFF;" type="submit">

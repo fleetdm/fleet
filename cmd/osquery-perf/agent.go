@@ -201,13 +201,14 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type mdmAgent struct {
-	agentIndex         int
-	MDMCheckInInterval time.Duration
-	model              string
-	serverAddress      string
-	softwareCount      softwareEntityCount
-	stats              *osquery_perf.Stats
-	strings            map[string]string
+	agentIndex            int
+	MDMCheckInInterval    time.Duration
+	model                 string
+	serverAddress         string
+	softwareCount         softwareEntityCount
+	stats                 *osquery_perf.Stats
+	strings               map[string]string
+	mdmProfileFailureProb float64
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -287,6 +288,7 @@ type agent struct {
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
+	mdmProfileFailureProb float64
 
 	// Note that a sync.Map is safe for concurrent use, but we still need a mutex
 	// because we read and write the field itself (not data in the map) from
@@ -372,6 +374,7 @@ func newAgent(
 	linuxUniqueSoftwareVersion bool,
 	linuxUniqueSoftwareTitle bool,
 	commonSoftwareNameSuffix string,
+	mdmProfileFailureProb float64,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -461,6 +464,7 @@ func newAgent(
 		bufferedResults:          make(map[resultLog]int),
 		scheduledQueryData:       new(sync.Map),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
+		mdmProfileFailureProb:    mdmProfileFailureProb,
 	}
 }
 
@@ -861,7 +865,26 @@ func (a *agent) runMacosMDMLoop() {
 	INNER_FOR_LOOP:
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
-			mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+
+			if mdmCommandPayload.Command.RequestType == "InstallProfile" {
+
+				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+					errChain := []mdm.ErrorChain{
+						{
+							ErrorCode:            89,
+							ErrorDomain:          "ErrorDomain",
+							LocalizedDescription: "The profile did not install",
+						},
+					}
+					mdmCommandPayload, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, errChain)
+				} else {
+					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				}
+
+			} else {
+				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+			}
+
 			if err != nil {
 				log.Printf("MDM Acknowledge request failed: %s", err)
 				a.stats.IncrementMDMErrors()
@@ -1000,6 +1023,9 @@ func (a *agent) runWindowsMDMLoop() {
 			a.stats.IncrementMDMCommandsReceived()
 
 			status := syncml.CmdStatusOK
+			if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+				status = syncml.CmdStatusBadRequest
+			}
 			a.winMDMClient.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
@@ -2491,6 +2517,20 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
+			case "InstallProfile":
+				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
+					errChain := []mdm.ErrorChain{
+						{
+							ErrorCode:            89,
+							ErrorDomain:          "ErrorDomain",
+							LocalizedDescription: "The profile did not install",
+						},
+					}
+					mdmCommandPayload, err = mdmClient.Err(mdmCommandPayload.CommandUUID, errChain)
+				} else {
+					mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				}
+
 			default:
 				mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
 			}
@@ -2630,8 +2670,9 @@ func main() {
 		defaultSerialProb = flag.Float64("default_serial_prob", 0.05,
 			"Probability of osquery returning a default (-1) serial number. See: #19789")
 
-		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
-		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmProb               = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
+		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
+		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
 
 		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
@@ -2751,8 +2792,9 @@ func main() {
 					uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
 					uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
 				},
-				stats:   stats,
-				strings: make(map[string]string),
+				stats:                 stats,
+				strings:               make(map[string]string),
+				mdmProfileFailureProb: *mdmProfileFailureProb,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
@@ -2818,6 +2860,7 @@ func main() {
 			*linuxUniqueSoftwareVersion,
 			*linuxUniqueSoftwareTitle,
 			*commonSoftwareNameSuffix,
+			*mdmProfileFailureProb,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
