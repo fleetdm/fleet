@@ -348,19 +348,19 @@ func packageCommand() *cli.Command {
 				switch c.String("type") {
 				case "deb":
 					if !strings.HasSuffix(opt.CustomOutfile, ".deb") {
-						return errors.New("output file must end with .deb for deb packages")
+						return errors.New("output file must end with .deb for DEB packages")
 					}
 				case "rpm":
 					if !strings.HasSuffix(opt.CustomOutfile, ".rpm") {
-						return errors.New("output file must end with .rpm for rpm packages")
+						return errors.New("output file must end with .rpm for RPM packages")
 					}
 				case "msi":
 					if !strings.HasSuffix(opt.CustomOutfile, ".msi") {
-						return errors.New("output file must end with .msi for msi packages")
+						return errors.New("output file must end with .msi for MSI packages")
 					}
 				case "pkg":
 					if !strings.HasSuffix(opt.CustomOutfile, ".pkg") {
-						return errors.New("output file must end with .pkg for pkg packages")
+						return errors.New("output file must end with .pkg for PKG packages")
 					}
 				default:
 					return fmt.Errorf("unsupported package type %q for custom outfile", c.String("type"))
