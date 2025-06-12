@@ -169,6 +169,8 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
 	p.MFAEnabled = ptr.Bool(invite.MFAEnabled)
+	// Invite ID is only used as a uniq index to prevent a double invite acceptance race condition
+	p.InviteID = &invite.ID
 
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {

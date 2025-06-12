@@ -39,10 +39,7 @@ As soon as we've addressed the next quarter's objectives, the Head of Product De
 
 ### Triage new bugs
 
-Product Designers are responsible for triaging all new reproduced bugs.
-
-Learn more [here](https://fleetdm.com/handbook/company/product-groups#in-product-drafting). 
-
+Product Designers are responsible for [triaging all new reproduced bugs](https://fleetdm.com/handbook/company/product-groups#in-product-drafting).
 
 ### Drafting
 
@@ -175,6 +172,11 @@ Ensure the interview process follows these steps in order. This process must fol
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
+### Confirm and celebrate
+
+Product Designers (PD) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
+
+If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79). The PD also moved the request to the 🗣️ Ready for feedback column on the [💝 Customer requests](https://github.com/orgs/fleetdm/projects/82) board.
 
 ## Rituals
 <rituals :rituals="rituals['handbook/product-design/product-design.rituals.yml']"></rituals>

@@ -8,7 +8,7 @@ SentinelOne is a cybersecurity platform that provides endpoint protection, detec
 
 ### Upload .mobileconfigs to Fleet
 
-SentinelOne requires 5 separate mobileconfig files in order to properly function on macOS. Each of these serves an important operational function. These 5 profiles are available to download on my GitHub repo [here](https://github.com/harrisonravazzolo/Bluth-Company-GitOps/tree/main/lib/macos/SentinelOne). Let's quickly run through each one and highlight what it's actually doing on your endpoints.
+SentinelOne requires [5 separate mobileconfig files](https://github.com/harrisonravazzolo/Bluth-Company-GitOps/tree/main/lib/macos/SentinelOne) in order to properly function on macOS. Each of these serves an important operational function. Let's quickly run through each one and highlight what it's actually doing on your endpoints.
 
 > It's possible these profiles can be combined into one payload, but we've kept them separate here for troubleshooting purposes.
 

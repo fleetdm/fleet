@@ -1,11 +1,4 @@
 -
-  task: "Refresh event calendar"
-  startedOn: "2023-12-31"
-  frequency: "Quarterly"
-  description: "https://fleetdm.com/handbook/marketing#refresh-event-calendar"
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#refresh-event-calendar"
-  dri: "sampfluger88"
--
   task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Triweekly"
@@ -13,19 +6,22 @@
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "mikermcneil" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
 -
+  task: "Refresh event calendar"
+  startedOn: "2023-12-31"
+  frequency: "Monthly"
+  description: "Check the [Event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) and update any new event details."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#refresh-event-calendar"
+  dri: "irenareedy"
+  autoIssue:   
+    labels: [ "#g-digital-experience" ]
+    repo: fleet
+-
   task: "Settle event strategy"
   startedOn: "2024-01-02"
   frequency: "Quarterly (first Tuesday)"
   description: "https://fleetdm.com/handbook/marketing#settle-event-strategy"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#settle-event-strategy"
-  dri: "sampfluger88"
--
-  task: "🫧 Pipeline sync"
-  startedOn: "2024-08-29"
-  frequency: "Weekly"
-  description: "Allign with CRO and AEs on pipeline processes and incoming leads"
-  moreInfoUrl: ""
-  dri: "sampfluger88"
+  dri: "irenareedy"
 -
   task: "Optimize ads"
   startedOn: "2024-02-26"
@@ -53,7 +49,7 @@
   frequency: "Daily"
   description: "Measure intent signals and update Salesforce"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#measure-intent-signals"
-  dri: "sampfluger88"
+  dri: "onasismunro"
 - 
   task: "Research accounts"
   startedOn: "2024-08-09"
@@ -67,12 +63,5 @@
   frequency: "Daily"
   description: "Check event issues and complete steps."
   moreInfoUrl: "https://fleetdm.com/handbook/engineering#book-an-event"
-  dri: "sampfluger88"
--
-  task: "Propose a Fleet event"
-  startedOn: "2023-10-21"
-  frequency: "Weekly"
-  description: "Populate ideas for future events"
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#settle-event-strategy"
-  dri: "sampfluger88"
+  dri: "irenareedy"
 

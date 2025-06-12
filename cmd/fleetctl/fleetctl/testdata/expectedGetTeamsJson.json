@@ -23,7 +23,8 @@
 			"integrations": {
 				"jira": null,
 				"zendesk": null,
-				"google_calendar": null
+				"google_calendar": null,
+				"conditional_access_enabled": null
 			},
 			"features": {
 				"enable_host_users": true,
@@ -106,7 +107,8 @@
 			"integrations": {
 				"jira": null,
 				"zendesk": null,
-				"google_calendar": null
+				"google_calendar": null,
+				"conditional_access_enabled": null
 			},
 			"features": {
 				"enable_host_users": false,

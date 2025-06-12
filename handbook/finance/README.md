@@ -6,6 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
+| Head of Finance | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Finance Engineer | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 
@@ -13,7 +14,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-finance&projects=&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-finance](https://fleetdm.slack.com/archives/C047N5L6EGH).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-finance-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/80) for this department, including pending tasks and the status of new requests.
 
 
 ## Responsibilities

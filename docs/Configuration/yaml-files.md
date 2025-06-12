@@ -381,6 +381,7 @@ controls:
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
+    enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
     software:
@@ -417,24 +418,24 @@ controls:
 - `macos_settings.custom_settings` is a list of paths to macOS, iOS, and iPadOS configuration profiles (.mobileconfig) or declaration profiles (.json).
 - `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
-Fleet supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format. 
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
-Variables beginning with `$FLEET_VAR_` (currently available only for Apple profiles) are reserved for Fleet server. The server will replace these variables with the actual values when profiles are sent to hosts. Supported variables are:
+For macOS configuration profiles, you can use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+
+Fleet also supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format. 
+
+In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (currently available only for Apple profiles). Fleet will populate these variables when profiles are sent to hosts. Supported variables are:
 
 - `$FLEET_VAR_NDES_SCEP_CHALLENGE`
 - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
-- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username.
-- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com).
-- `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to.
+- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username. When this changes, Fleet will automatically resend the profile.
+- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile.
+- `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile.
 - `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy).)
 - `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
 - `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`
 - `$FLEET_VAR_HYDRANT_DATA_<CA_NAME>`
-
-You can also use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
-
-Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 ### macos_setup
 
@@ -703,7 +704,7 @@ org_settings:
 
 ### integrations
 
-The `integrations` section lets you configure your Google Calendar, Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
 In addition, you can configure your certificate authorities (CA) to help your end users connect to Wi-Fi. Learn more about certificate authorities in Fleet [here](https://fleetdm.com/guides/certificate-authorities).
 
@@ -714,6 +715,7 @@ In addition, you can configure your certificate authorities (CA) to help your en
 ```yaml
 org_settings:
   integrations:
+    conditional_access_enabled: true
     google_calendar:
       - api_key_json: $GOOGLE_CALENDAR_API_KEY_JSON
         domain: fleetdm.com

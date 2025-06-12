@@ -154,30 +154,19 @@ const generateColumnConfigs = ({
             suffix={
               <>
                 {!isCurrentTeamObserverOrGlobalObserver && observer_can_run && (
-                  <div className="observer-can-run-badge">
-                    <span
-                      className="observer-can-run-icon"
-                      data-tooltip-id={`observer-can-run-tooltip-${id}`}
-                    >
-                      <Icon
-                        className="observer-can-run-query-icon"
-                        name="query"
-                        size="small"
-                        color="core-fleet-blue"
-                      />
-                    </span>
-                    <ReactTooltip5
-                      className="observer-can-run-tooltip"
-                      disableStyleInjection
-                      place="top"
-                      opacity={1}
-                      id={`observer-can-run-tooltip-${id}`}
-                      offset={8}
-                      positionStrategy="fixed"
-                    >
-                      Observers can run this query.
-                    </ReactTooltip5>
-                  </div>
+                  <TooltipWrapper
+                    tipContent="Observers can run this query."
+                    underline={false}
+                    showArrow
+                    position="top"
+                  >
+                    <Icon
+                      className="observer-can-run-query-icon"
+                      name="query"
+                      size="small"
+                      color="ui-fleet-black-50"
+                    />
+                  </TooltipWrapper>
                 )}
                 {viewingTeamScope &&
                   // inherited
@@ -216,8 +205,8 @@ const generateColumnConfigs = ({
       },
     },
     {
-      title: "Frequency",
-      Header: "Frequency",
+      title: "Interval",
+      Header: "Interval",
       disableSortBy: true,
       accessor: "interval",
       Cell: (cellProps: INumberCellProps): JSX.Element => {
@@ -228,7 +217,7 @@ const generateColumnConfigs = ({
           <TextCell
             value={val}
             emptyCellTooltipText={
-              <>Assign a frequency to collect data at an interval.</>
+              <>Assign an interval to collect data on a schedule.</>
             }
           />
         );
