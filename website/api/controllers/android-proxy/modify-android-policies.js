@@ -27,7 +27,7 @@ module.exports = {
   fn: async function ({ androidEnterpriseId, policyId}) {
 
     // Extract fleetServerSecret from the Authorization header
-    let authHeader = this.req.headers.authorization;
+    let authHeader = this.req.get('authorization');
     let fleetServerSecret;
 
     if (authHeader && authHeader.startsWith('Bearer')) {
