@@ -39,7 +39,7 @@
             <p>Replace the sprawl with lightning fast device management that lets employees see what’s going on.</p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="/contact">Talk to an engineer</a>
-              <a purpose="video-button" alt="Play" @click="clickOpenVideoModal('fleet-in-three-minutes')"><img class="d-inline" src="/images/icon-play-video-32x32@2x.png"> Watch demo <span>3 mins</span></a>
+              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png"> Watch demo <span>3 mins</span></a>
             </div>
           </div>
         </div>
@@ -55,7 +55,7 @@
     <div purpose="page-section">
       <div purpose="homepage-text-block">
         <h2>Everything in one place</h2>
-        <p>Manage devices consistently in a single, open platform for Apple, Windows, and Linux.</p>
+        <p>Manage devices consistently in a single, open platform for Apple, Linux, and Windows.</p>
       </div>
       <div purpose="feature-cards" class="card-deck">
         <a purpose="feature-card" class="card" href="/device-management">
@@ -777,10 +777,10 @@
             <div purpose="fleet-column" class="justify-content-center"><strong>Fleet</strong></div>
             <div purpose="comparison-column" class="d-flex">
               <div purpose="comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
-                id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                id="dropdownMenuSelectPurposeForSecurity" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 {{comparisonModeFriendlyNames[comparisonModeForSecurity]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
               </div>
-              <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
+              <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurposeForSecurity">
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'rapid'">Rapid 7</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'tanium'">Tanium</div>
@@ -991,10 +991,10 @@
         <div purpose="mobile-comparison-table" class="d-block d-sm-none" v-if="comparisonTableMode === 'security'">
           <p class="mt-5 mb-2 font-weight-bold">Compare with:</p>
           <div purpose="mobile-comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
-            id="mobileDropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            id="mobileDropdownMenuSelectPurposeForSecurity" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             {{comparisonModeFriendlyNames[comparisonModeForSecurity]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
           </div>
-          <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurpose">
+          <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurposeForSecurity">
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'rapid'">Rapid 7</div>
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div>
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'tanium'">Tanium</div>
@@ -1315,28 +1315,28 @@
               <div purpose="ticker-container" class="d-flex align-items-center mx-auto flex-row text-nowrap">
                 <div purpose="option-container" class="pl-2 d-flex flex-column">
                   <span purpose="bottom-cta-ticker-option" class="visible">OS</span>
+                  <span purpose="bottom-cta-ticker-option">audit</span>
+                  <span purpose="bottom-cta-ticker-option">script</span>
+                  <span purpose="bottom-cta-ticker-option">config</span>
+                  <span purpose="bottom-cta-ticker-option">question</span>
                   <span purpose="bottom-cta-ticker-option">laptop</span>
-                  <span purpose="bottom-cta-ticker-option">server</span>
                   <span purpose="bottom-cta-ticker-option">desktop</span>
                   <span purpose="bottom-cta-ticker-option">phone</span>
-                  <span purpose="bottom-cta-ticker-option">tablet</span>
+                  <span purpose="bottom-cta-ticker-option">server</span>
                   <span purpose="bottom-cta-ticker-option">cloud instance</span>
                   <span purpose="bottom-cta-ticker-option">container</span>
-                  <span purpose="bottom-cta-ticker-option">robot</span>
-                  <span purpose="bottom-cta-ticker-option">app</span>
-                  <span purpose="bottom-cta-ticker-option">script</span>
-                  <span purpose="bottom-cta-ticker-option">report</span>
-                  <span purpose="bottom-cta-ticker-option">audit</span>
-                  <span purpose="bottom-cta-ticker-option">question</span>
-                  <span purpose="bottom-cta-ticker-option">decision</span>
-                  <span purpose="bottom-cta-ticker-option">new hire</span>
-                  <span purpose="bottom-cta-ticker-option">offboard</span>
+                  <span purpose="bottom-cta-ticker-option">tablet</span>
                   <span purpose="bottom-cta-ticker-option">hospital</span>
                   <span purpose="bottom-cta-ticker-option">factory</span>
-                  <span purpose="bottom-cta-ticker-option">satellite</span>
-                  <span purpose="bottom-cta-ticker-option">computer</span>
+                  <span purpose="bottom-cta-ticker-option">report</span>
+                  <span purpose="bottom-cta-ticker-option">new hire</span>
+                  <span purpose="bottom-cta-ticker-option">offboard</span>
                   <span purpose="bottom-cta-ticker-option">employee</span>
-                  <span purpose="bottom-cta-ticker-option">local LLM</span>
+                  <span purpose="bottom-cta-ticker-option">agent</span>
+                  <span purpose="bottom-cta-ticker-option">robot</span>
+                  <span purpose="bottom-cta-ticker-option">satellite</span>
+                  <span purpose="bottom-cta-ticker-option">telescope</span>
+                  <span purpose="bottom-cta-ticker-option">computer</span>
                 </div>
               </div>
           <% } %>
