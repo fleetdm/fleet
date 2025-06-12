@@ -594,7 +594,7 @@ CREATE TABLE `host_mdm_commands` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_mdm_idp_accounts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `account_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -990,7 +990,7 @@ INSERT INTO `labels` VALUES (1,'2024-04-03 00:00:00','2024-04-03 00:00:00','macO
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `legacy_host_mdm_enroll_refs` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `enroll_ref` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_legacy_enroll_refs_host_uuid` (`host_uuid`)
@@ -1000,7 +1000,7 @@ CREATE TABLE `legacy_host_mdm_enroll_refs` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `legacy_host_mdm_idp_accounts` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `host_uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `host_uuid` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `email` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `account_uuid` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `host_id` int unsigned DEFAULT NULL,
