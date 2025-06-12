@@ -1294,6 +1294,8 @@ type RenewMDMManagedCertificatesFunc func(ctx context.Context) error
 
 type ListHostMDMManagedCertificatesFunc func(ctx context.Context, hostUUID string) ([]*fleet.MDMManagedCertificate, error)
 
+type ResendHostCustomSCEPProfileFunc func(ctx context.Context, hostUUID string, profUUID string) error
+
 type UpsertSecretVariablesFunc func(ctx context.Context, secretVariables []fleet.SecretVariable) error
 
 type GetSecretVariablesFunc func(ctx context.Context, names []string) ([]fleet.SecretVariable, error)
@@ -1365,6 +1367,12 @@ type ListScimGroupsFunc func(ctx context.Context, opts fleet.ScimGroupsListOptio
 type ScimLastRequestFunc func(ctx context.Context) (*fleet.ScimLastRequest, error)
 
 type UpdateScimLastRequestFunc func(ctx context.Context, lastRequest *fleet.ScimLastRequest) error
+
+type NewChallengeFunc func(ctx context.Context) (string, error)
+
+type ConsumeChallengeFunc func(ctx context.Context, challenge string) error
+
+type CleanupExpiredChallengesFunc func(ctx context.Context) (int64, error)
 
 type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, tenantID string, proxyServerSecret string) error
 
@@ -3289,6 +3297,9 @@ type DataStore struct {
 	ListHostMDMManagedCertificatesFunc        ListHostMDMManagedCertificatesFunc
 	ListHostMDMManagedCertificatesFuncInvoked bool
 
+	ResendHostCustomSCEPProfileFunc        ResendHostCustomSCEPProfileFunc
+	ResendHostCustomSCEPProfileFuncInvoked bool
+
 	UpsertSecretVariablesFunc        UpsertSecretVariablesFunc
 	UpsertSecretVariablesFuncInvoked bool
 
@@ -3396,6 +3407,15 @@ type DataStore struct {
 
 	UpdateScimLastRequestFunc        UpdateScimLastRequestFunc
 	UpdateScimLastRequestFuncInvoked bool
+
+	NewChallengeFunc        NewChallengeFunc
+	NewChallengeFuncInvoked bool
+
+	ConsumeChallengeFunc        ConsumeChallengeFunc
+	ConsumeChallengeFuncInvoked bool
+
+	CleanupExpiredChallengesFunc        CleanupExpiredChallengesFunc
+	CleanupExpiredChallengesFuncInvoked bool
 
 	ConditionalAccessMicrosoftCreateIntegrationFunc        ConditionalAccessMicrosoftCreateIntegrationFunc
 	ConditionalAccessMicrosoftCreateIntegrationFuncInvoked bool
@@ -7873,6 +7893,13 @@ func (s *DataStore) ListHostMDMManagedCertificates(ctx context.Context, hostUUID
 	return s.ListHostMDMManagedCertificatesFunc(ctx, hostUUID)
 }
 
+func (s *DataStore) ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	s.mu.Lock()
+	s.ResendHostCustomSCEPProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResendHostCustomSCEPProfileFunc(ctx, hostUUID, profUUID)
+}
+
 func (s *DataStore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
 	s.mu.Lock()
 	s.UpsertSecretVariablesFuncInvoked = true
@@ -8123,6 +8150,27 @@ func (s *DataStore) UpdateScimLastRequest(ctx context.Context, lastRequest *flee
 	s.UpdateScimLastRequestFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateScimLastRequestFunc(ctx, lastRequest)
+}
+
+func (s *DataStore) NewChallenge(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.NewChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewChallengeFunc(ctx)
+}
+
+func (s *DataStore) ConsumeChallenge(ctx context.Context, challenge string) error {
+	s.mu.Lock()
+	s.ConsumeChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) CleanupExpiredChallenges(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.CleanupExpiredChallengesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupExpiredChallengesFunc(ctx)
 }
 
 func (s *DataStore) ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID string, proxyServerSecret string) error {
