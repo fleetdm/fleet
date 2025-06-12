@@ -744,6 +744,66 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	return err
 }
 
+// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
+// also deactivates prior nano commands for the profile UUID and host UUID.
+//
+// FIXME: We really should have a more generic function to handle this, but our existing methods
+// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
+// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
+// the existing flow and the implementation below is that we need to blank the command uuid in order
+// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
+// it just sends the old bytes again. It feels like we some leaky abstrations somewhere that we need
+// to clean up.
+func (ds *Datastore) ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	deactivateNanoStmt := `
+UPDATE
+	nano_enrollment_queue
+	JOIN host_mdm_apple_profiles hmap 
+		ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND 
+			hmap.host_uuid = nano_enrollment_queue.id
+SET 
+	nano_enrollment_queue.active = 0
+WHERE
+	hmap.profile_uuid = ? AND
+	hmap.host_uuid = ?`
+
+	updateStmt := `
+UPDATE
+	host_mdm_apple_profiles
+SET
+	status = NULL,
+	command_uuid = '',
+	detail = '',
+	retries = 0,
+	variables_updated_at = NOW(6)
+WHERE
+	profile_uuid = ? AND
+	host_uuid = ? AND
+	operation_type = ?`
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, deactivateNanoStmt, profUUID, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivating nano_enrollment_queue for commands that were pending send to host")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// this should never happen, log for debugging
+			level.Error(ds.logger).Log("msg", "resend custom scep profile: nano not deactivated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+		}
+
+		res, err = tx.ExecContext(ctx, updateStmt, profUUID, hostUUID, fleet.MDMOperationTypeInstall)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resending host MDM profile")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// this should never happen, log for debugging
+			level.Error(ds.logger).Log("msg", "resend custom scep profile: host mdm apple profiles not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+		}
+
+		return nil
+	})
+}
+
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
 	ctx context.Context,
 	payload fleet.MDMAppleEnrollmentProfilePayload,

@@ -1000,6 +1000,18 @@ module.exports.routes = {
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
 
+
+
+  //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╩ ╩╩╚═╝╩╚═╚═╝╚═╝╚═╝╚   ╩   ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/v1/microsoft-compliance-partner': { action: 'microsoft-proxy/create-compliance-partner-tenant', csrf: false },
+  'GET /api/v1/microsoft-compliance-partner/settings': { action: 'microsoft-proxy/get-compliance-partner-settings' },
+  'DELETE /api/v1/microsoft-compliance-partner': { action: 'microsoft-proxy/remove-one-compliance-partner-tenant', csrf: false },
+  'POST /api/v1/microsoft-compliance-partner/device': { action: 'microsoft-proxy/update-one-devices-compliance-status', csrf: false },
+  'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', },
+  'GET /api/v1/microsoft-compliance-partner/adminconsent': { action: 'microsoft-proxy/receive-redirect-from-microsoft', },
+
   // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
   // =============================================================================================================
   // Temporary enroll endpoint for https://github.com/fleetdm/fleet/issues/27391

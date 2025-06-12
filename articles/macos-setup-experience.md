@@ -16,7 +16,7 @@ In Fleet, you can customize the out-of-the-box macOS Setup Assistant with Remote
 
 In addition to the customization above, Fleet automatically installs the fleetd agent during out-of-the-box macOS setup. This agent is responsible for reporting host vitals to Fleet and presenting Fleet Desktop to the end user.
 
-macOS setup features require connecting Fleet to Apple Business Manager (ABM). Learn how [here](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
+macOS setup features require [connecting Fleet to Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
 
 ## End user authentication and end user license agreement (EULA)
 
@@ -95,7 +95,7 @@ Verify that the package is a distribution package:
 To sign the package we need a valid Developer ID Installer certificate:
 
 1. Login to your [Apple Developer account](https://developer.apple.com/account).
-2. Follow Apple's instructions to create a Developer ID Installer certificate [here](https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates).
+2. Follow [Apple's instructions to create a Developer ID Installer certificate](https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates).
 
   > During step 3 in Apple's instructions, make sure you choose "Developer ID Installer." You'll need this kind of certificate to sign the package.
 
@@ -137,9 +137,11 @@ To customize the macOS Setup Assistant, we will do the following steps:
 2. Upload the profile to Fleet
 3. Test the custom macOS Setup Assistant
 
+> It can take up to 10 minutes for a host to get a new automatic enrollment profile. Learn more [here](https://github.com/fleetdm/fleet/issues/27854#issuecomment-2811275551).
+
 ### Step 1: Create an automatic enrollment profile
 
-1. Download Fleet's example automatic enrollment profile by navigating to the example [here](https://fleetdm.com/example-dep-profile) and clicking the download icon.
+1. Download Fleet's example automatic enrollment profile by navigating to [the example](https://fleetdm.com/example-dep-profile) and clicking the **Download** icon.
 
 2. Open the automatic enrollment profile and replace the `profile_name` key with your organization's name.
 
@@ -147,7 +149,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 4. In your automatic enrollment profile, edit the `skip_setup_items` array so that it includes the panes you want to hide.
 
-  > You can modify properties other than `skip_setup_items`. These are documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/profile).
+  > You can modify properties other than `skip_setup_items`. See [Apple's profile documentation](https://developer.apple.com/documentation/devicemanagement/profile) for valid fields.
     The `await_device_configured` option is always set to `true` to allow Fleet to take actions like running scripts and installing software packages during the enrollment process.
     If you'd like to release devices manually, you can check the "Release device manually" option in Setup experience > Setup assistant > Show advanced options.
 
@@ -167,7 +169,7 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 2. In Fleet, navigate to the Hosts page and find your Mac. Make sure that the host's **MDM status** is set to "Pending."
 
-  > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." Learn more about these hosts [here](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm).
+  > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." See our [automatic enrollment guide](https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment) for more information.
 
 3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
 
@@ -183,7 +185,7 @@ If you configure software and/or a script for setup experience, users will see a
 
 This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
 
-To replace the Fleet logo with your organization's logo, head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**. See recommended sizes for logos [here](https://fleetdm.com/docs/configuration/yaml-files#org-info).
+To replace the Fleet logo with your organization's logo, head to **Settings** > **Organization settings** > **Organization info**, add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields, and select **Save**. See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
 > The setup experience script always runs after setup experience software is installed. Currently, software that [automatically installs](https://fleetdm.com/guides/automatic-software-install-in-fleet) and scripts that [automatically run](https://fleetdm.com/guides/policy-automation-run-script) are also installed and run during Setup Assistant but won't appear in the window. Automatic software and scripts may run before or after setup the experience software/script. They aren't installed/run in any particular order.
 
@@ -209,7 +211,7 @@ Fleet also provides a REST API for managing setup experience software and script
 
 ### Configuring via GitOps
 
-To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the GitOps reference documentation [here](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
+To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
 
 ## Advanced
 

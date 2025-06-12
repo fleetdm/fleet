@@ -449,6 +449,11 @@ func (c *Client) ApplyGroup(
 		if opts.DryRun {
 			logfn("[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
+			for _, label := range specs.Labels {
+				if label.LabelType == fleet.LabelTypeBuiltIn {
+					return nil, nil, nil, nil, errors.New("Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
+				}
+			}
 			if err := c.ApplyLabels(specs.Labels); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
@@ -1656,6 +1661,9 @@ func (c *Client) DoGitOps(
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
 			integrations.(map[string]interface{})["google_calendar"] = []interface{}{}
 		}
+		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
+			integrations.(map[string]interface{})["conditional_access_enabled"] = false
+		}
 		if ndesSCEPProxy, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
 			// Per backend patterns.md, best practice is to clear a JSON config field with `null`
 			integrations.(map[string]interface{})["ndes_scep_proxy"] = nil
@@ -1842,12 +1850,22 @@ func (c *Client) DoGitOps(
 		if !ok {
 			return nil, nil, errors.New("team_settings.integrations config is not a map")
 		}
+
 		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
 			integrations.(map[string]interface{})["google_calendar"] = map[string]interface{}{}
 		} else {
 			_, ok = googleCal.(map[string]interface{})
 			if !ok {
 				return nil, nil, errors.New("team_settings.integrations.google_calendar config is not a map")
+			}
+		}
+
+		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
+			integrations.(map[string]interface{})["conditional_access_enabled"] = false
+		} else {
+			_, ok = conditionalAccessEnabled.(bool)
+			if !ok {
+				return nil, nil, errors.New("team_settings.integrations.conditional_access_enabled config is not a bool")
 			}
 		}
 

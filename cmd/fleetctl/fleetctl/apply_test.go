@@ -212,6 +212,9 @@ func TestApplyTeamSpecs(t *testing.T) {
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return nil, &notFoundError{}
+	}
 
 	filename := writeTmpYml(t, `
 ---
@@ -809,6 +812,9 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return nil, &notFoundError{}
+	}
 
 	// first, set the default app config's agent options as set after fleetctl setup
 	name := writeTmpYml(t, `---
@@ -1366,6 +1372,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return nil, &notFoundError{}
+	}
 
 	// Apply global config.
 	name := writeTmpYml(t, `---
@@ -1817,16 +1826,11 @@ func TestApplyLabels(t *testing.T) {
 	}
 
 	name = writeTmpYml(t, builtinLabelSpec)
-	assert.Equal(t, "[+] applied 1 labels\n", RunAppForTest(t, []string{"apply", "-f", name}))
-	assert.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
-	assert.True(t, ds.LabelsByNameFuncInvoked)
-
-	// Apply built-in label (with changes)
-	ubuntuLabel.Description = "CHANGED"
-	name = writeTmpYml(t, builtinLabelSpec)
 	_, err = RunAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
-	require.ErrorContains(t, err, "cannot modify or add built-in label")
+	assert.ErrorContains(t, err, "Cannot import built-in labels. Please remove labels with a label_type of builtin and try again.")
+	assert.False(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
+	assert.False(t, ds.LabelsByNameFuncInvoked)
 }
 
 func TestApplyPacks(t *testing.T) {
@@ -2177,6 +2181,9 @@ func TestApplyMacosSetup(t *testing.T) {
 
 		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 			return []*fleet.ABMToken{}, nil
+		}
+		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+			return nil, &notFoundError{}
 		}
 
 		return ds
@@ -2818,6 +2825,10 @@ func TestApplySpecs(t *testing.T) {
 		// labels
 		ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
 			return nil
+		}
+
+		ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+			return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
 		}
 
 		// teams - team ID 1 already exists
@@ -4099,4 +4110,16 @@ func TestApplyFileExtensionValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+type notFoundError struct{}
+
+var _ fleet.NotFoundError = (*notFoundError)(nil)
+
+func (e *notFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e *notFoundError) Error() string {
+	return ""
 }

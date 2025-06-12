@@ -1014,6 +1014,25 @@ This activity contains the following fields:
 }
 ```
 
+## updated_script
+
+Generated when a script is updated.
+
+This activity contains the following fields:
+- "script_name": Name of the script.
+- "team_id": The ID of the team that the script applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the script applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "script_name": "set-timezones.sh",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## created_windows_profile
 
 Generated when a user adds a new Windows profile to a team (or no team).
@@ -1781,6 +1800,52 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
   "software_title_id": 12334
+}
+```
+
+## added_conditional_access_integration_microsoft
+
+Generated when Microsoft Entra is connected for conditonal access.
+
+This activity does not contain any detail fields.
+
+## deleted_conditional_access_integration_microsoft
+
+Generated when Microsoft Entra is integration is disconnected.
+
+This activity does not contain any detail fields.
+
+## enabled_conditional_access_automations
+
+Generated when conditional access automations are enabled for a team.
+
+This activity contains the following field:
+- "team_id": The ID of the team  ("null" for "No team").
+- "team_name": The name of the team (empty for "No team").
+
+#### Example
+
+```json
+{
+  "team_id": 5,
+  "team_name": "Workstations"
+}
+```
+
+## disabled_conditional_access_automations
+
+Generated when conditional access automations are disabled for a team.
+
+This activity contains the following field:
+- "team_id": The ID of the team (`null` for "No team").
+- "team_name": The name of the team (empty for "No team").
+
+#### Example
+
+```json
+{
+  "team_id": 5,
+  "team_name": "Workstations"
 }
 ```
 
