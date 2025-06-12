@@ -197,6 +197,9 @@ func BuildPkg(opt Options) (string, error) {
 	}
 
 	filename := "fleet-osquery.pkg"
+	if opt.CustomOutfile != "" {
+		filename = opt.CustomOutfile
+	}
 	if opt.NativeTooling {
 		filename = filepath.Join("build", filename)
 	}
