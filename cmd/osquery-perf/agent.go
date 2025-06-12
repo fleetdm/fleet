@@ -866,8 +866,8 @@ func (a *agent) runMacosMDMLoop() {
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
 
-			if mdmCommandPayload.Command.RequestType == "InstallProfile" {
-
+			switch mdmCommandPayload.Command.RequestType {
+			case "InstallProfile":
 				if a.mdmProfileFailureProb > 0.0 && rand.Float64() <= a.mdmProfileFailureProb {
 					errChain := []mdm.ErrorChain{
 						{
@@ -879,19 +879,30 @@ func (a *agent) runMacosMDMLoop() {
 					mdmCommandPayload, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, errChain)
 				} else {
 					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+					if err != nil {
+						log.Printf("MDM Acknowledge request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
 				}
-
-			} else {
-				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
-			}
-
-			if err != nil {
-				log.Printf("MDM Acknowledge request failed: %s", err)
-				a.stats.IncrementMDMErrors()
-				break INNER_FOR_LOOP
-			}
-			if mdmCommandPayload != nil && mdmCommandPayload.Command.RequestType == "DeclarativeManagement" {
+			case "DeclarativeManagement":
+				// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
+				nextMdmCommandPayload, err := a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
+				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
 				a.doDeclarativeManagement(mdmCommandPayload)
+				mdmCommandPayload = nextMdmCommandPayload
+			default:
+				mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
+				if err != nil {
+					log.Printf("MDM Acknowledge request failed: %s", err)
+					a.stats.IncrementMDMErrors()
+					break INNER_FOR_LOOP
+				}
 			}
 		}
 	}
