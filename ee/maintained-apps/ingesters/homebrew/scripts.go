@@ -207,6 +207,8 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	}
 
 	process(u.PkgUtil, func(pkgID string) {
+		sb.AddFunction("remove_pkg_files", removePkgFiles)
+		sb.Writef("remove_pkg_files '%s'", pkgID)
 		sb.Writef("sudo pkgutil --forget '%s'", pkgID)
 	})
 
@@ -525,4 +527,41 @@ const sendSignalFunc = `send_signal() {
   done
 
   sleep 3
+}`
+
+const removePkgFiles = `remove_pkg_files() {
+  local PKGID="$1"
+  local PKGINFO VOLUME INSTALL_LOCATION FULL_INSTALL_LOCATION
+
+  echo "pkgutil --pkg-info-plist \"$PKGID\""
+  PKGINFO=$(pkgutil --pkg-info-plist "$PKGID")
+  VOLUME=$(echo "$PKGINFO" | awk '/<key>volume<\/key>/ {getline; gsub(/.*<string>|<\/string>.*/, ""); print}')
+  INSTALL_LOCATION=$(echo "$PKGINFO" | awk '/<key>install-location<\/key>/ {getline; gsub(/.*<string>|<\/string>.*/, ""); print}')
+
+  if [ -z "$INSTALL_LOCATION" ] || [ "$INSTALL_LOCATION" = "/" ]; then
+    FULL_INSTALL_LOCATION="$VOLUME"
+  else
+    FULL_INSTALL_LOCATION="$VOLUME/$INSTALL_LOCATION"
+    FULL_INSTALL_LOCATION=$(echo "$FULL_INSTALL_LOCATION" | sed 's|//|/|g')
+  fi
+
+  echo "sudo pkgutil --files-only --files \"$PKGID\" | sed \"s|^|${FULL_INSTALL_LOCATION}/|\" | tr '\\n' '\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf"
+  sudo pkgutil --files-only --files "$PKGID" | sed "s|^|/${INSTALL_LOCATION}/|" | tr '\n' '\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf
+
+  echo "sudo pkgutil --only-dirs --files \"$PKGID\" | sed \"s|^|${FULL_INSTALL_LOCATION}/|\" | grep '\\.app$' | tr '\\n' '\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf"
+  sudo pkgutil --only-dirs --files "$PKGID" | sed "s|^|${FULL_INSTALL_LOCATION}/|" | grep '\.app$' | tr '\n' '\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf
+
+  root_app_dir=$(
+    sudo pkgutil --only-dirs --files "$PKGID" \
+      | sed "s|^|${FULL_INSTALL_LOCATION}/|" \
+      | grep 'Applications' \
+      | awk '{ print length, $0 }' \
+      | sort -n \
+      | head -n1 \
+      | cut -d' ' -f2-
+  )
+  if [ -n "$root_app_dir" ]; then
+    echo "sudo rmdir --ignore-fail-on-non-empty \"$root_app_dir\""
+    sudo rmdir --ignore-fail-on-non-empty "$root_app_dir"
+  fi
 }`
