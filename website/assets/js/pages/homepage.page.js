@@ -114,8 +114,15 @@ parasails.registerPage('homepage', {
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;
     },
-    clickSwitchComparisonMode: function(mode) {
+    clickSwitchComparisonMode: async function(mode) {
       this.comparisonTableMode = mode;
+      await setTimeout(()=>{
+
+        $('[data-toggle="tooltip"]').tooltip({
+          container: '#homepage',
+          trigger: 'hover',
+        });
+      }, 250)
     },
     closeModal: function() {
       this.modal = undefined;
