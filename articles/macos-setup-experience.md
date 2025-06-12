@@ -137,6 +137,8 @@ To customize the macOS Setup Assistant, we will do the following steps:
 2. Upload the profile to Fleet
 3. Test the custom macOS Setup Assistant
 
+> It can take up to 10 minutes for a host to get a new automatic enrollment profile. Learn more [here](https://github.com/fleetdm/fleet/issues/27854#issuecomment-2811275551).
+
 ### Step 1: Create an automatic enrollment profile
 
 1. Download Fleet's example automatic enrollment profile by navigating to [the example](https://fleetdm.com/example-dep-profile) and clicking the **Download** icon.

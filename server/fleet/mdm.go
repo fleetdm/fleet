@@ -45,6 +45,9 @@ const (
 	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix = "CUSTOM_SCEP_CHALLENGE_"
 	FleetVarCustomSCEPProxyURLPrefix  = "CUSTOM_SCEP_PROXY_URL_"
+
+	// OneTimeChallengeTTL is the time to live for one-time challenges.
+	OneTimeChallengeTTL = 1 * time.Hour
 )
 
 type AppleMDM struct {

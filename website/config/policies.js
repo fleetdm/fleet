@@ -72,4 +72,5 @@ module.exports.policies = {
   'account/update-start-cta-visibility': true,
   'microsoft-proxy/receive-redirect-from-microsoft': true,
   'view-configuration-builder': true,
+  'android-proxy/*': true,
 };

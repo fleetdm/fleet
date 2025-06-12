@@ -4571,9 +4571,14 @@ func preprocessProfileContents(
 							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
 						continue
 					}
+					// Generate a new SCEP challenge for the profile
+					challenge, err := ds.NewChallenge(ctx)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "generating SCEP challenge")
+					}
 					// Insert the SCEP URL into the profile contents
 					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
-						url.PathEscape(fmt.Sprintf("%s,%s,%s", hostUUID, profUUID, caName)))
+						url.PathEscape(fmt.Sprintf("%s,%s,%s,%s", hostUUID, profUUID, caName, challenge)))
 					hostContents, err = replaceExactFleetPrefixVariableInXML(fleet.FleetVarCustomSCEPProxyURLPrefix, ca.Name, hostContents, proxyURL)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for SCEP proxy URL")
