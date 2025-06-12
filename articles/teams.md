@@ -46,7 +46,7 @@ You can add hosts to a team in Fleet by either enrolling the host with a team's 
 
 ## Advanced
 
-You can automatically enroll hosts to a specific team in Fleet by installing a fleetd with a team enroll secret. Learn more [here](https://fleetdm.com/guides/enroll-hosts#enroll-host-to-a-specific-team).
+You can automatically enroll hosts to a specific team in Fleet by installing a fleetd agent with a [team enroll secret](https://fleetdm.com/guides/enroll-hosts#enroll-host-to-a-specific-team).
 
 Changing the host's enroll secret after enrollment will not cause the host to be transferred to a different team.
 

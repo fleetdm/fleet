@@ -25,7 +25,7 @@
     gap: $pad-medium;
   }
 
-  &__row-1--responsive {
+  &__row-1--responsive-wrap {
     display: flex;
     flex-grow: 1;
     justify-content: space-between;
@@ -45,7 +45,7 @@
     // Buttons align top of card when alone (not middle with pills/yaml button)
     &__actions {
       .children-wrapper {
-        align-self: top;
+        align-self: start;
       }
     }
     // View YAML (gitops) button wrapped onto third line

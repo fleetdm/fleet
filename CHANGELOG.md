@@ -1,3 +1,9 @@
+## Fleet 4.68.1 (Jun 02, 2025)
+
+### Bug fixes
+
+Added `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE` environment variable to allow increasing MDM SSO endpoint rate limit from 10 per minute. When supplied, this parameter also splits MDM SSO into its own rate limit bucket (default is shared with login endpoints).
+
 ## Fleet 4.68.0 (May 22, 2025)
 
 ### Security Engineers
@@ -4440,7 +4446,7 @@ Fleet server in non-debug mode.
 
 * Fixed a bug in which live queries would fail for deployments that use Redis Cluster.
 
-* Fixed a bug in which some new Fleet deployments don't include the default global agent options. Documentation for global and team agent options can be found [here](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options).
+* Fixed a bug in which some new Fleet deployments don't include the default global [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options).
 
 * Improved how a host's `users` are stored in MySQL to prevent deadlocks. This information is available in the "Users" table on each host's **Host details** page and in the `GET /api/v1/fleet/hosts/{id}` API route.
 
@@ -4632,7 +4638,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 * The `username` artifact has been removed in favor of the more recognizable `name` (Full name). As a result the `email` artifact is now used for uniqueness in Fleet. Upon upgrading to Fleet 4.0.0, existing users will have the `name` field populated with `username`. SAML users may need to update their username mapping to match user emails.
 
-* As of Fleet 4.0.0, Fleet Device Management Inc. periodically collects anonymous information about your instance. Sending usage statistics is turned off by default for users upgrading from a previous version of Fleet. Read more about the exact information collected [here](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/11-Usage-statistics.md).
+* As of Fleet 4.0.0, Fleet Device Management Inc. periodically collects [anonymous information about your instance](https://github.com/fleetdm/fleet/blob/2f42c281f98e39a72ab4a5125ecd26d303a16a6b/docs/1-Using-Fleet/11-Usage-statistics.md). Sending usage statistics is turned off by default for users upgrading from a previous version of Fleet.
 
 ## Fleet 4.0.0 RC3 (Jun 25, 2021)
 
@@ -4737,7 +4743,7 @@ Fleet 4.0.0 is a major release and introduces several breaking changes and datab
 
 ## Fleet 3.13.0 (Jun 3, 2021)
 
-* Improved performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that the `/api/v1/fleet/hosts` API endpoint now return only the requested `additional` columns. See documentation on the changes to the hosts API endpoint [here](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/1-Using-Fleet/3-REST-API.md#list-hosts).
+* Improved performance of the `additional_queries` feature by moving `additional` query results into a separate table in the MySQL database. Please note that the [`/api/v1/fleet/hosts` API endpoint](https://github.com/fleetdm/fleet/blob/06b2e564e657492bfbc647e07eb49fd4efca5a03/docs/1-Using-Fleet/3-REST-API.md#list-hosts) now only returns the requested `additional` columns.
 
 * Fixed a bug in which running a live query in the Fleet UI would return no results and the query would seem "hung" on a small number of devices.
 

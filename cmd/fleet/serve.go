@@ -55,6 +55,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -71,6 +72,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"github.com/throttled/throttled/v2"
 	"go.elastic.co/apm/module/apmhttp/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2"
 	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
@@ -711,6 +713,25 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
+			var conditionalAccessMicrosoftProxy *conditional_access_microsoft_proxy.Proxy
+			if config.MicrosoftCompliancePartner.IsSet() {
+				var err error
+				conditionalAccessMicrosoftProxy, err = conditional_access_microsoft_proxy.New(
+					config.MicrosoftCompliancePartner.ProxyURI,
+					config.MicrosoftCompliancePartner.ProxyAPIKey,
+					func() (string, error) {
+						appCfg, err := ds.AppConfig(ctx)
+						if err != nil {
+							return "", fmt.Errorf("failed to load appconfig: %w", err)
+						}
+						return appCfg.ServerSettings.ServerURL, nil
+					},
+				)
+				if err != nil {
+					initFatal(err, "new microsoft compliance proxy")
+				}
+			}
+
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
@@ -739,6 +760,7 @@ the way that the Fleet server works.
 				wstepCertManager,
 				eeservice.NewSCEPConfigService(logger, nil),
 				digicert.NewService(digicert.WithLogger(logger)),
+				conditionalAccessMicrosoftProxy,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
@@ -1086,8 +1108,13 @@ the way that the Fleet server works.
 
 				frontendHandler = service.WithMDMEnrollmentMiddleware(svc, httpLogger, frontendHandler)
 
+				var extra []service.ExtraHandlerOption
+				if config.MDM.SSORateLimitPerMinute > 0 {
+					extra = append(extra, service.WithMdmSsoRateLimit(throttled.PerMin(config.MDM.SSORateLimitPerMinute)))
+				}
+
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
-					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)})
+					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)
 				if err != nil {

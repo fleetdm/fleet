@@ -95,6 +95,14 @@ func compareVulnerabilities(v1 schema.NVDCVEFeedJSON10DefCVEItem, v2 schema.NVDC
 		v.CVE.Problemtype = nil
 	}
 
+	// We now fall back to secondary CVSS score sources when primary isn't available, which legacy didn't do
+	if v1.Impact.BaseMetricV2 == nil {
+		v2.Impact.BaseMetricV2 = nil
+	}
+	if v1.Impact.BaseMetricV3 == nil {
+		v2.Impact.BaseMetricV3 = nil
+	}
+
 	clearDifferingFields(&v1)
 	clearDifferingFields(&v2)
 	return cmp.Equal(v1, v2)

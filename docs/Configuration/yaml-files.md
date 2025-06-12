@@ -428,9 +428,9 @@ In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (c
 
 - `$FLEET_VAR_NDES_SCEP_CHALLENGE`
 - `$FLEET_VAR_NDES_SCEP_PROXY_URL`
-- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username.
-- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com).
-- `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to.
+- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username. When this changes, Fleet will automatically resend the profile.
+- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile.
+- `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile.
 - `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy).)
 - `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
 - `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
@@ -703,7 +703,7 @@ org_settings:
 
 ### integrations
 
-The `integrations` section lets you configure your Google Calendar, Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
 In addition, you can configure your certificate authorities (CA) to help your end users connect to Wi-Fi. Learn more about certificate authorities in Fleet [here](https://fleetdm.com/guides/certificate-authorities).
 
@@ -714,6 +714,7 @@ In addition, you can configure your certificate authorities (CA) to help your en
 ```yaml
 org_settings:
   integrations:
+    conditional_access_enabled: true
     google_calendar:
       - api_key_json: $GOOGLE_CALENDAR_API_KEY_JSON
         domain: fleetdm.com
