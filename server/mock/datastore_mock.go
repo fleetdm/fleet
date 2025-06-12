@@ -1188,6 +1188,8 @@ type ProcessInstallerUpdateSideEffectsFunc func(ctx context.Context, installerID
 
 type SaveInstallerUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
 
+type ClearFleetMaintainedAppIDFunc func(ctx context.Context, installerID uint) error
+
 type UpdateInstallerSelfServiceFlagFunc func(ctx context.Context, selfService bool, id uint) error
 
 type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error)
@@ -3129,6 +3131,9 @@ type DataStore struct {
 
 	SaveInstallerUpdatesFunc        SaveInstallerUpdatesFunc
 	SaveInstallerUpdatesFuncInvoked bool
+
+	ClearFleetMaintainedAppIDFunc        ClearFleetMaintainedAppIDFunc
+	ClearFleetMaintainedAppIDFuncInvoked bool
 
 	UpdateInstallerSelfServiceFlagFunc        UpdateInstallerSelfServiceFlagFunc
 	UpdateInstallerSelfServiceFlagFuncInvoked bool
@@ -7500,6 +7505,13 @@ func (s *DataStore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Upd
 	s.SaveInstallerUpdatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveInstallerUpdatesFunc(ctx, payload)
+}
+
+func (s *DataStore) ClearFleetMaintainedAppID(ctx context.Context, installerID uint) error {
+	s.mu.Lock()
+	s.ClearFleetMaintainedAppIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearFleetMaintainedAppIDFunc(ctx, installerID)
 }
 
 func (s *DataStore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfService bool, id uint) error {
