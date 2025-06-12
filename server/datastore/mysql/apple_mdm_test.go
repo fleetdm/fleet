@@ -99,6 +99,7 @@ func TestMDMApple(t *testing.T) {
 		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 		{"SetMDMAppleProfilesWithVariables", testSetMDMAppleProfilesWithVariables},
 		{"GetNanoMDMEnrollmentTimes", testGetNanoMDMEnrollmentTimes},
+		{"GetNanoMDMUserEnrollment", testGetNanoMDMUserEnrollment},
 	}
 
 	for _, c := range cases {
@@ -380,6 +381,94 @@ func testDeleteMDMAppleConfigProfile(t *testing.T, ds *Datastore) {
 	err = ds.DeleteMDMAppleDeclarationByName(ctx, nil, dbDecl.Name)
 	require.NoError(t, err)
 	_, err = ds.GetMDMAppleDeclaration(ctx, dbDecl.DeclarationUUID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	var hosts []*fleet.Host
+	var userEnrollmentIDs []string
+	var deviceProfiles []*fleet.MDMAppleConfigProfile
+	var userProfiles []*fleet.MDMAppleConfigProfile
+	for i := 0; i < 2; i++ {
+		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
+			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
+		hosts = append(hosts, h)
+		nanoEnroll(t, ds, h, true)
+		userEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, h.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, userEnrollment)
+		require.Equal(t, h.UUID, userEnrollment.DeviceID)
+		userEnrollmentIDs = append(userEnrollmentIDs, userEnrollment.ID)
+
+		deviceProfiles = append(deviceProfiles, storeDummyConfigProfileForTest(t, ds))
+		userProfiles = append(userProfiles, storeDummyConfigProfileForTest(t, ds))
+
+		err = ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+			{
+				ProfileUUID:       deviceProfiles[i].ProfileUUID,
+				ProfileIdentifier: deviceProfiles[0].Identifier,
+				ProfileName:       profiles[0].Name,
+				HostUUID:          testUUID,
+				Status:            &fleet.MDMDeliveryVerifying,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				CommandUUID:       "command-uuid",
+				Checksum:          []byte("csum"),
+				Scope:             fleet.PayloadScopeSystem,
+			}, // JORDAN EJM TODO EJM JORDAN!
+			{
+				ProfileUUID:       profiles[0].ProfileUUID,
+				ProfileIdentifier: profiles[0].Identifier,
+				ProfileName:       profiles[0].Name,
+				HostUUID:          testUUID,
+				Status:            &fleet.MDMDeliveryVerifying,
+				OperationType:     fleet.MDMOperationTypeInstall,
+				CommandUUID:       "command-uuid",
+				Checksum:          []byte("csum"),
+				Scope:             fleet.PayloadScopeSystem,
+			},
+		},
+		)
+		require.NoError(t, err)
+	}
+
+	ids, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+
+	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
+
+	for i := 0; i < 2; i++ {
+		// insert a device channel profile install and user channel profile install for each host
+		uuid1 := uuid.New().String()
+		rawCmd1 := createRawAppleCmd("InstallProfile", uuid1)
+		err = commander.EnqueueCommand(ctx, []string{hosts[i].UUID}, rawCmd1)
+		require.NoError(t, err)
+
+		uuid2 := uuid.New().String()
+		rawCmd2 := createRawAppleCmd("InstallProfile", uuid2)
+		err = commander.EnqueueCommand(ctx, []string{userEnrollmentIDs[i]}, rawCmd2)
+		require.NoError(t, err)
+	}
+
+	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{hosts[0].UUID, hosts[1].UUID, userEnrollmentIDs[0], userEnrollmentIDs[1]}, ids)
+
+	err = ds.DeleteMDMAppleConfigProfile(ctx, deviceProfiles[0].ProfileUUID)
+	require.NoError(t, err)
+	_, err = ds.GetMDMAppleConfigProfile(ctx, deviceProfiles[0].ProfileUUID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	// Device ID for host 0 should be no longer in the list
+	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{hosts[1].UUID, userEnrollmentIDs[0], userEnrollmentIDs[1]}, ids)
+
+	err = ds.DeleteMDMAppleConfigProfile(ctx, userProfiles[0].ProfileUUID)
+	require.NoError(t, err)
+	_, err = ds.GetMDMAppleConfigProfile(ctx, userProfiles[0].ProfileUUID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
@@ -6216,21 +6305,27 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 func testGetEnrollmentIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	uuids, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	ids, err := ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, ids)
 
 	var hosts []*fleet.Host
+	hostUUIDToUserEnrollmentID := make(map[string]string)
 	for i := 0; i < 10; i++ {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
 		hosts = append(hosts, h)
-		nanoEnroll(t, ds, h, false)
+		nanoEnroll(t, ds, h, true)
+		userEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, h.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, userEnrollment)
+		require.Equal(t, h.UUID, userEnrollment.DeviceID)
+		hostUUIDToUserEnrollmentID[h.UUID] = userEnrollment.ID
 	}
 
-	uuids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
-	require.Empty(t, uuids)
+	require.Empty(t, ids)
 
 	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
 	// insert a command for three hosts
@@ -6239,9 +6334,9 @@ func testGetEnrollmentIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore
 	err = commander.EnqueueCommand(ctx, []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID}, rawCmd1)
 	require.NoError(t, err)
 
-	uuids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID}, uuids)
+	require.ElementsMatch(t, []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID}, ids)
 
 	err = storage.StoreCommandReport(&mdm.Request{
 		EnrollID: &mdm.EnrollID{ID: hosts[0].UUID},
@@ -6254,9 +6349,34 @@ func testGetEnrollmentIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 
 	// only hosts[1] and hosts[2] are returned now
-	uuids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID}, uuids)
+	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID}, ids)
+
+	// Enqueue some user channel commands
+	// insert a command for three hosts
+	uuid2 := uuid.New().String()
+	rawCmd2 := createRawAppleCmd("InstallProfile", uuid2)
+	err = commander.EnqueueCommand(ctx, []string{hostUUIDToUserEnrollmentID[hosts[3].UUID], hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, rawCmd2)
+	require.NoError(t, err)
+
+	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID, hostUUIDToUserEnrollmentID[hosts[3].UUID], hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, ids)
+
+	err = storage.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: hostUUIDToUserEnrollmentID[hosts[3].UUID]},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: uuid2,
+		Status:      "Acknowledged",
+		Raw:         []byte(rawCmd2),
+	})
+	require.NoError(t, err)
+
+	ids, err = ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{hosts[1].UUID, hosts[2].UUID, hostUUIDToUserEnrollmentID[hosts[4].UUID], hostUUIDToUserEnrollmentID[hosts[5].UUID]}, ids)
 }
 
 func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
@@ -7965,6 +8085,39 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 	assert.Equal(t, authenticateTime, *lastMDMEnrolledAt)
 	require.NotNil(t, lastMDMSeenAt)
 	assert.Equal(t, deviceEnrollTime, *lastMDMSeenAt)
+}
+
+func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-uuid-1",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	lastMDMEnrolledAt, lastMDMSeenAt, err := ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, lastMDMEnrolledAt)
+	require.Nil(t, lastMDMSeenAt)
+
+	userEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, userEnrollment)
+
+	// add user and device enrollment for this device. Timestamps should not be updated so nothing
+	// returned yet
+	nanoEnroll(t, ds, host, true)
+
+	userEnrollment, err = ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, userEnrollment)
+	require.Equal(t, host.UUID, userEnrollment.DeviceID)
+	require.True(t, userEnrollment.Enabled)
+	require.Equal(t, "User", userEnrollment.Type)
 }
 
 func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
