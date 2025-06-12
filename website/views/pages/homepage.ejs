@@ -36,7 +36,7 @@
                 </div>
               </div>
             </h1>
-            <p><%= primaryBuyingSituation === 'security-vm'? 'Replace the sprawl with secure, open-source reporting that works the way you want.' : primaryBuyingSituation === 'security-misc'? 'Replace the sprawl with secure, open-source telemetry that works the way you want.' : 'Replace the sprawl with lightning fast device management that lets employees see what’s going on.' %></p>
+            <p>Replace the sprawl with lightning fast device management that lets employees see what’s going on.</p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="/contact">Talk to an engineer</a>
               <a purpose="video-button" @click="clickOpenVideoModal('fleet-in-three-minutes')"><img class="d-inline" src="/images/play-button-64x64@2x.png"> Watch demo <span>3 mins</span></a>
@@ -57,35 +57,31 @@
         <h2>Everything in one place</h2>
         <p>Manage devices consistently in a single, open platform for Apple, Windows, and Linux.</p>
       </div>
-      <div purpose="feature-cards">
-        <div purpose="feature-card-row">
-          <a purpose="feature-card" href="/device-management">
-            <h5>Multi-platform MDM</h5>
-            <p>Remotely manage, and protect laptops and mobile devices.</p>
-          </a>
-          <a purpose="feature-card" href="/orchestration">
-            <h5>Orchestration</h5>
-            <p>Automate tasks across devices, from app installs to scripts.</p>
-          </a>
-          <a purpose="feature-card" href="/software-management">
-            <h5>Software management</h5>
-            <p>Inventory, patch, and manage installed software.</p>
-          </a>
-<!--         </div>
-        <div purpose="feature-card-row"> -->
-          <a purpose="feature-card">
-            <h5>Security</h5>
-            <p>Monitor activity, spot anomalies, and get situational awareness.</p>
-          </a>
-          <a purpose="feature-card">
-            <h5>Vulnerability management</h5>
-            <p>Detect, prioritize, and understand security risks and flaws.</p>
-          </a>
-          <a purpose="feature-card">
-            <h5>Binary authorization <span>Coming soon</span></h5>
-            <p>Enforce only trusted, pre-approved software can run.</p>
-          </a>
-        </div>
+      <div purpose="feature-cards" class="card-deck">
+        <a purpose="feature-card" class="card" href="/device-management">
+          <h5>Multi-platform MDM</h5>
+          <p>Remotely manage, and protect laptops and mobile devices.</p>
+        </a>
+        <a purpose="feature-card" class="card" href="/orchestration">
+          <h5>Orchestration</h5>
+          <p>Automate tasks across devices, from app installs to scripts.</p>
+        </a>
+        <a purpose="feature-card" class="card" href="/software-management">
+          <h5>Software management</h5>
+          <p>Inventory, patch, and manage installed software.</p>
+        </a>
+        <a purpose="feature-card" class="card" href="https://fleetdm.com/announcements/large-gaming-company-enhances-server-observability-with-fleet">
+          <h5>Security</h5>
+          <p>Monitor activity, spot anomalies, and get situational awareness.</p>
+        </a>
+        <a purpose="feature-card" class="card" href="https://fleetdm.com/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security">
+          <h5>Vulnerability management</h5>
+          <p>Detect, prioritize, and understand security risks and flaws.</p>
+        </a>
+        <a purpose="feature-card" class="card" href="https://www.linkedin.com/pulse/managing-santa-via-gitops-skip-sync-server-allen-houchins-3ni1c" target="_blank" no-icon>
+          <h5>Binary authorization <span>Coming soon</span></h5>
+          <p>Enforce only trusted, pre-approved software can run.</p>
+        </a>
       </div>
 
 
@@ -109,7 +105,7 @@
 
       </div>
 
-      <div purpose="statistics">
+      <a purpose="statistics" class="d-flex" href="/testimonials" no-underline>
         <div purpose="statistics-column">
           <div purpose="customers" class="d-none d-sm-block">
             <h4>100+</h4>
@@ -138,9 +134,9 @@
             <p>avg support response time</p>
           </div>
         </div>
-      </div>
+      </a>
 
-      <div purpose="quote">
+      <a purpose="quote" class="d-block" href="https://fleetdm.com/announcements/consolidate-multiple-tools-with-fleet" no-underline>
         <img purpose="quote-logo" src="/images/social-proof-logo-stripe-67x32@2x.png">
         <p purpose="quote-text">
           Fleet helped us avoid being forced to the cloud by our current MDM provider. We were able to migrate everything over to Fleet a few weeks ahead of our renewal, and now Stripe is in control.
@@ -150,7 +146,7 @@
           <p purpose="name">Scott MacVicar</p>
           <p purpose="job-title">Head of Developer Infrastructure and Corporate Technology</p>
         </div>
-      </div>
+      </a>
 
       <div purpose="comparison-section">
         <h2>How does Fleet compare?</h2>
@@ -1399,7 +1395,7 @@
   <div purpose="bottom-gradient">
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
-        <h4>For teams with lots of computing devices</h4>
+        <h4>Deploy anywhere</h4>
         <h1 class="mx-auto <%= primaryBuyingSituation%>">
           <%=
             (typeof primaryBuyingSituation !== 'undefined' && primaryBuyingSituation === 'security-vm') ? 'Focus on vulnerabilities, not vendors' // vm
