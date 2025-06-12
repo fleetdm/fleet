@@ -20,7 +20,7 @@ func Up_20211013133707(tx *sql.Tx) error {
 			updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY (id, type),
 			INDEX idx_aggregated_stats_updated_at(updated_at)
-		);
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	if _, err := tx.Exec(aggregatedStatsTable); err != nil {
 		return errors.Wrap(err, "create aggregated stats table")

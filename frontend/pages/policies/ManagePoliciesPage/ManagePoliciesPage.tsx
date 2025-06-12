@@ -763,22 +763,34 @@ const ManagePolicyPage = ({
 
   const onUpdateConditionalAccess = async ({
     enabled: enableConditionalAccess,
+    changedPolicies,
   }: IConditionalAccessFormData) => {
     setIsUpdatingPolicies(true);
 
     try {
+      // TODO - narrow type for update policy responses
+      const responses: (Promise<ITeamConfig> | Promise<any>)[] = [];
+      let refetchConfig: any;
+
+      // If enabling/disabling the feature, update appropriate config
       if (teamIdForApi === API_NO_TEAM_ID) {
-        // patch global config (No team case)
-        const payload = {
-          integrations: {
-            ...globalConfig?.integrations,
-            conditional_access_enabled: enableConditionalAccess,
-          },
-        };
-        // TODO - confirm nothing getting unintentionally overwritten here
-        await configAPI.update(payload);
-        refetchGlobalConfig();
-      } else {
+        if (
+          enableConditionalAccess !==
+          globalConfig?.integrations.conditional_access_enabled
+        ) {
+          const payload = {
+            integrations: {
+              conditional_access_enabled: enableConditionalAccess,
+            },
+          };
+          responses.push(configAPI.update(payload));
+          refetchConfig = refetchGlobalConfig;
+        }
+      } else if (
+        enableConditionalAccess !==
+        teamConfig?.integrations.conditional_access_enabled
+      ) {
+        // patch team config (all teams but No team)
         const payload = {
           integrations: {
             // These fields will never actually be changed here. See comment above
@@ -788,8 +800,24 @@ const ManagePolicyPage = ({
             conditional_access_enabled: enableConditionalAccess,
           },
         };
-        await teamsAPI.update(payload, teamIdForApi);
-        refetchTeamConfig();
+        responses.push(teamsAPI.update(payload, teamIdForApi));
+        refetchConfig = refetchTeamConfig;
+      }
+
+      // handle any changed policies for no team or a team
+      responses.concat(
+        changedPolicies.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            conditional_access_enabled:
+              changedPolicy.conditional_access_enabled,
+            team_id: teamIdForApi,
+          });
+        })
+      );
+      await Promise.all(responses);
+      await wait(100); // helps avoid refetch race conditions
+      if (refetchConfig) {
+        await refetchConfig();
       }
       renderFlash(
         "success",
@@ -940,7 +968,7 @@ const ManagePolicyPage = ({
       // Global policies
 
       if (globalPoliciesError) {
-        return <TableDataError />;
+        return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
       }
       return (
         <PoliciesTable
@@ -970,7 +998,7 @@ const ManagePolicyPage = ({
 
     // Team policies
     if (teamPoliciesError) {
-      return <TableDataError />;
+      return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
     return (
       <div>
@@ -1019,7 +1047,9 @@ const ManagePolicyPage = ({
     false;
 
   const isConditionalAccessEnabled =
-    teamConfig?.integrations.conditional_access_enabled ?? false;
+    (teamIdForApi === API_NO_TEAM_ID
+      ? globalConfig?.integrations.conditional_access_enabled
+      : teamConfig?.integrations.conditional_access_enabled) ?? false;
 
   const getAutomationsDropdownOptions = (configPresent: boolean) => {
     let disabledInstallTooltipContent: TooltipContent;
@@ -1097,10 +1127,7 @@ const ManagePolicyPage = ({
       },
     ];
 
-    if (
-      globalConfigFromContext?.license.managed_cloud &&
-      featureFlags.allowConditionalAccess === "true"
-    ) {
+    if (globalConfigFromContext?.license.managed_cloud) {
       options.push({
         label: "Conditional access",
         value: "conditional_access",
@@ -1174,6 +1201,26 @@ const ManagePolicyPage = ({
     return <Spinner />;
   }
 
+  const renderHeader = () => {
+    if (isPremiumTier && !globalConfigFromContext?.partnerships?.enable_primo) {
+      if ((userTeams && userTeams.length > 1) || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams || []}
+            selectedTeamId={currentTeamId}
+            onChange={onTeamChange}
+            includeNoTeams
+          />
+        );
+      }
+      if (!isOnGlobalTeam && userTeams && userTeams.length === 1) {
+        return <h1>{userTeams[0].name}</h1>;
+      }
+    }
+
+    return <h1>Policies</h1>;
+  };
+
   let teamsDropdownHelpText: string;
   if (teamIdForApi === API_NO_TEAM_ID) {
     teamsDropdownHelpText =
@@ -1191,22 +1238,7 @@ const ManagePolicyPage = ({
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
-              <div className={`${baseClass}__title`}>
-                {isFreeTier && <h1>Policies</h1>}
-                {isPremiumTier &&
-                  ((userTeams && userTeams.length > 1) || isOnGlobalTeam) && (
-                    <TeamsDropdown
-                      currentUserTeams={userTeams || []}
-                      selectedTeamId={currentTeamId}
-                      onChange={onTeamChange}
-                      includeNoTeams
-                    />
-                  )}
-                {isPremiumTier &&
-                  !isOnGlobalTeam &&
-                  userTeams &&
-                  userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
-              </div>
+              <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
           </div>
           {showCtaButtons && (
@@ -1265,7 +1297,6 @@ const ManagePolicyPage = ({
             isUpdating={isUpdatingPolicies}
             // currentTeamId will at this point be present
             teamId={currentTeamId ?? 0}
-            gitOpsModeEnabled={gitOpsModeEnabled}
           />
         )}
         {showCalendarEventsModal && (
@@ -1288,6 +1319,7 @@ const ManagePolicyPage = ({
             enabled={isConditionalAccessEnabled}
             isUpdating={isUpdatingPolicies}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            teamId={currentTeamId ?? 0}
           />
         )}
       </div>

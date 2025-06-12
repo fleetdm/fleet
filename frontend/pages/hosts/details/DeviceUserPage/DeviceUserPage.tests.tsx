@@ -54,7 +54,7 @@ describe("Device User Page", () => {
     );
 
     // waiting for the device data to render
-    await screen.findByText("About");
+    await screen.findByText(/Details/);
 
     expect(screen.queryByText(/Software/)).not.toBeInTheDocument();
   });
@@ -76,7 +76,7 @@ describe("Device User Page", () => {
     );
 
     // waiting for the device data to render
-    await screen.findByText("About");
+    await screen.findByText(/Details/);
 
     expect(screen.queryByText(/Certificates/)).not.toBeInTheDocument();
   });
@@ -103,7 +103,7 @@ describe("Device User Page", () => {
     );
 
     // waiting for the device data to render
-    await screen.findByText("About");
+    await screen.findByText(/Details/);
 
     expect(screen.queryByText(/Certificates/)).not.toBeInTheDocument();
   });
@@ -126,7 +126,7 @@ describe("Device User Page", () => {
       );
 
       // waiting for the device data to render
-      await screen.findByText("About");
+      await screen.findByText(/Details/);
 
       return user;
     };

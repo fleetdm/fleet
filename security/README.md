@@ -2,7 +2,7 @@
 
 ## Directory contents
 
-- [status.md](status.md): Current status of vulnerabilities reported on Fleet software components by security scanners (trivy). This document is currently auto-generated from files in the `vex/` directory.
+- [status.md](status.md): Current status of vulnerabilities reported on Fleet software components by security scanners (trivy, docker scout). This document is currently auto-generated from files in the `vex/` directory.
 - `code/`: Files used for vulnerability scanning on Fleet's source code.
 - `vex/`: OpenVEX files to report status of vulnerabilities detected by Trivy on Fleet docker images.
 
@@ -17,16 +17,56 @@ The following Github CI actions perform daily vulnerability scanning on Fleet so
 
 ## Process to run when a CVE is reported
 
-### 1. Update report (status.md)
+### Updating status.md report
 
-If trivy reports a HIGH or CRITICAL CVE on one of Fleet's docker images (reported by the previously mentioned Github Actions), then we need to assess the report and track it with a status of "not affected", "affected", "fixed", or "under investigation".
+If trivy reports a `HIGH` or `CRITICAL` CVE on one of Fleet's docker images (reported by the previously mentioned Github Actions), then we need to assess the report and track it with a status of "not affected", "affected", "fixed", or "under investigation".
 
 We use the OpenVEX format to track the status of reported vulnerabilities (`vex/` folder).
 
-Once the status is determined, we use the [vexctl](https://github.com/openvex/vexctl) tool to create a VEX file.
+Once the status is determined, we use the [vexctl](https://github.com/openvex/vexctl) tool to create/update VEX files.
 ```sh
 brew install vexctl
 ```
+
+#### A. "Affected" status
+
+We will use [CVE-2025-27509](https://nvd.nist.gov/vuln/detail/CVE-2025-27509) as an example.
+This CVE affected all versions of Fleet at the time (see the associated [GitHub security advisory](https://github.com/fleetdm/fleet/security/advisories/GHSA-52jx-g6m5-h735)).
+
+##### 1. Creating "affected" status
+
+First we would need to create a VEX entry with the "affected" status for all released Fleet versions (`<= v4.63.1`).
+
+> Currently, OpenVEX doesn't support version ranges, so we need to define all versions one by one.
+> We have the `./tools/github-releases` tooling to help list all released versions of Fleet.
+
+```sh
+all_fleet_releases=$(go run ./tools/github-releases --all-cpes --separator=,)
+
+vexctl create --product="$all_fleet_releases" \
+  --vuln="CVE-2025-27509" \
+  --status="affected" \
+  --aliases="https://github.com/fleetdm/fleet/security/advisories/GHSA-52jx-g6m5-h735" \
+  --action-statement="Disable SAML SSO authentication." \
+  --author="@lucasmrod" > security/vex/fleet/CVE-2025-27509.vex.json
+```
+
+##### 2. Updating "fixed" status
+
+Once the fix was released in `v4.64.2`, `v4.63.2`, `v4.62.4`, `v4.58.1` and `v4.53.2` we would issue a new "fixed" statement on the existing VEX document:
+```sh
+vexctl add \
+  --document=./security/vex/fleet/CVE-2025-27509.vex.json \
+  --vuln="CVE-2025-27509" \
+  --status="fixed" \
+  --product="cpe:2.3:a:fleetdm:fleet:v4.64.2:*:*:*:*:*:*:*,cpe:2.3:a:fleetdm:fleet:v4.63.2:*:*:*:*:*:*:*,cpe:2.3:a:fleetdm:fleet:v4.62.4:*:*:*:*:*:*:*,cpe:2.3:a:fleetdm:fleet:v4.58.1:*:*:*:*:*:*:*,cpe:2.3:a:fleetdm:fleet:v4.53.2:*:*:*:*:*:*:*" \
+  --aliases="https://github.com/fleetdm/fleet/security/advisories/GHSA-52jx-g6m5-h735" \
+  --in-place
+```
+
+#### B. Not affected
+
+Following is an example for a CVE reported by tooling which we know doesn't affect `fleetdm/fleetctl`:
 
 Example for `CVE-2023-32698` on package `github.com/goreleaser/nfpm/v2` which we know doesn't affect `fleetdm/fleetctl`:
 ```sh
@@ -43,7 +83,7 @@ Similarly, for `CVE-2024-8260` on package `github.com/open-policy-agent/opa` whi
 vexctl create --product="fleet,pkg:golang/github.com/open-policy-agent/opa" \
   --vuln="CVE-2024-8260" \
   --status="not_affected" \
-  --author="@luacsmrod" \
+  --author="@lucasmrod" \
   --justification="vulnerable_code_cannot_be_controlled_by_adversary" \
   --status-note="Fleet doesn't run on Windows, so it's not affected by this vulnerability." > security/vex/fleetctl/CVE-2024-8260.vex.json
 ```
@@ -58,11 +98,11 @@ When new VEX files are generated or updated we can update the `security/status.m
 make vex-report
 ```
 
-### 2. Update software
+### Updating software
 
 If the detected vulnerability can be fixed by updating the base docker image or removing/changing components in the docker image then we do so and the update will be present on the next release. (It is good practice to keep software up-to-date.)
 
-### 3. Process for "affected" CRITICAL vulnerabilities
+### Process for "affected" CRITICAL vulnerabilities
 
 #### fleetdm/fleet
 

@@ -48,6 +48,9 @@ const Statistics = ({
     handleSubmit(formDataToSubmit);
   };
 
+  const telemetryAlwaysEnabled =
+    isPremiumTier && !appConfig.license.allow_disable_telemetry;
+
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
@@ -72,9 +75,9 @@ const Statistics = ({
           <Checkbox
             onChange={onInputChange}
             name="enableUsageStatistics"
-            value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
+            value={telemetryAlwaysEnabled ? true : enableUsageStatistics} // Set to true for all premium customers
             parseTarget
-            disabled={isPremiumTier}
+            disabled={telemetryAlwaysEnabled}
           >
             Enable usage statistics
           </Checkbox>

@@ -8,8 +8,6 @@ type FDEFileVaultOptionsProfileContent struct {
 type FDEFileVaultOptionsPayload struct {
 	PayloadType           string `plist:"PayloadType"`
 	DestroyFVKeyOnStandby *bool  `plist:"DestroyFVKeyOnStandby"`
-	DontAllowFDEDisable   *bool  `plist:"dontAllowFDEDisable"`
-	DontAllowFDEEnable    *bool  `plist:"dontAllowFDEEnable"`
 }
 
 // ContainsFDEFileVaultOptionsPayload returns true if the payload contains any FileVault options.
@@ -25,7 +23,7 @@ func ContainsFDEFileVaultOptionsPayload(contents []byte) (bool, error) {
 		return false, err
 	}
 	for _, p := range prof.PayloadContent {
-		if p.PayloadType == FleetCustomSettingsPayloadType && (p.DontAllowFDEDisable != nil || p.DontAllowFDEEnable != nil || p.DestroyFVKeyOnStandby != nil) {
+		if p.PayloadType == FleetCustomSettingsPayloadType && p.DestroyFVKeyOnStandby != nil {
 			return true, nil
 		}
 	}

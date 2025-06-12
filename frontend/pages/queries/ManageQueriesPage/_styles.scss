@@ -12,6 +12,10 @@
     }
   }
 
+  &__manage-automations {
+    white-space: nowrap;
+  }
+
   &__text {
     margin-right: $pad-large;
   }
@@ -104,9 +108,6 @@
 
               .inherited-badge {
                 overflow: initial;
-              }
-              .observer-can-run-badge {
-                @include tooltip5-arrow-styles;
               }
             }
 

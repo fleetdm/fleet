@@ -1,0 +1,107 @@
+agent_options:
+  config:
+    decorators:
+      load:
+      - SELECT uuid AS host_uuid FROM system_info;
+      - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+  update_channels:
+    desktop: edge
+    orbit: edge
+    osqueryd: edge
+controls:
+  enable_disk_encryption: true
+  ios_updates:
+    deadline: "2021-12-31"
+    minimum_version: "98.1"
+  ipados_updates:
+    deadline: "2022-12-31"
+    minimum_version: "98.2"
+  macos_settings:
+    custom_settings:
+    - path: ../lib/team-a/profiles/team-macos-mobileconfig-profile.mobileconfig
+  macos_updates:
+    deadline: "2020-12-31"
+    minimum_version: "95.1"
+  scripts:
+  - path: ../lib/team-a/scripts/Script B.ps1
+  windows_enabled_and_configured: true
+  windows_updates:
+    deadline_days: 95
+    grace_period_days: 92
+name: Team A
+policies:
+- calendar_events_enabled: false
+  conditional_access_enabled: true
+  critical: false
+  description: This is a team policy
+  name: Team Policy
+  platform: linux,windows
+  query: SELECT * FROM team_policy WHERE id = 1
+  resolution: Do a team thing
+queries:
+- automations_enabled: true
+  description: This is a team query
+  discard_data: false
+  interval: 1800
+  logging: stderr
+  min_osquery_version: 4.5.6
+  name: Team Query
+  observer_can_run: false
+  platform: linux,windows
+  query: SELECT * FROM team_query WHERE id = 1
+software:
+  app_store_apps:
+  - app_store_id: com.example.team-software
+    labels_exclude_any:
+    - Label C
+    - Label D
+  packages:
+  - hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 1.0.0, 2.0.0
+    install_script:
+      path: ../lib/team-a/scripts/my-software-package-darwin-install
+    labels_include_any:
+    - Label A
+    - Label B
+    post_install_script:
+      path: ../lib/team-a/scripts/my-software-package-darwin-postinstall
+    pre_install_query:
+      path: ../lib/team-a/queries/my-software-package-darwin-preinstallquery.yml
+    self_service: true
+    uninstall_script:
+      path: ../lib/team-a/scripts/my-software-package-darwin-uninstall
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 1
+  integrations:
+    conditional_access_enabled: true
+    google_calendar:
+      enable_calendar_events: true
+      webhook_url: https://some-team-google-calendar-webhook.com
+  secrets:
+  - secret: # TODO: Add your enroll secrets here
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: https://some-team-failing_policies-webhook.com
+      enable_failing_policies_webhook: false
+      host_batch_size: 4
+      policy_ids:
+      - 1
+      - 2
+      - 3
+    host_status_webhook:
+      days_count: 3
+      destination_url: https://some-team-host-status-webhook.com
+      enable_host_status_webhook: false
+      host_percentage: 2

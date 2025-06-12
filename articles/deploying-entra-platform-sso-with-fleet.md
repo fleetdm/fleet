@@ -1,12 +1,12 @@
-# Deploying Entra Platform SSO with Fleet
+# Deploying Entra ID Platform SSO with Fleet
 Apple’s Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https://developer.apple.com/videos/play/wwdc2022/10045) alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through an IdP.
 
-This guide details how to deploy Microsoft Entra’s macOS Platform SSO extension to your Fleet macOS hosts.
+This guide details how to deploy Microsoft Entra ID's macOS Platform SSO extension to your Fleet macOS hosts.
 
 ## Why use Platform SSO?
 If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
 
-Rather than your users having to enter credentials each time they sign in to an app protected by Entra, the Platform SSO extension will automatically perform the authentication using a Secure Enclave-backed key.
+Rather than your users having to enter credentials each time they sign in to an app protected by Entra ID, the Platform SSO extension will automatically perform the authentication using a Secure Enclave-backed key.
 
 This speeds up the authentication process for your employees and is more resistant to phishing than a traditional username and password.
 
@@ -28,7 +28,7 @@ Choose if you want to manually install the Company Portal app on your hosts or h
 
 Next, let’s build the configuration profile that enables the Company Portal Platform SSO extension.
 
-## Building the Platform SSO Configuration Profile
+## Building the Platform SSO configuration profile
 Once your hosts have the Company Portal app installed, you’ll need to deploy a configuration profile that enables the Microsoft Enterprise SSO plug-in.
 
 On your Mac, open iMazing Profile Editor. In the **General** domain, select a name for your Platform SSO profile in the **Payload Display Name** field. If you wish, you can modify the identifier and UUID fields to meet your organization’s naming standards, but it’s also fine to leave them as they are.
@@ -40,18 +40,18 @@ Before we start to add values to the payload, double-check to make sure that onl
 >Note: This profile uses the `SecureEnclaveKey` authentication method, which uses a Secure Enclave-backed key to authenticate with the IdP instead of the user’s local account password. If you wish, you can instead use Password, which prompts the user for their local account password to authenticate with the IdP and keeps it in sync with the IdP.
 
 Enter the following values for the specified keys:\
-**Extension Identifier:** com.microsoft.CompanyPortalMac.ssoextension \
+**Extension identifier:** com.microsoft.CompanyPortalMac.ssoextension \
 **Type:** Redirect \
-**Team Identifier:** UBF8T346G9 \
+**Team identifier:** UBF8T346G9 \
 **URLs:** https://login.microsoftonline.com \
 https://login.microsoft.com \
 https://sts.windows.net \
-**Screen Locked Behavior:** Do Not Handle \
-**Authentication Method:** User Secure Enclave Key \
-**Platform SSO Authentication Method:** UserSecureEnclaveKey \
-**Use Shared Device Keys:** Checked \
-**Account Name:** preferred_username \
-**Full Name:** name
+**Screen locked behavior:** Do Not Handle \
+**Authentication method:** User Secure Enclave Key \
+**Platform SSO authentication method:** UserSecureEnclaveKey \
+**Use shared device keys:** Checked \
+**Account name:** preferred_username \
+**Full name:** name
 
 The finalized profile should look like this:
 ```
@@ -119,7 +119,7 @@ The finalized profile should look like this:
 ```
 Save the profile to your computer so you can upload it to Fleet in the next section. I named mine `platform-sso-settings.mobileconfig`. If you wish, you can sign the profile before uploading it, but this is not required.
 
-### Deploy the Configuration Profile to your Hosts
+### Deploy the configuration profile to your hosts
 Now that we have a configuration profile with our desired settings, we can upload it to Fleet to deploy it to our hosts and activate the Platform SSO extension.
 
 On your Fleet server, select the team you want to deploy Platform SSO to. Navigate to Controls > OS Settings > Custom settings. Click the Add profile button, then find the `platform-sso-settings.mobileconfig` profile on your computer and upload it to Fleet.
@@ -127,7 +127,7 @@ On your Fleet server, select the team you want to deploy Platform SSO to. Naviga
 Uploading the profile to a team in Fleet will automatically deliver it to all macOS hosts enrolled in that team. If you wish to have more control over which hosts on the team receive the profile, you can use labels to target or exclude specific hosts.
 
 
-## End User Experience
+## End user experience
 When the Company Portal app and Platform SSO configuration profile are deployed to a host, the end user will receive a notification that says **Registration Required: Please register with your identity provider**. You should direct your end users to interact with this notification by clicking the **Register** button that appears when they hover their mouse over the notification.
 
 ![Registration Notification](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-registration-notification.png)
@@ -142,7 +142,12 @@ Lastly, they’ll be prompted to enable the Company Portal app to be used as a P
 
 ![Enable PSSO Passkey](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-passkey.gif)
 
-Once registration is complete, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the the entire authentication using the Secure Enclave-backed key.
+Once registration is complete, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the entire authentication using the Secure Enclave-backed key.
+
+## What about password sync?
+Platform SSO extensions can be configured to synchronize local account credentials with the IdP. To do this, you'll need to change the `AuthenticationMethod` keys in your configuration profile to `Password`. After the end user registers with the Company Portal app, their local account password will change to match their Entra ID password.
+
+Keep in mind that when this method is used, authentication to Entra ID protected apps _won't_ be handled by the Secure Enclave-backed key.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="ddribeiro">

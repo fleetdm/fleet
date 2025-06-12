@@ -76,7 +76,10 @@ func redirectStderr(f *os.File) (UndoFunction, error) {
 		if err != nil {
 			return errors.New("Failed to redirect stderr to file: " + err.Error())
 		}
-		syscall.CloseHandle(fHandle)
+		err = syscall.CloseHandle(fHandle)
+		if err != nil {
+			return errors.New("Failed to close STD_ERROR handle: " + err.Error())
+		}
 		return nil
 	}
 

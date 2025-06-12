@@ -65,7 +65,6 @@ module.exports = {
       'mna',
       'edwardsb',
       'eashaw',
-      'drew-d-drawers',
       'lucasmrod',
       'ksatter',
       'hollidayn',
@@ -99,6 +98,10 @@ module.exports = {
       'BCTBB',
       'kc9wwh',
       'JordanMontgomery',
+      'bettapizza',
+      'irenareedy',
+      'jakestenger',
+      'AndreyKizimenko',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -193,7 +196,7 @@ module.exports = {
       //     `\n`+
       //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
       //     `\n`+
-      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //     `For help with questions about Sails, see the [Sails support page](http://sailsjs.com/support).\n`;
       //   }
       // }
       // // Now that we know what to say, add our comment.
@@ -305,7 +308,7 @@ module.exports = {
       //     `\n`+
       //     `Please remember: never post in a public forum if you believe you've found a genuine security vulnerability.  Instead, [disclose it responsibly](https://sailsjs.com/security).\n`+
       //     `\n`+
-      //     `For help with questions about Sails, [click here](http://sailsjs.com/support).\n`;
+      //     `For help with questions about Sails, see [Sails support](http://sailsjs.com/support).\n`;
       // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
       if (action === 'edited' && pr.state !== 'open') {// PR edited ‡

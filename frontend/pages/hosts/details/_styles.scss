@@ -10,7 +10,6 @@
 
   @include color-contrasted-sections;
   .header {
-    flex: 100%;
     display: flex;
     flex-direction: column;
   }
@@ -62,6 +61,19 @@
     .display-name {
       font-size: $large;
       font-weight: $bold;
+      @include ellipse-text(300px);
+
+      @media (min-width: $break-md) {
+        @include ellipse-text(500px);
+      }
+
+      @media (min-width: $break-lg) {
+        @include ellipse-text(800px);
+      }
+
+      @media (min-width: $break-xxl) {
+        @include ellipse-text(1000px);
+      }
     }
   }
 

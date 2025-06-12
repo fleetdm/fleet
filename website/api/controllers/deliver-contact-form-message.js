@@ -66,7 +66,7 @@ module.exports = {
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
       );
     }
-    if(userHasPremiumSubscription){
+    if(userHasPremiumSubscription) {
       // If the user has a Fleet Premium subscription, prepend the message with details about their subscription.
       let subscriptionDetails =`
 Fleet Premium subscription details:
@@ -80,6 +80,23 @@ Fleet Premium subscription details:
       message = subscriptionDetails + message;
       await sails.helpers.sendTemplateEmail.with({
         to: sails.config.custom.fromEmailAddress,
+        replyTo: {
+          name: firstName + ' '+ lastName,
+          emailAddress: emailAddress,
+        },
+        subject: 'New contact form message',
+        layout: false,
+        template: 'email-contact-form',
+        templateData: {
+          emailAddress,
+          firstName,
+          lastName,
+          message,
+        },
+      });
+    } else {
+      await sails.helpers.sendTemplateEmail.with({
+        to: sails.config.custom.contactFormEmailAddress,
         replyTo: {
           name: firstName + ' '+ lastName,
           emailAddress: emailAddress,

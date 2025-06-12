@@ -3,5 +3,6 @@
   "slug": "docker/darwin",
   "unique_identifier": "com.docker.docker",
   "token": "docker",
-  "installer_format": "dmg"
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
 }

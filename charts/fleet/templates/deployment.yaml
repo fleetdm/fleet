@@ -15,6 +15,7 @@ spec:
     matchLabels:
       app: fleet
       chart: fleet
+      component: fleet-server
       heritage: {{ .Release.Service }}
       release: {{ .Release.Name }}
   template:
@@ -26,6 +27,7 @@ spec:
       labels:
         app: fleet
         chart: fleet
+        component: fleet-server
         heritage: {{ .Release.Service }}
         release: {{ .Release.Name }}
     spec:
@@ -304,8 +306,12 @@ spec:
             drop: [ALL]
           privileged: false
           readOnlyRootFilesystem: true
+          {{- if .Values.fleet.securityContext.runAsGroup }}
           runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+          {{- end }}
           runAsNonRoot: true
         livenessProbe:
           httpGet:
@@ -363,13 +369,21 @@ spec:
             drop: [ALL]
           privileged: false
           readOnlyRootFilesystem: true
+          {{- if .Values.fleet.securityContext.runAsGroup }}
           runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+          {{- end }}
           runAsNonRoot: true
       {{- end }}
       hostPID: false
       hostNetwork: false
       hostIPC: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8}}
+      {{- end }}
       serviceAccountName: fleet
       {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
       volumes:

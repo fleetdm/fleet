@@ -1,8 +1,11 @@
 .tab-nav {
-  position: sticky;
   top: 0;
   background-color: $core-white;
-  z-index: 2;
+
+  &--sticky {
+    position: sticky;
+    z-index: 2;
+  }
 
   .react-tabs {
     &__tab-list {

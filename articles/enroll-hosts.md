@@ -27,7 +27,9 @@ The `--type` flag is used to specify the fleetd installer type.
 
 A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
 
-To build an installer for ARM-based Linux, use the `--arch=arm64` flag with fleetctl.
+To generate fleetd for an Arm Linux or Windows host, use the `--arch=arm64` flag.
+
+> **Fleetd for Arm Windows is an experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 #### Example
 
@@ -131,7 +133,7 @@ How to unenroll a host from Fleet:
 
 2. For macOS hosts with MDM turned on, select **Actions > Turn off MDM** to turn MDM off. Instructions for turning off MDM on Windows hosts coming soon.
 
-3. Determine the platform of the host you're trying to unenroll and follow the instructions to uninstall the fleetd agent [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
+3. Determine the platform of the host you're trying to unenroll, then follow the [uninstall instructions](https://fleetdm.com/guides/how-to-uninstall-fleetd) for that platform.
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
@@ -360,8 +362,7 @@ When generating Fleet's agent (fleetd) for Windows hosts (**.msi**) on a Windows
 use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
 `light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
 so:
-  1. Install the WiX v3 binaries. To install, you can download them
-     [here](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
+  1. Download the [WiX v3 binaries](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
   2. Find the absolute filepath of the directory containing your local WiX v3 binaries. This will be wherever you saved the unzipped package contents.
   3. Run `fleetctl package`, and pass the absolute path above as the string argument to the
      `--local-wix-dir` flag. For example:
@@ -370,7 +371,7 @@ so:
      ```
      If the provided path doesn't contain all 3 binaries, the command will fail.
 
->**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://fleetdm.com/install-wine).
+>**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. We've built a [Wine installation script](https://fleetdm.com/install-wine) to help you get it.
 
 ### Config-less fleetd agent deployment
 

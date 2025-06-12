@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -859,6 +861,188 @@ func TestHostScriptDetailsAuth(t *testing.T) {
 					require.True(t, fleet.IsNotFound(err))
 				}
 			})
+		})
+	}
+}
+
+func TestBatchScriptExecute(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	t.Run("error if hosts do not all belong to the same team as script", func(t *testing.T) {
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 1, TeamID: ptr.Uint(1)},
+				{ID: 2, TeamID: ptr.Uint(1)},
+				{ID: 3, TeamID: ptr.Uint(2)},
+			}, nil
+		}
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			if id == 1 {
+				return &fleet.Script{ID: id, TeamID: ptr.Uint(1)}, nil
+			}
+			return &fleet.Script{ID: id}, nil
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2, 3}, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "all hosts must be on the same team as the script")
+	})
+
+	t.Run("error if both host_ids and filters are specified", func(t *testing.T) {
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2, 3}, &map[string]interface{}{"foo": "bar"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "cannot specify both host_ids and filters")
+	})
+
+	t.Run("error if filters are specified but no team_id", func(t *testing.T) {
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"label_id": float64(123)})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "filters must include a team filter")
+	})
+
+	t.Run("error if filters match too many hosts", func(t *testing.T) {
+		hosts := make([]*fleet.Host, 5001)
+		for i := 0; i < 5001; i++ {
+			hosts[i] = &fleet.Host{ID: uint(i + 1), TeamID: ptr.Uint(1)} // nolint:gosec // ignore G115
+		}
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return hosts, nil
+		}
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return hosts, nil
+		}
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			if id == 1 {
+				return &fleet.Script{ID: id, TeamID: ptr.Uint(1)}, nil
+			}
+			return &fleet.Script{ID: id}, nil
+		}
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"team_id": float64(1)})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "too_many_hosts")
+	})
+
+	t.Run("happy path", func(t *testing.T) {
+		var requestedHostIds []uint
+		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+			requestedHostIds = hostIDs
+			return "", errors.New("ok")
+		}
+		ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 1, TeamID: ptr.Uint(1)},
+				{ID: 2, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+		ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+			if id == 1 {
+				return &fleet.Script{ID: id, TeamID: ptr.Uint(1)}, nil
+			}
+			return &fleet.Script{ID: id}, nil
+		}
+		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+			return []*fleet.Host{
+				{ID: 3, TeamID: ptr.Uint(1)},
+				{ID: 4, TeamID: ptr.Uint(1)},
+			}, nil
+		}
+
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2}, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "ok")
+		require.Equal(t, []uint{1, 2}, requestedHostIds)
+
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		_, err = svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"team_id": float64(1)})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "ok")
+		require.Equal(t, []uint{3, 4}, requestedHostIds)
+	})
+}
+
+func TestWipeHostRequestDecodeBody(t *testing.T) {
+	ctx := context.Background()
+
+	testCases := []struct {
+		name          string
+		body          io.Reader
+		expectedError string
+		expectation   func(t *testing.T, req *wipeHostRequest)
+	}{
+		{
+			name: "empty body",
+			body: strings.NewReader(""),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.Nil(t, req.Metadata)
+			},
+		},
+		{
+			name: "doWipe",
+			body: strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.NotNil(t, req.Metadata)
+				require.NotNil(t, req.Metadata.Windows)
+				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipe, req.Metadata.Windows.WipeType)
+			},
+		},
+		{
+			name: "doWipeProtected",
+			body: strings.NewReader(`{"windows": {"wipe_type": "doWipeProtected"}}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.NotNil(t, req.Metadata)
+				require.NotNil(t, req.Metadata.Windows)
+				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipeProtected, req.Metadata.Windows.WipeType)
+			},
+		},
+		{
+			name:          "invalid wipe type",
+			body:          strings.NewReader(`{"windows": {"wipe_type": "doWipeProtectedII"}}`),
+			expectedError: "failed to unmarshal request body",
+		},
+		{
+			name: "empty payload",
+			body: strings.NewReader(`{}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.NotNil(t, req.Metadata)
+				require.Nil(t, req.Metadata.Windows)
+			},
+		},
+		{
+			name: "windows field is null",
+			body: strings.NewReader(`{"windows": null}`),
+			expectation: func(t *testing.T, req *wipeHostRequest) {
+				require.NotNil(t, req.Metadata)
+				require.Nil(t, req.Metadata.Windows)
+			},
+		},
+		{
+			name:          "empty wipe type",
+			body:          strings.NewReader(`{"windows": {"wipe_type": null}}`),
+			expectedError: "failed to unmarshal request body",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			sut := wipeHostRequest{}
+			err := sut.DecodeBody(ctx, tc.body, nil, nil)
+
+			if tc.expectedError != "" {
+				require.ErrorContains(t, err, tc.expectedError)
+			} else {
+				require.NoError(t, err)
+				tc.expectation(t, &sut)
+			}
 		})
 	}
 }

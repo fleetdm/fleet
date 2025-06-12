@@ -1,0 +1,71 @@
+.host-header {
+  &__device-status-tag {
+    margin-left: $pad-small;
+    background-color: $ui-warning;
+    padding: $pad-xsmall;
+    font-size: 10px;
+    font-weight: $bold;
+    border-radius: $border-radius;
+
+    &.warning {
+      background-color: $ui-warning;
+    }
+
+    &.error {
+      color: $core-white;
+      background-color: $core-vibrant-red;
+    }
+  }
+
+  &__last-fetched {
+    font-size: $xx-small;
+    color: $core-fleet-black;
+    margin: 0;
+    margin-left: $pad-medium;
+  }
+
+  &__refetch {
+    display: flex;
+    margin-left: $pad-medium;
+    margin-right: $pad-small;
+
+    .refetch-btn {
+      font-size: $x-small;
+      height: 38px;
+
+      &:hover {
+        svg {
+          path {
+            fill: $core-vibrant-blue-over;
+          }
+        }
+      }
+    }
+
+    .refetch-spinner {
+      color: $core-vibrant-blue;
+      cursor: default;
+      font-size: $x-small;
+      height: 38px;
+      opacity: 50%;
+      filter: saturate(100%);
+      margin-left: $pad-small;
+
+      .icon {
+        animation: spin 2s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+          transform-origin: center center;
+        }
+
+        100% {
+          transform: rotate(360deg);
+          transform-origin: center center;
+        }
+      }
+    }
+  }
+}

@@ -410,7 +410,12 @@ type SoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
-	SHA256          string `json:"sha256"`
+	SHA256          string   `json:"sha256"`
+	Categories      []string `json:"categories"`
+	// This is to support FMAs
+	Slug             *string        `json:"slug"`
+	AutomaticInstall *bool          `json:"automatic_install"`
+	MaintainedApp    *MaintainedApp `json:"-"`
 }
 
 type HostLockWipeStatus struct {
@@ -555,6 +560,42 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	default:
+		return false
+	}
+}
+
+var (
+	BatchExecuteIncompatiblePlatform = "incompatible-platform"
+	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
+)
+
+type BatchExecutionSummary struct {
+	ScriptID    uint      `json:"script_id" db:"script_id"`
+	ScriptName  string    `json:"script_name" db:"script_name"`
+	TeamID      *uint     `json:"team_id" db:"team_id"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	NumTargeted uint      `json:"targeted" db:"num_targeted"`
+	NumPending  uint      `json:"pending" db:"num_pending"`
+	NumRan      uint      `json:"ran" db:"num_ran"`
+	NumErrored  uint      `json:"errored" db:"num_errored"`
+	NumCanceled uint      `json:"canceled" db:"num_canceled"`
+}
+
+type BatchExecutionHost struct {
+	HostID          uint    `json:"host_id" db:"host_id"`
+	HostDisplayName string  `json:"host_display_name" db:"hostname"`
+	ExecutionID     *string `json:"execution_id,omitempty" db:"execution_id"`
+	Error           *string `json:"error,omitempty" db:"error"`
+}
+
+// ValidateScriptPlatform returns whether a script can run on a host based on its host.Platform
+func ValidateScriptPlatform(scriptName, platform string) bool {
+	switch filepath.Ext(scriptName) {
+	case ".sh":
+		return IsUnixLike(platform)
+	case ".ps1":
+		return platform == "windows"
 	default:
 		return false
 	}

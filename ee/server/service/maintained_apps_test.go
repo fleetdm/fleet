@@ -292,6 +292,9 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 		// Can't easily inject a proper fleet.service so we bail early before NewActivity gets called and panics
 		return 0, 0, errors.New("forced error to short-circuit storage and activity creation")
 	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
+	}
 
 	// Mock server to serve the "installer"
 	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

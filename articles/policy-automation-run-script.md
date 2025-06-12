@@ -4,7 +4,7 @@
 
 Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) introduces the ability to execute scripts on hosts automatically based on predefined policy failures. This guide will walk you through configuring Fleet to automatically execute scripts on hosts using uploaded scripts based on programmed policies.
 
-Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails. Learn more about scripts [here](https://fleetdm.com/guides/scripts).
+Fleet allows users to upload [scripts](https://fleetdm.com/guides/scripts) executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails.
 
 ## Prerequisites
 
@@ -16,9 +16,9 @@ Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts
 2. **Add a policy**: Navigate to **Policies**, select the team you want the policy to run on, and click **Add policy**. Follow the instructions to set up a custom policy or use one baked into Fleet. You can also add a script automation to an existing policy.
 3. **Set the automation**: In the previous step's **Policies** list view you navigated to, click **Manage automations**, then click **Run script**. Check the box beside the policy (or policies) for which you want to run scripts, then select a script in the drop-down that appears next to the policy name. When you're done associating policies to scripts, click **Save**.
 
-The next time a fleetd host fails the policy you added automation for, Fleet will queue up the script you selected and run it on the host as if you had requested a script run manually.
+When a host fails the selected policy, this will trigger the script to run on the host.
 
-> Adding a script to a policy will reset the policy's host counts.
+If the script fails, you can reset a script automation and trigger the script to run on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the script automation.
 
 ## How does it work?
 

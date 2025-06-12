@@ -52,20 +52,21 @@ locals {
   fleet_image    = var.fleet_image # Set this to the version of fleet to be deployed
   geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
   extra_environment_variables = {
-    FLEET_LICENSE_KEY                          = var.fleet_license
-    FLEET_LOGGING_DEBUG                        = "true"
-    FLEET_LOGGING_JSON                         = "true"
-    FLEET_LOGGING_TRACING_ENABLED              = "true"
-    FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
-    FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
+    FLEET_LICENSE_KEY   = var.fleet_license
+    FLEET_LOGGING_DEBUG = "true"
+    FLEET_LOGGING_JSON  = "true"
+    # FLEET_LOGGING_TRACING_ENABLED              = "true"
+    # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
+    FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
+    FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
-    ELASTIC_APM_SERVER_URL                     = var.elastic_url
-    ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
-    ELASTIC_APM_SERVICE_NAME                   = "dogfood"
-    FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
-    FLEET_DEV_ANDROID_ENABLED                  = "1"
-    FLEET_DEV_ANDROID_SERVICE_CREDENTIALS      = var.android_service_credentials
+    # ELASTIC_APM_SERVER_URL                     = var.elastic_url
+    # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
+    # ELASTIC_APM_SERVICE_NAME                   = "dogfood"
+    FLEET_CALENDAR_PERIODICITY            = var.fleet_calendar_periodicity
+    FLEET_DEV_ANDROID_ENABLED             = "1"
+    FLEET_DEV_ANDROID_SERVICE_CREDENTIALS = var.android_service_credentials
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
@@ -74,7 +75,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.13.0"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.15.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -90,6 +91,9 @@ module "main" {
     # VPN
     allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
     backup_retention_period = 30
+    cluster_tags = {
+      backup = "true"
+    }
   }
   redis_config = {
     name = local.customer
@@ -129,7 +133,7 @@ module "main" {
         policy_name = "${local.customer}-iam-policy-execution"
       }
     }
-    extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
+    extra_iam_policies = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
     extra_environment_variables = merge(
       module.firehose-logging.fleet_extra_environment_variables,
       module.osquery-carve.fleet_extra_environment_variables,
@@ -143,7 +147,7 @@ module "main" {
       [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn],
       module.cloudfront-software-installers.extra_execution_iam_policies,
     ) #, module.saml_auth_proxy.fleet_extra_execution_policies)
-    extra_secrets           = merge(
+    extra_secrets = merge(
       module.mdm.extra_secrets,
       local.sentry_secrets,
       module.cloudfront-software-installers.extra_secrets
@@ -155,9 +159,12 @@ module "main" {
     #   container_port   = 8080
     # }]
     software_installers = {
-      bucket_prefix = "${local.customer}-software-installers-"
+      bucket_prefix  = "${local.customer}-software-installers-"
       create_kms_key = true
       kms_alias      = "${local.customer}-software-installers"
+      tags = {
+        backup = "true"
+      }
     }
     # sidecars = [
     #   {

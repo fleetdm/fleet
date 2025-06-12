@@ -1,0 +1,309 @@
+{
+    "update_interval": {
+        "osquery_detail": 3600000000000,
+        "osquery_policy": 3600000000000
+    },
+    "vulnerabilities": {
+        "databases_path": "/home/fleet",
+        "periodicity": 3600000000000,
+        "cpe_database_url": "",
+        "cpe_translations_url": "",
+        "cve_feed_prefix_url": "",
+        "current_instance_checks": "auto",
+        "disable_data_sync": false,
+        "recent_vulnerability_max_age": 2592000000000000,
+        "disable_win_os_vulnerabilities": false
+    },
+    "license": {
+        "tier": "premium",
+        "organization": "fleet",
+        "device_count": 1000000,
+        "expiration": "2031-10-16T00:00:00Z",
+        "note": "dogfood env license"
+    },
+    "logging": {
+        "debug": true,
+        "json": true,
+        "result": {
+            "plugin": "firehose",
+            "config": {
+                "region": "us-east-2",
+                "status_stream": "osquery_status",
+                "result_stream": "osquery_results",
+                "audit_stream": "fleet_audit"
+            }
+        },
+        "status": {
+            "plugin": "firehose",
+            "config": {
+                "region": "us-east-2",
+                "status_stream": "osquery_status",
+                "result_stream": "osquery_results",
+                "audit_stream": "fleet_audit"
+            }
+        },
+        "audit": {
+            "plugin": "firehose",
+            "config": {
+                "region": "us-east-2",
+                "status_stream": "osquery_status",
+                "result_stream": "osquery_results",
+                "audit_stream": "fleet_audit"
+            }
+        }
+    },
+    "email": {
+        "backend": "ses",
+        "config": {
+            "region": "",
+            "source_arn": "some-ses-arn"
+        }
+    },
+    "android_enabled": true,
+    "org_info": {
+        "org_name": "Fleet",
+        "org_logo_url": "http://some-org-logo-url.com",
+        "org_logo_url_light_background": "http://some-org-logo-url-light-background.com",
+        "contact_url": "https://fleetdm.com/company/contact"
+    },
+    "server_settings": {
+        "server_url": "https://dogfood.fleetdm.com",
+        "live_query_disabled": false,
+        "enable_analytics": true,
+        "debug_host_ids": [
+            1,
+            3
+        ],
+        "deferred_save_host": false,
+        "query_reports_disabled": false,
+        "scripts_disabled": false,
+        "ai_features_disabled": false,
+        "query_report_cap": 1
+    },
+    "smtp_settings": {
+        "enable_smtp": false,
+        "configured": false,
+        "sender_address": "",
+        "server": "localhost",
+        "port": 587,
+        "authentication_type": "authtype_username_password",
+        "user_name": "",
+        "password": "",
+        "enable_ssl_tls": false,
+        "authentication_method": "authmethod_plain",
+        "domain": "",
+        "verify_ssl_certs": false,
+        "enable_start_tls": false
+    },
+    "host_expiry_settings": {
+        "host_expiry_enabled": false,
+        "host_expiry_window": 59995
+    },
+    "activity_expiry_settings": {
+        "activity_expiry_enabled": false,
+        "activity_expiry_window": 30
+    },
+    "features": {
+        "enable_host_users": true,
+        "enable_software_inventory": true,
+        "additional_queries": {
+            "time": "SELECT * FROM time",
+            "macs": "SELECT mac FROM interface_details"
+        },
+        "detail_query_overrides": {
+            "users": null,
+            "mdm": "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+        }
+    },
+    "agent_options": {
+        "config": {
+            "options": {
+                "pack_delimiter": "/",
+                "logger_tls_period": 10,
+                "distributed_plugin": "tls",
+                "disable_distributed": false,
+                "logger_tls_endpoint": "/api/osquery/log",
+                "distributed_interval": 10,
+                "distributed_tls_max_attempts": 3
+            },
+            "decorators": {
+                "load": [
+                    "SELECT uuid AS host_uuid FROM system_info;",
+                    "SELECT hostname AS hostname FROM system_info;"
+                ]
+            }
+        }
+    },
+    "sso_settings": {
+        "entity_id": "dogfood.fleetdm.com",
+        "issuer_uri": "https://some-sso-issuer-uri.com",
+        "metadata": "some-sso-metadata",
+        "metadata_url": "http://some-sso-metadata-url.com",
+        "idp_name": "some-idp-name",
+        "idp_image_url": "http://some-sso-idp-image-url.com",
+        "enable_sso": true,
+        "enable_sso_idp_login": false,
+        "enable_jit_provisioning": true,
+        "enable_jit_role_sync": false
+    },
+    "fleet_desktop": {
+        "transparency_url": "https://fleetdm.com/transparency"
+    },
+    "vulnerability_settings": {
+        "databases_path": ""
+    },
+    "webhook_settings": {
+        "activities_webhook": {
+            "enable_activities_webhook": true,
+            "destination_url": "https://some-activities-webhook-url.com"
+        },
+        "host_status_webhook": {
+            "enable_host_status_webhook": true,
+            "destination_url": "https://some-host-status-webhook-url.com",
+            "host_percentage": 20,
+            "days_count": 5
+        },
+        "failing_policies_webhook": {
+            "enable_failing_policies_webhook": true,
+            "destination_url": "https://some-failing-policies-webhook-url.com",
+            "policy_ids": [],
+            "host_batch_size": 2
+        },
+        "vulnerabilities_webhook": {
+            "enable_vulnerabilities_webhook": true,
+            "destination_url": "https://some-vulerabilities-webhook-url.com",
+            "host_batch_size": 3
+        },
+        "interval": "6h0m0s"
+    },
+    "integrations": {
+        "jira": [
+            {
+                "url": "https://some-jira-url.com",
+                "username": "some-jira-username",
+                "api_token": "some-jira-api-token",
+                "project_key": "some-jira-project-key"
+            }
+        ],
+        "zendesk": [
+            {
+                "url": "https://some-zendesk-url.com",
+                "email": "some-zendesk-email@example.com",
+                "api_token": "some-zendesk-api-token",
+                "group_id": 123456789
+            }
+        ],
+        "conditional_access_enabled": true,
+        "google_calendar": [
+            {
+                "domain": "fleetdm.com",
+                "api_key_json": {
+                    "owl": "hoot"
+                }
+            }
+        ],
+        "digicert": [
+            {
+                "name": "some-digicert-name",
+                "url": "https://some-digicert-url.com",
+                "api_token": "some-digicert-api-token",
+                "profile_id": "some-digicert-profile-id",
+                "certificate_common_name": "some-digicert-certificate-common-name",
+                "certificate_user_principal_names": [
+                    "some-digicert-certificate-user-principal-name",
+                    "some-other-digicert-certificate-user-principal-name"
+                ],
+                "certificate_seat_id": "some-digicert-certificate-seat-id"
+            }
+        ],
+        "ndes_scep_proxy": {
+            "url": "https://some-ndes-scep-proxy-url.com",
+            "admin_url": "https://some-ndes-admin-url.com",
+            "username": "some-ndes-username",
+            "password": "some-ndes-password"
+        },
+        "custom_scep_proxy": [
+            {
+                "name": "some-custom-scep-proxy-name",
+                "url": "https://some-custom-scep-proxy-url.com",
+                "challenge": "some-custom-scep-proxy-challenge"
+            }
+        ]
+    },
+    "mdm": {
+        "apple_server_url": "http://some-apple-server-url.com",
+        "apple_business_manager": [
+            {
+                "organization_name": "Fleet Device Management Inc.",
+                "macos_team": "💻 Workstations",
+                "ios_team": "📱🏢 Company-owned mobile devices",
+                "ipados_team": "📱🏢 Company-owned mobile devices"
+            }
+        ],
+        "apple_bm_enabled_and_configured": true,
+        "apple_bm_terms_expired": false,
+        "enabled_and_configured": true,
+        "macos_updates": {
+            "minimum_version": "15.1",
+            "deadline": "2024-12-31"
+        },
+        "ios_updates": {
+            "minimum_version": "18.1",
+            "deadline": "2025-12-31"
+        },
+        "ipados_updates": {
+            "minimum_version": "18.2",
+            "deadline": "2026-12-31"
+        },
+        "windows_updates": {
+            "deadline_days": 5,
+            "grace_period_days": 2
+        },
+        "macos_settings": {
+            "custom_settings": null
+        },
+        "macos_setup": {
+            "bootstrap_package": "some-bootstrap-package",
+            "enable_end_user_authentication": true,
+            "macos_setup_assistant": "",
+            "enable_release_device_manually": false,
+            "script": "",
+            "software": []
+        },
+        "macos_migration": {
+            "enable": true,
+            "mode": "voluntary",
+            "webhook_url": "https://some-macos-migration-webhook-url.com"
+        },
+        "windows_migration_enabled": true,
+        "end_user_authentication": {
+            "entity_id": "some-mdm-entity-id.com",
+            "issuer_uri": "https://some-mdm-issuer-uri.com",
+            "metadata": "some-mdm-metadata",
+            "metadata_url": "http://some-mdm-metadata-url.com",
+            "idp_name": "some-other-idp-name"
+        },
+        "windows_enabled_and_configured": true,
+        "enable_disk_encryption": true,
+        "windows_settings": {
+            "custom_settings": []
+        },
+        "volume_purchasing_program": [
+            {
+                "location": "Fleet Device Management Inc.",
+                "teams": [
+                    "💻 Workstations",
+                    "💻🐣 Workstations (canary)",
+                    "📱🏢 Company-owned mobile devices",
+                    "📱🔐 Personal mobile devices"
+                ]
+            }
+        ],
+        "android_enabled_and_configured": true
+    },
+    "gitops": {
+        "gitops_mode_enabled": false,
+        "repository_url": "https://github.com/fleetdm/fleet/tree/main/it-and-security"
+    },
+    "scripts": []
+}

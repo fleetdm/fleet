@@ -3,12 +3,6 @@
   overflow: initial; // auto causes double scroll bar  but still needed for other pages .main-content div
   padding-bottom: 60px; // replaces white padding on off-white page
 
-  .data-error {
-    &__inner {
-      margin: $pad-xxxlarge 0;
-    }
-  }
-
   &__wrapper {
     background-color: $ui-off-white;
   }

@@ -1,9 +1,15 @@
 import React, { useContext, useState, useEffect } from "react";
+import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import paths from "router/paths";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
-import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  isSoftwarePackage,
+} from "interfaces/software";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { NotificationContext } from "context/notification";
@@ -16,14 +22,16 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
-import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
+import FileProgressModal from "components/FileProgressModal";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
-import PackageForm from "pages/SoftwarePage/components/PackageForm";
-import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
-import SoftwareVppForm from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm";
-import { ISoftwareVppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp/SoftwareVppForm/SoftwareVppForm";
+import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import SoftwareVppForm from "pages/SoftwarePage/components/forms/SoftwareVppForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
 import {
   generateSelectedLabels,
   getCustomTarget,
@@ -46,6 +54,9 @@ interface IEditSoftwareModalProps {
   refetchSoftwareTitle: () => void;
   onExit: () => void;
   installerType: "package" | "vpp";
+  router: InjectedRouter;
+  gitOpsModeEnabled?: boolean;
+  openViewYamlModal: () => void;
 }
 
 const EditSoftwareModal = ({
@@ -55,6 +66,9 @@ const EditSoftwareModal = ({
   onExit,
   refetchSoftwareTitle,
   installerType,
+  router,
+  gitOpsModeEnabled = false,
+  openViewYamlModal,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -67,6 +81,11 @@ const EditSoftwareModal = ({
     setShowConfirmSaveChangesModal,
   ] = useState(false);
   const [
+    showPreviewEndUserExperienceModal,
+    setShowPreviewEndUserExperienceModal,
+  ] = useState(false);
+
+  const [
     pendingPackageUpdates,
     setPendingPackageUpdates,
   ] = useState<IEditPackageFormData>({
@@ -77,6 +96,7 @@ const EditSoftwareModal = ({
     targetType: "",
     customTarget: "",
     labelTargets: {},
+    categories: [],
   });
   const [
     pendingVppUpdates,
@@ -87,6 +107,7 @@ const EditSoftwareModal = ({
     targetType: "",
     customTarget: "",
     labelTargets: {},
+    categories: [],
   });
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -105,11 +126,13 @@ const EditSoftwareModal = ({
       classnames(baseClass, {
         [`${baseClass}--hidden`]:
           showConfirmSaveChangesModal ||
+          showPreviewEndUserExperienceModal ||
           (!!pendingPackageUpdates.software && isUpdatingSoftware),
       })
     );
   }, [
     showConfirmSaveChangesModal,
+    showPreviewEndUserExperienceModal,
     pendingPackageUpdates.software,
     isUpdatingSoftware,
   ]);
@@ -139,6 +162,10 @@ const EditSoftwareModal = ({
     setShowConfirmSaveChangesModal(!showConfirmSaveChangesModal);
   };
 
+  const togglePreviewEndUserExperienceModal = () => {
+    setShowPreviewEndUserExperienceModal(!showPreviewEndUserExperienceModal);
+  };
+
   // Edit package API call
   const onEditPackage = async (formData: IEditPackageFormData) => {
     setIsUpdatingSoftware(true);
@@ -166,17 +193,26 @@ const EditSoftwareModal = ({
         },
       });
 
-      renderFlash(
-        "success",
-        <>
-          Successfully edited <b>{formData.software?.name}</b>.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
-      );
-      onExit();
+      if (
+        isSoftwarePackage(software) &&
+        software.title_id &&
+        gitOpsModeEnabled
+      ) {
+        // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
+        openViewYamlModal();
+      } else {
+        renderFlash(
+          "success",
+          <>
+            Successfully edited <b>{formData.software?.name}</b>.
+            {formData.selfService
+              ? " The end user can install from Fleet Desktop."
+              : ""}
+          </>
+        );
+      }
       refetchSoftwareTitle();
+      onExit();
     } catch (e) {
       renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
     }
@@ -276,13 +312,14 @@ const EditSoftwareModal = ({
           isEditingSoftware
           onCancel={onExit}
           onSubmit={onClickSavePackage}
+          onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
           defaultSoftware={software}
           defaultInstallScript={softwarePackage.install_script}
           defaultPreInstallQuery={softwarePackage.pre_install_query}
           defaultPostInstallScript={softwarePackage.post_install_script}
           defaultUninstallScript={softwarePackage.uninstall_script}
           defaultSelfService={softwarePackage.self_service}
-          gitopsCompatible
+          defaultCategories={softwarePackage.categories}
         />
       );
     }
@@ -294,6 +331,7 @@ const EditSoftwareModal = ({
         onSubmit={onClickSaveVpp}
         onCancel={onExit}
         isLoading={isUpdatingSoftware}
+        onClickPreviewEndUserExperience={togglePreviewEndUserExperienceModal}
       />
     );
   };
@@ -314,6 +352,11 @@ const EditSoftwareModal = ({
           softwareInstallerName={software?.name}
           installerType={installerType}
           onSaveChanges={onClickConfirmChanges}
+        />
+      )}
+      {showPreviewEndUserExperienceModal && (
+        <CategoriesEndUserExperienceModal
+          onCancel={togglePreviewEndUserExperienceModal}
         />
       )}
       {!!pendingPackageUpdates.software && isUpdatingSoftware && (

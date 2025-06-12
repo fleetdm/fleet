@@ -44,27 +44,27 @@ jobs:
       matrix:
         suite: ["integration-core", "integration-enterprise", "integration-mdm", "fast", "fleetctl", "main", "mysql", "scripts", "service", "vuln"]
         os: [ubuntu-latest]
-        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.3", "mysql:9.1.0"] # make sure to update supported versions docs when this changes
+        mysql: ["mysql:8.0.32", "mysql:8.0.36", "mysql:8.4.5", "mysql:9.3.0"] # make sure to update supported versions docs when this changes
         isCron:
           - ${{ github.event_name == 'schedule' }}
         exclude:
           - isCron: false
-            mysql: "mysql:9.1.0" # Only run MySQL 9 tests on cron schedule
+            mysql: "mysql:8.4.5" # Run MySQL 8.4.X tests on cron schedule and not every time. We run MySQL 9.X tests every time since they are faster than 8.X tests.
           - isCron: false
-            mysql: "mysql:8.0.32" # Only run MySQL 8.0.32 tests on cron schedule
+            mysql: "mysql:8.0.32" # Run MySQL 8.0.32 tests on cron schedule and not every time.
           # The suites below do not need MySQL, so we exclude additional MySQL options from the above matrix.
           - suite: "fast"
             mysql: "mysql:8.0.32" # We must make sure that at least 1 instance of this suite will run, which is 8.0.36 in this case
           - suite: "fast"
-            mysql: "mysql:8.4.3"
+            mysql: "mysql:8.4.5"
           - suite: "fast"
-            mysql: "mysql:9.1.0"
+            mysql: "mysql:9.3.0"
           - suite: "scripts"
             mysql: "mysql:8.0.32"
           - suite: "scripts"
-            mysql: "mysql:8.4.3"
+            mysql: "mysql:8.4.5"
           - suite: "scripts"
-            mysql: "mysql:9.1.0"
+            mysql: "mysql:9.3.0"
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
     continue-on-error: true
@@ -73,6 +73,7 @@ jobs:
     env:
       RACE_ENABLED: false
       GO_TEST_TIMEOUT: 20m
+      DOCKER_COMMAND: docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test
 
     steps:
     - name: Harden Runner
@@ -133,7 +134,7 @@ jobs:
     - name: Start Infra Dependencies
       if: ${{ env.NEED_DOCKER }}
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND &
 
     - name: Add TLS certificate for SMTP Tests
       if: ${{ env.NEED_DOCKER }}
@@ -153,18 +154,89 @@ jobs:
     - name: Wait for mysql
       if: ${{ env.NEED_DOCKER }}
       run: |
-        echo "waiting for mysql..."
-        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+        # Function to wait for MySQL with timeout
+        wait_for_mysql() {
+          local container_name=$1
+          local timeout_seconds=60  # 1 minute
+          local start_time=$(date +%s)
+          local attempt_logs=""
+          
+          echo "waiting for ${container_name}..."
+          while true; do
+            # Check if timeout has been reached
+            current_time=$(date +%s)
+            elapsed_time=$((current_time - start_time))
+            if [ $elapsed_time -ge $timeout_seconds ]; then
+              echo "Timeout reached (${timeout_seconds}s) while waiting for ${container_name}"
+              echo "Connection attempt logs:"
+              echo "$attempt_logs"
+              # Dump MySQL container logs
+              echo "Dumping ${container_name} logs:"
+              docker compose logs ${container_name}
+              return 1
+            fi
+            
+            # Try to connect to MySQL
+            output=$(docker compose exec -T $container_name sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" 2>&1)
+            exit_code=$?
+            
+            # Log the attempt
+            timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+            attempt_logs="${attempt_logs}$(printf "\n%s - Exit code: %s - Output: %s" "$timestamp" "$exit_code" "$output")"
+        
+            # If connection successful, break the loop
+            if [ $exit_code -eq 0 ]; then
+              echo "${container_name} is ready"
+              return 0
+            fi
+            
             echo "."
             sleep 1
+          done
+        }
+        
+        # Function to restart containers
+        restart_containers() {
+          echo "Stopping all containers..."
+          docker compose down
+          
+          echo "Restarting containers..."
+          FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND &
+          
+          # Give containers a moment to start
+          sleep 10
+        }
+        
+        # Try up to 5 times to connect to MySQL
+        max_attempts=5
+        attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+          echo "Attempt $attempt of $max_attempts"
+          
+          # Try to connect to MySQL
+          if wait_for_mysql "mysql_test"; then
+            # If MySQL is ready, try to connect to MySQL replica
+            if wait_for_mysql "mysql_replica_test"; then
+              # Both are ready, we're done
+              echo "All MySQL connections successful"
+              exit 0
+            fi
+          fi
+          
+          # If we get here, at least one connection failed
+          echo "Failed to connect to MySQL on attempt $attempt"
+          
+          if [ $attempt -lt $max_attempts ]; then
+            echo "Restarting containers and trying again..."
+            restart_containers
+          else
+            echo "Maximum attempts reached. Failing the job."
+            exit 1
+          fi
+          
+          attempt=$((attempt + 1))
         done
-        echo "mysql is ready"
-        echo "waiting for mysql replica..."
-        until docker compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
-            echo "."
-            sleep 1
-        done
-        echo "mysql replica is ready"
 
     - name: Generate test schema
       if: ${{ env.GENERATE_TEST_SCHEMA }}

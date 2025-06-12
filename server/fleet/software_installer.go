@@ -137,7 +137,7 @@ type SoftwareInstaller struct {
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetMaintainedAppID *uint `json:"-" db:"fleet_maintained_app_id"`
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -145,7 +145,11 @@ type SoftwareInstaller struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this software installer (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
-	Source           string               `json:"-" db:"source"`
+	// Source is the osquery source for this software.
+	Source string `json:"-" db:"source"`
+	// Categories is the list of categories to which this software belongs: e.g. "Productivity",
+	// "Browsers", etc.
+	Categories []string `json:"categories"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -157,6 +161,10 @@ type SoftwarePackageResponse struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
+	// HashSHA256 is the SHA256 hash of the software installer.
+	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
+	// ID of the Fleet Maintained App this package uses, if any
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
 }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
@@ -380,18 +388,26 @@ type UploadSoftwareInstallerPayload struct {
 	ValidatedLabels       *LabelIdentsWithScope
 	AutomaticInstall      bool
 	AutomaticInstallQuery string
+	Categories            []string
+	CategoryIDs           []uint
+	// AddedAutomaticInstallPolicy is the auto-install policy that can be
+	// automatically created when a software installer is added to Fleet. This field should be set
+	// after software installer creation if AutomaticInstall is true.
+	AddedAutomaticInstallPolicy *Policy
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint    `db:"installer_id"`
-	TeamID           *uint   `db:"team_id"`
-	Filename         string  `db:"filename"`
-	Extension        string  `db:"extension"`
-	Version          string  `db:"version"`
-	Platform         string  `db:"platform"`
-	Source           string  `db:"source"`
-	BundleIdentifier *string `db:"bundle_identifier"`
-	Title            string  `db:"title"`
+	InstallerID      uint     `db:"installer_id"`
+	TeamID           *uint    `db:"team_id"`
+	Filename         string   `db:"filename"`
+	Extension        string   `db:"extension"`
+	Version          string   `db:"version"`
+	Platform         string   `db:"platform"`
+	Source           string   `db:"source"`
+	BundleIdentifier *string  `db:"bundle_identifier"`
+	Title            string   `db:"title"`
+	PackageIDList    string   `db:"package_ids"`
+	PackageIDs       []string ``
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -421,6 +437,8 @@ type UpdateSoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
 	// can be nil if the labels have not been validated or if the labels are not being updated.
 	ValidatedLabels *LabelIdentsWithScope
+	Categories      []string
+	CategoryIDs     []uint
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -444,15 +462,17 @@ func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error
 			return "apps", nil
 		}
 		return "pkg_packages", nil
+	case "tar.gz":
+		return "tgz_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
 	}
 }
 
-func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
+func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
-	case "deb", "rpm":
+	case "deb", "rpm", "tar.gz":
 		return "linux", nil
 	case "exe", "msi":
 		return "windows", nil
@@ -516,7 +536,9 @@ type SoftwarePackageOrApp struct {
 	PackageURL    *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
-	InstallDuringSetup *bool `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	InstallDuringSetup   *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	FleetMaintainedAppID *uint    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
+	Categories           []string `json:"categories,omitempty"`
 }
 
 type SoftwarePackageSpec struct {
@@ -529,6 +551,10 @@ type SoftwarePackageSpec struct {
 	LabelsIncludeAny  []string              `json:"labels_include_any"`
 	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
 
+	// FMA
+	Slug             *string `json:"slug"`
+	AutomaticInstall *bool   `json:"automatic_install"`
+
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
 	// side of processing. This is required to match a macos_setup.software to
@@ -537,13 +563,24 @@ type SoftwarePackageSpec struct {
 	// It must be JSON-marshaled because it gets set during gitops file processing,
 	// which is then re-marshaled to JSON from this struct and later re-unmarshaled
 	// during ApplyGroup...
-	ReferencedYamlPath string `json:"referenced_yaml_path"`
-	SHA256             string `json:"hash_sha256"`
+	ReferencedYamlPath string   `json:"referenced_yaml_path"`
+	SHA256             string   `json:"hash_sha256"`
+	Categories         []string `json:"categories"`
+}
+
+type FleetMaintainedAppsSpec struct {
+	Slug             string   `json:"slug"`
+	AutomaticInstall *bool    `json:"automatic_install"`
+	SelfService      bool     `json:"self_service"`
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	Categories       []string `json:"categories"`
 }
 
 type SoftwareSpec struct {
-	Packages     optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
-	AppStoreApps optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
+	Packages            optjson.Slice[SoftwarePackageSpec]     `json:"packages,omitempty"`
+	FleetMaintainedApps optjson.Slice[FleetMaintainedAppsSpec] `json:"fleet_maintained_apps,omitempty"`
+	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

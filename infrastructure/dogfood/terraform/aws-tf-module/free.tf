@@ -35,6 +35,9 @@ module "free" {
     allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
     subnets                 = module.main.vpc.database_subnets
     backup_retention_period = 30
+    cluster_tags = {
+      backup = "true"
+    }
   }
   redis_config = {
     name = local.customer_free

@@ -76,6 +76,7 @@ type PolicyRunScript struct {
 type PolicyInstallSoftware struct {
 	PackagePath string `json:"package_path"`
 	AppStoreID  string `json:"app_store_id"`
+	HashSHA256  string `json:"hash_sha256"`
 }
 
 type Query struct {
@@ -94,8 +95,9 @@ type SoftwarePackage struct {
 }
 
 type Software struct {
-	Packages     []SoftwarePackage           `json:"packages"`
-	AppStoreApps []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
+	Packages            []SoftwarePackage               `json:"packages"`
+	AppStoreApps        []fleet.TeamSpecAppStoreApp     `json:"app_store_apps"`
+	FleetMaintainedApps []fleet.FleetMaintainedAppsSpec `json:"fleet_maintained_apps"`
 }
 
 type GitOps struct {
@@ -115,8 +117,9 @@ type GitOps struct {
 }
 
 type GitOpsSoftware struct {
-	Packages     []*fleet.SoftwarePackageSpec
-	AppStoreApps []*fleet.TeamSpecAppStoreApp
+	Packages            []*fleet.SoftwarePackageSpec
+	AppStoreApps        []*fleet.TeamSpecAppStoreApp
+	FleetMaintainedApps []*fleet.FleetMaintainedAppsSpec
 }
 
 type Logf func(format string, a ...interface{})
@@ -486,6 +489,21 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		}
 	}
 
+	// Find the Fleet Secrets in the macos setup script file
+	if result.Controls.MacOSSetup != nil {
+		if result.Controls.MacOSSetup.Script.Set {
+			startupScriptPath := resolveApplyRelativePath(controlsDir, result.Controls.MacOSSetup.Script.Value)
+			fileBytes, err := os.ReadFile(startupScriptPath)
+			if err != nil {
+				return multierror.Append(multiError, fmt.Errorf("failed to read macos_setup script file %s: %v", startupScriptPath, err))
+			}
+			err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+			if err != nil {
+				return multierror.Append(multiError, err)
+			}
+		}
+	}
+
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
 		// We are marshalling/unmarshalling to get the data into the fleet.MacOSSettings struct.
@@ -816,8 +834,8 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	if policy.InstallSoftware != nil && (policy.InstallSoftware.PackagePath != "" || policy.InstallSoftware.AppStoreID != "") && teamName == nil {
 		return errors.New("install_software can only be set on team policies")
 	}
-	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" {
-		return errors.New("install_software must include either a package path or app store app ID")
+	if policy.InstallSoftware.PackagePath == "" && policy.InstallSoftware.AppStoreID == "" && policy.InstallSoftware.HashSHA256 == "" {
+		return errors.New("install_software must include either a package_path, an app_store_id or a hash_sha256")
 	}
 	if policy.InstallSoftware.PackagePath != "" && policy.InstallSoftware.AppStoreID != "" {
 		return errors.New("install_software must have only one of package_path or app_store_id")
@@ -981,6 +999,20 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
+	for _, item := range software.FleetMaintainedApps {
+		item := item
+		if item.Slug == "" {
+			multiError = multierror.Append(multiError, errors.New("fleet maintained app slug is required"))
+			continue
+		}
+
+		if len(item.LabelsExcludeAny) > 0 && len(item.LabelsIncludeAny) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, item.Slug))
+			continue
+		}
+
+		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &item)
+	}
 	for _, item := range software.Packages {
 		var softwarePackageSpec fleet.SoftwarePackageSpec
 		if item.Path != nil {
@@ -1050,6 +1082,10 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			// certain that the package will fail later.
 			if strings.HasSuffix(parsedUrl.Path, ".exe") {
 				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to an .exe package, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
+				continue
+			}
+			if strings.HasSuffix(parsedUrl.Path, ".tar.gz") || strings.HasSuffix(parsedUrl.Path, ".tgz") {
+				multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
 				continue
 			}
 		}

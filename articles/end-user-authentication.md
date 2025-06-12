@@ -22,7 +22,7 @@ Apple's Device Enrollment Program (DEP) was the original, separate Apple service
 
 The first step is to enable SAML (Security Assertion Markup Language) SSO for your IdP (Identity Provider). Follow the instructions from the [Single sign-on guide](https://fleetdm.com/docs/deploy/single-sign-on-sso). Use the URL ending with `/mdm/sso/callback.` Make sure to assign users to your SAML integration.
 
-Fleet's guide for setting up end-user authentication during the macOS setup experience is available [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula). Note that setting up end-user authentication is done globally. However, enabling end-user authentication is done separately for each team. You may test end-user authentication in a separate team before rolling it out to the rest of your organization.
+You can [require users to authenticate with your IdP before using their Mac](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula). Note that setting up end-user authentication is done globally. However, enabling end-user authentication is done separately for each team. You may test end-user authentication in a separate team before rolling it out to the rest of your organization.
 
 With end-user authentication enabled for your team, Fleet sends the updated enrollment profile to Apple. This sync happens once a minute and can be adjusted with the [mdm.apple_dep_sync_periodicity](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-dep-sync-periodicity) server configuration setting. The relevant attribute of the [Apple enrollment profile](https://developer.apple.com/documentation/devicemanagement/profile) is `configuration_web_url`. Fleet sets it to `{server_url}/mdm/sso`.
 
@@ -58,7 +58,7 @@ Fleet refreshes host details once per hour by default. As part of the refresh pr
 
 ## Sequence diagram
 
-For additional technical details, including a sequence diagram, see [Fleet's contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/MDM-end-user-authentication.md).
+For additional technical details, including a sequence diagram, see [Fleet's contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/mdm/mdm-end-user-authentication.md).
 
 ## Summary
 

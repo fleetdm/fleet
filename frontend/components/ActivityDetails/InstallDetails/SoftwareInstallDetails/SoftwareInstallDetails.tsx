@@ -1,4 +1,5 @@
 // Used on: Dashboard > activity, Host details > past activity
+// Also used on Self-service failed install details
 
 import React from "react";
 import { useQuery } from "react-query";
@@ -11,12 +12,14 @@ import {
   ISoftwareInstallResults,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
+import deviceUserAPI from "services/entities/device_user";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import Spinner from "components/Spinner/Spinner";
 import {
   INSTALL_DETAILS_STATUS_ICONS,
@@ -30,7 +33,9 @@ const baseClass = "software-install-details";
 export type IPackageInstallDetails = Pick<
   IActivityDetails,
   "install_uuid" | "host_display_name"
->;
+> & {
+  deviceAuthToken?: string;
+};
 
 const StatusMessage = ({
   result: {
@@ -50,6 +55,8 @@ const StatusMessage = ({
     "the host"
   );
 
+  // TODO: Potential implementation HumanTimeDiffWithDateTip for consistency
+  // Design currently looks weird since displayTimeStamp might split to multiple lines
   const timeStamp = updated_at || created_at;
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
@@ -92,6 +99,7 @@ const Output = ({
 export const SoftwareInstallDetails = ({
   host_display_name = "",
   install_uuid = "",
+  deviceAuthToken,
 }: IPackageInstallDetails) => {
   const { data: result, isLoading, isError, error } = useQuery<
     ISoftwareInstallResults,
@@ -100,7 +108,9 @@ export const SoftwareInstallDetails = ({
   >(
     ["softwareInstallResults", install_uuid],
     () => {
-      return softwareAPI.getSoftwareInstallResult(install_uuid);
+      return deviceAuthToken
+        ? deviceUserAPI.getSoftwareInstallResult(deviceAuthToken, install_uuid)
+        : softwareAPI.getSoftwareInstallResult(install_uuid);
     },
     {
       refetchOnWindowFocus: false,
@@ -112,18 +122,36 @@ export const SoftwareInstallDetails = ({
 
   if (isLoading) {
     return <Spinner />;
-  } else if (isError && error?.status === 404) {
-    return (
-      <DataError
-        description="Install details are no longer available for this activity."
-        excludeIssueLink
-      />
-    );
-  } else if (isError) {
-    return <DataError description="Close this modal and try again." />;
-  } else if (!result) {
+  }
+
+  if (isError) {
+    if (error?.status === 404) {
+      return deviceAuthToken ? (
+        <DeviceUserError />
+      ) : (
+        <DataError
+          description="Install details are no longer available for this activity."
+          excludeIssueLink
+        />
+      );
+    }
+
+    if (error?.status === 401) {
+      return deviceAuthToken ? (
+        <DeviceUserError />
+      ) : (
+        <DataError description="Close this modal and try again." />
+      );
+    }
+  }
+
+  if (!result) {
     // FIXME: Find a better solution for this.
-    return <DataError description="No data returned." />;
+    return deviceAuthToken ? (
+      <DeviceUserError />
+    ) : (
+      <DataError description="No data returned." />
+    );
   }
 
   return (
@@ -151,9 +179,11 @@ export const SoftwareInstallDetails = ({
 export const SoftwareInstallDetailsModal = ({
   details,
   onCancel,
+  deviceAuthToken,
 }: {
   details: IPackageInstallDetails;
   onCancel: () => void;
+  deviceAuthToken?: string;
 }) => {
   return (
     <Modal
@@ -164,7 +194,10 @@ export const SoftwareInstallDetailsModal = ({
     >
       <>
         <div className={`${baseClass}__modal-content`}>
-          <SoftwareInstallDetails {...details} />
+          <SoftwareInstallDetails
+            {...details}
+            deviceAuthToken={deviceAuthToken}
+          />
         </div>
         <div className="modal-cta-wrap">
           <Button onClick={onCancel}>Done</Button>

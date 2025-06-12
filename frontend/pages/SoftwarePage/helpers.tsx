@@ -163,6 +163,7 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
 
 export const SELF_SERVICE_TOOLTIP = (
   <>
-    End users can install from <b>Fleet Desktop</b> &gt; <b>Self-service</b>.
+    End users can install from <br />
+    <b>Fleet Desktop</b> &gt; <b>Self-service</b>.
   </>
 );

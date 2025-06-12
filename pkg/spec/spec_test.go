@@ -223,3 +223,54 @@ func TestLookupEnvSecrets(t *testing.T) {
 		require.Equal(t, tc.expResult, secretsMap)
 	}
 }
+
+func TestGetExclusionZones(t *testing.T) {
+	testCases := []struct {
+		fixturePath []string
+		expected    map[[2]int]string
+	}{
+		{
+			[]string{"testdata", "policies", "policies.yml"},
+			map[[2]int]string{
+				[2]int{46, 106}:  "  description: This policy should always fail.\n  resolution:",
+				[2]int{93, 155}:  "  resolution: There is no resolution for this policy.\n  query:",
+				[2]int{268, 328}: "  description: This policy should always pass.\n  resolution:",
+				[2]int{315, 678}: "  resolution: |\n    Automated method:\n    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n  query:",
+			},
+		},
+		{
+			[]string{"testdata", "global_config_no_paths.yml"},
+			map[[2]int]string{
+				[2]int{866, 949}:   "    description: Collect osquery performance stats directly from osquery\n    query:", //
+				[2]int{1754, 1818}: "    description: This policy should always fail.\n    resolution:",                    //
+				[2]int{1803, 1869}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				[2]int{1986, 2050}: "    description: This policy should always pass.\n    resolution:",                    //
+				[2]int{2035, 2101}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				[2]int{2394, 2458}: "    description: This policy should always fail.\n    resolution:",                    //
+				[2]int{2443, 2509}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				[2]int{2613, 2677}: "    description: This policy should always fail.\n    resolution:",                    //
+				[2]int{2662, 3035}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
+				[2]int{6102, 6149}: "    description: A cool global label\n    query:", //
+				[2]int{6246, 6292}: "    description: A fly global label\n    hosts:",  //
+			},
+		},
+	}
+
+	for _, tC := range testCases {
+		fPath := filepath.Join(tC.fixturePath...)
+
+		t.Run(fPath, func(t *testing.T) {
+			fContents, err := os.ReadFile(fPath)
+			require.NoError(t, err)
+
+			contents := string(fContents)
+			actual := getExclusionZones(contents)
+			require.Equal(t, len(tC.expected), len(actual))
+
+			for pos, text := range tC.expected {
+				require.Contains(t, actual, pos)
+				require.Equal(t, contents[pos[0]:pos[1]], text, pos)
+			}
+		})
+	}
+}

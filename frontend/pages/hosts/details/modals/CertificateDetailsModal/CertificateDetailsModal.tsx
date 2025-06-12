@@ -42,6 +42,21 @@ const CertificateDetailsModal = ({
     signing_algorithm,
   } = certificate;
 
+  let serialDecimal = "";
+  try {
+    if (serial) {
+      // Convert the serial number to decimal and display it if it is less than 2^63 to
+      // match keychain and openSSL display behavior
+      const serialParsed = BigInt(`0x${serial}`);
+      if (serialParsed < BigInt("0x8000000000000000")) {
+        serialDecimal = serialParsed.toString(10);
+      }
+    }
+  } catch (e) {
+    // The serial couldn't be converted to decimal but this is best effort so not a big deal
+    // since we will still show the original representation, whatever it was
+  }
+
   const showSubjectSection = Boolean(
     subjectCountry ||
       subjectOrganization ||
@@ -184,8 +199,15 @@ const CertificateDetailsModal = ({
                 )}
                 {serial && (
                   <DataSet
-                    title="Serial number"
+                    title="Serial number (hex)"
                     value={serial}
+                    orientation="horizontal"
+                  />
+                )}
+                {serialDecimal && (
+                  <DataSet
+                    title="Serial number (decimal)"
+                    value={serialDecimal}
                     orientation="horizontal"
                   />
                 )}

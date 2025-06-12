@@ -201,6 +201,7 @@ export const createMockSoftwareVersionResponse = (
 
 const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   name: "TestPackage-1.2.3.pkg",
+  title_id: 2,
   version: "1.2.3",
   uploaded_at: "2020-01-01T00:00:00.000Z",
   install_script: "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
@@ -218,9 +219,8 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
     failed_uninstall: 1,
   },
   automatic_install_policies: [],
-  last_install: null,
-  last_uninstall: null,
-  package_url: "",
+  url: "https://fakeurl.testpackageurlforfalconapp.fake/test/package",
+  hash_sha256: "abcd1234",
   labels_include_any: null,
   labels_exclude_any: null,
 };
@@ -294,7 +294,9 @@ const DEFAULT_FLEET_MAINTAINED_APP_DETAILS_MOCK: IFleetMaintainedAppDetails = {
   post_install_script: 'echo "Installed"',
   uninstall_script:
     "#!/bin/sh\n\n# Fleet extracts and saves package IDs\npkg_ids=$PACKAGE_ID",
+  slug: "applications/test-app",
   url: "http://www.testurl1234abcd.com/testapp",
+  categories: ["Browsers"],
 };
 
 export const createMockFleetMaintainedAppDetails = (

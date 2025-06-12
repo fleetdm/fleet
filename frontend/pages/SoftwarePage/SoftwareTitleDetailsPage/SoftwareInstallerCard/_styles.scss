@@ -5,19 +5,51 @@
   align-items: center;
   gap: $pad-medium;
 
+  &__actions {
+    display: flex;
+
+    .component__tooltip-wrapper__element {
+      display: flex; // Required for vertical align icons that have and don't have tooltip
+    }
+  }
+
+  &__installer-status-table,
+  &__installer-policies-table {
+    width: 100%;
+  }
+
+  &__installer-header,
   &__row-1 {
     display: flex;
     width: 100%;
     gap: $pad-medium;
   }
 
-  // SoftwareDetailsWidget and Tags wrap onto 2 lines on low widths
-  &__row-1--responsive {
+  &__row-1--responsive-wrap {
     display: flex;
     flex-grow: 1;
     justify-content: space-between;
+  }
 
-    @media (max-width: ($break-md - 1)) {
+  // Lots of data (10 items) on one line responsive fix (#29397)
+  @media (max-width: ($table-controls-break)) {
+    .installer-details-widget__details {
+      flex-wrap: wrap;
+    }
+    // SoftwareDetailsWidget and Tags wrap onto 2 lines on low widths
+    &__row-1--responsive-wrap {
+      flex-direction: column;
+      gap: $pad-medium;
+    }
+
+    // Buttons align top of card when alone (not middle with pills/yaml button)
+    &__actions {
+      .children-wrapper {
+        align-self: start;
+      }
+    }
+    // View YAML (gitops) button wrapped onto third line
+    &__installer-header {
       flex-direction: column;
       gap: $pad-medium;
     }

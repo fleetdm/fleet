@@ -119,8 +119,7 @@ const Policies = ({
           columnConfigs={tableHeaders}
           data={generatePolicyDataSet(policies)}
           isLoading={isLoading}
-          defaultSortHeader="response"
-          defaultSortDirection="asc"
+          defaultSortHeader="status"
           resultsTitle="policies"
           emptyComponent={() => <></>}
           showMarkAllPages={false}

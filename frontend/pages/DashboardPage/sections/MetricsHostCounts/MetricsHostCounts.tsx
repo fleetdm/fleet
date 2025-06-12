@@ -3,7 +3,6 @@ import React from "react";
 import { LOW_DISK_SPACE_GB } from "pages/DashboardPage/helpers";
 
 import { PlatformValueOptions } from "utilities/constants";
-import DataError from "components/DataError";
 import LowDiskSpaceHosts from "../../cards/LowDiskSpaceHosts";
 import MissingHosts from "../../cards/MissingHosts";
 import TotalHosts from "../../cards/TotalHosts";
@@ -12,7 +11,6 @@ const baseClass = "metrics-host-counts";
 
 interface IPlatformHostCountsProps {
   currentTeamId: number | undefined;
-  errorHosts: boolean;
   selectedPlatform?: PlatformValueOptions;
   totalHostCount?: number;
   isPremiumTier?: boolean;
@@ -23,7 +21,6 @@ interface IPlatformHostCountsProps {
 
 const MetricsHostCounts = ({
   currentTeamId,
-  errorHosts,
   selectedPlatform,
   totalHostCount,
   isPremiumTier,
@@ -31,10 +28,6 @@ const MetricsHostCounts = ({
   lowDiskSpaceCount,
   selectedPlatformLabelId,
 }: IPlatformHostCountsProps): JSX.Element => {
-  if (errorHosts) {
-    return <DataError card />;
-  }
-
   const TotalHostsCard = (
     <TotalHosts
       totalCount={totalHostCount}

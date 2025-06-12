@@ -148,6 +148,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
 	out.Slug = app.Slug
+	out.DefaultCategories = app.DefaultCategories
 	if len(app.PreUninstallScripts) != 0 {
 		cask.PreUninstallScripts = app.PreUninstallScripts
 	}
@@ -182,6 +183,7 @@ type inputApp struct {
 	Slug                 string   `json:"slug"`
 	PreUninstallScripts  []string `json:"pre_uninstall_scripts"`
 	PostUninstallScripts []string `json:"post_uninstall_scripts"`
+	DefaultCategories    []string `json:"default_categories"`
 }
 
 type brewCask struct {

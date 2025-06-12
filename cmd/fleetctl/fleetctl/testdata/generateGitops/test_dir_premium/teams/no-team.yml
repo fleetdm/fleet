@@ -1,0 +1,34 @@
+controls:
+  enable_disk_encryption: true
+  ios_updates:
+    deadline: "2025-12-31"
+    minimum_version: "18.1"
+  ipados_updates:
+    deadline: "2026-12-31"
+    minimum_version: "18.2"
+  macos_migration:
+    enable: true
+    mode: voluntary
+    webhook_url: https://some-macos-migration-webhook-url.com
+  macos_setup: 'TODO: update with your macos_setup configuration'
+  macos_updates:
+    deadline: "2024-12-31"
+    minimum_version: "15.1"
+  scripts:
+  - path: ../lib/no-team/scripts/Script Z.ps1
+  windows_enabled_and_configured: true
+  windows_migration_enabled: true
+  windows_updates:
+    deadline_days: 5
+    grace_period_days: 2
+name: No team
+policies:
+- calendar_events_enabled: false
+  conditional_access_enabled: true
+  critical: false
+  description: This is a team policy
+  name: Team Policy
+  platform: linux,windows
+  query: SELECT * FROM team_policy WHERE id = 1
+  resolution: Do a team thing
+software:

@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -394,6 +395,15 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, endpoint_utils.BadRequestErr("Could not get SSO Metadata. Check your SSO settings.", err))
 	}
 
+	parsedUrl, err := url.Parse(redirectURL)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url"))
+	}
+
+	if slices.Contains([]string{"javascript", "vbscript", "data"}, parsedUrl.Scheme) {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url scheme: "+parsedUrl.Scheme))
+	}
+
 	serverURL := appConfig.ServerSettings.ServerURL
 	settings := sso.Settings{
 		Metadata: metadata,
@@ -401,6 +411,7 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		AssertionConsumerServiceURL: serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback",
 		SessionStore:                svc.ssoSessionStore,
 		OriginalURL:                 redirectURL,
+		SessionTTL:                  uint(svc.config.Auth.SsoSessionValidityPeriod.Seconds()),
 	}
 
 	// If issuer is not explicitly set, default to host name.

@@ -31,6 +31,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.EditedActivityAutomations,
   ActivityType.LiveQuery,
   ActivityType.InstalledAppStoreApp,
+  ActivityType.RanScriptBatch,
 ]);
 
 const getProfileMessageSuffix = (
@@ -134,6 +135,9 @@ const TAGGED_TEMPLATES = {
     return typeof count === "undefined" || count === 1
       ? "edited a query using fleetctl."
       : "edited queries using fleetctl.";
+  },
+  editSoftwareCtlActivityTemplate: () => {
+    return "edited software using fleetctl.";
   },
   editTeamCtlActivityTemplate: (activity: IActivity) => {
     const count = activity.details?.teams?.length;
@@ -666,6 +670,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  ranScriptBatch: (activity: IActivity) => {
+    const { script_name, host_count } = activity.details || {};
+    return (
+      <>
+        {" "}
+        ran {formatScriptNameForActivityItem(script_name)} on {host_count}{" "}
+        hosts.
+      </>
+    );
+  },
   addedScript: (activity: IActivity) => {
     const scriptName = activity.details?.script_name;
     return (
@@ -868,6 +882,16 @@ const TAGGED_TEMPLATES = {
         {" "}
         resent {activity.details?.profile_name} configuration profile to{" "}
         {activity.details?.host_display_name}.
+      </>
+    );
+  },
+  resentConfigProfileBatch: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent the <b>{activity.details?.profile_name}</b> configuration profile{" "}
+        to {activity.details?.host_count}{" "}
+        {(activity.details?.host_count ?? 0) > 1 ? "hosts." : "host."}
       </>
     );
   },
@@ -1159,6 +1183,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.AppliedSpecSavedQuery: {
       return TAGGED_TEMPLATES.editQueryCtlActivityTemplate(activity);
     }
+    case ActivityType.AppliedSpecSoftware: {
+      return TAGGED_TEMPLATES.editSoftwareCtlActivityTemplate();
+    }
     case ActivityType.AppliedSpecTeam: {
       return TAGGED_TEMPLATES.editTeamCtlActivityTemplate(activity);
     }
@@ -1310,6 +1337,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity);
     }
+    case ActivityType.RanScriptBatch: {
+      return TAGGED_TEMPLATES.ranScriptBatch(activity);
+    }
     case ActivityType.AddedScript: {
       return TAGGED_TEMPLATES.addedScript(activity);
     }
@@ -1354,6 +1384,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ResentConfigurationProfile: {
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.ResentConfigurationProfileBatch: {
+      return TAGGED_TEMPLATES.resentConfigProfileBatch(activity);
     }
     case ActivityType.AddedSoftware: {
       return TAGGED_TEMPLATES.addedSoftware(activity);

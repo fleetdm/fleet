@@ -1,18 +1,21 @@
 {
   "versions": [
     {
-      "version": "25.2.664.0",
+      "version": "25.4.943.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Cloudflare WARP' AND publisher = 'Cloudflare, Inc.';"
       },
-      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.2.664.0",
+      "installer_url": "https://downloads.cloudflareclient.com/v1/download/windows/version/2025.4.943.0",
       "install_script_ref": "8959087b",
-      "uninstall_script_ref": "d3c95af7",
-      "sha256": "abadabc597ec33ade211d161936cb17d0e7fd50f43208d23ac29b4f77fd8a855"
+      "uninstall_script_ref": "fad0c0ce",
+      "sha256": "04108b020b545f778d6bb7ea996a896d5e30f722a1fdf056fe74001228c1fee5",
+      "default_categories": [
+        "Productivity"
+      ]
     }
   ],
   "refs": {
     "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
-    "d3c95af7": "$product_code = \"{4A67FBB8-472C-4AF1-AADA-570FABC9A0E8}\"\n\n# Fleet uninstalls app using product code that's extracted on upload\nmsiexec /quiet /x $product_code\nExit $LASTEXITCODE\n"
+    "fad0c0ce": "$product_code = \"{FB9B5C2D-D406-48A5-A9A0-F490DD1ED60C}\"\n\n# Fleet uninstalls app using product code that's extracted on upload\nmsiexec /quiet /x $product_code\nExit $LASTEXITCODE\n"
   }
 }

@@ -26,10 +26,10 @@ func ContainsPrefixVars(text, prefix string) []string {
 }
 
 // MaybeExpand conditionally replaces ${var} or $var in the string based on the mapping function.
-// Only repalces the variable with the mapper string if it returns true.
+// Only replaces the variable with the mapper string if it returns true.
 // The mapper returning false will leave the original variable unchanged.
 // Based on os.Expand
-func MaybeExpand(s string, mapping func(string) (string, bool)) string {
+func MaybeExpand(s string, mapping func(string, int, int) (string, bool)) string {
 	var buf []byte
 	// ${} is all ASCII, so bytes are fine for this operation.
 	i := 0
@@ -47,7 +47,7 @@ func MaybeExpand(s string, mapping func(string) (string, bool)) string {
 				w = 0
 				buf = append(buf, s[j])
 			} else {
-				replacement, shouldReplace := mapping(name)
+				replacement, shouldReplace := mapping(name, j, j+w+1)
 				if shouldReplace {
 					buf = append(buf, replacement...)
 				} else {

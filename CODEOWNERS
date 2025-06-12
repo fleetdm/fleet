@@ -66,10 +66,19 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                           @rachaelshaw
-/docs/Contributing                              @fleetdm/go @fleetdm/frontend
+/docs/Contributing                              @lukeheath # « Contributing guidelines
+/docs/Contributing/architecture/mdm             @lukeheath @georgekarrv
+/docs/Contributing/architecture/orchestration   @lukeheath @sharon-fdm
+/docs/Contributing/architecture/software        @lukeheath @mostlikelee
+/docs/Contributing/product-groups/mdm           @lukeheath @georgekarrv
+/docs/Contributing/product-groups/orchestration  @lukeheath @sharon-fdm
+/docs/Contributing/product-groups/software      @lukeheath @mostlikelee
+/docs/Contributing/research/mdm                 @lukeheath @georgekarrv
+/docs/Contributing/research/orchestration       @lukeheath @sharon-fdm
+/docs/Contributing/research/software            @lukeheath @mostlikelee
 /docs/REST\ API/rest-api.md                     @rachaelshaw # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
-/docs/Contributing/Audit-logs.md                @rachaelshaw # « Advanced / contributors-only audit log documentation
+/docs/Contributing/reference/api-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
+/docs/Contributing/reference/audit-logs.md                @rachaelshaw # « Advanced / contributors-only audit log documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                    @edwardsb
 

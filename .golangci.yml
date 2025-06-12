@@ -88,13 +88,13 @@ issues:
     - path: cmd/fleet/serve.go
       linters:
         - gosec
-    - path: cmd/fleetctl/api.go
+    - path: cmd/fleetctl/fleetctl/api.go
       linters:
         - gosec
-    - path: cmd/fleetctl/get.go
+    - path: cmd/fleetctl/fleetctl/get.go
       linters:
         - gosec
-    - path: cmd/fleetctl/preview.go
+    - path: cmd/fleetctl/fleetctl/preview.go
       linters:
         - gosec
     # Orbit gosec exclusions https://github.com/fleetdm/fleet/issues/4452

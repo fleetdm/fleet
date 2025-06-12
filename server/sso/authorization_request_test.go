@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -58,10 +59,16 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	ssn := store.session
 	require.NotNil(t, ssn)
 	assert.Equal(t, "/redir", ssn.OriginalURL)
+	assert.Equal(t, 5*time.Minute, store.sessionLifetime)
 
 	var meta Metadata
 	require.NoError(t, xml.Unmarshal([]byte(ssn.Metadata), &meta))
 	assert.Equal(t, "test", meta.EntityID)
+
+	settings.SessionTTL = 3600
+	_, err = CreateAuthorizationRequest(settings, "issuer", RelayState("abc"))
+	require.NoError(t, err)
+	assert.Equal(t, time.Hour, store.sessionLifetime)
 }
 
 func inflate(t *testing.T, s string) *AuthnRequest {
@@ -79,11 +86,13 @@ func inflate(t *testing.T, s string) *AuthnRequest {
 }
 
 type mockStore struct {
-	session *Session
+	session         *Session
+	sessionLifetime time.Duration
 }
 
 func (s *mockStore) create(requestID, originalURL, metadata string, lifetimeSecs uint) error {
 	s.session = &Session{OriginalURL: originalURL, Metadata: metadata}
+	s.sessionLifetime = time.Duration(lifetimeSecs) * time.Second // nolint:gosec // dismiss G115
 	return nil
 }
 

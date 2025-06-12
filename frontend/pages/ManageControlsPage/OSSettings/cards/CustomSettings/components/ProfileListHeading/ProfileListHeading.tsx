@@ -26,11 +26,12 @@ const ProfileListHeading = ({
               variant="text-icon"
               className={`${baseClass}__add-button`}
               onClick={onClickAddProfile}
+              iconStroke
             >
-              <span className={`${baseClass}__icon-wrap`}>
+              <>
                 <Icon name="plus" />
                 Add profile
-              </span>
+              </>
             </Button>
           )}
         />

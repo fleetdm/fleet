@@ -1,4 +1,5 @@
 .paginated-list {
+  gap: $pad-medium;
   &__header {
     padding: $pad-medium $pad-large;
     font-size: $x-small;
@@ -68,8 +69,7 @@
       min-width: 0;
       /* This is crucial for proper shrinking */
     }
-
-    &:hover {
+    &:not(.paginated-list__row--disabled):hover {
       background: $ui-off-white;
       cursor: pointer;
 
@@ -101,5 +101,9 @@
     &--disabled {
       @include disabled;
     }
+  }
+
+  .pagination {
+    margin-top: 0;
   }
 }

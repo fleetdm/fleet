@@ -1,0 +1,1 @@
+* Added additional checks to vulnerability feed validation to prevent deploying an un-enriched NVD feed.

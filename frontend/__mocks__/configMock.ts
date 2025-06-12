@@ -27,6 +27,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   },
   macos_setup: {
     bootstrap_package: "",
+    manual_agent_install: false,
     enable_end_user_authentication: false,
     macos_setup_assistant: null,
     enable_release_device_manually: false,
@@ -63,6 +64,7 @@ export const DEFAULT_LICENSE_MOCK: ILicense = {
   note: "",
   organization: "",
   managed_cloud: true,
+  allow_disable_telemetry: false,
 };
 
 const DEFAULT_CONFIG_MOCK: IConfig = {

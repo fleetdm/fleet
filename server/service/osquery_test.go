@@ -263,6 +263,7 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: true,
 	},
+	osquery_utils.Integrations{},
 )
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
@@ -564,6 +565,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 			}, nil
 		case teamID == nil && (name == "time" || name == "system_info" || name == "encrypted" || name == "hosts"):
 			return &fleet.Query{
+				ID:                 uint(name[0]),
 				Name:               name,
 				AutomationsEnabled: true,
 			}, nil
@@ -668,20 +670,20 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
 
 	validLogResults := []string{
-		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":1475258115,"decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
+		`{"action":"added","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"decorations":{"host_uuid":"some_uuid","username":"zwass"},"hostIdentifier":"some_uuid","name":"pack/Global/system_info","query_id":115,"unixTime":1475258115}`,
 
 		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":1475270355,"decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
 		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:14 2016 UTC","unixTime":1475270354,"decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
 
 		// These results belong to the same query but have 1 second difference.
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:50 2017 UTC","unixTime":1484078930,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","unixTime":1484078932,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/Global/time","query_id":116,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078931}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:50 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/Global/time","query_id":116,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078930}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/Global/time","query_id":116,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078932}`,
 
-		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/team-1/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":1511049728,"epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
+		`{"calendarTime":"Sun Nov 19 00:02:08 2017 UTC","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"},"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"epoch":"0","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","name":"pack\/team-1/hosts","query_id":4242,"unixTime":1511049728}`,
 
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_should_be_saved_and_submitted","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack_Global_query_should_be_saved_and_submitted_with_custom_pack_delimiter","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","unixTime":1484078932,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/Global/query_should_be_saved_and_submitted","query_id":123,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078931}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack_Global_query_should_be_saved_and_submitted_with_custom_pack_delimiter","query_id":1234,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078932}`,
 
 		// Fleet doesn't know of this query, so this result should be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
@@ -697,13 +699,13 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/PackName","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
 		// Query results of a query that belongs to a different team than the host's team (can happen when host is transferred from one team to another or no team).
-		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-1/Foobar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"action":"snapshot","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"},"hostIdentifier":"1379f59d98f4","name":"pack/team-1/Foobar","query_id":4242,"snapshot":[{"hour":"20","minutes":"8"}],"unixTime":1484078931}`,
 
 		// Query results in event format (this is received for scheduled query results when the host is configured with `--logger_snapshot_event_type=true`).
 		// The "event format" contains one result for each row returned by the query and the columns in the "columns" key.
-		`{"name":"pack/Global/All USB devices","hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`,
-		`{"name":"pack/Global/All USB devices","hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`,
-		`{"name":"pack/Global/All USB devices","hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","unixTime":1738153974,"epoch":0,"counter":0,"numerics":false,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8008","protocol":"","removable":"0","serial":"1","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"action":"snapshot"}`,
+		`{"action":"snapshot","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","columns":{"class":"9","model":"AppleUSBVHCIBCE Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"counter":0,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"epoch":0,"hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","name":"pack/Global/All USB devices","numerics":false,"query_id":777,"unixTime":1738153974}`,
+		`{"action":"snapshot","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8007","protocol":"","removable":"0","serial":"0","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"counter":0,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"epoch":0,"hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","name":"pack/Global/All USB devices","numerics":false,"query_id":777,"unixTime":1738153974}`,
+		`{"action":"snapshot","calendarTime":"Wed Jan 29 12:32:54 2025 UTC","columns":{"class":"9","model":"AppleUSBXHCI Root Hub Simulation","model_id":"8008","protocol":"","removable":"0","serial":"1","subclass":"255","usb_address":"","usb_port":"","vendor":"Apple Inc.","vendor_id":"05ac","version":"0.0"},"counter":0,"decorations":{"host_uuid":"634B6F24-97FB-44C9-8342-5CF20A08619F","hostname":"foobar.local"},"epoch":0,"hostIdentifier":"634B6F24-97FB-44C9-8342-5CF20A08619F","name":"pack/Global/All USB devices","numerics":false,"query_id":777,"unixTime":1738153974}`,
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(validLogResults, ","))
 
@@ -740,7 +742,6 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	}
 	err = serv.SubmitResultLogs(ctx, validAndInvalidResults)
 	require.NoError(t, err)
-
 	assert.Equal(t, validResults, testLogger.logs)
 
 	//
@@ -1264,6 +1265,10 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 		return map[string]string{}, nil
 	}
 
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
+	}
+
 	lq := live_query_mock.New(t)
 	lq.On("QueriesForHost", uint(1)).Return(map[string]string{}, nil)
 	lq.On("QueriesForHost", uint(2)).Return(map[string]string{}, nil)
@@ -1364,6 +1369,9 @@ func TestGetDistributedQueriesEmptyQuery(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{"empty_policy_query": ""}, nil
 	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
+	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{"empty_live_query": ""}, nil)
 
@@ -1404,6 +1412,9 @@ func TestLabelQueries(t *testing.T) {
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: true,
 		}}, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1570,6 +1581,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -1801,6 +1815,9 @@ func TestDetailQueries(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 		return host, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 
 	// With a new host, we should get the detail queries (and accelerated
@@ -3128,6 +3145,9 @@ func TestPolicyQueries(t *testing.T) {
 			EnableSoftwareInventory: true,
 		}}, nil
 	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
+	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
 
@@ -3291,6 +3311,81 @@ func TestPolicyQueries(t *testing.T) {
 	noPolicyResults(queries)
 }
 
+func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestService(t, ds, nil, lq)
+
+	host := &fleet.Host{
+		Platform: "darwin",
+	}
+
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		host = gotHost
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
+	}
+
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return true, nil
+	}
+
+	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
+
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
+	}
+
+	ctx = hostctx.NewContext(ctx, host)
+
+	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+
+	// Should not return the 2 policy queries because we're in setup experience
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
+	verifyDiscovery(t, queries, discovery)
+
+	checkPolicyResults := func(queries map[string]string, shouldHavePolicies bool) {
+		hasPolicy1, hasPolicy2 := false, false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				if name[len(hostPolicyQueryPrefix):] == "1" {
+					hasPolicy1 = true
+				}
+				if name[len(hostPolicyQueryPrefix):] == "2" {
+					hasPolicy2 = true
+				}
+			}
+		}
+		assert.Equal(t, hasPolicy1, shouldHavePolicies)
+		assert.Equal(t, hasPolicy2, shouldHavePolicies)
+	}
+
+	// Make it appear the host is out of setup experience and ask again for policies
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	// Should now return the 2 additional policy queries because we're out of setup experience
+	assert.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2, len(queries), distQueriesMapKeys(queries))
+	verifyDiscovery(t, queries, discovery)
+
+	checkPolicyResults(queries, true)
+}
+
 func TestPolicyWebhooks(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
@@ -3319,6 +3414,9 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
 		host = gotHost
 		return nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -3599,6 +3697,9 @@ func TestLiveQueriesFailing(t *testing.T) {
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 
 	ctx = hostctx.NewContext(ctx, host)
@@ -4162,6 +4263,54 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"name":    "python3-urllib3",
 						"version": "1.26.2-2",
 						"source":  "rpm_packages",
+					},
+				},
+			},
+		},
+		{
+			name: "macos codesign query with cdhash_sha256",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos_codesign": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+						"cdhash_sha256":   "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+						"cdhash_sha256":   "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+		},
+		{
+			name: "macos codesign query with no cdhash_sha256 column",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos_codesign": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
 					},
 				},
 			},

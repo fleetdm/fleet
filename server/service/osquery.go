@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -150,7 +151,9 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	}
 
 	// Save enrollment details if provided
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: false, // here we are just using a few ingestion functions, so no need to set.
+	})
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
@@ -697,7 +700,9 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+	})
 	for name, query := range detailQueries {
 		if criticalQueriesOnly && !criticalDetailQueries[name] {
 			continue
@@ -705,10 +710,17 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 
 		if query.RunsForPlatform(host.Platform) {
 			queryName := hostDetailQueryPrefix + name
-			queries[queryName] = query.Query
+
 			if query.QueryFunc != nil && query.Query == "" {
-				queries[queryName] = query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				query, ok := query.QueryFunc(ctx, svc.logger, host, svc.ds)
+				if !ok {
+					continue
+				}
+				queries[queryName] = query
+			} else {
+				queries[queryName] = query.Query
 			}
+
 			discoveryQuery := query.Discovery
 			if discoveryQuery == "" {
 				discoveryQuery = alwaysTrueQuery
@@ -734,6 +746,24 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 	}
 
 	return queries, discovery, nil
+}
+
+func (svc *Service) hostRequiresConditionalAccessMicrosoftIngestion(ctx context.Context, host *fleet.Host) bool {
+	if host.Platform != "darwin" {
+		return false
+	}
+
+	conditionalAccessConfigured, conditionalAccessEnabledForTeam, err := svc.conditionalAccessConfiguredAndEnabledForTeam(ctx, host.TeamID)
+	if err != nil {
+		level.Error(svc.logger).Log(
+			"msg", "load conditional access configured and enabled, skipping ingestion",
+			"host_id", host.ID,
+			"err", err,
+		)
+		return false
+	}
+
+	return conditionalAccessConfigured && conditionalAccessEnabledForTeam
 }
 
 func (svc *Service) shouldUpdate(lastUpdated time.Time, interval time.Duration, hostID uint) bool {
@@ -762,10 +792,29 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
+func (svc *Service) disablePoliciesDuringSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
+	if host.Platform != string(fleet.MacOSPlatform) {
+		return false, nil
+	}
+	inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+	}
+	return inSetupExperience, nil
+}
+
 // policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
 // It returns (nil, true, nil) if the interval is so that policies should be executed on the host, but there are no policies
 // assigned to such host.
 func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) (policyQueries map[string]string, noPoliciesForHost bool, err error) {
+	disablePolicies, err := svc.disablePoliciesDuringSetupExperience(ctx, host)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+	}
+	if disablePolicies {
+		level.Debug(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
+		return nil, false, nil
+	}
 	policyReportedAt := svc.task.GetHostPolicyReportedAt(ctx, host)
 	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, false, nil
@@ -980,13 +1029,18 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	if len(policyResults) > 0 {
-
 		if err := processCalendarPolicies(ctx, svc.ds, ac, host, policyResults, svc.logger); err != nil {
 			logging.WithErr(ctx, err)
 		}
 
 		if err := svc.processScriptsForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.Platform, host.OrbitNodeKey, host.ScriptsEnabled, policyResults); err != nil {
 			logging.WithErr(ctx, err)
+		}
+
+		if host.Platform == "darwin" {
+			if err := svc.processConditionalAccessForNewlyFailingPolicies(ctx, host.ID, host.TeamID, host.OrbitNodeKey, policyResults); err != nil {
+				logging.WithErr(ctx, err)
+			}
 		}
 
 		if host.Platform == "darwin" && svc.EnterpriseOverrides != nil {
@@ -1231,8 +1285,8 @@ func preProcessSoftwareResults(
 
 	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
 	preProcessSoftwareExtraResults(pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
-	pythonPakcagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
-	preProcessSoftwareExtraResults(pythonPakcagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
+	preProcessSoftwareExtraResults(pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
@@ -1492,7 +1546,9 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+	})
 	query, ok := detailQueries[name]
 	if !ok {
 		return false, newOsqueryError("unknown detail query " + name)
@@ -1634,7 +1690,9 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 		return newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features)
+	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
+		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+	})
 	query, ok := detailQueries[name]
 	if !ok {
 		return newOsqueryError("unknown detail query " + name)
@@ -2166,6 +2224,238 @@ func (svc *Service) processScriptsForNewlyFailingPolicies(
 	return nil
 }
 
+func (svc *Service) conditionalAccessConfiguredAndEnabledForTeam(ctx context.Context, hostTeamID *uint) (configured bool, enabledForTeam bool, err error) {
+	// Check if the needed server configuration for Conditional Access is set.
+	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+		return false, false, nil
+	}
+
+	// Check if the integration is fully configured.
+	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, false, nil
+		}
+		return false, false, ctxerr.Wrap(ctx, err, "failed to load the integration")
+	}
+	if !integration.SetupDone {
+		return false, false, nil
+	}
+
+	if hostTeamID == nil {
+		// Configuration for "No team" is stored in the main appconfig.
+		cfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return false, false, ctxerr.Wrap(ctx, err, "failed to load appconfig")
+		}
+		var conditionalAccessEnabled bool
+		if cfg.Integrations.ConditionalAccessEnabled.Set {
+			conditionalAccessEnabled = cfg.Integrations.ConditionalAccessEnabled.Value
+		}
+		return true, conditionalAccessEnabled, nil
+	}
+
+	// Host belongs to a team, thus we load the team configuration.
+	team, err := svc.ds.Team(ctx, *hostTeamID)
+	if err != nil {
+		return false, false, ctxerr.Wrap(ctx, err, "failed to load team config")
+	}
+	var teamConditionalAccessEnabled bool
+	if team.Config.Integrations.ConditionalAccessEnabled.Set {
+		teamConditionalAccessEnabled = team.Config.Integrations.ConditionalAccessEnabled.Value
+	}
+	return true, teamConditionalAccessEnabled, nil
+}
+
+func (svc *Service) processConditionalAccessForNewlyFailingPolicies(
+	ctx context.Context,
+	hostID uint,
+	hostTeamID *uint,
+	hostOrbitNodeKey *string,
+	incomingPolicyResults map[uint]*bool,
+) error {
+	if hostOrbitNodeKey == nil || *hostOrbitNodeKey == "" {
+		// Vanilla osquery hosts cannot do conditional access.
+		return nil
+	}
+
+	configured, enabledForTeam, err := svc.conditionalAccessConfiguredAndEnabledForTeam(ctx, hostTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to check for conditional access configuration")
+	}
+
+	if !configured || !enabledForTeam {
+		// Nothing to do, feature not configured or not enabled for this host's team.
+		return nil
+	}
+
+	hostConditionalAccessStatus, err := svc.ds.LoadHostConditionalAccessStatus(ctx, hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Nothing to do because Fleet hasn't ingested the Entra's "Device ID" or
+			// "User Principal Name" from the device yet (we cannot perform any actions
+			// for the host on Entra without it).
+			return nil
+		}
+		return ctxerr.Wrap(ctx, err, "failed to load host conditional access status")
+	}
+
+	var policyTeamID uint
+	if hostTeamID == nil {
+		policyTeamID = fleet.PolicyNoTeamID
+	} else {
+		policyTeamID = *hostTeamID
+	}
+
+	var mdmEnrolled bool
+	hostMDM, err := svc.ds.GetHostMDM(ctx, hostID)
+	if err != nil {
+		// If GetHostMDM returns not found then it means that
+		// the host may not be MDM enrolled yet.
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "failed to get host mdm")
+		}
+	} else {
+		mdmEnrolled = hostMDM.Enrolled
+	}
+
+	// Get policies configured for conditional access.
+	conditionalAccessPolicyIDs, err := svc.ds.GetPoliciesForConditionalAccess(ctx, policyTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get policies with conditional access")
+	}
+
+	hostIsCompliantInFleet := true
+	conditionalAccessPolicyIDsSet := make(map[uint]struct{}, len(conditionalAccessPolicyIDs))
+	for _, policyID := range conditionalAccessPolicyIDs {
+		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
+	}
+	for incomingPolicyID, incomingPolicyResult := range incomingPolicyResults {
+		if _, ok := conditionalAccessPolicyIDsSet[incomingPolicyID]; !ok {
+			// Ignore results for policies that are not for conditional access.
+			continue
+		}
+		if incomingPolicyResult != nil && !*incomingPolicyResult {
+			hostIsCompliantInFleet = false
+			break
+		}
+	}
+
+	if hostConditionalAccessStatus.Managed != nil && mdmEnrolled == *hostConditionalAccessStatus.Managed &&
+		hostConditionalAccessStatus.Compliant != nil && hostIsCompliantInFleet == *hostConditionalAccessStatus.Compliant {
+		// Nothing to do, nothing has changed.
+		return nil
+	}
+
+	svc.setHostConditionalAccessAsync(hostID, hostConditionalAccessStatus, mdmEnrolled, hostIsCompliantInFleet)
+
+	return nil
+}
+
+func (svc *Service) setHostConditionalAccessAsync(
+	hostID uint,
+	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
+	managed bool,
+	compliant bool,
+) {
+	go func() {
+		logger := log.With(svc.logger,
+			"msg", "set host conditional access",
+			"host_id", hostID,
+			"managed", managed,
+			"compliant", compliant,
+		)
+		start := time.Now()
+		if err := svc.setHostConditionalAccess(hostID, hostConditionalAccessStatus, managed, compliant); err != nil {
+			level.Error(logger).Log("took", time.Since(start), "err", err)
+		}
+		level.Debug(logger).Log("took", time.Since(start))
+	}()
+}
+
+// conditionalAccessSetWaitTime is the interval to check for message status.
+// It's a global variable to be set in tests.
+var conditionalAccessSetWaitTime = 10 * time.Second
+
+func (svc *Service) setHostConditionalAccess(
+	hostID uint,
+	hostConditionalAccessStatus *fleet.HostConditionalAccessStatus,
+	managed bool,
+	compliant bool,
+) error {
+	ctx := context.Background()
+
+	integration, err := svc.ds.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get integration")
+	}
+	logger := log.With(svc.logger,
+		"msg", "set compliance status",
+		"host_id", hostID,
+		"managed", managed,
+		"compliant", compliant,
+	)
+	level.Debug(logger).Log()
+	response, err := svc.conditionalAccessMicrosoftProxy.SetComplianceStatus(ctx,
+		integration.TenantID,
+		integration.ProxyServerSecret,
+
+		hostConditionalAccessStatus.DeviceID,
+		hostConditionalAccessStatus.UserPrincipalName,
+
+		managed,
+		hostConditionalAccessStatus.DisplayName,
+		"macOS",
+		hostConditionalAccessStatus.OSVersion,
+		compliant,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to set compliance status")
+	}
+	const (
+		timeout = 1 * time.Minute
+	)
+	level.Debug(logger).Log("msg", "set compliance status message sent")
+	startTime := time.Now()
+	for range time.Tick(conditionalAccessSetWaitTime) {
+		if time.Since(startTime) > timeout {
+			return ctxerr.Errorf(ctx, "timeout waiting for message after %s", time.Since(startTime))
+		}
+		level.Debug(logger).Log("msg", "get compliance status message wait")
+		messageStatus, err := svc.conditionalAccessMicrosoftProxy.GetMessageStatus(ctx,
+			integration.TenantID, integration.ProxyServerSecret, response.MessageID,
+		)
+		if err != nil {
+			// Retry again in case of network or transient errors.
+			level.Info(logger).Log("msg", "get message status, retrying", "err", err)
+			continue
+		}
+		if messageStatus.Status == conditional_access_microsoft_proxy.MessageStatusCompleted {
+			level.Debug(logger).Log(
+				"msg", "set device compliance status completed",
+				"took", time.Since(startTime),
+			)
+			break
+		}
+		detail := ""
+		if messageStatus.Detail != nil {
+			detail = *messageStatus.Detail
+		}
+		level.Info(logger).Log(
+			"msg", "get message status, retrying",
+			"status", messageStatus.Status,
+			"detail", detail,
+		)
+	}
+
+	if err := svc.ds.SetHostConditionalAccessStatus(ctx, hostID, managed, compliant); err != nil {
+		return ctxerr.Wrap(ctx, err, "set conditional access status on datastore")
+	}
+
+	return nil
+}
+
 func (svc *Service) maybeDebugHost(
 	ctx context.Context,
 	host *fleet.Host,
@@ -2277,7 +2567,7 @@ func (svc *Service) preProcessOsqueryResults(
 	}
 
 	queriesDBData = make(map[string]*fleet.Query)
-	for _, queryResult := range unmarshaledResults {
+	for i, queryResult := range unmarshaledResults {
 		if queryResult == nil {
 			// These are results that could not be unmarshaled.
 			continue
@@ -2292,18 +2582,42 @@ func (svc *Service) preProcessOsqueryResults(
 			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
 			continue
 		}
-		if _, ok := queriesDBData[queryResult.QueryName]; ok {
-			// Already loaded.
-			continue
+
+		existingQuery, foundQuery := queriesDBData[queryResult.QueryName]
+		if !foundQuery {
+			query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+			if err != nil {
+				level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+				continue
+			}
+			queriesDBData[queryResult.QueryName] = query
+			existingQuery = query
 		}
-		query, err := svc.ds.QueryByName(ctx, teamID, queryName)
+
+		updatedResult, err := addQueryIDToLogResult(ctx, osqueryResults[i], existingQuery.ID)
 		if err != nil {
-			level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
+			level.Debug(svc.logger).Log("msg", "inserting query id into query result", "err", err, "query_id", existingQuery.ID)
 			continue
 		}
-		queriesDBData[queryResult.QueryName] = query
+
+		// Set the updated query results if we find query ID. This is used one level up by the logger
+		osqueryResults[i] = updatedResult
 	}
 	return unmarshaledResults, queriesDBData
+}
+
+func addQueryIDToLogResult(ctx context.Context, logResult json.RawMessage, queryID uint) (json.RawMessage, error) {
+	var query map[string]json.RawMessage
+	if err := json.Unmarshal(logResult, &query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to unmarshal query result to insert query id")
+	}
+
+	query["query_id"] = json.RawMessage(strconv.FormatUint(uint64(queryID), 10))
+	newResult, err := json.Marshal(query)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unable to marshal query result with query id")
+	}
+	return newResult, nil
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {

@@ -7,16 +7,16 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Head of Marketing                   | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@Drew-P-drawers](https://github.com/Drew-P-drawers))_
+| Interim Head of Marketing         | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 
 
 ## Contact us
 
-- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/help-marketing-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/65) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/digital-experience#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
+> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/digital-experience#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 
 ## Responsibilities
@@ -34,7 +34,7 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 
 ### Begin or modify an advertising campaign
 
-Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none).
+Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://github.com/orgs/fleetdm/projects/65).
 
 To propose an ad, or a change to an ad:
 1. Evaluate the buying situation before proposing any changes to ads. This determines the audience that will see each ad and which campaign it will be placed in. (Device management, vuln management, endpoint ops - security, endpoint ops - IT)
@@ -102,11 +102,11 @@ Fleet's Head of Marketing is responsible for booking events that Fleet has chose
 ### Create an article
 Article creation begins with creation of an issue using the "Article request" template.
 
-1. Create a [new GitHub issue for the :help-marketing board](https://github.com/fleetdm/confidential/issues/new?assignees=Drew-P-drawers&labels=%3Ahelp-marketing=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+1. Create a [new GitHub issue for the :help-marketing board](https://github.com/fleetdm/confidential/issues/new?assignees=mikermcneil&labels=%3Ahelp-marketing=&template=1-custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
 2. Move the issue into the "📃 Planned articles" column.
 
 ### Review ongoing articles
-Check the "📃 Planned articles" column in [:help-marketing board](https://app.zenhub.com/workspaces/help-marketing-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
+Check the "📃 Planned articles" column in [:help-marketing board](https://github.com/orgs/fleetdm/projects/65) and continue to work through steps in each event's issue.
 -->
 
 
@@ -114,7 +114,7 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://app.
 
 **To order T-shirts:**
 
-  - Login to [https://www.rushordertees.com/my-account/login/) (saved in 1Password).
+  - Login to [Rush Order tees](https://www.rushordertees.com/my-account/login/) (saved in 1Password).
   - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
   - Order shirts based on the pre-determined number (~5% of total event attendees).
   - Submit the order. Ensure the address matches the expected receiving address.
@@ -130,11 +130,7 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://app.
 
 **To order pens and sticky note pads**
 
-  - Pens and sticky note pads are ordered through Everything Branded.
-  - Email our sales representative Jake William (saved in 1Password) to order any of the following:
-    - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
-    - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
-    - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
+  - Pens and sticky note pads are ordered through TODO.
 
 
 ### Upload contacts to Salesforce after an event
@@ -151,41 +147,6 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://app.
     d. Verify the data is mapped to the correct Salesforce fields and start the Import.
 
 
-### Follow up after an event
-
-1. Email relevant information according to the event buying situation, but refer to the original lead list in [Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR) for those who asked for contact.
-2. If feedback is present in the original event CSV, manually add any worthwhile feedback to the contact description in Salesforce.
-
-
-### Optimize ads through experimentation
-
-Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
-
-Here's how:
-1. Remove all but the top 5 performing ads in [each LinkedIn campaign in the "Evergreen awareness" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678329963%5D).
-2. Replace the ad in [each Linkedin campaign in the "ABM maneuvers" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B633848103%5D) so that it matches the top performer.
-
-<!-- TODO: either delete this or expand
-[**LinkedIn**:](https://www.linkedin.com/campaignmanager/) Ad experimentation on LinkedIn Campaign Manager for better click-through rate (CTR)
-1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
-2. Test one intro text change for two weeks
-3. Pause the ad with the lower CTR
-4. Duplicate best-performing ad
-5. Test headline change for two weeks
-6. Pause the ad with the lower CTR
-7. Repeat this process
-
-[**Google Ads**:](https://ads.google.com/home/) Ad experimentation on Google Ads for better click-through rate (CTR)
-1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
-2. Test one headline change for two weeks
-3. Pause the ad with the lower CTR
-4. Duplicate best-performing ad
-5. Test one description change for two weeks
-6. Pause the ad with the lower CTR
-7. Repeat this process
--->
-
-
 ### Process pending swag requests from the website
 
 On a weekly basis, log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
@@ -200,7 +161,7 @@ To do this:
 
 ### Request swag
 There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. To request swag:
-1. [Create an issue](https://app.zenhub.com/workspaces/help-marketing-64e6c8e2d35c7f001a457b7f/issues/gh/fleetdm/confidential/new?issueType=issue) on the :help-marketing board.
+1. [Create an issue](https://github.com/orgs/fleetdm/projects/65) on the :help-marketing board.
 2. Provide order details (e.g. expected shirt size, name, and shipping details).
 3. Decide if you'd like to include a personalized message and attach it to the issue.
 
@@ -220,15 +181,6 @@ Swag requests are received in the form of issues and will be fulfilled based on 
 - Ask if we could send the contributor any swag
 - If yes, follow the steps to fulfill a swag request.
 
-
-### Run a new ad or change an existing ad
-
-Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
-1. [Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
-2. During the call, they compare existing ads against the planned updates within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-3. [Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
-
-> **Do changes to keywords or targeting require a design review?** Currently, all changes to these things require discussion with our product marketer.
 
 ### Engage with the community
 
@@ -296,5 +248,5 @@ Please see [handbook/company/communications#video](https://fleetdm.com/handbook/
 
 
 
-<meta name="maintainedBy" value="Drew-P-Drawers">
+<meta name="maintainedBy" value="sampfluger88">
 <meta name="title" value="🫧 Marketing">

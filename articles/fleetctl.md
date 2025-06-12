@@ -39,7 +39,7 @@ You can also install the latest version of the binary from [GitHub](https://gith
 
 Much of the functionality available in the Fleet UI is also available in fleetctl. You can run queries, add and remove users, generate Fleet's agent (fleetd) to add new hosts, get information about existing hosts, and more!
 
-> Note: Unless a logging infrastructure is configured on your Fleet server, osquery-related logs will be stored locally on each device. Read more [here](https://fleetdm.com/guides/log-destinations)
+> Unless a [log destination](https://fleetdm.com/guides/log-destinations) is configured, osquery logs will be stored locally on each device.
 
 To see the available commands you can run:
 
@@ -77,7 +77,7 @@ OPTIONS:
 
 ## Authentication
 
-This section walks you through authentication, assuming you already have a running Fleet instance. To learn how to set up new Fleet instance, check out the [Deploy](https://fleetdm.com/docs/deploy/introduction) section or [Building Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md) docs. 
+This section walks you through authentication, assuming you already have a running Fleet instance. To learn how to set up new Fleet instance, check out the [Deploy](https://fleetdm.com/docs/deploy/introduction) section or [Building Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/getting-started/building-fleet.md) docs. 
 
 ### Login
 

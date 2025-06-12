@@ -14,6 +14,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2181,6 +2182,11 @@ func (s *integrationTestSuite) TestInvites() {
 		InviteToken: ptr.String(validInviteToken),
 	}, http.StatusOK, &createFromInviteResp)
 
+	// Check that user is associated with unique invite ID
+	user, err := s.ds.UserByEmail(context.Background(), "a@b.c")
+	require.NoError(t, err)
+	require.Equal(t, inv.ID, *user.InviteID)
+
 	// keep the invite token from the other valid invite (before deleting it)
 	inv, err = s.ds.Invite(context.Background(), createInviteResp.Invite.ID)
 	require.NoError(t, err)
@@ -2205,6 +2211,49 @@ func (s *integrationTestSuite) TestInvites() {
 		Email:       ptr.String("a@b.c"),
 		InviteToken: ptr.String(deletedInviteToken),
 	}, http.StatusNotFound, &createFromInviteResp)
+}
+
+func (s *integrationTestSuite) TestCrossOriginJSONSecurity() {
+	t := s.T()
+
+	// valid request with no Origin or Referer headers
+	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+		Email:      ptr.String("some email"),
+		Name:       ptr.String("some name"),
+		GlobalRole: null.StringFrom(fleet.RoleAdmin),
+	}}
+	createInviteResp := createInviteResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
+	require.NotNil(t, createInviteResp.Invite)
+	require.NotZero(t, createInviteResp.Invite.ID)
+
+	createInviteReq.Email = ptr.String("other@email.com")
+	createInviteReq.Name = ptr.String("other name")
+	req, err := json.Marshal(createInviteReq)
+	require.NoError(t, err)
+
+	// cross origin request with Origin header and no Content-Type
+	resp := s.DoRawWithHeaders("POST", "/api/latest/fleet/invites", req, http.StatusUnsupportedMediaType, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", s.withServer.token),
+		"Origin":        "example.com",
+	})
+	resp.Body.Close()
+
+	// cross origin request with Referer header and no Content-Type
+	resp = s.DoRawWithHeaders("POST", "/api/latest/fleet/invites", req, http.StatusUnsupportedMediaType, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", s.withServer.token),
+		"Referer":       "example.com",
+	})
+	resp.Body.Close()
+
+	// cross origin request with valid Content-Type
+	resp = s.DoRawWithHeaders("POST", "/api/latest/fleet/invites", req, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", s.withServer.token),
+		"Origin":        "example.com",
+		"Referer":       "example.com",
+		"Content-Type":  "application/json",
+	})
+	resp.Body.Close()
 }
 
 func (s *integrationTestSuite) TestCreateUserFromInviteErrors() {
@@ -2902,6 +2951,41 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietaryInvalid() {
 			}
 		})
 	}
+}
+
+func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create host
+	hosts := s.createHosts(t, "linux")
+	host := hosts[0]
+
+	stalePolicyCount, staleIssuesCount, freshPolicyCount, freshIssueCount := uint64(50), uint64(500), uint64(0), uint64(0)
+	// create host_issues for it with stale data
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count) VALUES (?, ?, ?)`, host.ID, stalePolicyCount, staleIssuesCount)
+		return err
+	})
+
+	// hit endpoint: host issues should still be stale, since last updated was less than a minute ago
+	hostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+
+	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, stalePolicyCount)
+	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, staleIssuesCount)
+
+	// set updated_at to longer than minute ago
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_issues SET updated_at = ? WHERE host_id = ?`, time.Time{}, host.ID)
+		return err
+	})
+	// hit endpoint: should have been updated this time
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, freshPolicyCount)
+	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, freshIssueCount)
 }
 
 func (s *integrationTestSuite) TestHostDetailsPolicies() {
@@ -4182,7 +4266,7 @@ func (s *integrationTestSuite) TestLabels() {
 	// create a label with both a query and hosts, error
 	res := s.Do("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Query: "select 1", Hosts: []string{manualHosts[0].UUID}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of either "query" or "hosts" can be included in the request.`)
+	require.Contains(t, errMsg, `Only one of either "query" or "hosts/host_ids" can be included in the request.`)
 
 	// create invalid label, conflicts with builtin name
 	for n := range builtinsMap {
@@ -4312,6 +4396,19 @@ func (s *integrationTestSuite) TestLabels() {
 	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
 	assert.ElementsMatch(t, []uint{manualHosts[0].ID}, modResp.Label.HostIDs)
 	assert.EqualValues(t, 1, modResp.Label.HostCount)
+	assert.Equal(t, newName, modResp.Label.Name)
+	manualLbl2.Name = newName
+
+	// modify manual label 2 adding some hosts by ID
+	modResp = modifyLabelResponse{}
+	newName = "modified_manual_label2"
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLbl2.ID),
+		&fleet.ModifyLabelPayload{Name: &newName, HostIDs: []uint{manualHosts[1].ID, manualHosts[2].ID}}, http.StatusOK, &modResp)
+	assert.Equal(t, manualLbl2.ID, modResp.Label.ID)
+	assert.Equal(t, fleet.LabelTypeRegular, modResp.Label.LabelType)
+	assert.Equal(t, fleet.LabelMembershipTypeManual, modResp.Label.LabelMembershipType)
+	assert.ElementsMatch(t, []uint{manualHosts[1].ID, manualHosts[2].ID}, modResp.Label.HostIDs)
+	assert.EqualValues(t, 2, modResp.Label.HostCount)
 	assert.Equal(t, newName, modResp.Label.Name)
 	manualLbl2.Name = newName
 
@@ -7198,7 +7295,6 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Contains(t, errMsg, "missing or invalid license")
 }
 
-// TODO(lucas): Add tests here.
 func (s *integrationTestSuite) TestQuerySpecs() {
 	t := s.T()
 
@@ -9151,7 +9247,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 		EncryptionKey: []byte("testkey"),
 	}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	require.Contains(t, errMsg, fleet.ErrWindowsMDMNotConfigured.Error())
 }
 
 func (s *integrationTestSuite) TestListVulnerabilities() {
@@ -9702,21 +9798,25 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	tkn := "D3V1C370K3N"
 	createHostAndDeviceToken(t, s.ds, tkn)
 
+	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
+
 	for _, route := range mdmConfigurationRequiredEndpoints() {
-		which := fmt.Sprintf("%s %s", route.method, route.path)
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
+		path := route.path
 		if route.premiumOnly && route.deviceAuthenticated {
 			// user-authenticated premium-only routes will never see the ErrMissingLicense error
 			// if mdm is not configured, as the MDM middleware will intercept and fail the call.
 			expectedErr = fleet.ErrMissingLicense
 		}
-		path := route.path
+		if slices.Contains(windowsOnly, path) {
+			expectedErr = fleet.ErrWindowsMDMNotConfigured
+		}
 		if route.deviceAuthenticated {
-			path = fmt.Sprintf(route.path, tkn)
+			path = fmt.Sprintf(path, tkn)
 		}
 		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
-		assert.Contains(t, errMsg, expectedErr.Error(), which)
+		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
 
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -10453,7 +10553,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		App: config.AppConfig{
 			EnableScheduledQueryStats: true,
 		},
-	}, appConfig, &appConfig.Features)
+	}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
@@ -10608,7 +10708,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 			"installed_path": "C:\\Program Files\\Wireshark",
 		},
 	}
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		log.NewNopLogger(),
@@ -10744,7 +10844,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w1 bytes.Buffer
 	logger1 := log.NewJSONLogger(&w1)
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger1,
@@ -10779,7 +10879,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 			"last_opened_at": "foobar",
 		},
 	}
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	var w2 bytes.Buffer
 	logger2 := log.NewJSONLogger(&w2)
 	err = detailQueries["software_windows"].DirectIngestFunc(
@@ -10819,7 +10919,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w3 bytes.Buffer
 	logger3 := log.NewJSONLogger(&w3)
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger3,
@@ -11337,7 +11437,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host2Team1.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres := submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11376,7 +11477,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host1Global.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11415,7 +11517,8 @@ func (s *integrationTestSuite) TestQueryReports() {
     "hostname": "` + host1Team2.Hostname + `"
   }
 }`),
-		}}
+		},
+	}
 	slres = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
@@ -11888,7 +11991,8 @@ func (s *integrationTestSuite) TestQueryReports() {
 	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.False(t, gqrr.ReportClipped)
 
-	slreq.Data = []json.RawMessage{json.RawMessage(`{
+	slreq.Data = []json.RawMessage{
+		json.RawMessage(`{
   "snapshot": [` + results(1002, host1Global.UUID) + `
   ],
   "action": "snapshot",
@@ -12909,19 +13013,25 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	// the other one set to empty.
 	swPaths := map[string]struct{}{}
 	for _, s := range software {
-		pathItems := [][2]string{{fmt.Sprintf("/some/path/%s", s.Name), ""}}
+		pathItems := [][3]string{{fmt.Sprintf("/some/path/%s", s.Name), "", ""}}
+		if s.Name == "Safari.app" {
+			pathItems = [][3]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "", "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb"},
+			}
+		}
 		if s.Name == "Google Chrome.app" {
-			pathItems = [][2]string{
-				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV"},
-				{fmt.Sprintf("/some/other/path/%s", s.Name), ""},
+			pathItems = [][3]string{
+				{fmt.Sprintf("/some/path/%s", s.Name), "EQHXZ8M8AV", ""},
+				{fmt.Sprintf("/some/other/path/%s", s.Name), "", ""},
 			}
 		}
 		for _, pathItem := range pathItems {
 			path := pathItem[0]
 			teamIdentifier := pathItem[1]
+			cdHash := pathItem[2]
 			key := fmt.Sprintf(
-				"%s%s%s%s%s",
-				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
+				"%s%s%s%s%s%s%s",
+				path, fleet.SoftwareFieldSeparator, teamIdentifier, fleet.SoftwareFieldSeparator, cdHash, fleet.SoftwareFieldSeparator, s.ToUniqueStr(),
 			)
 			swPaths[key] = struct{}{}
 		}
@@ -12946,6 +13056,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Len(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation, 1)
 	require.Equal(t, "/some/path/Safari.app", getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
+	require.Equal(t, "e5b4ca9dd782162e526b95b2a37b25a55ddc8fdb", *getHostSoftwareResp.Software[0].InstalledVersions[0].SignatureInformation[0].HashSha256)
 
 	require.Equal(t, "Google Chrome.app", getHostSoftwareResp.Software[1].Name)
 	require.Len(t, getHostSoftwareResp.Software[1].InstalledVersions, 1)
@@ -12961,6 +13072,8 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	})
 	require.Equal(t, "/some/other/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].InstalledPath)
 	require.Equal(t, "", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].TeamIdentifier)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[0].HashSha256)
+	require.Nil(t, getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].HashSha256)
 	require.Equal(t, "/some/path/Google Chrome.app", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].InstalledPath)
 	require.Equal(t, "EQHXZ8M8AV", getHostSoftwareResp.Software[1].InstalledVersions[0].SignatureInformation[1].TeamIdentifier)
 
@@ -13156,16 +13269,18 @@ func (s *integrationTestSuite) TestHostCertificates() {
 	}
 	certs := make([]*fleet.HostCertificateRecord, 0, len(certNames))
 	for i, name := range certNames {
+		sha1Sum := sha1.Sum([]byte(name)) // nolint:gosec
 		certs = append(certs, &fleet.HostCertificateRecord{
 			HostID:         host.ID,
 			CommonName:     name,
-			SHA1Sum:        sha1.New().Sum([]byte(name)), // nolint: gosec
+			SHA1Sum:        sha1Sum[:],
 			SubjectCountry: "s" + name,
 			IssuerCountry:  "i" + name,
 			NotValidAfter:  notValidAfterTimes[i],
+			Source:         fleet.SystemHostCertificate,
 		})
 	}
-	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, certs))
+	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs))
 
 	// list all certs
 	certResp = listHostCertificatesResponse{}
@@ -13178,6 +13293,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		require.Equal(t, "s"+want, cert.Subject.Country)
 		require.NotNil(t, cert.Issuer)
 		require.Equal(t, "i"+want, cert.Issuer.Country)
+		require.Equal(t, fleet.SystemHostCertificate, cert.Source)
 	}
 
 	certResp = listHostCertificatesResponse{}
@@ -13192,6 +13308,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		require.Equal(t, "s"+want, cert.Subject.Country)
 		require.NotNil(t, cert.Issuer)
 		require.Equal(t, "i"+want, cert.Issuer.Country)
+		require.Equal(t, fleet.SystemHostCertificate, cert.Source)
 	}
 
 	// non-existing host
@@ -13250,4 +13367,105 @@ func (s *integrationTestSuite) TestHostCertificates() {
 			require.Equal(t, c.wantMeta, *certResp.Meta)
 		})
 	}
+}
+
+func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
+	t := s.T()
+
+	// create a mac, linux and windows host
+	host1 := createOrbitEnrolledHost(t, "darwin", "host1", s.ds)
+	host2 := createOrbitEnrolledHost(t, "linux", "host2", s.ds)
+	host3 := createOrbitEnrolledHost(t, "windows", "host3", s.ds)
+
+	// set a chrome profile for each host
+	for i, h := range []*fleet.Host{host1, host2, host3} {
+		distributedReq := submitDistributedQueryResultsRequestShim{
+			NodeKey: *h.NodeKey,
+			Results: map[string]json.RawMessage{
+				hostDetailQueryPrefix + "google_chrome_profiles": json.RawMessage(fmt.Sprintf(
+					`[{"email": "%s"}]`, fmt.Sprintf("user%d@example.com", i))),
+			},
+			Statuses: map[string]interface{}{
+				hostDistributedQueryPrefix + "google_chrome_profiles": 0,
+			},
+			Messages: map[string]string{},
+			Stats:    map[string]*fleet.Stats{},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	}
+
+	oldHosts := make([]fleet.Host, 3)
+	for i, h := range []*fleet.Host{host1, host2, host3} {
+		var hostResponse getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResponse)
+		require.False(t, hostResponse.Host.RefetchRequested)
+		require.Len(t, hostResponse.Host.EndUsers, 1)
+		require.Len(t, hostResponse.Host.EndUsers[0].OtherEmails, 1)
+		require.Equal(t, hostResponse.Host.EndUsers[0].OtherEmails[0].Source, "google_chrome_profiles")
+		oldHosts[i] = hostResponse.Host.Host
+	}
+
+	// do an orbit re-enrollment of the hosts, should set refetch requested
+	orbitKey := setOrbitEnrollment(t, host1, s.ds)
+	host1.OrbitNodeKey = &orbitKey
+	orbitKey = setOrbitEnrollment(t, host2, s.ds)
+	host2.OrbitNodeKey = &orbitKey
+	orbitKey = setOrbitEnrollment(t, host3, s.ds)
+	host3.OrbitNodeKey = &orbitKey
+
+	for i, h := range []*fleet.Host{host1, host2, host3} {
+		var hostResponse getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResponse)
+		require.True(t, hostResponse.Host.RefetchRequested)
+		require.Len(t, hostResponse.Host.EndUsers, 1)
+		require.Len(t, hostResponse.Host.EndUsers[0].OtherEmails, 1)
+		require.Equal(t, hostResponse.Host.EndUsers[0].OtherEmails[0].Source, "google_chrome_profiles")
+		require.Equal(t, oldHosts[i].ID, h.ID)
+	}
+
+	// send a response for the refetch request
+	for _, h := range []*fleet.Host{host1, host2, host3} {
+		distributedReq := submitDistributedQueryResultsRequestShim{
+			NodeKey: *h.NodeKey,
+			Results: map[string]json.RawMessage{
+				hostDetailQueryPrefix + "google_chrome_profiles": json.RawMessage(`[]`),
+			},
+			Statuses: map[string]interface{}{
+				hostDistributedQueryPrefix + "google_chrome_profiles": 0,
+			},
+			Messages: map[string]string{},
+			Stats:    map[string]*fleet.Stats{},
+		}
+		distributedResp := submitDistributedQueryResultsResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
+	}
+
+	for i, h := range []*fleet.Host{host1, host2, host3} {
+		var hostResponse getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResponse)
+		require.False(t, hostResponse.Host.RefetchRequested)
+		require.Len(t, hostResponse.Host.EndUsers, 0)
+		require.Equal(t, oldHosts[i].ID, h.ID)
+	}
+}
+
+func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
+	t := s.T()
+
+	var resp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
+	require.False(t, resp.License.ManagedCloud)
+
+	// Microsoft compliance partner APIs should fail if the setting is not set (only set on Cloud).
+	var r conditionalAccessMicrosoftCreateResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
+		MicrosoftTenantID: "foobar",
+	}, http.StatusBadRequest, &r)
+	var c conditionalAccessMicrosoftConfirmResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
+		http.StatusBadRequest, &c)
+	var d conditionalAccessMicrosoftDeleteResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
+		http.StatusBadRequest, &d)
 }

@@ -1292,35 +1292,52 @@ module.exports = {
       //  ╚═╝  ╚═╝╚═╝     ╚═╝         ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
       //
       async()=>{
+        // FUTURE: add support for multiple platforms when they are added to Fleet maintained apps.
         let appLibrary = [];
         // Get app library json
-        let appsJsonData = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/server/mdm/maintainedapps/apps.json'));
+        let appsJsonData = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/apps.json'));
         // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
-        await sails.helpers.flow.simultaneouslyForEach(appsJsonData, async(app)=>{
-          let appInformation = {
-            identifier: app.identifier,
-            bundleIdentifier: app.bundle_identifier,
-            installerFormat: app.installer_format,
-          };
-          // Note: This method of getting information about the apps will be out of date until the JSON files in the /server/mdm/maintainedapps/testdata/ folder are updated.
-          let detailedInformationAboutThisApp = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/'+app.identifier+'.json'))
-          .intercept('doesNotExist', ()=>{
-            return new Error(`Could not build app library configuration from testdata folder. When attempting to read a JSON configuration file for ${app.identifier}, no file was found at ${path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/'+app.identifier+'.json. Was it moved?')}.`);
-          });
+        await sails.helpers.flow.simultaneouslyForEach(appsJsonData.apps, async(app)=>{
+          // FUTURE: add support for windows apps once the page is updated to be multi-platform.
+          if(app.platform !== 'darwin'){
+            return;
+          }
 
-          // Grab the latest information about these apps from the Homebrew API.
-          // let detailedInformationAboutThisApp = await sails.helpers.http.get(`https://formulae.brew.sh/api/cask/${app.identifier}.json`)
-          // .intercept((error)=>{
-          //   return new Error(`Could not build app library configuration. When attempting to send a request to the homebrew API to get the latest information about ${app.identifier}, an error occured. Full error: ${util.inspect(error, {depth: null})}`);
-          // });
-          let scriptToUninstallThisApp = await sails.helpers.fs.read(path.join(topLvlRepoPath, `/server/mdm/maintainedapps/testdata/scripts/${app.identifier}_uninstall.golden.sh`))
+          let appInformation = {
+            name: app.name,
+            identifier: app.slug.split('/'+app.platform)[0],
+            outputSlug: app.slug,
+            bundleIdentifier: app.unique_identifier,
+            description: app.description,
+            platform: app.platform,
+          };
+
+          // Grab the latest information about these apps from the the ee/maintained-apps folder in the repo.
+          let detailedInformationAboutThisApp = await sails.helpers.fs.readJson(path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json'))
           .intercept('doesNotExist', ()=>{
-            return new Error(`Could not build app library configuration from testdata folder. When attempting to read an uninstall script for ${app.identifier}, no file was found at ${path.join(topLvlRepoPath, '/server/mdm/maintainedapps/testdata/scripts/'+app.identifier+'_uninstall.golden.sh. Was it moved?')}.`);
+            return new Error(`Could not build app library configuration from the ee/maintained-apps folder. When attempting to read a JSON configuration file for ${appInformation.identifier}, no file was found at ${path.join(topLvlRepoPath, '/ee/maintained-apps/outputs/'+app.slug+'.json')}. Was it moved?')}.`);
           });
+          let expectedAppIconFilename = `app-icon-${appInformation.identifier}-60x60@2x.png`;
+
+          // FUTURE: copy the app icons from where they are stored in the repo (when they are stored in the repo).
+          let iconImageExistsForThisApp = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', expectedAppIconFilename));
+          if(iconImageExistsForThisApp){
+            appInformation.iconFilename = expectedAppIconFilename;
+          } else {
+            // If no icon for this software exists in the website/assets/images folder, use a fallback icon.
+            appInformation.iconFilename = `app-icon-fallback-60x60@2x.png`;
+          }
+          // Get the latest version of the app from the versions array.
+          let latestVersionOfThisApp = detailedInformationAboutThisApp.versions[0];
+          // get the ref that is used as the key for this version's uninstall script in the `refs` array.
+          let latestUninstallScriptRef = latestVersionOfThisApp.uninstall_script_ref;
+          // Get the uninstall script for this version.
+          let scriptToUninstallThisApp = detailedInformationAboutThisApp.refs[latestUninstallScriptRef];
+          // Modify the latest uninstall script to be on a single line.
+
           // Remove lines that only contain comments.
           scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/^\s*#.*$/gm, '');
-
-          // Condense functions onto a single line.
+          // Condense functions in the uninstall script onto a single line.
           // For each function in the script:
           scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/(\w+)\s*\(\)\s*\{([\s\S]*?)^\}/gm, (match, functionName, functionContent)=> {
             // Split the function content into an array
@@ -1348,15 +1365,12 @@ module.exports = {
             // Return the condensed single-line function.
             return `${functionName}() { ${condensedBodyOfFunction} }`;
           });
-
           // Remove newlines with "&&" and remove any that are added to the end and beginning of the condensed command.
           scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/\n\s*/g, ' && ').replace(/ && $/, '').replace(/^ && /, '');
 
-
+          // Add the uninstall script and the latest version to this app's configuration.
           appInformation.uninstallScript = scriptToUninstallThisApp;
-          appInformation.version = detailedInformationAboutThisApp.version.split(',')[0];
-          appInformation.description = detailedInformationAboutThisApp.desc;
-          appInformation.name = detailedInformationAboutThisApp.name[0];
+          appInformation.version = latestVersionOfThisApp.version.split(',')[0];
           appLibrary.push(appInformation);
         });
         builtStaticContent.appLibrary = appLibrary;

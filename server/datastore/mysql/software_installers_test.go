@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -42,8 +43,11 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"GetOrGenerateSoftwareInstallerTitleID", testGetOrGenerateSoftwareInstallerTitleID},
 		{"BatchSetSoftwareInstallersScopedViaLabels", testBatchSetSoftwareInstallersScopedViaLabels},
 		{"MatchOrCreateSoftwareInstallerWithAutomaticPolicies", testMatchOrCreateSoftwareInstallerWithAutomaticPolicies},
-		{"GetSoftwareTitleNameFromExecutionID", testGetSoftwareTitleNameFromExecutionID},
+		{"GetDetailsForUninstallFromExecutionID", testGetDetailsForUninstallFromExecutionID},
 		{"GetTeamsWithInstallerByHash", testGetTeamsWithInstallerByHash},
+		{"BatchSetSoftwareInstallersSetupExperienceSideEffects", testBatchSetSoftwareInstallersSetupExperienceSideEffects},
+		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
+		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
 	}
 
 	for _, c := range cases {
@@ -368,7 +372,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostPendingUninstall.ID, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, hostPendingUninstall.ID, si.InstallerID, false)
 			require.NoError(t, err)
 
 			// Host with failed uninstall
@@ -383,7 +387,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 			execID = "uuid" + tag + tc
-			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostFailedUninstall.ID, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostFailedUninstall.ID, si.InstallerID, false)
 			require.NoError(t, err)
 			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostFailedUninstall.ID,
@@ -404,7 +408,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 			execID = "uuid" + tag + tc
-			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostUninstalled.ID, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, execID, hostUninstalled.ID, si.InstallerID, false)
 			require.NoError(t, err)
 			_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 				HostID:      hostUninstalled.ID,
@@ -414,7 +418,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// Uninstall request with unknown host
-			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID)
+			err = ds.InsertSoftwareUninstallRequest(ctx, "uuid"+tag+tc, 99999, si.InstallerID, false)
 			assert.ErrorContains(t, err, "Host")
 
 			userTeamFilter := fleet.TeamFilter{
@@ -810,20 +814,28 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	ins0File := bytes.NewReader([]byte("installer0"))
 	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
 	require.NoError(t, err)
-	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
-		InstallScript:    "install",
-		InstallerFile:    tfr0,
-		StorageID:        ins0,
-		Filename:         "installer0",
-		Title:            "ins0",
-		Source:           "apps",
-		Version:          "1",
-		PreInstallQuery:  "foo",
-		UserID:           user1.ID,
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
 		Platform:         "darwin",
-		URL:              "https://example.com",
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-		BundleIdentifier: "com.example.ins0",
+		UniqueIdentifier: "fleet.maintained1",
+	})
+	require.NoError(t, err)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{{
+		InstallScript:        "install",
+		InstallerFile:        tfr0,
+		StorageID:            ins0,
+		Filename:             "installer0",
+		Title:                "ins0",
+		Source:               "apps",
+		Version:              "1",
+		PreInstallQuery:      "foo",
+		UserID:               user1.ID,
+		Platform:             "darwin",
+		URL:                  "https://example.com",
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		BundleIdentifier:     "com.example.ins0",
+		FleetMaintainedAppID: ptr.Uint(maintainedApp.ID),
 	}})
 	require.NoError(t, err)
 	softwareInstallers, err = ds.GetSoftwareInstallers(ctx, team.ID)
@@ -833,6 +845,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.Equal(t, team.ID, *softwareInstallers[0].TeamID)
 	require.NotNil(t, softwareInstallers[0].TitleID)
 	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
+	require.Equal(t, maintainedApp.ID, *softwareInstallers[0].FleetMaintainedAppID)
 	assertSoftware([]fleet.SoftwareTitle{
 		{Name: ins0, Source: "apps", Browser: ""},
 	})
@@ -1168,6 +1181,291 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	pendingHost1, err = ds.ListPendingSoftwareInstalls(ctx, host1.ID)
 	require.NoError(t, err)
 	require.Empty(t, pendingHost1)
+}
+
+func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	t.Cleanup(func() { ds.testActivateSpecificNextActivities = nil })
+
+	// create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// create a host
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID})
+	host1.TeamID = &team.ID
+	require.NoError(t, err)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	assertSoftware := func(wantTitles []fleet.SoftwareTitle) {
+		tmFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+		titles, _, _, err := ds.ListSoftwareTitles(
+			ctx,
+			fleet.SoftwareTitleListOptions{TeamID: &team.ID},
+			tmFilter,
+		)
+		require.NoError(t, err)
+		require.Len(t, titles, len(wantTitles))
+
+		for _, title := range titles {
+			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, title.ID, false)
+			require.NoError(t, err)
+			require.NotNil(t, meta.TitleID)
+		}
+	}
+
+	// add two installers
+	ins0 := "installer0"
+	ins0File := bytes.NewReader([]byte("installer0"))
+	tfr0, err := fleet.NewTempFileReader(ins0File, t.TempDir)
+	require.NoError(t, err)
+
+	ins1 := "installer1"
+	ins1File := bytes.NewReader([]byte("installer1"))
+	tfr1, err := fleet.NewTempFileReader(ins1File, t.TempDir)
+	require.NoError(t, err)
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:      "install",
+			PostInstallScript:  "post-install",
+			InstallerFile:      tfr1,
+			StorageID:          ins1,
+			Filename:           ins1,
+			Title:              ins1,
+			Source:             "apps",
+			Version:            "2",
+			PreInstallQuery:    "select 1 from bar;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example2.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+
+	require.NoError(t, err)
+	softwareInstallers, err := ds.GetSoftwareInstallers(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, softwareInstallers, 2)
+	require.NotNil(t, softwareInstallers[0].TitleID)
+	require.NotNil(t, softwareInstallers[0].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[0].TeamID)
+	require.Equal(t, "https://example.com", softwareInstallers[0].URL)
+	require.NotNil(t, softwareInstallers[1].TitleID)
+	require.NotNil(t, softwareInstallers[1].TeamID)
+	require.Equal(t, team.ID, *softwareInstallers[1].TeamID)
+	require.Equal(t, "https://example2.com", softwareInstallers[1].URL)
+	assertSoftware([]fleet.SoftwareTitle{
+		{Name: ins0, Source: "apps", Browser: ""},
+		{Name: ins1, Source: "apps", Browser: ""},
+	})
+
+	// Add setup_experience_status_results for both installers
+	_, err = ds.EnqueueSetupExperienceItems(ctx, host1.UUID, *host1.TeamID)
+	require.NoError(t, err)
+
+	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	// Enqueue the actual install requests
+	for _, status := range statuses {
+		execID, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, *status.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{ForSetupExperience: true})
+		require.NoError(t, err)
+		status.HostSoftwareInstallsExecutionID = &execID
+		status.Status = fleet.SetupExperienceStatusRunning
+		err = ds.UpdateSetupExperienceStatusResult(ctx, status)
+		require.NoError(t, err)
+	}
+
+	// batch-set without changes
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:      "install",
+			PostInstallScript:  "post-install",
+			InstallerFile:      tfr1,
+			StorageID:          ins1,
+			Filename:           ins1,
+			Title:              ins1,
+			Source:             "apps",
+			Version:            "2",
+			PreInstallQuery:    "select 1 from bar;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example2.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	for _, status := range statuses {
+		require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
+	}
+
+	// batch-set change ins0's install script to update it and cancel the pending install
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install2",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:      "install",
+			PostInstallScript:  "post-install",
+			InstallerFile:      tfr1,
+			StorageID:          ins1,
+			Filename:           ins1,
+			Title:              ins1,
+			Source:             "apps",
+			Version:            "2",
+			PreInstallQuery:    "select 1 from bar;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example2.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+
+	require.NoError(t, err)
+
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	// Verify that ins0's install was cancelled but ins1 is still running
+	ins1ExecID := ""
+	ins0Found := false
+	ins1Found := false
+	for _, status := range statuses {
+		if status.Name == ins0 {
+			assert.False(t, ins0Found, "duplicate ins0 found")
+			ins0Found = true
+			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
+		} else {
+			assert.False(t, ins1Found, "duplicate ins1 found")
+			assert.Equal(t, ins1, status.Name)
+			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
+			require.NotNil(t, status.HostSoftwareInstallsExecutionID)
+			ins1ExecID = *status.HostSoftwareInstallsExecutionID
+		}
+	}
+
+	// activate and set a result for ins1 as if the install completed
+	ds.testActivateSpecificNextActivities = []string{ins1ExecID}
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host1.ID, "")
+	require.NoError(t, err)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host1.ID,
+		InstallUUID:           ins1ExecID,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+
+	require.NoError(t, err)
+
+	// batch-set change ins1's install script to update it. This should do nothing to the setup
+	// experience result because the install already completed
+	err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:      "install2",
+			InstallerFile:      tfr0,
+			StorageID:          ins0,
+			Filename:           ins0,
+			Title:              ins0,
+			Source:             "apps",
+			Version:            "1",
+			PreInstallQuery:    "select 0 from foo;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:      "install3",
+			PostInstallScript:  "post-install",
+			InstallerFile:      tfr1,
+			StorageID:          ins1,
+			Filename:           ins1,
+			Title:              ins1,
+			Source:             "apps",
+			Version:            "2",
+			PreInstallQuery:    "select 1 from bar;",
+			UserID:             user1.ID,
+			Platform:           "darwin",
+			URL:                "https://example2.com",
+			InstallDuringSetup: ptr.Bool(true),
+			ValidatedLabels:    &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	statuses, err = ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
+	require.NoError(t, err)
+	require.Len(t, statuses, 2)
+
+	// Verify that ins0's install is still cancelled and ins1 is still running(because it hasn't
+	// been updated in the SESR entry yet)
+	ins0Found = false
+	ins1Found = false
+	for _, status := range statuses {
+		if status.Name == ins0 {
+			assert.False(t, ins0Found, "duplicate ins0 found")
+			ins0Found = true
+			require.Equal(t, fleet.SetupExperienceStatusCancelled, status.Status)
+		} else {
+			assert.False(t, ins1Found, "duplicate ins1 found")
+			assert.Equal(t, ins1, status.Name)
+			require.Equal(t, fleet.SetupExperienceStatusRunning, status.Status)
+		}
+	}
 }
 
 func testGetSoftwareInstallerMetadataByTeamAndTitleID(t *testing.T, ds *Datastore) {
@@ -2278,7 +2576,7 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	require.Equal(t, "[Install software] Something2 (msi) 3", team3Policies[2].Name)
 }
 
-func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
+func testGetDetailsForUninstallFromExecutionID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -2317,9 +2615,10 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// get software title for unknown exec id
-	title, err := ds.GetSoftwareTitleNameFromExecutionID(ctx, "unknown")
+	title, selfService, err := ds.GetDetailsForUninstallFromExecutionID(ctx, "unknown")
 	require.ErrorIs(t, err, sql.ErrNoRows)
 	require.Empty(t, title)
+	require.False(t, selfService)
 
 	// create a couple pending software install request, the first will be
 	// immediately present in host_software_installs too (activated)
@@ -2328,13 +2627,8 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	req2, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installer2, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req1)
-	require.NoError(t, err)
-	require.Equal(t, "foobar", title)
-
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req2)
-	require.NoError(t, err)
-	require.Equal(t, "barfoo", title)
+	_, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// record a result for req1, will be deleted from upcoming_activities
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -2344,22 +2638,18 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req1)
-	require.NoError(t, err)
-	require.Equal(t, "foobar", title)
-
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req2)
-	require.NoError(t, err)
-	require.Equal(t, "barfoo", title)
+	_, _, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req1)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	// create an uninstall request for installer1
 	req3 := uuid.NewString()
-	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1)
+	err = ds.InsertSoftwareUninstallRequest(ctx, req3, host.ID, installer1, true)
 	require.NoError(t, err)
 
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
+	title, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+	require.True(t, selfService)
 
 	// record a result for req2, will activate req3 so it is now in host_software_installs too
 	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -2369,9 +2659,10 @@ func testGetSoftwareTitleNameFromExecutionID(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	title, err = ds.GetSoftwareTitleNameFromExecutionID(ctx, req3)
+	title, selfService, err = ds.GetDetailsForUninstallFromExecutionID(ctx, req3)
 	require.NoError(t, err)
 	require.Equal(t, "foobar", title)
+	require.True(t, selfService)
 }
 
 func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
@@ -2496,4 +2787,304 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, installers, 1)
 	require.Equal(t, installers[0].InstallerID, installer2NoTeam)
+}
+
+func testEditDeleteSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create a few installers
+	newInstallerFile := func(ident string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(ident), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	err := ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer1"),
+			StorageID:       "installer1",
+			Filename:        "installer1",
+			Title:           "installer1",
+			Source:          "apps",
+			Version:         "1",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/1",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer2"),
+			StorageID:       "installer2",
+			Filename:        "installer2",
+			Title:           "installer2",
+			Source:          "apps",
+			Version:         "2",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/2",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+	installers, err := ds.GetSoftwareInstallers(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, installers, 2)
+	sort.Slice(installers, func(i, j int) bool {
+		return installers[i].URL < installers[j].URL
+	})
+	ins1, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *installers[0].TitleID, false)
+	require.NoError(t, err)
+	ins2, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *installers[1].TitleID, false)
+	require.NoError(t, err)
+
+	// create a few hosts
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "3", "host3key", "host3uuid", time.Now())
+
+	// enqueue software installs on each host
+	host1Ins1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, ins1.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host1Ins2, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, ins2.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	// add a script exec as last activity for host1
+	host1Script, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: host1.ID, ScriptContents: "echo", UserID: &user.ID, SyncRequest: true,
+	})
+	require.NoError(t, err)
+	host2Ins1, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, ins1.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host2Ins2, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, ins2.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	// add a script exec as first activity for host3
+	host3Script, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: host3.ID, ScriptContents: "echo", UserID: &user.ID, SyncRequest: true,
+	})
+	require.NoError(t, err)
+	host3Ins2, err := ds.InsertSoftwareInstallRequest(ctx, host3.ID, ins2.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, host1, host1Ins1, host1Ins2, host1Script.ExecutionID)
+	checkUpcomingActivities(t, ds, host2, host2Ins1, host2Ins2)
+	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID, host3Ins2)
+
+	// simulate an update to installer 1 metadata
+	err = ds.ProcessInstallerUpdateSideEffects(ctx, ins1.InstallerID, true, false)
+	require.NoError(t, err)
+
+	// installer 1 activities were deleted, next activity was activated
+	checkUpcomingActivities(t, ds, host1, host1Ins2, host1Script.ExecutionID)
+	checkUpcomingActivities(t, ds, host2, host2Ins2)
+	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID, host3Ins2)
+
+	// delete installer 2
+	err = ds.DeleteSoftwareInstaller(ctx, ins2.InstallerID)
+	require.NoError(t, err)
+
+	// installer 2 activities were deleted, next activity was activated for host1 and host2
+	checkUpcomingActivities(t, ds, host1, host1Script.ExecutionID)
+	checkUpcomingActivities(t, ds, host2)
+	checkUpcomingActivities(t, ds, host3, host3Script.ExecutionID)
+}
+
+func testBatchSetSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create a few installers
+	newInstallerFile := func(ident string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(ident), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	err := ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer1"),
+			StorageID:       "installer1",
+			Filename:        "installer1",
+			Title:           "installer1",
+			Source:          "apps",
+			Version:         "1",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/1",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer2"),
+			StorageID:       "installer2",
+			Filename:        "installer2",
+			Title:           "installer2",
+			Source:          "apps",
+			Version:         "2",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/2",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer3"),
+			StorageID:       "installer3",
+			Filename:        "installer3",
+			Title:           "installer3",
+			Source:          "apps",
+			Version:         "3",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/3",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+	installers, err := ds.GetSoftwareInstallers(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, installers, 3)
+	sort.Slice(installers, func(i, j int) bool {
+		return installers[i].URL < installers[j].URL
+	})
+	ins1, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *installers[0].TitleID, false)
+	require.NoError(t, err)
+	ins2, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *installers[1].TitleID, false)
+	require.NoError(t, err)
+	ins3, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, *installers[2].TitleID, false)
+	require.NoError(t, err)
+
+	// create a few hosts
+	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "3", "host3key", "host3uuid", time.Now())
+
+	// enqueue software installs on each host
+	host1Ins1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, ins1.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host1Ins2, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, ins2.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host1Ins3, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, ins3.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host2Ins2, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, ins2.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host2Ins1, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, ins1.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host2Ins3, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, ins3.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host3Ins3, err := ds.InsertSoftwareInstallRequest(ctx, host3.ID, ins3.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host3Ins2, err := ds.InsertSoftwareInstallRequest(ctx, host3.ID, ins2.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+	host3Ins1, err := ds.InsertSoftwareInstallRequest(ctx, host3.ID, ins1.InstallerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, host1, host1Ins1, host1Ins2, host1Ins3)
+	checkUpcomingActivities(t, ds, host2, host2Ins2, host2Ins1, host2Ins3)
+	checkUpcomingActivities(t, ds, host3, host3Ins3, host3Ins2, host3Ins1)
+
+	// no change
+	err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer1"),
+			StorageID:       "installer1",
+			Filename:        "installer1",
+			Title:           "installer1",
+			Source:          "apps",
+			Version:         "1",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/1",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer2"),
+			StorageID:       "installer2",
+			Filename:        "installer2",
+			Title:           "installer2",
+			Source:          "apps",
+			Version:         "2",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/2",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer3"),
+			StorageID:       "installer3",
+			Filename:        "installer3",
+			Title:           "installer3",
+			Source:          "apps",
+			Version:         "3",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/3",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, host1, host1Ins1, host1Ins2, host1Ins3)
+	checkUpcomingActivities(t, ds, host2, host2Ins2, host2Ins1, host2Ins3)
+	checkUpcomingActivities(t, ds, host3, host3Ins3, host3Ins2, host3Ins1)
+
+	// remove installer 1, update installer 2
+	err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer2"),
+			PreInstallQuery: "SELECT 1", // <- metadata updated
+			StorageID:       "installer2",
+			Filename:        "installer2",
+			Title:           "installer2",
+			Source:          "apps",
+			Version:         "2",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/2",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		{
+			InstallScript:   "install",
+			InstallerFile:   newInstallerFile("installer3"),
+			StorageID:       "installer3",
+			Filename:        "installer3",
+			Title:           "installer3",
+			Source:          "apps",
+			Version:         "3",
+			UserID:          user.ID,
+			Platform:        "darwin",
+			URL:             "https://example.com/3",
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+	})
+	require.NoError(t, err)
+
+	// installer 1 and 2 activities were deleted, next activity was activated
+	checkUpcomingActivities(t, ds, host1, host1Ins3)
+	checkUpcomingActivities(t, ds, host2, host2Ins3)
+	checkUpcomingActivities(t, ds, host3, host3Ins3)
+
+	// add a pending script on host 1 and 2
+	host1Script, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: host1.ID, ScriptContents: "echo", UserID: &user.ID, SyncRequest: true,
+	})
+	require.NoError(t, err)
+	host2Script, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: host2.ID, ScriptContents: "echo", UserID: &user.ID, SyncRequest: true,
+	})
+	require.NoError(t, err)
+
+	// clear everything
+	err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, host1, host1Script.ExecutionID)
+	checkUpcomingActivities(t, ds, host2, host2Script.ExecutionID)
+	checkUpcomingActivities(t, ds, host3)
 }

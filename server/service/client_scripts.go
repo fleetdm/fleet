@@ -229,3 +229,25 @@ func (c *Client) ListScripts(query string) ([]*fleet.Script, error) {
 	}
 	return responseBody.Scripts, nil
 }
+
+// Get the contents of a saved script.
+func (c *Client) GetScriptContents(scriptID uint) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/scripts/"+fmt.Sprint(scriptID)
+	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	defer response.Body.Close()
+	err = c.parseResponse(verb, path, response, nil)
+	if err != nil {
+		return nil, fmt.Errorf("parsing script response: %w", err)
+	}
+	if response.StatusCode != http.StatusNoContent {
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+		return b, nil
+	}
+	return nil, nil
+}

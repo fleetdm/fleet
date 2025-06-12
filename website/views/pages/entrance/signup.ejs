@@ -49,10 +49,18 @@
             <cloud-error v-if="cloudError==='emailAlreadyInUse'">
               <p>This email is already linked to a Fleet account.<br> Please <a href="/login">sign in</a> with your email and password.</p>
             </cloud-error>
-            <cloud-error v-else-if="cloudError === 'invalidEmailDomain'">
-              <p>Please enter your work or school email address</p>
+            <cloud-error v-if="cloudError === 'invalidEmailDomain'">
+              <p>
+                Please enter your work or school email address.
+              </p>
             </cloud-error>
-            <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
+            <blockquote purpose="tip" v-if="cloudError === 'invalidEmailDomain'">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div class="d-block">
+                <p>Don’t want have a work email? Try a local demo of <a href="/try-fleet">Fleet Free</a> instead.</p>
+              </div>
+            </blockquote>
+            <cloud-error purpose="cloud-error" v-if="cloudError && !['emailAlreadyInUse', 'invalidEmailDomain'].includes(cloudError)"></cloud-error>
             <p class="small">By signing up you agree to our <a href="/legal/privacy">privacy policy</a> and <a href="/terms">terms of service</a>.</p>
             <ajax-button tabindex="6" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Agree and continue</ajax-button>
             <ajax-button tabindex="7" purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
@@ -60,23 +68,7 @@
         </div>
       </div>
       <div purpose="quote-and-logos" class="mx-auto mx-lg-0">
-        <% if(typeof primaryBuyingSituation === 'undefined' || ['mdm'].includes(primaryBuyingSituation)) { %>
-          <div purpose="quote">
-            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
-            <p purpose="quote-text">
-              We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
-            </p>
-            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-              <div purpose="profile-picture">
-                <img alt="Scott MacVicar" style="border-radius: 50%" src="/images/testimonial-author-scott-macvicar-100x100@2x.png">
-              </div>
-              <div class="d-flex flex-column align-self-top">
-                <p purpose="name" class="font-weight-bold m-0">Scott MacVicar</p>
-                <p purpose="job-title" class="m-0">Head of Developer Infrastructure &amp; Corporate Technology</p>
-              </div>
-            </div>
-          </div>
-        <% } else if (['eo-it'].includes(primaryBuyingSituation)) { %>
+        <% if (['it-misc'].includes(primaryBuyingSituation)) { %>
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
             <p purpose="quote-text">
@@ -92,7 +84,7 @@
               </div>
             </div>
           </div>
-        <% } else if (['eo-security'].includes(primaryBuyingSituation)) { %>
+        <% } else if (['security-misc'].includes(primaryBuyingSituation)) { %>
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
             <p purpose="quote-text">
@@ -108,7 +100,7 @@
               </div>
             </div>
           </div>
-        <% } else if (['vm'].includes(primaryBuyingSituation)) { %>
+        <% } else if (['security-vm'].includes(primaryBuyingSituation)) { %>
           <div purpose="quote">
             <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
             <p purpose="quote-text">
@@ -121,6 +113,22 @@
               <div class="d-flex flex-column align-self-top">
                 <p purpose="name" class="font-weight-bold m-0">Andre Shields</p>
                 <p purpose="job-title" class="m-0">Staff Cybersecurity Engineer, Vulnerability Management</p>
+              </div>
+            </div>
+          </div>
+          <% } else { %>
+          <div purpose="quote">
+            <img alt="an opening quotation mark" style="width:20px; margin-bottom: 16px;" src="/images/icon-quote-21x17@2x.png">
+            <p purpose="quote-text">
+              We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
+            </p>
+            <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+              <div purpose="profile-picture">
+                <img alt="Scott MacVicar" style="border-radius: 50%" src="/images/testimonial-author-scott-macvicar-100x100@2x.png">
+              </div>
+              <div class="d-flex flex-column align-self-top">
+                <p purpose="name" class="font-weight-bold m-0">Scott MacVicar</p>
+                <p purpose="job-title" class="m-0">Head of Developer Infrastructure &amp; Corporate Technology</p>
               </div>
             </div>
           </div>

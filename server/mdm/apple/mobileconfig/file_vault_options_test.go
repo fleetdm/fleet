@@ -23,8 +23,7 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 		{
 			name: "not com.apple.MCX payload",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
-				PayloadType:         "com.apple.security.scep",
-				DontAllowFDEDisable: ptr.Bool(true),
+				PayloadType: "com.apple.security.scep",
 			}),
 			contains: false,
 		},
@@ -36,40 +35,10 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 			contains: false,
 		},
 		{
-			// Add all the FileVault options to the custom settings payload
-			name: "com.apple.MCX payload with all FDE options",
+			name: "com.apple.MCX payload with DestroyFVKeyOnStandby option",
 			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
 				PayloadType:           FleetCustomSettingsPayloadType,
 				DestroyFVKeyOnStandby: ptr.Bool(true),
-				DontAllowFDEDisable:   ptr.Bool(true),
-				DontAllowFDEEnable:    ptr.Bool(true),
-			}),
-			contains: true,
-		},
-		{
-			// Only add the dontAllowFDEDisable property to the custom settings payload
-			name: "contains dontAllowFDEDisable",
-			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
-				PayloadType:         FleetCustomSettingsPayloadType,
-				DontAllowFDEDisable: ptr.Bool(false),
-			}),
-			contains: true,
-		},
-		{
-			// Only add the dontAllowFDEEnable property to the custom settings payload
-			name: "contains dontAllowFDEEnable",
-			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
-				PayloadType:        FleetCustomSettingsPayloadType,
-				DontAllowFDEEnable: ptr.Bool(false),
-			}),
-			contains: true,
-		},
-		{
-			// Only add the DestroyFVKeyOnStandby property to the custom settings payload
-			name: "contains DestroyFVKeyOnStandby",
-			in: getFileVaultOptionsPayload(FDEFileVaultOptionsPayload{
-				PayloadType:           FleetCustomSettingsPayloadType,
-				DestroyFVKeyOnStandby: ptr.Bool(false),
 			}),
 			contains: true,
 		},
@@ -84,19 +53,10 @@ func TestContainsFDEVileVaultOptionsPayload(t *testing.T) {
 }
 
 func getFileVaultOptionsPayload(payload FDEFileVaultOptionsPayload) string {
-	var (
-		DestroyFVKeyOnStandby string
-		dontAllowFDEDisable   string
-		dontAllowFDEEnable    string
-	)
+	var DestroyFVKeyOnStandby string
+
 	if payload.DestroyFVKeyOnStandby != nil {
 		DestroyFVKeyOnStandby = fmt.Sprintf("<key>DestroyFVKeyOnStandby</key><%t/>", *payload.DestroyFVKeyOnStandby)
-	}
-	if payload.DontAllowFDEDisable != nil {
-		dontAllowFDEDisable = fmt.Sprintf("<key>dontAllowFDEDisable</key><%t/>", *payload.DontAllowFDEDisable)
-	}
-	if payload.DontAllowFDEEnable != nil {
-		dontAllowFDEEnable = fmt.Sprintf("<key>dontAllowFDEEnable</key><%t/>", *payload.DontAllowFDEEnable)
 	}
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -105,7 +65,7 @@ func getFileVaultOptionsPayload(payload FDEFileVaultOptionsPayload) string {
     <key>PayloadContent</key>
     <array>
         <dict>
-            %s%s%s
+            %s
             <key>PayloadIdentifier</key>
             <string>com.example.fdefvoptionspayload</string>
             <key>PayloadType</key>
@@ -114,6 +74,10 @@ func getFileVaultOptionsPayload(payload FDEFileVaultOptionsPayload) string {
             <string>0a8f4102-0fbf-4d8c-b1e1-3d916f89d927</string>
             <key>PayloadVersion</key>
             <integer>1</integer>
+            <key>dontAllowFDEDisable</key>
+            <true/>
+            <key>dontAllowFDEEnable</key>
+            <true/>
         </dict>
         <dict>
             <key>dontAllowFDEDisable</key>
@@ -141,5 +105,5 @@ func getFileVaultOptionsPayload(payload FDEFileVaultOptionsPayload) string {
     <key>PayloadVersion</key>
     <integer>1</integer>
 </dict>
-</plist>`, DestroyFVKeyOnStandby, dontAllowFDEDisable, dontAllowFDEEnable, payload.PayloadType)
+</plist>`, DestroyFVKeyOnStandby, payload.PayloadType)
 }

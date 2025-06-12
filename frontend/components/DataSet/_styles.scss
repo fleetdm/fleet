@@ -17,6 +17,8 @@
     font-weight: $bold;
     display: flex;
     gap: $pad-xsmall; // For deprecated sandbox icons
+    // white-space: nowrap; // Future-proofing: Prevents unexpected wrapping,
+    // consider uncommenting and testing if layout issues resurface.
   }
 
   dd {

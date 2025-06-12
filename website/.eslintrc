@@ -39,6 +39,7 @@
     "Promise": true,
     "sails": true,
     "_": true,
+    "ƒ": true,
 
     // Models:
     "User": true,
@@ -50,6 +51,7 @@
     "CertificateSigningRequest": true,
     "Platform": true,
     "AdCampaign": true,
+    "MicrosoftComplianceTenant": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   },

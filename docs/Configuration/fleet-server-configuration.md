@@ -1251,6 +1251,30 @@ to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
      max_backups: 0
   ```
 
+## Webhook
+
+To use webhook logging for query results, the following two Fleet config values must *both* be set:
+
+### Set log method to 'webhook' by
+- Command line flag: `--osquery_result_log_plugin="webhook"`,
+- Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN="webhook"`, or
+- Config file:
+  ```yaml
+  osquery:
+    result_log_plugin: "webhook"
+  ```
+
+and
+
+### Set the desired result URL by
+- Command line flag: `--webhook_result_url="<target_result_url>"`,
+- Environment variable: `FLEET_WEBHOOK_RESULT_URL="<target_result_url>"`, or
+- Config file:
+  ```yaml
+  webhook:
+    result_url: "<target_result_url>"
+  ```
+
 ## Firehose
 
 ### firehose_region
@@ -2705,7 +2729,7 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/Configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ### mdm.apple_scep_signer_validity_days
 
@@ -2771,6 +2795,20 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----BEGIN RSA PRIVATE KEY-----
       ... PEM-encoded content ...
       -----END RSA PRIVATE KEY-----
+  ```
+
+## Partnerships
+
+### partnerships_enable_secureframe
+
+When enabled, end user's who select **Fleet Desktop > About Fleet** will be navigated to the fleetdm.com/better page with [Secureframe](https://secureframe.com/) branding. See the page here: https://fleetdm.com/better?utm_content=secureframe
+
+- Default value: `false`
+- Environment variable: `FLEET_PARTNERSHIPS_ENABLE_SECUREFRAME`
+- Config file format:
+  ```
+  partnerships:
+    enable_secureframe: true
   ```
 
 <h2 id="running-with-systemd">Running with systemd</h2>

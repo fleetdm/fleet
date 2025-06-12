@@ -48,6 +48,28 @@ type ScimUserEmail struct {
 	Type       *string `db:"type"`
 }
 
+// GenerateComparisonKey generates a unique string representation of the email
+// that can be used for comparison, properly handling nil values.
+func (e ScimUserEmail) GenerateComparisonKey() string {
+	// Handle Type field which can be nil
+	typeValue := "nil"
+	if e.Type != nil {
+		typeValue = *e.Type
+	}
+
+	// Handle Primary field which can be nil
+	primaryValue := "nil"
+	if e.Primary != nil {
+		if *e.Primary {
+			primaryValue = "true"
+		} else {
+			primaryValue = "false"
+		}
+	}
+
+	return e.Email + ":" + typeValue + ":" + primaryValue
+}
+
 type ScimListOptions struct {
 	// 1-based index of the first result to return (must be positive integer)
 	StartIndex uint
@@ -67,6 +89,16 @@ type ScimUsersListOptions struct {
 	// Cannot be used with other filters.
 	EmailTypeFilter  *string
 	EmailValueFilter *string
+}
+
+type ScimGroupsListOptions struct {
+	ScimListOptions
+
+	// DisplayNameFilter filters by displayName
+	DisplayNameFilter *string
+
+	// ExcludeUsers if true, the group's users will not be fetched
+	ExcludeUsers bool
 }
 
 type ScimGroup struct {

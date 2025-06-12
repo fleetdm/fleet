@@ -1,0 +1,159 @@
+{
+	"kind": "team",
+	"apiVersion": "v1",
+	"spec": {
+		"team": {
+			"id": 12,
+			"created_at": "1999-03-10T02:45:06.371Z",
+			"name": "team1",
+			"description": "team1 description",
+			"host_expiry_settings": {
+				"host_expiry_enabled": false,
+				"host_expiry_window": 0
+			},
+			"webhook_settings": {
+				"host_status_webhook": null,
+				"failing_policies_webhook": {
+					"enable_failing_policies_webhook": false,
+					"destination_url": "",
+					"policy_ids": null,
+					"host_batch_size": 0
+				}
+			},
+			"integrations": {
+				"jira": null,
+				"zendesk": null,
+				"google_calendar": null,
+				"conditional_access_enabled": null
+			},
+			"features": {
+				"enable_host_users": true,
+				"enable_software_inventory": true
+			},
+			"mdm": {
+				"enable_disk_encryption": false,
+				"macos_updates": {
+					"minimum_version": null,
+					"deadline": null
+				},
+				"ios_updates": {
+					"minimum_version": null,
+					"deadline": null
+				},
+				"ipados_updates": {
+					"minimum_version": null,
+					"deadline": null
+				},
+				"windows_updates": {
+					"deadline_days": null,
+					"grace_period_days": null
+				},
+				"macos_settings": {
+					"custom_settings": null
+				},
+				"macos_setup": {
+					"bootstrap_package": null,
+					"enable_end_user_authentication": false,
+					"macos_setup_assistant": null,
+					"enable_release_device_manually": false,
+					"script": null,
+					"software": null,
+					"manual_agent_install": null
+				},
+				"windows_settings": {
+					"custom_settings": null
+				}
+			},
+			"scripts": null,
+			"user_count": 99,
+			"host_count": 42
+		}
+	}
+}
+{
+	"kind": "team",
+	"apiVersion": "v1",
+	"spec": {
+		"team": {
+			"id": 32,
+			"created_at": "1999-03-10T02:45:06.371Z",
+			"name": "team2",
+			"description": "team2 description",
+			"agent_options": {
+				"config": {
+					"foo": "bar"
+				},
+				"overrides": {
+					"platforms": {
+						"darwin": {
+							"foo": "override"
+						}
+					}
+				}
+			},
+			"host_expiry_settings": {
+				"host_expiry_enabled": true,
+				"host_expiry_window": 15
+			},
+			"webhook_settings": {
+				"host_status_webhook": null,
+				"failing_policies_webhook": {
+					"enable_failing_policies_webhook": false,
+					"destination_url": "",
+					"policy_ids": null,
+					"host_batch_size": 0
+				}
+			},
+			"integrations": {
+				"jira": null,
+				"zendesk": null,
+				"google_calendar": null,
+				"conditional_access_enabled": null
+			},
+			"features": {
+				"enable_host_users": false,
+				"enable_software_inventory": false,
+				"additional_queries": {
+					"foo": "bar"
+				}
+			},
+			"mdm": {
+				"enable_disk_encryption": false,
+				"macos_updates": {
+					"minimum_version": "12.3.1",
+					"deadline": "2021-12-14"
+				},
+				"ios_updates": {
+					"minimum_version": "17.5",
+					"deadline": "2022-11-15"
+				},
+				"ipados_updates": {
+					"minimum_version": "18.0",
+					"deadline": "2023-01-01"
+				},
+				"windows_updates": {
+					"deadline_days": 7,
+					"grace_period_days": 3
+				},
+				"macos_settings": {
+					"custom_settings": null
+				},
+				"macos_setup": {
+					"bootstrap_package": null,
+					"enable_end_user_authentication": false,
+					"macos_setup_assistant": null,
+					"enable_release_device_manually": false,
+					"script": null,
+					"software": null,
+					"manual_agent_install": null
+				},
+				"windows_settings": {
+					"custom_settings": null
+				}
+			},
+			"scripts": null,
+			"user_count": 87,
+			"host_count": 43
+		}
+	}
+}

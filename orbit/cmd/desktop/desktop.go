@@ -442,9 +442,9 @@ func main() {
 			for {
 				select {
 				case <-myDeviceItem.ClickedCh:
-					openURL := client.BrowserDeviceURL(tokenReader.GetCached())
+					openURL := client.BrowserPoliciesURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
-						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
+						log.Error().Err(err).Str("url", openURL).Msg("open browser policies")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
 					summaryTicker.Reset(1 * time.Millisecond)

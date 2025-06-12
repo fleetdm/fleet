@@ -500,6 +500,11 @@ html, body {
         &:not(:last-of-type) {
           margin-bottom: 4px;
         }
+        &[target='_blank'] {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+        }
       }
       a:hover {
         text-decoration: none;
@@ -626,6 +631,11 @@ html, body {
 }
 [purpose='page-wrap'].reduced-footer-links {
   padding-bottom: 96px;
+}
+[purpose='page-wrap'].header-hidden {
+  padding-top: 0px;
+  padding-bottom: 0px;
+  background: #F9FAFC;
 }
 
 // Landing page footer styles
