@@ -47,16 +47,15 @@ To generate Fleet's agent (fleetd) in Fleet UI:
 2. Select the tab for your desired platform (e.g. macOS).
 3. A CLI command with all necessary flags to generate an install package will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
-### Enroll host to a specific team
+### Install fleetd
+
+You can use your tool of choice, like [Munki](https://www.munki.org/munki/) on macOS or a package manager ([APT](https://en.wikipedia.org/wiki/APT_(software)) or [DNF](https://en.wikipedia.org/wiki/DNF_(software))) on Linux, to install fleetd. 
+
+### Enroll hosts to a team
 
 With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams. [Learn more about teams](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
 To enroll to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The team's enroll secret will be included in the generated command.
-
-### Enroll multiple hosts
-
-If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts.
-You can use your software management tool of choice to distribute Fleet's agent (fleetd) generated via the instructions above.
 
 ### Fleet Desktop
 
@@ -132,17 +131,15 @@ How to unenroll a host from Fleet:
 
 2. For macOS hosts with MDM turned on, select **Actions > Turn off MDM** to turn MDM off. Instructions for turning off MDM on Windows hosts coming soon.
 
-3. Determine the platform of the host you're trying to unenroll and follow the instructions to uninstall the fleetd agent:
-
-- macOS: Run the [script here](https://github.com/fleetdm/fleet/tree/main/orbit/tools/cleanup/cleanup_macos.sh) 
-- Windows: On the Windows device, select **Start > Settings > Apps > Apps & features**. Find "Fleet osquery", select **Uninstall**.
-- Linux (Ubuntu): With the APT package manager installed, run `sudo apt remove fleet-osquery -y`.
-- Linux (CentOS): Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`.
+3. Determine the platform of the host you're trying to unenroll and follow the instructions to uninstall the fleetd agent [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
+> If an end user wants to switch their workstation's operating system (e.g. Windows to Linux), before they switch, delete the host from Fleet. Then, re-enroll the host.
+
 ## Advanced
 
+- [Best practice for dual-boot workstations](#best-partice-for-dual-boot-workstations)
 - [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
@@ -154,6 +151,10 @@ How to unenroll a host from Fleet:
 - [Generating fleetd for Windows using local WiX toolset](#generating-fleetd-for-windows-using-local-wix-toolset)
 - [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
+
+### Best practice for dual-boot workstations
+
+When end users want to have a dual-boot environment (e.g. Windows and Linux on one computer), the best practice is to install fleetd, that uses `--host-identifier=instance`, on both operating systems. This enrolls two hosts, one per operating system, in Fleet.
 
 ### fleetd components
 

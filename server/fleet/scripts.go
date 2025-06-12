@@ -97,15 +97,17 @@ type HostScriptExecution struct {
 // SetLastExecution updates the LastExecution field of the HostScriptDetail if the provided details
 // are more recent than the current LastExecution. It returns true if the LastExecution was updated.
 func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *time.Time, exitCode *int64, hsrID *uint) bool {
-	if hsrID == nil || executionID == nil || executedAt == nil {
+	if executionID == nil || executedAt == nil {
 		// no new execution, nothing to do
 		return false
 	}
 
 	newHSE := &HostScriptExecution{
-		HSRID:       *hsrID,
 		ExecutionID: *executionID,
 		ExecutedAt:  *executedAt,
+	}
+	if hsrID != nil {
+		newHSE.HSRID = *hsrID
 	}
 	switch {
 	case exitCode == nil:
@@ -152,6 +154,16 @@ type HostScriptRequestPayload struct {
 	// SetupExperienceScriptID is the ID of the setup experience script related to this request
 	// payload, if such a script exists.
 	SetupExperienceScriptID *uint `json:"-"`
+}
+
+// Priority returns the priority to assign to this activity in the upcoming
+// activities queue. It is the default priority except when the script is part
+// of the setup experience flow.
+func (r HostScriptRequestPayload) Priority() int {
+	if r.SetupExperienceScriptID != nil {
+		return 100
+	}
+	return 0
 }
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
@@ -258,6 +270,10 @@ type HostScriptResult struct {
 	// SetupExperienceScriptID is the ID of the setup experience script, if this script execution
 	// was part of setup experience.
 	SetupExperienceScriptID *uint `json:"-" db:"setup_experience_script_id"`
+
+	// Canceled indicates if that script execution request was canceled by a
+	// user.
+	Canceled bool `json:"-" db:"canceled"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -394,6 +410,7 @@ type SoftwareInstallerPayload struct {
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
+	SHA256          string `json:"sha256"`
 }
 
 type HostLockWipeStatus struct {

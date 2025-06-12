@@ -6,6 +6,7 @@ import mdmAPI from "services/entities/mdm";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SelectSoftwareTable from "../SelectSoftwareTable";
 
@@ -92,13 +93,18 @@ const SelectSoftwareModal = ({
           onChangeSelectAll={onChangeSelectAll}
         />
         <div className="modal-cta-wrap">
-          <Button
-            variant="brand"
-            onClick={onSaveSelectedSoftware}
-            isLoading={isSaving}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={6}
+            renderChildren={(disableChildren) => (
+              <Button
+                disabled={disableChildren}
+                onClick={onSaveSelectedSoftware}
+                isLoading={isSaving}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button variant="inverse" onClick={onExit}>
             Cancel
           </Button>

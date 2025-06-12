@@ -2,7 +2,12 @@ import React from "react";
 import { cloneDeep } from "lodash";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { isLinuxLike, isAppleDevice } from "interfaces/platform";
+import {
+  isLinuxLike,
+  isAppleDevice,
+  isMobilePlatform,
+  isAndroid,
+} from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
 import {
@@ -96,6 +101,7 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isMacMdmEnabledAndConfigured,
   } = config;
   return (
+    !isAndroid(hostPlatform) && // TODO(android): confirm can't turn off MDM for windows, iOS, iPadOS?
     hostPlatform === "darwin" &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
@@ -105,10 +111,8 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
 };
 
 const canQueryHost = ({ hostPlatform }: IHostActionConfigOptions) => {
-  // Currently we cannot query iOS or iPadOS
-  const isIosOrIpadosHost = hostPlatform === "ios" || hostPlatform === "ipados";
-
-  return !isIosOrIpadosHost;
+  // cannot query iOS, iPadOS, or Android hosts
+  return !isMobilePlatform(hostPlatform);
 };
 
 const canLockHost = ({
@@ -132,6 +136,7 @@ const canLockHost = ({
 
   return (
     isPremiumTier &&
+    !isAndroid(hostPlatform) &&
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
@@ -164,6 +169,7 @@ const canWipeHost = ({
 
   return (
     isPremiumTier &&
+    !isAndroid(hostPlatform) &&
     hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
@@ -197,6 +203,7 @@ const canUnlock = ({
 
   return (
     isPremiumTier &&
+    !isAndroid(hostPlatform) &&
     isValidState &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
     (canUnlockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
@@ -215,11 +222,10 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
-
-  // Currently we cannot show disk encryption key for iOS or iPadOS
-  const isIosOrIpadosHost = hostPlatform === "ios" || hostPlatform === "ipados";
-
-  return isPremiumTier && doesStoreEncryptionKey && !isIosOrIpadosHost;
+  if (isMobilePlatform(hostPlatform)) {
+    return false;
+  }
+  return isPremiumTier && doesStoreEncryptionKey;
 };
 
 const canRunScript = ({

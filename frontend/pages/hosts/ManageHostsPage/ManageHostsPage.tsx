@@ -149,13 +149,11 @@ const ManageHostsPage = ({
     isOnlyObserver,
     isPremiumTier,
     isFreeTier,
-    isSandboxMode,
     userSettings,
     setFilteredHostsPath,
     setFilteredPoliciesPath,
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
-    setUserSettings,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -198,7 +196,7 @@ const ManageHostsPage = ({
     return [{ key, direction }];
   })();
   const initialQuery = (() => queryParams.query ?? "")();
-  const initialPage = (() =>
+  const curPageFromURL = (() =>
     queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
 
   // ========= states
@@ -223,10 +221,8 @@ const ManageHostsPage = ({
     false
   );
   const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [page, setPage] = useState(initialPage);
   const [sortBy, setSortBy] = useState<ISortOption[]>(initialSortBy);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [isUpdatingLabel, setIsUpdatingLabel] = useState<boolean>(false);
   const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
   const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
@@ -296,7 +292,9 @@ const ManageHostsPage = ({
   const canEnrollHosts =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
   const canEnrollGlobalHosts = isGlobalAdmin || isGlobalMaintainer;
-  const canAddNewLabels = (isGlobalAdmin || isGlobalMaintainer) ?? false;
+  const canAddNewLabels =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) ??
+    false;
 
   const { data: labels, refetch: refetchLabels } = useQuery<
     ILabelsResponse,
@@ -412,8 +410,8 @@ const ManageHostsPage = ({
         osName,
         osVersion,
         vulnerability,
-        page: tableQueryData ? tableQueryData.pageIndex : DEFAULT_PAGE_INDEX,
-        perPage: tableQueryData ? tableQueryData.pageSize : DEFAULT_PAGE_SIZE,
+        page: curPageFromURL || DEFAULT_PAGE_INDEX,
+        perPage: DEFAULT_PAGE_SIZE,
         device_mapping: true,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
@@ -610,27 +608,7 @@ const ManageHostsPage = ({
     return true;
   };
 
-  // NOTE: Solution also used on ManagePoliciesPage.tsx
-  // NOTE: used to reset page number to 0 when modifying filters
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [queryParams, page]);
-
-  // NOTE: used to reset page number to 0 when modifying filters
-  const handleResetPageIndex = () => {
-    setTableQueryData(
-      (prevState) =>
-        ({
-          ...prevState,
-          pageIndex: 0,
-        } as ITableQueryData)
-    );
-    setResetPageIndex(true);
-  };
-
   const handleChangePoliciesFilter = (response: PolicyResponse) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -649,8 +627,6 @@ const ManageHostsPage = ({
   const handleChangeDiskEncryptionStatusFilter = (
     newStatus: DiskEncryptionStatus
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -666,8 +642,6 @@ const ManageHostsPage = ({
   };
 
   const handleChangeOsSettingsFilter = (newStatus: MdmProfileStatus) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -685,8 +659,6 @@ const ManageHostsPage = ({
   const handleChangeBootstrapPackageStatusFilter = (
     newStatus: BootstrapPackageStatus
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -698,8 +670,6 @@ const ManageHostsPage = ({
   };
 
   const handleClearRouteParam = () => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -714,8 +684,6 @@ const ManageHostsPage = ({
   };
 
   const handleClearFilter = (omitParams: string[]) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -732,8 +700,6 @@ const ManageHostsPage = ({
   const handleStatusDropdownChange = (
     statusName: SingleValue<CustomOptionType>
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -751,8 +717,6 @@ const ManageHostsPage = ({
   const handleMacSettingsStatusDropdownChange = (
     newMacSettingsStatus: MacSettingsStatusQueryParam
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -770,8 +734,6 @@ const ManageHostsPage = ({
   const handleSoftwareInstallStatusChange = (
     newStatus: SoftwareAggregateStatus
   ) => {
-    handleResetPageIndex();
-
     router.replace(
       getNextLocationPath({
         pathPrefix: PATHS.MANAGE_HOSTS,
@@ -868,10 +830,6 @@ const ManageHostsPage = ({
         setSearchQuery(searchText);
       }
 
-      if (!isEqual(page, pageIndex)) {
-        setPage(pageIndex);
-      }
-
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
       if (!isEmpty(searchText)) {
@@ -961,7 +919,6 @@ const ManageHostsPage = ({
       osVersionId,
       osName,
       osVersion,
-      page,
       router,
       routeTemplate,
       routeParams,
@@ -977,7 +934,7 @@ const ManageHostsPage = ({
       // TODO(sarah): refactor so that this doesn't trigger two api calls (reset page index updates
       // tableQueryData)
       handleTeamChange(teamId);
-      handleResetPageIndex();
+
       // Must clear other page paths or the team might accidentally switch
       // When navigating from host details
       setFilteredSoftwarePath("");
@@ -1534,7 +1491,7 @@ const ManageHostsPage = ({
           emptyHosts.info =
             "Generate Fleet's agent (fleetd) to add your own hosts.";
           emptyHosts.primaryButton = (
-            <Button variant="brand" onClick={toggleAddHostsModal} type="button">
+            <Button onClick={toggleAddHostsModal} type="button">
               Add hosts
             </Button>
           );
@@ -1563,7 +1520,6 @@ const ManageHostsPage = ({
         variant: "text-icon",
         iconSvg: "transfer",
         hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
-        indicatePremiumFeature: isPremiumTier && isSandboxMode,
       },
     ];
 
@@ -1621,7 +1577,7 @@ const ManageHostsPage = ({
         defaultSortDirection={
           (sortBy[0] && sortBy[0].direction) || DEFAULT_SORT_DIRECTION
         }
-        defaultPageIndex={page || DEFAULT_PAGE_INDEX}
+        pageIndex={curPageFromURL}
         defaultSearchQuery={searchQuery}
         pageSize={DEFAULT_PAGE_SIZE}
         additionalQueries={JSON.stringify(selectedFilters)}
@@ -1655,7 +1611,6 @@ const ManageHostsPage = ({
         customControl={renderCustomControls}
         onQueryChange={onTableQueryChange}
         toggleAllPagesSelected={toggleAllMatchingHosts}
-        resetPageIndex={resetPageIndex}
         onClickRow={handleRowSelect}
         disableNextPage={isLastPage}
       />
@@ -1704,20 +1659,19 @@ const ManageHostsPage = ({
           <div className={`${baseClass}__header-wrap`}>
             {renderHeader()}
             <div className={`${baseClass} button-wrap`}>
-              {!isSandboxMode && canEnrollHosts && !hasErrors && (
+              {canEnrollHosts && !hasErrors && (
                 <Button
                   onClick={() => setShowEnrollSecretModal(true)}
                   className={`${baseClass}__enroll-hosts button`}
                   variant="inverse"
                 >
-                  <span>Manage enroll secret</span>
+                  Manage enroll secret
                 </Button>
               )}
               {showAddHostsButton && (
                 <Button
                   onClick={toggleAddHostsModal}
                   className={`${baseClass}__add-hosts`}
-                  variant="brand"
                 >
                   <span>Add hosts</span>
                 </Button>

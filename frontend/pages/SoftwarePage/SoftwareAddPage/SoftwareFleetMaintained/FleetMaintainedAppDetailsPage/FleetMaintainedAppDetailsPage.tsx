@@ -6,10 +6,9 @@ import { InjectedRouter } from "react-router";
 import { useErrorHandler } from "react-error-boundary";
 
 import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
-import teamPoliciesAPI from "services/entities/team_policies";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
@@ -35,18 +34,11 @@ import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetai
 import AddFleetAppSoftwareModal from "./AddFleetAppSoftwareModal";
 import FleetAppDetailsModal from "./FleetAppDetailsModal";
 
-import {
-  getErrorMessage,
-  getFleetAppPolicyDescription,
-  getFleetAppPolicyName,
-  getFleetAppPolicyQuery,
-} from "./helpers";
+import { getErrorMessage } from "./helpers";
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
 const REQUEST_TIMEOUT_ERROR_MESSAGE =
-  "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
-const AUTOMATIC_POLICY_ERROR_MESSAGE =
-  "Couldn't add automatic install policy. Software is successfully added. To retry, delete software and add it again.";
+  "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
 
 const baseClass = "fleet-maintained-app-details-page";
 
@@ -67,7 +59,7 @@ const FleetAppSummary = ({
     <Card
       className={`${baseClass}__fleet-app-summary`}
       borderRadiusSize="medium"
-      color="gray"
+      color="grey"
     >
       <div className={`${baseClass}__fleet-app-summary--left`}>
         <SoftwareIcon name={name} size="medium" />
@@ -129,6 +121,7 @@ const FleetMaintainedAppDetailsPage = ({
   }
 
   const { renderFlash } = useContext(NotificationContext);
+
   const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
@@ -147,7 +140,7 @@ const FleetMaintainedAppDetailsPage = ({
     isError: isErrorFleetApp,
   } = useQuery(
     ["fleet-maintained-app", appId],
-    () => softwareAPI.getFleetMaintainedApp(appId),
+    () => softwareAPI.getFleetMaintainedApp(appId, teamId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isPremiumTier,
@@ -180,9 +173,10 @@ const FleetMaintainedAppDetailsPage = ({
     setShowAppDetailsModal(true);
   };
 
-  const backToAddSoftwareUrl = `${
-    PATHS.SOFTWARE_ADD_FLEET_MAINTAINED
-  }?${buildQueryStringFromParams({ team_id: teamId })}`;
+  const backToAddSoftwareUrl = getPathWithQueryParams(
+    PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
+    { team_id: teamId }
+  );
 
   const onCancel = () => {
     router.push(backToAddSoftwareUrl);
@@ -194,7 +188,6 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
-    const { installType } = formData;
     let titleId: number | undefined;
     try {
       const res = await softwareAPI.addFleetMaintainedApp(
@@ -206,25 +199,20 @@ const FleetMaintainedAppDetailsPage = ({
       );
       titleId = res.software_title_id;
 
-      // for manual install we redirect only on a successful software add.
-      if (installType === "manual") {
-        router.push(
-          `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
-            team_id: teamId,
-            available_for_install: true,
-          })}`
-        );
-        renderFlash(
-          "success",
-          <>
-            <b>{fleetApp?.name}</b> successfully added.
-          </>
-        );
-      }
-    } catch (error) {
-      // quick exit if there was an error adding the software. Skip the policy
-      // creation.
+      router.push(
+        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
+          team_id: teamId,
+          available_for_install: true,
+        })
+      );
 
+      renderFlash(
+        "success",
+        <>
+          <b>{fleetApp?.name}</b> successfully added.
+        </>
+      );
+    } catch (error) {
       const ae = (typeof error === "object" ? error : {}) as AxiosResponse;
 
       const errorMessage = getErrorMessage(ae);
@@ -239,44 +227,6 @@ const FleetMaintainedAppDetailsPage = ({
       } else {
         renderFlash("error", DEFAULT_ERROR_MESSAGE);
       }
-
-      setShowAddFleetAppSoftwareModal(false);
-      return;
-    }
-
-    // If the install type is automatic we now need to create the new policy.
-    if (installType === "automatic" && fleetApp) {
-      try {
-        await teamPoliciesAPI.create({
-          name: getFleetAppPolicyName(fleetApp.name),
-          description: getFleetAppPolicyDescription(fleetApp.name),
-          query: getFleetAppPolicyQuery(fleetApp.name),
-          team_id: parseInt(teamId, 10),
-          software_title_id: titleId,
-          platform: "darwin",
-        });
-
-        renderFlash(
-          "success",
-          <>
-            <b>{fleetApp?.name}</b> successfully added.
-          </>,
-          { persistOnPageChange: true }
-        );
-      } catch (e) {
-        renderFlash("error", AUTOMATIC_POLICY_ERROR_MESSAGE, {
-          persistOnPageChange: true,
-        });
-      }
-
-      // for automatic install we redirect on both a successful and error policy
-      // add because the software was already successfuly added.
-      router.push(
-        `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams({
-          team_id: teamId,
-          available_for_install: true,
-        })}`
-      );
     }
 
     setShowAddFleetAppSoftwareModal(false);
@@ -318,9 +268,11 @@ const FleetMaintainedAppDetailsPage = ({
               defaultInstallScript={fleetApp.install_script}
               defaultPostInstallScript={fleetApp.post_install_script}
               defaultUninstallScript={fleetApp.uninstall_script}
+              teamId={teamId}
               onClickShowSchema={() => setSidePanelOpen(true)}
               onCancel={onCancel}
               onSubmit={onSubmit}
+              softwareTitleId={fleetApp.software_title_id}
             />
           </div>
         </>

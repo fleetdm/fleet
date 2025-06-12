@@ -2,7 +2,7 @@
 name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
-labels: '#g-mdm,#g-orchestration,#g-software:release'
+labels: '#g-mdm,#g-orchestration,#g-software,:release'
 assignees: 'xpkoala,pezhub,jmwatts'
 
 ---
@@ -183,9 +183,12 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 <tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>
 
-Using the migration scripts located in fleet/test/upgrade/
-1. Run the upgrade_test.go script using the most recent stable version of Fleet and `main`.
-2. Upgrade test returns an 'OK' response.
+Using the github action https://github.com/fleetdm/fleet/actions/workflows/db-upgrade-test.yml
+1. Using the most recent stable version of Fleet and `main`, click `Run workflow`
+2. Enter the Docker tag of Fleet starting version, e.g. 'v4.64.2'
+3. Enter the Docker tag of Fleet version to upgrade to, e.g. 'rc-minor-fleet-v4.65.0'
+4. Click `Run workflow`.
+5. Action should complete successfully.
 </td><td>pass/fail</td></tr>
 </table>
 
@@ -198,7 +201,7 @@ Using the migration scripts located in fleet/test/upgrade/
 1. Check [this](https://github.com/fleetdm/fleet/labels/~release%20blocker) filter to view all open `~release blocker` tickets.
 2. If any are found raise an alarm in the `#help-engineering` and `#g-mdm` (or `#g-endpoint-ops`)  channels.
 </td><td>pass/fail</td>
-<tr><td>Load Tests</td><td>Verify all load test metrics are within acceptable range on final build of RC.</td><td>
+<tr><td>Load tests - minor releases only unless otherwise specified</td><td>Verify all load test metrics are within acceptable range on final build of RC.</td><td>
   
 1. Check [this Google doc](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0#heading=h.15acjob4ji20) to review load test key metrics and checks.
 2. After all expected changes have been merged to the RC branch, set up a load test environment and allow it at least 24hrs of run time.
@@ -216,7 +219,10 @@ What has not been tested:
 
 Include any notes on whether issues should block release or not as needed:
 
-## `fleetd` agent:
+<br>
+<br>
+
+# `fleetd` agent:
 
 Includes updates to: 
 - Orbit: True / False
@@ -229,9 +235,11 @@ List versions changes for any component updates below:
 - Desktop `v1.xx.x` > `v1.xx.x`
 - Chrome extension `v1.xx.x` > `v1.xx.x`
 
-### Prerequisites
+## Testing gates for new `fleetd` release
 
-1. Build a new `fleetd` from the release candidate branch as neded for Orbit, Desktop, and Chrome Extension.
+### Goal: Ensure new `fleetd` is tested and promoted from local > edge > stable channels
+
+1. Build a new `fleetd` from the release candidate branch as needed for Orbit, Desktop, and Chrome Extension.
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
@@ -249,13 +257,10 @@ List versions changes for any component updates below:
 <td>
 1. Conduct the [`fleetd` auto-update n+1 test]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/Fleetd-auto-update-test-guide.md))<br>
 2. QA certifies new release by commenting in issue.<br>
-3. Engineer waits at least 1 business day, then promotes update to `stable`.
 </td>
 <td>
 1. Agent successfully auto-updates.<br>
 2. Issue is certified by QA.<br>
-3. Agent is promoted to `stable`.<br>
-4. Confirms agents running on `stable` receive the new update.
 </td>
 <td>pass/fail</td></tr>
 <td>`fleetd` tests</td>
@@ -265,11 +270,67 @@ List versions changes for any component updates below:
 </td>
 <td>
 1. Confirm the hosts running on the edge channel receive the update and are working correctly.<br>
-2. Confirm any new features and/or bug fixes associated with this release are working as intended.
+2. Confirm any new features and/or bug fixes associated with this release are working as intended.<br>
 </td>
 <td>pass/fail</td></tr></tr>
+
 </table>
 
+## New `fleetd` pushed to edge
+
+### Goal: Ensure `fleetd` version pushed to edge is working with the current released version of fleet.
+
+1. Fleet server is running the latest released version available on [Fleet Releases](https://github.com/fleetdm/fleet/releases) page.
+2. Set Agent options to use edge in the Fleet server configuration. For example:<br>
+ `update_channels:` <br>
+  `osqueryd: edge` <br>
+  `orbit: edge` <br>
+  `desktop: edge` <br>
+<table>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
+<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+
+ <tr><td>Query flow</td><td>Run queries. </td><td>
+1. Queries can be run manually 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Host Flow</td><td>Verify a new host can be added using your own device.</td><td>
+1. Hosts can enroll and report correct version of `fleetd` (orbit, osquery, desktop).<br>
+2. Refetching host vitals completes and returns updated information.
+</td><td>pass/fail</td></tr>
+
+<tr><td>My device page</td><td>Verify the end user's my device page loads successfully.</td><td>
+1. Clicking the Fleet desktop item, then "My device" successfully loads the my device page.<br>
+2. The "My device" page is populated correctly and as expected. <br>
+3. Styling and padding appears correct. 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Scripts</td><td>Verify script execution</td><td>
+1. Verify able to run a script on all host types from CLI.<br>
+2. From Host details (macOS, Windows, & Linux) run a script that should PASS, verify.<br>
+3. From Host details (macOS, Windows, & Linux) run a script that should FAIL, verify.<br>
+4. Verify script results display correctly in Activity feed.
+</td><td>pass/fail</td></tr>
+
+<tr><td>Software</td><td>Verify software install / download</td><td>
+1. From Host details (macOS, Windows, & Linux) run an install that should PASS, verify.<br>
+2. From My Device (macOS, Windows, & Linux) software tab should have self-service items available, verify.<br>
+3. Verify software installs display correctly in Activity feed.
+</td><td>pass/fail</td></tr>
+
+<tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
+1. Verify able to configure Disk encryption (macOS, Windows, & Linux).<br>
+2. Verify host enrolled with Disk encryption enforced successfully encrypts.
+</td><td>pass/fail</td></tr>
+
+<tr><td>Packs flow</td><td>Verify management, operation, and logging of ["2017 packs"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs).</td><td>
+1. Packs successfully run on host machines after migrations <br>
+2. New Packs can be created. <br>
+3. Packs can be edited and deleted <br>
+4. Packs results information is logged
+</td><td>pass/fail</td></tr>
+
+</table>
   
 # Notes
 

@@ -3,6 +3,7 @@ import React from "react";
 import Button from "components/buttons/Button";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const EmptyTeamsTable = ({
   className,
@@ -28,13 +29,18 @@ const EmptyTeamsTable = ({
         </>
       }
       primaryButton={
-        <Button
-          variant="brand"
-          className={`${className}__create-button`}
-          onClick={onActionButtonClick}
-        >
-          Create team
-        </Button>
+        <GitOpsModeTooltipWrapper
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
+            <Button
+              className={`${className}__create-button`}
+              onClick={onActionButtonClick}
+              disabled={disableChildren}
+            >
+              Create team
+            </Button>
+          )}
+        />
       }
     />
   );

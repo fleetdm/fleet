@@ -45,7 +45,7 @@ Note that Firehose logging has limits [discussed in the documentation](https://d
 
 To send logs to Snowflake, you must first configure Fleet to send logs to [Amazon Kinesis Data Firehose (Firehose)](#amazon-kinesis-data-firehose). This is because you'll use the Snowflake Snowpipe integration to direct logs to Snowflake.
 
-If you're using Fleet's [terraform reference architecture](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/firehose.tf), Firehose is already configured as your log destination.
+If you're using Fleet's [best practice Terraform](https://github.com/fleetdm/fleet-terraform), Firehose is already configured as your log destination.
 
 With Fleet configured to send logs to Firehose, you then want to load the data from Firehose into a Snowflake database. AWS provides instructions on how to direct logs to a Snowflake database [here in the AWS documentation](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/automate-data-stream-ingestion-into-a-snowflake-database-by-using-snowflake-snowpipe-amazon-s3-amazon-sns-and-amazon-kinesis-data-firehose.html)
 
@@ -53,13 +53,38 @@ Snowflake provides instructions on setting up the destination tables and IAM rol
 
 ## Splunk
 
-To send logs to Splunk, you must first configure Fleet to send logs to [Amazon Kinesis Data Firehose (Firehose)](#amazon-kinesis-data-firehose). This is because you'll enable Firehose to forward logs directly to Splunk.
+How to send logs to Splunk:
 
-With Fleet configured to send logs to Firehose, you then want to load the data from Firehose into Splunk. AWS provides instructions on how to enable Firehose to forward directly to Splunk [here in the AWS documentation](https://docs.aws.amazon.com/firehose/latest/dev/create-destination.html#create-destination-splunk).
+1. Follow [Splunk's instructions](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose) to prepare the Splunk for Firehose data.
 
-If you're using Fleet's [terraform reference architecture](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws), you want to replace the S3 destination with a Splunk destination. Hashicorp provides instructions on how to send Firehose data to Splunk [here in the Terraform documentation](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination).
+2. Follow these [AWS instructions](https://docs.aws.amazon.com/firehose/latest/dev/create-destination.html#create-destination-splunk) on how to enable Firehose to forward directly to Splunk.
 
-Splunk provides instructions on how to prepare the Splunk platform for Firehose data [here in the Splunk documentation](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose).
+3. In your [`main.tf` file](https://github.com/fleetdm/fleet-terraform/blob/main/addons/logging-destination-firehose/main.tf), replace your S3 destination (`aws_kinesis_firehose_delivery_stream`) with a Splunk destination:
+
+```hcl
+resource "aws_kinesis_firehose_delivery_stream" "test_stream" {
+  name        = "terraform-kinesis-firehose-test-stream"
+  destination = "splunk"
+
+  splunk_configuration {
+    hec_endpoint               = "https://http-inputs-mydomain.splunkcloud.com:443"
+    hec_token                  = "51D4DA16-C61B-4F5F-8EC7-ED4301342A4A"
+    hec_acknowledgment_timeout = 600
+    hec_endpoint_type          = "Event"
+    s3_backup_mode             = "FailedEventsOnly"
+
+    s3_configuration {
+      role_arn           = aws_iam_role.firehose.arn
+      bucket_arn         = aws_s3_bucket.bucket.arn
+      buffering_size     = 10
+      buffering_interval = 400
+      compression_format = "GZIP"
+    }
+  }
+}
+```
+
+For the latest configuration go to HashiCorp's Terraform docs [here](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/kinesis_firehose_delivery_stream#splunk-destination).
 
 ## Amazon Kinesis Data Streams
 

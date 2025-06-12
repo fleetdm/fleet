@@ -44,17 +44,25 @@
               <div purpose="codeblock-tabs" >
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="policy.powershell">PowerShell<span purpose="new-badge">NEW</span></a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'bash' ? 'selected' : '']"  @click="selectedTab = 'bash'" v-if="policy.bash">Bash<span purpose="new-badge">NEW</span></a>
                 <div purpose="copy-button-tab">
                   <div purpose="copy-button"></div>
                 </div>
               </div>
               <pre v-show="selectedTab === 'sql'"><code class="hljs sql"><%= policy.query %></code></pre>
               <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks"><%= policy.powershell %></code></pre>
+              <pre v-show="selectedTab === 'bash'"><code class="hljs sh"><%= policy.bash %></code></pre>
             </div>
             <div purpose="powershell-note" v-if="selectedTab === 'ps'">
               <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
               <div>
                 <p>PowerShell commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
+              </div>
+            </div>
+            <div purpose="powershell-note" v-if="selectedTab === 'bash'">
+              <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+              <div>
+                <p>Bash commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
               </div>
             </div>
           </div>
@@ -64,10 +72,10 @@
             <div purpose="policy-platform">
               <h4>Platform</h4>
               <div class="d-flex flex-row">
-                <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="policy.platform.includes('darwin')"/>
-                <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="policy.platform.includes('windows')"/>
-                <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="policy.platform.includes('linux')"/>
-                <img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="policy.platform.includes('chrome')"/>
+                <h1><img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" v-if="policy.platform.includes('darwin')"/>macOS/apple</h1>
+                <h1><img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" v-if="policy.platform.includes('windows')"/>Windows</h1>
+                <h1><img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" v-if="policy.platform.includes('linux')"/>Linux</h1>
+                <h1><img src="/images/os-chromeos-dark-24x24@2x.png" alt="ChromeOS" v-if="policy.platform.includes('chrome')"/>ChromeOS</h1>
               </div>
             </div>
             <div purpose="docs-links" class="order-3">

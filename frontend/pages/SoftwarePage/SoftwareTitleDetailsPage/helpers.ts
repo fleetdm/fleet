@@ -29,7 +29,9 @@ export const getInstallerCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
     version:
       (isPackage ? installerData.version : installerData.latest_version) ||
       null,
-    uploadedAt: isPackage ? installerData.uploaded_at : "",
+    addedTimestamp: isPackage
+      ? installerData.uploaded_at
+      : installerData.created_at,
     status: isPackage
       ? aggregateInstallStatusCounts(installerData.status)
       : installerData.status,

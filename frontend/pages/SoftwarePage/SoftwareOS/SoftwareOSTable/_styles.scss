@@ -45,12 +45,6 @@
                 .children-wrapper {
                   overflow: initial;
                 }
-
-                // ellipsis for software name
-                .software-name {
-                  overflow: hidden;
-                  text-overflow: ellipsis;
-                }
               }
               .link-cell {
                 display: flex;

@@ -5,7 +5,7 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 
 import diskEncryptionAPI, {
   IDiskEncryptionSummaryResponse,
@@ -60,8 +60,8 @@ const DiskEncryptionTable = ({
         [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: status?.value,
         team_id: teamId,
       };
-      const endpoint = PATHS.MANAGE_HOSTS;
-      const path = `${endpoint}?${buildQueryStringFromParams(queryParams)}`;
+      const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, queryParams);
+
       router.push(path);
     },
     [router]

@@ -42,7 +42,7 @@ func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.Softwa
 func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, query url.Values, dryRun bool) ([]fleet.SoftwarePackageResponse, error) {
 	path := "/api/latest/fleet/software/batch"
 	var resp batchSetSoftwareInstallersResponse
-	if err := c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
+	if err := c.authenticatedRequestWithQuery(map[string]any{"software": softwareInstallers}, "POST", path, &resp, query.Encode()); err != nil {
 		return nil, err
 	}
 	if dryRun && resp.RequestUUID == "" {
@@ -66,4 +66,12 @@ func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInst
 			return nil, fmt.Errorf("unknown status: %q", resp.Status)
 		}
 	}
+}
+
+// InstallSoftware triggers a software installation (VPP or software package)
+// on the specified host.
+func (c *Client) InstallSoftware(hostID uint, softwareTitleID uint) error {
+	verb, path := "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", hostID, softwareTitleID)
+	var responseBody installSoftwareResponse
+	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }

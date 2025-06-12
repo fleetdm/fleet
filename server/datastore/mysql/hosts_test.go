@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"crypto/sha1"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -18,9 +19,11 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -33,10 +36,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var expLastExec = func() time.Time {
-	t, _ := time.Parse(time.RFC3339, pastDate)
-	return t
-}()
+var expLastExec = common_mysql.GetDefaultNonZeroTime()
 
 var enrollTests = []struct {
 	uuid, hostname, platform, nodeKey string
@@ -120,6 +120,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
 		{"IOSHostExpiration", testIOSHostsExpiration},
+		{"DEPHostExpiration", testDEPHostsExpiration},
 		{"TeamHostsExpiration", testTeamHostsExpiration},
 		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
@@ -905,6 +906,14 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerifying}, 1) // hosts[19]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsFilter: fleet.OSSettingsVerifying}, 1)  // hosts[19]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerifying}, 1)
+
+	// disk encryption for linux, must enable disk encryption for no team first
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
 	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "morton", 1)) // set host 1 to verified
@@ -939,6 +948,12 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 
 	// move linux hosts to team 1 (un-escrows keys)
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID, hosts[5].ID}))
+
+	// enable disk encryption for that team
+	team1.Config.MDM.EnableDiskEncryption = true
+	_, err = ds.SaveTeam(context.Background(), team1)
+	require.NoError(t, err)
+
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsPending}, 5) // pending supported linux hosts
 
 	require.NoError(t, ds.SaveLUKSData(context.Background(), hosts[1], "key1", "mutton", 2)) // set host 1 to verified
@@ -4235,6 +4250,74 @@ func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
 	require.Len(t, hosts, 5)
 }
 
+func testDEPHostsExpiration(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	devices := []godep.Device{
+		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
+		{SerialNumber: "def", Model: "iPad", OS: "iOS", OpType: "added"},
+	}
+
+	abmToken, err := ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: t.Name(), EncryptedToken: []byte(uuid.NewString())})
+	require.NoError(t, err)
+	require.NotEmpty(t, abmToken.ID)
+
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	ac.HostExpirySettings.HostExpiryWindow = 30
+
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	count, err := ds.IngestMDMAppleDevicesFromDEPSync(ctx, devices, abmToken.ID, nil, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, int64(2), count)
+
+	// set created_at to a date outside the expiry window
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		r, err := q.ExecContext(ctx,
+			`UPDATE hosts SET created_at = '2020-01-01 00:00:01' WHERE hardware_serial IN (?, ?)`,
+			devices[0].SerialNumber, devices[1].SerialNumber)
+		require.NoError(t, err)
+		rowsAffected, _ := r.RowsAffected()
+		require.Equal(t, int64(2), rowsAffected)
+		return nil
+	})
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 2)
+	for _, host := range hosts {
+		// confirm that the created_at date is set to the date we set above
+		require.Equal(t, "2020-01-01 00:00:01", host.CreatedAt.Format("2006-01-02 15:04:05"))
+		// confirm that the detail_updated_at date is the default NeverTimestamp
+		require.Equal(t, server.NeverTimestamp, host.DetailUpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+
+	deletedIDs, err := ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	require.Len(t, deletedIDs, 0) // no hosts should be deleted
+
+	// soft delete one of the host_dep_assignments
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		r, err := q.ExecContext(ctx,
+			`UPDATE host_dep_assignments SET deleted_at = NOW() WHERE host_id = ?`,
+			hosts[0].ID)
+		require.NoError(t, err)
+		rowsAffected, _ := r.RowsAffected()
+		require.Equal(t, int64(1), rowsAffected)
+		return nil
+	})
+
+	deletedIDs, err = ds.CleanupExpiredHosts(ctx)
+	require.NoError(t, err)
+	require.Len(t, deletedIDs, 1)
+	require.Equal(t, hosts[0].ID, deletedIDs[0])
+
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 1) // only one host should remain
+}
+
 func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	// Set global host expiry windows
 	const hostExpiryWindow = 70
@@ -6966,7 +7049,19 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.RecordHostBootstrapPackage(context.Background(), "command-uuid", host.UUID)
 	require.NoError(t, err)
-	_, err = ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
+
+	// this will create the row in both upcoming_activities and host_script_results as
+	// it will be activated immediately
+	hsr, err := ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
+	require.NoError(t, err)
+
+	// set a script result so it is removed from upcoming_activities and the
+	// software install (later in the test) can be inserted in both
+	// upcoming_activities and host_software_installs
+	_, _, err = ds.SetHostScriptExecutionResult(context.Background(), &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: hsr.ExecutionID,
+	})
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
@@ -7030,7 +7125,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false, nil)
+	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
 	// Add an awaiting configuration entry
@@ -7044,6 +7139,25 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	added, err := ds.EnqueueSetupExperienceItems(ctx, host.UUID, 0)
 	require.NoError(t, err)
 	require.True(t, added)
+
+	// Add a host certificate
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, []*fleet.HostCertificateRecord{{
+		HostID:     host.ID,
+		CommonName: "foo",
+		SHA1Sum:    sha1.New().Sum([]byte("foo")),
+	}}))
+
+	// create an android device from this host
+	_, err = ds.writer(context.Background()).Exec(`
+	INSERT INTO android_devices (host_id, device_id)
+	VALUES (?, ?);
+	`, host.ID, uuid.NewString())
+	require.NoError(t, err)
+
+	// Create a SCIM user and link it to host
+	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user"})
+	require.NoError(t, err)
+	require.NoError(t, ds.associateHostWithScimUser(ctx, host.ID, scimUserID))
 
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
@@ -8733,6 +8847,90 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			t.Parallel()
 			scenarioD(platform)
 		})
+	}
+
+	// Scenario E:
+	//	- Fleet with MDM enabled.
+	// 	- two hosts with the same hardware identifiers (e.g. two cloned VMs) but platform may be different
+	//	- fleetd running with host identifier set to uuid (default).
+	//	- orbit enrolls first, then osquery
+	//  - host_mdm entry exists after first host enrolls
+	// Expected output: The two fleetd instances should be enrolled as one host and if the first host was
+	//   platform="windows" and the second host was not, the host_mdm entry should be removed
+	scenarioE := func(fromPlatform, toPlatform string) {
+		dupUUID := uuid.New().String()
+		dupHWSerial := uuid.New().String()
+
+		h1Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   dupUUID,
+			HardwareSerial: dupHWSerial,
+			Platform:       fromPlatform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
+		require.NoError(t, err)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+		h1Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		h1OsqueryFetched, err := ds.Host(ctx, h1Osquery.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, h1OrbitFetched.LastEnrolledAt, h1OsqueryFetched.LastEnrolledAt)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_mdm(host_id, enrolled, server_url, installed_from_dep, mdm_id, is_server)
+		VALUES(?, 1, 'https://example.com/mdm', 0, ?, 0)`, h1Orbit.ID, h1Orbit.ID+100)
+			return err
+		})
+		h1WithMdmFetched, err := ds.Host(ctx, h1Orbit.ID)
+		require.NoError(t, err)
+		require.NotNil(t, h1WithMdmFetched.MDM.ServerURL)
+		require.NotNil(t, h1WithMdmFetched.MDM.EnrollmentStatus)
+
+		h2Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   dupUUID,
+			HardwareSerial: dupHWSerial,
+			Platform:       toPlatform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h2OrbitFetched, err := ds.Host(ctx, h2Orbit.ID)
+		require.NoError(t, err)
+		// orbit should not update last_enrolled_at if re-enrolling (because last_enrolled_at
+		// is to be set by osquery only).
+		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+		h2Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+		h2OsqueryFetched, err := ds.Host(ctx, h2Osquery.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, h2OrbitFetched.LastEnrolledAt, h2OsqueryFetched.LastEnrolledAt)
+
+		// the hosts compete for the host entry (all have same row id)
+		require.Equal(t, h1Orbit.ID, h2Orbit.ID)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+
+		if fromPlatform == "windows" && toPlatform != "windows" {
+			assert.Nil(t, h2OrbitFetched.MDM.EnrollmentStatus)
+			assert.Nil(t, h2OrbitFetched.MDM.ServerURL)
+		} else {
+			require.NotNil(t, h2OrbitFetched.MDM.EnrollmentStatus)
+			assert.Equal(t, *h1WithMdmFetched.MDM.EnrollmentStatus, *h2OrbitFetched.MDM.EnrollmentStatus)
+			require.NotNil(t, h2OrbitFetched.MDM.ServerURL)
+			assert.Equal(t, *h1WithMdmFetched.MDM.ServerURL, *h2OrbitFetched.MDM.ServerURL)
+		}
+	}
+	for _, fromPlatform := range []string{"ubuntu", "windows", "darwin"} {
+		for _, toPlatform := range []string{"ubuntu", "windows", "darwin"} {
+			fromPlatform := fromPlatform
+			toPlatform := toPlatform
+			t.Run("scenarioE_from_"+fromPlatform+"_to_"+toPlatform, func(t *testing.T) {
+				t.Parallel()
+				scenarioE(fromPlatform, toPlatform)
+			})
+		}
 	}
 }
 

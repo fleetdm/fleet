@@ -3,10 +3,11 @@ import { InjectedRouter } from "react-router";
 import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
+
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-
 import LinkCell from "../LinkCell";
 
 const baseClass = "software-name-cell";
@@ -29,11 +30,7 @@ const installIconMap: Record<InstallType, installIconConfig> = {
   },
   selfService: {
     iconName: "user",
-    tooltip: (
-      <>
-        End users can install from <b>Fleet Desktop {">"} Self-service</b>.
-      </>
-    ),
+    tooltip: SELF_SERVICE_TOOLTIP,
   },
   automatic: {
     iconName: "refresh",
@@ -97,11 +94,13 @@ const InstallIconWithTooltip = ({
 };
 
 interface ISoftwareNameCellProps {
-  name?: string;
+  name: string;
   source?: string;
   /** pass in a `path` that this cell will link to */
   path?: string;
   router?: InjectedRouter;
+  /** Open details modal onClick */
+  myDevicePage?: boolean;
   hasPackage?: boolean;
   isSelfService?: boolean;
   installType?: "manual" | "automatic";
@@ -113,11 +112,23 @@ const SoftwareNameCell = ({
   source,
   path,
   router,
+  myDevicePage = false,
   hasPackage = false,
   isSelfService = false,
   installType,
   iconUrl,
 }: ISoftwareNameCellProps) => {
+  // My device page
+  if (myDevicePage) {
+    return (
+      <LinkCell
+        tooltipTruncate
+        prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
+        value={name}
+      />
+    );
+  }
+
   // NO path or router means it's not clickable. return
   // a non-clickable cell early
   if (!router || !path) {
@@ -139,18 +150,17 @@ const SoftwareNameCell = ({
     <LinkCell
       className={baseClass}
       path={path}
+      tooltipTruncate
       customOnClick={onClickSoftware}
-      value={
-        <>
-          <SoftwareIcon name={name} source={source} url={iconUrl} />
-          <span className="software-name">{name}</span>
-          {hasPackage && (
-            <InstallIconWithTooltip
-              isSelfService={isSelfService}
-              installType={installType}
-            />
-          )}
-        </>
+      prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
+      value={name}
+      suffix={
+        hasPackage ? (
+          <InstallIconWithTooltip
+            isSelfService={isSelfService}
+            installType={installType}
+          />
+        ) : undefined
       }
     />
   );

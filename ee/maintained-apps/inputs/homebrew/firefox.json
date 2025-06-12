@@ -1,0 +1,7 @@
+{
+  "name": "Mozilla Firefox",
+  "slug": "firefox/darwin",
+  "unique_identifier": "org.mozilla.firefox",
+  "token": "firefox",
+  "installer_format": "dmg"
+}

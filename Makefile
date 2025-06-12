@@ -9,6 +9,8 @@ REVISION = $(shell git rev-parse HEAD)
 REVSHORT = $(shell git rev-parse --short HEAD)
 USER = $(shell whoami)
 DOCKER_IMAGE_NAME = fleetdm/fleet
+# The tool that was called on the command line (probably `make` or `fdm`).
+TOOL_CMD = "make"
 
 ifdef GO_BUILD_RACE_ENABLED
 GO_BUILD_RACE_ENABLED_VAR := true
@@ -57,49 +59,17 @@ LDFLAGS_VERSION = "\
 	-X github.com/fleetdm/fleet/v4/server/version.buildUser=${USER} \
 	-X github.com/fleetdm/fleet/v4/server/version.goVersion=${GOVERSION}"
 
-all: build
-
-define HELP_TEXT
-
-  Makefile commands
-
-	make deps         - Install dependent programs and libraries
-	make generate     - Generate and bundle required all code
-	make generate-go  - Generate and bundle required go code
-	make generate-js  - Generate and bundle required js code
-	make generate-dev - Generate and bundle required code in a watch loop
-
-	make migration - create a database migration file (supply name=TheNameOfYourMigration)
-
-	make generate-doc     - Generate updated API documentation for activities, osquery flags
-	make dump-test-schema - update schema.sql from current migrations
-	make generate-mock    - update mock data store
-
-	make clean        - Clean all build artifacts
-	make clean-assets - Clean assets only
-
-	make build        - Build the code
-	make package 	  - Build rpm and deb packages for linux
-
-	make run-go-tests   - Run Go tests in specific packages
-	make debug-go-tests - Debug Go tests in specific packages (with Delve)
-	make test-js        - Run the JavaScript tests
-
-	make lint         - Run all linters
-	make lint-go      - Run the Go linters
-	make lint-js      - Run the JavaScript linters
-	make lint-scss    - Run the SCSS linters
-	make lint-ts      - Run the TypeScript linters
-
-	For use in CI:
-
-	make test         - Run the full test suite (lint, Go and Javascript)
-	make test-go      - Run the Go tests (all packages and tests)
-
+# Macro to allow targets to filter out their own arguments from the arguments
+# passed to the final command.
+# Targets may also add their own CLI arguments to the command as EXTRA_CLI_ARGS.
+# See `serve` target for an example.
+define filter_args
+$(eval FORWARDED_ARGS := $(filter-out $(TARGET_ARGS), $(CLI_ARGS)))
+$(eval FORWARDED_ARGS := $(FORWARDED_ARGS) $(EXTRA_CLI_ARGS))
 endef
 
-help:
-	$(info $(HELP_TEXT))
+all: build
+
 
 .prefix:
 	mkdir -p build/linux
@@ -115,7 +85,106 @@ help:
 .pre-fleetctl:
 	$(eval APP_NAME = fleetctl)
 
-build: fleet fleetctl
+# For the build target, decide which binaries to build.
+BINS_TO_BUILD =
+ifeq (build,$(filter build,$(MAKECMDGOALS)))
+	BINS_TO_BUILD = fleet fleetctl
+	ifeq ($(ARG1), fleet)
+		BINS_TO_BUILD = fleet
+	else ifeq ($(ARG1), fleetctl)
+		BINS_TO_BUILD = fleetctl
+	endif
+endif
+.help-short--build:
+	@echo "Build binaries"
+.help-long--build:
+	@echo "Builds the specified binaries (defaults to building fleet and fleetctl)"
+.help-usage--build:
+	@echo "$(TOOL_CMD) build [binaries] [options]"
+.help-options--build:
+	@echo "GO_BUILD_RACE_ENABLED"
+	@echo "Turn on data race detection when building"
+	@echo "EXTRA_FLEETCTL_LDFLAGS=\"--flag1 --flag2...\""
+	@echo "Flags to provide to the Go linker when building fleetctl"
+.help-extra--build:
+	@echo "AVAILABLE BINARIES:"
+	@echo "  fleet      Build the fleet binary"
+	@echo "  fleetctl   Build the fleetctl binary"
+build: $(BINS_TO_BUILD)
+
+.help-short--fdm:
+	@echo "Builds the fdm command"
+fdm:
+	go build -o build/fdm ./tools/fdm
+	@if [ ! -f /usr/local/bin/fdm ]; then \
+		echo "Linking to /usr/local/bin/fdm..."; \
+		sudo ln -sf "$$(pwd)/build/fdm" /usr/local/bin/fdm; \
+	fi
+
+.help-short--serve:
+	@echo "Start the fleet server"
+.help-short--up:
+	@echo "Start the fleet server (alias for \`serve\`)"
+.help-long--serve: SERVE_CMD:=serve
+.help-long--up: SERVE_CMD:=up
+.help-long--serve .help-long--up:
+	@echo "Starts an instance of the Fleet web and API server."
+	@echo
+	@echo "  By default the server will listen on localhost:8080, in development mode with a premium license."
+	@echo "  If different options are used to start the server, the options will become 'sticky' and will be used the next time \`$(TOOL_CMD) $(SERVE_CMD)\` is called."
+	@echo
+	@echo "  To see all available options, run \`$(TOOL_CMD) $(SERVE_CMD) --help\`"
+.help-options--serve .help-options--up:
+	@echo "HELP"
+	@echo "Show all options for the fleet serve command"
+	@echo "USE_IP"
+	@echo "Start the server on the IP address of the host machine"
+	@echo "NO_BUILD"
+	@echo "Don't build the fleet binary before starting the server"
+	@echo "NO_SAVE"
+	@echo "Don't save the current arguments for the next invocation"
+	@echo "SHOW"
+	@echo "Show the last arguments used to start the server"
+
+up: SERVE_CMD:=up
+up: serve
+serve: SERVE_CMD:=serve
+serve: TARGET_ARGS := --use-ip --no-save --show --no-build
+ifdef USE_IP
+serve: EXTRA_CLI_ARGS := $(EXTRA_CLI_ARGS) --server_address=$(shell ipconfig getifaddr en0):8080
+endif
+ifdef SHOW
+serve:
+	@SAVED_ARGS=$$(cat ~/.fleet/last-serve-invocation); \
+	if [[ $$? -eq 0 ]]; then \
+		echo "$$SAVED_ARGS"; \
+	fi
+else ifdef HELP
+serve:
+	@./build/fleet serve --help
+else ifdef RESET
+serve:
+	@touch ~/.fleet/last-serve-invocation && rm ~/.fleet/last-serve-invocation
+else
+serve:
+	@if [[ "$(NO_BUILD)" != "true" ]]; then make fleet; fi
+	$(call filter_args)
+# If FORWARDED_ARGS is not empty, run the command with the forwarded arguments.
+# Unless NO_SAVE is set to true, save the command to the last invocation file.
+# IF FORWARDED_ARGS is empty, attempt to repeat the last invocation.
+	@if [[ "$(FORWARDED_ARGS)" != "" ]]; then \
+		if [[ "$(NO_SAVE)" != "true" ]]; then \
+			echo "./build/fleet serve $(FORWARDED_ARGS)" > ~/.fleet/last-serve-invocation; \
+		fi; \
+		./build/fleet serve $(FORWARDED_ARGS); \
+	else \
+		if ! [[ -f ~/.fleet/last-serve-invocation ]]; then \
+			echo "./build/fleet serve --server_address=localhost:8080 --dev --dev_license" > ~/.fleet/last-serve-invocation; \
+		fi; \
+		cat ~/.fleet/last-serve-invocation; \
+		$$(cat ~/.fleet/last-serve-invocation); \
+	fi
+endif
 
 fleet: .prefix .pre-build .pre-fleet
 	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
@@ -132,17 +201,38 @@ fleetctl: .prefix .pre-build .pre-fleetctl
 fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleetctl-dev: fleetctl
 
+.help-short--lint-js:
+	@echo "Run the JavaScript linters"
 lint-js:
 	yarn lint
 
+.help-short--lint-go:
+	@echo "Run the Go linters"
 lint-go:
 	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
 
+.help-short--lint:
+	@echo "Run linters"
+.help-long--lint:
+	@echo "Runs the linters for Go and Javascript code.  If linter type is not specified, all linters will be run."
+.help-usage--lint:
+	@echo "$(TOOL_CMD) lint [linter-type]"
+.help-extra--lint:
+	@echo "AVAILABLE LINTERS:"
+	@echo "  go   Lint Go files with golangci-lint"
+	@echo "  js   Lint .js, .jsx, .ts and .tsx files with eslint"
+
+ifdef ARG1
+lint: lint-$(ARG1)
+else
 lint: lint-go lint-js
+endif
 
-dump-test-schema:
-	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
-
+.help-short--test-schema:
+	@echo "Update schema.sql from current migrations"
+test-schema:
+	go run ./tools/dbutils ./server/datastore/mysql/schema.sql ./server/mdm/android/mysql/schema.sql
+dump-test-schema: test-schema
 
 # This is the base command to run Go tests.
 # Wrap this to run tests with presets (see `run-go-tests` and `test-go` targets).
@@ -150,32 +240,12 @@ dump-test-schema:
 # TESTS_TO_RUN: Name specific tests to run in the specified packages.  Leave blank to run all tests in the specified packages.
 # GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 # GO_TEST_MAKE_FLAGS: Internal var used by other targets to add arguments to `go test`.
-#
-PKG_TO_TEST := "" # default to empty string; can be overridden on command line.
+PKG_TO_TEST := ""
 go_test_pkg_to_test := $(addprefix ./,$(PKG_TO_TEST)) # set paths for packages to test
 dlv_test_pkg_to_test := $(addprefix github.com/fleetdm/fleet/v4/,$(PKG_TO_TEST)) # set URIs for packages to debug
-
-DEFAULT_PKG_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
-ifeq ($(CI_TEST_PKG), main)
-	CI_PKG_TO_TEST=$(shell go list ${DEFAULT_PKG_TO_TEST} | grep -v "server/datastore/mysql" | grep -v "cmd/fleetctl" | grep -v "server/vulnerabilities" | sed -e 's|github.com/fleetdm/fleet/v4/||g')
-else ifeq ($(CI_TEST_PKG), integration)
-	CI_PKG_TO_TEST="server/service"
-else ifeq ($(CI_TEST_PKG), mysql)
-	CI_PKG_TO_TEST="server/datastore/mysql/..."
-else ifeq ($(CI_TEST_PKG), fleetctl)
-	CI_PKG_TO_TEST="cmd/fleetctl/..."
-else ifeq ($(CI_TEST_PKG), vuln)
-	CI_PKG_TO_TEST="server/vulnerabilities/..."
-else
-	CI_PKG_TO_TEST=$(DEFAULT_PKG_TO_TEST)
-endif
-
-ci-pkg-list:
-	@echo $(CI_PKG_TO_TEST)
-
 .run-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to test with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"...";
+		@echo "Please specify one or more packages to test. See '$(TOOL_CMD) help run-go-tests' for more info.";
 else
 		@echo Running Go tests with command:
 		go test -tags full,fts5,netgo -run=${TESTS_TO_RUN} ${GO_TEST_MAKE_FLAGS} ${GO_TEST_EXTRA_FLAGS} -parallel 8 -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/... $(go_test_pkg_to_test)
@@ -183,46 +253,134 @@ endif
 
 # This is the base command to debug Go tests.
 # Wrap this to run tests with presets (see `debug-go-tests`)
-# PKG_TO_TEST: Go packages to test, e.g. "server/datastore/mysql".  Separate multiple packages with spaces.
-# TESTS_TO_RUN: Name specific tests to debug in the specified packages.  Leave blank to debug all tests in the specified packages.
 # DEBUG_TEST_EXTRA_FLAGS: Internal var used by other targets to add arguments to `dlv test`.
-# GO_TEST_EXTRA_FLAGS: Used to specify other arguments to `go test`.
 .debug-go-tests:
 ifeq ($(PKG_TO_TEST), "")
-		@echo "Please specify one or more packages to debug with argument PKG_TO_TEST=\"/path/to/pkg/1 /path/to/pkg/2\"...";
+		@echo "Please specify one or more packages to debug. See '$(TOOL_CMD) help run-go-tests' for more info.";
 else
 		@echo Debugging tests with command:
 		dlv test ${dlv_test_pkg_to_test} --api-version=2 --listen=127.0.0.1:61179 ${DEBUG_TEST_EXTRA_FLAGS} -- -test.v -test.run=${TESTS_TO_RUN} ${GO_TEST_EXTRA_FLAGS}
 endif
 
-# Command to run specific tests in development.  Can run all tests for one or more packages, or specific tests within packages.
+.help-short--run-go-tests:
+	@echo "Run Go tests in specific packages"
+.help-long--run-go-tests:
+	@echo Command to run specific tests in development. Can run all tests for one or more packages, or specific tests within packages.
+.help-options--run-go-tests:
+	@echo "PKG_TO_TEST=\"pkg1 pkg2...\""
+	@echo "Go packages to test, e.g. \"server/datastore/mysql\". Separate multiple packages with spaces."
+	@echo "TESTS_TO_RUN=\"test\""
+	@echo Name specific tests to debug in the specified packages. Leave blank to debug all tests in the specified packages.
+	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
+	@echo "Arguments to send to \"go test\"."
 run-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .run-go-tests GO_TEST_MAKE_FLAGS="-v"
 
+.help-short--debug-go-tests:
+	@echo "Debug Go tests in specific packages (with Delve)"
+.help-long--debug-go-tests:
+	@echo Command to run specific tests in the Go debugger. Can run all tests for one or more packages, or specific tests within packages.
+.help-options--debug-go-tests:
+	@echo "PKG_TO_TEST=\"pkg1 pkg2...\""
+	@echo "Go packages to test, e.g. \"server/datastore/mysql\". Separate multiple packages with spaces."
+	@echo "TESTS_TO_RUN=\"test\""
+	@echo Name specific tests to debug in the specified packages. Leave blank to debug all tests in the specified packages.
+	@echo "GO_TEST_EXTRA_FLAGS=\"--flag1 --flag2...\""
+	@echo "Arguments to send to \"go test\"."
 debug-go-tests:
 	@MYSQL_TEST=1 REDIS_TEST=1 MINIO_STORAGE_TEST=1 SAML_IDP_TEST=1 NETWORK_TEST=1 make .debug-go-tests
 
+# Set up packages for CI testing.
+DEFAULT_PKGS_TO_TEST := ./cmd/... ./ee/... ./orbit/pkg/... ./orbit/cmd/orbit ./pkg/... ./server/... ./tools/...
+# fast tests are quick and do not require out-of-process dependencies (such as MySQL, etc.)
+FAST_PKGS_TO_TEST := \
+	./ee/tools/mdm \
+	./orbit/pkg/cryptoinfo \
+	./orbit/pkg/dataflatten \
+	./orbit/pkg/keystore \
+	./server/goose \
+	./server/mdm/apple/appmanifest \
+	./server/mdm/lifecycle \
+	./server/mdm/scep/challenge \
+	./server/mdm/scep/x509util \
+	./server/policies
+FLEETCTL_PKGS_TO_TEST := ./cmd/fleetctl/...
+MYSQL_PKGS_TO_TEST := ./server/datastore/mysql/... ./server/mdm/android/mysql
+SCRIPTS_PKGS_TO_TEST := ./orbit/pkg/scripts
+SERVICE_PKGS_TO_TEST := ./server/service
+VULN_PKGS_TO_TEST := ./server/vulnerabilities/...
+ifeq ($(CI_TEST_PKG), main)
+    # This is the bucket of all the tests that are not in a specific group. We take a diff between DEFAULT_PKG_TO_TEST and all the specific *_PKGS_TO_TEST.
+	CI_PKG_TO_TEST=$(shell /bin/bash -c "comm -23 <(go list ${DEFAULT_PKGS_TO_TEST} | sort) <({ \
+	go list $(FAST_PKGS_TO_TEST) && \
+	go list $(FLEETCTL_PKGS_TO_TEST) && \
+	go list $(MYSQL_PKGS_TO_TEST) && \
+	go list $(SCRIPTS_PKGS_TO_TEST) && \
+	go list $(SERVICE_PKGS_TO_TEST) && \
+	go list $(VULN_PKGS_TO_TEST) \
+	;} | sort) | sed -e 's|github.com/fleetdm/fleet/v4/||g'")
+else ifeq ($(CI_TEST_PKG), fast)
+	CI_PKG_TO_TEST=$(FAST_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), fleetctl)
+	CI_PKG_TO_TEST=$(FLEETCTL_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), mysql)
+	CI_PKG_TO_TEST=$(MYSQL_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), scripts)
+	CI_PKG_TO_TEST=$(SCRIPTS_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), service)
+	CI_PKG_TO_TEST=$(SERVICE_PKGS_TO_TEST)
+else ifeq ($(CI_TEST_PKG), vuln)
+	CI_PKG_TO_TEST=$(VULN_PKGS_TO_TEST)
+else
+	CI_PKG_TO_TEST=$(DEFAULT_PKGS_TO_TEST)
+endif
 # Command used in CI to run all tests.
-test-go: dump-test-schema generate-mock
+.help-short--test-go:
+	@echo "Run Go tests for CI"
+.help-long--test-go:
+	@echo "Run one or more bundle of Go tests. These are bundled together to try and make CI testing more parallelizable (and thus faster)."
+.help-options--test-go:
+	@echo "CI_TEST_PKG=[test package]"
+	@echo "The test package bundle to run.  If not specified, all Go tests will run."
+.help-extra--test-go:
+	@echo "AVAILABLE TEST BUNDLES:"
+	@echo "  fast"
+	@echo "  service"
+	@echo "  scripts"
+	@echo "  mysql"
+	@echo "  fleetctl"
+	@echo "  vuln"
+	@echo "  main        (all tests not included in other bundles)"
+test-go:
 	make .run-go-tests PKG_TO_TEST="$(CI_PKG_TO_TEST)"
 
 analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
 
+.help-short--test-js:
+	@echo "Run the JavaScript tests"
 test-js:
 	yarn test
 
+.help-short--test:
+	@echo "Run the full test suite (lint, Go and Javascript -- used in CI)"
 test: lint test-go test-js
 
+.help-short--generate:
+	@echo "Generate and bundle required Go code and Javascript code"
 generate: clean-assets generate-js generate-go
 
 generate-ci:
 	NODE_OPTIONS=--openssl-legacy-provider NODE_ENV=development yarn run webpack
 	make generate-go
 
+.help-short--generate-js:
+	@echo "Generate and bundle required js code"
 generate-js: clean-assets .prefix
 	NODE_ENV=production yarn run webpack --progress
 
+.help-short--generate-go:
+	@echo "Generate and bundle required go code"
 generate-go: .prefix
 	go run github.com/kevinburke/go-bindata/go-bindata -pkg=bindata -tags full \
 		-o=server/bindata/generated.go \
@@ -231,6 +389,8 @@ generate-go: .prefix
 # we first generate the webpack bundle so that bindata knows to atch the
 # output bundle file. then, generate debug bindata source file. finally, we
 # run webpack in watch mode to continuously re-generate the bundle
+.help-short--generate-dev:
+	@echo "Generate and bundle required Javascript code in a watch loop"
 generate-dev: .prefix
 	NODE_ENV=development yarn run webpack --progress
 	go run github.com/kevinburke/go-bindata/go-bindata -debug -pkg=bindata -tags full \
@@ -238,20 +398,26 @@ generate-dev: .prefix
 		frontend/templates/ assets/... server/mail/templates
 	NODE_ENV=development yarn run webpack --progress --watch
 
-generate-mock: .prefix
-	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
+.help-short--mock:
+	@echo "Update mock data store"
+mock: .prefix
+	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock github.com/fleetdm/fleet/v4/server/mdm/android/mock
+generate-mock: mock
 
-generate-doc: .prefix
+.help-short--doc:
+	@echo "Generate updated API documentation for activities, osquery flags"
+doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 
-deps: deps-js deps-go
+generate-doc: doc vex-report
+
+.help-short--deps:
+	@echo "Install dependent programs and libraries"
+deps: deps-js
 
 deps-js:
 	yarn
-
-deps-go:
-	go mod download
 
 # check that the generated files in tools/cloner-check/generated_files match
 # the current version of the cloneable structures.
@@ -263,14 +429,20 @@ check-go-cloner:
 update-go-cloner:
 	go run ./tools/cloner-check/main.go --update
 
+.help-short--migration:
+	@echo "Create a database migration file (supply name=TheNameOfYourMigration)"
 migration:
 	go run ./server/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
 	gofmt -w server/datastore/mysql/migrations/tables/*_$(name)*.go
 
+.help-short--clean:
+	@echo "Clean all build artifacts"
 clean: clean-assets
 	rm -rf build vendor
 	rm -f assets/bundle.js
 
+.help-short--clean-assets:
+	@echo "Clean assets only"
 clean-assets:
 	git clean -fx assets
 
@@ -309,6 +481,8 @@ binary-bundle: xp-fleet xp-fleetctl
 # Build orbit/fleetd fleetd_tables extension
 fleetd-tables-windows:
 	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.exe ./orbit/cmd/fleetd_tables
+fleetd-tables-windows-arm64:
+	GOOS=windows GOARCH=arm64 go build -o fleetd_tables_windows_arm64.exe ./orbit/cmd/fleetd_tables
 fleetd-tables-linux:
 	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-linux-arm64:
@@ -319,7 +493,7 @@ fleetd-tables-darwin_arm64:
 	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm64.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm64
 	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext -output fleetd_tables_darwin_universal.ext
-fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal fleetd-tables-linux-arm64
+fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal fleetd-tables-linux-arm64 fleetd-tables-windows-arm64
 fleetd-tables-clean:
 	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_linux_arm64.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm64.ext fleetd_tables_darwin_universal.ext
 
@@ -399,9 +573,9 @@ changelog-chrome:
 fleetd-old-tuf:
 	sh -c 'echo "<!-- DO NOT EDIT. This document is automatically generated by running \`make fleetd-old-tuf\`. -->\n# tuf.fleetctl.com\n\nFollowing are the currently deployed versions of fleetd components on the \`stable\` and \`edge\` channel.\n" > orbit/old-TUF.md'
 	sh -c 'echo "## \`stable\`\n" >> orbit/old-TUF.md'
-	sh -c 'go run tools/tuf/status/tuf-status.go channel-version -s3-vendor amazon -url https://tuf.fleetctl.com -channel stable -format markdown >> orbit/old-TUF.md'
+	sh -c 'go run tools/tuf/status/tuf-status.go channel-version -url https://tuf.fleetctl.com -channel stable -format markdown >> orbit/old-TUF.md'
 	sh -c 'echo "\n## \`edge\`\n" >> orbit/old-TUF.md'
-	sh -c 'go run tools/tuf/status/tuf-status.go channel-version -s3-vendor amazon -url https://tuf.fleetctl.com -channel edge -format markdown >> orbit/old-TUF.md'
+	sh -c 'go run tools/tuf/status/tuf-status.go channel-version -url https://tuf.fleetctl.com -channel edge -format markdown >> orbit/old-TUF.md'
 
 # Updates the documentation for the currently released versions of fleetd components in Fleet's TUF (updates.fleetdm.com).
 fleetd-tuf:
@@ -430,13 +604,32 @@ db-restore:
 
 
 # Interactive snapshot / restore
+.help-short--snap .help-short--snapshot:
+	@echo "Snapshot the database"
+.help-long--snap .help-long--snapshot:
+	@echo "Interactively take a snapshot of the present database state. Restore snapshots with \`$(TOOL_CMD) restore\`."
+
 SNAPSHOT_BINARY = ./build/snapshot
-snapshot: $(SNAPSHOT_BINARY)
+snap snapshot: $(SNAPSHOT_BINARY)
 	@ $(SNAPSHOT_BINARY) snapshot
 $(SNAPSHOT_BINARY): tools/snapshot/*.go
 	cd tools/snapshot && go build -o ../../build/snapshot
+
+.help-short--restore:
+	@echo "Restore a database snapshot"
+.help-long--restore:
+	@echo "Interactively restore database state using a snapshot taken with \`$(TOOL_CMD) snapshot\`."
+.help-options--restore:
+	@echo "PREPARE (alias: PREP)"
+	@echo "Run migrations after restoring the snapshot"
+
 restore: $(SNAPSHOT_BINARY)
-	@ $(SNAPSHOT_BINARY) restore
+	@$(SNAPSHOT_BINARY) restore
+	@if [[ "$(PREP)" == "true" || "$(PREPARE)" == "true" ]]; then \
+		echo "Running migrations..."; \
+		./build/fleet prepare db --dev; \
+	fi
+	@echo Done!
 
 # Generate osqueryd.app.tar.gz bundle from osquery.io.
 #
@@ -540,6 +733,19 @@ FLEET_DESKTOP_VERSION ?= unknown
 desktop-windows:
 	go run ./orbit/tools/build/build-windows.go -version $(FLEET_DESKTOP_VERSION) -input ./orbit/cmd/desktop -output fleet-desktop.exe
 
+# Build desktop executable for Windows.
+# This generates desktop executable for Windows that includes versioninfo binary properties
+# These properties can be displayed when right-click on the binary in Windows Explorer.
+# See: https://docs.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
+# To sign this binary with a certificate, use signtool.exe or osslsigncode tool
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-windows-arm64
+#
+# Output: fleet-desktop.exe
+desktop-windows-arm64:
+	go run ./orbit/tools/build/build-windows.go -version $(FLEET_DESKTOP_VERSION) -input ./orbit/cmd/desktop -output fleet-desktop.exe -arch arm64
+
 # Build desktop executable for Linux.
 #
 # Usage:
@@ -583,6 +789,19 @@ desktop-linux-arm64:
 orbit-windows:
 	go run ./orbit/tools/build/build-windows.go -version $(ORBIT_VERSION) -input ./orbit/cmd/orbit -output orbit.exe
 
+# Build orbit executable for Windows.
+# This generates orbit executable for Windows that includes versioninfo binary properties
+# These properties can be displayed when right-click on the binary in Windows Explorer.
+# See: https://docs.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
+# To sign this binary with a certificate, use signtool.exe or osslsigncode tool
+#
+# Usage:
+# ORBIT_VERSION=0.0.1 make orbit-windows-arm64
+#
+# Output: orbit.exe
+orbit-windows-arm64:
+	go run ./orbit/tools/build/build-windows.go -version $(ORBIT_VERSION) -input ./orbit/cmd/orbit -output orbit.exe -arch arm64
+
 # db-replica-setup setups one main and one read replica MySQL instance for dev/testing.
 #	- Assumes the docker containers are already running (tools/mysql-replica-testing/docker-compose.yml)
 # 	- MySQL instance listening on 3308 is the main instance.
@@ -608,3 +827,12 @@ db-replica-reset: fleet
 # db-replica-run runs fleet serve with one main and one read MySQL instance.
 db-replica-run: fleet
 	FLEET_MYSQL_ADDRESS=127.0.0.1:3308 FLEET_MYSQL_READ_REPLICA_ADDRESS=127.0.0.1:3309 FLEET_MYSQL_READ_REPLICA_USERNAME=fleet FLEET_MYSQL_READ_REPLICA_DATABASE=fleet FLEET_MYSQL_READ_REPLICA_PASSWORD=insecure ./build/fleet serve --dev --dev_license
+
+vex-report:
+	sh -c 'echo "<!-- DO NOT EDIT. This document is automatically generated by running \`make vex-report\`. -->\n# Vulnerability Report\n\nFollowing is the vulnerability report of Fleet components.\n" > security/status.md'
+	sh -c 'echo "## \`fleetdm/fleet\` docker image\n" >> security/status.md'
+	sh -c 'go run ./tools/vex-parser ./security/vex/fleet >> security/status.md'
+	sh -c 'echo "## \`fleetdm/fleetctl\` docker image\n" >> security/status.md'
+	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
+
+include ./tools/makefile-support/helpsystem-targets

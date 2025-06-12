@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
@@ -108,17 +109,17 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 	}
 
 	testCases := []struct {
-		loginRequest   loginRequest
+		loginRequest   contract.LoginRequest
 		expectedStatus int
 		expectedLogs   []logEntry
 	}{
 		{
-			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
+			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
 			expectedStatus: http.StatusOK,
 			expectedLogs:   []logEntry{{"email", testUsers["admin1"].Email}},
 		},
 		{
-			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
+			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
 			expectedLogs: []logEntry{
 				{"email", testUsers["admin1"].Email},
@@ -127,7 +128,7 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 			},
 		},
 		{
-			loginRequest:   loginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
+			loginRequest:   contract.LoginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
 			expectedLogs: []logEntry{
 				{"email", "h4x0r@3x4mp13.c0m"},
@@ -190,7 +191,9 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	require.NotEmpty(t, jsn.UUID)
 
 	logString := s.buf.String()
-	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/osquery/log","uuid":"`+jsn.UUID+`"}`, logString)
+	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/osquery/log"`)
+	assert.Contains(t, logString, `"uuid":"`+jsn.UUID)
+	assert.Contains(t, logString, `"took":`)
 }
 
 func (s *integrationLoggerTestSuite) TestSubmitLog() {

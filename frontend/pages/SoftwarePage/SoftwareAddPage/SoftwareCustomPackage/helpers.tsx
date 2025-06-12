@@ -18,7 +18,7 @@ export const getErrorMessage = (err: unknown) => {
   const reason = getErrorReason(err);
 
   if (isTimeout) {
-    return "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
+    return "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.";
   } else if (reason.includes("Secret variable")) {
     return generateSecretErrMsg(err);
   } else if (reason.includes("Unable to extract necessary metadata")) {
@@ -29,6 +29,7 @@ export const getErrorMessage = (err: unknown) => {
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/package-metadata-extraction`}
           text="Learn more"
           newTab
+          variant="flash-message-link"
         />
       </>
     );

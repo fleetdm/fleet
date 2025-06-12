@@ -9,7 +9,7 @@ import Spinner from "components/Spinner";
 
 import WindowsTargetForm from "../WindowsTargetForm";
 import PlatformTabs from "../PlatformTabs";
-import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
+import { OSUpdatesTargetPlatform } from "../../OSUpdates";
 
 const baseClass = "os-updates-target-section";
 
@@ -86,9 +86,9 @@ interface ITargetSectionProps {
   appConfig: IConfig;
   currentTeamId: number;
   isFetching: boolean;
-  selectedPlatform: OSUpdatesSupportedPlatform;
+  selectedPlatform: OSUpdatesTargetPlatform;
   teamConfig?: ITeamConfig;
-  onSelectPlatform: (platform: OSUpdatesSupportedPlatform) => void;
+  onSelectPlatform: (platform: OSUpdatesTargetPlatform) => void;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
 }
@@ -106,6 +106,8 @@ const TargetSection = ({
   if (isFetching) {
     return <Spinner />;
   }
+
+  const isAndroidMdmEnabled = appConfig.mdm.android_enabled_and_configured;
 
   const isAppleMdmEnabled = appConfig.mdm.enabled_and_configured;
 
@@ -161,33 +163,34 @@ const TargetSection = ({
   });
 
   const renderTargetForms = () => {
-    if (isAppleMdmEnabled) {
+    if (isWindowsMdmEnabled && !isAppleMdmEnabled && !isAndroidMdmEnabled) {
       return (
-        <PlatformTabs
+        <WindowsTargetForm
           currentTeamId={currentTeamId}
-          defaultMacOSVersion={defaultMacOSVersion}
-          defaultMacOSDeadline={defaultMacOSDeadline}
-          defaultIOSVersion={defaultIOSVersion}
-          defaultIOSDeadline={defaultIOSDeadline}
-          defaultIPadOSVersion={defaultIPadOSOSVersion}
-          defaultIPadOSDeadline={defaultIPadOSDeadline}
-          defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
-          defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
-          selectedPlatform={selectedPlatform}
-          onSelectPlatform={onSelectPlatform}
+          defaultDeadlineDays={defaultWindowsDeadlineDays}
+          defaultGracePeriodDays={defaultWindowsGracePeriodDays}
           refetchAppConfig={refetchAppConfig}
           refetchTeamConfig={refetchTeamConfig}
-          isWindowsMdmEnabled={isWindowsMdmEnabled}
         />
       );
     }
     return (
-      <WindowsTargetForm
+      <PlatformTabs
         currentTeamId={currentTeamId}
-        defaultDeadlineDays={defaultWindowsDeadlineDays}
-        defaultGracePeriodDays={defaultWindowsGracePeriodDays}
+        defaultMacOSVersion={defaultMacOSVersion}
+        defaultMacOSDeadline={defaultMacOSDeadline}
+        defaultIOSVersion={defaultIOSVersion}
+        defaultIOSDeadline={defaultIOSDeadline}
+        defaultIPadOSVersion={defaultIPadOSOSVersion}
+        defaultIPadOSDeadline={defaultIPadOSDeadline}
+        defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
+        defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
+        selectedPlatform={selectedPlatform}
+        onSelectPlatform={onSelectPlatform}
         refetchAppConfig={refetchAppConfig}
         refetchTeamConfig={refetchTeamConfig}
+        isWindowsMdmEnabled={isWindowsMdmEnabled}
+        isAndroidMdmEnabled={isAndroidMdmEnabled}
       />
     );
   };

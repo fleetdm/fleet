@@ -5,12 +5,6 @@
     @include grey-text;
   }
 
-  &__pagination-controls {
-    display: flex;
-    justify-content: flex-end;
-    margin: $pad-large 0;
-  }
-
   .upload-list {
     &__list {
       .list-item__label-count {
@@ -19,7 +13,7 @@
       .list-item__actions {
         display: none;
       }
-      :hover {
+      :hover:not(.component__tooltip-wrapper__tip-text):not(.custom-link--tooltip-link) {
         background-color: $ui-fleet-blue-10;
         .list-item__labels {
           display: none;

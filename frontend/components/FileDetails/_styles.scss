@@ -10,6 +10,9 @@
     align-items: center;
     width: 100%;
     text-align: left;
+    &--disabled-by-gitops-mode {
+      @include disabled;
+    }
   }
 
   &__name {

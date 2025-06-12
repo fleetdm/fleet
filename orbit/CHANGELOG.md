@@ -1,3 +1,33 @@
+## Orbit 1.41.0 (Apr 14, 2025)
+
+* Fixed osquery flag parsing when the argument contained `=`.
+
+* Added `dconf_read` table to get configuration information from GNOME.
+
+* Added more logging to installation of software packages.
+
+* Updated fleetd to report software installer download errors back to Fleet.
+
+* Changed the way macos opens the fleet desktop app to better ensure successful launch.
+
+* Added support for Windows ARM64 platform in fleetd (`fleetctl package --arch=arm64 --type=msi`).
+
+* Updated Go to v1.24.1.
+
+* Added a timeout so the desktop app retries if not displayed after 1 minute.
+
+## Orbit 1.40.1 (Mar 14, 2025)
+
+* Fixed LUKS key escrow in non-English system locales.
+
+* Added logic to ensure only one instance of Fleet Desktop is running at a time.
+
+* Fixed an issue where restarting the desktop manager on Ubuntu would cause the Fleet Desktop tray icon to disappear and not return.
+
+## Orbit 1.39.1 (Feb 12, 2025)
+
+* Fixed a bug where fleetd could not install software from an old fleet server.
+
 ## Orbit 1.39.0 (Feb 07, 2025)
 
 * Fixed a bug where the `SystemDrive` environment variable was not being passed to osqueryd.

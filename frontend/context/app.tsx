@@ -20,6 +20,7 @@ enum ACTIONS {
   SET_CURRENT_TEAM = "SET_CURRENT_TEAM",
   SET_CONFIG = "SET_CONFIG",
   SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
+  SET_ANDROID_ENTERPRISE_DELETED = "SET_ANDROID_ENTERPRISE_DELETED",
   SET_ABM_EXPIRY = "SET_ABM_EXPIRY",
   SET_APNS_EXPIRY = "SET_APNS_EXPIRY",
   SET_VPP_EXPIRY = "SET_VPP_EXPIRY",
@@ -58,6 +59,11 @@ interface ISetCurrentUserAction {
 interface ISetEnrollSecretAction {
   type: ACTIONS.SET_ENROLL_SECRET;
   enrollSecret: IEnrollSecret[];
+}
+
+interface ISetAndroidEnterpriseDeletedAction {
+  type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED;
+  isDeleted: boolean;
 }
 
 interface IAbmExpiry {
@@ -109,6 +115,7 @@ interface ISetFilteredPoliciesPathAction {
   type: ACTIONS.SET_FILTERED_POLICIES_PATH;
   filteredPoliciesPath: string;
 }
+
 type IAction =
   | ISetAvailableTeamsAction
   | ISetUserSettingsAction
@@ -116,6 +123,7 @@ type IAction =
   | ISetCurrentTeamAction
   | ISetCurrentUserAction
   | ISetEnrollSecretAction
+  | ISetAndroidEnterpriseDeletedAction
   | ISetABMExpiryAction
   | ISetAPNsExpiryAction
   | ISetVppExpiryAction
@@ -143,6 +151,7 @@ type InitialStateType = {
   isPremiumTier?: boolean;
   isMacMdmEnabledAndConfigured?: boolean;
   isWindowsMdmEnabledAndConfigured?: boolean;
+  isAndroidMdmEnabledAndConfigured?: boolean;
   isGlobalAdmin?: boolean;
   isGlobalMaintainer?: boolean;
   isGlobalObserver?: boolean;
@@ -158,6 +167,7 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isNoAccess?: boolean;
+  isAndroidEnterpriseDeleted: boolean;
   isAppleBmExpired: boolean;
   isApplePnsExpired: boolean;
   isVppExpired: boolean;
@@ -184,6 +194,7 @@ type InitialStateType = {
   setCurrentTeam: (team?: ITeamSummary) => void;
   setConfig: (config: IConfig) => void;
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
+  setAndroidEnterpriseDeleted: (isDeleted: boolean) => void;
   setAPNsExpiry: (apnsExpiry: string) => void;
   setABMExpiry: (abmExpiry: IAbmExpiry) => void;
   setVppExpiry: (vppExpiry: string) => void;
@@ -210,6 +221,7 @@ export const initialState = {
   isPremiumTier: undefined,
   isMacMdmEnabledAndConfigured: undefined,
   isWindowsMdmEnabledAndConfigured: undefined,
+  isAndroidMdmEnabledAndConfigured: undefined,
   isGlobalAdmin: undefined,
   isGlobalMaintainer: undefined,
   isGlobalObserver: undefined,
@@ -229,6 +241,7 @@ export const initialState = {
   filteredSoftwarePath: undefined,
   filteredQueriesPath: undefined,
   filteredPoliciesPath: undefined,
+  isAndroidEnterpriseDeleted: false,
   isAppleBmExpired: false,
   isApplePnsExpired: false,
   isVppExpired: false,
@@ -242,6 +255,7 @@ export const initialState = {
   setCurrentTeam: () => null,
   setConfig: () => null,
   setEnrollSecret: () => null,
+  setAndroidEnterpriseDeleted: () => null,
   setAPNsExpiry: () => null,
   setABMExpiry: () => null,
   setVppExpiry: () => null,
@@ -280,6 +294,9 @@ const setPermissions = (
       config
     ),
     isWindowsMdmEnabledAndConfigured: permissions.isWindowsMdmEnabledAndConfigured(
+      config
+    ),
+    isAndroidMdmEnabledAndConfigured: permissions.isAndroidMdmEnabledAndConfigured(
       config
     ),
     isGlobalAdmin: permissions.isGlobalAdmin(user),
@@ -368,6 +385,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         enrollSecret,
+      };
+    }
+    case ACTIONS.SET_ANDROID_ENTERPRISE_DELETED: {
+      const { isDeleted } = action;
+      return {
+        ...state,
+        isAndroidEnterpriseDeleted: isDeleted,
       };
     }
     case ACTIONS.SET_ABM_EXPIRY: {
@@ -463,6 +487,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       abmExpiry: state.abmExpiry,
       apnsExpiry: state.apnsExpiry,
       vppExpiry: state.vppExpiry,
+      isAndroidEnterpriseDeleted: state.isAndroidEnterpriseDeleted,
       isAppleBmExpired: state.isAppleBmExpired,
       isApplePnsExpired: state.isApplePnsExpired,
       isVppExpired: state.isVppExpired,
@@ -481,6 +506,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       isPremiumTier: state.isPremiumTier,
       isMacMdmEnabledAndConfigured: state.isMacMdmEnabledAndConfigured,
       isWindowsMdmEnabledAndConfigured: state.isWindowsMdmEnabledAndConfigured,
+      isAndroidMdmEnabledAndConfigured: state.isAndroidMdmEnabledAndConfigured,
       isGlobalAdmin: state.isGlobalAdmin,
       isGlobalMaintainer: state.isGlobalMaintainer,
       isGlobalObserver: state.isGlobalObserver,
@@ -520,6 +546,12 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       },
       setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
         dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
+      },
+      setAndroidEnterpriseDeleted: (isDeleted: boolean) => {
+        dispatch({
+          type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED,
+          isDeleted,
+        });
       },
       setABMExpiry: (abmExpiry: IAbmExpiry) => {
         dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
@@ -581,6 +613,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isAnyTeamMaintainer,
       state.isAnyTeamMaintainerOrTeamAdmin,
       state.isAnyTeamObserverPlus,
+      state.isAndroidEnterpriseDeleted,
       state.isAppleBmExpired,
       state.isApplePnsExpired,
       state.isFreeTier,
@@ -600,6 +633,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isTeamObserver,
       state.isVppExpired,
       state.isWindowsMdmEnabledAndConfigured,
+      state.isAndroidMdmEnabledAndConfigured,
       state.needsAbmTermsRenewal,
       state.noSandboxHosts,
       state.sandboxExpiry,

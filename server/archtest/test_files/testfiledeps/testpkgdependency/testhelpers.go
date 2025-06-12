@@ -1,0 +1,5 @@
+package testpkgdependency
+
+func OohNoBadCode() {
+
+}

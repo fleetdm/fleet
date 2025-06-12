@@ -112,7 +112,6 @@ const RenewAbmModal = ({
             className={`${baseClass}__submit-button ${
               isUploading ? `uploading` : ""
             }`}
-            variant="brand"
             disabled={!tokenFile || isUploading}
             isLoading={isUploading}
             type="button"

@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -74,6 +75,7 @@ func TestPolicies(t *testing.T) {
 		{"TeamPoliciesNoTeam", testTeamPoliciesNoTeam},
 		{"TestPoliciesBySoftwareTitleID", testPoliciesBySoftwareTitleID},
 		{"TestClearAutoInstallPolicyStatusForHost", testClearAutoInstallPolicyStatusForHost},
+		{"PolicyLabels", testPolicyLabels},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -308,7 +310,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	require.Len(t, policies, 1)
 
 	// create a pending software install request
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, false, &policy2.ID)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, fleet.HostSoftwareInstallOptions{PolicyID: &policy2.ID})
 	require.NoError(t, err)
 
 	pendingInstalls, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
@@ -669,24 +671,64 @@ func testTeamPolicyLegacy(t *testing.T, ds *Datastore) {
 }
 
 func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	requireLabels := func(t *testing.T, expected []string, actual []fleet.LabelIdent) {
+		actualLabels := make([]string, 0, len(actual))
+		for _, label := range actual {
+			actualLabels = append(actualLabels, label.LabelName)
+		}
+		require.Equal(t, expected, actualLabels)
+	}
+
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
 	require.NoError(t, err)
 
-	ctx := context.Background()
 	gpol, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		Name:        "existing-query-global-1",
-		Query:       "select 1;",
-		Description: "query1 desc",
-		Resolution:  "query1 resolution",
+		Name:             "existing-query-global-1",
+		Query:            "select 1;",
+		Description:      "query1 desc",
+		Resolution:       "query1 resolution",
+		LabelsIncludeAny: []string{label1.Name, label2.Name},
 	})
 	require.NoError(t, err)
+	requireLabels(t, []string{label1.Name, label2.Name}, gpol.LabelsIncludeAny)
+
+	// Cannot create a policy with inclusive and exclusive labels set
+	gpol1, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:             "global-query-bad-both-labels",
+		Query:            "select 1;",
+		Description:      "query1 desc",
+		Resolution:       "query1 resolution",
+		LabelsExcludeAny: []string{label1.Name},
+		LabelsIncludeAny: []string{label2.Name},
+	})
+	require.Error(t, err)
+	require.Nil(t, gpol1)
+
+	// Cannot create policy with invalid label set
+	gpol1, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:             "global-query-invalid-label",
+		Query:            "select 1;",
+		Description:      "query1 desc",
+		Resolution:       "query1 resolution",
+		LabelsExcludeAny: []string{"invalid"},
+	})
+	require.Error(t, err)
+	require.Nil(t, gpol1)
 
 	prevPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, prevPolicies, 1)
+	requireLabels(t, []string{label1.Name, label2.Name}, prevPolicies[0].LabelsIncludeAny)
+	require.Equal(t, gpol, prevPolicies[0])
 
 	// team does not exist
 	_, err = ds.NewTeamPolicy(ctx, 99999999, &user1.ID, fleet.PolicyPayload{
@@ -703,6 +745,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 		Description:           "query1 desc",
 		Resolution:            "query1 resolution",
 		CalendarEventsEnabled: true,
+		LabelsExcludeAny:      []string{label1.Name, label2.Name},
 	})
 	require.NoError(t, err)
 
@@ -733,6 +776,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.NotNil(t, p.AuthorID)
 	assert.Equal(t, user1.ID, *p.AuthorID)
 	assert.True(t, p.CalendarEventsEnabled)
+	requireLabels(t, []string{label1.Name, label2.Name}, p.LabelsExcludeAny)
 
 	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -764,6 +808,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query1 resolution", *teamPolicies[0].Resolution)
 	require.NotNil(t, teamPolicies[0].AuthorID)
 	require.Equal(t, user1.ID, *teamPolicies[0].AuthorID)
+	requireLabels(t, []string{label1.Name, label2.Name}, teamPolicies[0].LabelsExcludeAny)
 
 	require.Len(t, inherited1, 1)
 	require.Equal(t, gpol, inherited1[0])
@@ -788,6 +833,29 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 		Query:       "select 2;",
 		Description: "query2 other description",
 		Resolution:  "query2 other resolution",
+	})
+	require.Error(t, err)
+	require.Nil(t, p3)
+
+	// Can't create a policy with both include and excldue any labels
+	p3, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-bothlabel",
+		Query:            "select 2;",
+		Description:      "query2 other description",
+		Resolution:       "query2 other resolution",
+		LabelsExcludeAny: []string{label1.Name},
+		LabelsIncludeAny: []string{label2.Name},
+	})
+	require.Error(t, err)
+	require.Nil(t, p3)
+
+	// Can't create a policy with a non-existant label
+	p3, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
+		Name:             "query-nolabel",
+		Query:            "select 2;",
+		Description:      "query2 other description",
+		Resolution:       "query2 other resolution",
+		LabelsExcludeAny: []string{"invalid"},
 	})
 	require.Error(t, err)
 	require.Nil(t, p3)
@@ -900,7 +968,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	// create a pending software install request
-	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, false, &policy2.ID)
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, fleet.HostSoftwareInstallOptions{PolicyID: &policy2.ID})
 	require.NoError(t, err)
 
 	pendingInstalls, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
@@ -1596,14 +1664,38 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	unicode, _ := strconv.Unquote(`"\uAC00"`)         // 가
 	unicodeEq, _ := strconv.Unquote(`"\u1100\u1161"`) // ᄀ + ᅡ
 
+	// Add a user-defined label
+	fooLabel, err := ds.NewLabel(
+		context.Background(),
+		&fleet.Label{
+			Name:                "Foo",
+			Query:               "select 1",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+	)
+	require.NoError(t, err)
+
+	barLabel, err := ds.NewLabel(
+		context.Background(),
+		&fleet.Label{
+			Name:                "Bar",
+			Query:               "select 1",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+	)
+	require.NoError(t, err)
+
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
-			Name:        "query1" + unicodeEq,
-			Query:       "select 1;",
-			Description: "query1 desc",
-			Resolution:  "some resolution",
-			Team:        "",
-			Platform:    "",
+			Name:             "query1" + unicodeEq,
+			Query:            "select 1;",
+			Description:      "query1 desc",
+			Resolution:       "some resolution",
+			Team:             "",
+			Platform:         "",
+			LabelsIncludeAny: []string{fooLabel.Name},
 		},
 		{
 			Name:                  "query2",
@@ -1613,6 +1705,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:                  "team1",
 			Platform:              "darwin",
 			CalendarEventsEnabled: true,
+			LabelsExcludeAny:      []string{barLabel.Name},
 		},
 		{
 			Name:        "query3",
@@ -1643,6 +1736,10 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution", *policies[0].Resolution)
 	assert.Equal(t, "", policies[0].Platform)
+	assert.Equal(t, []fleet.LabelIdent{{
+		LabelName: fooLabel.Name,
+		LabelID:   fooLabel.ID,
+	}}, policies[0].LabelsIncludeAny)
 
 	teamPolicies, _, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1656,6 +1753,10 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other resolution", *teamPolicies[0].Resolution)
 	assert.Equal(t, "darwin", teamPolicies[0].Platform)
 	assert.True(t, teamPolicies[0].CalendarEventsEnabled)
+	assert.Equal(t, []fleet.LabelIdent{{
+		LabelName: barLabel.Name,
+		LabelID:   barLabel.ID,
+	}}, teamPolicies[0].LabelsExcludeAny)
 
 	assert.Equal(t, "query3", teamPolicies[1].Name)
 	assert.Equal(t, "select 3;", teamPolicies[1].Query)
@@ -1685,12 +1786,13 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
-			Name:        "query1" + unicode,
-			Query:       "select 1;",
-			Description: "query1 desc",
-			Resolution:  "some resolution",
-			Team:        "",
-			Platform:    "",
+			Name:             "query1" + unicode,
+			Query:            "select 1;",
+			Description:      "query1 desc",
+			Resolution:       "some resolution",
+			Team:             "",
+			Platform:         "",
+			LabelsIncludeAny: []string{fooLabel.Name},
 		},
 		{
 			Name:                  "query2",
@@ -1700,6 +1802,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Team:                  "team1",
 			Platform:              "darwin",
 			CalendarEventsEnabled: true,
+			LabelsExcludeAny:      []string{barLabel.Name},
 		},
 		{
 			Name:        "query3",
@@ -1732,12 +1835,13 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	// Test policy updating.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
-			Name:        "query1" + unicodeEq,
-			Query:       "select 1 from updated;",
-			Description: "query1 desc updated",
-			Resolution:  "some resolution updated",
-			Team:        "", // No error, team did not change
-			Platform:    "",
+			Name:             "query1" + unicodeEq,
+			Query:            "select 1 from updated;",
+			Description:      "query1 desc updated",
+			Resolution:       "some resolution updated",
+			Team:             "", // No error, team did not change
+			Platform:         "",
+			LabelsExcludeAny: []string{fooLabel.Name, barLabel.Name},
 		},
 		{
 			Name:                  "query2",
@@ -1762,6 +1866,14 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some resolution updated", *policies[0].Resolution)
 	assert.Equal(t, "", policies[0].Platform)
 	assert.False(t, policies[0].CalendarEventsEnabled)
+	assert.Contains(t, policies[0].LabelsExcludeAny, fleet.LabelIdent{
+		LabelName: fooLabel.Name,
+		LabelID:   fooLabel.ID,
+	})
+	assert.Contains(t, policies[0].LabelsExcludeAny, fleet.LabelIdent{
+		LabelName: barLabel.Name,
+		LabelID:   barLabel.ID,
+	})
 
 	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1776,6 +1888,8 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
 	assert.Equal(t, "windows", teamPolicies[0].Platform)
+	assert.Nil(t, teamPolicies[0].LabelsIncludeAny)
+	assert.Nil(t, teamPolicies[0].LabelsExcludeAny)
 
 	// Creating the same policy for a different team is allowed.
 	require.NoError(
@@ -2137,9 +2251,21 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
+	requireLabels := func(t *testing.T, expected []string, actual []fleet.LabelIdent) {
+		actualLabels := make([]string, 0, len(actual))
+		for _, label := range actual {
+			actualLabels = append(actualLabels, label.LabelName)
+		}
+		require.Equal(t, expected, actualLabels)
+	}
+
 	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
 	ctx := context.Background()
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
 	require.NoError(t, err)
 
 	err = ds.SavePolicy(ctx, &fleet.Policy{
@@ -2151,14 +2277,16 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	}, false, false,
 	)
 	require.Error(t, err)
-	var nfe *notFoundError
+	var nfe *common_mysql.NotFoundError
 	require.True(t, errors.As(err, &nfe))
 
 	payload := fleet.PolicyPayload{
-		Name:        "global query",
-		Query:       "select 1;",
-		Description: "global query desc",
-		Resolution:  "global query resolution",
+		Name:             "global query",
+		Query:            "select 1;",
+		Description:      "global query desc",
+		Resolution:       "global query resolution",
+		LabelsIncludeAny: []string{label1.Name, label2.Name},
+		// TODO also find out where policies get selected and add the logic for checking labels
 	}
 	gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, payload)
 	require.NoError(t, err)
@@ -2167,6 +2295,8 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, gp.Description, payload.Description)
 	require.Equal(t, *gp.Resolution, payload.Resolution)
 	require.Equal(t, gp.Critical, payload.Critical)
+	requireLabels(t, []string{label1.Name, label2.Name}, gp.LabelsIncludeAny)
+
 	computeChecksum := func(policy fleet.Policy) string {
 		h := md5.New() //nolint:gosec // (only used for tests)
 		// Compute the same way as DB does.
@@ -2192,6 +2322,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 		Resolution:            "team1 query resolution",
 		Critical:              true,
 		CalendarEventsEnabled: true,
+		LabelsExcludeAny:      []string{label1.Name, label2.Name},
 	}
 	tp1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, payload)
 	require.NoError(t, err)
@@ -2201,6 +2332,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, *tp1.Resolution, payload.Resolution)
 	require.Equal(t, tp1.Critical, payload.Critical)
 	assert.Equal(t, tp1.CalendarEventsEnabled, payload.CalendarEventsEnabled)
+	requireLabels(t, []string{label1.Name, label2.Name}, tp1.LabelsExcludeAny)
 	var teamChecksum []uint8
 	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
 	require.NoError(t, err)
@@ -2210,10 +2342,15 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	gp2 := *gp
 	gp2.Name = "global query updated"
 	gp2.Critical = true
+	// Swap labels include to labels exclude
+	gp2.LabelsExcludeAny = gp2.LabelsIncludeAny
+	gp2.LabelsIncludeAny = nil
 	err = ds.SavePolicy(ctx, &gp2, false, false)
 	require.NoError(t, err)
 	gp, err = ds.Policy(ctx, gp.ID)
 	require.NoError(t, err)
+	require.Empty(t, gp.LabelsIncludeAny)
+	requireLabels(t, []string{label1.Name, label2.Name}, gp.LabelsExcludeAny)
 	gp2.UpdateCreateTimestamps = gp.UpdateCreateTimestamps
 	require.Equal(t, &gp2, gp)
 	var globalChecksum2 []uint8
@@ -2221,6 +2358,12 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.NotEqual(t, globalChecksum, globalChecksum2, "Checksum should be different since policy name changed")
 	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum2))
+
+	// Cannot save a policy with both include and exclude labels
+	gp2.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	gp2.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label2.Name}}
+	err = ds.SavePolicy(ctx, &gp2, false, false)
+	require.Error(t, err)
 
 	// Change name, query, description and resolution of a team policy.
 	tp2 := *tp1
@@ -2230,9 +2373,14 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.Resolution = ptr.String("team1 query resolution updated")
 	tp2.Critical = false
 	tp2.CalendarEventsEnabled = false
+	// Swap labels include and exclude
+	tp2.LabelsIncludeAny = tp2.LabelsExcludeAny
+	tp2.LabelsExcludeAny = nil
 	err = ds.SavePolicy(ctx, &tp2, true, true)
 	require.NoError(t, err)
 	tp1, err = ds.Policy(ctx, tp1.ID)
+	require.Empty(t, tp1.LabelsExcludeAny)
+	requireLabels(t, []string{label1.Name, label2.Name}, tp1.LabelsIncludeAny)
 	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
 	require.Equal(t, tp1, &tp2)
@@ -4429,6 +4577,22 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	policiesWithVPPs, err = ds.GetPoliciesWithAssociatedVPP(ctx, team2.ID, []uint{p1.ID, p2.ID})
 	require.NoError(t, err)
 	require.Empty(t, policiesWithVPPs)
+
+	// create another team1 app, this time with an automatic policy
+	team1App3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp3", Platform: fleet.MacOSPlatform}, AddAutoInstallPolicy: true},
+	}, &team1.ID)
+	require.NoError(t, err)
+
+	automaticPolicies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{team1App3.TitleID}, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, automaticPolicies, 1)
+
+	policyWithVPP, err := ds.Policy(ctx, automaticPolicies[0].ID)
+	require.NoError(t, err)
+	require.Equal(t, *policyWithVPP.VPPAppsTeamsID, team1App3.VPPAppTeam.AppTeamID)
+	require.Equal(t, `SELECT 1 FROM apps WHERE bundle_identifier = 'com.app.vpp3';`, policyWithVPP.Query)
 }
 
 func testTeamPoliciesWithScript(t *testing.T, ds *Datastore) {
@@ -4832,7 +4996,7 @@ func testApplyPolicySpecWithInstallers(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.Error(t, err)
-	var notFoundErr *notFoundError
+	var notFoundErr *common_mysql.NotFoundError
 	require.ErrorAs(t, err, &notFoundErr)
 
 	// Set "Team policy 1" to a VPP app on team2.
@@ -5678,6 +5842,17 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		require.Equal(t, expected[got.ID], got)
 	}
 
+	// performance test for 50_000 title ids, ensure batching works
+	megaTitleIDs := make([]uint, 0, 50_000)
+	megaTitleIDs = append(megaTitleIDs, *installer3.TitleID)
+	for i := uint(0); i < (50_000 - 2); i++ {
+		megaTitleIDs = append(megaTitleIDs, *installer4.TitleID+i+1)
+	}
+	megaTitleIDs = append(megaTitleIDs, *installer4.TitleID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, nil)
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+
 	// "No team" titles should not have any policies when filtering by team 1
 	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, ptr.Uint(1))
 	require.NoError(t, err)
@@ -5795,4 +5970,156 @@ func testClearAutoInstallPolicyStatusForHost(t *testing.T, ds *Datastore) {
 	require.Equal(t, hostPolicies[0].Response, "pass")
 	require.Empty(t, hostPolicies[1].Response)
 	require.Empty(t, hostPolicies[2].Response)
+}
+
+func testPolicyLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	assertPolicies := func(t *testing.T, havePolicies []*fleet.HostPolicy, wantPolicies []*fleet.Policy, hostName string) {
+		haveMap := map[uint]string{}
+		wantMap := map[uint]string{}
+		missingPolicies := []string{}
+		extraPolicies := []string{}
+		for _, policy := range havePolicies {
+			haveMap[policy.ID] = policy.Name
+		}
+		for _, policy := range wantPolicies {
+			wantMap[policy.ID] = policy.Name
+		}
+		for _, wantPolicy := range wantPolicies {
+			if _, ok := haveMap[wantPolicy.ID]; !ok {
+				missingPolicies = append(missingPolicies, wantPolicy.Name)
+			}
+		}
+		for _, havePolicy := range havePolicies {
+			if _, ok := wantMap[havePolicy.ID]; !ok {
+				extraPolicies = append(extraPolicies, havePolicy.Name)
+			}
+		}
+
+		if len(missingPolicies) > 0 || len(extraPolicies) > 0 {
+			t.Errorf("%s missing policies: %q, extra policies: %q", hostName, missingPolicies, extraPolicies)
+		}
+	}
+
+	assertQueries := func(t *testing.T, havePolicies map[string]string, wantPolicies []*fleet.Policy, hostName string) {
+		haveMap := map[uint]string{}
+		wantMap := map[uint]string{}
+		missingPolicies := []string{}
+		extraPolicies := []string{}
+		for policyID := range havePolicies {
+			i, err := strconv.Atoi(policyID)
+			require.NoError(t, err)
+			haveMap[uint(i)] = policyID //nolint:gosec // dismiss G115
+		}
+		for _, policy := range wantPolicies {
+			wantMap[policy.ID] = policy.Name
+		}
+		for _, wantPolicy := range wantPolicies {
+			if _, ok := haveMap[wantPolicy.ID]; !ok {
+				missingPolicies = append(missingPolicies, wantPolicy.Name)
+			}
+		}
+		for havePolicy, haveStr := range haveMap {
+			if _, ok := wantMap[havePolicy]; !ok {
+				extraPolicies = append(extraPolicies, haveStr)
+			}
+		}
+
+		if len(missingPolicies) > 0 || len(extraPolicies) > 0 {
+			t.Errorf("%s missing policies: %q, extra policies: %q", hostName, missingPolicies, extraPolicies)
+		}
+	}
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+	require.NoError(t, err)
+
+	hostNoLabels := test.NewHost(t, ds, "host-no-labels", "10.0.0.1", "key1", "uuid1", time.Now())
+	hostLabel1 := test.NewHost(t, ds, "host-label1", "10.0.0.2", "key2", "uuid2", time.Now())
+	hostLabel2 := test.NewHost(t, ds, "host-label2", "10.0.0.3", "key3", "uuid3", time.Now())
+	hostLabelBoth := test.NewHost(t, ds, "host-label-both", "10.0.0.4", "key4", "uuid4", time.Now())
+
+	// Apply da labels
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel1.ID, []uint{label1.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabel2.ID, []uint{label2.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, hostLabelBoth.ID, []uint{label1.ID, label2.ID}))
+
+	// create our policies
+	policyNoLabel := newTestPolicy(t, ds, user1, "policy no label", "", nil)
+
+	policyIncludeLabel1 := newTestPolicy(t, ds, user1, "policy include label1", "", nil)
+	policyIncludeLabel1.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policyIncludeLabel1, false, false))
+
+	policyExcludeLabel2 := newTestPolicy(t, ds, user1, "policy exclude label2", "", nil)
+	policyExcludeLabel2.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policyExcludeLabel2, false, false))
+
+	policyIncludeBoth := newTestPolicy(t, ds, user1, "policy include both", "", nil)
+	policyIncludeBoth.LabelsIncludeAny = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policyIncludeBoth, false, false))
+
+	policyExcludeBoth := newTestPolicy(t, ds, user1, "policy exclude both", "", nil)
+	policyExcludeBoth.LabelsExcludeAny = []fleet.LabelIdent{{LabelName: label1.Name}, {LabelName: label2.Name}}
+	require.NoError(t, ds.SavePolicy(ctx, policyExcludeBoth, false, false))
+
+	// The testing grid of truth
+	//
+	// | hosts \ policies | No labels | include 1 | exclude 2 | include both | exclude both |
+	// |------------------+-----------+-----------+-----------+--------------+--------------|
+	// | no label         | X         |           | X         |              | X            |
+	// | label 1          | X         | X         | X         | X            |              |
+	// | label 2          | X         |           |           | X            |              |
+	// | label both       | X         | X         |           | X            |              |
+
+	tcs := []struct {
+		Host     *fleet.Host
+		Policies []*fleet.Policy
+	}{
+		{
+			Host: hostNoLabels,
+			Policies: []*fleet.Policy{
+				policyNoLabel,
+				policyExcludeLabel2,
+				policyExcludeBoth,
+			},
+		},
+		{
+			Host: hostLabel1,
+			Policies: []*fleet.Policy{
+				policyNoLabel,
+				policyIncludeLabel1,
+				policyExcludeLabel2,
+				policyIncludeBoth,
+			},
+		},
+		{
+			Host: hostLabel2,
+			Policies: []*fleet.Policy{
+				policyNoLabel,
+				policyIncludeBoth,
+			},
+		},
+		{
+			Host: hostLabelBoth,
+			Policies: []*fleet.Policy{
+				policyNoLabel,
+				policyIncludeLabel1,
+				policyIncludeBoth,
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		policies, err := ds.ListPoliciesForHost(ctx, tc.Host)
+		require.NoError(t, err)
+		assertPolicies(t, policies, tc.Policies, tc.Host.Hostname)
+		queries, err := ds.PolicyQueriesForHost(ctx, tc.Host)
+		require.NoError(t, err)
+		assertQueries(t, queries, tc.Policies, tc.Host.Hostname)
+	}
 }

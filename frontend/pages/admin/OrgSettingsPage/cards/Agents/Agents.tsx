@@ -12,6 +12,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 import YamlAce from "components/YamlAce";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { IAppConfigFormProps } from "../constants";
 
@@ -31,6 +32,8 @@ const Agents = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
+
   const { ADMIN_TEAMS } = paths;
 
   const [formData, setFormData] = useState<IAgentOptionsFormData>({
@@ -114,16 +117,21 @@ const Agents = ({
             parseTarget
             error={formErrors.agent_options}
             label="YAML"
+            disabled={gitOpsModeEnabled}
           />
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={Object.keys(formErrors).length > 0}
-            className="button-wrap"
-            isLoading={isUpdatingSettings}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={-8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={Object.keys(formErrors).length > 0 || disableChildren}
+                className="button-wrap"
+                isLoading={isUpdatingSettings}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       </div>
     </div>

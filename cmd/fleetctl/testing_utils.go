@@ -24,6 +24,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/urfave/cli/v2"
+
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 )
 
 type withDS struct {
@@ -122,7 +124,7 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 	certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
 	require.NoError(t, err)
@@ -155,7 +157,12 @@ func runServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
-
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {
 		cachedDS = ds

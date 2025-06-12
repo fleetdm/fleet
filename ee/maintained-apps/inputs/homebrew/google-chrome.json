@@ -1,0 +1,7 @@
+{
+  "name": "Google Chrome",
+  "slug": "google-chrome/darwin",
+  "unique_identifier": "com.google.Chrome",
+  "token": "google-chrome",
+  "installer_format": "dmg"
+}

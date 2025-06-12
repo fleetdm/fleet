@@ -46,7 +46,7 @@ func (e *Endpoints) GetCACaps(ctx context.Context) ([]byte, error) {
 	return resp.Data, resp.Err
 }
 
-func (e *Endpoints) Supports(cap string) bool {
+func (e *Endpoints) Supports(capacity string) bool {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 
@@ -55,7 +55,7 @@ func (e *Endpoints) Supports(cap string) bool {
 		_, _ = e.GetCACaps(context.Background())
 		e.mtx.RLock()
 	}
-	return bytes.Contains(e.capabilities, []byte(cap))
+	return bytes.Contains(e.capabilities, []byte(capacity))
 }
 
 func (e *Endpoints) GetCACert(ctx context.Context, message string) ([]byte, int, error) {
@@ -177,9 +177,9 @@ func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint
 		resp := SCEPResponse{operation: req.Operation}
 		switch req.Operation {
 		case "GetCACaps":
-			resp.Data, resp.Err = svc.GetCACaps(ctx)
+			resp.Data, resp.Err = svc.GetCACaps(ctx, req.Identifier)
 		case "GetCACert":
-			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message))
+			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message), req.Identifier)
 		case "PKIOperation":
 			resp.Data, resp.Err = svc.PKIOperation(ctx, req.Message, req.Identifier)
 		default:
@@ -226,7 +226,6 @@ func EndpointLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 				logger.Log(append(keyvals, "error", err, "took", time.Since(begin))...)
 			}(time.Now())
 			return next(ctx, request)
-
 		}
 	}
 }

@@ -50,17 +50,57 @@ module.exports = {
 
   fn: async function({emailAddress, firstName, lastName, message}) {
 
+
+    let userHasPremiumSubscription = false;
+    let thisSubscription;
+    if(this.req.me){
+      thisSubscription = await Subscription.findOne({user: this.req.me.id});
+      if(thisSubscription) {
+        userHasPremiumSubscription = true;
+      }
+    }
+
     if (!sails.config.custom.slackWebhookUrlForContactForm) {
       throw new Error(
         'Message not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered message: ' +
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
       );
     }
+    if(userHasPremiumSubscription){
+      // If the user has a Fleet Premium subscription, prepend the message with details about their subscription.
+      let subscriptionDetails =`
+Fleet Premium subscription details:
+- Fleet Premium subscriber since: ${new Date(thisSubscription.createdAt).toISOString().split('T')[0]}
+- Next billing date: ${new Date(thisSubscription.nextBillingAt).toISOString().split('T')[0]}
+- Host count: ${thisSubscription.numberOfHosts}
+- Organization: ${this.req.me.organization}
+-----
+
+      `;
+      message = subscriptionDetails + message;
+      await sails.helpers.sendTemplateEmail.with({
+        to: sails.config.custom.fromEmailAddress,
+        replyTo: {
+          name: firstName + ' '+ lastName,
+          emailAddress: emailAddress,
+        },
+        subject: 'New contact form message',
+        layout: false,
+        template: 'email-contact-form',
+        templateData: {
+          emailAddress,
+          firstName,
+          lastName,
+          message,
+        },
+      });
+    }
 
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-      text: `New contact form message: (cc: <@U0801Q57JDU>, <@U05CS07KASK>) (Remember: we have to email back; can't just reply to this thread.)`+
+      text: `New contact form message: (cc: <@U05CS07KASK>) (Remember: we have to email back; can't just reply to this thread.)`+
       `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
     });
+
 
     sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       emailAddress: emailAddress,

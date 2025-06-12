@@ -1,3 +1,11 @@
+#  
+#  ██╗   ██╗██╗████████╗ █████╗ ██╗     ███████╗
+#  ██║   ██║██║╚══██╔══╝██╔══██╗██║     ██╔════╝
+#  ██║   ██║██║   ██║   ███████║██║     ███████╗
+#  ╚██╗ ██╔╝██║   ██║   ██╔══██║██║     ╚════██║
+#   ╚████╔╝ ██║   ██║   ██║  ██║███████╗███████║
+#    ╚═══╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝
+#                                               
 # Host vital queries (from `server/service/osquery_utils/queries.go`)
 apiVersion: v1
 kind: built-in
@@ -22,6 +30,7 @@ spec:
         @{Name='cycle_count';Expression={$_.CycleCount}}, `
         @{Name='designed_capacity';Expression={$_.DesignCapacity}}, `
         @{Name='max_capacity';Expression={$_.FullChargeCapacity}} | Format-Table -AutoSize
+  bash: echo "serial_number,cycle_count,designed_capacity,max_capacity" && ioreg -rn AppleSmartBattery -w0 | awk -F' = ' '/BatterySerialNumber/ {gsub(/"/,"",$2); sn=$2} /CycleCount/ {cc=$2} /DesignCapacity/ {dc=$2} /MaxCapacity/ {mc=$2} END {print sn","cc","dc","mc}'
   purpose: Informational
   tags: built-in
   discovery: battery
@@ -48,6 +57,7 @@ spec:
     FROM disk_encryption 
     WHERE user_uuid IS NOT "" 
     AND filevault_status = 'on' LIMIT 1
+  bash: fdesetup status | grep -q "FileVault is On" && echo 1 || echo 0
   purpose: Informational
   tags: built-in
 ---
@@ -106,6 +116,7 @@ spec:
       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
     FROM mounts
     WHERE path = '/' LIMIT 1
+  bash: df -P / | awk 'NR==2 { blocks=$2; blocks_available=$4; blocks_size=$2/$3 } END { printf "percent_disk_space_available=%.2f\n", (blocks_available * 100 / blocks); printf "gigs_disk_space_available=%.2f\n", (blocks_available * blocks_size * 10e-10); printf "gigs_total_disk_space=%.2f\n", (blocks * blocks_size * 10e-10) }'
   purpose: Informational
   tags: built-in
 ---
@@ -179,7 +190,27 @@ spec:
             Write-Output $email
         }
     }
+  bash: cat "$HOME/Library/Application Support/Google/Chrome/Local State" | jq -r '.profile.info_cache|to_entries[]|select(.value.is_ephemeral==false and .value.email != "")|.value.email'
   discovery: google_chrome_profiles
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Host certificates (macOS)
+  platform: darwin
+  description: Retrieves certificates from an Apple device.
+  query: |
+    SELECT
+        ca, common_name, subject, issuer,
+        key_algorithm, key_strength, key_usage, signing_algorithm,
+        not_valid_after, not_valid_before,
+        serial, sha1
+      FROM
+        certificates
+      WHERE
+        path = '/Library/Keychains/System.keychain';
   purpose: Informational
   tags: built-in
 # --- # Note: this vital is commented out because it requires the kubequery osquery extension.
@@ -348,6 +379,7 @@ spec:
     SELECT 
       version, errors, warnings 
     FROM munki_info
+  bash: printf "version,errors,warnings\n%s,%s,%s\n" "$(cat /Library/ManagedInstalls/ManagedInstallVersion 2>/dev/null || echo 'N/A')" "$(/usr/libexec/PlistBuddy -c \"Print Errors\" /Library/ManagedInstalls/ManagedInstallReport.plist 2>/dev/null | grep -E '^[[:space:]]*[0-9]+:' | wc -l | tr -d ' ')" "$(/usr/libexec/PlistBuddy -c \"Print Warnings\" /Library/ManagedInstalls/ManagedInstallReport.plist 2>/dev/null | grep -E '^[[:space:]]*[0-9]+:' | wc -l | tr -d ' ')"
   discovery: munki_info
   purpose: Informational
   tags: built-in
@@ -394,6 +426,7 @@ spec:
         r.metric ASC,
       inet_aton(ia.address) IS NOT NULL DESC
     LIMIT 1;
+  bash: iface=$(netstat -rn | awk '$1=="default"{print $NF; exit}'); mac=$(ifconfig "$iface" | awk '/ether/{print $2; exit}'); ip=$(ifconfig "$iface" | awk '/inet / {split($2,a,"."); if(a[1]=="10" || (a[1]=="172" && a[2]>=16 && a[2]<=31) || (a[1]=="192" && a[2]=="168")) print $2}' | head -n1); [ -z "$ip" ] && ip=$(ifconfig "$iface" | awk '/inet6 / {print $2}' | grep -Ei '^f[cd][0-9a-f]{2}:' | head -n1); echo "$ip $mac"
   purpose: Informational
   tags: built-in
 ---
@@ -553,6 +586,7 @@ spec:
       FROM
         os_version os,
         kernel_info k
+  bash: product_name=$(sw_vers -productName); product_version=$(sw_vers -productVersion); build_version=$(sw_vers -buildVersion); IFS='.' read -r major minor patch <<< "$product_version"; arch=$(uname -m); platform=$(uname -s); kernel_version=$(uname -r); extra=""; printf "name\tmajor\tminor\tpatch\tbuild\tarch\tplatform\tversion\tkernel_version\n%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" "$product_name" "$major" "$minor" "${patch:-}" "$build_version" "$arch" "$platform" "$product_version" "$kernel_version"
   purpose: Informational
   tags: built-in
 ---
@@ -768,7 +802,7 @@ kind: built-in
 spec:
   name: Software (macOS)
   platform: darwin
-  description: Gathers information about software installed on a device running linux.
+  description: Gathers information about software installed on a device running macOS.
   query: |
     WITH cached_users AS (WITH cached_groups AS (select * from groups)
      SELECT uid, username, type, groupname, shell
@@ -776,88 +810,79 @@ spec:
      WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
     SELECT
       name AS name,
-      version AS version,
+      COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
+      bundle_identifier AS bundle_identifier,
       '' AS extension_id,
       '' AS browser,
-      'deb_packages' AS source,
-      '' AS release,
+      'apps' AS source,
       '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM deb_packages
-    WHERE status LIKE '% ok installed'
-    UNION
-    SELECT
-      package AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'portage_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM portage_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'rpm_packages' AS source,
-      release AS release,
-      vendor AS vendor,
-      arch AS arch,
-      '' AS installed_path
-    FROM rpm_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'npm_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
+      last_opened_time AS last_opened_at,
       path AS installed_path
-    FROM npm_packages
+    FROM apps
     UNION
     SELECT
       name AS name,
       version AS version,
+      '' AS bundle_identifier,
       identifier AS extension_id,
       browser_type AS browser,
       'chrome_extensions' AS source,
-      '' AS release,
       '' AS vendor,
-      '' AS arch,
+      0 AS last_opened_at,
       path AS installed_path
     FROM cached_users CROSS JOIN chrome_extensions USING (uid)
     UNION
     SELECT
       name AS name,
       version AS version,
+      '' AS bundle_identifier,
       identifier AS extension_id,
       'firefox' AS browser,
       'firefox_addons' AS source,
-      '' AS release,
       '' AS vendor,
-      '' AS arch,
+      0 AS last_opened_at,
       path AS installed_path
     FROM cached_users CROSS JOIN firefox_addons USING (uid)
     UNION
     SELECT
-      name AS name,
+      name As name,
       version AS version,
+      '' AS bundle_identifier,
       '' AS extension_id,
       '' AS browser,
-      'python_packages' AS source,
-      '' AS release,
+      'safari_extensions' AS source,
       '' AS vendor,
-      '' AS arch,
+      0 AS last_opened_at,
       path AS installed_path
-    FROM python_packages
+    FROM cached_users CROSS JOIN safari_extensions USING (uid)
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS bundle_identifier,
+      '' AS extension_id,
+      '' AS browser,
+      'homebrew_packages' AS source,
+      '' AS vendor,
+      0 AS last_opened_at,
+      path AS installed_path
+    FROM homebrew_packages
+    WHERE type = 'formula'
+    UNION
+    SELECT
+      name AS name,
+      version AS version,
+      '' AS bundle_identifier,
+      '' AS extension_id,
+      '' AS browser,
+      'homebrew_packages' AS source,
+      '' AS vendor,
+      0 AS last_opened_at,
+      path AS installed_path
+    FROM homebrew_packages
+    WHERE type = 'cask'
+    AND NOT EXISTS (SELECT 1 FROM file WHERE file.path LIKE CONCAT(homebrew_packages.path, '/%%') AND file.path LIKE '%.app%' LIMIT 1);
+  bash: bash -c 'echo "name,version,extension_id,browser,source,release,vendor,arch,installed_path"; npm list -g --depth=0 --json 2>/dev/null | python3 -c "import sys, json; deps = json.load(sys.stdin).get(\"dependencies\", {}); [print(f\"{name},{info.get(\"version\",\"\")},,,npm_packages,,,\") for name, info in deps.items()]" ; pip3 freeze 2>/dev/null | awk -F== '\''{print $1\",\"$2\",,,,python_packages,,,\"}'\'''
   purpose: Informational
   tags: built-in
 ---
@@ -943,19 +968,7 @@ spec:
       '' AS vendor,
       '' AS arch,
       path AS installed_path
-    FROM cached_users CROSS JOIN firefox_addons USING (uid)
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'python_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM python_packages
+    FROM cached_users CROSS JOIN firefox_addons USING (uid);
   purpose: Informational
   tags: built-in
 ---
@@ -966,94 +979,10 @@ spec:
   platform: darwin
   description: A software override query to append codesign information to macOS software entries. Requires fleetd
   query: |
-    WITH cached_users AS (WITH cached_groups AS (select * from groups)
-     SELECT uid, username, type, groupname, shell
-     FROM users LEFT JOIN cached_groups USING (gid)
-     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'deb_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM deb_packages
-    WHERE status LIKE '% ok installed'
-    UNION
-    SELECT
-      package AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'portage_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      '' AS installed_path
-    FROM portage_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'rpm_packages' AS source,
-      release AS release,
-      vendor AS vendor,
-      arch AS arch,
-      '' AS installed_path
-    FROM rpm_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'npm_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM npm_packages
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      identifier AS extension_id,
-      browser_type AS browser,
-      'chrome_extensions' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM cached_users CROSS JOIN chrome_extensions USING (uid)
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      identifier AS extension_id,
-      'firefox' AS browser,
-      'firefox_addons' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM cached_users CROSS JOIN firefox_addons USING (uid)
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'python_packages' AS source,
-      '' AS release,
-      '' AS vendor,
-      '' AS arch,
-      path AS installed_path
-    FROM python_packages
+    SELECT a.path, c.team_identifier
+        FROM apps a
+        JOIN codesign c ON a.path = c.path
+  discovery: codesign
   purpose: Informational
   tags: built-in
 ---
@@ -1092,6 +1021,50 @@ spec:
           LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
           WHERE apps.bundle_identifier = 'org.mozilla.firefox'
   discovery: parse_ini
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software Python packages
+  platform: darwin, windows, linux
+  description: Retrieves python packages installed on a host.
+  query: |
+    SELECT
+          name AS name,
+          version AS version,
+          '' AS extension_id,
+          '' AS browser,
+          'python_packages' AS source,
+          '' AS vendor,
+          path AS installed_path
+        FROM python_packages;
+  discovery: osquery_info
+  purpose: Informational
+  tags: built-in
+---
+apiVersion: v1
+kind: built-in
+spec:
+  name: Software Python packages including user directory
+  platform: darwin, windows, linux
+  description: Retrieves python packages installed on a host. As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See <a href="https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table">this guide</a> for more information.
+  query: |
+    WITH cached_users AS (WITH cached_groups AS (select * from groups)
+     SELECT uid, username, type, groupname, shell
+     FROM users LEFT JOIN cached_groups USING (gid)
+     WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+        SELECT
+          name AS name,
+          version AS version,
+          '' AS extension_id,
+          '' AS browser,
+          'python_packages' AS source,
+          '' AS vendor,
+          path AS installed_path
+        FROM cached_users CROSS JOIN python_packages USING (uid);
+  discovery: osquery_info
   purpose: Informational
   tags: built-in
 ---
@@ -1217,6 +1190,7 @@ spec:
     # Write the comparable result to stdout
 
     $results | Format-Table -AutoSize
+  bash: bash -c "sqlite3 -header -csv /path/to/database.db \"WITH cached_users AS (WITH cached_groups AS (SELECT * FROM groups) SELECT uid, username, type, groupname, shell FROM users LEFT JOIN cached_groups USING(gid) WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%\$' AND username NOT LIKE '\\_%' ESCAPE '\\' AND NOT (username = 'sync' AND shell = '/bin/sync' AND directory <> '')) SELECT name, version, '' AS bundle_identifier, uuid AS extension_id, '' AS browser, 'vscode_extensions' AS source, publisher AS vendor, '' AS last_opened_at, path AS installed_path FROM cached_users CROSS JOIN vscode_extensions USING(uid)\""
   discovery: vscode_extensions
   purpose: Informational
   tags: built-in
@@ -1241,16 +1215,6 @@ spec:
       publisher AS vendor,
       install_location AS installed_path
     FROM programs
-    UNION
-    SELECT
-      name AS name,
-      version AS version,
-      '' AS extension_id,
-      '' AS browser,
-      'python_packages' AS source,
-      '' AS vendor,
-      path AS installed_path
-    FROM python_packages
     UNION
     SELECT
       name AS name,
@@ -1513,6 +1477,7 @@ spec:
         seconds = $seconds
         pretty  = $pretty
     } | Format-Table -AutoSize
+  bash: uptime
   purpose: Informational
   tags: built-in
 ---
@@ -1550,6 +1515,7 @@ spec:
     } else {
         Write-Output 'No local users found.'
     }
+  bash: "awk -F: 'BEGIN{while((getline<\"/etc/group\")>0){g[$3]=$1}} {uid=$3+0; if(uid<1000) next; if($7 ~ /\\/(false|nologin|shutdown|halt)$/) next; if($1 ~ /\\$$/) next; if($1 ~ /^_/) next; if($1==\"sync\" && $7==\"/bin/sync\" && $6!=\"\") next; print $3, $1, \"user\", ($4 in g ? g[$4] : \"\"), $7}' /etc/passwd"
   purpose: Informational
   tags: built-in
 ---
@@ -1590,8 +1556,27 @@ spec:
   discovery: windows_update_history
   purpose: Informational
   tags: built-in
----
+#  
+#   ██████╗ ██╗   ██╗███████╗██████╗ ██╗███████╗███████╗
+#  ██╔═══██╗██║   ██║██╔════╝██╔══██╗██║██╔════╝██╔════╝
+#  ██║   ██║██║   ██║█████╗  ██████╔╝██║█████╗  ███████╗
+#  ██║▄▄ ██║██║   ██║██╔══╝  ██╔══██╗██║██╔══╝  ╚════██║
+#  ╚██████╔╝╚██████╔╝███████╗██║  ██║██║███████╗███████║
+#   ╚══▀▀═╝  ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝
+#                                                       
 # From docs/01-Using-Fleet/standard-query-library/standard-query-library.yml
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Detect if Apple Intelligence is enabled
+  platform: darwin
+  description: Detects if Apple Intelligence has been enabled. Value = 1 is on, 0 is off.
+  query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';
+  purpose: Informational
+  tags: inventory
+  contributors: allenhouchins
+---
 apiVersion: v1
 kind: query
 spec:
@@ -1610,6 +1595,7 @@ spec:
   platform: darwin, linux
   description: Presence of authorized SSH keys may be unusual on laptops. Could be completely normal on servers, but may be worth auditing for unusual keys and/or changes.
   query: SELECT username, authorized_keys. * FROM users CROSS JOIN authorized_keys USING (uid);
+  bash: echo "username,authorized_key" && find /Users -maxdepth 2 -type f -name "authorized_keys" -exec sh -c 'for f in "$@"; do u=$(basename "$(dirname "$f")"); while IFS= read -r line; do echo "$u,$line"; done < "$f"; done' sh {} +
   purpose: Informational
   remediation: Check out the linked table (https://github.com/fleetdm/fleet/blob/32b4d53e7f1428ce43b0f9fa52838cbe7b413eed/handbook/queries/detect-hosts-with-high-severity-vulnerable-versions-of-openssl.md#table-of-vulnerable-openssl-versions) to determine if the installed version is a high severity vulnerability and view the corresponding CVE(s)
   tags: built-in, ssh
@@ -1622,6 +1608,7 @@ spec:
   platform: darwin, linux
   description: List authorized_keys for each user on the system.
   query: SELECT *  FROM users CROSS JOIN  authorized_keys USING(uid) WHERE  username IN (SELECT distinct(username) FROM last);
+  bash: echo "Username,UniqueID,PrimaryGroupID,NFSHomeDirectory,UserShell,Authorized_Key"; for u in $(last | awk '$1!="wtmp" && $1!="reboot" {print $1}' | sort -u); do home=$(dscl . -read /Users/$u NFSHomeDirectory 2>/dev/null | awk '{print $2}'); uid=$(dscl . -read /Users/$u UniqueID 2>/dev/null | awk '{print $2}'); gid=$(dscl . -read /Users/$u PrimaryGroupID 2>/dev/null | awk '{print $2}'); shell=$(dscl . -read /Users/$u UserShell 2>/dev/null | awk '{print $2}'); [ -z "$home" ] && home="/Users/$u"; if [ -f "$home/.ssh/authorized_keys" ]; then while IFS= read -r key; do echo "$u,$uid,$gid,$home,$shell,$key"; done < "$home/.ssh/authorized_keys"; fi; done
   purpose: Informational
   tags: active directory, ssh
   contributors: anelshaer
@@ -1633,6 +1620,7 @@ spec:
   platform: darwin
   description: Retrieve application, system, and mobile app crash logs.
   query: SELECT uid, datetime, responsible, exception_type, identifier, version, crash_path FROM users CROSS JOIN crashes USING (uid);
+  bash: echo "uid, datetime, responsible, exception_type, identifier, version, crash_path"; find /Library/Logs/DiagnosticReports ~/Library/Logs/DiagnosticReports -type f -name "*.crash" 2>/dev/null | while IFS= read -r f; do uid=$(stat -f "%u" "$f"); datetime=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$f"); responsible=$(grep -m1 "^Process:" "$f" | cut -d ':' -f2- | xargs); exception=$(grep -m1 "^Exception Type:" "$f" | cut -d ':' -f2- | xargs); identifier=$(grep -m1 "^Identifier:" "$f" | cut -d ':' -f2- | xargs); version=$(grep -m1 "^Version:" "$f" | cut -d ':' -f2- | xargs); echo "$uid, $datetime, $responsible, $exception, $identifier, $version, $f"; done
   purpose: Informational
   tags: troubleshooting
   contributors: zwass
@@ -1644,6 +1632,7 @@ spec:
   platform: darwin, linux, windows
   description: List installed Chrome Extensions for all users.
   query: SELECT * FROM users CROSS JOIN chrome_extensions USING (uid);
+  bash: printf 'uid,username,extension_id,version\n'; for d in /Users/*; do [ -d "$d" ] && user=$(basename "$d") && uid=$(id -u "$user" 2>/dev/null) && ext_path="$d/Library/Application Support/Google/Chrome/Default/Extensions" && [ -d "$ext_path" ] && for ext in "$ext_path"/*; do ext_id=$(basename "$ext"); for ver in "$ext"/*; do version=$(basename "$ver"); printf "%s,%s,%s,%s\n" "$uid" "$user" "$ext_id" "$version"; done; done; done
   powershell: >-
     $users = Get-CimInstance -ClassName Win32_UserAccount -Filter
     "LocalAccount=True"
@@ -1745,6 +1734,7 @@ spec:
   platform: darwin
   description: Get all software installed on a macOS computer, including apps, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
   query: SELECT name AS name, bundle_short_version AS version, 'Application (macOS)' AS type, 'apps' AS source FROM apps UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name As name, version AS version, 'Browser plugin (Safari)' AS type, 'safari_extensions' AS source FROM safari_extensions UNION SELECT name AS name, version AS version, 'Package (Homebrew)' AS type, 'homebrew_packages' AS source FROM homebrew_packages;
+  bash: echo "name,version,type,source"; for app in /Applications/*.app; do appName="$(basename "$app" .app)"; version=$(defaults read "$app/Contents/Info" CFBundleShortVersionString 2>/dev/null); echo "$appName,$version,Application (macOS),apps"; done; pip3 freeze 2>/dev/null | awk -F'==' '{print $1 "," $2 ",Package (Python),python_packages"}'; for d in "$HOME/Library/Application Support/Google/Chrome/Default/Extensions/"*; do [ -d "$d" ] && for ver in "$d"/*; do echo "$(basename "$d"),$(basename "$ver"),Browser plugin (Chrome),chrome_extensions"; done; done; for profile in "$HOME/Library/Application Support/Firefox/Profiles/"*; do [ -d "$profile" ] && [ -d "$profile/extensions" ] && for ext in "$profile/extensions"/*; do echo "$(basename "$ext" .xpi),N/A,Browser plugin (Firefox),firefox_addons"; done; done; [ -d "$HOME/Library/Safari/Extensions" ] && for ext in "$HOME/Library/Safari/Extensions"/*.safariextz; do echo "$(basename "$ext" .safariextz),N/A,Browser plugin (Safari),safari_extensions"; done; which brew >/dev/null 2>&1 && brew list --versions | awk '{print $1 "," $2 ",Package (Homebrew),homebrew_packages"}'
   purpose: Informational
   tags: inventory, built-in
   contributors: zwass
@@ -1756,6 +1746,7 @@ spec:
   platform: darwin
   description: Retrieves the list of installed Safari Extensions for all users in the target system.
   query: SELECT safari_extensions.* FROM users join safari_extensions USING (uid);
+  bash: echo "User,Extension" ; for user in /Users/*; do [ -d "$user/Library/Safari/Extensions" ] && for ext in "$user/Library/Safari/Extensions"/*.safariextz; do [ -e "$ext" ] && echo "$(basename "$user"),$(basename "$ext")"; done; done
   purpose: Informational
   tags: browser, built-in, inventory
   contributors: zwass
@@ -1936,6 +1927,7 @@ spec:
   platform: darwin
   description: Lists all laptops with under-performing or failing batteries.
   query: SELECT * FROM battery WHERE health != 'Good' AND condition NOT IN ('', 'Normal');
+  bash: "h=$(system_profiler SPPowerDataType | awk -F\": \" '/Battery Health/{print $2; exit}'); c=$(system_profiler SPPowerDataType | awk -F\": \" '/Condition:/{print $2; exit}'); if [[ \"$h\" != \"Good\" && -n \"$c\" && \"$c\" != \"Normal\" ]]; then echo \"Battery Health,Condition\"; echo \"$h,$c\"; fi"
   purpose: Informational
   tags: troubleshooting, hardware, inventory
   contributors: zwass
@@ -1947,6 +1939,7 @@ spec:
   platform: darwin, linux, windows
   description: Get current users with active shell/console on the system and associated process
   query: SELECT user,host,time, p.name, p.cmdline, p.cwd, p.root FROM logged_in_users liu, processes p WHERE liu.pid = p.pid and liu.type='user' and liu.user <> '' ORDER BY time;
+  bash: echo "User,Host,Time,Name,Cmdline,Cwd,Root"; while read u tty d t r; do host=$(echo "$r" | sed -E 's/^\((.*)\)$/\1/'); pid=$(ps -t "$tty" -o pid= | head -n1 | awk '{print $1}'); if [ -n "$pid" ]; then name=$(ps -p "$pid" -o comm= | xargs); cmd=$(ps -p "$pid" -o command= | cut -d' ' -f2-); else name="N/A"; cmd="N/A"; fi; if [ -z "$host" ]; then host="N/A"; fi; echo "$u,$host,$d $t,$name,$cmd,N/A,N/A"; done < <(who)
   powershell: >-
     $computerName = $env:COMPUTERNAME
 
@@ -1986,6 +1979,7 @@ spec:
   platform: darwin, linux, windows
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0;
+  bash: echo "uid,username,description,path,encrypted"; for u in /Users/*; do [ -d "$u/.ssh" ] || continue; user=$(basename "$u"); uid=$(id -u "$user" 2>/dev/null); desc=$(dscl . -read /Users/"$user" RealName 2>/dev/null | sed '1d;s/^ *//'); for f in "$u"/.ssh/*; do [ -f "$f" ] || continue; grep -q "ENCRYPTED" "$f" 2>/dev/null || echo "$uid,$user,$desc,$f,0"; done; done
   powershell: >-
     $results = @()
 
@@ -2042,6 +2036,7 @@ spec:
   platform: darwin, linux, windows
   description: Identify SSH keys created without a passphrase which can be used in Lateral Movement (MITRE. TA0008)
   query: SELECT uid, username, description, path, encrypted FROM users CROSS JOIN user_ssh_keys using (uid) WHERE encrypted=0 and username in (SELECT distinct(username) FROM last);
+  bash: "printf \"uid,username,description,path,encrypted\\n\"; for u in $(last | awk '{print $1}' | grep -vE '^(wtmp|reboot)$' | sort -u); do [ -d \"/Users/$u/.ssh\" ] && for f in $(find \"/Users/$u/.ssh\" -type f -name \"authorized_keys*\" 2>/dev/null); do uid=$(id -u \"$u\"); desc=$(dscl . -read /Users/\"$u\" RealName 2>/dev/null | cut -d: -f2- | sed 's/^ //'); echo \"$uid,$u,$desc,$f,0\"; done; done"
   powershell: >-
     $lastOutput = & last
 
@@ -2114,6 +2109,7 @@ spec:
   platform: darwin
   description: Detect any processes that run with DYLD_INSERT_LIBRARIES environment variable
   query: SELECT env.pid, env.key, env.value, p.name,p.path, p.cmdline, p.cwd FROM process_envs env join processes p USING (pid) WHERE key='DYLD_INSERT_LIBRARIES';
+  bash: echo "PID,KEY,VALUE,NAME,PATH,CMDLINE,CWD"; for pid in $(ps -axo pid | tail -n +2); do envline=$(ps eww -p "$pid" 2>/dev/null); if echo "$envline" | grep -q "DYLD_INSERT_LIBRARIES="; then value=$(echo "$envline" | grep -o "DYLD_INSERT_LIBRARIES=[^ ]*" | sed 's/DYLD_INSERT_LIBRARIES=//'); cmd=$(ps -p "$pid" -o command= 2>/dev/null); txt=$(lsof -p "$pid" 2>/dev/null | awk '$4=="txt" {print $9; exit}'); cwd=$(lsof -p "$pid" 2>/dev/null | awk '$4=="cwd" {print $9; exit}'); name=$(basename "$txt"); echo "$pid,DYLD_INSERT_LIBRARIES,$value,$name,$txt,$cmd,$cwd"; fi; done
   purpose: Informational
   tags: hunting, ATTACK, t1574
   remediation: Identify the process/binary detected and confirm with the system's owner.
@@ -2126,6 +2122,7 @@ spec:
   platform: darwin, linux
   description: Line-parsed /etc/hosts
   query: SELECT * FROM etc_hosts WHERE address not in ('127.0.0.1', '::1');
+  bash: echo "address hostname aliases"; grep -vE '^[[:space:]]*#' /etc/hosts | awk '$1!="127.0.0.1" && $1!="::1" && NF'
   purpose: informational
   tags: hunting, inventory
   contributors: anelshaer
@@ -2137,6 +2134,7 @@ spec:
   platform: darwin, linux, windows
   description: Network interfaces MAC address
   query: SELECT a.interface, a.address, d.mac FROM interface_addresses a JOIN interface_details d USING (interface) WHERE address not in ('127.0.0.1', '::1');
+  bash: (echo "interface,address,mac"; for iface in $(ifconfig -l); do mac=$(ifconfig "$iface" | awk '/ether/{print $2; exit}'); for ip in $(ifconfig "$iface" | awk '/inet /{if ($2!="127.0.0.1") print $2} /inet6 /{if ($2!="::1") print $2}'); do echo "$iface,$ip,$mac"; done; done)
   powershell: >-
     $ipInfo = Get-NetIPAddress -ErrorAction SilentlyContinue | Where-Object { $_.IPAddress -notin ('127.0.0.1','::1') }
     $adapters = Get-NetAdapter -ErrorAction SilentlyContinue | Select-Object ifIndex, MacAddress
@@ -2160,6 +2158,8 @@ spec:
   platform: darwin, linux, windows
   description: Local user accounts (including domain accounts that have logged on locally (Windows)).
   query: SELECT uid, gid, username, description, directory, shell FROM users;
+  bash: echo "uid,gid,username,description,directory,shell"; dscl . -list /Users | while read user; do uid=$(dscl . -read /Users/"$user" UniqueID 2>/dev/null | awk '{print $2}'); gid=$(dscl . -read /Users/"$user" PrimaryGroupID 2>/dev/null | awk '{print $2}'); desc=$(dscl . -read /Users/"$user" RealName 2>/dev/null | cut -d' ' -f2-); dir=$(dscl . -read /Users/"$user" NFSHomeDirectory 2>/dev/null | awk '{print $2}'); shell=$(dscl . -read /Users/"$user" UserShell 2>/dev/null | awk '{print $2}'); echo "$uid,$gid,$user,\"$desc\",$dir,$shell"; done
+  bash: echo "uid,username,type,groupname"; for u in $(dscl . list /Users); do uid=$(dscl . read /Users/"$u" UniqueID 2>/dev/null | awk '{print $2}'); pgrp=$(dscl . read /Users/"$u" PrimaryGroupID 2>/dev/null | awk '{print $2}'); grp=$(dscl . list /Groups PrimaryGroupID | awk -v id="$pgrp" '$2==id{print $1}'); type=$( [ "$uid" -lt 500 ] && echo system || echo local); echo "$uid,$u,$type,$grp"; done
   powershell: |-
     $groupMapping = @{}
     $localGroups = Get-LocalGroup -ErrorAction SilentlyContinue
@@ -2211,6 +2211,7 @@ spec:
     (SELECT name FROM processes WHERE pid=p.parent) AS parent_name,
     (SELECT username FROM users WHERE uid=p.uid) AS username
     FROM processes as p WHERE cmdline like 'nmap%';
+  bash: echo "pid,name,path,cmdline,cwd,start_time,parent,parent_name,username"; for pid in $(ps -axo pid,args | awk '$0 ~ /^[[:space:]]*[0-9]+ nmap/ {print $1}'); do cmd=$(ps -p $pid -o args=); name=$(ps -p $pid -o comm=); path=$(lsof -p $pid | awk '$4=="txt" {print $9; exit}'); cwd=$(lsof -a -p $pid -d cwd 2>/dev/null | awk 'NR==2 {print $9}'); start_time=$(ps -p $pid -o lstart=); parent=$(ps -p $pid -o ppid=); parent_name=$(ps -p $parent -o comm= 2>/dev/null); user=$(ps -p $pid -o user=); echo "$pid,$name,$path,$cmd,$cwd,$start_time,$parent,$parent_name,$user"; done
   powershell: >-
     $processes = Get-WmiObject -Query "SELECT * FROM Win32_Process WHERE
     CommandLine LIKE 'nmap%'"  
@@ -2267,6 +2268,7 @@ spec:
   platform: darwin, linux
   description: Docker containers Processes, can be used on normal systems or a kubenode.
   query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
+  bash: echo "id,name,image,image_id,command,created,state,status,cmdline"; for id in $(docker ps -q); do cont=$(docker inspect --format='{{.Id}},{{.Name}},{{.Config.Image}},{{.Image}},{{.Path}} {{range .Args}}{{.}} {{end}},{{.Created}},{{.State.Status}},{{.State.ExitCode}}' "$id"); docker top "$id" aux | sed '1d' | while IFS= read -r proc; do echo "$cont,\"$proc\""; done; done
   purpose: Informational
   tags: built-in, containers, inventory
   contributors: anelshaer
@@ -2371,6 +2373,7 @@ spec:
   platform: linux, darwin, windows
   description: Lists all processes of which the binary which launched them no longer exists on disk. Attackers often delete files from disk after launching a process to mask presence.
   query: SELECT name, path, pid FROM processes WHERE on_disk = 0;
+  bash: echo "name, path, pid"; ps -e -o pid= | while read pid; do path=$(lsof -p "$pid" 2>/dev/null | awk '$4=="txt" {print $9; exit}'); if [ -n "$path" ] && [ ! -e "$path" ]; then echo "$(basename "$path"), $path, $pid"; fi; done
   purpose: Incident response
   tags: hunting, built-in
   contributors: alphabrevity
@@ -2382,6 +2385,7 @@ spec:
   platform: darwin, linux
   description: Looks for specific hash in the Users/ directories for files that are less than 50MB (osquery file size limitation.)
   query: SELECT path, sha256 FROM hash WHERE path IN (SELECT path FROM file WHERE size < 50000000 AND path LIKE '/Users/%/Documents/%%') AND sha256 = '16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75';
+  bash: r=$(find /Users -type f -path "/Users/*/Documents/*" -size -50M -print0 | xargs -0 -I {} sh -c 's=$(shasum -a 256 "{}" | awk "{print \$1}"); [ "$s" = "16d28cd1d78b823c4f961a6da78d67a8975d66cde68581798778ed1f98a56d75" ] && echo "{},$s"'); [ -n "$r" ] && echo "path,sha256" && echo "$r" || echo "$r"
   purpose: Informational
   tags: hunting, built-in
   contributors: alphabrevity
@@ -2393,6 +2397,8 @@ spec:
   platform: darwin
   description: The query allows you to check macOS systems for local administrator accounts.
   query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
+  printf "uid,username,type\n"; for u in $(dscl . -list /Users); do uid=$(dscl . -read /Users/"$u" UniqueID 2>/dev/null | awk '{print $2}'); pgid=$(dscl . -read /Users/"$u" PrimaryGroupID 2>/dev/null | awk '{print $2}'); grp=$(dscl . -list /Groups PrimaryGroupID | awk -v id="$pgid" '$2==id{print $1}'); [ -n "$uid" ] && [ -n "$pgid" ] && [ -n "$grp" ] && echo "$uid,$u,$grp"; done
+  bash: dscl . -read /Groups/admin GroupMembership
   purpose: Informational
   tags: hunting, inventory
   contributors: alphabrevity
@@ -2404,6 +2410,7 @@ spec:
   platform: linux, darwin, windows
   description: List ports that are listening on all interfaces, along with the process to which they are attached.
   query: SELECT lp.address, lp.pid, lp.port, lp.protocol, p.name, p.path, p.cmdline FROM listening_ports lp JOIN processes p ON lp.pid = p.pid WHERE lp.address = "0.0.0.0";
+  bash: echo "address,pid,port,protocol,name,path,cmdline"; lsof -nP -iTCP -sTCP:LISTEN | awk 'NR>1 && $9 ~ /^0\.0\.0\.0:/ {split($9,a,":"); print $2","a[2]","$1}' | while IFS=',' read pid port name; do path=$(ps -p "$pid" -o comm= 2>/dev/null); cmdline=$(ps -p "$pid" -o command= 2>/dev/null | sed 's/^ *//'); echo "0.0.0.0,$pid,$port,TCP,$name,$path,$cmdline"; done
   powershell: >-
     # Retrieve listening TCP connections with LocalAddress "0.0.0.0"
     $tcpConnections = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalAddress -eq '0.0.0.0' }
@@ -2556,6 +2563,7 @@ spec:
   platform: darwin, linux
   description: Returns the running Docker containers
   query: SELECT id, name, image, image_id, state, status FROM docker_containers WHERE state = "running";
+  bash: printf 'id\tname\timage\timage_id\tstate\tstatus\n'; docker ps --filter 'status=running' --format '{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}' | while IFS=$'\t' read -r id name image dstatus; do image_id=$(docker inspect --format='{{.Image}}' "$id"); state=$(docker inspect --format='{{.State.Status}}' "$id"); printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$id" "$name" "$image" "$image_id" "$state" "$dstatus"; done
   purpose: Informational
   tags: containers, inventory
   contributors: DominusKelvin
@@ -2567,6 +2575,7 @@ spec:
   platform: darwin, linux, windows
   description: Returns top 10 applications or processes hogging memory the most.
   query: SELECT pid, name, ROUND((total_size * '10e-7'), 2) AS memory_used FROM processes ORDER BY total_size DESC LIMIT 10;
+  bash: echo "pid name memory_used"; ps -axo pid,comm,rss | sed 1d | sort -k3 -nr | head -n 10 | awk '{mem = $3*1024/1000000; printf "%s %s %.2f\n", $1, $2, mem}'
   powershell: >-
     $processes = Get-Process | Sort-Object WorkingSet64 -Descending |
     Select-Object -First 10
@@ -2645,6 +2654,7 @@ spec:
   platform: darwin
   description: Returns applications that were opened within the last 24 hours starting with the last opened application.
   query: SELECT * FROM apps WHERE last_opened_time > (( SELECT unix_time FROM time ) - 86400 ) ORDER BY last_opened_time DESC;
+  bash: boundary=$(( $(date +%s) - 86400 )); printf "name,last_opened_time\n"; mdfind "kMDItemContentType == \"com.apple.application-bundle\"" | while IFS= read -r app; do last=$(mdls -raw -name kMDItemLastUsedDate "$app" 2>/dev/null); [ "$last" = "(null)" ] && continue; epoch=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$last" +"%s" 2>/dev/null); [ "$epoch" -gt "$boundary" ] 2>/dev/null && printf "%s,%s\n" "$(basename "$app")" "$epoch"; done | sort -t, -k2,2nr
   purpose: Informational
   tags: inventory
   contributors: DominusKelvin
@@ -2656,6 +2666,7 @@ spec:
   platform: darwin
   description: Returns applications that are not in the `/Applications` directory
   query: SELECT * FROM apps WHERE path NOT LIKE '/Applications/%';
+  bash: mdfind "kMDItemContentType == 'com.apple.application-bundle'" | grep -vE '^/Applications/|^/System/Applications/'
   purpose: Informational
   tags: hunting, inventory
   contributors: DominusKelvin
@@ -2678,6 +2689,7 @@ spec:
   platform: darwin, windows, linux
   description: Returns the operating system name and version on the device.
   query: SELECT name, version FROM os_version;
+  bash: "echo \"name, version\" && sw_vers | awk -F: '/ProductName/ {gsub(/^[ \\t]+/, \"\", $2); name=$2} /ProductVersion/ {gsub(/^[ \\t]+/, \"\", $2); version=$2} END {print name\", \"version}'"
   powershell: |-
     $os = Get-CimInstance Win32_OperatingSystem
     [PSCustomObject]@{
@@ -2694,6 +2706,7 @@ spec:
   name: Get built-in antivirus status on macOS
   platform: darwin
   query: SELECT path, value AS version FROM plist WHERE (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist') OR (key = 'CFBundleShortVersionString' AND path = '/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist');
+  bash: echo "path,version"; for f in "/Library/Apple/System/Library/CoreServices/MRT.app/Contents/Info.plist" "/Library/Apple/System/Library/CoreServices/XProtect.bundle/Contents/Info.plist"; do v=$(defaults read "$f" CFBundleShortVersionString 2>/dev/null); [ -n "$v" ] && echo "$f,$v"; done
   description: Reads the version numbers from the Malware Removal Tool (MRT) and built-in antivirus (XProtect) plists
   purpose: Informational
   tags: compliance, malware, hardening, built-in
@@ -2742,6 +2755,7 @@ spec:
   platform: linux, windows, darwin
   description: Retrieves metadata about TLS certificates for servers listening on the local machine. Enables mTLS adoption analysis and cert expiration notifications.
   query: SELECT * FROM curl_certificate WHERE hostname IN (SELECT DISTINCT 'localhost:'||port FROM listening_ports WHERE protocol=6 AND address!='127.0.0.1' AND address!='::1');
+  bash: echo "Hostname,Subject,Issuer"; netstat -an | grep LISTEN | grep -v '127.0.0.1' | grep -v '::1' | awk '{print $4}' | sed -E 's/.*\.//' | sort -u | while read port; do cert=$(echo | openssl s_client -connect localhost:$port -servername localhost 2>/dev/null | openssl x509 -noout -subject -issuer 2>/dev/null); subject=$(echo "$cert" | grep '^subject=' | sed 's/subject=//'); issuer=$(echo "$cert" | grep '^issuer=' | sed 's/issuer=//'); echo "localhost:$port,$subject,$issuer"; done
   powershell: >-
     function Get-CurlCertificate {
         param(
@@ -2820,6 +2834,7 @@ spec:
   platform: darwin
   description: Lists the currently enabled applications configured to handle mailto, http and ftp schemes.
   query: SELECT * FROM app_schemes WHERE (scheme='mailto' OR scheme='http' OR scheme='ftp') AND enabled='1';
+  bash: plist=~/Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist; echo "scheme,handler"; /usr/libexec/PlistBuddy -c "Print :LSHandlers" "$plist" 2>/dev/null | awk '/LSHandlerURLScheme/ {split($0,a," = "); scheme=a[2]} /LSHandlerRoleAll/ {split($0,a," = "); handler=a[2]; if(scheme ~ /^(mailto|http|ftp)$/) print scheme","handler}'
   purpose: Informational
   tags: compliance, hunting
   contributors: brunerd
@@ -2889,6 +2904,7 @@ spec:
   description: Get a list of installed VS Code extensions (requires osquery > 5.11.0).
   query: |
     SELECT u.username, vs.* FROM users u CROSS JOIN vscode_extensions vs USING (uid);
+  bash: echo "username,extension_name" && for u in /Users/*; do [ -d "$u/.vscode/extensions" ] && for ext in "$u/.vscode/extensions"/*; do [ -d "$ext" ] && echo "$(basename "$u"),$(basename "$ext")"; done; done
   powershell: >
     $users = @(
         [PSCustomObject]@{ uid = 1001; username = 'Alice' },

@@ -44,14 +44,14 @@ func Aggregate(ctx context.Context) (json.RawMessage, error) {
 
 // aggregateStack creates a single stack trace by joining all the stack traces in
 // an error chain
-func aggregateStack(chain []fleetErrorJSON, max int) []string {
-	stack := make([]string, max)
+func aggregateStack(chain []fleetErrorJSON, maxStack int) []string {
+	stack := make([]string, maxStack)
 	stackIdx := 0
 
 out:
 	for _, e := range chain {
 		for _, m := range e.Stack {
-			if stackIdx >= max {
+			if stackIdx >= maxStack {
 				break out
 			}
 
@@ -73,7 +73,7 @@ func getVitalMetadata(chain []fleetErrorJSON) json.RawMessage {
 			if err = json.Unmarshal(e.Data, &fleetdErr); err != nil || !fleetdErr.Vital {
 				continue
 			}
-			var export = map[string]interface{}{
+			export := map[string]interface{}{
 				"error_source":          fleetdErr.ErrorSource,
 				"error_source_version":  fleetdErr.ErrorSourceVersion,
 				"error_message":         fleetdErr.ErrorMessage,

@@ -1,8 +1,8 @@
 <div id="basic-handbook" v-cloak>
   <div purpose="handbook-template" style="max-width: 1080px;" class="container-fluid mb-5">
     <div class="d-flex flex-column justify-content-between flex-lg-row pt-lg-4 pb-lg-4 m-0">
-
-      <div purpose="right-sidebar" class="order-lg-last d-lg-block d-none pb-3 pb-lg-0 pr-xl-0 right-sidebar">
+      <div class="d-flex flex-column order-lg-last">
+      <div purpose="right-sidebar" class="d-lg-block d-none pb-3 pb-lg-0 pr-xl-0 right-sidebar">
         <div purpose="maintainer" class="mb-lg-3">
           <h4>Maintained by:</h4>
           <img alt="The page maintainer's github profile picture" :src="'https://github.com/'+thisPage.meta.maintainedBy+'.png?size=200'">
@@ -17,10 +17,11 @@
               </li>
             </ul>
           </div>
-
         </div>
-        <div>
-          <a href="/contact" purpose="sidebar-cta" class="d-flex flex-row justify-content-start">
+        <div class="border-bottom py-3 d-flex d-md-none"></div>
+      </div>
+        <div purpose="sidebar-cta" class="d-none d-lg-block">
+          <a href="/contact"  class="d-flex flex-row justify-content-start">
           <div class="d-flex align-self-start">
             <img alt="Ask us anything" src="/images/icon-question-20x19@2x.png">
           </div>
@@ -30,8 +31,7 @@
           </div>
           </a>
         </div>
-        <div class="border-bottom py-3 d-flex d-md-none"></div>
-      </div>
+    </div>
 
       <div class="d-flex flex-column handbook-content">
 

@@ -94,7 +94,6 @@ func do[T any](req *http.Request, dest *T) error {
 				retry.WithInterval(1*time.Second),
 				retry.WithMaxAttempts(4),
 			)
-
 		}
 
 		return fmt.Errorf("calling Apple iTunes endpoint failed with status %d: %s", resp.StatusCode, string(limitedBody))

@@ -18,13 +18,25 @@ parasails.registerPage('homepage', {
     // Server error state for the form
     cloudError: '',
     cloudSuccess: false,
+
+    // For MDM comparison table
+    comparisonMode: 'sccm',
+    comparisonModeFriendlyNames: {
+      jamf: 'Jamf Pro',
+      sccm: 'SCCM',
+      omnissa: 'Omnissa (WS1)',
+      intune: 'Intune',
+      tanium: 'Tanium',
+      ansible: 'Ansible',
+      puppet: 'Puppet',
+      chef: 'Chef'
+    }
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
     if(window.location.hash === '#unsubscribed'){
       this.modal = 'unsubscribed';
       window.location.hash = '';
@@ -35,6 +47,10 @@ parasails.registerPage('homepage', {
     if(['mdm', 'eo-it', undefined].includes(this.primaryBuyingSituation)){
       this.animateBottomTicker();
     }
+    $('[data-toggle="tooltip"]').tooltip({
+      container: '#homepage',
+      trigger: 'hover',
+    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

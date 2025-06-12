@@ -2,8 +2,8 @@ import React, {
   useContext,
   useCallback,
   useEffect,
-  useState,
   useMemo,
+  useState,
 } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
@@ -13,7 +13,10 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
+import { DEFAULT_QUERY } from "utilities/constants";
 import { getPerformanceImpactDescription } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
+
 import {
   isQueryablePlatform,
   QueryablePlatform,
@@ -28,7 +31,8 @@ import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
-import { DEFAULT_QUERY } from "utilities/constants";
+
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -121,6 +125,10 @@ const ManageQueriesPage = ({
   const [showPreviewDataModal, setShowPreviewDataModal] = useState(false);
   const [isUpdatingQueries, setIsUpdatingQueries] = useState(false);
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
+  const [
+    tableQueryDataForApi,
+    setTableQueryDataForApi,
+  ] = useState<ITableQueryData>();
 
   const curPageFromURL = location.query.page
     ? parseInt(location.query.page, 10)
@@ -160,7 +168,10 @@ const ManageQueriesPage = ({
     }
   );
 
-  const enhancedQueries = queriesResponse?.queries.map(enhanceQuery);
+  // Enhance the queries from the response when they are changed.
+  const enhancedQueries = useMemo(() => {
+    return queriesResponse?.queries.map(enhanceQuery) || [];
+  }, [queriesResponse]);
 
   const queriesAvailableToAutomate =
     (teamIdForApi !== API_ALL_TEAMS_ID
@@ -185,9 +196,18 @@ const ManageQueriesPage = ({
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
   }, []);
 
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+    },
+    [handleTeamChange]
+  );
+
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
-    router.push(PATHS.NEW_QUERY(currentTeamId));
+    router.push(
+      getPathWithQueryParams(PATHS.NEW_QUERY, { team_id: currentTeamId })
+    );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 
   const toggleDeleteQueryModal = useCallback(() => {
@@ -252,7 +272,7 @@ const ManageQueriesPage = ({
             <TeamsDropdown
               currentUserTeams={userTeams}
               selectedTeamId={currentTeamId}
-              onChange={handleTeamChange}
+              onChange={onTeamChange}
             />
           );
         } else if (!isOnGlobalTeam && userTeams.length === 1) {
@@ -397,7 +417,6 @@ const ManageQueriesPage = ({
                 )}
               {canCustomQuery && (
                 <Button
-                  variant="brand"
                   className={`${baseClass}__create-button`}
                   onClick={onCreateQueryClick}
                 >

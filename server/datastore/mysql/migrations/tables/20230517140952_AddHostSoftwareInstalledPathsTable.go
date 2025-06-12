@@ -18,7 +18,7 @@ func Up_20230517140952(tx *sql.Tx) error {
 			installed_path TEXT            NOT NULL,
 			PRIMARY KEY (id),
 			KEY host_id_software_id_idx (host_id, software_id)
-		)
+		) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
 	`)
 	if err != nil {
 		return err

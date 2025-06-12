@@ -13,6 +13,7 @@ const Plus = ({ color = "core-fleet-blue" }: IPlusProps) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 16 16"
+      aria-label="plus"
     >
       <path
         d="M8 3v10M3 8h10"

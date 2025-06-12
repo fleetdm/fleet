@@ -1,0 +1,44 @@
+# This workflow can be used to test DB upgrades between two Fleet versions.
+name: DB upgrade test
+
+on:
+  workflow_dispatch: # allow manual action
+    inputs:
+      from-version:
+        description: "Docker tag of Fleet starting version, e.g. 'v4.64.2'"
+        required: true
+        type: string
+      to-version:
+        description: "Docker tag of Fleet version to upgrade to, e.g. 'rc-minor-fleet-v4.65.0'"
+        required: true
+        type: string
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  run-db-upgrade-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Run upgrade test
+        run: |
+          cd test/upgrade
+          FLEET_VERSION_A=${{ github.event.inputs.from-version }} FLEET_VERSION_B=${{ github.event.inputs.to-version }} go test -v

@@ -1,20 +1,27 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import classnames from "classnames";
+
+import { AppContext } from "context/app";
 
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { IAppStoreApp } from "interfaces/software";
 import { IVppApp } from "services/entities/mdm_apple";
 
+import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import Button from "components/buttons/Button";
 import FileDetails from "components/FileDetails";
-import Checkbox from "components/forms/fields/Checkbox";
+import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+
 import {
   CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
   generateSelectedLabels,
   getCustomTarget,
   getTargetType,
@@ -91,6 +98,7 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
 
 export interface ISoftwareVppFormData {
   selfService: boolean;
+  automaticInstall: boolean;
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
@@ -119,10 +127,14 @@ const SoftwareVppForm = ({
   isLoading = false,
   onCancel,
 }: ISoftwareVppFormProps) => {
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
       ? {
           selfService: softwareVppForEdit.self_service || false,
+          automaticInstall: softwareVppForEdit.automatic_install || false,
           targetType: getTargetType(softwareVppForEdit),
           customTarget: getCustomTarget(softwareVppForEdit),
           labelTargets: generateSelectedLabels(softwareVppForEdit),
@@ -130,6 +142,7 @@ const SoftwareVppForm = ({
       : {
           selectedApp: null,
           selfService: false,
+          automaticInstall: false,
           targetType: "All hosts",
           customTarget: "labelsIncludeAny",
           labelTargets: {},
@@ -154,10 +167,24 @@ const SoftwareVppForm = ({
           app.platform === "ios" || app.platform === "ipados"
             ? false
             : formData.selfService,
+        automaticInstall:
+          app.platform === "ios" || app.platform === "ipados"
+            ? false
+            : formData.automaticInstall,
       };
       setFormData(newFormData);
       setFormValidation(generateFormValidation(newFormData));
     }
+  };
+
+  const onToggleSelfServiceCheckbox = (value: boolean) => {
+    const newData = { ...formData, selfService: value };
+    setFormData(newData);
+  };
+
+  const onToggleAutomaticInstall = (value: boolean) => {
+    const newData = { ...formData, automaticInstall: value };
+    setFormData(newData);
   };
 
   const onSelectTargetType = (value: string) => {
@@ -182,54 +209,51 @@ const SoftwareVppForm = ({
 
   const isSubmitDisabled = !formValidation.isValid;
 
-  const renderSelfServiceContent = (platform: string) => {
-    if (platform !== "ios" && platform !== "ipados") {
-      return (
-        <Checkbox
-          value={formData.selfService}
-          onChange={(newVal: boolean) =>
-            setFormData({ ...formData, selfService: newVal })
-          }
-          className={`${baseClass}__self-service-checkbox`}
-          tooltipContent={
-            <>
-              End users can install from <b>Fleet Desktop</b> {">"}{" "}
-              <b>Self-service</b>.
-            </>
-          }
-        >
-          Self-service
-        </Checkbox>
-      );
-    }
-    return null;
-  };
-
   const renderContent = () => {
+    // Edit VPP form
     if (softwareVppForEdit) {
       return (
         <div className={`${baseClass}__form-fields`}>
           <FileDetails
-            graphicNames={"app-store"}
-            fileDetails={{ name: softwareVppForEdit.name, platform: "macOS" }}
+            graphicNames="app-store"
+            fileDetails={{
+              name: softwareVppForEdit.name,
+              platform: PLATFORM_DISPLAY_NAMES[softwareVppForEdit.platform],
+            }}
             canEdit={false}
           />
-          <TargetLabelSelector
-            selectedTargetType={formData.targetType}
-            selectedCustomTarget={formData.customTarget}
-            selectedLabels={formData.labelTargets}
-            customTargetOptions={CUSTOM_TARGET_OPTIONS}
-            className={`${baseClass}__target`}
-            onSelectTargetType={onSelectTargetType}
-            onSelectCustomTarget={onSelectCustomTargetOption}
-            onSelectLabel={onSelectLabel}
-            labels={labels || []}
-          />
-          {renderSelfServiceContent(softwareVppForEdit.platform)}
+          <div className={`${baseClass}__form-frame`}>
+            <Card paddingSize="medium" borderRadiusSize="medium">
+              <SoftwareOptionsSelector
+                platform={softwareVppForEdit.platform}
+                formData={formData}
+                onToggleAutomaticInstall={onToggleAutomaticInstall}
+                onToggleSelfService={onToggleSelfServiceCheckbox}
+                isEditingSoftware
+              />
+            </Card>
+            <Card paddingSize="medium" borderRadiusSize="medium">
+              <TargetLabelSelector
+                selectedTargetType={formData.targetType}
+                selectedCustomTarget={formData.customTarget}
+                selectedLabels={formData.labelTargets}
+                customTargetOptions={CUSTOM_TARGET_OPTIONS}
+                className={`${baseClass}__target`}
+                onSelectTargetType={onSelectTargetType}
+                onSelectCustomTarget={onSelectCustomTargetOption}
+                onSelectLabel={onSelectLabel}
+                labels={labels || []}
+                dropdownHelpText={
+                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+                }
+              />
+            </Card>
+          </div>
         </div>
       );
     }
 
+    // Add VPP form
     if (vppApps) {
       return (
         <div className={`${baseClass}__form-fields`}>
@@ -243,23 +267,37 @@ const SoftwareVppForm = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
-          <TargetLabelSelector
-            selectedTargetType={formData.targetType}
-            selectedCustomTarget={formData.customTarget}
-            selectedLabels={formData.labelTargets}
-            customTargetOptions={CUSTOM_TARGET_OPTIONS}
-            className={`${baseClass}__target`}
-            onSelectTargetType={onSelectTargetType}
-            onSelectCustomTarget={onSelectCustomTargetOption}
-            onSelectLabel={onSelectLabel}
-            labels={labels || []}
-          />
-          {renderSelfServiceContent(
-            ("selectedApp" in formData &&
-              formData.selectedApp &&
-              formData.selectedApp.platform) ||
-              ""
-          )}
+          <div className={`${baseClass}__form-frame`}>
+            <Card paddingSize="medium" borderRadiusSize="large">
+              <SoftwareOptionsSelector
+                platform={
+                  ("selectedApp" in formData &&
+                    formData.selectedApp &&
+                    formData.selectedApp.platform) ||
+                  ""
+                }
+                formData={formData}
+                onToggleAutomaticInstall={onToggleAutomaticInstall}
+                onToggleSelfService={onToggleSelfServiceCheckbox}
+              />
+            </Card>
+            <Card paddingSize="medium" borderRadiusSize="large">
+              <TargetLabelSelector
+                selectedTargetType={formData.targetType}
+                selectedCustomTarget={formData.customTarget}
+                selectedLabels={formData.labelTargets}
+                customTargetOptions={CUSTOM_TARGET_OPTIONS}
+                className={`${baseClass}__target`}
+                onSelectTargetType={onSelectTargetType}
+                onSelectCustomTarget={onSelectCustomTargetOption}
+                onSelectLabel={onSelectLabel}
+                labels={labels || []}
+                dropdownHelpText={
+                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+                }
+              />
+            </Card>
+          </div>
         </div>
       );
     }
@@ -271,6 +309,10 @@ const SoftwareVppForm = ({
     [`${baseClass}__content-disabled`]: isLoading,
   });
 
+  const formContentClasses = classnames(`${baseClass}__form-content`, {
+    [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
+  });
+
   return (
     <form className={baseClass} onSubmit={onFormSubmit}>
       {isLoading && <div className={`${baseClass}__overlay`} />}
@@ -278,21 +320,27 @@ const SoftwareVppForm = ({
         {!softwareVppForEdit && (
           <p>Apple App Store apps purchased via Apple Business Manager:</p>
         )}
-        <div className={`${baseClass}__form-content`}>
+        <div className={formContentClasses}>
           <>{renderContent()}</>
-          <div className={`${baseClass}__action-buttons`}>
-            <Button
-              type="submit"
-              variant="brand"
-              disabled={isSubmitDisabled}
-              isLoading={isLoading}
-            >
-              {softwareVppForEdit ? "Save" : "Add software"}
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
+        </div>
+        <div className={`${baseClass}__action-buttons`}>
+          <GitOpsModeTooltipWrapper
+            position="bottom"
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={disableChildren || isSubmitDisabled}
+                isLoading={isLoading}
+                className={`${baseClass}__add-secret-btn`}
+              >
+                {softwareVppForEdit ? "Save" : "Add software"}
+              </Button>
+            )}
+          />
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
         </div>
       </div>
     </form>

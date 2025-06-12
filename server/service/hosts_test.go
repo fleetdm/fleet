@@ -33,6 +33,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetails(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
@@ -77,6 +78,12 @@ func TestHostDetails(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
 
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -91,6 +98,7 @@ func TestHostDetails(t *testing.T) {
 	require.Nil(t, hostDetail.MDM.MacOSSettings)
 }
 
+// Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
@@ -118,6 +126,12 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
 	}
 
 	cases := []struct {
@@ -369,6 +383,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	}
 }
 
+// Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetailsOSSettings(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
@@ -402,6 +417,12 @@ func TestHostDetailsOSSettings(t *testing.T) {
 
 	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 		return &fleet.HostDiskEncryptionKey{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
 	}
 
 	type testCase struct {
@@ -507,6 +528,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	}
 }
 
+// Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{ds: ds}
@@ -552,6 +574,12 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 		hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
 		return &hmdm, nil
 	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), &fleet.Host{ID: 42, Platform: "windows"}, fleet.HostDetailOptions{
@@ -567,6 +595,7 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	require.Equal(t, fleet.DiskEncryptionVerified, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
 }
 
+// Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -653,7 +682,7 @@ func TestHostAuth(t *testing.T) {
 	ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
-	ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -664,6 +693,15 @@ func TestHostAuth(t *testing.T) {
 	}
 	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 		return true, nil
+	}
+	ds.ListHostCertificatesFunc = func(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
 	}
 
 	testCases := []struct {
@@ -811,6 +849,11 @@ func TestHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
 			_, _, err = svc.ListHostSoftware(ctx, 2, fleet.HostSoftwareTitleListOptions{})
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, _, err = svc.ListHostCertificates(ctx, 1, fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+			_, _, err = svc.ListHostCertificates(ctx, 2, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 		})
 	}
@@ -1545,6 +1588,7 @@ func TestHostEncryptionKey(t *testing.T) {
 	})
 }
 
+// Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostMDMProfileDetail(t *testing.T) {
 	ds := new(mock.Store)
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
@@ -1591,6 +1635,12 @@ func TestHostMDMProfileDetail(t *testing.T) {
 				EnabledAndConfigured: true,
 			},
 		}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
 	}
 
 	cases := []struct {

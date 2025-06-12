@@ -6,6 +6,8 @@ import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
+import { isAndroid, isMobilePlatform } from "interfaces/platform";
+
 import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -225,10 +227,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       const value = cellProps.cell.value;
@@ -247,10 +246,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     id: "issues",
     sortDescFirst: true,
     Cell: (cellProps: IIssuesCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -302,6 +298,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "os_version",
     id: "os_version",
     Cell: (cellProps: IHostTableStringCellProps) => (
+      // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
       <TextCell value={cellProps.cell.value} />
     ),
   },
@@ -316,10 +313,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "osquery_version",
     id: "osquery_version",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;
@@ -332,6 +326,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "device_mapping",
     id: "device_mapping",
     Cell: (cellProps: IDeviceUserCellProps) => {
+      // TODO(android): is android supported?
       const numUsers = cellProps.cell.value?.length || 0;
       const users = condenseDeviceUsers(cellProps.cell.value || []);
       if (users.length > 1) {
@@ -364,10 +359,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "primary_ip",
     id: "primary_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;
@@ -442,10 +434,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "public_ip",
     id: "public_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -478,6 +467,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "detail_updated_at",
     id: "detail_updated_at",
     Cell: (cellProps: IHostTableStringCellProps) => (
+      // TODO(android): android doesn't support refetch?
       <TextCell
         value={{ timeString: cellProps.cell.value }}
         formatter={HumanTimeDiffWithFleetLaunchCutoff}
@@ -509,10 +499,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "seen_time",
     id: "seen_time",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
       return (
@@ -546,11 +533,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Cell: (cellProps: IHostTableStringCellProps) => {
       const { platform, last_restarted_at } = cellProps.row.original;
 
-      if (
-        platform === "ios" ||
-        platform === "ipados" ||
-        platform === "chrome"
-      ) {
+      if (isMobilePlatform(platform) || platform === "chrome") {
         return NotSupported;
       }
       return (
@@ -608,9 +591,13 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "primary_mac",
     id: "primary_mac",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      // TODO(android): is iOS/iPadOS supported?
+      if (isAndroid(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "Serial number",
@@ -622,9 +609,13 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "hardware_serial",
     id: "hardware_serial",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      // TODO(android): is iOS/iPadOS supported?
+      if (isAndroid(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "Hardware model",

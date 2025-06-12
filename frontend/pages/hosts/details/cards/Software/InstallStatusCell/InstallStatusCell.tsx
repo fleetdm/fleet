@@ -4,6 +4,7 @@ import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
 import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
+import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -102,8 +103,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     tooltip: ({ softwareName }) => (
       <>
         {softwareName ? <b>{softwareName}</b> : "Software"} can be installed on
-        the host. End users can install from{" "}
-        <b>Fleet Desktop {">"} Self-service</b>.
+        the host. {SELF_SERVICE_TOOLTIP}
       </>
     ),
   },

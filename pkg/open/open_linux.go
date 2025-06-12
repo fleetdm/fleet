@@ -41,18 +41,18 @@ func browser(url string) error {
 // getXWaylandAuthority retrieves the X authority file path from
 // the running XWayland process environment.
 func getXWaylandAuthority() (xAuthorityPath string, err error) {
-	xWaylandProcess, err := platform.GetProcessByName("Xwayland")
+	xWaylandProcess, err := platform.GetProcessesByName("Xwayland")
 	if err != nil {
 		return "", fmt.Errorf("get process by name: %w", err)
 	}
-	executablePath, err := xWaylandProcess.Exe()
+	executablePath, err := xWaylandProcess[0].Exe()
 	if err != nil {
 		return "", fmt.Errorf("get executable path: %w", err)
 	}
 	if executablePath != "/usr/bin/Xwayland" {
 		return "", fmt.Errorf("invalid Xwayland path: %q", executablePath)
 	}
-	envs, err := xWaylandProcess.Environ()
+	envs, err := xWaylandProcess[0].Environ()
 	if err != nil {
 		return "", fmt.Errorf("get environment: %w", err)
 	}

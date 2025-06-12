@@ -12,10 +12,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/automatic_policy"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -30,6 +32,7 @@ SELECT
 	vap.latest_version,
 	vat.self_service,
 	vat.id vpp_apps_teams_id,
+	vat.created_at added_at,
 	NULLIF(vap.icon_url, '') AS icon_url,
 	vap.bundle_identifier AS bundle_identifier
 FROM
@@ -113,34 +116,90 @@ func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *u
 ) {
 	var dest fleet.VPPAppStatusSummary
 
-	stmt := fmt.Sprintf(`
+	// TODO(sarah): do we need to handle host_deleted_at similar to GetSummaryHostSoftwareInstalls?
+	// Currently there is no host_deleted_at in host_vpp_software_installs, so
+	// not handling it as part of the unified queue work.
+
+	stmt := `
+WITH
+
+-- select most recent upcoming activities for each host
+upcoming AS (
+	SELECT
+		ua.host_id,
+		:software_status_pending AS status
+	FROM
+		upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+		JOIN hosts h ON host_id = h.id
+		LEFT JOIN (
+			upcoming_activities ua2
+			INNER JOIN vpp_app_upcoming_activities vaua2
+				ON ua2.id = vaua2.upcoming_activity_id
+		) ON ua.host_id = ua2.host_id AND
+			vaua.adam_id = vaua2.adam_id AND
+			vaua.platform = vaua2.platform AND
+			ua.activity_type = ua2.activity_type AND
+			(ua2.priority < ua.priority OR ua2.created_at > ua.created_at)
+	WHERE
+		ua.activity_type = 'vpp_app_install'
+		AND ua2.id IS NULL
+		AND vaua.adam_id = :adam_id
+		AND vaua.platform = :platform
+		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+),
+
+-- select most recent past activities for each host
+past AS (
+	SELECT
+		hvsi.host_id,
+		CASE
+			WHEN ncr.status = :mdm_status_acknowledged THEN
+				:software_status_installed
+			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
+				:software_status_failed
+			ELSE
+				NULL -- either pending or not installed via VPP App
+		END AS status
+	FROM
+		host_vpp_software_installs hvsi
+		JOIN hosts h ON host_id = h.id
+		JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
+		LEFT JOIN host_vpp_software_installs hvsi2
+			ON hvsi.host_id = hvsi2.host_id AND
+				 hvsi.adam_id = hvsi2.adam_id AND
+				 hvsi.platform = hvsi2.platform AND
+				 hvsi2.removed = 0 AND
+				 hvsi2.canceled = 0 AND
+				 (hvsi.created_at < hvsi2.created_at OR (hvsi.created_at = hvsi2.created_at AND hvsi.id < hvsi2.id))
+	WHERE
+		hvsi2.id IS NULL
+		AND hvsi.adam_id = :adam_id
+		AND hvsi.platform = :platform
+		AND (h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0))
+		AND hvsi.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		AND hvsi.removed = 0
+		AND hvsi.canceled = 0
+)
+
+-- count each status
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
 	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
+
+-- union most recent past and upcoming activities after joining to get statuses for most recent activities
 SELECT
-	%s
-FROM
-	host_vpp_software_installs hvsi
-INNER JOIN
-	hosts h ON hvsi.host_id = h.id
-LEFT OUTER JOIN
-	nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
-WHERE
-	hvsi.adam_id = :adam_id AND hvsi.platform = :platform AND
-	(h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0)) AND
-	hvsi.id IN (
-		SELECT
-			max(hvsi2.id) -- ensure we use only the most recently created install attempt for each host
-		FROM
-			host_vpp_software_installs hvsi2
-		WHERE
-			hvsi2.adam_id = :adam_id AND hvsi2.platform = :platform
-		GROUP BY
-			hvsi2.host_id
-	)
-) s`, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"))
+	past.host_id,
+	past.status
+FROM past
+UNION
+SELECT
+	upcoming.host_id,
+	upcoming.status
+FROM upcoming
+) t`
 
 	var tmID uint
 	if teamID != nil {
@@ -247,7 +306,7 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 		return &labels, nil
 
 	case len(inclAny) > 0:
-		labels.LabelScope = fleet.LabelScopeExcludeAny
+		labels.LabelScope = fleet.LabelScopeIncludeAny
 		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAny))
 		for _, l := range inclAny {
 			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
@@ -414,6 +473,20 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			}
 		}
 
+		if app.VPPAppTeam.AddAutoInstallPolicy {
+			generatedPolicyData, err := automatic_policy.Generate(automatic_policy.MacInstallerMetadata{
+				Title:            app.Name,
+				BundleIdentifier: app.BundleIdentifier,
+			})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "generate automatic policy query data")
+			}
+
+			if err := ds.createAutomaticPolicy(ctx, tx, *generatedPolicyData, teamID, nil, ptr.Uint(vppAppTeamID)); err != nil {
+				return ctxerr.Wrap(ctx, err, "create automatic policy")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -445,7 +518,7 @@ func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPA
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
-	adam_id, platform, self_service, install_during_setup, id
+	adam_id, platform, self_service, install_during_setup, id, created_at added_at
 FROM
 	vpp_apps_teams vat
 WHERE
@@ -467,6 +540,12 @@ WHERE
 	}
 
 	return appSet, nil
+}
+
+func (ds *Datastore) InsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return insertVPPApps(ctx, tx, apps)
+	})
 }
 
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
@@ -591,11 +670,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 			selectStmt = `
 				    SELECT id
 				    FROM software_titles
-				    WHERE (bundle_identifier = ? OR (name = ? AND browser = ''))
-				      AND source NOT IN ('ios_apps', 'ipados_apps')
-				    ORDER BY bundle_identifier = ? DESC
-				    LIMIT 1`
-			selectArgs = []any{app.BundleIdentifier, app.Name, app.BundleIdentifier}
+				    WHERE bundle_identifier = ? AND additional_identifier = 0`
+			selectArgs = []any{app.BundleIdentifier}
 		}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, app.BundleIdentifier)
@@ -687,7 +763,8 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	 vat.self_service,
 	 va.title_id,
 	 va.platform,
-	 va.created_at, 
+	 va.created_at,
+	 vat.created_at added_at,
 	 va.updated_at,
 	 vat.id
 	FROM vpp_apps va
@@ -725,7 +802,8 @@ SELECT
   va.platform,
   va.created_at,
   va.updated_at,
-  vat.self_service
+  vat.self_service,
+  vat.created_at added_at
 FROM vpp_apps va
 JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 WHERE vat.global_or_team_id = ? AND va.title_id = ?
@@ -749,26 +827,78 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 }
 
 func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID,
-	commandUUID, associatedEventID string, selfService bool, policyID *uint,
+	commandUUID, associatedEventID string, opts fleet.HostSoftwareInstallOptions,
 ) error {
-	stmt := `
-INSERT INTO host_vpp_software_installs
-  (host_id, adam_id, platform, command_uuid, user_id, associated_event_id, self_service, policy_id)
+	const (
+		insertUAStmt = `
+INSERT INTO upcoming_activities
+	(host_id, priority, user_id, fleet_initiated, activity_type, execution_id, payload)
 VALUES
-  (?,?,?,?,?,?,?,?)
-	`
+	(?, ?, ?, ?, 'vpp_app_install', ?,
+		JSON_OBJECT(
+			'self_service', ?,
+			'associated_event_id', ?,
+			'user', (SELECT JSON_OBJECT('name', name, 'email', email, 'gravatar_url', gravatar_url) FROM users WHERE id = ?)
+		)
+	)`
+
+		insertVAUAStmt = `
+INSERT INTO vpp_app_upcoming_activities
+	(upcoming_activity_id, adam_id, platform, policy_id)
+VALUES
+	(?, ?, ?, ?)`
+
+		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
+	)
+
+	// we need to explicitly do this check here because we can't set a FK constraint on the schema
+	var hostExists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hostExists, hostExistsStmt, hostID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return notFound("Host").WithID(hostID)
+		}
+
+		return ctxerr.Wrap(ctx, err, "checking if host exists")
+	}
 
 	var userID *uint
-	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && policyID == nil {
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil && opts.PolicyID == nil {
 		userID = &ctxUser.ID
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, appID.AdamID, appID.Platform, commandUUID, userID,
-		associatedEventID, selfService, policyID); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert into host_vpp_software_installs")
-	}
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, insertUAStmt,
+			hostID,
+			opts.Priority(),
+			userID,
+			opts.IsFleetInitiated(),
+			commandUUID,
+			opts.SelfService,
+			associatedEventID,
+			userID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert vpp install request")
+		}
 
-	return nil
+		activityID, _ := res.LastInsertId()
+		_, err = tx.ExecContext(ctx, insertVAUAStmt,
+			activityID,
+			appID.AdamID,
+			appID.Platform,
+			opts.PolicyID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
+		}
+
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity")
+		}
+		return nil
+	})
+	return err
 }
 
 func (ds *Datastore) GetActivityDataForVPPAppUnInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityUnInstalledAppStoreApp, error) {
@@ -867,7 +997,7 @@ func (ds *Datastore) MapAdamIDsPendingInstall(ctx context.Context, hostID uint) 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &adamIds, `SELECT hvsi.adam_id
 			FROM host_vpp_software_installs hvsi
 			JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid AND nvq.status IS NULL
-			WHERE hvsi.host_id = ?`, hostID); err != nil && err != sql.ErrNoRows {
+			WHERE hvsi.host_id = ? AND hvsi.canceled = 0`, hostID); err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "list pending VPP installs")
 	}
 	adamMap := map[string]struct{}{}
@@ -904,7 +1034,8 @@ FROM
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
 	LEFT OUTER JOIN policies p ON p.id = hvsi.policy_id
 WHERE
-	hvsi.command_uuid = :command_uuid
+	hvsi.command_uuid = :command_uuid AND
+	hvsi.canceled = 0
 	`
 
 	type result struct {
@@ -1607,4 +1738,24 @@ func (ds *Datastore) GetIncludedHostIDMapForVPPAppTx(ctx context.Context, tx sql
 
 func (ds *Datastore) GetExcludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {
 	return ds.getExcludedHostIDMapForSoftware(ctx, vppAppTeamID, softwareTypeVPP)
+}
+
+func (ds *Datastore) GetAllVPPApps(ctx context.Context) ([]*fleet.VPPApp, error) {
+	query := `
+SELECT
+    adam_id,
+	title_id,
+	bundle_identifier,
+	icon_url,
+	name,
+	latest_version,
+	platform
+FROM vpp_apps`
+
+	var apps []*fleet.VPPApp
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &apps, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting all VPP apps")
+	}
+
+	return apps, nil
 }

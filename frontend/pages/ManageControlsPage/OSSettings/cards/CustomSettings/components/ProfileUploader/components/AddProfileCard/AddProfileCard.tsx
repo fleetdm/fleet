@@ -1,5 +1,6 @@
 import React from "react";
 
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Card from "components/Card";
 import Button from "components/buttons/Button";
 import ProfileGraphic from "../AddProfileGraphic";
@@ -11,17 +12,22 @@ interface IAddProfileCardProps {
 }
 
 const AddProfileCard = ({ setShowModal }: IAddProfileCardProps) => (
-  <Card color="gray" className={baseClass}>
+  <Card color="grey" className={baseClass}>
     <div className={`${baseClass}__card--content-wrap`}>
       <ProfileGraphic baseClass={baseClass} showMessage />
-      <Button
-        className={`${baseClass}__card--add-button`}
-        variant="brand"
-        type="button"
-        onClick={() => setShowModal(true)}
-      >
-        Add profile
-      </Button>
+      <GitOpsModeTooltipWrapper
+        tipOffset={8}
+        renderChildren={(disableChildren) => (
+          <Button
+            disabled={disableChildren}
+            className={`${baseClass}__card--add-button`}
+            type="button"
+            onClick={() => setShowModal(true)}
+          >
+            Add profile
+          </Button>
+        )}
+      />
     </div>
   </Card>
 );

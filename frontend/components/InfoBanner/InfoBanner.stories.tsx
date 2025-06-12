@@ -1,5 +1,6 @@
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import CustomLink from "components/CustomLink";
 
 import InfoBanner from ".";
 
@@ -17,5 +18,13 @@ type Story = StoryObj<typeof InfoBanner>;
 export const Default: Story = {
   args: {
     children: <div>This is an Info Banner.</div>,
+    cta: (
+      <CustomLink
+        url="http://localhost:6006/"
+        text="Reopen Storybook"
+        newTab
+        // TODO: variant="info-banner" after merge
+      />
+    ),
   },
 };

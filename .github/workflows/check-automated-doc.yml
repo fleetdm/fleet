@@ -46,10 +46,10 @@ jobs:
 
       - name: Verify golang generated documentation is up-to-date
         run: |
-          make generate-doc
+          make doc
           if [[ $(git diff) ]]; then
             echo "❌ fail: uncommited changes"
-            echo "please run 'make generate-doc' and commit the changes"
+            echo "please run 'make doc' and commit the changes"
             git --no-pager diff
             exit 1
           fi

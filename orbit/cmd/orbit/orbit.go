@@ -504,7 +504,11 @@ func main() {
 			case "darwin":
 				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopMacOSTarget
 			case "windows":
-				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
+				if runtime.GOARCH == "arm64" {
+					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsArm64Target
+				} else {
+					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
+				}
 			case "linux":
 				if runtime.GOARCH == "arm64" {
 					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxArm64Target
@@ -1585,14 +1589,6 @@ func newDesktopRunner(
 func (d *desktopRunner) Execute() error {
 	defer close(d.executeDoneCh)
 
-	log.Info().Msg("killing any pre-existing fleet-desktop instances")
-
-	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
-		!errors.Is(err, platform.ErrProcessNotFound) &&
-		!errors.Is(err, platform.ErrComChannelNotFound) {
-		log.Error().Err(err).Msg("desktop early terminate")
-	}
-
 	log.Info().Str("path", d.desktopPath).Msg("opening")
 	url, err := url.Parse(d.fleetURL)
 	if err != nil {
@@ -1630,14 +1626,25 @@ func (d *desktopRunner) Execute() error {
 			// On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
 			// the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
 			// for more details.
-			loggedInGui, err := user.IsUserLoggedInViaGui()
+			loggedInUser, err := user.UserLoggedInViaGui()
 			if err != nil {
 				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
 				return true
 			}
 
-			if !loggedInGui {
+			if loggedInUser == nil {
 				return true
+			}
+
+			if *loggedInUser != "" {
+				opts = append(opts, execuser.WithUser(*loggedInUser))
+			}
+
+			log.Info().Msg("killing any pre-existing fleet-desktop instances")
+			if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
+				!errors.Is(err, platform.ErrProcessNotFound) &&
+				!errors.Is(err, platform.ErrComChannelNotFound) {
+				log.Error().Err(err).Msg("desktop early terminate")
 			}
 
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
@@ -1656,8 +1663,8 @@ func (d *desktopRunner) Execute() error {
 
 		// Second retry logic to monitor fleet-desktop.
 		// Call with waitFirst=true to give some time for the process to start.
-		if done := retry(30*time.Second, true, d.interruptCh, func() bool {
-			switch _, err := platform.GetProcessByName(constant.DesktopAppExecName); {
+		if done := retry(15*time.Second, true, d.interruptCh, func() bool {
+			switch _, err := platform.GetProcessesByName(constant.DesktopAppExecName); {
 			case err == nil:
 				return true // all good, process is running, retry.
 			case errors.Is(err, platform.ErrProcessNotFound):

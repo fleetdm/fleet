@@ -1,4 +1,8 @@
 url: https://zoom.us/client/latest/ZoomInstaller.exe?archType=winarm64
-self-service: true
+self_service: true
 labels_include_any:
   - "ARM-based Windows hosts"
+install_script:
+  path: ../scripts/default-exe-install-script.ps1
+uninstall_script:
+  path: ../scripts/uninstall-zoom.ps1

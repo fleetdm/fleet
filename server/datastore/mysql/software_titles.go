@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -79,6 +80,14 @@ GROUP BY
 	return &title, nil
 }
 
+func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, name string) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, "UPDATE software_titles SET name = ? WHERE id = ? AND bundle_identifier != ''", name, titleID); err != nil {
+		return ctxerr.Wrap(ctx, err, "update software title name")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
@@ -112,11 +121,13 @@ func (ds *Datastore) ListSoftwareTitles(
 		PackageSelfService        *bool   `db:"package_self_service"`
 		PackageName               *string `db:"package_name"`
 		PackageVersion            *string `db:"package_version"`
+		PackagePlatform           *string `db:"package_platform"`
 		PackageURL                *string `db:"package_url"`
 		PackageInstallDuringSetup *bool   `db:"package_install_during_setup"`
 		VPPAppSelfService         *bool   `db:"vpp_app_self_service"`
 		VPPAppAdamID              *string `db:"vpp_app_adam_id"`
 		VPPAppVersion             *string `db:"vpp_app_version"`
+		VPPAppPlatform            *string `db:"vpp_app_platform"`
 		VPPAppIconURL             *string `db:"vpp_app_icon_url"`
 		VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
 	}
@@ -152,10 +163,15 @@ func (ds *Datastore) ListSoftwareTitles(
 			if title.PackageVersion != nil {
 				version = *title.PackageVersion
 			}
+			var platform string
+			if title.PackagePlatform != nil {
+				platform = *title.PackagePlatform
+			}
 
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:               *title.PackageName,
 				Version:            version,
+				Platform:           platform,
 				SelfService:        title.PackageSelfService,
 				PackageURL:         title.PackageURL,
 				InstallDuringSetup: title.PackageInstallDuringSetup,
@@ -168,9 +184,14 @@ func (ds *Datastore) ListSoftwareTitles(
 			if title.VPPAppVersion != nil {
 				version = *title.VPPAppVersion
 			}
+			var platform string
+			if title.VPPAppPlatform != nil {
+				platform = *title.VPPAppPlatform
+			}
 			title.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:         *title.VPPAppAdamID,
 				Version:            version,
+				Platform:           platform,
 				SelfService:        title.VPPAppSelfService,
 				IconURL:            title.VPPAppIconURL,
 				InstallDuringSetup: title.VPPInstallDuringSetup,
@@ -201,18 +222,28 @@ func (ds *Datastore) ListSoftwareTitles(
 	// the application logic. This is because we need to support MySQL 5.7
 	// and there's no good way to do an aggregation that builds a structure
 	// (like a JSON) object for nested arrays.
-	getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
-		titleIDs,
-		opt.TeamID,
-		tmFilter,
-		false,
-	)
-	if err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "build get versions stmt")
-	}
+	batchSize := 32000
 	var versions []fleet.SoftwareVersion
-	if err := sqlx.SelectContext(ctx, dbReader, &versions, getVersionsStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software versions")
+	err = common_mysql.BatchProcessSimple(titleIDs, batchSize, func(titleIDsToProcess []uint) error {
+		getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
+			titleIDsToProcess,
+			opt.TeamID,
+			tmFilter,
+			false,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build get versions stmt")
+		}
+		var versionsBatch []fleet.SoftwareVersion
+		if err := sqlx.SelectContext(ctx, dbReader, &versions, getVersionsStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get software versions")
+		}
+		versions = append(versions, versionsBatch...)
+
+		return nil
+	})
+	if err != nil {
+		return nil, 0, nil, err
 	}
 
 	// append matching versions to titles
@@ -286,12 +317,14 @@ SELECT
 	si.self_service as package_self_service,
 	si.filename as package_name,
 	si.version as package_version,
+	si.platform as package_platform,
 	si.url AS package_url,
 	si.install_during_setup as package_install_during_setup,
 	vat.self_service as vpp_app_self_service,
 	vat.adam_id as vpp_app_adam_id,
 	vat.install_during_setup as vpp_install_during_setup,
 	vap.latest_version as vpp_app_version,
+	vap.platform as vpp_app_platform,
 	vap.icon_url as vpp_app_icon_url
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
@@ -304,7 +337,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, package_self_service, package_name, package_version, package_url, package_install_during_setup, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url, vpp_install_during_setup`
+GROUP BY st.id, package_self_service, package_name, package_version, package_platform, package_url, package_install_during_setup, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_platform, vpp_app_icon_url, vpp_install_during_setup`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {
@@ -408,12 +441,6 @@ GROUP BY st.id, package_self_service, package_name, package_version, package_url
 	}
 	if opt.SelfServiceOnly {
 		defaultFilter += ` AND ( si.self_service = 1 OR vat.self_service = 1 ) `
-	}
-
-	// if excluding fleet maintained apps, filter out any row from software_titles
-	// that has a matching row in fleet_library_apps.
-	if opt.ExcludeFleetMaintainedApps {
-		additionalWhere += " AND NOT EXISTS ( SELECT FALSE FROM fleet_library_apps AS fla WHERE fla.bundle_identifier = st.bundle_identifier )"
 	}
 
 	stmt = fmt.Sprintf(stmt, softwareInstallersJoinCond, vppAppsJoinCond, vppAppsTeamsJoinCond, countsJoin, softwareJoin, additionalWhere, defaultFilter)

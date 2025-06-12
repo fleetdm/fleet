@@ -33,6 +33,10 @@ const MfaPage = ({ router, params }: IMfaPage) => {
   } = useContext(AppContext);
   const { redirectLocation } = useContext(RoutingContext);
   const [isExpired, setIsExpired] = useState(false);
+  const [shouldFinishMFA, setShouldFinishMFA] = useState(
+    !!local.getItem("auth_pending_mfa")
+  );
+  local.removeItem("auth_pending_mfa");
 
   const finishMFA = async () => {
     const { DASHBOARD, RESET_PASSWORD, NO_ACCESS } = paths;
@@ -71,8 +75,10 @@ const MfaPage = ({ router, params }: IMfaPage) => {
   };
 
   useEffect(() => {
-    finishMFA();
-  });
+    if (shouldFinishMFA) {
+      finishMFA();
+    }
+  }, [shouldFinishMFA, finishMFA]);
 
   useEffect(() => {
     if (currentUser) {
@@ -84,6 +90,20 @@ const MfaPage = ({ router, params }: IMfaPage) => {
     router.push(paths.LOGIN);
   };
 
+  const onClickFinishLoginButton = () => {
+    setShouldFinishMFA(true);
+  };
+
+  if (!shouldFinishMFA) {
+    return (
+      <AuthenticationFormWrapper>
+        <div className={baseClass}>
+          <Button onClick={onClickFinishLoginButton}>Log in</Button>
+        </div>
+      </AuthenticationFormWrapper>
+    );
+  }
+
   if (isExpired) {
     return (
       <AuthenticationFormWrapper>
@@ -93,9 +113,7 @@ const MfaPage = ({ router, params }: IMfaPage) => {
               <b>That link is expired.</b>
             </p>
             <p>Log in again for a new link.</p>
-            <Button variant="brand" onClick={onClickLoginButton}>
-              Back to login
-            </Button>
+            <Button onClick={onClickLoginButton}>Back to login</Button>
           </>
         </StackedWhiteBoxes>
       </AuthenticationFormWrapper>

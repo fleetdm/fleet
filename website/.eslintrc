@@ -49,6 +49,7 @@
     "VantaConnection": true,
     "CertificateSigningRequest": true,
     "Platform": true,
+    "AdCampaign": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   },

@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -35,9 +36,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
-	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2170,7 +2171,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithSoftwareAndScriptAu
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
 	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
 
-	debugPrintActivities := func(activities []*fleet.Activity) []string {
+	debugPrintActivities := func(activities []*fleet.UpcomingActivity) []string {
 		var res []string
 		for _, activity := range activities {
 			res = append(res, fmt.Sprintf("%+v", activity))
@@ -3178,4 +3179,442 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 			}
 		})
 	})
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
+	t := s.T()
+	ctx := context.Background()
+
+	teamDevice, enrolledHost, team := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
+
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	var getVPPTokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+
+	// Add an app with 0 licenses available
+	s.appleVPPConfigSrvConfig.Assets = append(s.appleVPPConfigSrvConfig.Assets, vpp.Asset{
+		AdamID:         "5",
+		PricingParam:   "STDQ",
+		AvailableCount: 0,
+	})
+
+	t.Cleanup(func() {
+		s.appleVPPConfigSrvConfig.Assets = defaultVPPAssetList
+	})
+
+	// Associate team to the VPP token.
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	// Add the app with 0 licenses available
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: "5", SelfService: true}, http.StatusOK)
+
+	// Add the VPP app to setup experience
+	vppTitleID := getSoftwareTitleID(t, s.ds, "App 5", "apps")
+	installerTitleID := getSoftwareTitleID(t, s.ds, "DummyApp.app", "apps")
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team.ID, TitleIDs: []uint{vppTitleID, installerTitleID}}, http.StatusOK, &swInstallResp)
+
+	// enroll the host
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = teamDevice.SerialNumber
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// run the worker to process the DEP enroll request
+	s.runWorker()
+	// run the worker to assign configuration profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	var cmds []*micromdm.CommandPayload
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// expected commands: install fleetd (install enterprise), install profiles
+	// (custom one, fleetd configuration, fleet CA root)
+	require.Len(t, cmds, 4)
+	var installProfileCount, installEnterpriseCount, otherCount int
+	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen, profileFileVaultSeen bool
+	for _, cmd := range cmds {
+		switch cmd.Command.RequestType {
+		case "InstallProfile":
+			installProfileCount++
+			switch {
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>"):
+				profileCustomSeen = true
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)):
+				profileFleetdSeen = true
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)):
+				profileFleetCASeen = true
+			case strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
+				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant"):
+				profileFileVaultSeen = true
+			}
+
+		case "InstallEnterpriseApplication":
+			installEnterpriseCount++
+		default:
+			otherCount++
+		}
+	}
+	require.Equal(t, 3, installProfileCount)
+	require.Equal(t, 1, installEnterpriseCount)
+	require.Equal(t, 0, otherCount)
+	require.True(t, profileCustomSeen)
+	require.True(t, profileFleetdSeen)
+	require.True(t, profileFleetCASeen)
+	require.False(t, profileFileVaultSeen)
+
+	// simulate fleetd being installed and the host being orbit-enrolled now
+	enrolledHost.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	enrolledHost.UUID = mdmDevice.UUID
+	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
+	enrolledHost.OrbitNodeKey = &orbitKey
+
+	// there shouldn't be a worker Release Device pending job (we don't release that way anymore)
+	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+	require.NoError(t, err)
+	require.Len(t, pending, 0)
+
+	// call the /status endpoint, the software and script should be pending
+	var statusResp getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+	var profNames []string
+	var profStatuses []fleet.MDMDeliveryStatus
+	for _, prof := range statusResp.Results.ConfigurationProfiles {
+		profNames = append(profNames, prof.Name)
+		profStatuses = append(profStatuses, prof.Status)
+	}
+	require.ElementsMatch(t, []string{"N1", "Fleetd configuration", "Fleet root certificate authority (CA)"}, profNames)
+	require.ElementsMatch(t, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerifying}, profStatuses)
+
+	// the software and script are still pending
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 2)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
+
+	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
+	// it out manually
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	require.Len(t, results, 3)
+	require.NoError(t, err)
+	var installUUID string
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil &&
+			r.SoftwareInstallerID != nil &&
+			r.Name == statusResp.Results.Software[0].Name {
+			installUUID = *r.HostSoftwareInstallsExecutionID
+			break
+		}
+	}
+
+	require.NotEmpty(t, installUUID)
+
+	// Need to get the software title to get the package name
+	var getSoftwareTitleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", *statusResp.Results.Software[0].SoftwareTitleID), nil, http.StatusOK, &getSoftwareTitleResp, "team_id", fmt.Sprintf("%d", *enrolledHost.TeamID))
+	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle)
+	require.NotNil(t, getSoftwareTitleResp.SoftwareTitle.SoftwarePackage)
+
+	// record a result for software installation
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`, *enrolledHost.OrbitNodeKey, installUUID)), http.StatusNoContent)
+
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 2)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[1].Status)
+
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 2)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+
+	// App 5 has no licenses available, so we should get a status failed here and setup experience
+	// should continue
+	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[1].Status)
+
+	// Software installations are done, now we should run the script
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, statusResp.Results.Script.Status)
+	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[1].Status)
+
+	// Get script exec ID
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, enrolledHost.UUID)
+	require.Len(t, results, 3)
+	require.NoError(t, err)
+	var execID string
+	for _, r := range results {
+		if r.ScriptExecutionID != nil {
+			execID = *r.ScriptExecutionID
+		}
+	}
+
+	// record a result for script execution
+	var scriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *enrolledHost.OrbitNodeKey, execID)),
+		http.StatusOK, &scriptResp)
+
+	// Get status again, now the script should be complete. This should also trigger the automatic
+	// release of the device, as all setup experience steps are now complete.
+	statusResp = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *enrolledHost.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+	require.Equal(t, "App 5", statusResp.Results.Software[1].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[1].Status)
+
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, statusResp.Results.Script.Status)
+
+	// check that the host received the device configured command automatically
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	cmds = cmds[:0]
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, cmds, 1)
+	var deviceConfiguredCount int
+	for _, cmd := range cmds {
+		switch cmd.Command.RequestType {
+		case "DeviceConfigured":
+			deviceConfiguredCount++
+		default:
+			otherCount++
+		}
+	}
+	require.Equal(t, 1, deviceConfiguredCount)
+	require.Equal(t, 0, otherCount)
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceFlowCancelScript() {
+	t := s.T()
+	ctx := context.Background()
+
+	device, host, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
+
+	// enroll the host
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = device.SerialNumber
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// run the worker to process the DEP enroll request
+	s.runWorker()
+	// run the worker to assign configuration profiles
+	s.awaitTriggerProfileSchedule(t)
+
+	var cmds []*micromdm.CommandPayload
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// expected commands: install fleetd (install enterprise), install profiles
+	// (custom one, fleetd configuration, fleet CA root)
+	require.Len(t, cmds, 4)
+
+	// simulate fleetd being installed and the host being orbit-enrolled now
+	host.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	host.UUID = mdmDevice.UUID
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// call the /status endpoint, the software and script should be pending
+	var statusResp getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+
+	// the software and script are pending
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 1)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+
+	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
+	// it out manually (for now only the software install has its execution id)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	require.Len(t, results, 2)
+	require.NoError(t, err)
+
+	var swExecID string
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil {
+			swExecID = *r.HostSoftwareInstallsExecutionID
+		}
+	}
+	require.NotEmpty(t, swExecID)
+
+	// Check upcoming activities: we should only have the software upcoming because we don't run the
+	// script until after the software is done
+	var hostActivitiesResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
+	require.Len(t, hostActivitiesResp.Activities, 1)
+	require.Equal(t, swExecID, hostActivitiesResp.Activities[0].UUID)
+
+	// no MDM command got enqueued due to the /status call (device not released yet)
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// cancel the software install
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, swExecID),
+		nil, http.StatusNoContent)
+
+	// call the /status endpoint, the software is now failed and script should be pending
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+
+	// the software is failed and script is pending
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusPending, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 1)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+
+	// The /setup_experience/status endpoint doesn't return the various IDs for executions, so pull
+	// it out manually (this time get the script exec ID)
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	require.Len(t, results, 2)
+	require.NoError(t, err)
+
+	var scrExecID string
+	for _, r := range results {
+		if r.ScriptExecutionID != nil {
+			scrExecID = *r.ScriptExecutionID
+		}
+	}
+	require.NotEmpty(t, scrExecID)
+
+	// script is now in the upcoming activities
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &hostActivitiesResp)
+	require.Len(t, hostActivitiesResp.Activities, 1)
+	require.Equal(t, scrExecID, hostActivitiesResp.Activities[0].UUID)
+
+	// no MDM command got enqueued due to the /status call (device not released yet)
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// cancel the script
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, scrExecID),
+		nil, http.StatusNoContent)
+
+	// call the /status endpoint, both the software and script are now failed
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+	require.Nil(t, statusResp.Results.BootstrapPackage)         // no bootstrap package involved
+	require.Nil(t, statusResp.Results.AccountConfiguration)     // no SSO involved
+	require.Len(t, statusResp.Results.ConfigurationProfiles, 3) // fleetd config, root CA, custom profile
+
+	require.NotNil(t, statusResp.Results.Script)
+	require.Equal(t, "script.sh", statusResp.Results.Script.Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Script.Status)
+	require.Len(t, statusResp.Results.Software, 1)
+	require.Equal(t, "DummyApp.app", statusResp.Results.Software[0].Name)
+	require.Equal(t, fleet.SetupExperienceStatusFailure, statusResp.Results.Software[0].Status)
+	require.NotNil(t, statusResp.Results.Software[0].SoftwareTitleID)
+	require.NotZero(t, *statusResp.Results.Software[0].SoftwareTitleID)
+
+	// check that the host received the device configured command automatically
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	cmds = cmds[:0]
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		cmds = append(cmds, &fullCmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, cmds, 1)
+	require.Equal(t, "DeviceConfigured", cmds[0].Command.RequestType)
 }

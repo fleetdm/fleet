@@ -11,6 +11,8 @@ import (
 	"math/big"
 	"os/exec"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,7 +33,7 @@ const (
 	retryEntryDialogText = "Passphrase incorrect. Please try again."
 	infoTitle            = "Disk encryption"
 	infoFailedText       = "Failed to escrow key. Please try again later."
-	infoSuccessText      = "Success!  Now, return to your browser window and follow the instructions to verify disk encryption."
+	infoSuccessText      = "Disk encryption key created! Now, return to your browser window and follow the instructions to verify."
 	timeoutMessage       = "Please visit Fleet Desktop > My device and click Create key"
 	maxKeySlots          = 8
 	userKeySlot          = 0 // Key slot 0 is assumed to be the location of the user's passphrase
@@ -143,21 +145,9 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 		return nil, nil, nil
 	}
 
-	cancelProgress, err := lr.notifier.ShowProgress(dialog.ProgressOptions{
-		Title: infoTitle,
-		Text:  "Validating passphrase...",
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("failed to show progress dialog")
-	}
-	defer func() {
-		if err := cancelProgress(); err != nil {
-			log.Debug().Err(err).Msg("failed to cancel progress dialog")
-		}
-	}()
-
 	// Validate the passphrase
 	for {
+		log.Debug().Msg("Validating disk passphrase")
 		valid, err := lr.passphraseIsValid(ctx, device, devicePath, passphrase, userKeySlot)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Failed validating passphrase: %w", err)
@@ -179,52 +169,27 @@ func (lr *LuksRunner) getEscrowKey(ctx context.Context, devicePath string) ([]by
 
 	}
 
-	if err := cancelProgress(); err != nil {
-		log.Error().Err(err).Msg("failed to cancel progress dialog")
-	}
-
-	cancelProgress, err = lr.notifier.ShowProgress(dialog.ProgressOptions{
-		Title: infoTitle,
-		Text:  "Escrowing key...",
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("failed to show progress dialog")
-	}
-
-	defer func() {
-		if err := cancelProgress(); err != nil {
-			log.Error().Err(err).Msg("failed to cancel progress dialog")
-		}
-	}()
-
+	log.Debug().Msg("Generating random disk encryption passphrase")
 	escrowPassphrase, err := generateRandomPassphrase()
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to generate random passphrase: %w", err)
 	}
 
-	// Create a new key slot and error if all key slots are full
-	// Start at slot 1 as keySlot 0 is assumed to be the location of
-	// the user's passphrase
-	var keySlot uint = userKeySlot + 1
-	for {
-		if keySlot == maxKeySlots {
-			return nil, nil, errors.New("all LUKS key slots are full")
-		}
+	log.Debug().Msg("Getting the next available keyslot")
+	keySlot, err := getNextAvailableKeySlot(ctx, devicePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("finding available keyslot: %w", err)
+	}
+	log.Debug().Msgf("Found available keyslot: %d", keySlot)
 
-		userKey := encryption.NewKey(userKeySlot, passphrase)
-		escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
+	userKey := encryption.NewKey(userKeySlot, passphrase)
+	escrowKey := encryption.NewKey(int(keySlot), escrowPassphrase) // #nosec G115
 
-		if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
-			if ErrKeySlotFull.MatchString(err.Error()) {
-				keySlot++
-				continue
-			}
-			return nil, nil, fmt.Errorf("Failed to add key: %w", err)
-		}
-
-		break
+	if err := device.AddKey(ctx, devicePath, userKey, escrowKey); err != nil {
+		return nil, nil, fmt.Errorf("Failed to add key: %w", err)
 	}
 
+	log.Debug().Msg("Validating newly inserted key")
 	valid, err := lr.passphraseIsValid(ctx, device, devicePath, escrowPassphrase, keySlot)
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error while validating escrow passphrase: %w", err)
@@ -248,6 +213,41 @@ func (lr *LuksRunner) passphraseIsValid(ctx context.Context, device *luksdevice.
 	}
 
 	return valid, nil
+}
+
+func getNextAvailableKeySlot(ctx context.Context, devicePath string) (uint, error) {
+	dump, err := getLuksDump(ctx, devicePath)
+	if err != nil {
+		return 0, fmt.Errorf("get next available key slot: %w", err)
+	}
+
+	keysTaken := []uint32{}
+
+	for keyStr := range dump.Keyslots {
+		key, err := strconv.ParseUint(keyStr, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("parse next available key slot: %w", err)
+		}
+		keysTaken = append(keysTaken, uint32(key))
+	}
+
+	sort.Slice(keysTaken, func(i, j int) bool {
+		return keysTaken[i] < keysTaken[j]
+	})
+
+	// Check for gaps in keys in case one was deleted
+	var unusedKey uint32
+	for _, keySlot := range keysTaken {
+		if unusedKey == keySlot {
+			unusedKey++
+		}
+	}
+
+	if unusedKey >= maxKeySlots {
+		return 0, fmt.Errorf("no empty key slots available: %d", unusedKey)
+	}
+
+	return uint(unusedKey), nil
 }
 
 // generateRandomPassphrase generates a random passphrase with 32 characters
@@ -335,13 +335,13 @@ type KDF struct {
 	Salt string `json:"salt"`
 }
 
-func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
+func getLuksDump(ctx context.Context, devicePath string) (*LuksDump, error) {
 	var jsonFlag string
 	var jsonNeedsExtraction bool
 
 	lessThan2_4, err := isCryptsetupVersionLessThan2_4()
 	if err != nil {
-		return "", fmt.Errorf("Failed to check cryptsetup version: %w", err)
+		return nil, fmt.Errorf("Failed to check cryptsetup version: %w", err)
 	}
 
 	if lessThan2_4 {
@@ -354,19 +354,28 @@ func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (st
 	cmd := exec.CommandContext(ctx, "cryptsetup", "luksDump", jsonFlag, devicePath)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("Failed to run cryptsetup luksDump: %w", err)
+		return nil, fmt.Errorf("Failed to run cryptsetup luksDump: %w", err)
 	}
 
 	if jsonNeedsExtraction {
 		output, err = extractJSON(output)
 		if err != nil {
-			return "", fmt.Errorf("Failed to extract JSON from cryptsetup luksDump output: %w", err)
+			return nil, fmt.Errorf("Failed to extract JSON from cryptsetup luksDump output: %w", err)
 		}
 	}
 
 	var dump LuksDump
 	if err := json.Unmarshal(output, &dump); err != nil {
-		return "", fmt.Errorf("Failed to unmarshal luksDump output: %w", err)
+		return nil, fmt.Errorf("Failed to unmarshal luksDump output: %w", err)
+	}
+
+	return &dump, nil
+}
+
+func getSaltforKeySlot(ctx context.Context, devicePath string, keySlot uint) (string, error) {
+	dump, err := getLuksDump(ctx, devicePath)
+	if err != nil {
+		return "", fmt.Errorf("getting salt for key slot: %w", err)
 	}
 
 	slot, ok := dump.Keyslots[fmt.Sprintf("%d", keySlot)]

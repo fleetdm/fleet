@@ -6,9 +6,11 @@ import createMockDeviceUser, {
 import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import createMockMacAdmins from "__mocks__/macAdminsMock";
+import { createMockHostCertificate } from "__mocks__/certificatesMock";
 import { baseUrl } from "test/test-utils";
 import { IDeviceUserResponse } from "interfaces/host";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
   return HttpResponse.json({
@@ -63,3 +65,16 @@ export const customDeviceSoftwareHandler = (
   http.get(baseUrl("/device/:token/software"), () => {
     return HttpResponse.json(createMockDeviceSoftwareResponse(overrides));
   });
+
+export const defaultDeviceCertificatesHandler = http.get(
+  baseUrl("/device/:token/certificates"),
+  () => {
+    return HttpResponse.json<IGetHostCertificatesResponse>({
+      certificates: [createMockHostCertificate()],
+      meta: {
+        has_next_results: false,
+        has_previous_results: false,
+      },
+    });
+  }
+);

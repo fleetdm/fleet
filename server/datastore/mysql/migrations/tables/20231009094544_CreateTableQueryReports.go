@@ -20,7 +20,7 @@ func Up_20231009094544(tx *sql.Tx) error {
 			last_fetched TIMESTAMP NOT NULL,
 			data JSON,
 			FOREIGN KEY (query_id) REFERENCES queries(id) ON DELETE CASCADE
-		);
+		) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
     `)
 	if err != nil {
 		return fmt.Errorf("failed to create table query_results: %w", err)

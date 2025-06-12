@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/go-kit/kit/log/level"
 )
 
 func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error {
@@ -178,7 +179,10 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 	case len(installersPending) > 0:
 		// enqueue installers
 		for _, installer := range installersPending {
-			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *installer.SoftwareInstallerID, false, nil)
+			installUUID, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, *installer.SoftwareInstallerID, fleet.HostSoftwareInstallOptions{
+				SelfService:        false,
+				ForSetupExperience: true,
+			})
 			if err != nil {
 				return false, ctxerr.Wrap(ctx, err, "queueing setup experience install request")
 			}
@@ -207,12 +211,22 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				},
 			}
 
-			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, false)
-			if err != nil {
-				return false, ctxerr.Wrap(ctx, err, "queueing vpp app installation")
-			}
+			cmdUUID, err := svc.installSoftwareFromVPP(ctx, host, vppApp, true, fleet.HostSoftwareInstallOptions{
+				SelfService:        false,
+				ForSetupExperience: true,
+			})
+
 			app.NanoCommandUUID = &cmdUUID
 			app.Status = fleet.SetupExperienceStatusRunning
+
+			if err != nil {
+				// if we get an error (e.g. no available licenses) while attempting to enqueue the
+				// install, then we should immediately go to an error state so setup experience
+				// isn't blocked.
+				level.Warn(svc.logger).Log("msg", "got an error when attempting to enqueue VPP app install", "err", err, "adam_id", app.VPPAppAdamID)
+				app.Status = fleet.SetupExperienceStatusFailure
+				app.Error = ptr.String(err.Error())
+			}
 			if err := svc.ds.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
 			}
@@ -224,9 +238,12 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 				return false, ctxerr.Errorf(ctx, "setup experience script missing content id: %d", *script.SetupExperienceScriptID)
 			}
 			req := &fleet.HostScriptRequestPayload{
-				HostID:                  host.ID,
-				ScriptName:              script.Name,
-				ScriptContentID:         *script.ScriptContentID,
+				HostID:          host.ID,
+				ScriptName:      script.Name,
+				ScriptContentID: *script.ScriptContentID,
+				// because the script execution request is associated with setup experience,
+				// it will be enqueued with a higher priority and will run before other
+				// items in the queue.
 				SetupExperienceScriptID: script.SetupExperienceScriptID,
 			}
 			res, err := svc.ds.NewHostScriptExecutionRequest(ctx, req)

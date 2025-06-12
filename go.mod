@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.23.4
+go 1.24.1
 
 require (
 	cloud.google.com/go/pubsub v1.37.0
@@ -37,6 +37,7 @@ require (
 	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
 	github.com/elazarl/go-bindata-assetfs v1.0.1
+	github.com/elimity-com/scim v0.0.0-20240320110924-172bf2aee9c8
 	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c
 	github.com/fatih/color v1.16.0
 	github.com/getsentry/sentry-go v0.18.0
@@ -44,12 +45,15 @@ require (
 	github.com/github/smimesign v0.2.0
 	github.com/go-git/go-git/v5 v5.13.0
 	github.com/go-ini/ini v1.67.0
+	github.com/go-json-experiment/json v0.0.0-20250211171154-1ae217ad3535
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-ole/go-ole v1.2.6
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/gocarina/gocsv v0.0.0-20220310154401-d4df709ca055
-	github.com/golang-jwt/jwt/v4 v4.5.1
+	github.com/godbus/dbus/v5 v5.1.0
+	github.com/gofrs/flock v0.12.1
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/gomodule/oauth1 v0.2.0
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.6.0
@@ -60,14 +64,12 @@ require (
 	github.com/gorilla/websocket v1.5.1
 	github.com/gosuri/uilive v0.0.4
 	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda
-	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
 	github.com/hillu/go-ntdll v0.0.0-20220801201350-0d23f057ef1f
 	github.com/igm/sockjs-go/v3 v3.0.2
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/josephspurrier/goversioninfo v1.4.0
-	github.com/kevinburke/go-bindata v3.24.0+incompatible
 	github.com/klauspost/compress v1.17.11
 	github.com/kolide/launcher v1.0.12
 	github.com/lib/pq v1.10.9
@@ -76,6 +78,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanolib v0.2.0
+	github.com/micromdm/plist v0.2.1
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2
@@ -97,6 +100,7 @@ require (
 	github.com/russellhaering/goxmldsig v1.2.0
 	github.com/saferwall/pe v1.5.5
 	github.com/sassoftware/relic/v8 v8.0.1
+	github.com/scim2/filter-parser/v2 v2.2.0
 	github.com/scjalliance/comshim v0.0.0-20230315213746-5e51f40bd3b9
 	github.com/sethvargo/go-password v0.3.0
 	github.com/shirou/gopsutil/v3 v3.24.3
@@ -116,25 +120,25 @@ require (
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/ziutek/mymysql v1.5.4
 	go.elastic.co/apm/module/apmgorilla/v2 v2.6.2
-	go.elastic.co/apm/module/apmhttp/v2 v2.6.2
+	go.elastic.co/apm/module/apmhttp/v2 v2.7.1-0.20250407084155-22ab1be21948
 	go.elastic.co/apm/module/apmsql/v2 v2.6.2
-	go.elastic.co/apm/v2 v2.6.2
+	go.elastic.co/apm/v2 v2.7.0
 	go.etcd.io/bbolt v1.3.9
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.56.0
 	go.opentelemetry.io/otel v1.31.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.31.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.31.0
 	go.opentelemetry.io/otel/sdk v1.31.0
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.36.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
 	golang.org/x/image v0.18.0
 	golang.org/x/mod v0.19.0
-	golang.org/x/net v0.33.0
-	golang.org/x/oauth2 v0.22.0
-	golang.org/x/sync v0.10.0
-	golang.org/x/sys v0.28.0
-	golang.org/x/term v0.27.0
-	golang.org/x/text v0.21.0
+	golang.org/x/net v0.38.0
+	golang.org/x/oauth2 v0.27.0
+	golang.org/x/sync v0.12.0
+	golang.org/x/sys v0.32.0
+	golang.org/x/term v0.30.0
+	golang.org/x/text v0.23.0
 	golang.org/x/tools v0.23.0
 	google.golang.org/api v0.178.0
 	google.golang.org/grpc v1.67.1
@@ -178,6 +182,8 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/dgraph-io/ristretto v0.1.0 // indirect
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
+	github.com/di-wu/parser v0.2.2 // indirect
+	github.com/di-wu/xsd-datetime v1.0.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -195,7 +201,6 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.2.4 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -209,6 +214,7 @@ require (
 	github.com/goreleaser/chglog v0.1.2 // indirect
 	github.com/goreleaser/fileglob v1.2.0 // indirect
 	github.com/gorilla/schema v1.4.1 // indirect
+	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.22.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
@@ -222,6 +228,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/joeshaw/multierror v0.0.0-20140124173710-69b34d4ec901 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
+	github.com/kevinburke/go-bindata v3.24.0+incompatible // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
@@ -284,4 +291,10 @@ require (
 	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+tool (
+	github.com/fleetdm/fleet/v4/server/goose
+	github.com/kevinburke/go-bindata
+	github.com/quasilyte/go-ruleguard/dsl
 )

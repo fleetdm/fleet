@@ -13,13 +13,15 @@ import RevealButton from "components/buttons/RevealButton";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 import Radio from "components/forms/fields/Radio";
+import TabText from "components/TabText";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 import IosIpadosPanel from "./IosIpadosPanel";
+import AndroidPanel from "./AndroidPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -46,6 +48,10 @@ const platformSubNav: IPlatformSubNav[] = [
   {
     name: "iOS & iPadOS",
     type: "ios-ipados",
+  },
+  {
+    name: "Android",
+    type: "android",
   },
   {
     name: "Advanced",
@@ -341,15 +347,24 @@ const PlatformWrapper = ({
 }`,
     };
 
-    let packageTypeHelpText = "";
+    let packageTypeHelpText;
     if (packageType === "deb") {
-      packageTypeHelpText =
-        "Install this package to add hosts to Fleet. For CentOS, Red Hat, and Fedora Linux, use --type=rpm.";
+      packageTypeHelpText = (
+        <>
+          For CentOS, Red Hat, and Fedora Linux, use <code>--type=rpm</code>.
+          For ARM, use <code>--arch=arm64</code>
+        </>
+      );
     } else if (packageType === "msi") {
-      packageTypeHelpText =
-        "Install this package to add hosts to Fleet. For Windows, this generates an MSI package.";
+      packageTypeHelpText = (
+        <>
+          For ARM, use <code>--arch=arm64</code>
+        </>
+      );
     } else if (packageType === "pkg") {
       packageTypeHelpText = "Install this package to add hosts to Fleet.";
+    } else {
+      packageTypeHelpText = "";
     }
 
     if (packageType === "chromeos") {
@@ -410,6 +425,10 @@ const PlatformWrapper = ({
 
     if (packageType === "ios-ipados") {
       return <IosIpadosPanel enrollSecret={enrollSecret} />;
+    }
+
+    if (packageType === "android") {
+      return <AndroidPanel enrollSecret={enrollSecret} />;
     }
 
     if (packageType === "advanced") {
@@ -573,7 +592,7 @@ const PlatformWrapper = ({
 
   return (
     <div className={baseClass}>
-      <TabsWrapper>
+      <TabNav>
         <Tabs
           onSelect={(index) => setSelectedTabIndex(index)}
           selectedIndex={selectedTabIndex}
@@ -584,7 +603,7 @@ const PlatformWrapper = ({
               // so we add a hidden pseudo element with the same text string
               return (
                 <Tab key={navItem.name} data-text={navItem.name}>
-                  {navItem.name}
+                  <TabText>{navItem.name}</TabText>
                 </Tab>
               );
             })}
@@ -601,11 +620,9 @@ const PlatformWrapper = ({
             );
           })}
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
       <div className="modal-cta-wrap">
-        <Button onClick={onCancel} variant="brand">
-          Done
-        </Button>
+        <Button onClick={onCancel}>Done</Button>
       </div>
     </div>
   );

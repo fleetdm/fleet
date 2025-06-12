@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/go-kit/log"
@@ -67,7 +68,7 @@ func TestGetClientConfig(t *testing.T) {
 			return []*fleet.ScheduledQuery{}, nil
 		}
 	}
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		if teamID == nil {
 			return nil, nil
 		}
@@ -965,7 +966,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	// Expect an error when unable to write to logging destination.
 	err = svc.SubmitResultLogs(ctx, results)
 	require.Error(t, err)
-	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*osqueryError).Status())
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*endpoint_utils.OsqueryError).Status())
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -1079,16 +1080,18 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles":     {},
-		hostDetailQueryPrefix + "mdm":                        {},
-		hostDetailQueryPrefix + "munki_info":                 {},
-		hostDetailQueryPrefix + "windows_update_history":     {},
-		hostDetailQueryPrefix + "kubequery_info":             {},
-		hostDetailQueryPrefix + "orbit_info":                 {},
-		hostDetailQueryPrefix + "software_vscode_extensions": {},
-		hostDetailQueryPrefix + "software_macos_firefox":     {},
-		hostDetailQueryPrefix + "battery":                    {},
-		hostDetailQueryPrefix + "software_macos_codesign":    {},
+		hostDetailQueryPrefix + "google_chrome_profiles":                  {},
+		hostDetailQueryPrefix + "mdm":                                     {},
+		hostDetailQueryPrefix + "munki_info":                              {},
+		hostDetailQueryPrefix + "windows_update_history":                  {},
+		hostDetailQueryPrefix + "kubequery_info":                          {},
+		hostDetailQueryPrefix + "orbit_info":                              {},
+		hostDetailQueryPrefix + "software_vscode_extensions":              {},
+		hostDetailQueryPrefix + "software_python_packages":                {},
+		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
+		hostDetailQueryPrefix + "software_macos_firefox":                  {},
+		hostDetailQueryPrefix + "battery":                                 {},
+		hostDetailQueryPrefix + "software_macos_codesign":                 {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1631,7 +1634,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
       "cpu_subtype": "Intel x86-64h Haswell",
       "cpu_type": "x86_64h",
       "hardware_model": "MacBookPro11,4",
-      "hardware_serial": "NEW_HW_SERIAL",
+      "hardware_serial": "NEW_HW_SRL",
       "hardware_vendor": "Apple Inc.",
       "hardware_version": "1.0",
       "hostname": "computer.local",
@@ -1698,7 +1701,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
-	assert.Equal(t, "NEW_HW_SERIAL", gotHost.HardwareSerial)
+	assert.Equal(t, "NEW_HW_SRL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -1745,7 +1748,7 @@ func TestDetailQueries(t *testing.T) {
 	host := &fleet.Host{
 		ID:             1,
 		Platform:       "linux",
-		HardwareSerial: "HW_SERIAL",
+		HardwareSerial: "HW_SRL",
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -2009,7 +2012,7 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
 	// The hardware serial should not have updated because return value was -1. See: https://github.com/fleetdm/fleet/issues/19789
-	assert.Equal(t, "HW_SERIAL", gotHost.HardwareSerial)
+	assert.Equal(t, "HW_SRL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -2606,7 +2609,7 @@ func TestUpdateHostIntervals(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
+	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		return nil, nil
 	}
 
@@ -2771,7 +2774,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err := svc.AuthenticateHost(ctx, "")
 	require.Error(t, err)
-	require.True(t, err.(*osqueryError).NodeInvalid())
+	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
 		return &fleet.Host{ID: 1}, nil
@@ -2789,7 +2792,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.Error(t, err)
-	require.True(t, err.(*osqueryError).NodeInvalid())
+	require.True(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 
 	// return other error
 	ms.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2798,7 +2801,7 @@ func TestAuthenticationErrors(t *testing.T) {
 
 	_, _, err = svc.AuthenticateHost(ctx, "foo")
 	require.NotNil(t, err)
-	require.False(t, err.(*osqueryError).NodeInvalid())
+	require.False(t, err.(*endpoint_utils.OsqueryError).NodeInvalid())
 }
 
 func TestGetHostIdentifier(t *testing.T) {
@@ -3708,6 +3711,25 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 		"installed_path":    "/some/override/path",
 	}
 
+	pythonPackageOne := map[string]string{
+		"name":           "cryptography",
+		"version":        "41.0.7",
+		"extension_id":   "",
+		"browser":        "",
+		"source":         "python_packages",
+		"vendor":         "",
+		"installed_path": "/usr/lib/python3/dist-packages",
+	}
+	pythonPackageTwo := map[string]string{
+		"name":           "pip",
+		"version":        "25.0.1",
+		"extension_id":   "",
+		"browser":        "",
+		"source":         "python_packages",
+		"vendor":         "",
+		"installed_path": "/Users/fleetdm/.pyenv/versions/3.13.1/lib/python3.13/site-packages",
+	}
+
 	for _, tc := range []struct {
 		name       string
 		host       *fleet.Host
@@ -3718,6 +3740,50 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 
 		resultsOut fleet.OsqueryDistributedQueryResults
 	}{
+		{
+			name: "python packages using original query in extras adds results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":           fleet.StatusOK,
+				hostDetailQueryPrefix + "software_python_packages": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_python_packages": []map[string]string{
+					pythonPackageOne,
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					pythonPackageOne,
+				},
+			},
+		},
+		{
+			name: "python packages using user query in extras adds results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":                          fleet.StatusOK,
+				hostDetailQueryPrefix + "software_python_packages_with_users_dir": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_python_packages_with_users_dir": []map[string]string{
+					pythonPackageTwo,
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					pythonPackageTwo,
+				},
+			},
+		},
 		{
 			name: "software query works and there are vs code extensions in extra",
 

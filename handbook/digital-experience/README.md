@@ -9,7 +9,6 @@ This page details processes specific to working [with](#contact-us) and [within]
 |:--------------------------------|:----------------------------------------------------------------------|
 | [CEO](https://fleetdm.com/handbook/company/leadership#ceo-flaws) | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Head of People / HR / Legal     | <sup><sub> See [CEO](https://www.fleetdm.com/handbook/digital-experience#team) <sup><sub>
-| Apprentice to the CEO           | <sup><sub> See [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team) <sup><sub>
 | Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
 | Apprentice                      | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
 | Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
@@ -21,7 +20,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
@@ -33,6 +32,17 @@ The Digital Experience department is directly responsible for the culture, train
 > _**Note:**: Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance)._
 
 > _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
+
+
+### Respond to a "Contact us" submission
+
+1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
+2. Mark submission as seen with the "👀" emoji.
+3. Within 4 business hours, use the [_from-prospective-customers workflow (private Google doc)](https://docs.google.com/spreadsheets/d/1-wsYunAfr-BQZMBYizY4TMavi3X071D5KZ3mCYX4Uqs/edit?gid=0#gid=0) to respond to general asks. Follow the "High-level workflow" to understand how to respond and who to loop into the conversation. 
+4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
+5. Mark the Slack message as complete with the "✅" emoji.
+
+> For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
 ### QA a change to fleetdm.com
@@ -105,17 +115,6 @@ A [browser compatibility check](https://www.loom.com/share/4b1945ccffa14b7daca8a
 - If in doubt about anything regarding design or layout, please reach out to the [Head of Design](https://fleetdm.com/handbook/digital-experience#team).
 
 
-### Export an image for fleetdm.com
-
-In Figma:
-1. Select the layers you want to export.
-2. Confirm export settings and naming convention:
-  - Item name - color variant - (CSS)size - @2x.fileformat (e.g., `os-macos-black-16x16@2x.png`)
-  - Note that the dimensions in the filename are in CSS pixels.  In this example, if you opened it in preview, the image would actually have dimensions of 32x32px but in the filename, and in HTML/CSS, we'll size it as if it were 16x16.  This is so that we support retina displays by default.
-  - File extension might be .jpg or .png.
-  - Avoid using SVGs or icon fonts.
-3. Click the __Export__ button.
-
 <!-- Commenting this out as we don't have any planned landing pages in the future see: https://github.com/fleetdm/fleet/issues/21117
 ### Generate a new landing page
 
@@ -183,7 +182,7 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 
 ### Update the host count of a premium subscription
 
-When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of [Digital Experience kanban board](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board). A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
+When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Marketing department](https://fleetdm.com/handbook/marketing) will create a confidential issue detailing the request and add it to the new requests column of [Digital Experience kanban board](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board). A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
 
 To update the host count on a user's subscription:
 
@@ -233,7 +232,7 @@ Use the following steps to track a Fleet applicant:
 
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
 
-- [**Check the Fleet IT warehouse**](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
+- [**Check the "📦 Warehouse" team in dogfood**](https://dogfood.fleetdm.com/dashboard?team_id=279) before purchasing any equipment including laptops, to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
 
 - Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
   - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
@@ -252,24 +251,29 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 ### Process incoming equipment
 
 Upon receiving any device, follow these steps to process incoming equipment.
-1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
-4. Remove any stickers and clean devices and components.
-5. Using the device's charger plug in the device.
-6. Turn on the device and enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
-7. Connect the device to WIFI.
-8. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
-9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
+1. Find the device in ["🍽️ Dogfood"](https://dogfood.fleetdm.com/dashboard) to confirm the correct equipment was received.
+2. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
+3. Remove any stickers and clean devices and components.
+4. Using the device's charger, plug in the device.
+5. Using your company laptop, navigate to the host in dogfood, and click `actions` » `Unlock` and copy the unlock code. 
+6. Turn on the device and enter the unlock code.
+7. If the previous user has not wiped the device, navigate to the host in dogfood, and click `actions` » `wipe` and wait until the device is finished and restarts.
+
+**If you need to manually recover a device or reinstall macOS**
+1. enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
+2. Connect the device to WIFI.
+3. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
+4. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
 > If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
 
 
 ### Ship approved equipment
 
 Once the Digital Experience department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
-1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
+1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/settings/teams/users?team_id=279) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. Package equipment for shipment and include Yubikeys (if requested).
-4. Change the "Company equipment" spreadsheet to reflect the new user.
+4. Change the "host" info to reflect the new user.
   - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/digital-experience#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=) for IT to troubleshoot the device.
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
@@ -795,7 +799,7 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
   1. Double-book temporarily with a "UNCONFIRMED" calendar block so that the CEO ignores it and doesn't spend time trying to figure out what it is.
   2. Go to the organizer (or nearest fleetie who's not the CEO):
     - Get full context on what the CEO should know as to the purpose of the meeting and why the organizer thinks it is helpful or necessary for the CEO to attend.
-    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Savannah before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
   3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
 
@@ -842,6 +846,17 @@ To add the most recent connections from Linkedin to our CRM, follow these steps:
   6. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
   7. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
   8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
+
+
+### Connect with active community members
+
+Once a week, the Apprentice will review the "community activity report" and add the LinkedIn URLs into the campaign. This will send out a connection request to those who liked, shared, commented, etc. a post on LinkedIn. 
+ 1. Export the [community activity report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002j3wf2AA/view).
+ 2. Copy the LinkedIn URLs.
+ 3. Paste the LinkedIn URLs [here](https://app.dripify.io/campaigns/1291030).
+
+ ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
+
 
 
 ### Schedule travel for the CEO

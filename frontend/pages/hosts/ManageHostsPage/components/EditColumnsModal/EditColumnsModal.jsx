@@ -78,10 +78,7 @@ const EditColumnsModal = ({
           })}
         </div>
         <div className="modal-cta-wrap">
-          <Button
-            onClick={() => onSaveColumns(getHiddenColumns(columnItems))}
-            variant="default"
-          >
+          <Button onClick={() => onSaveColumns(getHiddenColumns(columnItems))}>
             Save
           </Button>
           <Button onClick={onCancelColumns} variant="inverse">

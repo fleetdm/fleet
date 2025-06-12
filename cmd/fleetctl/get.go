@@ -321,13 +321,22 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 		minOsqueryVersion = query.MinOsqueryVersion
 	}
 
-	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s",
+	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s\ndiscard_data: %t",
 		query.Interval,
 		platform,
 		minOsqueryVersion,
 		query.AutomationsEnabled,
 		query.Logging,
+		query.DiscardData,
 	)
+
+	if len(query.LabelsIncludeAny) > 0 {
+		scheduleInfo += "\nlabels_include_any:"
+
+		for _, label := range query.LabelsIncludeAny {
+			scheduleInfo += fmt.Sprintf("\n  - %s", label.LabelName)
+		}
+	}
 
 	teamNameOut := teamName
 	if teamName == "" {
@@ -451,6 +460,10 @@ func getQueriesCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
+						labelsAny := []string{}
+						for _, label := range query.LabelsIncludeAny {
+							labelsAny = append(labelsAny, label.LabelName)
+						}
 						if err := printQuerySpec(c, &fleet.QuerySpec{
 							Name:        query.Name,
 							Description: query.Description,
@@ -464,6 +477,7 @@ func getQueriesCommand() *cli.Command {
 							AutomationsEnabled: query.AutomationsEnabled,
 							Logging:            query.Logging,
 							DiscardData:        query.DiscardData,
+							LabelsIncludeAny:   labelsAny,
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
@@ -860,7 +874,9 @@ func getHostsCommand() *cli.Command {
 				}
 
 				if len(hosts) == 0 {
-					fmt.Println("No hosts found")
+					if !c.Bool(jsonFlagName) && !c.Bool(yamlFlagName) {
+						fmt.Println("No hosts found")
+					}
 					return nil
 				}
 

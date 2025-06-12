@@ -19,6 +19,7 @@ import {
 } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -186,8 +187,9 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: ITableStringCellProps) => {
         const { id, name, source, app_store_app } = cellProps.row.original;
 
-        const softwareTitleDetailsPath = PATHS.SOFTWARE_TITLE_DETAILS(
-          id.toString().concat(`?team_id=${teamId}`)
+        const softwareTitleDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(id.toString()),
+          { team_id: teamId }
         );
 
         return (

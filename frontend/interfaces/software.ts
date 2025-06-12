@@ -98,6 +98,7 @@ export interface IAppStoreApp {
   name: string;
   app_store_id: number;
   latest_version: string;
+  created_at: string;
   icon_url: string;
   self_service: boolean;
   platform: typeof HOST_APPLE_PLATFORMS[number];
@@ -108,6 +109,7 @@ export interface IAppStoreApp {
   };
   install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  automatic_install?: boolean;
   last_install?: {
     install_uuid: string;
     command_uuid: string;
@@ -455,17 +457,29 @@ export interface IFleetMaintainedApp {
   id: number;
   name: string;
   version: string;
-  platform: Platform;
+  platform: FleetMaintainedAppPlatform;
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
+export type FleetMaintainedAppPlatform = Extract<
+  Platform,
+  "darwin" | "windows"
+>;
+
+export interface ICombinedFMA {
+  name: string;
+  macos: Omit<IFleetMaintainedApp, "name"> | null;
+  windows: Omit<IFleetMaintainedApp, "name"> | null;
+}
 export interface IFleetMaintainedAppDetails {
   id: number;
   name: string;
   version: string;
-  platform: Platform;
-  pre_install_script: string; // TODO: is this needed?
+  platform: FleetMaintainedAppPlatform;
+  pre_install_script: string;
   install_script: string;
-  post_install_script: string; // TODO: is this needed?
+  post_install_script: string;
   uninstall_script: string;
   url: string;
+  software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }

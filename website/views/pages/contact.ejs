@@ -3,15 +3,33 @@
     <div class="d-flex flex-lg-row flex-column justify-content-center">
     <div purpose="form-container" v-if="!cloudSuccess">
       <h2>Get in touch</h2>
-      <p v-if="psychologicalStage === '4 - Has use case'">Let us help you deploy and evaluate Fleet quickly for yourself. We’d love to save you some time.</p>
+      <p v-if="userHasPremiumSubscription" style="margin-bottom: 40px;">Dedicated professional support from the Fleet team.</p>
+      <p v-else-if="psychologicalStage === '4 - Has use case'">Let us help you deploy and evaluate Fleet quickly for yourself. We’d love to save you some time.</p>
       <p v-else-if="psychologicalStage === '5 - Personally confident'">Schedule a personalized demo for your team and get support or training.</p>
       <p v-else>Schedule a personalized demo, or ask us anything. We’d love to chat.</p>
-      <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto">
+      <div purpose="contact-form-switch" class="d-flex flex-sm-row flex-column justify-content-center mx-auto" v-if="!userHasPremiumSubscription">
         <div purpose="switch-option" :class="[formToDisplay === 'talk-to-us' ? 'selected' : '']" @click="clickSwitchForms('talk-to-us')">Talk to an engineer</div>
         <div purpose="switch-option" :class="[formToDisplay === 'contact' ? 'selected' : '']" @click="clickSwitchForms('contact')">Send a message</div>
         <div purpose="switch" :class="formToDisplay+'-selected'"></div>
       </div>
       <div v-if="formToDisplay === 'contact'">
+
+
+        <div purpose="note" v-if="!userIsLoggedIn">
+          <div>
+            <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+          </div>
+          <p>Already a Fleet customer? <a href="/login#contact">Sign in</a> for Premium support</p>
+        </div>
+
+        <div purpose="note" v-if="userIsLoggedIn && !userHasPremiumSubscription">
+          <div>
+            <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+          </div>
+          <p>Already a Premium customer? Reach out to us directly or use the form below.</p>
+        </div>
+
+
         <ajax-form action="deliverContactFormMessage" class="contact" :form-errors.sync="formErrors" :form-data="formData" :form-rules="contactFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedContactForm()">
           <div class="form-group">
             <label for="contact-email-address">Work email *</label>
@@ -205,5 +223,6 @@
     </div>
   </div>
   </div>
+  <p style="opacity: 0; line-height: 0px; font-size: 0px; margin: 0;">537c652d-cb1a-440e-ae35-0f0bf5743e75</p>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>

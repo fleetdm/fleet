@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -30,43 +31,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// osqueryError is the error returned to osquery agents.
-type osqueryError struct {
-	message     string
-	nodeInvalid bool
-	statusCode  int
-	fleet.ErrorWithUUID
+func newOsqueryErrorWithInvalidNode(msg string) *endpoint_utils.OsqueryError {
+	return endpoint_utils.NewOsqueryError(msg, true)
 }
 
-var _ fleet.ErrorUUIDer = (*osqueryError)(nil)
-
-// Error implements the error interface.
-func (e *osqueryError) Error() string {
-	return e.message
-}
-
-// NodeInvalid returns whether the error returned to osquery
-// should contain the node_invalid property.
-func (e *osqueryError) NodeInvalid() bool {
-	return e.nodeInvalid
-}
-
-func (e *osqueryError) Status() int {
-	return e.statusCode
-}
-
-func newOsqueryErrorWithInvalidNode(msg string) *osqueryError {
-	return &osqueryError{
-		message:     msg,
-		nodeInvalid: true,
-	}
-}
-
-func newOsqueryError(msg string) *osqueryError {
-	return &osqueryError{
-		message:     msg,
-		nodeInvalid: false,
-	}
+func newOsqueryError(msg string) *endpoint_utils.OsqueryError {
+	return endpoint_utils.NewOsqueryError(msg, false)
 }
 
 func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*fleet.Host, bool, error) {
@@ -118,7 +88,7 @@ type enrollAgentResponse struct {
 
 func (r enrollAgentResponse) Error() error { return r.Err }
 
-func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*enrollAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
@@ -352,7 +322,7 @@ func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &r.Config)
 }
 
-func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
@@ -369,7 +339,12 @@ func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (flee
 		return nil, ctxerr.Wrap(ctx, err, "load app config")
 	}
 
-	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID, appConfig.ServerSettings.QueryReportsDisabled)
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, newOsqueryError("internal error: missing host from request context")
+	}
+
+	queries, err := svc.ds.ListScheduledQueriesForAgents(ctx, teamID, &host.ID, appConfig.ServerSettings.QueryReportsDisabled)
 	if err != nil {
 		return nil, err
 	}
@@ -582,7 +557,7 @@ type getDistributedQueriesResponse struct {
 
 func (r getDistributedQueriesResponse) Error() error { return r.Err }
 
-func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
@@ -886,7 +861,7 @@ type submitDistributedQueryResultsResponse struct {
 
 func (r submitDistributedQueryResultsResponse) Error() error { return r.Err }
 
-func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
 	req, err := shim.toRequest(ctx)
 	if err != nil {
@@ -1253,6 +1228,11 @@ func preProcessSoftwareResults(
 ) {
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
 	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	pythonPackagesExtraQuery := hostDetailQueryPrefix + "software_python_packages"
+	preProcessSoftwareExtraResults(pythonPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+	pythonPakcagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
+	preProcessSoftwareExtraResults(pythonPakcagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
@@ -1837,8 +1817,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		installUUID, err := svc.ds.InsertSoftwareInstallRequest(
 			ctx, hostID,
 			installerMetadata.InstallerID,
-			false, // Set Self-service as false because this is triggered by Fleet.
-			&policyID,
+			fleet.HostSoftwareInstallOptions{
+				SelfService: false,
+				PolicyID:    &policyID,
+			},
 		)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err,
@@ -1988,7 +1970,10 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, false, &policyID)
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
+			SelfService: false,
+			PolicyID:    &policyID,
+		})
 		if err != nil {
 			level.Error(svc.logger).Log(
 				"msg", "failed to get install VPP app",
@@ -2205,9 +2190,9 @@ func (svc *Service) maybeDebugHost(
 ////////////////////////////////////////////////////////////////////////////////
 
 type submitLogsRequest struct {
-	NodeKey string          `json:"node_key"`
-	LogType string          `json:"log_type"`
-	Data    json.RawMessage `json:"data"`
+	NodeKey string            `json:"node_key"`
+	LogType string            `json:"log_type"`
+	Data    []json.RawMessage `json:"data"`
 }
 
 func (r *submitLogsRequest) hostNodeKey() string {
@@ -2220,44 +2205,23 @@ type submitLogsResponse struct {
 
 func (r submitLogsResponse) Error() error { return r.Err }
 
-func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*submitLogsRequest)
 
 	var err error
 	switch req.LogType {
 	case "status":
-		var statuses []json.RawMessage
-		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
-		// Maybe there's a reason for it, we need to test such a change before fixing what appears
-		// to be a bug because the `err` is lost.
-		if err := json.Unmarshal(req.Data, &statuses); err != nil {
-			err = newOsqueryError("unmarshalling status logs: " + err.Error())
-			break
-		}
-
-		err = svc.SubmitStatusLogs(ctx, statuses)
+		err = svc.SubmitStatusLogs(ctx, req.Data)
 		if err != nil {
 			break
 		}
 
 	case "result":
-		// NOTE(dantecatalfamo) We partially unmarshal the data here because osquery can send data we don't
-		// support unmarshaling, like differential query results. We also pass the raw data to logging
-		// facilities further down. Results are unmarshaled one at a time inside of SubmitResultLogs.
-		// We should re-address this once json/v2 releases and we can speed up parsing times.
-		var results []json.RawMessage
-		// NOTE(lucas): This unmarshal error is not being sent back to osquery (`if err :=` vs. `if err =`)
-		// Maybe there's a reason for it, we need to test such a change before fixing what appears
-		// to be a bug because the `err` is lost.
-		if err := json.Unmarshal(req.Data, &results); err != nil {
-			err = newOsqueryError("unmarshalling result logs: " + err.Error())
-			break
-		}
-		logging.WithExtras(ctx, "results", len(results))
+		logging.WithExtras(ctx, "results", len(req.Data))
 
 		// We currently return errors to osqueryd if there are any issues submitting results
 		// to the configured external destinations.
-		if err = svc.SubmitResultLogs(ctx, results); err != nil {
+		if err = svc.SubmitResultLogs(ctx, req.Data); err != nil {
 			break
 		}
 
@@ -2349,7 +2313,7 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
 		osqueryErr := newOsqueryError("error writing status logs: " + err.Error())
 		// Attempting to write a large amount of data is the most likely explanation for this error.
-		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		osqueryErr.StatusCode = http.StatusRequestEntityTooLarge
 		return osqueryErr
 	}
 	return nil
@@ -2434,7 +2398,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 				"increasing logger_tls_period and decreasing logger_tls_max_lines): " + err.Error(),
 		)
 		// Attempting to write a large amount of data is the most likely explanation for this error.
-		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		osqueryErr.StatusCode = http.StatusRequestEntityTooLarge
 		return osqueryErr
 	}
 	return nil
@@ -2826,12 +2790,12 @@ type getYaraResponse struct {
 
 func (r getYaraResponse) Error() error { return r.Err }
 
-func (r getYaraResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getYaraResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	_, _ = w.Write([]byte(r.Content))
 }
 
-func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	r := request.(*getYaraRequest)
 	rule, err := svc.YaraRuleByName(ctx, r.Name)
 	if err != nil {

@@ -26,9 +26,23 @@
     border-radius: 30px;
     margin-left: $pad-medium;
     padding: 4px 12px;
+    white-space: nowrap;
   }
 
   .react-tabs__tab-list {
     margin-bottom: 50px;
+  }
+
+  .disabled-by-gitops-mode {
+    @include disabled;
+    .actions-dropdown-select__control--is-disabled {
+      min-height: 0;
+      padding: 0;
+    }
+  }
+
+  .user-name-text {
+    text-overflow: ellipsis;
+    overflow: hidden;
   }
 }

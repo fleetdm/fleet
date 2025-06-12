@@ -86,10 +86,19 @@ module.exports = {
       'PezHub',
       'SFriendLee',
       'ddribeiro',
-      'rebeccaui',
       'allenhouchins',
       'harrisonravazzolo',
       'KendraAtFleet',
+      'ksykulev',
+      'onasismunro',
+      'eugkuo',
+      'jmwatts',
+      'mason-buettner',
+      'iansltx',
+      'sgress454',
+      'BCTBB',
+      'kc9wwh',
+      'JordanMontgomery',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -346,11 +355,18 @@ module.exports = {
           per_page: 100,//eslint-disable-line camelcase
         }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
+        // Create an array of paths that will determine if the "~ga4-annotation" label will be automatically added to this PR.
+        let CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS = [ 'website/views/pages/homepage.ejs', 'website/views/pages/pricing.ejs', 'website/views/partials/primary-tagline.partial.ejs'];
+        let prShouldCreateGoogleAnalyticsAnnotation = false;
+
         // For each changed file, decide what reviewer to request, if any…
         for (let changedPath of changedPaths) {
           changedPath = changedPath.replace(/\/+$/,'');// « trim trailing slashes, just in case (b/c otherwise could loop forever)
           sails.log.verbose(`…checking DRI of changed path "${changedPath}"`);
-
+          // If any of the changed paths are included in the CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS array, set the prShouldCreateGoogleAnalyticsAnnotation flag to true.
+          if(CHANGED_PATHS_THAT_CREATE_ANALYTICS_ANNOTATIONS.includes(changedPath)) {
+            prShouldCreateGoogleAnalyticsAnnotation = true;
+          }
           let reviewer = undefined;//« whether to request review for this change
           let exactMatchDri = DRI_BY_PATH[changedPath];
           if (exactMatchDri) {// « If we've found our DRI, then we'll stop looking (for *this* changed path, anyway)
@@ -434,6 +450,15 @@ module.exports = {
           .tolerate({ exit: 'non200Response', raw: {statusCode: 404} }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
             sails.log.warn(`When trying to send a request to remove the ~ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
           });
+        }//ﬁ
+
+        // If the prShouldCreateGoogleAnalyticsAnnotation was set to true, and this PR does not already have the ~ga4-annotation label, add it.
+        // Note: unlike the #handbook and ~ceo labels, we don't automatically remove this label if it is added to a pull request, because it may have been added manually.
+        if(prShouldCreateGoogleAnalyticsAnnotation && !existingLabels.includes('~ga4-annotation')) {
+          // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
+          await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
+            labels: ['~ga4-annotation']
+          }, baseHeaders);
         }//ﬁ
 
         //  ┌─┐┬ ┬┌┬┐┌─┐   ┌─┐┌─┐┌─┐┬─┐┌─┐┬  ┬┌─┐   ┬   ┬ ┬┌┐┌┌─┐┬─┐┌─┐┌─┐┌─┐┌─┐
@@ -528,6 +553,37 @@ module.exports = {
         //   // }//ﬁ
         //   // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // }
+
+      }
+    } else if (ghNoun === 'pull_request' && ['closed'].includes(action)) {
+      //
+      //   ██████╗██╗      ██████╗ ███████╗███████╗██████╗     ██████╗ ██████╗ ███████╗
+      //  ██╔════╝██║     ██╔═══██╗██╔════╝██╔════╝██╔══██╗    ██╔══██╗██╔══██╗██╔════╝
+      //  ██║     ██║     ██║   ██║███████╗█████╗  ██║  ██║    ██████╔╝██████╔╝███████╗
+      //  ██║     ██║     ██║   ██║╚════██║██╔══╝  ██║  ██║    ██╔═══╝ ██╔══██╗╚════██║
+      //  ╚██████╗███████╗╚██████╔╝███████║███████╗██████╔╝    ██║     ██║  ██║███████║
+      //   ╚═════╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝╚═════╝     ╚═╝     ╚═╝  ╚═╝╚══════╝
+      //
+      // Check the labels of merged PRs when they are closed.
+      if(issueOrPr.merged) {
+        let labelsWhenPrWasClosed = _.isArray(issueOrPr.labels) ? _.pluck(issueOrPr.labels, 'name') : [];
+        // If the PR has the ~ga4-annotation label, send a POST request to a Zapier webhook.
+        if(labelsWhenPrWasClosed.includes('~ga4-annotation')) {
+          // Send a POST request to Zapier with the pull request
+          await sails.helpers.http.post.with({
+            url: 'https://hooks.zapier.com/hooks/catch/3627242/2x2uq4c/',
+            data: {
+              'pullRequest': issueOrPr,
+              'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret,
+            }
+          })
+          .timeout(5000)
+          .tolerate(['non200Response', 'requestFailed', {name: 'TimeoutError'}], (err)=>{
+            // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
+            sails.log.warn(`When trying to send information about a merged pull request to Zapier, an error occured. Raw error: ${require('util').inspect(err)}`);
+            return;
+          });
+        }
 
       }
     } else if (ghNoun === 'issue_comment' && ['created'].includes(action) && (issueOrPr&&issueOrPr.state === 'open')) {

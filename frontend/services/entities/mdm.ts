@@ -295,7 +295,7 @@ const mdmService = {
           );
         } catch {
           // catches invalid JSON
-          reject("Couldn't upload. The file should include valid JSON.");
+          reject("Couldn't add. The file should include valid JSON.");
         }
       });
     });

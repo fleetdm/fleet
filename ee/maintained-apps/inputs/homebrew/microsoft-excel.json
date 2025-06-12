@@ -1,0 +1,7 @@
+{
+  "name": "Microsoft Excel",
+  "slug": "microsoft-excel/darwin",
+  "unique_identifier": "com.microsoft.Excel",
+  "token": "microsoft-excel",
+  "installer_format": "pkg"
+}

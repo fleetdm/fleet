@@ -27,11 +27,7 @@ const SetupEmptyState = ({ router }: ISetupEmptyState) => {
     <EmptyTable
       header="Setup experience for macOS hosts"
       info="Connect Fleet to the Apple Business Manager to get started."
-      primaryButton={
-        <Button variant="brand" onClick={onClickEmptyConnect}>
-          Connect
-        </Button>
-      }
+      primaryButton={<Button onClick={onClickEmptyConnect}>Connect</Button>}
     />
   );
 };

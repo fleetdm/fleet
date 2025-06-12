@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import { invert } from "lodash";
 
+import { AppContext } from "context/app";
 import { ILabel } from "interfaces/label";
 import {
   formatOperatingSystemDisplayName,
@@ -140,6 +141,8 @@ const HostsFilterBlock = ({
   onClickEditLabel,
   onClickDeleteLabel,
 }: IHostsFilterBlockProps) => {
+  const { currentUser, isOnGlobalTeam } = useContext(AppContext);
+
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
       const { description, display_text, label_type } = selectedLabel;
@@ -165,16 +168,18 @@ const HostsFilterBlock = ({
             tooltipDescription={description}
             onClear={handleClearRouteParam}
           />
-          {label_type !== "builtin" && !isOnlyObserver && (
-            <>
-              <Button onClick={onClickEditLabel} variant="small-icon">
-                <Icon name="pencil" size="small" />
-              </Button>
-              <Button onClick={onClickDeleteLabel} variant="small-icon">
-                <Icon name="trash" size="small" />
-              </Button>
-            </>
-          )}
+          {label_type !== "builtin" &&
+            !isOnlyObserver &&
+            (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
+              <>
+                <Button onClick={onClickEditLabel} variant="small-icon">
+                  <Icon name="pencil" size="small" />
+                </Button>
+                <Button onClick={onClickDeleteLabel} variant="small-icon">
+                  <Icon name="trash" size="small" />
+                </Button>
+              </>
+            )}
         </>
       );
     }

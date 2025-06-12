@@ -1,7 +1,10 @@
 .custom-link {
-  display: inline-flex;
-  align-items: center;
-  gap: $pad-xsmall;
+  // Changing display will break multiline links
+  &:not(.custom-link--multiline) {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
 
   &__no-wrap {
     white-space: nowrap;
@@ -10,18 +13,14 @@
     }
   }
 
-  // Legacy
-  &--black {
-    color: $core-fleet-black;
-  }
-
-  &--white {
-    color: $core-fleet-white;
-  }
-
   // Variants
+  &--tooltip-link,
+  &--banner-link,
+  &--flash-messsage-link {
+    color: inherit; // Overrides fleet blue link color with parent color
+  }
+
   &--tooltip-link {
-    color: $core-fleet-white;
-    font-size: $xx-small;
+    font-size: inherit; // Overrides link default font size with parent tooltip font size
   }
 }

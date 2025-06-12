@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 
-import createMockActivity from "__mocks__/activityMock";
+import { createMockActivity } from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import { ActivityType } from "interfaces/activity";
@@ -1363,10 +1363,9 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText(/Test User/)).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /added Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
-      )
+      screen.getByText(/added a certificate authority/)
     ).toBeInTheDocument();
+    expect(screen.getByText(/NDES/)).toBeInTheDocument();
   });
 
   it("renders editedNdesScepProxy activity correctly", () => {
@@ -1377,10 +1376,9 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText(/Test User/)).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /edited configurations for Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
-      )
+      screen.getByText(/edited a certificate authority/)
     ).toBeInTheDocument();
+    expect(screen.getByText(/NDES/)).toBeInTheDocument();
   });
 
   it("renders deletedNdesScepProxy activity correctly", () => {
@@ -1391,9 +1389,104 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText(/Test User/)).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /removed Microsoft's Network Device Enrollment Service \(NDES\) as your SCEP server/
-      )
+      screen.getByText(/deleted a certificate authority/)
     ).toBeInTheDocument();
+    expect(screen.getByText(/NDES/)).toBeInTheDocument();
+  });
+
+  it("renders addedCustomScepProxy activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedCustomScepProxy,
+      details: {
+        name: "CUSTOM_SCEP_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/added a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/CUSTOM_SCEP_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders editedCustomScepProxy activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedCustomScepProxy,
+      details: {
+        name: "CUSTOM_SCEP_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/edited a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/CUSTOM_SCEP_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders deletedCustomScepProxy activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedCustomScepProxy,
+      details: {
+        name: "CUSTOM_SCEP_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/deleted a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/CUSTOM_SCEP_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders addedDigicert activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedDigicert,
+      details: {
+        name: "DIGICERT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/added a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders editedDigicert activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedDigicert,
+      details: {
+        name: "DIGICERT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/edited a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders deletedDigicert activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedDigicert,
+      details: {
+        name: "DIGICERT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/deleted a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
   });
 });

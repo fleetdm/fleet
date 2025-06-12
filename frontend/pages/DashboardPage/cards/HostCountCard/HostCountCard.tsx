@@ -76,13 +76,13 @@ const HostCountCard = ({
   const renderCard = () => {
     if (iconPosition === "left") {
       return (
-        <>
-          <div className={`${baseClass}__icon-count`}>
-            {renderIcon()}
+        <div className={`${baseClass}__icon`}>
+          {renderIcon()}
+          <div className={`${baseClass}__count-description`}>
             {renderCount()}
+            {renderDescription()}
           </div>
-          {renderDescription()}
-        </>
+        </div>
       );
     }
 

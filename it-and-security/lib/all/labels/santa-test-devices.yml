@@ -1,0 +1,5 @@
+- name: Santa test devices
+  description: Macs testing santa
+  label_membership_type: manual
+  hosts:
+    - "allens-macbook-pro.local"

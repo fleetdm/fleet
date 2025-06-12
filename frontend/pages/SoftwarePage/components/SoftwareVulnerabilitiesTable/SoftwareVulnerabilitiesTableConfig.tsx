@@ -2,7 +2,7 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 
 import { formatSeverity } from "utilities/helpers";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { ISoftwareVulnerability } from "interfaces/software";
 
 import paths from "router/paths";
@@ -59,13 +59,11 @@ const generateTableConfig = (
       Header: "Vulnerability",
       Cell: ({ cell: { value } }: ITextCellProps) => {
         const cveName = value.toString();
-        const teamQueryParam = buildQueryStringFromParams({
-          team_id: teamId,
-        });
 
-        const softwareVulnerabilityDetailsPath = `${paths.SOFTWARE_VULNERABILITY_DETAILS(
-          cveName
-        )}?${teamQueryParam}`;
+        const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
+          paths.SOFTWARE_VULNERABILITY_DETAILS(cveName),
+          { team_id: teamId }
+        );
 
         return (
           <LinkCell value={cveName} path={softwareVulnerabilityDetailsPath} />

@@ -24,7 +24,7 @@ CREATE TABLE windows_mdm_commands (
 	updated_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
 	PRIMARY KEY (command_uuid)
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 	if err != nil {
 		return fmt.Errorf("failed to create windows_mdm_commands table: %w", err)
 	}
@@ -46,7 +46,7 @@ CREATE TABLE windows_mdm_command_queue (
 	FOREIGN KEY (command_uuid)
 		REFERENCES windows_mdm_commands (command_uuid)
 		ON DELETE CASCADE ON UPDATE CASCADE
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 	if err != nil {
 		return fmt.Errorf("failed to create windows_mdm_command_queue table: %w", err)
 	}
@@ -67,7 +67,7 @@ CREATE TABLE windows_mdm_responses (
 	FOREIGN KEY (enrollment_id)
 		REFERENCES mdm_windows_enrollments (id)
 		ON DELETE CASCADE ON UPDATE CASCADE
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 	if err != nil {
 		return fmt.Errorf("failed to create windows_mdm_responses table: %w", err)
 	}
@@ -105,7 +105,7 @@ CREATE TABLE windows_mdm_command_results (
 	FOREIGN KEY (response_id)
 		REFERENCES windows_mdm_responses (id)
 		ON DELETE CASCADE ON UPDATE CASCADE
-)`)
+) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;`)
 	if err != nil {
 		return fmt.Errorf("failed to create windows_mdm_command_results table: %w", err)
 	}

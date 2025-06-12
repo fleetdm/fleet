@@ -14,6 +14,11 @@ export default {
   },
 
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
+
+  // Conditional access
+  CONDITIONAL_ACCESS_MICROSOFT: `/${API_VERSION}/fleet/conditional-access/microsoft`,
+  CONDITIONAL_ACCESS_MICROSOFT_CONFIRM: `/${API_VERSION}/fleet/conditional-access/microsoft/confirm`,
+
   CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
     return `/${API_VERSION}/fleet/email/change/${token}`;
@@ -40,6 +45,9 @@ export default {
   DEVICE_TRIGGER_LINUX_DISK_ENCRYPTION_KEY_ESCROW: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/linux/trigger_escrow`;
   },
+  DEVICE_CERTIFICATES: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/certificates`;
+  },
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
@@ -61,6 +69,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
   HOST_SOFTWARE_PACKAGE_UNINSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/uninstall`,
+  HOST_CERTIFICATES: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/certificates`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
@@ -86,6 +96,10 @@ export default {
    */
 
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
+
+  MDM_ANDROID_ENTERPRISE: `/${API_VERSION}/fleet/android_enterprise`,
+  MDM_ANDROID_SIGNUP_URL: `/${API_VERSION}/fleet/android_enterprise/signup_url`,
+  MDM_ANDROID_SSE_URL: `/api/${API_VERSION}/fleet/android_enterprise/signup_sse`,
 
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
@@ -246,4 +260,7 @@ export default {
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
 
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
+
+  // idp endpoints
+  SCIM_DETAILS: `/${API_VERSION}/fleet/scim/details`,
 };

@@ -17,7 +17,7 @@ type statusResponse struct {
 
 func (m statusResponse) Error() error { return m.Err }
 
-func statusResultStoreEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (errorer, error) {
+func statusResultStoreEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	var resp statusResponse
 	if err := svc.StatusResultStore(ctx); err != nil {
 		resp.Err = err
@@ -37,7 +37,7 @@ func (svc *Service) StatusResultStore(ctx context.Context) error {
 // Status Live Query
 ////////////////////////////////////////////////////////////////////////////////
 
-func statusLiveQueryEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (errorer, error) {
+func statusLiveQueryEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	var resp statusResponse
 	if err := svc.StatusLiveQuery(ctx); err != nil {
 		resp.Err = err

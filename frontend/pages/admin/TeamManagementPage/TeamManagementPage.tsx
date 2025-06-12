@@ -252,9 +252,6 @@ const TeamManagementPage = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
-      <p className={`${baseClass}__page-description`}>
-        Create, customize, and remove teams from Fleet.
-      </p>
       <SandboxGate
         fallbackComponent={() => (
           <SandboxMessage
@@ -272,16 +269,17 @@ const TeamManagementPage = (): JSX.Element => {
             columnConfigs={tableHeaders}
             data={tableData}
             isLoading={isFetchingTeams}
-            defaultSortHeader={"name"}
-            defaultSortDirection={"asc"}
+            defaultSortHeader="name"
+            defaultSortDirection="asc"
             actionButton={{
               name: "create team",
               buttonText: "Create team",
-              variant: "brand",
+              variant: "default",
               onActionButtonClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
+              gitOpsModeCompatible: true,
             }}
-            resultsTitle={"teams"}
+            resultsTitle="teams"
             emptyComponent={() => (
               <EmptyTeamsTable
                 className={noTeamsClass}

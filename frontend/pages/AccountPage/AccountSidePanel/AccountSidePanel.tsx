@@ -113,18 +113,13 @@ const AccountSidePanel = ({
         onClick={onChangePassword}
         disabled={ssoEnabled}
         className={`${baseClass}__button`}
-        variant="brand"
       >
         Change password
       </Button>
       <p className={`${baseClass}__last-updated`}>
         Last changed: {lastUpdatedAt}
       </p>
-      <Button
-        onClick={onGetApiToken}
-        className={`${baseClass}__button`}
-        variant="brand"
-      >
+      <Button onClick={onGetApiToken} className={`${baseClass}__button`}>
         Get API token
       </Button>
       <span

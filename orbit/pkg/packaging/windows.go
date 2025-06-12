@@ -27,7 +27,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
+const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip"
 
 // BuildMSI builds a Windows .msi.
 // Note: this function is not safe for concurrent use
@@ -52,7 +52,11 @@ func BuildMSI(opt Options) (string, error) {
 	updateOpt := update.DefaultOptions
 
 	updateOpt.RootDirectory = orbitRoot
-	updateOpt.Targets = update.WindowsTargets
+	if opt.Architecture == ArchAmd64 {
+		updateOpt.Targets = update.WindowsTargets
+	} else {
+		updateOpt.Targets = update.WindowsArm64Targets
+	}
 	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
 
 	if opt.UpdateTLSClientCertificate != "" {
@@ -64,7 +68,11 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	if opt.Desktop {
-		updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
+		if opt.Architecture == ArchArm64 {
+			updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsArm64Target
+		} else {
+			updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
+		}
 		// Override default channel with the provided value.
 		updateOpt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, opt.DesktopChannel)
 	}
@@ -206,7 +214,7 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("transform heat: %w", err)
 	}
 
-	if err := wix.Candle(tmpDir, opt.NativeTooling, absWixDir); err != nil {
+	if err := wix.Candle(tmpDir, opt.NativeTooling, absWixDir, opt.Architecture); err != nil {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 
@@ -215,6 +223,9 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	filename := "fleet-osquery.msi"
+	if opt.Architecture == ArchArm64 {
+		filename = "fleet-osquery-arm64.msi"
+	}
 	if opt.NativeTooling {
 		filename = filepath.Join("build", filename)
 	}
@@ -299,13 +310,15 @@ func writePowershellInstallerUtilsFile(opt Options, rootPath string) error {
 
 // writeManifestXML creates the manifest.xml file used when generating the 'resource_windows.syso' metadata
 // (see writeResourceSyso). Returns the path of the newly created file.
-func writeManifestXML(vParts []string, orbitPath string) (string, error) {
+func writeManifestXML(vParts []string, orbitPath string, arch string) (string, error) {
 	filePath := filepath.Join(orbitPath, "manifest.xml")
 
 	tmplOpts := struct {
 		Version string
+		Arch    string
 	}{
 		Version: strings.Join(vParts, "."),
+		Arch:    arch,
 	}
 
 	var contents bytes.Buffer
@@ -429,7 +442,7 @@ func writeResourceSyso(opt Options, orbitPath string) error {
 		return fmt.Errorf("invalid version %s: %w", opt.Version, err)
 	}
 
-	manifestPath, err := writeManifestXML(vParts, orbitPath)
+	manifestPath, err := writeManifestXML(vParts, orbitPath, opt.Architecture)
 	if err != nil {
 		return fmt.Errorf("creating manifest.xml: %w", err)
 	}
@@ -444,7 +457,7 @@ func writeResourceSyso(opt Options, orbitPath string) error {
 	vi.Walk()
 
 	outPath := filepath.Join(orbitPath, "resource_windows.syso")
-	if err := vi.WriteSyso(outPath, "amd64"); err != nil {
+	if err := vi.WriteSyso(outPath, opt.Architecture); err != nil {
 		return fmt.Errorf("creating syso file: %w", err)
 	}
 

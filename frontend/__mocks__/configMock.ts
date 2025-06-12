@@ -1,4 +1,4 @@
-import { IConfig, IMdmConfig } from "interfaces/config";
+import { IConfig, ILicense, IMdmConfig } from "interfaces/config";
 
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
@@ -8,6 +8,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_bm_enabled_and_configured: true,
   apple_bm_terms_expired: false,
   enabled_and_configured: true,
+  android_enabled_and_configured: false,
   macos_updates: {
     minimum_version: "",
     deadline: "",
@@ -55,7 +56,17 @@ export const createMockMdmConfig = (
   return { ...DEFAULT_CONFIG_MDM_MOCK, ...overrides };
 };
 
+export const DEFAULT_LICENSE_MOCK: ILicense = {
+  tier: "free",
+  expiration: "0001-01-01T00:00:00Z",
+  device_count: 4,
+  note: "",
+  organization: "",
+  managed_cloud: true,
+};
+
 const DEFAULT_CONFIG_MOCK: IConfig = {
+  android_enabled: false, // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: "fleet",
     org_logo_url: "",
@@ -98,6 +109,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_jit_provisioning: false,
     enable_jit_role_sync: false,
   },
+  conditional_access: {
+    microsoft_entra_tenant_id: "123",
+    microsoft_entra_connection_configured: true,
+  },
   host_expiry_settings: {
     host_expiry_enabled: false,
     host_expiry_window: 0,
@@ -107,13 +122,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     activity_expiry_window: 90,
   },
   agent_options: "",
-  license: {
-    tier: "free",
-    expiration: "0001-01-01T00:00:00Z",
-    device_count: 4,
-    note: "",
-    organization: "",
-  },
+  license: DEFAULT_LICENSE_MOCK,
   webhook_settings: {
     host_status_webhook: {
       enable_host_status_webhook: true,
@@ -193,6 +202,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
   fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
   mdm: createMockMdmConfig(),
+  gitops: {
+    gitops_mode_enabled: false,
+    repository_url: "",
+  },
 };
 
 const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {

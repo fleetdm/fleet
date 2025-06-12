@@ -8,8 +8,6 @@ Any past decision is open to questioning in a future iteration, as long as you a
 
 Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
 
-<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/234d3072-96eb-43b7-8b9e-b97af17ef72e">
-
 
 ## Why open source?
 
@@ -143,6 +141,33 @@ Besides the exceptions above, Fleet does not use any other repositories.  Other 
 > _**Tip:** In addition to the built-in search available for the public handbook on fleetdm.com, you can also [search any public AND non-public content, including issue templates, at the same time](https://github.com/search?q=org%3Afleetdm+path%3A.github%2FISSUE_TEMPLATE+path%3Ahandbook%2F+path%3Adocs%2F+foo&type=code)._
 
 
+## Why be intentional about infrastructure? 
+
+Our infrastructure is simple to prioritize [results](https://fleetdm.com/handbook/company#results), spend less, avoid preemptive structure, choose "boring" solutions, and reuse systems whenever possible. Adding infrastructure slows us down by adding complexity and surface area to maintain.
+
+All new infrastructure at Fleet is first approved by the E-group. Currently approved infrastructure dependencies when deploying Fleet are maintained in the [references architecture documentation](https://fleetdm.com/docs/deploy/reference-architectures).
+
+Additional infrastructure:
+
+1. **HTTP server at [fleetdm.com](https://fleetdm.com/)**. When a public HTTP server is required to broker information, [Digital Experience](https://fleetdm.com/handbook/digital-experience) adds the functionality to the existing fleetdm.com HTTP server. The fleetdm.com web server is hosted at [Heroku](https://heroku.com/).
+
+2. **Managed Cloud**. All Managed Cloud [customer environments](https://docs.google.com/spreadsheets/d/1nGgy7Gx1Y3sYHinL8kFWnhejghV1QDtv9uQgKu91F9E/edit?usp=sharing) and Fleet's dogfooding environments are hosted at [AWS](https://aws.amazon.com).
+
+3. **Dashboards**. Additional product dashboards such as the [vulnerability dashboard](https://github.com/fleetdm/fleet/tree/main/ee/vulnerability-dashboard) and [bulk operations dashboard](https://github.com/fleetdm/fleet/tree/main/ee/bulk-operations-dashboard) are deployed to [Heroku](https://heroku.com) on an as-needed basis per customer.
+
+4. **Development and QA instances**. Long-lived Fleet instances used to support CI/CD pipelines and quality assurance processes are hosted at [Render](https://render.com/).
+
+5. **CI/CD pipelines**. All CI/CD pipelines supporting Fleet's infrastructure are hosted as GitHub workflows in both [our public](https://github.com/fleetdm/fleet/actions) and [private](https://github.com/fleetdm/confidential/actions) repositories.
+
+6. **[Terraform submodules](https://github.com/fleetdm/fleet-terraform)**. Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privileged access to cloud resources, and their composition and configuration is unique for each deployment.
+
+7. **Domain name registrar**. All Fleet domain names are registered with [NameCheap](https://www.namecheap.com).
+
+8. **DNS**. All domain DNS records and caching rules are hosted with [Cloudflare](https://www.cloudflare.com/).
+
+9. **Object storage**. All object storage dependencies necessary to operate a fleetdm.com instance (download.fleetdm.com, updates.fleetdm.com), are hosted in R2 buckets at [Cloudflare](https://www.cloudflare.com).
+
+
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
 
 Here are a few of the drawbacks that we have experienced when generating docs via tools like Swagger or OpenAPI, and some of the advantages of doing it by hand with Markdown.
@@ -238,7 +263,7 @@ Finally, we determine the root cause, and we make sure a resolution for it is fi
 Why bother with all that?  And why do it in this particular order?
 - **Avoids slip-ups.** When every outage is visible, information about production problems flows more freely.  It is harder to accidentally overlook a production issue, or accidentally deprioritize a major issue.  You never know whether an error like this is a real issue until you take a close look.  Even if you think it probably isn't.
 - **Faster diagnosis.** Prioritizing outages gets everyone on the same page about exactly what errors are happening as soon as possible, and gets subject matter experts involved faster.
-- **Helps us measure.** When outage issues are created as soon as the outage occured, the time of issue creation and closing give us useful metrics about the outage, with minimal extra effort.
+- **Helps us measure.** When outage issues are created as soon as the outage occurred, the time of issue creation and closing give us useful metrics about the outage, with minimal extra effort.
 - **Better customer experience.** Understanding the impact of every production issue means we can reach out to affected users ASAP and acknowledge their challenge, showing them that Fleet takes quality and stability seriously.  This kind of customer support is rare and memorable.
 - **It helps us prevent future outages.** By finding outages sooner, we incentivize ourselves to fix the root cause sooner.  And by fixing bugs sooner, we prevent them from stacking and bleeding into one another, and we prevent ourselves from implementing future fixes and improvements on top of shaky foundations.  This makes contributions less risky and reduces the number of outages.
 
@@ -256,7 +281,7 @@ Breaking loudly means we can fix the break sooner and improve how fast and certa
 
 When contributing to Fleet, for every PR, the person submitting the PR tests it by hand before it is merged, regardless who else tested it, or who else reviewed the code.  Thanks to this, we should normally never end up in a situation where a merged PR causes a broken contributor experience, because the person submitting it would have experienced that broken contributor experience when testing.
 
-If that happens by mistake, first priority is merging a fix, then notifying the contributor who made the mistake so they're aware for future changes.  (This is not about blame; it's about clarity.)  We always prioritize fixing bugs, because bugs are the best early sign of misunderstandings, stale assumptions, and impactful coding mistakes that can fundamentally damage Fleet's long-term development speed, contributor experience, and code base complexity.
+If that happens by mistake, the first priority is merging a fix, then notifying the contributor who made the mistake so they're aware for future changes.  (This is not about blame; it's about clarity.)  We always prioritize fixing bugs, because bugs are the best early sign of misunderstandings, stale assumptions, and impactful coding mistakes that can fundamentally damage Fleet's long-term development speed, contributor experience, and code base complexity.
 
 > Here is [an example of a deliberate decision to make broken images in Fleet fail more loudly](https://github.com/fleetdm/fleet/issues/12305#issuecomment-1671924257) so that they can't be overlooked, even though this might slow down short-term development.
 
@@ -275,7 +300,7 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 
 ## Why spend less?
 
-- **Default to efficiency. Reward richly.** At Fleet, we celebrate success and reward hard work.  But we do everyday things cheap.  And that is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what "comfortable" feels like.
+- **Default to efficiency. Reward richly.** At Fleet, we celebrate success and reward hard work.  But we do everyday things cheaply.  And that is very important, because it shapes the kind of people we hire, and the kind of expectations we set for the team about what "comfortable" feels like.
 - **Offsites are not rewards.** Day to day, Fleet does not look rich.  Rich !== welcoming.  The company is open, not closed.  Work here means flexible collaboration, accessible people, and clear expectations.  And a rich, exciting future worth working for.  Not a rich, complacent baseline worth coasting for.
 - **Minimally viable comfort.**  We stay at La Quintas by the train tracks every single time unless customers are coming into the room and we need more space.  Even then, we accommodate in the spirit of _hospitality_, not to show off how well Fleet is doing.  They'll know how well we're doing by how great the product is, how great the support is, and [how that makes them feel](https://fleetdm.com/handbook/company#purpose).  They'll remember openness, flexibility, accessibility, and clarity in all of their interactions with the brand.  Not the view from our hotel rooms.
 - **Everyday efficiency.** Fleet isn't the place you work for the everyday amenities.  Like [Southwest Airlines](https://hbsp.harvard.edu/product/W94C04-PDF-ENG), Fleet is egalitarian and outsider-friendly.  We lift people up, but we remember where we came from.  The company is efficient and friendly, more than it is polished or formal.  Never show off.  Look smart _and_ real.  Make Fleet look easy and welcoming, never slick.  And rarely fancy.
@@ -344,12 +369,21 @@ MDM should be a capability, not a product category.
 
 In Fleet, the word "enrolled" means "the host shows up in the dashboard and API".
 
-When some tools like Workspace ONE say a host is "enrolled", they mean that data is being collected _and_ enforcement features are activated on that host.
+When some tools like Omnissa say a host is "enrolled", they mean that data is being collected _and_ enforcement features are activated on that host.
 
 Since Fleet is more than MDM, you can collect logs and health data on any computer.  You can also enforce OS settings on any computer.  But you don't have to enable both: for example, you can build an installer that only collects data, without enabling enforcement features like MDM protocol support and script execution.
 
 That means you can collect logs from Linux servers or Windows factory workstations without enabling remote script execution on those computers, even if you're using script execution on your Macs.
 
+## Why does Fleet use "OS settings" and "configuration profiles" instead of "Windows CSP/XML"
+
+IT and security tools should be easy to understand for everyone. This includes people who don't work in IT and security.
+
+In Fleet, the words "OS settings" mean the computer's operating system settings. All computers have settings that can be changed and enforced using Fleet. A Fleet user can enforce OS settings with a script or a "configuration profile."
+
+Some tools like Omnissa say "Windows CSP/XML" instead of "Windows configuration profile." We've learned that "CSP/XML" is confusing even for people who work in IT and security.
+
+By saying "configuration profile," Fleet has one, cross-platform name for a feature used to enforce OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
 
 ## Why not mention the CEO in Slack threads?
 

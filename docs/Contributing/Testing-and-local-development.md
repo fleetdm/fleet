@@ -46,6 +46,8 @@
     - [Bootstrap package](#bootstrap-package)
     - [Puppet module](#puppet-module)
     - [Testing the end user flow for MDM migrations](#testing-the-end-user-flow-for-mdm-migrations)
+  - [Software packages](#software-packages)
+    - [Troubleshooting installation](#troubleshooting-installation)
 
 ## License key
 
@@ -70,7 +72,7 @@ Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/f
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
 ```
 
 Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
@@ -280,7 +282,7 @@ Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface 
 Alternatively, if you need to test a SMTP server with plain basic authentication enabled, set:
 - "SMTP server" to `localhost` on port `1026`
 - "Use SSL/TLS to connect (recommended)" to unchecked.
-- "Authentication type" to `Username and Password`
+- "Authentication type" to `Username and password`
 - "SMTP username" to `mailpit-username`
 - "SMTP password" to `mailpit-password`
 - "Auth method" to `Plain`
@@ -348,26 +350,44 @@ Entity ID: https://localhost:8080
 Metadata URL: http://127.0.0.1:9080/simplesaml/saml2/idp/metadata.php
 ```
 
-The identity provider is configured with four users:
+The identity provider is configured with these users:
 
 ```
 Username: sso_user
 Email: sso_user@example.com
 Password: user123#
+Display name: SSO User 1
 
 Username: sso_user2
 Email: sso_user2@example.com
 Password: user123#
+Display name: SSO User 2
 
 # sso_user_3_global_admin is automatically added as Global admin.
 Username: sso_user_3_global_admin
 Email: sso_user_3_global_admin@example.com
 Password: user123#
+Display name: SSO User 3
 
 # sso_user_4_team_maintainer is automatically added as maintainer of Team with ID = 1.
 # If a team with ID 1 doesn't exist then the login with this user will fail.
 Username: sso_user_4_team_maintainer
 Email: sso_user_4_team_maintainer@example.com
+Password: user123#
+Display name: SSO User 4
+
+Username: sso_user_5_team_admin
+Email: sso_user_5_team_admin@example.com
+Password: user123#
+Display name: SSO User 5
+
+Username: sso_user_6_global_observer
+Email: sso_user_6_global_observer@example.com
+Password: user123#
+Display name: SSO User 6
+
+Username: sso_user_no_displayname
+Email: sso_user_no_displayname@example.com
 Password: user123#
 ```
 
@@ -604,28 +624,35 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://more.pezhub.ngrok.app"`
 7. Enroll your mac with ADE. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 
-### Building and serving your own signed fleetd-base.msi installer for Windows
+### Building and serving your own fleetd-base.msi installer for Windows
 
-Only signed fleetd installers can be used during the Autopilot MDM enrollment flow. If you are
-developing/testing logic that needs to run during that flow, you will need to build and serve a
-signed fleetd-base.msi installer.
+Unlike the ADE Enrollment flow Autopilot does not require a signed installer so you may build a
+signed MSI containing `edge` components or, depending on your needs, build one locally from code on
+a branch you're working on. Step 1 Option A below describes the former and B describes the latter
 
-You will also need to serve the `meta.json` for the fleetd-base.msi installer. 
+You will also need to serve the `meta.json` for the fleetd-base.msi installer, creation of which is
+described below.
 
-Moreover, Azure requires the Fleet server instance to have a proper domain name with some TXT/MX records added (see `/settings/integrations/automatic-enrollment/windows` on your Fleet instance).
-For that reason, currently the only way to test this flow is to use Dogfood, which already has this configured.
+For Autopilot, Azure requires the Fleet server instance to have a proper domain name with some TXT/MX records added (see `/settings/integrations/automatic-enrollment/windows` on your Fleet instance).
+For that reason, currently the only way to test this flow is to use Dogfood or the QA fleet server,
+which already have this configured, or to configure an alternate server for this workflow.
 
 #### Pre-requisites
 
-- An ngrok URL for serving the `fleetd-base.msi` installer and the `meta.json` file under the `stable/` path.
-- Perform a Dogfood deployment with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` set to the ngrok URL.
+- The URL of your Fleet server
+- An ngrok tunnel URL pointed at your local TUF server. In the examples below this is
+  https://tuf.fleetdm-example.ngrok.app and the TUF server is running on http://localhost:8081
+- An ngrok tunnel URL for serving the `fleetd-base.msi` installer and a properly formatted
+  `meta.json` file under the `stable/` path. In the examples below this is
+  https://installers.fleetdm-example.ngrok.app and the installers are served from http://localhost:8085
+- Perform a deployment with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` set to the "installers" ngrok URL.
 
-#### Building a signed fleetd-base.msi installer from `edge`
+#### Step 1 Option A: Building a signed fleetd-base.msi installer from `edge`
 
-We have a [GitHub workflow](../../.github/workflows/build-fleetd-base-msi.yml) that can build a signed
-fleetd-base installer using fleetd components from any of the release channels we support. You'll
-most likely use `edge` since we release fleetd components built from an RC branch to `edge` for
-QA before an official release.
+If you want to use a signed installer, we have a [GitHub workflow](../../.github/workflows/build-fleetd-base-msi.yml)
+that can build a signed fleetd-base installer using fleetd components from any of the
+releasechannels we support. You'll most likely use `edge` since we release fleetd components
+built from an RC branch to `edge` for QA before an official release.
 
 To use the workflow, follow these steps:
 
@@ -634,10 +661,36 @@ To use the workflow, follow these steps:
   from the "Pre-requisites" above in the last field.
 3. Click the Run workflow button. This will generate two files:
   - `meta.json`
-  - `fleet-base.msi`
+  - `fleetd-base.msi`
 4. Download them to your workstation.
 
-#### Serving the signed fleetd-base.msi installer
+#### Step 1 Option B: Building a fleetd-base.msi installer from local components
+
+If you have changes in a branch you want to test you can build an installer locally and serve it.
+
+1. Use the ./tools/tuf/test/main.sh script to build an MSI from your branch:
+```sh
+#!/bin/bash
+SYSTEMS="windows" \
+MSI_FLEET_URL=https://[your fleet server's name] \
+MSI_TUF_URL=https://tuf.fleetdm-example.ngrok.app \
+GENERATE_MSI=1 \
+ENROLL_SECRET=[enroll secret] \
+FLEET_DESKTOP=1 \
+TUF_PORT=8081 \
+DEBUG=1 \
+./tools/tuf/test/main.sh
+```
+2. Create a meta.json with the following contents:
+```
+{
+  "fleetd_base_msi_url": "[your ngrok "installers" URL]/stable/fleetd-base.msi",
+  "fleetd_base_msi_sha256": "[sha256sum of]"
+}
+```
+3. Rename the generated fleet-osquery.msi to fleetd-base.msi
+
+#### Serving the fleetd-base.msi installer
 
 1. Create a directory named `fleetd-base-dir` and a subdirectory named `stable`. Tip: we have the `$FLEET_REPO_ROOT_DIR/tmp`
    directory gitignored, so that's a convenient place to create the directories:
@@ -645,13 +698,15 @@ To use the workflow, follow these steps:
 # From the Fleet repo root dir
 mkdir -p ./tmp/fleetd-base-dir/stable
 ```
-2. Move `fleet-base.msi` to `./tmp/fleetd-base-dir/stable`.
+2. Move `fleetd-base.msi` to `./tmp/fleetd-base-dir/stable`.
 3. Move `meta.json` to `./tmp/fleetd-base-dir/stable`.
 4. Start up an HTTP file server from the Fleet repo root directory using the [`tools/file-server`](../../tools/file-server/README.md) tool: `go run ./tools/file-server 8085 ./tmp/fleetd-base-dir`
-5. Start your second ngrok tunnel and forward to http://localhost:8085.
-	- Example: `ngrok http --domain=more.pezhub.ngrok.app http://localhost:8085`
-6. Perform a Dogfood deployment with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` to point to the ngrok URL (the environment variable is set on `infrastructure/dogfood/terraform/aws-tf-module/main.tf`).
-	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://more.pezhub.ngrok.app"`
+5. Start your "installers" ngrok tunnel and forward to http://localhost:8085.
+	- Example: `ngrok http --domain=installers.fleetdm-example.ngrok.app http://localhost:8085`
+6. Perform a Fleet deployment(to Dogfood, QA or your own instance) with
+   `FLEET_DEV_DOWNLOAD_FLEETDM_URL` set to the "installers" ngrok URL (if using Terraform, the environment variable is set on
+   `infrastructure/dogfood/terraform/aws-tf-module/main.tf`).
+	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://installers.fleetdm-example.ngrok.app"`
 7. Enroll your Windows device with Autopilot. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 
 ## MDM setup and testing
@@ -795,6 +850,8 @@ The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo
 
 ### Puppet module
 
+> The Puppet module is deprecated as of Fleet 4.66. It is maintained for backwards compatibility.
+
 Instructions to develop and test the module can be found in the [`CONTRIBUTING.md` file](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/CONTRIBUTING.md) that sits alongside the module code.
 
 ### Testing the end user flow for MDM migrations
@@ -805,3 +862,12 @@ We have a few servers in `tools/mdm/migration` that you can use. Follow the inst
 
 <meta name="pageOrderInSection" value="1500">
 <meta name="description" value="An overview of Fleet's full test suite and integration tests.">
+
+## Software packages
+
+### Troubleshooting installation
+
+- macOS: `sudo grep "runner=installer" /var/log/orbit/orbit.stderr.log`.
+- Ubuntu: `sudo grep "runner=installer" /var/log/syslog` (or using `journalctl` if `syslog` is not available).
+- Fedora: `sudo grep "runner=installer" /var/log/messages` (or using `journalctl` if `syslog` is not available).
+- Windows: `grep "runner=installer" C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log`

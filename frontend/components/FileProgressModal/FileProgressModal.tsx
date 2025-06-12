@@ -26,7 +26,7 @@ const FileProgressModal = ({
     onExit={noop}
     disableClosingModal
   >
-    <Card color="gray" className={`${baseClass}__card`}>
+    <Card color="grey" className={`${baseClass}__card`}>
       <FileDetails
         graphicNames={graphicNames}
         fileDetails={fileDetails}

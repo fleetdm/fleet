@@ -1,12 +1,10 @@
 import React from "react";
 
-import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
+import { IHostUpcomingActivity } from "interfaces/activity";
 import { IHostUpcomingActivitiesResponse } from "services/entities/activities";
 
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
 import DataError from "components/DataError";
-import Button from "components/buttons/Button";
+import Pagination from "components/Pagination";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
@@ -17,6 +15,7 @@ const baseClass = "upcoming-activity-feed";
 interface IUpcomingActivityFeedProps {
   activities?: IHostUpcomingActivitiesResponse;
   isError?: boolean;
+  canCancelActivities: boolean;
   onShowDetails: ShowActivityDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
   onNextPage: () => void;
@@ -26,6 +25,7 @@ interface IUpcomingActivityFeedProps {
 const UpcomingActivityFeed = ({
   activities,
   isError = false,
+  canCancelActivities,
   onShowDetails,
   onCancel,
   onNextPage,
@@ -55,54 +55,27 @@ const UpcomingActivityFeed = ({
     <div className={baseClass}>
       <div className={`${baseClass}__feed-list`}>
         {activitiesList.map((activity: IHostUpcomingActivity) => {
-          // TODO: remove this once we have a proper way of handling "Fleet-initiated" activities in
-          // the backend. For now, if all these fields are empty, then we assume it was
-          // Fleet-initiated.
-          if (
-            !activity.actor_email &&
-            !activity.actor_full_name &&
-            (activity.type === ActivityType.InstalledSoftware ||
-              activity.type === ActivityType.InstalledAppStoreApp ||
-              activity.type === ActivityType.RanScript)
-          ) {
-            activity.actor_full_name = "Fleet";
-          }
           const ActivityItemComponent =
             upcomingActivityComponentMap[activity.type];
           return (
             <ActivityItemComponent
-              key={activity.id}
+              key={activity.uuid}
               tab="upcoming"
               activity={activity}
               onShowDetails={onShowDetails}
-              hideCancel // TODO: remove this when canceling is implemented in API
+              hideCancel={!canCancelActivities}
               onCancel={() => onCancel(activity)}
             />
           );
         })}
       </div>
-      <div className={`${baseClass}__pagination`}>
-        <Button
-          disabled={!meta.has_previous_results}
-          onClick={onPreviousPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            <FleetIcon name="chevronleft" /> Previous
-          </>
-        </Button>
-        <Button
-          disabled={!meta.has_next_results}
-          onClick={onNextPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            Next <FleetIcon name="chevronright" />
-          </>
-        </Button>
-      </div>
+      <Pagination
+        disablePrev={!meta.has_previous_results}
+        disableNext={!meta.has_next_results}
+        hidePagination={!meta.has_previous_results && !meta.has_next_results}
+        onPrevPage={onPreviousPage}
+        onNextPage={onNextPage}
+      />
     </div>
   );
 };

@@ -27,7 +27,7 @@ type getTeamScheduleResponse struct {
 
 func (r getTeamScheduleResponse) Error() error { return r.Err }
 
-func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamScheduleRequest)
 	resp := getTeamScheduleResponse{Scheduled: []scheduledQueryResponse{}}
 	queries, err := svc.GetTeamScheduledQueries(ctx, req.TeamID, req.ListOptions)
@@ -88,7 +88,7 @@ func nullIntToPtrUint(v *null.Int) *uint {
 	return ptr.Uint(uint(v.ValueOrZero())) //nolint:gosec // dismiss G115
 }
 
-func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*teamScheduleQueryRequest)
 	resp, err := svc.TeamScheduleQuery(ctx, req.TeamID, &fleet.ScheduledQuery{
 		QueryID:  uintValueOrZero(req.QueryID),
@@ -147,7 +147,7 @@ type modifyTeamScheduleResponse struct {
 
 func (r modifyTeamScheduleResponse) Error() error { return r.Err }
 
-func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamScheduleRequest)
 	if _, err := svc.ModifyTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID, req.ScheduledQueryPayload); err != nil {
 		return modifyTeamScheduleResponse{Err: err}, nil
@@ -186,7 +186,7 @@ type deleteTeamScheduleResponse struct {
 
 func (r deleteTeamScheduleResponse) Error() error { return r.Err }
 
-func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteTeamScheduleRequest)
 	err := svc.DeleteTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID)
 	if err != nil {

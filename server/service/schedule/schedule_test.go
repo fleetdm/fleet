@@ -275,6 +275,40 @@ func TestMultipleJobsInOrder(t *testing.T) {
 	require.Contains(t, test_job_4_err.Error(), "oh no\n")
 }
 
+func TestClearScheduleErrors(t *testing.T) {
+	os.Setenv("TEST_CRON_NO_RECOVER", "0")
+	defer os.Unsetenv("TEST_CRON_NO_RECOVER")
+
+	ctx := context.Background()
+	errored := false
+
+	s := New(ctx, "test_schedule", "test_instance", 1000*time.Millisecond, NopLocker{}, SetUpMockStatsStore("test_schedule", fleet.CronStats{
+		ID:        1,
+		StatsType: fleet.CronStatsTypeScheduled,
+		Name:      "test_schedule_clear_errors",
+		Instance:  "test_instance",
+		CreatedAt: time.Now().Truncate(1 * time.Second),
+		UpdatedAt: time.Now().Truncate(1 * time.Second),
+		Status:    fleet.CronStatsStatusCompleted,
+	}),
+		WithJob("test_job_1", func(ctx context.Context) error {
+			if !errored {
+				errored = true
+				return errors.New("oh well")
+			}
+			return nil
+		}),
+	)
+
+	// First run should return 1 error.
+	s.runAllJobs()
+	require.Equal(t, 1, len(s.errors))
+
+	// Second run should return no errors.
+	s.runAllJobs()
+	require.Equal(t, 0, len(s.errors))
+}
+
 func TestConfigReloadCheck(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	initialSchedInterval := 1 * time.Millisecond

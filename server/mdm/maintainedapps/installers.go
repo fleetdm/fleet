@@ -1,4 +1,4 @@
-package maintainedapps
+package maintained_apps
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -59,6 +60,16 @@ func DownloadInstaller(ctx context.Context, installerURL string, client *http.Cl
 		_, params, err := mime.ParseMediaType(cdh[0])
 		if err == nil {
 			filename = params["filename"]
+		} else {
+			// fallback for responses that include a filename in their content-disposition header
+			// but the header isn't technically RFC compliant
+			cdhParts := strings.Split(cdh[0], "filename=")
+			if len(cdhParts) > 1 {
+				unescapedFilename, err := url.QueryUnescape(cdhParts[1])
+				if err == nil {
+					filename = unescapedFilename
+				}
+			}
 		}
 	}
 

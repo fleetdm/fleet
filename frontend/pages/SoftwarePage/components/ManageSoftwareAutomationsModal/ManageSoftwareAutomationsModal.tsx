@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useQuery } from "react-query";
 
 import { Link } from "react-router";
 import PATHS from "router/paths";
+import { AppContext } from "context/app";
 
 import {
   IJiraIntegration,
@@ -18,7 +19,6 @@ import {
 import configAPI from "services/entities/config";
 import { SUPPORT_LINK } from "utilities/constants";
 
-import ReactTooltip from "react-tooltip";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
@@ -29,11 +29,12 @@ import Radio from "components/forms/fields/Radio";
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import validUrl from "components/forms/validators/valid_url";
+import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import useDeepEffect from "hooks/useDeepEffect";
 import { isEmpty, omit } from "lodash";
-import { COLORS } from "styles/var/colors";
 
 import PreviewPayloadModal from "../PreviewPayloadModal";
 import PreviewTicketModal from "../PreviewTicketModal";
@@ -112,6 +113,9 @@ const ManageAutomationsModal = ({
     selectedIntegration,
     setSelectedIntegration,
   ] = useState<IIntegration>();
+
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   useDeepEffect(() => {
     setSoftwareAutomationsEnabled(
@@ -351,6 +355,7 @@ const ManageAutomationsModal = ({
         (zendeskIntegrationsIndexed &&
           zendeskIntegrationsIndexed.length > 0) ? (
           <Dropdown
+            disabled={gitOpsModeEnabled}
             searchable
             options={createIntegrationDropdownOptions()}
             onChange={onChangeSelectIntegration}
@@ -408,7 +413,7 @@ const ManageAutomationsModal = ({
           }
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
-          disabled={!softwareAutomationsEnabled}
+          disabled={!softwareAutomationsEnabled || gitOpsModeEnabled}
         />
         <Button
           type="button"
@@ -435,6 +440,53 @@ const ManageAutomationsModal = ({
     return <PreviewPayloadModal onCancel={togglePreviewPayloadModal} />;
   }
 
+  const renderSaveButton = () => {
+    const hasIntegrations = !(
+      ((jiraIntegrationsIndexed && jiraIntegrationsIndexed.length === 0) ||
+        (zendeskIntegrationsIndexed &&
+          zendeskIntegrationsIndexed.length === 0)) &&
+      integrationEnabled &&
+      softwareAutomationsEnabled
+    );
+    const renderRawButton = (gomDisabled = false) => (
+      <TooltipWrapper
+        tipContent={
+          <>
+            Add an integration to create
+            <br /> tickets for vulnerability automations.
+          </>
+        }
+        disableTooltip={hasIntegrations || gomDisabled}
+        position="bottom"
+        underline={false}
+        showArrow
+        tipOffset={6}
+      >
+        <Button
+          type="submit"
+          onClick={handleSaveAutomation}
+          disabled={
+            (softwareAutomationsEnabled &&
+              integrationEnabled &&
+              !selectedIntegration) ||
+            (softwareAutomationsEnabled &&
+              !integrationEnabled &&
+              destinationUrl === "") ||
+            gomDisabled
+          }
+        >
+          Save
+        </Button>
+      </TooltipWrapper>
+    );
+    return (
+      <GitOpsModeTooltipWrapper
+        renderChildren={renderRawButton}
+        tipOffset={6}
+      />
+    );
+  };
+
   return (
     <Modal
       onExit={onReturnToApp}
@@ -444,6 +496,7 @@ const ManageAutomationsModal = ({
     >
       <div className={`${baseClass} form`}>
         <Slider
+          disabled={gitOpsModeEnabled}
           value={softwareAutomationsEnabled}
           onChange={() =>
             setSoftwareAutomationsEnabled(!softwareAutomationsEnabled)
@@ -466,7 +519,7 @@ const ManageAutomationsModal = ({
               value="ticket"
               name="workflow-type"
               onChange={onRadioChange(true)}
-              disabled={!softwareAutomationsEnabled}
+              disabled={!softwareAutomationsEnabled || gitOpsModeEnabled}
             />
             <Radio
               className={`${baseClass}__radio-input`}
@@ -476,7 +529,7 @@ const ManageAutomationsModal = ({
               value="webhook"
               name="workflow-type"
               onChange={onRadioChange(false)}
-              disabled={!softwareAutomationsEnabled}
+              disabled={!softwareAutomationsEnabled || gitOpsModeEnabled}
             />
           </div>
           {integrationEnabled ? renderTicket() : renderWebhook()}
@@ -492,49 +545,7 @@ const ManageAutomationsModal = ({
           </p>
         </div>
         <div className="modal-cta-wrap">
-          <div
-            data-tip
-            data-for="save-automation-button"
-            data-tip-disable={
-              !(
-                ((jiraIntegrationsIndexed &&
-                  jiraIntegrationsIndexed.length === 0) ||
-                  (zendeskIntegrationsIndexed &&
-                    zendeskIntegrationsIndexed.length === 0)) &&
-                integrationEnabled &&
-                softwareAutomationsEnabled
-              )
-            }
-          >
-            <Button
-              type="submit"
-              variant="brand"
-              onClick={handleSaveAutomation}
-              disabled={
-                (softwareAutomationsEnabled &&
-                  integrationEnabled &&
-                  !selectedIntegration) ||
-                (softwareAutomationsEnabled &&
-                  !integrationEnabled &&
-                  destinationUrl === "")
-              }
-            >
-              Save
-            </Button>
-          </div>
-          <ReactTooltip
-            className={`save-automation-button-tooltip`}
-            place="bottom"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id="save-automation-button"
-            data-html
-          >
-            <>
-              Add an integration to create
-              <br /> tickets for vulnerability automations.
-            </>
-          </ReactTooltip>
+          {renderSaveButton()}
           <Button onClick={onReturnToApp} variant="inverse">
             Cancel
           </Button>

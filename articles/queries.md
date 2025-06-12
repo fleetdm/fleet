@@ -32,6 +32,11 @@ How to create a query:
 
 4. Select **Save**, enter a name and description for your query, select the frequency that the query should run at, and select **Save query**.
 
+## Targeting hosts using labels
+
+_Available in Fleet Premium._
+
+When creating or editing a query, you can restrict the set of hosts that it will run on by using [labels](https://fleetdm.com/guides/managing-labels-in-fleet).  By default, a new query will target all hosts, indicated by the **All Hosts** option being selected beneath the **Targets** setting.  If you select **Custom** instead, you will be able to select one or more labels for the query to target. Note that the query will run on any host that matches __any__ of the selected labels. To learn more about labels, see [Managing labels in Fleet](https://fleetdm.com/guides/managing-labels-in-fleet).
 
 ## View a query report
 

@@ -40,7 +40,10 @@ variable "fleet_calendar_periodicity" {
   default     = "30s"
   description = "The refresh period for the calendar integration."
 }
+variable "android_service_credentials" {}
 variable "dogfood_sidecar_enroll_secret" {}
+variable "cloudfront_public_key" {}
+variable "cloudfront_private_key" {}
 
 data "aws_caller_identity" "current" {}
 
@@ -61,15 +64,17 @@ locals {
     ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     ELASTIC_APM_SERVICE_NAME                   = "dogfood"
     FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
+    FLEET_DEV_ANDROID_ENABLED                  = "1"
+    FLEET_DEV_ANDROID_SERVICE_CREDENTIALS      = var.android_service_credentials
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
   }
-  idp_metadata_file = "${path.module}/files/idp-metadata.xml"
+  # idp_metadata_file = "${path.module}/files/idp-metadata.xml"
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.11.1"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.13.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -83,7 +88,8 @@ module "main" {
       sort_buffer_size = 8388608
     }
     # VPN
-    allowed_cidr_blocks = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
+    allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
+    backup_retention_period = 30
   }
   redis_config = {
     name = local.customer
@@ -124,7 +130,6 @@ module "main" {
       }
     }
     extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
-    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn]) #, module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_environment_variables = merge(
       module.firehose-logging.fleet_extra_environment_variables,
       module.osquery-carve.fleet_extra_environment_variables,
@@ -133,7 +138,16 @@ module "main" {
       module.geolite2.extra_environment_variables,
       module.vuln-processing.extra_environment_variables
     )
-    extra_secrets           = merge(module.mdm.extra_secrets, local.sentry_secrets)
+    extra_execution_iam_policies = concat(
+      module.mdm.extra_execution_iam_policies,
+      [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn],
+      module.cloudfront-software-installers.extra_execution_iam_policies,
+    ) #, module.saml_auth_proxy.fleet_extra_execution_policies)
+    extra_secrets           = merge(
+      module.mdm.extra_secrets,
+      local.sentry_secrets,
+      module.cloudfront-software-installers.extra_secrets
+    )
     private_key_secret_name = "${local.customer}-fleet-server-private-key"
     # extra_load_balancers         = [{
     #   target_group_arn = module.saml_auth_proxy.lb_target_group_arn
@@ -142,6 +156,8 @@ module "main" {
     # }]
     software_installers = {
       bucket_prefix = "${local.customer}-software-installers-"
+      create_kms_key = true
+      kms_alias      = "${local.customer}-software-installers"
     }
     # sidecars = [
     #   {
@@ -415,7 +431,7 @@ module "monitoring" {
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.2.0"
+  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.3.0"
   prefix        = local.customer
   enable_athena = true
 }
@@ -498,7 +514,7 @@ module "notify_slack_p2" {
 }
 
 module "ses" {
-  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.2.0"
+  source  = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.3.0"
   zone_id = aws_route53_zone.main.zone_id
   domain  = "dogfood.fleetdm.com"
 }
@@ -521,29 +537,29 @@ module "ses" {
 # }
 
 # This is intended to be public
-module "dogfood_idp_metadata_bucket" {
-  source                                = "terraform-aws-modules/s3-bucket/aws"
-  version                               = "3.15.1"
-  bucket                                = "fleet-dogfood-idp-metadata"
-  attach_deny_insecure_transport_policy = true
-  attach_require_latest_tls_policy      = true
-  attach_public_policy                  = true
-  block_public_acls                     = false
-  block_public_policy                   = false
-  ignore_public_acls                    = false
-  restrict_public_buckets               = false
-  acl                                   = "public-read"
-  control_object_ownership              = true
-  object_ownership                      = "BucketOwnerPreferred"
-}
+# module "dogfood_idp_metadata_bucket" {
+#   source                                = "terraform-aws-modules/s3-bucket/aws"
+#   version                               = "3.15.1"
+#   bucket                                = "fleet-dogfood-idp-metadata"
+#   attach_deny_insecure_transport_policy = true
+#   attach_require_latest_tls_policy      = true
+#   attach_public_policy                  = true
+#   block_public_acls                     = false
+#   block_public_policy                   = false
+#   ignore_public_acls                    = false
+#   restrict_public_buckets               = false
+#   acl                                   = "public-read"
+#   control_object_ownership              = true
+#   object_ownership                      = "BucketOwnerPreferred"
+# }
 
-resource "aws_s3_object" "idp_metadata" {
-  bucket = module.dogfood_idp_metadata_bucket.s3_bucket_id
-  key    = "idp-metadata.xml"
-  source = local.idp_metadata_file
-  etag   = filemd5(local.idp_metadata_file)
-  acl    = "public-read"
-}
+# resource "aws_s3_object" "idp_metadata" {
+#   bucket = module.dogfood_idp_metadata_bucket.s3_bucket_id
+#   key    = "idp-metadata.xml"
+#   source = local.idp_metadata_file
+#   etag   = filemd5(local.idp_metadata_file)
+#   acl    = "public-read"
+# }
 
 module "geolite2" {
   source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
@@ -611,4 +627,15 @@ resource "aws_iam_policy" "osquery_sidecar" {
   name        = "osquery-sidecar-policy"
   description = "IAM policy that Osquery sidecar containers use to define access to AWS resources"
   policy      = data.aws_iam_policy_document.osquery_sidecar.json
+}
+
+module "cloudfront-software-installers" {
+  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v1.0.0"
+  customer          = local.customer
+  s3_bucket         = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.bucket_name
+  s3_kms_key_id     = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.kms_key_id
+  public_key        = var.cloudfront_public_key
+  private_key       = var.cloudfront_private_key
+  enable_logging    = true
+  logging_s3_bucket = module.logging_alb.log_s3_bucket_id
 }

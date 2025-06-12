@@ -141,7 +141,7 @@
       font-size: 14px;
       line-height: 150%;
       width: 240px;
-      // text-wrap: nowrap;
+      text-decoration: none;
       padding: 4px 8px;
       &:hover {
         text-decoration: none;
@@ -215,10 +215,24 @@
       line-height: 150%;
     }
   }
+  .header-hidden { // For scrolling the sidebars with the sticky header
+    transform: translateY(-81px);
+  }
   [purpose='platform-filters'] {
+    &.detected-windows {
+      flex-direction: row-reverse;
+    }
+    flex-direction: row;
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 32px;
     padding-top: 8px;
+    position: sticky;
+    top: 81px;
+    background: #FFF;
+    z-index: 4;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
     [purpose='platform-filter'] {
       width: 25%;
       display: flex;
@@ -230,7 +244,8 @@
         height: 20px;
         margin-right: 10px;
       }
-      p {
+      h1 {
+        scroll-margin-top: 120px;
         color: #192147;
         text-align: center;
         margin-bottom: 0px;
@@ -243,7 +258,7 @@
       &.selected {
         border-bottom: 2px solid var(--text-text-brand, #192147);
         padding: 16px 40px 22px 40px;
-        p {
+        h1 {
           font-weight: 700;
         }
       }
@@ -401,7 +416,7 @@
       border-bottom: 1px solid var(--UI-Fleet-Black-10, #E2E4EA);
       background: #F9FAFC;
       border-radius: 0px 0px 4px 4px;
-      .ps {
+      .ps, .sh {
         .hljs-keyword,
         .hljs-selector-tag,
         .hljs-name {
@@ -585,7 +600,7 @@
             font-size: 14px;
             line-height: 150%;
             width: 100%;
-            // text-wrap: nowrap;
+            text-decoration: none;
             padding: 4px 8px;
             &:hover {
               text-decoration: none;

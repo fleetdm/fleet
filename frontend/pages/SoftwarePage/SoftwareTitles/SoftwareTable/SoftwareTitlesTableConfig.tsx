@@ -9,7 +9,7 @@ import {
 } from "interfaces/software";
 import PATHS from "router/paths";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -62,10 +62,10 @@ const getSoftwareNameCellData = (
   softwareTitle: ISoftwareTitle,
   teamId?: number
 ) => {
-  const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
-  const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
-    softwareTitle.id.toString()
-  )}?${teamQueryParam}`;
+  const softwareTitleDetailsPath = getPathWithQueryParams(
+    PATHS.SOFTWARE_TITLE_DETAILS(softwareTitle.id.toString()),
+    { team_id: teamId }
+  );
 
   const { software_package, app_store_app } = softwareTitle;
   let hasPackage = false;

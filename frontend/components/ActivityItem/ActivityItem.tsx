@@ -2,7 +2,12 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
-import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
+import {
+  IActivity,
+  IActivityDetails,
+  IHostPastActivity,
+  IHostUpcomingActivity,
+} from "interfaces/activity";
 import {
   addGravatarUrlToResource,
   internationalTimeFormat,
@@ -18,6 +23,15 @@ import Icon from "components/Icon";
 import { noop } from "lodash";
 
 const baseClass = "activity-item";
+
+const generateActivityId = (
+  activity: IActivity | IHostPastActivity | IHostUpcomingActivity
+) => {
+  if ("id" in activity) {
+    return `activity-${activity.id}`;
+  }
+  return `activity-${activity.uuid}`;
+};
 
 export interface IShowActivityDetailsData {
   type: string;
@@ -35,7 +49,7 @@ export type ShowActivityDetailsHandler = ({
 }: IShowActivityDetailsData) => void;
 
 interface IActivityItemProps {
-  activity: IActivity;
+  activity: IActivity | IHostPastActivity | IHostUpcomingActivity;
   children: React.ReactNode;
   /**
    * Set this to `true` when rendering only this activity by itself. This will
@@ -108,19 +122,7 @@ const ActivityItem = ({
     onCancel();
   };
 
-  // TODO: remove this once we have a proper way of handling "Fleet-initiated" activities in
-  // the backend. For now, if all these fields are empty, then we assume it was
-  // Fleet-initiated.
-  let fleetInitiated = false;
-  if (
-    !activity.actor_email &&
-    !activity.actor_full_name &&
-    (activity.type === ActivityType.InstalledSoftware ||
-      activity.type === ActivityType.InstalledAppStoreApp ||
-      activity.type === ActivityType.RanScript)
-  ) {
-    fleetInitiated = true;
-  }
+  const tooltipId = generateActivityId(activity);
 
   return (
     <div className={classNames}>
@@ -131,7 +133,7 @@ const ActivityItem = ({
           user={{ gravatar_url }}
           size="small"
           hasWhiteBackground
-          useFleetAvatar={fleetInitiated}
+          useFleetAvatar={activity.fleet_initiated}
         />
         <div className={`${baseClass}__avatar-lower-dash`} />
       </div>
@@ -139,7 +141,7 @@ const ActivityItem = ({
         className={`${baseClass}__details-wrapper`}
         onClick={onShowActivityDetails}
       >
-        <div className={"activity-details"}>
+        <div className="activity-details">
           <span className={`${baseClass}__details-topline`}>
             <span>{children}</span>
           </span>
@@ -147,7 +149,7 @@ const ActivityItem = ({
           <span
             className={`${baseClass}__details-bottomline`}
             data-tip
-            data-for={`activity-${activity.id}`}
+            data-for={tooltipId}
           >
             {activityCreatedAt && dateAgo(activityCreatedAt)}
           </span>
@@ -157,7 +159,7 @@ const ActivityItem = ({
               place="top"
               type="dark"
               effect="solid"
-              id={`activity-${activity.id}`}
+              id={tooltipId}
               backgroundColor={COLORS["tooltip-bg"]}
             >
               {internationalTimeFormat(activityCreatedAt)}

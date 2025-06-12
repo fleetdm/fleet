@@ -40,6 +40,9 @@ parasails.registerPage('osquery-table-details', {
       // otherwise, default the filter to be the first supported platform of the currently viewed table.
       this.selectedPlatform = this.tableToDisplay.platforms[0] === 'darwin' ? 'apple' : this.tableToDisplay.platforms[0];
     }
+    // Note: we do not personalize the selected platform on this page based on the user's
+    // current OS because the default table that the /tables url redirects to does not support windows.
+    window.addEventListener('scroll', this.handleScrollingPlatformFilters);
   },
   mounted: async function() {
 
@@ -99,20 +102,7 @@ parasails.registerPage('osquery-table-details', {
         }
       });
     })();
-    // Adjust the height of the sidebar navigation to match the height of the html partial
-    (()=>{
-      $('[purpose="table-of-contents"]').css({'max-height': 120});
-      let tablePartialHeight = $('[purpose="table-container"]').height();
-      $('[purpose="table-of-contents"]').css({'max-height': tablePartialHeight - 120});
-    })();
-    // 5 ms after the page loads, scroll the table of contents to the currently active link.
-    await setTimeout(()=>{
-      let activeTableLink = $('[purpose="table-of-contents-link"].active')[0];
-      if(activeTableLink) {
-        $('[purpose="table-of-contents"]')[0].scrollTop = activeTableLink.offsetTop;
-      }
-      // Note: we're running this code after a 5ms delay to make sure the tables have been filtered, otherwise it will scroll the table of contents to the links posiiton in the full list of tables.
-    }, 5);
+
   },
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
@@ -154,6 +144,22 @@ parasails.registerPage('osquery-table-details', {
           $('[purpose="modal-table-of-contents"]')[0].scrollTop = activeTableLink.offsetTop;
         }
       }, 250);
+    },
+    handleScrollingPlatformFilters: function () {
+      let platformFilters = document.querySelector('div[purpose="platform-filters"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      // If the right nav bar exists, add and remove a class based on the current scroll position.
+      if (platformFilters) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+          platformFilters.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
+          platformFilters.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
+        }
+      }
+      this.scrollDistance = scrollTop;
     },
     closeModal: async function() {
       this.modal = '';

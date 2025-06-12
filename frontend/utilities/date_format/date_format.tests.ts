@@ -1,13 +1,23 @@
-import { dateAgo, monthDayYearFormat, uploadedFromNow } from ".";
+import { dateAgo, monthDayYearFormat, addedFromNow, uploadedFromNow } from ".";
 
 describe("date_format utilities", () => {
   describe("uploadedFromNow util", () => {
-    it("returns an user friendly uploaded at message", () => {
+    it("returns an user friendly uploaded message", () => {
       const currentDate = new Date();
       currentDate.setDate(currentDate.getDate() - 2);
       const twoDaysAgo = currentDate.toISOString();
 
       expect(uploadedFromNow(twoDaysAgo)).toEqual("Uploaded 2 days ago");
+    });
+  });
+
+  describe("addedFromNow util", () => {
+    it("returns an user friendly added message", () => {
+      const currentDate = new Date();
+      currentDate.setDate(currentDate.getDate() - 2);
+      const twoDaysAgo = currentDate.toISOString();
+
+      expect(addedFromNow(twoDaysAgo)).toEqual("Added 2 days ago");
     });
   });
 

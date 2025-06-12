@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -470,33 +471,6 @@ func (c *Client) ApplyGroup(
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 
-		// if there is no custom setting but the windows and mac settings are
-		// non-nil, this means that we want to clear the existing custom settings,
-		// so we still go on with calling the batch-apply endpoint.
-		//
-		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
-		// custom settings but windows is present and empty (but mac is absent),
-		// shouldn't that clear the windows ones?
-		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
-			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
-			if err != nil {
-				return nil, nil, nil, nil, err
-			}
-			// Figure out if MDM should be enabled.
-			assumeEnabled := false
-			// This cast is safe because we've already checked AppConfig when extracting custom settings
-			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
-			if ok {
-				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
-				if ok {
-					assumeEnabled, ok = mdmEnabled.(bool)
-					assumeEnabled = ok && assumeEnabled
-				}
-			}
-			if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
-			}
-		}
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
 			switch {
 			case macosSetup.BootstrapPackage.Value != "":
@@ -574,6 +548,14 @@ func (c *Client) ApplyGroup(
 			specs.AppConfig.(map[string]interface{})["yara_rules"] = rulePayloads
 		}
 
+		// Keep any existing GitOps mode config rather than attempting to set via GitOps.
+		if appconfig != nil {
+			specs.AppConfig.(map[string]interface{})["gitops"] = fleet.UIGitOpsModeConfig{
+				GitopsModeEnabled: appconfig.UIGitOpsMode.GitopsModeEnabled,
+				RepositoryURL:     appconfig.UIGitOpsMode.RepositoryURL,
+			}
+		}
+
 		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("applying fleet config: %w", err)
 		}
@@ -581,6 +563,46 @@ func (c *Client) ApplyGroup(
 			logfn("[+] would've applied fleet config\n")
 		} else {
 			logfn("[+] applied fleet config\n")
+		}
+
+		// We apply profiles after the main AppConfig org_settings because profiles may
+		// contain Fleet variables that are set in org_settings, such as $FLEET_VAR_DIGICERT_PASSWORD_My_CA
+		//
+		// if there is no custom setting but the windows and mac settings are
+		// non-nil, this means that we want to clear the existing custom settings,
+		// so we still go on with calling the batch-apply endpoint.
+		//
+		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
+		// custom settings but windows is present and empty (but mac is absent),
+		// shouldn't that clear the windows ones?
+		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
+			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
+			if err != nil {
+				return nil, nil, nil, nil, err
+			}
+			// Figure out if MDM should be enabled.
+			assumeEnabled := false
+			// This cast is safe because we've already checked AppConfig when extracting custom settings
+			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+			if ok {
+				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
+				if ok {
+					assumeEnabled, ok = mdmEnabled.(bool)
+					assumeEnabled = ok && assumeEnabled
+				}
+			}
+			profilesSpecOptions := opts.ApplySpecOptions
+			// Since we just updated AppConfig, we don't want to get a stale (cached) AppConfig on the server if
+			// this HTTP request gets routed to another Fleet server.
+			profilesSpecOptions.NoCache = true
+			if err := c.ApplyNoTeamProfiles(fileContents, profilesSpecOptions, assumeEnabled); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
+			}
+			if opts.DryRun {
+				logfn("[+] would've applied MDM profiles\n")
+			} else {
+				logfn("[+] applied MDM profiles\n")
+			}
 		}
 	}
 
@@ -795,9 +817,9 @@ func (c *Client) ApplyGroup(
 					switch {
 					case b != nil:
 						if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
-							if strings.Contains(err.Error(), "Couldn't upload") {
+							if strings.Contains(err.Error(), "Couldn't add") {
 								// Then the error should look something like this:
-								// "Couldn't upload. CONFIG_NAME_INVALID"
+								// "Couldn't add. CONFIG_NAME_INVALID"
 								// We want the part after the period (this is the error name from Apple)
 								// to render a more helpful error message.
 								parts := strings.Split(err.Error(), ".")
@@ -954,6 +976,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 	for i, si := range specs {
 		var qc string
 		var err error
+
 		if si.PreInstallQuery.Path != "" {
 			queryFile := si.PreInstallQuery.Path
 			rawSpec, err := os.ReadFile(queryFile)
@@ -1050,6 +1073,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			InstallDuringSetup: installDuringSetup,
 			LabelsIncludeAny:   si.LabelsIncludeAny,
 			LabelsExcludeAny:   si.LabelsExcludeAny,
+			SHA256:             si.SHA256,
 		}
 	}
 
@@ -1529,6 +1553,14 @@ func (c *Client) DoGitOps(
 		group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
 		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
 
+		// Labels
+		if config.Labels == nil || len(config.Labels) > 0 {
+			err = c.doGitOpsLabels(config, logFn, dryRun)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		// Integrations
 		var integrations interface{}
 		var ok bool
@@ -1556,6 +1588,36 @@ func (c *Client) DoGitOps(
 			if _, ok = ndesSCEPProxy.(map[string]interface{}); !ok {
 				return nil, errors.New("org_settings.integrations.ndes_scep_proxy config is not a map")
 			}
+		}
+		if digicertIntegration, ok := integrations.(map[string]interface{})["digicert"]; !ok || digicertIntegration == nil {
+			integrations.(map[string]interface{})["digicert"] = nil
+		} else {
+			// We unmarshal DigiCert integration into its dedicated type for additional validation.
+			digicertJSON, err := json.Marshal(integrations.(map[string]interface{})["digicert"])
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.digicert cannot be marshalled into JSON: %w", err)
+			}
+			var digicertData optjson.Slice[fleet.DigiCertIntegration]
+			err = json.Unmarshal(digicertJSON, &digicertData)
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.digicert cannot be parsed: %w", err)
+			}
+			integrations.(map[string]interface{})["digicert"] = digicertData
+		}
+		if customSCEPIntegration, ok := integrations.(map[string]interface{})["custom_scep_proxy"]; !ok || customSCEPIntegration == nil {
+			integrations.(map[string]interface{})["custom_scep_proxy"] = nil
+		} else {
+			// We unmarshal Custom SCEP integration into its dedicated type for additional validation
+			custonSCEPJSON, err := json.Marshal(integrations.(map[string]interface{})["custom_scep_proxy"])
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be marshalled into JSON: %w", err)
+			}
+			var customSCEPData optjson.Slice[fleet.CustomSCEPProxyIntegration]
+			err = json.Unmarshal(custonSCEPJSON, &customSCEPData)
+			if err != nil {
+				return nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be parsed: %w", err)
+			}
+			integrations.(map[string]interface{})["custom_scep_proxy"] = customSCEPData
 		}
 
 		// Ensure webhooks settings exists
@@ -1611,6 +1673,12 @@ func (c *Client) DoGitOps(
 		mdmAppConfig, ok = mdmConfig.(map[string]interface{})
 		if !ok {
 			return nil, errors.New("org_settings.mdm config is not a map")
+		}
+
+		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
+			if _, ok := mdmAppConfig["apple_business_manager"]; !ok {
+				mdmAppConfig["apple_business_manager"] = []interface{}{}
+			}
 		}
 
 		// Put in default value for volume_purchasing_program to clear the configuration if it's not set.
@@ -1962,6 +2030,59 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		logFn("[+] applied 'No Team' software packages\n")
 	}
 	return softwareInstallers, vppApps, nil
+}
+
+func pluralize(count int, ifSingle string, ifPlural string) string {
+	if count == 1 {
+		return ifSingle
+	}
+	return ifPlural
+}
+
+func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	persistedLabels, err := c.GetLabels()
+	if err != nil {
+		return err
+	}
+	var numUpdates int
+	var labelsToDelete []string
+	for _, persistedLabel := range persistedLabels {
+		if persistedLabel.LabelType == fleet.LabelTypeBuiltIn {
+			continue
+		}
+		if slices.IndexFunc(config.Labels, func(configLabel *fleet.LabelSpec) bool { return configLabel.Name == persistedLabel.Name }) == -1 {
+			labelsToDelete = append(labelsToDelete, persistedLabel.Name)
+		} else {
+			numUpdates++
+		}
+	}
+	numNew := len(config.Labels) - numUpdates
+	if dryRun {
+		for _, labelToDelete := range labelsToDelete {
+			logFn("[-] would've deleted label '%s'\n", labelToDelete)
+		}
+		if numNew > 0 {
+			logFn("[+] would've created %d label%s\n", numNew, pluralize(numNew, "", "s"))
+		}
+		if numUpdates > 0 {
+			logFn("[+] would've updated %d label%s\n", numUpdates, pluralize(numUpdates, "", "s"))
+		}
+	} else {
+		logFn("[+] syncing %d label%s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "", "s"), len(config.Labels)-numUpdates, numUpdates)
+		err = c.ApplyLabels(config.Labels)
+		if err != nil {
+			return err
+		}
+
+		for _, labelToDelete := range labelsToDelete {
+			logFn("[-] deleting label '%s'\n", labelToDelete)
+			err = c.DeleteLabel(labelToDelete)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {

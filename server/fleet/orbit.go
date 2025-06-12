@@ -46,7 +46,10 @@ type OrbitConfigNotifications struct {
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
 
-	// RunDiskEncryptionEscrow tells Orbit to prompt the end user to escrow disk encryption data
+	// RunDiskEncryptionEscrow tells Orbit to prompt the end user to escrow disk
+	// encryption data for Linux platforms where disk encryption is supported,
+	// see EnforceBitLockerEncryption for Windows and RotateDiskEncryptionKey
+	// for macOS.
 	RunDiskEncryptionEscrow bool `json:"run_disk_encryption_escrow,omitempty"`
 }
 

@@ -83,9 +83,9 @@ func WithDeleteCommands() Option {
 	}
 }
 
-func WithAsyncLastSeen(cap int, interval time.Duration) Option {
+func WithAsyncLastSeen(capacity int, interval time.Duration) Option {
 	return func(c *config) {
-		c.asyncCap = cap
+		c.asyncCap = capacity
 		c.asyncInterval = interval
 	}
 }

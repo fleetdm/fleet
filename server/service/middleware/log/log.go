@@ -2,9 +2,11 @@ package log
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/go-kit/kit/endpoint"
+	kitlog "github.com/go-kit/log"
 )
 
 // Logged wraps an endpoint and adds the error if the context supports it
@@ -23,4 +25,22 @@ func Logged(next endpoint.Endpoint) endpoint.Endpoint {
 		}
 		return res, nil
 	}
+}
+
+func LogRequestEnd(logger kitlog.Logger) func(context.Context, http.ResponseWriter) context.Context {
+	return func(ctx context.Context, w http.ResponseWriter) context.Context {
+		logCtx, ok := logging.FromContext(ctx)
+		if !ok {
+			return ctx
+		}
+		logCtx.Log(ctx, logger)
+		return ctx
+	}
+}
+
+func LogResponseEndMiddleware(logger kitlog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+		LogRequestEnd(logger)(r.Context(), w)
+	})
 }

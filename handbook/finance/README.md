@@ -217,7 +217,7 @@ Subject: Invoice for Fleet Device Management [invoice number]
 Hello,
 
 I've attached the invoice for [customer name]'s purchase of Fleet Device Management's premium subscription.
-For payment instructions please refer to your invoice, and reach out to [insert Fleet's billing address] with any questions.
+For payment instructions, please refer to your invoice and reach out to [insert Fleet's billing address] with any questions.
 
 Thanks,
 [name]
@@ -242,8 +242,8 @@ For Fleet customers outside of the United States or instances where a customer i
 
 This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
 1. Check [SVB](https://connect.svb.com/#/) and [Brex](https://accounts.brex.com/login) for any recently received payments from customers and record them in SFDC.
-2. Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
-3. Copy the template below and paste it into the [#g-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from Salesforce before sending.
+2. Go to this [report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) and this [report](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00BUG000001Z3iP2AS) in SFDC.
+3. Copy the template below and paste it into the [#help-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from SFDC before sending.
 
 ```
 Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
@@ -256,9 +256,9 @@ Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
 
 ```
 Hello,
-This is a reminder that you have an outstanding balance due for your Fleet Device Management premium subscription.
+This is a reminder that you have a coming due balance due for your Fleet Device Management premium subscription.
 We have included the invoice here for your convenience.
-For payment instructions please refer to your invoice, and reach out to [Fleet's billing contact] with any questions.
+For payment instructions, please refer to your invoice and reach out to [Fleet's billing contact] with any questions.
 
 Thanks,
 [name]
@@ -266,7 +266,7 @@ Thanks,
 
 5. If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
 6. If Finance is still awaiting a PO one week after the opportunity has been closed/won, reply to the thread in the Slack post, mention the CSM, and ask them to follow up with their customer contact.
-7. Review the [billing cycles](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000000yGjR2AU/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
+7. Review the [Accounts receivable](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
 
 
 ### Obtain a copy of Fleet's W-9

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -363,4 +364,121 @@ func TestActivityWebhooksDisabled(t *testing.T) {
 	require.NoError(t, svc.NewActivity(ctx, user, activity))
 	require.True(t, ds.NewActivityFuncInvoked)
 	assert.Equal(t, user, activityUser)
+}
+
+func TestCancelHostUpcomingActivityAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+	const (
+		teamHostID   = 1
+		globalHostID = 2
+	)
+
+	teamHost := &fleet.Host{TeamID: ptr.Uint(1), Platform: "darwin"}
+	globalHost := &fleet.Host{Platform: "darwin"}
+
+	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		if hostID == teamHostID {
+			return teamHost, nil
+		}
+		return globalHost, nil
+	}
+	ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hostID uint, execID string) (fleet.ActivityDetails, error) {
+		return nil, nil
+	}
+	ds.GetHostUpcomingActivityMetaFunc = func(ctx context.Context, hostID uint, execID string) (*fleet.UpcomingActivityMeta, error) {
+		return &fleet.UpcomingActivityMeta{}, nil
+	}
+
+	cases := []struct {
+		name             string
+		user             *fleet.User
+		shouldFailGlobal bool
+		shouldFailTeam   bool
+	}{
+		{
+			name:             "global observer",
+			user:             &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			shouldFailGlobal: true,
+			shouldFailTeam:   true,
+		},
+		{
+			name:             "team observer",
+			user:             &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			shouldFailGlobal: true,
+			shouldFailTeam:   true,
+		},
+		{
+			name:             "global observer plus",
+			user:             &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			shouldFailGlobal: true,
+			shouldFailTeam:   true,
+		},
+		{
+			name:             "team observer plus",
+			user:             &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			shouldFailGlobal: true,
+			shouldFailTeam:   true,
+		},
+		{
+			name:             "global admin",
+			user:             &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			shouldFailGlobal: false,
+			shouldFailTeam:   false,
+		},
+		{
+			name:             "team admin",
+			user:             &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			shouldFailGlobal: true,
+			shouldFailTeam:   false,
+		},
+		{
+			name:             "global maintainer",
+			user:             &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			shouldFailGlobal: false,
+			shouldFailTeam:   false,
+		},
+		{
+			name:             "team maintainer",
+			user:             &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			shouldFailGlobal: true,
+			shouldFailTeam:   false,
+		},
+		{
+			name:             "team admin wrong team",
+			user:             &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleAdmin}}},
+			shouldFailGlobal: true,
+			shouldFailTeam:   true,
+		},
+		{
+			name:             "team maintainer wrong team",
+			user:             &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer}}},
+			shouldFailGlobal: true,
+			shouldFailTeam:   true,
+		},
+		{
+			name:             "global gitops",
+			user:             &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			shouldFailGlobal: true,
+			shouldFailTeam:   true,
+		},
+		{
+			name:             "team gitops",
+			user:             &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			shouldFailGlobal: true,
+			shouldFailTeam:   true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			err := svc.CancelHostUpcomingActivity(ctx, globalHostID, "abc")
+			checkAuthErr(t, tt.shouldFailGlobal, err)
+			err = svc.CancelHostUpcomingActivity(ctx, teamHostID, "abc")
+			checkAuthErr(t, tt.shouldFailTeam, err)
+		})
+	}
 }

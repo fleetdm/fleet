@@ -1,11 +1,13 @@
 import React from "react";
 
+import { Link } from "react-router";
+import paths from "router/paths";
 import { ISoftwareInstallPolicy } from "interfaces/software";
+import { getPathWithQueryParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import { Link } from "react-router";
 
 const baseClass = "automatic-install-modal";
 
@@ -17,7 +19,13 @@ interface IPoliciesListItemProps {
 const PoliciesListItem = ({ teamId, policy }: IPoliciesListItemProps) => {
   return (
     <li key={policy.id} className={`${baseClass}__list-item`}>
-      <Link to={`/policies/${policy.id}?team_id=${teamId}`}>{policy.name}</Link>
+      <Link
+        to={getPathWithQueryParams(paths.EDIT_POLICY(policy.id), {
+          team_id: teamId,
+        })}
+      >
+        {policy.name}
+      </Link>
     </li>
   );
 };
@@ -80,9 +88,7 @@ const AutomaticInstallModal = ({
         <p className={`${baseClass}__description`}>{description}</p>
         <PoliciesList teamId={teamId} policies={policies} />
         <div className="modal-cta-wrap">
-          <Button variant="brand" onClick={onExit}>
-            Done
-          </Button>
+          <Button onClick={onExit}>Done</Button>
         </div>
       </>
     </Modal>

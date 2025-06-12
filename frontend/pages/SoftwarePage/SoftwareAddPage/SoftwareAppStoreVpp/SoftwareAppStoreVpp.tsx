@@ -22,7 +22,7 @@ import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Button from "components/buttons/Button";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import SoftwareVppForm from "./SoftwareVppForm";
 import { getErrorMessage, teamHasVPPToken } from "./helpers";
 import { ISoftwareVppFormData } from "./SoftwareVppForm/SoftwareVppForm";
@@ -42,9 +42,7 @@ const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
     <p className={`${baseClass}__enable-vpp-description`}>
       To add App Store apps, first enable VPP.
     </p>
-    <Button onClick={onEnableVpp} variant="brand">
-      Enable VPP
-    </Button>
+    <Button onClick={onEnableVpp}>Enable VPP</Button>
   </div>
 );
 
@@ -60,9 +58,7 @@ const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
     <p className={`${baseClass}__enable-vpp-description`}>
       To add App Store apps, first add this team to VPP.
     </p>
-    <Button onClick={onEditVpp} variant="brand">
-      Edit VPP
-    </Button>
+    <Button onClick={onEditVpp}>Edit VPP</Button>
   </div>
 );
 
@@ -150,9 +146,7 @@ const SoftwareAppStoreVpp = ({
       ...(showAvailableForInstallOnly && { available_for_install: true }),
     };
 
-    router.push(
-      `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(queryParams)}`
-    );
+    router.push(getPathWithQueryParams(PATHS.SOFTWARE_TITLES, queryParams));
   };
 
   const onAddSoftware = async (formData: ISoftwareVppFormData) => {

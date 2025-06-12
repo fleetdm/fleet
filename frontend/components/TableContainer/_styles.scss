@@ -208,15 +208,10 @@
     align-items: center;
   }
 
-  &__previous {
-    width: 350px;
-
-    .pagination__pager-wrap {
-      justify-content: left;
-
-      button:last-child {
-        display: none;
-      }
+  // Hides the next button on this UI
+  &__previous-button {
+    button:last-child {
+      display: none;
     }
   }
 

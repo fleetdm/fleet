@@ -1,0 +1,2 @@
+- fix an issue where the upcoming host activities showed the incorrect created at date in the
+  tooltip

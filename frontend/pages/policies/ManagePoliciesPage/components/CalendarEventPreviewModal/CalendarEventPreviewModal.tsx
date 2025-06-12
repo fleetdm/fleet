@@ -5,13 +5,13 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
-import { IPolicy } from "interfaces/policy";
+import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "calendar-event-preview-modal";
 
 interface ICalendarEventPreviewModalProps {
   onCancel: () => void;
-  policy?: IPolicy;
+  policy?: IFormPolicy;
 }
 
 const CalendarEventPreviewModal = ({
@@ -70,15 +70,19 @@ const CalendarEventPreviewModal = ({
               <br /> <br />
               <strong>Why it matters</strong>
               <br />
-              {showGenericPreview
-                ? `${orgName} needs to make sure your device meets the organization's requirements.`
-                : policy.description}
+              <div className={`${baseClass}__preview-info__text__user-text`}>
+                {showGenericPreview
+                  ? `${orgName} needs to make sure your device meets the organization's requirements.`
+                  : policy.description}
+              </div>
               <br /> <br />
               <strong>What we&apos;ll do</strong>
               <br />
-              {showGenericPreview
-                ? "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
-                : policy.resolution}
+              <div className={`${baseClass}__preview-info__text__user-text`}>
+                {showGenericPreview
+                  ? "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+                  : policy.resolution}
+              </div>
             </div>
           </div>
           <div className={`${baseClass}__preview-invitee`}>
@@ -106,9 +110,7 @@ const CalendarEventPreviewModal = ({
           )}
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     </Modal>

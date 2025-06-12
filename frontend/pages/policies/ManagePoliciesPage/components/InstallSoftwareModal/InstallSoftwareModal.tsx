@@ -1,34 +1,34 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 
 import { useQuery } from "react-query";
 import { omit } from "lodash";
 
-import { IPolicyStats } from "interfaces/policy";
-import {
-  CommaSeparatedPlatformString,
-  Platform,
-  PLATFORM_DISPLAY_NAMES,
-} from "interfaces/platform";
+import paths from "router/paths";
+import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import softwareAPI, {
   ISoftwareTitlesQueryKey,
   ISoftwareTitlesResponse,
 } from "services/entities/software";
+import { IPaginatedListHandle } from "components/PaginatedList";
+
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import CustomLink from "components/CustomLink";
-import Button from "components/buttons/Button";
 import {
   INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   InstallableSoftwareSource,
   ISoftwareTitle,
 } from "interfaces/software";
+
+import PoliciesPaginatedList, {
+  IFormPolicy,
+} from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const SOFTWARE_TITLE_LIST_LENGTH = 1000;
 
@@ -42,13 +42,6 @@ interface ISwDropdownField {
   name: string;
   value: number;
 }
-interface IFormPolicy {
-  name: string;
-  id: number;
-  installSoftwareEnabled: boolean;
-  swIdToInstall?: number;
-  platform: CommaSeparatedPlatformString;
-}
 
 export type IInstallSoftwareFormData = IFormPolicy[];
 
@@ -61,8 +54,8 @@ interface IInstallSoftwareModal {
   onExit: () => void;
   onSubmit: (formData: IInstallSoftwareFormData) => void;
   isUpdating: boolean;
-  policies: IPolicyStats[];
   teamId: number;
+  gitOpsModeEnabled?: boolean;
 }
 
 const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
@@ -89,22 +82,10 @@ const InstallSoftwareModal = ({
   onExit,
   onSubmit,
   isUpdating,
-  policies,
   teamId,
+  gitOpsModeEnabled = false,
 }: IInstallSoftwareModal) => {
-  const [formData, setFormData] = useState<IInstallSoftwareFormData>(
-    policies.map((policy) => ({
-      name: policy.name,
-      id: policy.id,
-      installSoftwareEnabled: !!policy.install_software,
-      swIdToInstall: policy.install_software?.software_title_id,
-      platform: policy.platform,
-    }))
-  );
-
-  const anyPolicyEnabledWithoutSelectedSoftware = formData.some(
-    (policy) => policy.installSoftwareEnabled && !policy.swIdToInstall
-  );
+  const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
 
   const {
     data: titlesAvailableForInstall,
@@ -146,42 +127,29 @@ const InstallSoftwareModal = ({
   );
 
   const onUpdateInstallSoftware = useCallback(() => {
-    onSubmit(formData);
-  }, [formData, onSubmit]);
+    if (paginatedListRef.current) {
+      onSubmit(paginatedListRef.current.getDirtyItems());
+    }
+  }, [onSubmit]);
 
-  const onChangeEnableInstallSoftware = useCallback(
-    (newVal: { policyName: string; value: boolean }) => {
-      const { policyName, value } = newVal;
-      setFormData(
-        formData.map((policy) => {
-          if (policy.name === policyName) {
-            return {
-              ...policy,
-              installSoftwareEnabled: value,
-              swIdToInstall: value ? policy.swIdToInstall : undefined,
-            };
-          }
-          return policy;
-        })
+  const onSelectPolicySoftware = (
+    item: IFormPolicy,
+    { value }: ISwDropdownField
+  ) => {
+    // Software name needed for error message rendering
+    const findSwNameById = () => {
+      const foundTitle = titlesAvailableForInstall?.find(
+        (title) => title.id === value
       );
-    },
-    [formData]
-  );
+      return foundTitle ? foundTitle.name : "";
+    };
 
-  const onSelectPolicySoftware = useCallback(
-    ({ name, value }: ISwDropdownField) => {
-      const [policyName, softwareId] = [name, value];
-      setFormData(
-        formData.map((policy) => {
-          if (policy.name === policyName) {
-            return { ...policy, swIdToInstall: softwareId };
-          }
-          return policy;
-        })
-      );
-    },
-    [formData]
-  );
+    return {
+      ...item,
+      swIdToInstall: value,
+      swNameToInstall: findSwNameById(),
+    };
+  };
 
   // Filters and transforms software titles into dropdown options
   // to include only software compatible with the policy's platform(s)
@@ -243,47 +211,6 @@ const InstallSoftwareModal = ({
     };
   }, [availableSoftwareOptions, titlesAvailableForInstall]);
 
-  const renderPolicySwInstallOption = (policy: IFormPolicy) => {
-    const {
-      name: policyName,
-      id: policyId,
-      installSoftwareEnabled: enabled,
-      swIdToInstall,
-    } = policy;
-
-    return (
-      <li
-        className={`${baseClass}__policy-row policy-row`}
-        id={`policy-row--${policyId}`}
-        key={`${policyId}-${enabled}`} // Re-renders when modifying enabled for truncation check
-      >
-        <Checkbox
-          value={enabled}
-          name={policyName}
-          onChange={() => {
-            onChangeEnableInstallSoftware({
-              policyName,
-              value: !enabled,
-            });
-          }}
-        >
-          <TooltipTruncatedText value={policyName} />
-        </Checkbox>
-        {enabled && (
-          <Dropdown
-            options={memoizedAvailableSoftwareOptions(policy)} // Options filtered for policy's platform(s)
-            value={swIdToInstall}
-            onChange={onSelectPolicySoftware}
-            placeholder="Select software"
-            className={`${baseClass}__software-dropdown`}
-            name={policyName}
-            parseTarget
-          />
-        )}
-      </li>
-    );
-  };
-
   const renderContent = () => {
     if (isTitlesAvailableForInstallError) {
       return <DataError />;
@@ -296,8 +223,14 @@ const InstallSoftwareModal = ({
         <div className={`${baseClass}__no-software`}>
           <b>No software available for install</b>
           <div>
-            Go to <a href={`/software/titles?team_id=${teamId}`}>Software</a> to
-            add software to this team.
+            Go to{" "}
+            <CustomLink
+              url={getPathWithQueryParams(paths.SOFTWARE_TITLES, {
+                team_id: teamId,
+              })}
+              text="Software"
+            />{" "}
+            to add software to this team.
           </div>
         </div>
       );
@@ -306,39 +239,72 @@ const InstallSoftwareModal = ({
     return (
       <div className={`${baseClass} form`}>
         <div className="form-field">
-          <div className="form-field__label">Policies:</div>
           <div>
-            <ul className="automated-policies-section">
-              {formData.map((policyData) =>
-                renderPolicySwInstallOption(policyData)
-              )}
-            </ul>
-            <p className="form-field__help-text">
-              If compatible with the host, the selected software will be
-              installed when hosts fail the policy. Host counts will reset when
-              new software is selected.{" "}
-              <CustomLink
-                url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
-                text="Learn more"
-                newTab
-              />
-            </p>
+            <PoliciesPaginatedList
+              ref={paginatedListRef}
+              isSelected="installSoftwareEnabled"
+              disableSave={(changedItems) => {
+                return changedItems.some(
+                  (item) => item.installSoftwareEnabled && !item.swIdToInstall
+                )
+                  ? "Add software to all selected policies to save."
+                  : false;
+              }}
+              onToggleItem={(item) => {
+                item.installSoftwareEnabled = !item.installSoftwareEnabled;
+                if (!item.installSoftwareEnabled) {
+                  delete item.swIdToInstall;
+                }
+                return item;
+              }}
+              renderItemRow={(item, onChange) => {
+                const formPolicy = {
+                  ...item,
+                  installSoftwareEnabled: !!item.swIdToInstall,
+                };
+                return item.installSoftwareEnabled ? (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                    }}
+                  >
+                    <Dropdown
+                      options={memoizedAvailableSoftwareOptions(formPolicy)} // Options filtered for policy's platform(s)
+                      value={formPolicy.swIdToInstall}
+                      onChange={({ value }: ISwDropdownField) =>
+                        onChange(
+                          onSelectPolicySoftware(item, {
+                            name: formPolicy.name,
+                            value,
+                          })
+                        )
+                      }
+                      placeholder="Select software"
+                      className={`${baseClass}__software-dropdown`}
+                      name={formPolicy.name}
+                      parseTarget
+                    />
+                  </span>
+                ) : null;
+              }}
+              footer={
+                <>
+                  If compatible with the host, the selected software will be
+                  installed when hosts fail the policy. Host counts will reset
+                  when new software is selected.{" "}
+                  <CustomLink
+                    url="https://fleetdm.com/learn-more-about/policy-automation-install-software"
+                    text="Learn more"
+                    newTab
+                  />
+                </>
+              }
+              isUpdating={isUpdating}
+              onSubmit={onUpdateInstallSoftware}
+              onCancel={onExit}
+              teamId={teamId}
+            />
           </div>
-        </div>
-        <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onUpdateInstallSoftware}
-            className="save-loading"
-            isLoading={isUpdating}
-            disabled={anyPolicyEnabledWithoutSelectedSoftware}
-          >
-            Save
-          </Button>
-          <Button onClick={onExit} variant="inverse">
-            Cancel
-          </Button>
         </div>
       </div>
     );

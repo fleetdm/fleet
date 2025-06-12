@@ -22,7 +22,7 @@ import {
   isTeamObserver,
 } from "utilities/permissions/permissions";
 import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 import Spinner from "components/Spinner/Spinner";
@@ -179,7 +179,9 @@ const QueryDetailsPage = ({
     !(storedQuery?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
-      `${location.pathname}?team_id=${storedQuery?.team_id?.toString()}`
+      getPathWithQueryParams(location.pathname, {
+        team_id: storedQuery?.team_id?.toString(),
+      })
     );
   }
 
@@ -249,9 +251,9 @@ const QueryDetailsPage = ({
     const backToQueriesPath = () => {
       return (
         filteredQueriesPath ||
-        `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
+        getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
           team_id: currentTeamId,
-        })}`
+        })
       );
     };
 
@@ -283,10 +285,13 @@ const QueryDetailsPage = ({
                   <Button
                     onClick={() => {
                       queryId &&
-                        router.push(PATHS.EDIT_QUERY(queryId, currentTeamId));
+                        router.push(
+                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
+                            team_id: currentTeamId,
+                          })
+                        );
                     }}
                     className={`${baseClass}__manage-automations button`}
-                    variant="brand"
                   >
                     Edit query
                   </Button>
@@ -303,11 +308,17 @@ const QueryDetailsPage = ({
                     >
                       <Button
                         className={`${baseClass}__run`}
-                        variant="blue-green"
+                        variant="success"
                         onClick={() => {
                           queryId &&
                             router.push(
-                              PATHS.LIVE_QUERY(queryId, currentTeamId, hostId)
+                              getPathWithQueryParams(
+                                PATHS.LIVE_QUERY(queryId),
+                                {
+                                  host_id: hostId,
+                                  team_id: currentTeamId,
+                                }
+                              )
                             );
                         }}
                         disabled={isLiveQueryDisabled}

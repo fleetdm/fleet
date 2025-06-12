@@ -6,27 +6,27 @@
       <div purpose="search-and-headline" class="d-flex flex-md-row flex-column justify-content-between align-items-md-center align-items-start">
         <div purpose="page-headline" class="d-flex flex-column">
           <h2>Queries</h2>
-          <p>A collection of optional queries you can run anytime. Contributions welcome <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/queries.yml">over on GitHub.</a></p>
+          <p>A collection of optional queries you can run anytime. Contributions welcome <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/queries.yml" no-icon>over on GitHub.</a></p>
         </div>
       </div>
-      <div purpose="platform-filters" class="d-flex flex-row justify-content-center">
+      <div purpose="platform-filters" :class="[bowser.windows ? 'detected-windows' : '']" class="d-flex justify-content-center">
         <div purpose="platform-filter" :class="[selectedPlatform === 'macos' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('macos')">
-          <p class="d-flex align-items-center">
+          <h1 class="d-flex align-items-center">
           <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
           <span class="d-none d-sm-inline">Apple</span>
-          </p>
+          </h1>
         </div>
         <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
-          <p class="d-flex align-items-center">
+          <h1 class="d-flex align-items-center">
             <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" class="d-inline">
             <span class="d-none d-sm-inline">Linux</span>
-          </p>
+          </h1>
         </div>
         <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
-          <p class="d-flex align-items-center">
+          <h1 class="d-flex align-items-center">
             <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
             <span class="d-none d-sm-inline">Windows</span>
-          </p>
+          </h1>
         </div>
       </div>
       <div purpose="selected-queries">

@@ -103,7 +103,7 @@ module.exports = {
     // If stripe thinks this subscription renews in 7 days, we'll send the user an subscription reminder email.
     if(type === 'invoice.upcoming' && stripeEventData.billing_reason === 'upcoming') {
       // Get the subscription cost per host for the Subscription renewal notification email.
-      let subscriptionCostPerHost = Math.floor(subscriptionForThisEvent.subscriptionPrice / subscriptionForThisEvent.numberOfHosts / 12);
+      let subscriptionCostPerHost = (subscriptionForThisEvent.subscriptionPrice / subscriptionForThisEvent.numberOfHosts / 12).toFixed(2);
       let upcomingBillingAt = stripeEventData.next_payment_attempt * 1000;
       // Send a upcoming subscription renewal email.
       await sails.helpers.sendTemplateEmail.with({
@@ -177,6 +177,10 @@ module.exports = {
         // e.g., 'Remaining time on 9 × Fleet premium hosts after 17 Feb 2024'
         return _.startsWith(item.description, 'Remaining');
       });
+      // If this no line item that starts with "Remaining" was found, select the first line item on the invoice.
+      if(!updatedSubscriptionInfo){
+        updatedSubscriptionInfo = itemsOnThisInvoice[0];
+      }
       // Convert the subscription cycle's period end timestamp from Stripe into a JS timestamp.
       // Note: with most subscription changes, this value will be indentical to the existing license key's expiration
       // timestamp. We do this here to handle situations where the subscription period has been adjusted in the Stripe UI.
@@ -188,6 +192,21 @@ module.exports = {
       // Get the updated number of hosts from the quantity of the invoice.
       let newNumberOfHosts = updatedSubscriptionInfo.quantity;
 
+      let subscriptionPrice = Math.floor(pricePerHost * newNumberOfHosts);
+
+      // (Optionally) adjust the price of this subscription if a coupon was applied.
+      if(stripeEventData.discount){
+        if(stripeEventData.discount.coupon){
+          if(stripeEventData.discount.coupon.amount_off){
+            // If the coupon applied takes a fixed dollar amount off of the total price, subtact the amoutn fro mthe subscriptionPrice
+            subscriptionPrice = _.round(subscriptionPrice - (stripeEventData.discount.coupon.amount_off / 100), 2); // Note: coupon.amount_off contains the discounted amount in cents.
+          } else if(stripeEventData.discount.coupon.percent_off){
+            // Otherwise if it is a percent discount,
+            let discountAmount = subscriptionPrice * (stripeEventData.discount.coupon.percent_off / 100);
+            subscriptionPrice = _.round(subscriptionPrice - discountAmount, 2);
+          }
+        }
+      }
       // Generate a new license key for this subscription
       let newLicenseKeyForThisSubscription = await sails.helpers.createLicenseKey.with({
         numberOfHosts: newNumberOfHosts,
@@ -198,7 +217,7 @@ module.exports = {
       // Update the subscription record
       await Subscription.updateOne({id: subscriptionForThisEvent.id}).set({
         numberOfHosts: newNumberOfHosts,
-        subscriptionPrice: Math.floor(pricePerHost * newNumberOfHosts),
+        subscriptionPrice,
         fleetLicenseKey: newLicenseKeyForThisSubscription,
         nextBillingAt: nextBillingAt
       });
@@ -214,10 +233,11 @@ module.exports = {
       let nextBillingAt = newSubscriptionDetails.current_period_end * 1000;
       // Get the number of Hosts.
       let numberOfHosts = newSubscriptionDetails.quantity;
-      // Get the whole dollar price per host.
+      // Get the whole dollar price per host by subtracting the discount amount from the plan amount.
+      // [?]: https://docs.stripe.com/api/checkout/sessions/object#checkout_session_object-total_details
       let subscriptionPricePerHost = newSubscriptionDetails.plan.amount / 100;
       // Determine the annual cost of this user's subscription
-      let subscriptionPrice = subscriptionPricePerHost * numberOfHosts;
+      let subscriptionPrice = (subscriptionPricePerHost * numberOfHosts) - (stripeEventData.total_details.amount_discount / 100);
       // Generate a new license key.
       let newLicenseKey = await sails.helpers.createLicenseKey.with({
         numberOfHosts,

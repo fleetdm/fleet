@@ -1,9 +1,9 @@
-FROM golang:1.23.4-alpine3.21@sha256:052793ea3143a235a5b2d815ccead8910cfe547b36a1f4c8b070015b89da5eab
+FROM golang:1.24.1-alpine3.21@sha256:43c094ad24b6ac0546c62193baeb3e6e49ce14d3250845d166c77c25f64b0386
 ARG TAG
 RUN apk update && apk add --no-cache git
 RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git && cd /go/fleet/tools/mdm/migration/mdmproxy && go build .
 
-FROM alpine:3.21@sha256:2c43f33bd1502ec7818bce9eea60e062d04eeadc4aa31cad9dabecb1e48b647b
+FROM alpine:3.21.3@sha256:a8560b36e8b8210634f77d9f7f9efd7ffa463e380b75e2e74aff4511df3ef88c
 LABEL maintainer="Fleet Developers"
 
 RUN apk update && apk add --no-cache tini

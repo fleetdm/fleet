@@ -8,30 +8,30 @@
           <p>Fleet’s built-in queries for collecting and storing important device information.</p>
         </div>
       </div>
-      <div purpose="platform-filters" class="d-flex flex-row justify-content-center">
-        <div purpose="platform-filter" :class="[selectedPlatform === 'apple' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('apple')">
-          <p class="d-flex align-items-center">
+      <div purpose="platform-filters" class="d-flex justify-content-center"  >
+        <div purpose="platform-filter" :class="[selectedPlatform === 'apple' ? 'selected' : '']+' '+[bowser.windows ? 'order-3' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('apple')">
+          <h1 id="apple" class="d-flex align-items-center">
           <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
           <span class="d-none d-md-inline">Apple</span>
-          </p>
+          </h1>
         </div>
-        <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
-          <p class="d-flex align-items-center">
+        <div purpose="platform-filter" :class="[selectedPlatform === 'linux' ? 'selected' : '']+' '+[bowser.windows ? 'order-2' : '']"  class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('linux')">
+          <h1 id="linux" class="d-flex align-items-center">
             <img src="/images/os-linux-dark-24x24@2x.png" alt="Linux" class="d-inline">
             <span class="d-none d-md-inline">Linux</span>
-          </p>
+          </h1>
         </div>
-        <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
-          <p class="d-flex align-items-center">
+        <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']+' '+[bowser.windows ? 'order-1' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
+          <h1 id="windows" class="d-flex align-items-center">
             <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
             <span class="d-none d-md-inline">Windows</span>
-          </p>
+          </h1>
         </div>
-        <div purpose="platform-filter" :class="[selectedPlatform === 'chrome' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('chrome')">
-          <p class="d-flex align-items-center">
+        <div purpose="platform-filter" :class="[selectedPlatform === 'chrome' ? 'selected' : '']+' '+[bowser.windows ? 'order-4' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('chrome')">
+          <h1 id="chrome" class="d-flex align-items-center">
             <img src="/images/os-chromeos-dark-24x24@2x.png" alt="Chrome" class="d-inline">
             <span class="d-none d-md-inline">ChromeOS</span>
-          </p>
+          </h1>
         </div>
       </div>
       <div purpose="vital-details-and-sidebar" class="d-flex flex-md-row flex-column">
@@ -79,18 +79,26 @@
               <div purpose="codeblock-tabs" >
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'sql' ? 'selected' : '']" @click="selectedTab = 'sql'">Query</a>
                 <a purpose="codeblock-tab" :class="[ selectedTab === 'ps' ? 'selected' : '']"  @click="selectedTab = 'ps'" v-if="thisVital.powershell && selectedPlatform === 'windows'">PowerShell<span purpose="new-badge">NEW</span></a>
+                <a purpose="codeblock-tab" :class="[ selectedTab === 'bash' ? 'selected' : '']"  @click="selectedTab = 'bash'" v-if="thisVital.bash && selectedPlatform === 'apple'">Bash<span purpose="new-badge">NEW</span></a>
                 <div purpose="copy-button-tab">
                   <div purpose="copy-button"></div>
                 </div>
               </div>
               <pre v-show="selectedTab === 'sql'"><code class="hljs sql"><%= thisVital.query %></code></pre>
               <pre v-show="selectedTab === 'ps'"><code class="hljs ps has-linebreaks"><%= thisVital.powershell %></code></pre>
+              <pre v-show="selectedTab === 'bash'"><code class="hljs sh"><%= thisVital.bash %></code></pre>
             </div>
           </div>
           <div purpose="powershell-note" v-if="selectedTab === 'ps'">
             <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
             <div>
               <p>PowerShell commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
+            </div>
+          </div>
+          <div purpose="powershell-note" v-if="selectedTab === 'bash'">
+            <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
+            <div>
+              <p>Bash commands are currently work in progress, <a :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath">contributions welcome</a>.</p>
             </div>
           </div>
           <% if(thisVital.discovery) {%>
@@ -102,7 +110,7 @@
             </div>
           <% } %>
           <div purpose="edit-button-container">
-            <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath+'#L'+thisVital.lineNumberInYaml">Suggest an edit <img src="/images/icon-external-link-13x13@2x.png" alt="external link"></a>
+            <a purpose="edit-button" class="d-flex align-items-center text-nowrap" target="_blank" :href="'https://github.com/fleetdm/fleet/edit/main/'+queryLibraryYmlRepoPath+'#L'+thisVital.lineNumberInYaml">Suggest an edit</a>
           </div>
         </div>
       </div>

@@ -1,6 +1,5 @@
 import React, { useCallback } from "react";
 import { kebabCase, noop } from "lodash";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
@@ -17,7 +16,6 @@ export interface IActionButtonProps {
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   iconSvg?: IconNames;
   iconPosition?: string;
-  indicatePremiumFeature?: boolean;
 }
 
 function useActionCallback(
@@ -37,11 +35,10 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     buttonText,
     onActionButtonClick,
     targetIds = [],
-    variant = "brand",
+    variant = "default",
     hideButton,
     iconSvg,
     iconPosition,
-    indicatePremiumFeature,
   } = buttonProps;
   const onButtonClick = useActionCallback(onActionButtonClick || noop);
 
@@ -62,14 +59,7 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
 
   return (
     <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
-      {indicatePremiumFeature && (
-        <PremiumFeatureIconWithTooltip tooltipDelayHide={500} />
-      )}
-      <Button
-        disabled={indicatePremiumFeature}
-        onClick={() => onButtonClick(targetIds)}
-        variant={variant}
-      >
+      <Button onClick={() => onButtonClick(targetIds)} variant={variant}>
         <>
           {iconPosition === "left" && iconSvg && <Icon name={iconSvg} />}
           {buttonText}

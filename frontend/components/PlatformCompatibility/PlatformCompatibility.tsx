@@ -48,6 +48,31 @@ const displayIncompatibilityText = (err: Error) => {
   }
 };
 
+// const tipContent = (
+//   <>
+//     Estimated compatibility based on the <br />
+//     tables used in the query. Querying <br />
+//     iPhones, iPads, and Android hosts is not <br />
+//     supported.
+//   </>
+// );
+
+// TODO(android): replace with the above tipContent when Android feature flag is removed
+const tipContent = (
+  <>
+    Estimated compatibility based on the <br />
+    tables used in the query. Check the <br />
+    table documentation (schema) to verify <br />
+    compatibility of individual columns.
+    <br />
+    <br />
+    Only live queries are supported on ChromeOS.
+    <br />
+    <br />
+    Querying iPhones & iPads is not supported.
+  </>
+);
+
 const PlatformCompatibility = ({
   compatiblePlatforms,
   error,
@@ -84,22 +109,7 @@ const PlatformCompatibility = ({
   return (
     <div className={baseClass}>
       <b>
-        <TooltipWrapper
-          tipContent={
-            <>
-              Estimated compatibility based on the <br />
-              tables used in the query. Check the <br />
-              table documentation (schema) to verify <br />
-              compatibility of individual columns.
-              <br />
-              <br />
-              Only live queries are supported on ChromeOS.
-              <br />
-              <br />
-              Querying iPhones & iPads is not supported.
-            </>
-          }
-        >
+        <TooltipWrapper tipContent={tipContent}>
           Compatible with:
         </TooltipWrapper>
       </b>

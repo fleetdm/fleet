@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-20.04-4-cores
+    runs-on: ubuntu-22.04-4-cores
     environment: Docker Hub
     permissions:
       contents: write
@@ -57,9 +57,6 @@ jobs:
       - name: Install JS Dependencies
         run: make deps-js
 
-      - name: Install Go Dependencies
-        run: make deps-go
-
       - name: Install macOS signing + notarization tools
         run: |
           pushd /tmp
@@ -76,7 +73,7 @@ jobs:
 
       - name: Run GoReleaser
         id: goreleaser
-        uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
+        uses: goreleaser/goreleaser-action@90a3faa9d0182683851fbfa97ca1a2cb983bfca3 # v6.2.1
         with:
           distribution: goreleaser-pro
           version: "~> 2"
@@ -127,6 +124,19 @@ jobs:
           subject-name: "docker.io/fleetdm/fleetctl"
           push-to-registry: true
 
+      - name: Update fleetdm/fleet:latest and fleetdm/fleetctl:latest
+        run: |
+          highest_release=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/fleetdm/fleet/releases | jq -r '.[].tag_name' | sort -r | head -n 1 | sed -e "s/^fleet-//")
+          tag=${{ steps.docker.outputs.tag }}
+          if [[ $(printf "$highest_release\n$tag" | sort -r | head -n 1) = "$tag" ]]; then
+            docker tag fleetdm/fleet:$tag fleetdm/fleet:latest
+            docker push fleetdm/fleet:latest
+            docker tag fleetdm/fleetctl:$tag fleetdm/fleetctl:latest
+            docker push fleetdm/fleetctl:latest
+          else
+            echo "Skipping tagging of fleetdm/fleet:latest and fleetdm/fleetctl:latest because existing release $highest_release is higher than $tag"
+          fi
+
       - name: List tags for push
         run: |
           echo "The following TAGs are to be pushed: ${{ steps.docker.outputs.TAG }}"
@@ -141,6 +151,6 @@ jobs:
       - name: Tag and push to quay.io
         run: |
           for TAG in ${{ steps.docker.outputs.TAG }}; do
-          docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
-          docker push quay.io/fleetdm/fleet:${TAG}
+            docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
+            docker push quay.io/fleetdm/fleet:${TAG}
           done

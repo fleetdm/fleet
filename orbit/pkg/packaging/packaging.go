@@ -129,6 +129,8 @@ type Options struct {
 	OsqueryDB string
 	// Architecture that the package is being built for. (amd64, arm64)
 	Architecture string
+	// TUF platform name. windows, windows-arm64, linux, linux-arm64, darwin
+	NativePlatform string
 }
 
 const (

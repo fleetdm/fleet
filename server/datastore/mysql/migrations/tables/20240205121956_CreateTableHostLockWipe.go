@@ -23,7 +23,7 @@ func Up_20240205121956(tx *sql.Tx) error {
 			wipe_ref VARCHAR(36) NULL,
 			suspended TINYINT(1) NOT NULL DEFAULT FALSE,
 			PRIMARY KEY (host_id)
-		)
+		) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci
 	`
 
 	if _, err := tx.Exec(stmt); err != nil {

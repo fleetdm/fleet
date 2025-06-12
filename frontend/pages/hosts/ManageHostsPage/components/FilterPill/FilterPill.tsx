@@ -49,7 +49,7 @@ const FilterPill = ({
             <Button
               className={`${baseClass}__clear-filter`}
               onClick={onClear}
-              variant="small-text-icon"
+              variant="text-icon"
               title={label}
             >
               <Icon name="close" color="core-fleet-blue" size="small" />

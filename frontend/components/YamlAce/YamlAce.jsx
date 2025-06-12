@@ -15,6 +15,7 @@ class YamlAce extends Component {
     onChange: PropTypes.func.isRequired,
     value: PropTypes.string,
     wrapperClassName: PropTypes.string,
+    disabled: PropTypes.bool,
   };
 
   onLoadHandler = (editor) => {
@@ -56,18 +57,21 @@ class YamlAce extends Component {
       value,
       error,
       wrapperClassName,
+      disabled,
     } = this.props;
 
     const { renderLabel, onLoadHandler } = this;
 
     const wrapperClass = classnames(wrapperClassName, "form-field", {
       [`${baseClass}__wrapper--error`]: error,
+      [`${baseClass}__wrapper--disabled`]: disabled,
     });
 
     return (
       <div className={wrapperClass}>
         {renderLabel()}
         <AceEditor
+          readOnly={disabled}
           className={baseClass}
           mode="yaml"
           theme="fleet"

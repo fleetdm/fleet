@@ -18,7 +18,7 @@ func Up_20230411102858(tx *sql.Tx) error {
 
             PRIMARY KEY (host_uuid),
             FOREIGN KEY (command_uuid) REFERENCES nano_commands (command_uuid) ON DELETE CASCADE
-          )`)
+          ) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("create host_mdm_apple_bootstrap_packages: %w", err)
 	}

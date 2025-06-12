@@ -102,7 +102,7 @@ The ability to use specific rule types like LabelPrefix provides administrators 
 
 Want to know more about Fleet's comprehensive MDM platform? Visit fleetdm.com and use the 'Talk to an engineer' [link.](https://fleetdm.com/contact)
 
-<meta name="articleTitle" value="Prevent Tampering of Fleet Agent and other Login Items">
+<meta name="articleTitle" value="Prevent tampering of Fleet agent and other login items">
 <meta name="authorFullName" value="Harrison Ravazzolo">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
 <meta name="category" value="guides">

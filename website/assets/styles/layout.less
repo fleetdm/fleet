@@ -218,11 +218,17 @@ html, body {
 
 
 [purpose='header-ribbon-cta'] {
-  background-color: #7487C2;
+  background-color: #0587FF;
+  padding: 12px 8px;
+  img {
+    height: 20px;
+    margin-right: 10px;
+  }
   p {
     font-size: 14px;
     line-height: 20px;
     color: #fff;
+    margin-bottom: 0px;
   }
   a {
     font-size: 14px;
@@ -230,6 +236,10 @@ html, body {
     font-weight: 700;
     text-decoration: underline;
     color: #fff;
+    &:hover {
+      color: #FFF;
+      text-decoration-color: #FFF;
+    }
   }
 }
 
@@ -258,6 +268,9 @@ html, body {
     border-radius: 4px;
     background-color: @core-vibrant-red;
     overflow: hidden;
+    &:hover {
+      color: #FFF;
+    }
   }
 
   [purpose='glass-header-btn']::before {
@@ -295,7 +308,8 @@ html, body {
   }
   [purpose='mobile-nav'] {
     position: fixed;
-    min-height: 100vh;
+    max-height: 100vh;
+    overflow: scroll;
     top: 0;
     left: 0;
     right: 0;
@@ -340,6 +354,7 @@ html, body {
       display: flex;
       flex-direction: row;
       align-items: center;
+      text-decoration: none;
       &:hover {
         color: @core-vibrant-blue;
         text-decoration: none;
@@ -352,6 +367,7 @@ html, body {
       font-weight: 700;
       cursor: pointer;
       color: @core-fleet-black;
+      text-decoration: none;
       &[aria-expanded='true'] {
         color: #6a67fe;
         outline: none;
@@ -395,9 +411,9 @@ html, body {
         color: #212529;
         white-space: nowrap;
         background-color: transparent;
+        text-decoration: none;
       }
       a:hover {
-        color: #6a67fe;
         text-decoration: none;
       }
       [purpose='indented-mobile-links'] {
@@ -424,7 +440,7 @@ html, body {
     [purpose='header-nav-btn'][aria-expanded='true'] {
       font-weight: 700;
       outline: none;
-      color: @core-fleet-black-75;;
+      color: @core-fleet-black-75;
     }
     [purpose='header-nav-btn']:before {
       display: block;
@@ -439,6 +455,7 @@ html, body {
       color: @core-fleet-black-75;
       font-size: 14px;
       white-space: nowrap;
+      text-decoration: none;
       &:hover {
         color: @core-fleet-black-75;
         font-weight: 700;
@@ -451,6 +468,7 @@ html, body {
       cursor: pointer;
       display: inline-block;
       padding: 6px 16px;
+      text-decoration: none;
     }
     [purpose='header-nav-btn']:hover {
       font-weight: 700;
@@ -476,15 +494,14 @@ html, body {
       box-shadow: 0px 4px 40px rgba(0, 0, 0, 0.4);
       border-radius: 8px;
       a {
-        color: @core-fleet-black;
         font-weight: 400;
         line-height: 20px;
+        text-decoration: none;
         &:not(:last-of-type) {
           margin-bottom: 4px;
         }
       }
       a:hover {
-        color: #6a67fe;
         text-decoration: none;
       }
     }
@@ -520,6 +537,7 @@ html, body {
   bottom: 0px;
   a {
     color: #515774;
+    text-decoration: none;
   }
 }
 [purpose='footer-content'] {
@@ -559,31 +577,32 @@ html, body {
   background-color: #FFF;
 }
 
-[purpose='footer-trust-link'] {
-  font-size: 10px;
-  line-height: 150%;
-  font-weight: 700;
-  padding: 2px 6px;
-  color: @core-fleet-black-75;
-  margin-right: 12px;
-  border-radius: 3px;
-  background: #FFF;
-  img {
-    width: 9px;
-    height: auto;
-    margin-right: 6px;
-  }
-  &:hover {
-    background-color: #f6f7f8;
-    text-decoration: none;
-  }
-}
 [purpose='legal-section'] {
   font-size: 12px;
   line-height: 150%;
   [purpose='iso-27001-badge'] {
     width: 48px;
     margin-right: 8px;
+  }
+  [purpose='footer-trust-link'] {
+    font-size: 10px;
+    line-height: 150%;
+    font-weight: 700;
+    padding: 2px 6px;
+    color: @core-fleet-black-75;
+    text-decoration: none;
+    margin-right: 12px;
+    border-radius: 3px;
+    background: #FFF;
+    img {
+      width: 9px;
+      height: auto;
+      margin-right: 6px;
+    }
+    &:hover {
+      background-color: #f6f7f8;
+      text-decoration: none;
+    }
   }
   [purpose='creative-commons-license'] {
     width: 80px;
@@ -594,8 +613,7 @@ html, body {
     a {
       margin-left: 12px;
       display: inline;
-      text-underline-offset: 2.5px;
-      text-decoration: underline;
+      text-decoration: none;
     }
   }
 }
@@ -619,6 +637,7 @@ html, body {
   padding: 24px 32px;
   color: @core-fleet-black-75;
   a {
+    text-decoration: none;
     color: @core-fleet-black-75;
   }
 }
@@ -779,7 +798,7 @@ body.detected-mobile {
         padding: 19px 20px;
       }
       [purpose='mobile-nav-container'] {
-        padding: 8px 24px 0px 24px;
+        padding: 8px 24px 24px 24px;
       }
     }
   }
@@ -814,7 +833,7 @@ body.detected-mobile {
         padding: 19px 16px;
       }
       [purpose='mobile-nav-container'] {
-        padding: 8px 16px 0px 16px;
+        padding: 8px 16px 24px 16px;
       }
     }
   }
@@ -823,5 +842,5 @@ body.detected-mobile {
 // Some utilities for the sticky nav behaviour.
 // Note: this will not be applied if a navigation menu open.
 .translate-y-0 {
-  transform: translateY(-235px);
+  transform: translateY(-81px);
 }

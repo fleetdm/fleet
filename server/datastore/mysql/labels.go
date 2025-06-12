@@ -15,6 +15,10 @@ import (
 )
 
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
+	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
+}
+
+func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
 		// label_membership_type or should those always be immutable?
@@ -28,8 +32,9 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			query,
 			platform,
 			label_type,
-			label_membership_type
-		) VALUES ( ?, ?, ?, ?, ?, ?)
+			label_membership_type,
+			author_id
+		) VALUES ( ?, ?, ?, ?, ?, ?, ? )
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			description = VALUES(description),
@@ -37,7 +42,7 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			platform = VALUES(platform),
 			label_type = VALUES(label_type),
 			label_membership_type = VALUES(label_membership_type)
-	`
+		`
 
 		prepTx, ok := tx.(sqlx.PreparerContext)
 		if !ok {
@@ -53,7 +58,7 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 			if s.Name == "" {
 				return ctxerr.New(ctx, "label name must not be empty")
 			}
-			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType)
+			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, authorID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
@@ -260,8 +265,9 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		query,
 		platform,
 		label_type,
-		label_membership_type
-	) VALUES ( ?, ?, ?, ?, ?, ?)
+		label_membership_type,
+		author_id
+	) VALUES ( ?, ?, ?, ?, ?, ?, ?)
 	`
 	result, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -272,6 +278,7 @@ func (ds *Datastore) NewLabel(ctx context.Context, label *fleet.Label, opts ...f
 		label.Platform,
 		label.LabelType,
 		label.LabelMembershipType,
+		label.AuthorID,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting label")
@@ -676,17 +683,32 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// 	// TODO: Do we currently support filtering by software version ID and label?
 	// }
 	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareStatusFilter != nil {
-		// get the installer id
-		meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
-		if err != nil {
+		// check for software installer metadata
+		_, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+		switch {
+		case fleet.IsNotFound(err):
+			vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
+			}
+			vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+			}
+			softwareStatusJoin = vppAppJoin
+			joinParams = append(joinParams, vppAppParams...)
+
+		case err != nil:
 			return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+
+		default:
+			installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
+			if err != nil {
+				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
+			}
+			softwareStatusJoin = installerJoin
+			joinParams = append(joinParams, installerParams...)
 		}
-		installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
-		if err != nil {
-			return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
-		}
-		softwareStatusJoin = installerJoin
-		joinParams = append(joinParams, installerParams...)
 	}
 	if softwareStatusJoin != "" {
 		query += softwareStatusJoin
@@ -695,7 +717,8 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	if opt.ConnectedToFleetFilter != nil && *opt.ConnectedToFleetFilter ||
 		opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() ||
-		opt.MacOSSettingsDiskEncryptionFilter.IsValid() {
+		opt.MacOSSettingsDiskEncryptionFilter.IsValid() ||
+		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query += `
 		  LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type = 'Device'
 		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`

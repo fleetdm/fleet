@@ -13,11 +13,4 @@
       align-self: flex-start;
     }
   }
-  &__script-output {
-    .textarea {
-      margin-top: $pad-medium;
-      overflow-wrap: break-word;
-      font-family: "SourceCodePro", $monospace;
-    }
-  }
 }

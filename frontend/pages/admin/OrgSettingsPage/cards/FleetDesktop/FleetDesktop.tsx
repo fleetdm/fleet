@@ -5,8 +5,9 @@ import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
-
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
+
 import {
   DEFAULT_TRANSPARENCY_URL,
   IAppConfigFormProps,
@@ -27,6 +28,8 @@ const FleetDesktop = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
+  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
+
   const [formData, setFormData] = useState<IFleetDesktopFormData>({
     transparencyUrl:
       appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
@@ -92,16 +95,21 @@ const FleetDesktop = ({
             onBlur={validateForm}
             error={formErrors.transparency_url}
             placeholder="https://fleetdm.com/transparency"
+            disabled={gitOpsModeEnabled}
           />
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={Object.keys(formErrors).length > 0}
-            className="button-wrap"
-            isLoading={isUpdatingSettings}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={-8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={Object.keys(formErrors).length > 0 || disableChildren}
+                className="button-wrap"
+                isLoading={isUpdatingSettings}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       </div>
     </div>

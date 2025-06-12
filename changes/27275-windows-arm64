@@ -1,0 +1,1 @@
+- Added support for native Windows ARM64 in fleetd (`fleetctl package --arch=arm64 --type=msi`)

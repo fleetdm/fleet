@@ -50,6 +50,12 @@ export enum ActivityType {
   AddedNdesScepProxy = "added_ndes_scep_proxy",
   DeletedNdesScepProxy = "deleted_ndes_scep_proxy",
   EditedNdesScepProxy = "edited_ndes_scep_proxy",
+  AddedDigicert = "added_digicert",
+  DeletedDigicert = "deleted_digicert",
+  EditedDigicert = "edited_digicert",
+  AddedCustomScepProxy = "added_custom_scep_proxy",
+  DeletedCustomScepProxy = "deleted_custom_scep_proxy",
+  EditedCustomScepProxy = "edited_custom_scep_proxy",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -70,6 +76,8 @@ export enum ActivityType {
   TransferredHosts = "transferred_hosts",
   EnabledWindowsMdm = "enabled_windows_mdm",
   DisabledWindowsMdm = "disabled_windows_mdm",
+  EnabledGitOpsMode = "enabled_gitops_mode",
+  DisabledGitOpsMode = "disabled_gitops_mode",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
@@ -99,20 +107,32 @@ export enum ActivityType {
   EnabledActivityAutomations = "enabled_activity_automations",
   EditedActivityAutomations = "edited_activity_automations",
   DisabledActivityAutomations = "disabled_activity_automations",
-  CanceledScript = "canceled_script",
-  CanceledSoftwareInstall = "canceled_software_install",
+  CanceledRunScript = "canceled_run_script",
+  CanceledInstallAppStoreApp = "canceled_install_app_store_app",
+  CanceledInstallSoftware = "canceled_install_software",
+  CanceledUninstallSoftware = "canceled_uninstall_software",
+  EnabledAndroidMdm = "enabled_android_mdm",
+  DisabledAndroidMdm = "disabled_android_mdm",
+  ConfiguredMSEntraConditionalAccess = "added_conditional_access_microsoft",
+  DeletedMSEntraConditionalAccess = "deleted_conditional_access_microsoft",
+  // enable/disable above feature for a team
+  EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
+  DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
+  | ActivityType.WipedHost
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
   | ActivityType.InstalledAppStoreApp
-  | ActivityType.CanceledScript
-  | ActivityType.CanceledSoftwareInstall;
+  | ActivityType.CanceledRunScript
+  | ActivityType.CanceledInstallAppStoreApp
+  | ActivityType.CanceledInstallSoftware
+  | ActivityType.CanceledUninstallSoftware;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -129,6 +149,7 @@ export interface IActivity {
   actor_gravatar: string;
   actor_email?: string;
   type: ActivityType;
+  fleet_initiated: boolean;
   details?: IActivityDetails;
 }
 
@@ -137,62 +158,65 @@ export type IHostPastActivity = Omit<IActivity, "type" | "details"> & {
   details: IActivityDetails;
 };
 
-export type IHostUpcomingActivity = Omit<IActivity, "type" | "details"> & {
+export type IHostUpcomingActivity = Omit<
+  IActivity,
+  "id" | "type" | "details"
+> & {
   uuid: string;
   type: IHostUpcomingActivityType;
   details: IActivityDetails;
 };
 
 export interface IActivityDetails {
+  app_store_id?: number;
+  bootstrap_package_name?: string;
+  command_uuid?: string;
+  deadline_days?: number;
+  deadline?: string;
+  email?: string;
+  global?: boolean;
+  grace_period_days?: number;
+  host_display_name?: string;
+  host_display_names?: string[];
+  host_id?: number;
+  host_ids?: number[];
+  host_platform?: string;
+  host_serial?: string;
+  install_uuid?: string;
+  installed_from_dep?: boolean;
+  labels_exclude_any?: ILabelSoftwareTitle[];
+  labels_include_any?: ILabelSoftwareTitle[];
+  location?: string; // name of location associated with VPP token
+  mdm_platform?: "microsoft" | "apple";
+  minimum_version?: string;
+  name?: string;
   pack_id?: number;
   pack_name?: string;
+  platform?: Platform; // software platform
   policy_id?: number;
   policy_name?: string;
+  profile_identifier?: string;
+  profile_name?: string;
+  public_ip?: string;
   query_id?: number;
+  query_ids?: number[];
   query_name?: string;
   query_sql?: string;
-  query_ids?: number[];
+  role?: UserRole;
+  script_execution_id?: string;
+  script_name?: string;
+  self_service?: boolean;
+  software_package?: string;
+  software_title_id?: number;
+  software_title?: string;
+  specs?: IQuery[] | IPolicy[];
+  stats?: ISchedulableQueryStats;
+  status?: string;
+  targets_count?: number;
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
-  targets_count?: number;
-  specs?: IQuery[] | IPolicy[];
-  global?: boolean;
-  public_ip?: string;
-  user_id?: number;
   user_email?: string;
-  email?: string;
-  role?: UserRole;
-  host_serial?: string;
-  host_display_name?: string;
-  host_display_names?: string[];
-  host_ids?: number[];
-  host_id?: number;
-  host_platform?: string;
-  installed_from_dep?: boolean;
-  mdm_platform?: "microsoft" | "apple";
-  minimum_version?: string;
-  deadline?: string;
-  profile_name?: string;
-  profile_identifier?: string;
-  bootstrap_package_name?: string;
-  name?: string;
-  script_execution_id?: string;
-  script_name?: string;
-  deadline_days?: number;
-  grace_period_days?: number;
-  stats?: ISchedulableQueryStats;
-  software_title?: string;
-  software_package?: string;
-  platform?: Platform; // software platform
-  status?: string;
-  install_uuid?: string;
-  self_service?: boolean;
-  command_uuid?: string;
-  app_store_id?: number;
-  location?: string; // name of location associated with VPP token
+  user_id?: number;
   webhook_url?: string;
-  software_title_id?: number;
-  labels_include_any?: ILabelSoftwareTitle[];
-  labels_exclude_any?: ILabelSoftwareTitle[];
 }

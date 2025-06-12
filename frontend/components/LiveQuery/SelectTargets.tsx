@@ -25,28 +25,16 @@ import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
 import { capitalize } from "lodash";
 import permissions from "utilities/permissions";
-import {
-  LABEL_DISPLAY_MAP,
-  PlatformLabelNameFromAPI,
-} from "utilities/constants";
 
 import PageError from "components/DataError";
 import TargetsInput from "components/LiveQuery/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
 import SearchField from "components/forms/fields/SearchField";
 import RevealButton from "components/buttons/RevealButton";
+import TargetPillSelector from "./TargetChipSelector";
 import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
-
-interface ITargetPillSelectorProps {
-  entity: ISelectLabel | ISelectTeam;
-  isSelected: boolean;
-  onClick: (
-    value: ISelectLabel | ISelectTeam
-  ) => React.MouseEventHandler<HTMLButtonElement>;
-}
 
 interface ISelectTargetsProps {
   baseClass: string;
@@ -86,11 +74,6 @@ const STALE_TIME = 60000;
 const SECTION_CHARACTER_LIMIT = 600;
 
 const isLabel = (entity: ISelectTargetsEntity) => "label_type" in entity;
-const isBuiltInLabel = (
-  entity: ISelectTargetsEntity
-): entity is ISelectLabel & { label_type: "builtin" } => {
-  return "label_type" in entity && entity.label_type === "builtin";
-};
 const isAllHosts = (entity: ISelectTargetsEntity) =>
   "label_type" in entity &&
   entity.name === "All Hosts" &&
@@ -123,34 +106,6 @@ const getTruncatedEntityCount = (
     index += 1;
   }
   return index;
-};
-
-const TargetPillSelector = ({
-  entity,
-  isSelected,
-  onClick,
-}: ITargetPillSelectorProps): JSX.Element => {
-  const displayText = (): string => {
-    if (isBuiltInLabel(entity)) {
-      const labelName = entity.name as PlatformLabelNameFromAPI;
-      if (labelName in LABEL_DISPLAY_MAP) {
-        return LABEL_DISPLAY_MAP[labelName] || labelName;
-      }
-    }
-
-    return entity.name || "Missing display name";
-  };
-
-  return (
-    <button
-      className="target-pill-selector"
-      data-selected={isSelected}
-      onClick={(e) => onClick(entity)(e)}
-    >
-      <Icon name={isSelected ? "check" : "plus"} />
-      <span className="selector-name">{displayText()}</span>
-    </button>
-  );
 };
 
 const SelectTargets = ({
@@ -643,7 +598,7 @@ const SelectTargets = ({
         <Button
           className={`${baseClass}__btn`}
           type="button"
-          variant="blue-green"
+          variant="success"
           disabled={isFetchingCounts || !counts?.targets_count} // TODO: confirm
           onClick={onClickRun}
         >

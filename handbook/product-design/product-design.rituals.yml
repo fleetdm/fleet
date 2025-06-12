@@ -2,7 +2,7 @@
   task: "🦢📊 Design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "1. Record the number of dropped stories for KPIs (all user stories that did not meet the 3 week drafting timeline). 2. For all stories that are not estimated, move them on the roadmap chart and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board and roadmap chart, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 3. Retro: What went well? What could go better? What to remember for next time?" 
+  description: "1. For all stories that are not estimated, move them on the roadmap chart and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board and roadmap chart, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 2. Retro: What went well? What could go better? What to remember for next time?" 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -16,7 +16,7 @@
   task: "Design sprint kickoff" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Create stories for feature requests prioritized during Feature fest and add these stories to the Drafting board, add stories to the roadmap chart, assign stories to product designers, align on priorities, and create upcoming reference docs release branch." 
+  description: "Review stories (and, as needed, create engineering research stories) for feature requests prioritized during Feature fest; assign Engineering DRIs to stories; align on priorities; and create an upcoming reference docs release branch."
   moreInfoUrl: 
   dri: "noahtalerman"
 -
@@ -75,14 +75,14 @@
   task: "🦢✅🎉Product confirm and celebrate" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-02-27" 
   frequency: "Triweekly" 
-  description: "Review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done." 
+  description: "Ahead of the call, Product Designers review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. During the call, Head of Product Design notifies the requester." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
   task: "Pre-sprint prioritization" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-02-27" 
   frequency: "Triweekly"
-  description: "Align on priorities for upcoming sprint."
+  description: "Decide which stories and bugs to bring in to the upcoming sprint. Ahead of the call, Engineering Managers (EM) for each product group prepare their team's estimated capacity that factors in time off (PTO) and the on-call rotation."
   dri: "noahtalerman"
 -
   task: "User story review"
@@ -90,3 +90,9 @@
   frequency: "Weekly"
   description: "Review user stories in the 'In review' column on the drafting board with each product group's Product Designer, Engineering Mananger, and Quality Assurance Engineer."
   dri: "noahtalerman"
+- 
+  task: "🦢🚀🔄 Design sync"
+  startedOn: "2025-04-23"
+  frequency: "Triweekly"
+  description: "Product Designers and Frontend Engineers meet to discuss proposed changes to design conventions, UI components, and potential overlap/collisions between in progress wireframes."
+  dri: "rachaelshaw"

@@ -4,10 +4,6 @@ Orbit is a lightweight osquery installer and autoupdater. With Orbit, it's easy 
 
 Orbit is the recommended agent for Fleet. But Orbit can be used with or without Fleet, and Fleet can be used with or without Orbit.
 
-# Documentation
-
-- [Releasing Orbit](docs/Releasing-Orbit.md)
-
 ## How to build from source
 
 To build orbit we use [goreleaser](https://goreleaser.com/).
@@ -19,6 +15,7 @@ For reference, here are the build configuration files:
     - [goreleaser-linux-arm64.yml](./goreleaser-linux-arm64.yml)
     - [goreleaser-macos.yml](./goreleaser-macos.yml)
     - [goreleaser-windows.yml](./goreleaser-windows.yml)
+    - [goreleaser-windows.yml](./goreleaser-windows-arm64.yml)
 
 Following are the commands to build in case you can't use goreleaser.
 
@@ -111,8 +108,8 @@ Additionally, Orbit aims to tackle problems out of scope for Launcher:
 
 - Configure updates via release channels, providing more granular control over agent versioning.
 - Manage osquery startup flags from a remote (Fleet) server.
-- Support for deploying and updating osquery extensions (🔜).
-- Manage osquery versions from a remote (Fleet) server (🔜).
+- Support for deploying and updating osquery extensions.
+- Manage osquery versions from a remote (Fleet) server.
 
 ### Is Orbit Free?
 

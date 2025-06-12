@@ -7,7 +7,7 @@ import React from "react";
 import { CellProps, Column, HeaderProps } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import PATHS from "router/paths";
 import {
   formatOperatingSystemDisplayName,
@@ -65,14 +65,12 @@ const generateDefaultTableHeaders = (
         );
       }
 
-      const { name, os_version_id } = cellProps.row.original;
+      const { name, os_version_id, platform } = cellProps.row.original;
 
-      const teamQueryParam = buildQueryStringFromParams({
-        team_id: teamId,
-      });
-      const softwareOsDetailsPath = `${PATHS.SOFTWARE_OS_DETAILS(
-        os_version_id
-      )}?${teamQueryParam}`;
+      const softwareOsDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_OS_DETAILS(os_version_id),
+        { team_id: teamId }
+      );
 
       const onClickSoftware = (e: React.MouseEvent) => {
         // Allows for button to be clickable in a clickable row
@@ -85,12 +83,9 @@ const generateDefaultTableHeaders = (
         <LinkCell
           path={softwareOsDetailsPath}
           customOnClick={onClickSoftware}
-          value={
-            <>
-              <SoftwareIcon name={cellProps.row.original.platform} />
-              <span className="software-name">{name}</span>
-            </>
-          }
+          tooltipTruncate
+          prefix={<SoftwareIcon name={platform} />}
+          value={name}
         />
       );
     },

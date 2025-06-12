@@ -48,7 +48,6 @@ const ApiOnlyUser = ({ router }: IApiOnlyUserProps): JSX.Element => {
             </p>
             <Button
               onClick={handleClick}
-              variant="brand"
               className={`${baseClass}__login-button`}
             >
               Back to login

@@ -85,6 +85,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View, edit, and delete APNs certificate                                                                          |          |            |            | ✅    |         |
 | View, edit, and delete Apple Business Manager (ABM) connections                                                                                               |          |            |            | ✅    |         |
 | View, edit, and delete Volume Purchasing Program (VPP) connections                                                                                               |          |            |            | ✅    |         |
+| Connect Android Enterprise                                                                                               |          |            |            | ✅    |         |
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit OS updates for macOS, Windows, iOS, and iPadOS hosts                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Create, edit, resend and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |
@@ -95,7 +96,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
 | Edit [macOS setup experience]([https://fleetdm.com/docs/](https://fleetdm.com/guides/macos-setup-experience))\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Add and edit identity provider for end user authentication, end user license agreement (EULA), and end user migration workflow\*                                                                                         |          |            |              | ✅    |         |
-| Add and edit Simple Certificate Enrollment Protocol (SCEP) server\*                                                                        |          |            |            | ✅    | ✅      |
+| Add and edit certificate authorities (CA)\*                                                                        |          |            |            | ✅    | ✅      |
 | Run scripts on hosts                                                                                                                       |          |            | ✅         | ✅    |         |
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
@@ -129,6 +130,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Filter hosts using [labels](https://fleetdm.com/docs/using-fleet/rest-api#labels)                                                | ✅            | ✅             | ✅              | ✅         |             |
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
 | Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅         | ✅          |
+| Create and edit self-authored labels                                                                                                           |          |            |          |     | ✅      |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |
 | View software                                                                                                                    | ✅            | ✅               | ✅              | ✅        |             |
 | Add and delete software                                                                                                          |               |                | ✅              | ✅         | ✅            |
@@ -139,7 +141,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Filter software                                                                                                                  | ✅            | ✅             | ✅              | ✅         |             |
 | Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
-| Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
+| Create, edit, and delete self-authored queries                                                                          |               |                | ✅              | ✅         | ✅          |
 | View team queries and their reports                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
 | View global (inherited) queries and their reports\**                                                                             | ✅            | ✅             | ✅              | ✅         |             |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                | ✅              | ✅         | ✅          |
@@ -154,7 +156,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Add and remove team users                                                                                                        |               |                |                 | ✅         | ✅          |
 | Edit team name                                                                                                                   |               |                |                 | ✅         | ✅          |
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
-| Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         |             |
+| Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         | ✅          |
 | Read agent options\*                                                                                                             | ✅            | ✅             | ✅              | ✅         |             |
 | Edit agent options                                    |               |                |                 | ✅         | ✅          |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |

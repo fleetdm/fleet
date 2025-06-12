@@ -3,10 +3,13 @@ import { Link } from "react-router";
 
 import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
+import classnames from "classnames";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 const baseClass = "end-user-auth-form";
 
@@ -20,6 +23,8 @@ const EndUserAuthForm = ({
   defaultIsEndUserAuthEnabled,
 }: IEndUserAuthFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const [isEndUserAuthEnabled, setEndUserAuthEnabled] = useState(
     defaultIsEndUserAuthEnabled
@@ -45,21 +50,34 @@ const EndUserAuthForm = ({
     }
   };
 
+  const classes = classnames({ [`${baseClass}--disabled`]: gitOpsModeEnabled });
   return (
     <div className={baseClass}>
       <form>
-        <Checkbox value={isEndUserAuthEnabled} onChange={onToggleEndUserAuth}>
+        <Checkbox
+          disabled={gitOpsModeEnabled}
+          value={isEndUserAuthEnabled}
+          onChange={onToggleEndUserAuth}
+        >
           Turn on
         </Checkbox>
-        <p>
+        <p className={classes}>
           Require end users to authenticate with your identity provider (IdP)
           and agree to an end user license agreement (EULA) when they setup
           their new macOS hosts.{" "}
           <Link to={PATHS.ADMIN_INTEGRATIONS_MDM}>View IdP and EULA</Link>
         </p>
-        <Button isLoading={isUpdating} onClick={onClickSave}>
-          Save
-        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <Button
+              disabled={disableChildren}
+              isLoading={isUpdating}
+              onClick={onClickSave}
+            >
+              Save
+            </Button>
+          )}
+        />
       </form>
     </div>
   );

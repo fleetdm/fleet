@@ -55,6 +55,10 @@
     .form-field {
       margin-bottom: 0;
     }
+
+    &__tooltip {
+      text-align: center;
+    }
   }
 
   &__text {
@@ -185,27 +189,6 @@
     .data-table-block {
       .data-table {
         tbody {
-          .name__cell {
-            .policy-name-cell {
-              display: flex; // required for inline icon
-              gap: $pad-xsmall;
-
-              // Underlines only the name text
-              &:hover {
-                text-decoration: none;
-
-                .policy-name-text {
-                  text-decoration: underline;
-                }
-              }
-
-              .policy-name-text {
-                text-overflow: ellipsis;
-                overflow: hidden;
-              }
-            }
-          }
-
           .critical-badge,
           .policy-has-not-run {
             .critical-badge-icon {

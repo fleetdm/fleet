@@ -1,3 +1,5 @@
+// Used on: Dashboard > activity, Host details > past activity
+
 import React from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -78,12 +80,12 @@ const Output = ({
   result: ISoftwareInstallResult;
 }) => {
   return (
-    <div className={`${baseClass}__script-output`}>
-      {SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS[displayKey]}:
-      <Textarea className={`${baseClass}__output-textarea`}>
-        {result[displayKey]}
-      </Textarea>
-    </div>
+    <Textarea
+      label={`${SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS[displayKey]}:`}
+      variant="code"
+    >
+      {result[displayKey]}
+    </Textarea>
   );
 };
 
@@ -126,24 +128,22 @@ export const SoftwareInstallDetails = ({
 
   return (
     <>
-      <div className={`${baseClass}__software-install-details`}>
-        <StatusMessage
-          result={
-            result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
-          }
-        />
-        {result.status !== "pending_install" && (
-          <>
-            {result.pre_install_query_output && (
-              <Output displayKey="pre_install_query_output" result={result} />
-            )}
-            {result.output && <Output displayKey="output" result={result} />}
-            {result.post_install_script_output && (
-              <Output displayKey="post_install_script_output" result={result} />
-            )}
-          </>
-        )}
-      </div>
+      <StatusMessage
+        result={
+          result.host_display_name ? result : { ...result, host_display_name } // prefer result.host_display_name (it may be empty if the host was deleted) otherwise default to whatever we received via props
+        }
+      />
+      {result.status !== "pending_install" && (
+        <>
+          {result.pre_install_query_output && (
+            <Output displayKey="pre_install_query_output" result={result} />
+          )}
+          {result.output && <Output displayKey="output" result={result} />}
+          {result.post_install_script_output && (
+            <Output displayKey="post_install_script_output" result={result} />
+          )}
+        </>
+      )}
     </>
   );
 };
@@ -167,9 +167,7 @@ export const SoftwareInstallDetailsModal = ({
           <SoftwareInstallDetails {...details} />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onCancel}>Done</Button>
         </div>
       </>
     </Modal>

@@ -652,8 +652,8 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 
-	// For now, until we get to #10999, we assume that SSO is disabled if
-	// no settings are provided.
+	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
+	// Note: enable_end_user_authentication is a team-specific setting. This means some teams may not use SSO even if it is configured.
 	if settings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
@@ -704,7 +704,8 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	return fmt.Sprintf("%s?%s", apple_mdm.FleetUISSOCallbackPath, q.Encode())
 }
 
-func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (string, string, string, error) {
+func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Auth) (profileToken string, enrollmentReference string,
+	eulaToken string, err error) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for sso")
@@ -716,8 +717,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 	}
 
 	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
-	// For now, until we get to #10999, we assume that SSO is disabled if
-	// no settings are provided.
+	// SSO is disabled if no settings are provided since end_user_authentication is a global setting.
 	if settings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
 		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
@@ -770,7 +770,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
 
-	var eulaToken string
 	if eula != nil {
 		eulaToken = eula.Token
 	}
@@ -1013,9 +1012,18 @@ func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uin
 		windows = *w
 	}
 
-	linux, err := svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
+	// Linux doesn't have configuration profiles, so if we aren't enforcing disk encryption we have nothing to report
+	diskEncEnabled, err := svc.ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")
+		return nil, ctxerr.Wrap(ctx, err, "check if disk encryption is enabled")
+	}
+
+	var linux fleet.MDMLinuxDiskEncryptionSummary
+	if diskEncEnabled {
+		linux, err = svc.ds.GetLinuxDiskEncryptionSummary(ctx, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting linux disk encryption summary")
+		}
 	}
 
 	return &fleet.MDMDiskEncryptionSummary{
@@ -1301,7 +1309,6 @@ func (svc *Service) UpdateABMTokenTeams(ctx context.Context, tokenID uint, macOS
 	}
 
 	// validate the team IDs
-
 	token.MacOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}
 	token.MacOSDefaultTeamID = nil
 	token.IOSTeam = fleet.ABMTokenTeam{Name: fleet.TeamNameNoTeam}

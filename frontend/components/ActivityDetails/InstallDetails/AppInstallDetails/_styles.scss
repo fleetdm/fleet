@@ -1,6 +1,12 @@
 .app-install-details {
   overflow-wrap: anywhere; // Prevent long software name overflow
 
+  &__software-install-details {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
   .modal__content {
     margin-top: $pad-xlarge;
   }
@@ -10,20 +16,7 @@
     gap: $pad-small;
     margin: 0;
     .icon {
-      padding-top: 3px;
       align-self: flex-start;
     }
-  }
-  &__script-output {
-    padding-top: $pad-xlarge;
-    .textarea {
-      margin-top: $pad-medium;
-      overflow-wrap: break-word;
-    }
-  }
-
-  &__output-textarea {
-    max-height: 300px;
-    overflow-y: auto;
   }
 }

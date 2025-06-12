@@ -15,7 +15,7 @@ import (
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 // commandPayload is the common structure all MDM commands use
@@ -388,6 +388,34 @@ func (svc *MDMAppleCommander) InstalledApplicationList(ctx context.Context, host
         <key>CommandUUID</key>
         <string>%s</string>
     </dict>
+</plist>`, cmdUUID)
+
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
+// CertificateList sends the homonym [command][1] to the device to get a list of installed
+// certificates on the device.
+//
+// Note that user-enrolled devices ignore the [ManagedOnly][2] value set below and will always
+// include only managed certificates. This is a limitation imposed by Apple.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/certificatelistcommand
+// [2]: https://developer.apple.com/documentation/devicemanagement/certificatelistcommand/command-data.dictionary
+func (svc *MDMAppleCommander) CertificateList(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>CommandUUID</key>
+		<string>%s</string>
+		<key>Command</key>
+		<dict>
+			<key>MangedOnly</key>
+			<false/>
+			<key>RequestType</key>
+			<string>CertificateList</string>
+		</dict>
+	</dict>
 </plist>`, cmdUUID)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)

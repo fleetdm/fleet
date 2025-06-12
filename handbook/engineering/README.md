@@ -38,17 +38,28 @@ We write [guides](https://fleetdm.com/guides) for all new features. Feature guid
 
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
-It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
+It's important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
-To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=), make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned. 
+1. Create a new engineering-initiated story using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=). Make sure the `~engineering-initiated` label is added, the `:product` label is removed, and the engineering output and architecture DRI (@lukeheath) is assigned.
 
-What happens next? The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [engineering board](https://app.zenhub.com/workspaces/engineering-672a4556609a0d000f391584/board). 
+2. If the user story contributes to an OKR, explain how in the "Key result" section. If not, explain what key result we can measure to determine if this story is successful.
 
-If there are product changes (i.e. interface, documentation, or dependency changes), leave the default labels in place so that it is triaged on the product [drafting board](https://app.zenhub.com/workspaces/drafting-6192dd66ea2562000faea25c/board).
+3. Set yourself as the product designer for the user story if another engineer is not DRI. By default, the engineer creating the engineering-initiated story is DRI for the story and will design and implement it.
 
-If there are no product changes, and the DRI decides to prioritize the story, the story is added to the "Specified" column on the drafting board so that it can be estimated.
+4. Remove the "Product" section and checklist from the issue description. 
+
+5. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering ZenHub board](https://app.zenhub.com/workspaces/engineering-672a4556609a0d000f391584/board). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
+
+
+### Draft an engineering-initiated story
+
+The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://app.zenhub.com/workspaces/engineering-672a4556609a0d000f391584/board) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning to the engineer listed as the product designer. 
+
+1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done]([url](https://fleetdm.com/handbook/company/product-groups#defining-done)). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
+
+2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review]([url](https://fleetdm.com/handbook/company/product-groups#user-story-reviews)), and then to estimation before prioritizing into an upcoming sprint. 
 
 
 ### Fix a bug
@@ -116,7 +127,7 @@ To provide full-time focus to the role, the on-call engineer is not expected to 
 
 ### Create a release candidate
 
-All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the Tuesday before the release at 11:00 AM Pacific. A release candidate branch is created at `minor-fleet-v4.x.x` and no additional feature work is merged without EM and QA approval.
+All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific. A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
 
 [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
 
@@ -224,29 +235,21 @@ How to deploy a new release to dogfood:
 
 ### Conclude current milestone 
 
-Immediately after publishing a new release, we close out the associated GitHub issues and milestones. 
+Immediately after publishing a new release, close out the associated GitHub issues and milestones. 
 
-1. **Rename current milestone**: In GitHub, [change the current milestone name](https://github.com/fleetdm/fleet/milestones) from `4.x.x-tentative` to `4.x.x`. `4.37.0-tentative` becomes `4.37.0`.
+1. **Update product group boards**: In ZenHub, go to each product group board tracking the current release and filter by the current milestone.
 
-2. **Update product group boards**: In ZenHub, go to each product group board tracking the current release. Usually, these are [#g-endpoint-ops](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board) and [#g-mdm](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board).
+2. **Move user stories to drafting board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label and remove the `:release` label. These items will move back to the product drafting board.
 
-3. **Remove milestone from unfinished items**: If you see any items in columns other than "Ready for release" tagged with the current milestone, remove that milestone tag. These items didn't make it into the release.
+3. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
 
-4. **Prep release items**: Make sure all items in the "Ready for release" column have the current milestone and sprint tags. If not, select all items in the column and apply the appropriate tags.
+4. **Confirm and celebrate**: Open the [Drafting](https://app.zenhub.com/workspaces/-drafting-ships-in-6-weeks-6192dd66ea2562000faea25c/board) board. Filter by the current milestone and move all stories to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals).
 
-5. **Move user stories to drafting board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label and remove the `:release` label. These items will move back to the product drafting board.
+5. **Close GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the current milestone.
 
-6. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
+6. Announce that the release milestone has been closed in #help-engineering.
 
-8. **Confirm and celebrate**: Now, head to the [Drafting](https://app.zenhub.com/workspaces/-drafting-ships-in-6-weeks-6192dd66ea2562000faea25c/board) board. Find all `story` issues with the current milestone (these are the ones you just moved). Move them to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals).
-
-9. **Close GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the current milestone.
-
-10. **Create next milestone**: Create a new milestone for the next versioned release, `4.x.x-tentative`.
-
-11. Announce that the release milestone has been closed in #help-engineering.
-
-12. Visit the [confidential repo variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable to `main` so that the latest code is deployed to QA Wolf every morning.
+7. Visit the [confidential repo variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable to `main` so that the latest code is deployed to QA Wolf every morning.
 
 
 ### Update the Fleet releases calendar
@@ -270,12 +273,12 @@ In these cases there are two differences in our pull request process:
 
 ### Notify stakeholders when a user story is pushed to the next release
 
-[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When a user story selected for a release has not merged into `main` by the time the release candidate is created, it is the product group EM's responsibility to notify stakeholders:
+[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When the EM suspects a user story is at risk for getting pushed, it is the product group EM's responsibility to notify stakeholders:
 
 1. Add the `~pushed` label to the user story.
 2. Update the user story's milestone to the next minor version milestone.
-3. Comment on the GitHub issue and at-mention the PM and anyone listed in the requester field.
-4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
+3. Comment on the GitHub issue and at-mention the Head of Product Design and anyone listed in the requester field.
+4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, or #g-orchestration Slack channel.
 
 
 ### Run Fleet locally for QA purposes
@@ -351,6 +354,11 @@ To aid in this process, we have the Stress Test Go Test action (aka the RandoKil
 - Push up the branch with whatever logs/changes you need to help diagnose or fix the flaky test.
 - Monitor the [Stress Test Go Test](https://github.com/fleetdm/fleet/actions/workflows/randokiller-go.yml) workflow for your branch.  
 - Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
+
+
+### Request product group transfer
+
+Product groups are organized by core use case to allow each product group to develop subject matter expertise. Transferring between product groups offers engineers the opportunity to gain experience contributing to other areas of Fleet. To request a product group transfer, notify the Engineering Manager of your [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) or the [CTO](https://fleetdm.com/handbook/engineering#team) to be considered for transfer the next time the requested product group has an available position.
 
 
 ### Record engineering KPIs

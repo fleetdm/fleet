@@ -142,6 +142,7 @@ export const createMockOSVersionsResponse = (
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   name: "test app",
   app_store_id: 1,
+  created_at: "2020-01-01T00:00:00.000Z",
   platform: "darwin",
   icon_url: "https://via.placeholder.com/512",
   latest_version: "1.2.3",

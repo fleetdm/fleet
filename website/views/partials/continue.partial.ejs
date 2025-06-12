@@ -1,14 +1,21 @@
 
-<%if(typeof me !== 'undefined' && showStartCta){%>
+<%
+var showStartCta;
+if(showStartCta){
+
+%>
 
   <div purpose="continue-banner" id="start-cta" class="d-flex justify-content-end">
     <div purpose="banner-body" class="d-flex flex-row align-items-center invisible <%- collapseStartCta ? 'collapsed' : ''%>">
       <div purpose="banner-image-background">
-        <div purpose="banner-image" class="<%=['2 - Aware'].includes(me.psychologicalStage) ? 'stage-two' : ['3 - Intrigued'].includes(me.psychologicalStage) ? 'stage-three' : ['4 - Has use case'].includes(me.psychologicalStage) ? 'stage-four' : ['5 - Personally confident'].includes(me.psychologicalStage) ? 'stage-five' : ['6 - Has team buy-in'].includes(me.psychologicalStage) ? 'stage-six' : ''%>">
+        <div purpose="banner-image" class="<%= typeof me === 'undefined' ? 'stage-one' : ['2 - Aware'].includes(me.psychologicalStage) ? 'stage-two' : ['3 - Intrigued'].includes(me.psychologicalStage) ? 'stage-three' : ['4 - Has use case'].includes(me.psychologicalStage) ? 'stage-four' : ['5 - Personally confident'].includes(me.psychologicalStage) ? 'stage-five' : ['6 - Has team buy-in'].includes(me.psychologicalStage) ? 'stage-six' : ''%>">
         </div>
       </div>
       <div purpose="banner-text" class="d-flex flex-column justify-content-center">
-        <% if(['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) { %>
+        <% if(typeof me === 'undefined') { %>
+          <strong>Tried Fleet yet?</strong>
+          <p>Get started with Fleet</p>
+        <% } else if(['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) { %>
           <strong>Tried Fleet yet?</strong>
           <p>Get started with Fleet</p>
         <% } else if(me.psychologicalStage ===  '4 - Has use case') { %>
@@ -19,6 +26,15 @@
           <p>Let’s get you set up!</p>
         <% } %>
         <div>
+          <%if(typeof me === 'undefined'){%>
+          <a purpose="continue-button" class="start-cta-continue-button" href="/register">
+            Start
+            <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+              <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
+          <%} else {%>
           <a purpose="continue-button" class="start-cta-continue-button" href="/start">
             Continue
             <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
@@ -26,6 +42,7 @@
               <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </a>
+          <%}%>
         </div>
       </div>
       <a purpose="continue-chevron" class="mobile-start-cta-continue-button" href="/start"> <img alt="continue" src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>

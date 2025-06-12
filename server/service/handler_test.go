@@ -26,7 +26,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	cfg := config.TestConfig()
-	h := MakeHandler(svc, cfg, kitlog.NewNopLogger(), limitStore)
+	h := MakeHandler(svc, cfg, kitlog.NewNopLogger(), limitStore, nil)
 	router := h.(*mux.Router)
 
 	type testCase struct {
@@ -80,7 +80,7 @@ func TestAPIRoutesMetrics(t *testing.T) {
 
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
-	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore)
+	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore, nil)
 	router := h.(*mux.Router)
 
 	// replace all handlers with mocks, and collect the requests to make to each

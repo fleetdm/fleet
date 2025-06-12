@@ -47,25 +47,26 @@ const DeleteHostModal = ({
     }
     return hostName;
   };
-  const largeVolumeText = (): string => {
-    if (
-      selectedHostIds &&
-      isAllMatchingHostsSelected &&
-      hostsCount &&
-      hostsCount >= 500
-    ) {
-      return " When deleting a large volume of hosts, it may take some time for this change to be reflected in the UI.";
-    }
-    return "";
-  };
+
+  const hasManyHosts =
+    selectedHostIds &&
+    isAllMatchingHostsSelected &&
+    hostsCount &&
+    hostsCount >= 500;
 
   return (
     <Modal title="Delete host" onExit={onCancel} className={baseClass}>
       <>
         <p>
           This will remove the record of <b>{hostText()}</b> and associated data
-          (e.g. unlock PINs).{largeVolumeText()}
+          such as unlock PINs and disk encryption keys.
         </p>
+        {hasManyHosts && (
+          <p>
+            When deleting a large volume of hosts, it may take some time for
+            this change to be reflected in the UI.
+          </p>
+        )}
         <ul>
           <li>
             macOS, Windows, or Linux hosts will re-appear unless Fleet&apos;s
@@ -76,7 +77,12 @@ const DeleteHostModal = ({
               newTab
             />
           </li>
-          <li>iOS and iPadOS hosts will re-appear unless MDM is turned off.</li>
+          <li>
+            {/* TODO(android): iOS, iPadOS, and Android hosts will re-appear unless MDM is turned
+            off. */}
+            iOS and iPadOS hosts will re-appear unless MDM is turned off. It may
+            take up to an hour to re-appear.
+          </li>
         </ul>
         <div className="modal-cta-wrap">
           <Button

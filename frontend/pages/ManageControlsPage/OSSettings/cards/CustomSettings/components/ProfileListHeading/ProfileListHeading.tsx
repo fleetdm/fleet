@@ -1,3 +1,4 @@
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import React from "react";
@@ -17,16 +18,22 @@ const ProfileListHeading = ({
         Configuration profile
       </span>
       <span className={`${baseClass}__actions-heading`}>
-        <Button
-          variant="text-icon"
-          className={`${baseClass}__add-button`}
-          onClick={onClickAddProfile}
-        >
-          <span className={`${baseClass}__icon-wrap`}>
-            <Icon name="plus" />
-            Add profile
-          </span>
-        </Button>
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Button
+              disabled={disableChildren}
+              variant="text-icon"
+              className={`${baseClass}__add-button`}
+              onClick={onClickAddProfile}
+            >
+              <span className={`${baseClass}__icon-wrap`}>
+                <Icon name="plus" />
+                Add profile
+              </span>
+            </Button>
+          )}
+        />
       </span>
     </div>
   );

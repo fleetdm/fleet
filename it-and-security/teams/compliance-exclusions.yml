@@ -28,7 +28,15 @@ agent_options:
     orbit: edge
     desktop: edge
 controls:
+  enable_disk_encryption: true
+  scripts:
+    - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
+    - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
+    - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
+  - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml
 queries:
 software:
   packages:

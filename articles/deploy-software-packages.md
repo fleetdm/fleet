@@ -4,7 +4,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet you can deploy [Fleet-maintained apps](https://fleetdm.com/guides/install-fleet-maintained-apps-on-macos-hosts), [App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet), and custom packages to your hosts.
+In Fleet you can deploy [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps), [App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet), and custom packages to your hosts.
 
 This guide will walk you through steps to manually install custom packages on your hosts.
 
@@ -30,13 +30,13 @@ Learn more about automatically installing software [the Automatically install so
 
 * Choose a file to upload. `.pkg`, `.msi`, `.exe`, `.rpm`, and `.deb` files are supported.
 
-* Select the installation mode under "Install". If you select "Manual", you will have to manually specify how to install the software. If you select "Automatic", Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts that fail the policy.
+* If you check the "Automatic install" box, Fleet will create a policy that checks for the existence of the software and will automatically trigger an install on hosts where the software does not exist.
 
 * To allow users to install the software from Fleet Desktop, check the “Self-service” checkbox.
 
 * To customize installer behavior, click on “Advanced options.”
 
-> After the initial package upload, all options except the installation mode can be modified, including the self-service setting, pre-install query, scripts, and even the software package file. When replacing an installer package, the replacement package must be the same type and for the same software as the original package. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
+> After the initial package upload, all options, except for automatic install, can be modified. This includes the self-service setting, pre-install query, scripts, and the software package file. However, if the installer package needs to be replaced, the new package must be of the same file type (such as .pkg, .msi, .deb, .rpm, or .exe) and for the same software as the original. Files in .dmg or .zip formats cannot be edited or uploaded for replacement. If you want to enable automatic installs after initial package upload, follow the steps in our [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet) to add an automatic install policy.
 
 ### Package metadata extraction
 
@@ -58,7 +58,7 @@ A pre-install query is a valid osquery SQL statement that will be evaluated on t
 
 ### Install script
 
-After selecting a file, a default install script will be pre-filled. If the software package requires a custom installation process (for example, if [an EXE-based Windows installer requires custom handling](https://fleetdm.com/learn-more-about/exe-install-scripts)), this script can be edited. When the script is run, the `$INSTALLER_PATH` environment variable will be set by `fleetd` to where the installer is being run.
+After selecting a file, a default install script will be pre-filled for most installer types. If the software package requires a custom installation process (for example, for [EXE-based Windows installers](https://fleetdm.com/learn-more-about/exe-install-scripts)), this script can be edited. When the script is run, the `$INSTALLER_PATH` environment variable will be set by `fleetd` to where the installer is being run.
 
 ### Post-install script
 
@@ -66,9 +66,11 @@ A post-install script will run after the installation, allowing you to, for exam
 
 ### Uninstall script
 
-An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page, or if the post-install script (if supplied) fails for hosts running `fleetd` 1.33.0 or later. Like the install script, a default uninstall script will be pre-filled after selecting a file. This script can be edited if the software package requires a custom uninstallation process.
+An uninstall script will run when an admin chooses to uninstall the software from the host on the host details page, or if the post-install script (if supplied) fails for hosts running `fleetd` 1.33.0 or later. Like the install script, a default uninstall script will be pre-filled after selecting a file for most installer formats (EXE-based installers being the exception). This script can be edited if the software package requires a custom uninstallation process.
 
 In addition to the `$INSTALLER_PATH` environment variable supported by install scripts, you can use `$PACKAGE_ID` in uninstall scripts as a placeholder for the package IDs (for .pkg files), package name (for Linux installers), product code (for MSIs), or software name (for EXE installers). The Fleet server will substitute `$PACKAGE_ID` on upload.
+
+> Currently, the default MSI uninstaller script only uninstalls that exact installer, rather than earlier/later versions of the same application.
 
 ## Install the package
 
@@ -162,6 +164,6 @@ Please refer to the documentation for [managing software with GitOps](https://fl
 <meta name="authorFullName" value="Roberto Dip">
 <meta name="authorGitHubUsername" value="roperzh">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-09-23">
+<meta name="publishedOn" value="2025-02-28">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-security-agents-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through adding and editing software packages in Fleet.">

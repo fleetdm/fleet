@@ -2,6 +2,7 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
 import classnames from "classnames";
 
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getDefaultInstallScript from "utilities/software_install_scripts";
@@ -10,23 +11,23 @@ import { ILabelSummary } from "interfaces/label";
 import { PackageType } from "interfaces/package_type";
 
 import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import FileUploader from "components/FileUploader";
 import TooltipWrapper from "components/TooltipWrapper";
+import FileUploader from "components/FileUploader";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
   generateSelectedLabels,
   getCustomTarget,
   getTargetType,
-  InstallType,
-  InstallTypeSection,
 } from "pages/SoftwarePage/helpers";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Card from "components/Card";
+import SoftwareOptionsSelector from "components/SoftwareOptionsSelector";
 
 import PackageAdvancedOptions from "../PackageAdvancedOptions";
 
-import { generateFormValidation } from "./helpers";
+import { createTooltipContent, generateFormValidation } from "./helpers";
 
 export const baseClass = "package-form";
 
@@ -40,13 +41,15 @@ export interface IPackageFormData {
   targetType: string;
   customTarget: string;
   labelTargets: Record<string, boolean>;
-  installType: InstallType; // Used on add but not edit
+  automaticInstall: boolean; // Used on add but not edit
 }
 
 export interface IPackageFormValidation {
   isValid: boolean;
   software: { isValid: boolean };
   preInstallQuery?: { isValid: boolean; message?: string };
+  installScript?: { isValid: boolean; message?: string };
+  uninstallScript?: { isValid: boolean; message?: string };
   customTarget?: { isValid: boolean };
 }
 
@@ -64,6 +67,8 @@ interface IPackageFormProps {
   defaultUninstallScript?: string;
   defaultSelfService?: boolean;
   className?: string;
+  /** Indicates that this PackageFOrm deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
+  gitopsCompatible?: boolean;
 }
 
 const ACCEPTED_EXTENSIONS = ".pkg,.msi,.exe,.deb,.rpm";
@@ -82,8 +87,11 @@ const PackageForm = ({
   defaultUninstallScript,
   defaultSelfService,
   className,
+  gitopsCompatible = false,
 }: IPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const initialFormData: IPackageFormData = {
     software: defaultSoftware || null,
@@ -95,7 +103,7 @@ const PackageForm = ({
     targetType: getTargetType(defaultSoftware),
     customTarget: getCustomTarget(defaultSoftware),
     labelTargets: generateSelectedLabels(defaultSoftware),
-    installType: "manual",
+    automaticInstall: false,
   };
 
   const [formData, setFormData] = useState<IPackageFormData>(initialFormData);
@@ -171,10 +179,9 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onChangeInstallType = useCallback(
-    (value: string) => {
-      const installType = value as InstallType;
-      const newData = { ...formData, installType };
+  const onToggleAutomaticInstallCheckbox = useCallback(
+    (value: boolean) => {
+      const newData = { ...formData, automaticInstall: value };
       setFormData(newData);
     },
     [formData]
@@ -208,6 +215,7 @@ const PackageForm = ({
   };
 
   const isSubmitDisabled = !formValidation.isValid;
+  const submitTooltipContent = createTooltipContent(formValidation);
 
   const classNames = classnames(baseClass, className);
 
@@ -218,17 +226,21 @@ const PackageForm = ({
   // which automatic install is not supported, the form will default
   // back to manual install
   useEffect(() => {
-    if (isExePackage && formData.installType === "automatic") {
-      onChangeInstallType("manual");
+    if (isExePackage && formData.automaticInstall) {
+      onToggleAutomaticInstallCheckbox(false);
     }
-  }, [formData.installType, isExePackage, onChangeInstallType]);
+  }, [
+    formData.automaticInstall,
+    isExePackage,
+    onToggleAutomaticInstallCheckbox,
+  ]);
 
   return (
     <div className={classNames}>
       <form className={`${baseClass}__form`} onSubmit={onFormSubmit}>
         <FileUploader
           canEdit={isEditingSoftware}
-          graphicName={"file-pkg"}
+          graphicName="file-pkg"
           accept={ACCEPTED_EXTENSIONS}
           message=".pkg, .msi, .exe, .deb, or .rpm"
           onFileUpload={onFileSelect}
@@ -238,46 +250,57 @@ const PackageForm = ({
           fileDetails={
             formData.software ? getFileDetails(formData.software) : undefined
           }
+          gitopsCompatible={gitopsCompatible}
+          gitOpsModeEnabled={gitOpsModeEnabled}
         />
-        {!isEditingSoftware && (
-          <InstallTypeSection
-            className={baseClass}
-            isCustomPackage
-            isExeCustomPackage={isExePackage}
-            installType={formData.installType}
-            onChangeInstallType={onChangeInstallType}
-          />
-        )}
-        <TargetLabelSelector
-          selectedTargetType={formData.targetType}
-          selectedCustomTarget={formData.customTarget}
-          selectedLabels={formData.labelTargets}
-          customTargetOptions={CUSTOM_TARGET_OPTIONS}
-          className={`${baseClass}__target`}
-          onSelectTargetType={onSelectTargetType}
-          onSelectCustomTarget={onSelectCustomTarget}
-          onSelectLabel={onSelectLabel}
-          labels={labels || []}
-          dropdownHelpText={
-            formData.targetType === "Custom" &&
-            generateHelpText(formData.installType, formData.customTarget)
+        <div
+          // including `form` class here keeps the children fields subject to the global form
+          // children styles
+          className={
+            gitopsCompatible && gitOpsModeEnabled
+              ? `${baseClass}__form-fields--gitops-disabled form`
+              : "form"
           }
-        />
-        <Checkbox
-          value={formData.selfService}
-          onChange={onToggleSelfServiceCheckbox}
         >
-          <TooltipWrapper
-            tipContent={
-              <>
-                End users can install from{" "}
-                <b>Fleet Desktop {">"} Self-service</b>.
-              </>
-            }
-          >
-            Self-service
-          </TooltipWrapper>
-        </Checkbox>
+          <div className={`${baseClass}__form-frame`}>
+            <Card
+              paddingSize="medium"
+              borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+            >
+              <SoftwareOptionsSelector
+                formData={formData}
+                onToggleAutomaticInstall={onToggleAutomaticInstallCheckbox}
+                onToggleSelfService={onToggleSelfServiceCheckbox}
+                isCustomPackage
+                isEditingSoftware={isEditingSoftware}
+                isExePackage={isExePackage}
+              />
+            </Card>
+            <Card
+              paddingSize="medium"
+              borderRadiusSize={isEditingSoftware ? "medium" : "large"}
+            >
+              <TargetLabelSelector
+                selectedTargetType={formData.targetType}
+                selectedCustomTarget={formData.customTarget}
+                selectedLabels={formData.labelTargets}
+                customTargetOptions={CUSTOM_TARGET_OPTIONS}
+                className={`${baseClass}__target`}
+                onSelectTargetType={onSelectTargetType}
+                onSelectCustomTarget={onSelectCustomTarget}
+                onSelectLabel={onSelectLabel}
+                labels={labels || []}
+                dropdownHelpText={
+                  formData.targetType === "Custom" &&
+                  generateHelpText(
+                    formData.automaticInstall,
+                    formData.customTarget
+                  )
+                }
+              />
+            </Card>
+          </div>
+        </div>
         <PackageAdvancedOptions
           showSchemaButton={showSchemaButton}
           selectedPackage={formData.software}
@@ -294,13 +317,35 @@ const PackageForm = ({
           onChangePostInstallScript={onChangePostInstallScript}
           onChangeUninstallScript={onChangeUninstallScript}
         />
-        <div className="form-buttons">
-          <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
-            {isEditingSoftware ? "Save" : "Add software"}
-          </Button>
-          <Button onClick={onCancel} variant="inverse">
-            Cancel
-          </Button>
+        <div className={`${baseClass}__action-buttons`}>
+          <GitOpsModeTooltipWrapper
+            tipOffset={6}
+            renderChildren={(disableChildren) =>
+              submitTooltipContent ? (
+                <TooltipWrapper
+                  tipContent={submitTooltipContent}
+                  underline={false}
+                  showArrow
+                  tipOffset={10}
+                  position="left"
+                >
+                  <Button
+                    type="submit"
+                    disabled={disableChildren || isSubmitDisabled}
+                  >
+                    {isEditingSoftware ? "Save" : "Add software"}
+                  </Button>
+                </TooltipWrapper>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={disableChildren || isSubmitDisabled}
+                >
+                  {isEditingSoftware ? "Save" : "Add software"}
+                </Button>
+              )
+            }
+          />
         </div>
       </form>
     </div>

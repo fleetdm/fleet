@@ -54,6 +54,7 @@ module.exports = {
       ],
       mode: 'subscription',
       billing_address_collection: 'required',// eslint-disable-line camelcase
+      allow_promotion_codes: true,// eslint-disable-line camelcase
       tax_id_collection: {// eslint-disable-line camelcase
         enabled: true,
         required: 'if_supported'

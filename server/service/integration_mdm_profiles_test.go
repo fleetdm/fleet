@@ -30,8 +30,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
-	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -860,8 +860,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	ctx := context.Background()
 
 	testProfiles := []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
-		{Name: "N2", Contents: syncml.ForTestWithData(map[string]string{"L2": "D2", "L3": "D3"})},
+		{Name: "N1", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
+		{Name: "N2", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L2", Data: "D2"}, {Verb: "Add", LocURI: "L3", Data: "D3"}})},
 	}
 
 	h, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1023,7 +1023,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 
 	t.Run("retry after device error", func(t *testing.T) {
 		// add another profile
-		newProfile := syncml.ForTestWithData(map[string]string{"L3": "D3"})
+		newProfile := syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}})
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N3",
 			Contents: newProfile,
@@ -1059,7 +1059,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		// add another profile
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N4",
-			Contents: syncml.ForTestWithData(map[string]string{"L4": "D4"}),
+			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L4", Data: "D4"}}),
 		})
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// trigger a profile sync and confirm that the install profile command for N4 was sent and
@@ -1086,7 +1086,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		// add another profile
 		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 			Name:     "N5",
-			Contents: syncml.ForTestWithData(map[string]string{"L5": "D5"}),
+			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L5", Data: "D5"}}),
 		})
 		// hostProfsByIdent["N5"] = &fleet.HostMacOSProfile{Identifier: "N5", DisplayName: "N5", InstallDate: time.Now()}
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
@@ -1124,6 +1124,174 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 
 		// trigger a profile sync and confirm that the install profile command for N5 was not resent
 		verifyCommands(0, syncml.CmdStatusOK)
+	})
+}
+
+// TestWindowsProfileResend verifies that a Windows profile is resent when its contents have been modified.
+func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
+	t := s.T()
+	ctx := context.Background()
+
+	testProfiles := []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1"}})},
+		{Name: "N2", Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L2", Data: "D2"}, {Verb: "Replace", LocURI: "L3", Data: "D3"}})},
+	}
+
+	h, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	expectedProfileStatuses := map[string]fleet.MDMDeliveryStatus{
+		"N1": fleet.MDMDeliveryVerifying,
+		"N2": fleet.MDMDeliveryVerifying,
+	}
+	checkProfilesStatus := func(t *testing.T) {
+		storedProfs, err := s.ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, storedProfs, len(expectedProfileStatuses))
+		for _, p := range storedProfs {
+			want, ok := expectedProfileStatuses[p.Name]
+			require.True(t, ok, "unexpected profile: %s", p.Name)
+			require.Equal(t, want, *p.Status, "expected status %s but got %s for profile: %s", want, *p.Status, p.Name)
+		}
+	}
+
+	type profileData struct {
+		Status string
+		LocURI string
+		Data   string
+	}
+	hostProfileReports := map[string][]profileData{
+		"N1": {{"200", "L1", "D1"}},
+		"N2": {{"200", "L2", "D2"}, {"200", "L3", "D3"}},
+	}
+	reportHostProfs := func(t *testing.T, profileNames ...string) {
+		var responseOps []*fleet.SyncMLCmd
+		for _, profileName := range profileNames {
+			report, ok := hostProfileReports[profileName]
+			require.True(t, ok)
+
+			for _, p := range report {
+				ref := microsoft_mdm.HashLocURI(profileName, p.LocURI)
+				responseOps = append(responseOps, &fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+					CmdRef:  &ref,
+					Data:    ptr.String(p.Status),
+				})
+
+				// the protocol can respond with only a `Status`
+				// command if the status failed
+				if p.Status != "200" || p.Data != "" {
+					responseOps = append(responseOps, &fleet.SyncMLCmd{
+						XMLName: xml.Name{Local: fleet.CmdResults},
+						CmdID:   fleet.CmdID{Value: uuid.NewString()},
+						CmdRef:  &ref,
+						Items: []fleet.CmdItem{
+							{Target: ptr.String(p.LocURI), Data: &fleet.RawXmlData{Content: p.Data}},
+						},
+					})
+				}
+			}
+		}
+
+		msg, err := createSyncMLMessage("2", "2", "foo", "bar", responseOps)
+		require.NoError(t, err)
+		out, err := xml.Marshal(msg)
+		require.NoError(t, err)
+		require.NoError(t, microsoft_mdm.VerifyHostMDMProfiles(ctx, s.logger, s.ds, h, out))
+	}
+
+	verifyCommands := func(wantProfileInstalls int, status string) {
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		// profile installs + 2 protocol commands acks
+		require.Len(t, cmds, wantProfileInstalls+2)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		atomicCmds := 0
+		for _, c := range cmds {
+			if c.Verb == "Atomic" {
+				atomicCmds++
+			}
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
+				Cmd:     ptr.String(c.Verb),
+				Data:    ptr.String(status),
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		require.Equal(t, wantProfileInstalls, atomicCmds)
+		cmds, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+		// the ack of the message should be the only returned command
+		require.Len(t, cmds, 1)
+	}
+
+	t.Run("do not resend if nothing changed", func(t *testing.T) {
+		t.Cleanup(func() {
+			// Clear the profiles
+			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
+				http.StatusNoContent)
+		})
+
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		// profiles to install + 2 boilerplate <Status>
+		verifyCommands(len(testProfiles), syncml.CmdStatusOK)
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerifying
+		checkProfilesStatus(t) // all profiles verifying
+
+		// report osquery results and confirm that all profiles are verified
+		reportHostProfs(t, "N1", "N2")
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+		checkProfilesStatus(t)
+
+		// trigger a profile sync and confirm that no profiles were sent
+		verifyCommands(0, syncml.CmdStatusOK)
+
+		// Upload the same profiles again
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		// trigger a profile sync and confirm that no profiles were sent
+		verifyCommands(0, syncml.CmdStatusOK)
+	})
+
+	t.Run("resend if contents changed", func(t *testing.T) {
+		t.Cleanup(func() {
+			// Clear the profiles
+			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
+				http.StatusNoContent)
+		})
+
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		// profiles to install + 2 boilerplate <Status>
+		verifyCommands(len(testProfiles), syncml.CmdStatusOK)
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerifying
+		checkProfilesStatus(t) // all profiles verifying
+
+		// report osquery results and confirm that all profiles are verified
+		reportHostProfs(t, "N1", "N2")
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+		checkProfilesStatus(t)
+
+		// trigger a profile sync and confirm that no profiles were sent
+		verifyCommands(0, syncml.CmdStatusOK)
+
+		// Change one profile and upload
+		copiedTestProfiles := make([]fleet.MDMProfileBatchPayload, len(testProfiles))
+		copy(copiedTestProfiles, testProfiles)
+		copiedTestProfiles[0].Contents = syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1-Modified"}})
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: copiedTestProfiles}, http.StatusNoContent)
+		// Confirm that one profile was sent and its status
+		verifyCommands(1, syncml.CmdStatusOK)
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+		checkProfilesStatus(t) // all profiles verifying
 	})
 }
 
@@ -2173,18 +2341,25 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 			mobileconfigForTest(p, p),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Validation Failed")
-		require.Contains(t, errMsg, fmt.Sprintf("payload identifier %s is not allowed", p))
+		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
 	}
 
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
+		if p == mobileconfig.FleetCustomSettingsPayloadType {
+			// FileVault options in the custom settings payload are checked in file_vault_options_test.go
+			continue
+		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
 			mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Validation Failed")
-		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadType(s): %s", p))
+		switch p {
+		case mobileconfig.FleetFileVaultPayloadType, mobileconfig.FleetRecoveryKeyEscrowPayloadType:
+			assert.Contains(t, errMsg, mobileconfig.DiskEncryptionProfileRestrictionErrMsg)
+		default:
+			assert.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		}
 	}
 
 	// payloads with reserved identifiers
@@ -2193,8 +2368,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 			mobileconfigForTestWithContent("N1", "I1", p, "random", ""),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Validation Failed")
-		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadIdentifier(s): %s", p))
+		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
 	}
 
 	// successfully apply a profile for the team
@@ -3038,14 +3212,16 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration("foo.txt", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
 
 	// Windows-reserved LocURI
-	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
-	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, nil, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
+	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest,
+		syncml.DiskEncryptionProfileRestrictionErrMsg)
+	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, nil, http.StatusBadRequest,
+		"Couldn't add. Custom configuration profiles can't include Windows updates settings.")
 
 	// Fleet-reserved profiles
 	for name := range servermdm.FleetReservedProfileNames() {
 		assertAppleProfile(name+".mobileconfig", name, name+"-ident", 0, nil, http.StatusBadRequest, fmt.Sprintf(`name %s is not allowed`, name))
 		assertAppleDeclaration(name+".json", name+"-ident", 0, nil, http.StatusBadRequest, fmt.Sprintf(`name %q is not allowed`, name))
-		assertWindowsProfile(name+".xml", "./Test", 0, nil, http.StatusBadRequest, fmt.Sprintf(`Couldn't upload. Profile name %q is not allowed.`, name))
+		assertWindowsProfile(name+".xml", "./Test", 0, nil, http.StatusBadRequest, fmt.Sprintf(`Couldn't add. Profile name %q is not allowed.`, name))
 	}
 
 	// profiles with non-existent labels
@@ -3087,7 +3263,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	body, headers := generateNewProfileMultipartRequest(t, "win.xml", []byte("\x00\x01\x02"), s.token, nil)
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't upload. The file should include valid XML:")
+	require.Contains(t, errMsg, "Couldn't add. The file should include valid XML:")
 
 	// Apple invalid mobileconfig content
 	body, headers = generateNewProfileMultipartRequest(t,
@@ -3101,7 +3277,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		"apple.json", []byte("{"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't upload. The file should include valid JSON:")
+	require.Contains(t, errMsg, "Couldn't add. The file should include valid JSON:")
 
 	// get the existing profiles work
 	expectedProfiles := []fleet.MDMConfigProfilePayload{
@@ -4082,7 +4258,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	// Profile is too big
 	resp := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{{Contents: []byte(bigString)}}},
 		http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(resp.Body), "maximum configuration profile file size is 1 MB")
+	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
 
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)
@@ -4128,20 +4304,27 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Validation Failed")
-		require.Contains(t, errMsg, fmt.Sprintf("payload identifier %s is not allowed", p))
+		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
 	}
 
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
+		if p == mobileconfig.FleetCustomSettingsPayloadType {
+			// FileVault options in the custom settings payload are checked in file_vault_options_test.go
+			continue
+		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 			{Name: "N1", Contents: mobileconfigForTestWithContent("N1", "I1", "II1", p, "")},
 			{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Validation Failed")
-		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadType(s): %s", p))
+		switch p {
+		case mobileconfig.FleetFileVaultPayloadType, mobileconfig.FleetRecoveryKeyEscrowPayloadType:
+			assert.Contains(t, errMsg, mobileconfig.DiskEncryptionProfileRestrictionErrMsg)
+		default:
+			assert.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		}
 	}
 
 	// payloads with reserved identifiers
@@ -4152,8 +4335,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 			{Name: "N4", Contents: declarationForTest("D1")},
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Validation Failed")
-		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadIdentifier(s): %s", p))
+		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
 	}
 
 	// profiles with forbidden declaration types
@@ -4192,7 +4374,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		{Name: "N3", Contents: syncMLForTest("./Foo/Bar")},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
+	assert.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
 
 	// os updates
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -4406,19 +4588,26 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Validation Failed")
-		require.Contains(t, errMsg, fmt.Sprintf("payload identifier %s is not allowed", p))
+		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: payload identifier %s is not allowed", p))
 	}
 
 	// payloads with reserved types
 	for p := range mobileconfig.FleetPayloadTypes() {
+		if p == mobileconfig.FleetCustomSettingsPayloadType {
+			// FileVault options in the custom settings payload are checked in file_vault_options_test.go
+			continue
+		}
 		res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
 			"N1": mobileconfigForTestWithContent("N1", "I1", "II1", p, ""),
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Validation Failed")
-		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadType(s): %s", p))
+		switch p {
+		case mobileconfig.FleetFileVaultPayloadType, mobileconfig.FleetRecoveryKeyEscrowPayloadType:
+			assert.Contains(t, errMsg, mobileconfig.DiskEncryptionProfileRestrictionErrMsg)
+		default:
+			assert.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadType(s): %s", p))
+		}
 	}
 
 	// payloads with reserved identifiers
@@ -4428,8 +4617,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 			"N3": syncMLForTest("./Foo/Bar"),
 		}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Validation Failed")
-		require.Contains(t, errMsg, fmt.Sprintf("unsupported PayloadIdentifier(s): %s", p))
+		require.Contains(t, errMsg, fmt.Sprintf("Validation Failed: unsupported PayloadIdentifier(s): %s", p))
 	}
 
 	// profiles with reserved Windows location URIs
@@ -4440,7 +4628,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 		"N3":                              syncMLForTest("./Foo/Bar"),
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Custom configuration profiles can't include BitLocker settings. To control these settings, use the mdm.enable_disk_encryption option.")
+	assert.Contains(t, errMsg, syncml.DiskEncryptionProfileRestrictionErrMsg)
 
 	// os updates
 	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": map[string][]byte{
@@ -4556,7 +4744,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	checkWinProfs(nil, servermdm.ListFleetReservedWindowsProfileNames()...)
 
 	// batch set only windows profiles doesn't remove the reserved names
-	newWinProfile := syncml.ForTestWithData(map[string]string{"l1": "d1"})
+	newWinProfile := syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "l1", Data: "d1"}})
 	var testProfiles []fleet.MDMProfileBatchPayload
 	testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
 		Name:     "n1",

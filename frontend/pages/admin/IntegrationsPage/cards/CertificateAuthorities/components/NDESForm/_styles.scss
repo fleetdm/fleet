@@ -1,0 +1,13 @@
+.ndes-form {
+  &__fields {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__cta {
+    display: flex;
+    flex-direction: row-reverse;
+    gap: $pad-medium;
+  }
+}

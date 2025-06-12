@@ -3,12 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -17,8 +24,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-json-experiment/json/v1"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -77,12 +87,14 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-		FleetConfig: &fleetCfg,
-		MDMStorage:  mdmStorage,
-		DEPStorage:  depStorage,
-		SCEPStorage: scepStorage,
-		Pool:        redisPool,
-		APNSTopic:   "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		FleetConfig:       &fleetCfg,
+		MDMStorage:        mdmStorage,
+		DEPStorage:        depStorage,
+		SCEPStorage:       scepStorage,
+		Pool:              redisPool,
+		APNSTopic:         "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		SCEPConfigService: eeservice.NewSCEPConfigService(kitlog.NewLogfmtLogger(os.Stdout), nil),
+		DigiCertService:   digicert.NewService(),
 	}
 	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte("scepchallenge")},
@@ -107,6 +119,37 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownSuite() {
 	appConf.MDM.EnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
+	t := s.T()
+	ctx := context.Background()
+
+	teams, err := s.ds.ListTeams(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, tm := range teams {
+		err := s.ds.DeleteTeam(ctx, tm.ID)
+		require.NoError(t, err)
+	}
+
+	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
+		return err
+	})
+
+	lbls, err := s.ds.ListLabels(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.ListOptions{})
+	require.NoError(t, err)
+	for _, lbl := range lbls {
+		if lbl.LabelType != fleet.LabelTypeBuiltIn {
+			err := s.ds.DeleteLabel(ctx, lbl.Name)
+			require.NoError(t, err)
+		}
+	}
 }
 
 // TestFleetGitops runs `fleetctl gitops` command on configs in https://github.com/fleetdm/fleet-gitops repo.
@@ -362,5 +405,490 @@ team_settings:
 		assert.Equal(t, 0, result)
 		return nil
 	})
+}
 
+// TestCAIntegrations enables DigiCert and Custom SCEP CAs via GitOps.
+// At the same time, GitOps uploads Apple profiles that use the newly configured CAs.
+func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
+	t := s.T()
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	var (
+		gotProfileMu sync.Mutex
+		gotProfile   bool
+	)
+	digiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.Method {
+		case http.MethodGet:
+			matches := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`).FindStringSubmatch(r.URL.Path)
+			if len(matches) != 2 {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			profileID := matches[1]
+
+			resp := map[string]string{
+				"id":     profileID,
+				"name":   "DigiCert",
+				"status": "Active",
+			}
+			err := json.NewEncoder(w).Encode(resp)
+			require.NoError(t, err)
+			gotProfileMu.Lock()
+			gotProfile = profileID == "digicert_profile_id"
+			defer gotProfileMu.Unlock()
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	t.Cleanup(digiCertServer.Close)
+
+	scepServer := scep_server.StartTestSCEPServer(t)
+
+	// Get the path to the directory of this test file
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "failed to get runtime caller info")
+	dirPath := filepath.Dir(currentFile)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  integrations:
+    digicert:
+      - name: DigiCert
+        url: %s
+        api_token: digicert_api_token
+        profile_id: digicert_profile_id
+        certificate_common_name: digicert_cn
+        certificate_user_principal_names: ["digicert_upn"]
+        certificate_seat_id: digicert_seat_id
+    custom_scep_proxy:
+      - name: CustomScepProxy
+        url: %s
+        challenge: challenge
+policies:
+queries:
+`, dirPath, digiCertServer.URL, scepServer.URL+"/scep"))
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+
+	// Apply configs
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+
+	appConfig, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	require.True(t, appConfig.Integrations.DigiCert.Valid)
+	require.Len(t, appConfig.Integrations.DigiCert.Value, 1)
+	digicertCA := appConfig.Integrations.DigiCert.Value[0]
+	require.Equal(t, "DigiCert", digicertCA.Name)
+	require.Equal(t, digiCertServer.URL, digicertCA.URL)
+	require.Equal(t, fleet.MaskedPassword, digicertCA.APIToken)
+	require.Equal(t, "digicert_profile_id", digicertCA.ProfileID)
+	require.Equal(t, "digicert_cn", digicertCA.CertificateCommonName)
+	require.Equal(t, []string{"digicert_upn"}, digicertCA.CertificateUserPrincipalNames)
+	require.Equal(t, "digicert_seat_id", digicertCA.CertificateSeatID)
+	gotProfileMu.Lock()
+	require.True(t, gotProfile)
+	gotProfileMu.Unlock()
+
+	require.True(t, appConfig.Integrations.CustomSCEPProxy.Valid)
+	require.Len(t, appConfig.Integrations.CustomSCEPProxy.Value, 1)
+	customSCEPProxyCA := appConfig.Integrations.CustomSCEPProxy.Value[0]
+	require.Equal(t, "CustomScepProxy", customSCEPProxyCA.Name)
+	require.Equal(t, scepServer.URL+"/scep", customSCEPProxyCA.URL)
+	require.Equal(t, fleet.MaskedPassword, customSCEPProxyCA.Challenge)
+
+	profiles, _, err := s.ds.ListMDMConfigProfiles(context.Background(), nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	assert.Len(t, profiles, 1)
+
+	// Now test that we can clear the configs
+	_, err = globalFile.WriteString(`
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`)
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+	appConfig, err = s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, appConfig.Integrations.DigiCert.Value)
+	assert.Empty(t, appConfig.Integrations.CustomSCEPProxy.Value)
+}
+
+// TestUnsetConfigurationProfileLabels tests the removal of labels associated with a
+// configuration profile via gitops.
+func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetConfigurationProfileLabels() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	lbl, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "Label1", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotZero(t, lbl.ID)
+
+	profileFile, err := os.CreateTemp(t.TempDir(), "*.mobileconfig")
+	require.NoError(t, err)
+	_, err = profileFile.WriteString(test.GenerateMDMAppleProfile("test", "test", uuid.NewString()))
+	require.NoError(t, err)
+	err = profileFile.Close()
+	require.NoError(t, err)
+
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+%s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`
+		withLabelsIncludeAny = `
+        labels_include_any:
+          - Label1
+`
+		emptyLabelsIncludeAny = `
+        labels_include_any:
+`
+		teamTemplate = `
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+%s
+software:
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+		withLabelsIncludeAll = `
+        labels_include_all:
+          - Label1
+`
+	)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(globalTemplate, profileFile.Name(), withLabelsIncludeAny))
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	teamName := uuid.NewString()
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, profileFile.Name(), withLabelsIncludeAll, teamName))
+	require.NoError(t, err)
+	err = teamFile.Close()
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+
+	// Apply configs
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
+
+	// get the team ID
+	team, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	// the custom setting is scoped by the label for no team
+	profs, _, err := s.ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Len(t, profs[0].LabelsIncludeAny, 1)
+	require.Equal(t, "Label1", profs[0].LabelsIncludeAny[0].LabelName)
+
+	// the custom setting is scoped by the label for team
+	profs, _, err = s.ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Len(t, profs[0].LabelsIncludeAll, 1)
+	require.Equal(t, "Label1", profs[0].LabelsIncludeAll[0].LabelName)
+
+	// remove the label conditions
+	err = os.WriteFile(globalFile.Name(), []byte(fmt.Sprintf(globalTemplate, profileFile.Name(), emptyLabelsIncludeAny)), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, profileFile.Name(), "", teamName)), 0o644)
+	require.NoError(t, err)
+
+	// Apply configs
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()})
+
+	// the custom setting is not scoped by label anymore
+	profs, _, err = s.ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Len(t, profs[0].LabelsIncludeAny, 0)
+
+	profs, _, err = s.ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Len(t, profs[0].LabelsIncludeAll, 0)
+}
+
+// TestUnsetSoftwareInstallerLabels tests the removal of labels associated with a
+// software installer via gitops.
+func (s *enterpriseIntegrationGitopsTestSuite) TestUnsetSoftwareInstallerLabels() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	lbl, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "Label1", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotZero(t, lbl.ID)
+
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`
+
+		noTeamTemplate = `name: No team
+controls:
+policies:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+%s
+`
+		withLabelsIncludeAny = `
+      labels_include_any:
+        - Label1
+`
+		emptyLabelsIncludeAny = `
+      labels_include_any:
+`
+		teamTemplate = `
+controls:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+%s
+queries:
+policies:
+agent_options:
+name: %s
+team_settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+		withLabelsExcludeAny = `
+      labels_exclude_any:
+        - Label1
+`
+	)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, withLabelsIncludeAny))
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	teamName := uuid.NewString()
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, withLabelsExcludeAny, teamName))
+	require.NoError(t, err)
+	err = teamFile.Close()
+	require.NoError(t, err)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+	startSoftwareInstallerServer(t)
+
+	// Apply configs
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()})
+
+	// get the team ID
+	team, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	// the installer is scoped by the label for no team
+	titles, _, _, err := s.ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{AvailableForInstall: true, TeamID: ptr.Uint(0)}, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.NotNil(t, titles[0].SoftwarePackage)
+	noTeamTitleID := titles[0].ID
+	meta, err := s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
+	require.NoError(t, err)
+	require.Len(t, meta.LabelsIncludeAny, 1)
+	require.Equal(t, "Label1", meta.LabelsIncludeAny[0].LabelName)
+
+	// the installer is scoped by the label for team
+	titles, _, _, err = s.ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID}, fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.NotNil(t, titles[0].SoftwarePackage)
+	teamTitleID := titles[0].ID
+	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
+	require.NoError(t, err)
+	require.Len(t, meta.LabelsExcludeAny, 1)
+	require.Equal(t, "Label1", meta.LabelsExcludeAny[0].LabelName)
+
+	// remove the label conditions
+	err = os.WriteFile(noTeamFilePath, []byte(fmt.Sprintf(noTeamTemplate, emptyLabelsIncludeAny)), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, "", teamName)), 0o644)
+	require.NoError(t, err)
+
+	// Apply configs
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "-f", teamFile.Name()})
+
+	// the installer is not scoped by label anymore
+	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, nil, noTeamTitleID, false)
+	require.NoError(t, err)
+	require.NotNil(t, meta.TitleID)
+	require.Equal(t, noTeamTitleID, *meta.TitleID)
+	require.Len(t, meta.LabelsExcludeAny, 0)
+	require.Len(t, meta.LabelsIncludeAny, 0)
+
+	meta, err = s.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, teamTitleID, false)
+	require.NoError(t, err)
+	require.NotNil(t, meta.TitleID)
+	require.Equal(t, teamTitleID, *meta.TitleID)
+	require.Len(t, meta.LabelsExcludeAny, 0)
+	require.Len(t, meta.LabelsIncludeAny, 0)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestDeletingNoTeamYAML() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.server.URL)
+
+	// global file setup
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`
+	)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	// setup script
+	const testScriptTemplate = `echo "Hello, world!"`
+
+	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
+	require.NoError(t, err)
+	_, err = scriptFile.WriteString(testScriptTemplate)
+	require.NoError(t, err)
+	err = scriptFile.Close()
+	require.NoError(t, err)
+
+	// no team file setup
+	const (
+		noTeamTemplate = `name: No team
+policies:
+controls:
+  macos_setup:
+    script: %s
+software:
+`
+	)
+
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, scriptFile.Name()))
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+
+	// Check script existance
+	_, err = s.ds.GetSetupExperienceScript(ctx, nil)
+	require.NoError(t, err)
+
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+
+	// Check script does not exist
+	_, err = s.ds.GetSetupExperienceScript(ctx, nil)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
 }

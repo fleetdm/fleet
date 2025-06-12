@@ -17,6 +17,23 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT serial_number, cycle_count, designed_capacity, max_capacity FROM battery
 ```
 
+## certificates_darwin
+
+- Platforms: darwin
+
+- Query:
+```sql
+SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1
+	FROM
+		certificates
+	WHERE
+		path = '/Library/Keychains/System.keychain';
+```
+
 ## chromeos_profile_user_info
 
 - Platforms: chrome
@@ -567,19 +584,7 @@ SELECT
   '' AS vendor,
   '' AS arch,
   path AS installed_path
-FROM cached_users CROSS JOIN firefox_addons USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM python_packages;
+FROM cached_users CROSS JOIN firefox_addons USING (uid);
 ```
 
 ## software_macos
@@ -593,7 +598,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
-  name AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -603,18 +608,6 @@ SELECT
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS bundle_identifier,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS vendor,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM python_packages
 UNION
 SELECT
   name AS name,
@@ -740,6 +733,66 @@ WITH app_paths AS (
 			WHERE apps.bundle_identifier = 'org.mozilla.firefox'
 ```
 
+## software_python_packages
+
+- Description: Prior to osquery version 5.16.0, the python_packages table did not search user directories.
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM (
+    SELECT
+    CAST(SUBSTR(version, 1, INSTR(version, '.') - 1) AS INTEGER) major,
+    CAST(SUBSTR(version, INSTR(version, '.') + 1, INSTR(SUBSTR(version, INSTR(version, '.') + 1), '.') - 1) AS INTEGER) minor from osquery_info
+) AS version_parts WHERE major < 5 OR (major = 5 AND minor < 16)
+```
+
+- Query:
+```sql
+SELECT
+		  name AS name,
+		  version AS version,
+		  '' AS extension_id,
+		  '' AS browser,
+		  'python_packages' AS source,
+		  '' AS vendor,
+		  path AS installed_path
+		FROM python_packages
+```
+
+## software_python_packages_with_users_dir
+
+- Description: As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table.
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM (
+    SELECT
+    CAST(substr(version, 1, instr(version, '.') - 1) AS INTEGER) major,
+    CAST(substr(version, instr(version, '.') + 1, instr(substr(version, instr(version, '.') + 1), '.') - 1) AS INTEGER) minor from osquery_info
+) AS version_parts WHERE major > 5 OR (major = 5 AND minor >= 16)
+```
+
+- Query:
+```sql
+WITH cached_users AS (WITH cached_groups AS (select * from groups)
+ SELECT uid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+		SELECT
+		  name AS name,
+		  version AS version,
+		  '' AS extension_id,
+		  '' AS browser,
+		  'python_packages' AS source,
+		  '' AS vendor,
+		  path AS installed_path
+		FROM cached_users CROSS JOIN python_packages USING (uid)
+```
+
 ## software_vscode_extensions
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
@@ -787,16 +840,6 @@ SELECT
   publisher AS vendor,
   install_location AS installed_path
 FROM programs
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS vendor,
-  path AS installed_path
-FROM python_packages
 UNION
 SELECT
   name AS name,

@@ -29,6 +29,10 @@ import (
 	"github.com/spf13/cast"
 )
 
+// Some machines don't have a correctly set serial number, create a default ignore list
+// https://github.com/fleetdm/fleet/issues/25993
+var invalidHardwareSerialRegexp = regexp.MustCompile("(?i)(?:default|serial|string)")
+
 type DetailQuery struct {
 	// Description is an optional description of the query to be displayed in the
 	// Host Vitals documentation https://fleetdm.com/docs/using-fleet/understanding-host-vitals
@@ -339,7 +343,11 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVendor = rows[0]["hardware_vendor"]
 			host.HardwareModel = rows[0]["hardware_model"]
 			host.HardwareVersion = rows[0]["hardware_version"]
-			if rows[0]["hardware_serial"] != "-1" { // ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
+			if invalidHardwareSerialRegexp.Match([]byte(rows[0]["hardware_serial"])) {
+				// If the serial number is a default (uninitialize) value, set to empty
+				host.HardwareSerial = ""
+			} else if rows[0]["hardware_serial"] != "-1" {
+				// ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
 				host.HardwareSerial = rows[0]["hardware_serial"]
 			}
 			host.ComputerName = rows[0]["computer_name"]
@@ -693,6 +701,20 @@ var extraDetailQueries = map[string]DetailQuery{
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskEncryption,
 	},
+	"certificates_darwin": {
+		Query: `
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1
+	FROM
+		certificates
+	WHERE
+		path = '/Library/Keychains/System.keychain';`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestHostCertificates,
+	},
 }
 
 // mdmQueries are used by the Fleet server to compliment certain MDM
@@ -829,7 +851,7 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  name AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -839,18 +861,6 @@ SELECT
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS bundle_identifier,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS vendor,
-  0 AS last_opened_at,
-  path AS installed_path
-FROM python_packages
 UNION
 SELECT
   name AS name,
@@ -1024,19 +1034,7 @@ SELECT
   '' AS vendor,
   '' AS arch,
   path AS installed_path
-FROM cached_users CROSS JOIN firefox_addons USING (uid)
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  '' AS arch,
-  path AS installed_path
-FROM python_packages;
+FROM cached_users CROSS JOIN firefox_addons USING (uid);
 `),
 	Platforms:        fleet.HostLinuxOSs,
 	DirectIngestFunc: directIngestSoftware,
@@ -1053,16 +1051,6 @@ SELECT
   publisher AS vendor,
   install_location AS installed_path
 FROM programs
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS extension_id,
-  '' AS browser,
-  'python_packages' AS source,
-  '' AS vendor,
-  path AS installed_path
-FROM python_packages
 UNION
 SELECT
   name AS name,
@@ -1106,6 +1094,54 @@ FROM chocolatey_packages
 `),
 	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestSoftware,
+}
+
+// In osquery versions < 5.16.0 use the original python_packages query, as the cross join on
+// users is not supported. We're *not* using VERSION_COMPARE() here and below because that function
+// doesn't exist in osquery version < 5.11.0, causing discovery queries to fail for those versions.
+// See #27126 for more information.
+var softwarePythonPackages = DetailQuery{
+	Description: "Prior to osquery version 5.16.0, the python_packages table did not search user directories.",
+	Query: `
+		SELECT
+		  name AS name,
+		  version AS version,
+		  '' AS extension_id,
+		  '' AS browser,
+		  'python_packages' AS source,
+		  '' AS vendor,
+		  path AS installed_path
+		FROM python_packages
+	`,
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: `SELECT 1 FROM (
+    SELECT
+    CAST(SUBSTR(version, 1, INSTR(version, '.') - 1) AS INTEGER) major,
+    CAST(SUBSTR(version, INSTR(version, '.') + 1, INSTR(SUBSTR(version, INSTR(version, '.') + 1), '.') - 1) AS INTEGER) minor from osquery_info
+) AS version_parts WHERE major < 5 OR (major = 5 AND minor < 16)`,
+}
+
+// In osquery versions >= 5.16.0 the python_packages table was modified to allow for a
+// cross join on users so that user directories could be searched for python packages
+var softwarePythonPackagesWithUsersDir = DetailQuery{
+	Description: "As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table.",
+	Query: withCachedUsers(`WITH cached_users AS (%s)
+		SELECT
+		  name AS name,
+		  version AS version,
+		  '' AS extension_id,
+		  '' AS browser,
+		  'python_packages' AS source,
+		  '' AS vendor,
+		  path AS installed_path
+		FROM cached_users CROSS JOIN python_packages USING (uid)
+	`),
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: `SELECT 1 FROM (
+    SELECT
+    CAST(substr(version, 1, instr(version, '.') - 1) AS INTEGER) major,
+    CAST(substr(version, instr(version, '.') + 1, instr(substr(version, instr(version, '.') + 1), '.') - 1) AS INTEGER) minor from osquery_info
+) AS version_parts WHERE major > 5 OR (major = 5 AND minor >= 16)`,
 }
 
 var softwareChrome = DetailQuery{
@@ -1398,12 +1434,12 @@ func generateBatteryHealth(row map[string]string, logger log.Logger) (string, in
 		return batteryStatusUnknown, count, fmt.Errorf("failed to parse designed capacity: %s", designedCapacity)
 	}
 
-	max, err := strconv.ParseInt(maxCapacity, 10, 64)
+	maxCapInt, err := strconv.ParseInt(maxCapacity, 10, 64)
 	if err != nil {
 		return batteryStatusUnknown, count, fmt.Errorf("failed to parse max capacity: %s", maxCapacity)
 	}
 
-	health := float64(max) / float64(designed) * 100
+	health := float64(maxCapInt) / float64(designed) * 100
 
 	if health < batteryDegradedThreshold {
 		return batteryStatusDegraded, count, nil
@@ -1574,8 +1610,6 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
-		sanitizeSoftware(host, s, logger)
-
 		if shouldRemoveSoftware(host, s) {
 			continue
 		}
@@ -1613,205 +1647,6 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 	}
 
 	return nil
-}
-
-var (
-	macOSMSTeamsVersion = regexp.MustCompile(`(\d).00.(\d)(\d+)`)
-	citrixName          = regexp.MustCompile(`Citrix Workspace [0-9]+`)
-	softwareSanitizers  = []struct {
-		checkSoftware  func(*fleet.Host, *fleet.Software) bool
-		mutateSoftware func(*fleet.Software, log.Logger)
-	}{
-		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
-		// unexpected version format. Thus here we transform the version string to the expected format
-		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
-		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed
-		// to `1.6.00.22155` || s.Name == "Microsoft Teams (work or school).app".
-
-		// Note: in December 2023, Microsoft released "New Teams" for MacOS. This new version of
-		// Teams uses a completely different versioning scheme, which is documented at the URL
-		// above. Existing versions of Teams on MacOS were renamed to "Microsoft Teams Classic" and still use
-		// the same versioning scheme discussed above.
-		{
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
-					s.Version = fmt.Sprintf("%s.%s.00.%s", matches[1], matches[2], matches[3])
-				}
-			},
-		},
-		// In the Windows Registry, Cloudflare WARP defines its major version with the last two digits, e.g. `23.9.248.0`.
-		// On NVD, the vulnerabilities are reported using the full year, e.g. `2023.9.248.0`.
-		{
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "windows" && s.Name == "Cloudflare WARP" && s.Source == "programs"
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				// Perform some sanity check on the version before mutating it.
-				parts := strings.Split(s.Version, ".")
-				if len(parts) <= 1 {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
-					return
-				}
-				_, err := strconv.Atoi(parts[0])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
-					return
-				}
-				// In case Cloudflare starts returning the full year.
-				if len(parts[0]) == 4 {
-					return
-				}
-				s.Version = "20" + s.Version // Cloudflare WARP was released on 2019.
-			},
-		},
-		{
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return citrixName.Match([]byte(s.Name)) || s.Name == "Citrix Workspace.app"
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				parts := strings.Split(s.Version, ".")
-				if len(parts) <= 1 {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version)
-					return
-				}
-
-				if len(parts[0]) > 2 {
-					// then the versioning is correct, so no need to change
-					return
-				}
-
-				part1, err := strconv.Atoi(parts[0])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
-					return
-				}
-
-				part2, err := strconv.Atoi(parts[1])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
-					return
-				}
-
-				newFirstPart := part1*100 + part2
-				newFirstStr := strconv.Itoa(newFirstPart)
-				newParts := []string{newFirstStr}
-				newParts = append(newParts, parts[2:]...)
-				s.Version = strings.Join(newParts, ".")
-			},
-		},
-		{
-			// Trim the "RELEASE." prefix from Minio versions.
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return s.Name == "minio" && strings.Contains(s.Version, "RELEASE.")
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				// trim the "RELEASE." prefix from the version
-				s.Version = strings.TrimPrefix(s.Version, "RELEASE.")
-				// trim any unexpected trailing characters
-				if idx := strings.Index(s.Version, "_"); idx != -1 {
-					s.Version = s.Version[:idx]
-				}
-			},
-		},
-		{
-			// Convert the timestamp to NVD's format for Minio versions.
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				regex := regexp.MustCompile(`^\d{14}$`)
-
-				return s.Name == "minio" && regex.MatchString(s.Version)
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				timestamp, err := time.Parse("20060102150405", s.Version)
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse software version", "name", s.Name, "version", s.Version, "err", err)
-					return
-				}
-				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
-			},
-		},
-		{
-			// JetBrains EAP version numbers aren't what are used in CPEs; this handles the translation for Mac versions.
-			// See #22723 for background. Bundle identifier for EAPs also ends with "-EAP" but checking version makes it
-			// a bit easier to add other platforms later. EAP version numbers are e.g. EAP GO-243.21565.42, and checking
-			// here for the dash ensures that string splitting in the mutator always works without a bounds check.
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return s.BundleIdentifier != "" && strings.HasPrefix(s.BundleIdentifier, "com.jetbrains.") &&
-					strings.HasPrefix(s.Version, "EAP ") && strings.Contains(s.Version, "-")
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				// 243 -> 2024.3
-				eapMajorVersion := strings.Split(strings.Split(s.Version, "-")[1], ".")[0]
-				yearBasedMajorVersion, err := strconv.Atoi("20" + eapMajorVersion[:2])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP major version", "version", s.Version, "err", err)
-					return
-				}
-				yearBasedMinorVersion, err := strconv.Atoi(eapMajorVersion[2:])
-				if err != nil {
-					level.Debug(logger).Log("msg", "failed to parse JetBrains EAP minor version", "version", s.Version, "err", err)
-					return
-				}
-
-				// EAPs are treated as having all fixes from the previous year-based release, but no fixes from the
-				// year-based release they're an EAP of. The exception to this would be CVE-2024-37051, which was fixed
-				// in a second/third EAP depending on product, but at this point all vulnerable EAPs force exit on
-				// startup due to being expired, so that CVE can't be exploited.
-				yearBasedMinorVersion -= 1
-				if yearBasedMinorVersion <= 0 { // wrap e.g. 2024.1 to 2023.4 (not a real version, but has all 2023.3 fixes)
-					yearBasedMajorVersion -= 1
-					yearBasedMinorVersion = 4
-				}
-
-				// pass through minor and patch version for EAP to tell different EAP builds apart
-				eapMinorAndPatchVersion := strings.Join(strings.Split(strings.Split(s.Version, "-")[1], ".")[1:], ".")
-				s.Version = fmt.Sprintf("%d.%d.%s.%s", yearBasedMajorVersion, yearBasedMinorVersion, "99", eapMinorAndPatchVersion)
-			},
-		},
-		{
-			// Python versions on Windows encode ABI and release information in a way that's incompatible with NVD lookups
-			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return s.Source == "programs" && strings.HasPrefix(s.Name, "Python 3.")
-			},
-			mutateSoftware: func(s *fleet.Software, logger log.Logger) {
-				versionComponents := strings.Split(s.Version, ".")
-				patchVersion := versionComponents[2][0 : len(versionComponents[2])-3]
-				releaseLevel := versionComponents[2][len(versionComponents[2])-3 : len(versionComponents[2])-1]
-				releaseSerial := versionComponents[2][len(versionComponents[2])-1 : len(versionComponents[2])]
-
-				candidateSuffix := ""
-				switch releaseLevel { // see https://github.com/python/cpython/issues/100829#issuecomment-1374656643
-				case "10":
-					candidateSuffix = "-alpha" + releaseSerial
-				case "11":
-					candidateSuffix = "-beta" + releaseSerial
-				case "12":
-					candidateSuffix = "-rc" + releaseSerial
-				} // default
-
-				if patchVersion == "" { // dot-zero patch releases have a 3-digit patch + build number
-					patchVersion = "0"
-				}
-
-				versionComponents[2] = patchVersion + candidateSuffix
-				s.Version = strings.Join(versionComponents[0:3], ".")
-			},
-		},
-	}
-)
-
-// sanitizeSoftware performs any sanitization required to the ingested software fields.
-//
-// Some fields are reported with known incorrect values and we need to fix them before using them.
-func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
-	for _, softwareSanitizer := range softwareSanitizers {
-		if softwareSanitizer.checkSoftware(h, s) {
-			softwareSanitizer.mutateSoftware(s, logger)
-			return
-		}
-	}
 }
 
 // shouldRemoveSoftware returns whether or not we should remove the given Software item from this
@@ -2244,6 +2079,8 @@ func GetDetailQueries(
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
+		generatedMap["software_python_packages"] = softwarePythonPackages
+		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 
 		for key, query := range SoftwareOverrideQueries {
@@ -2375,4 +2212,66 @@ func directIngestWindowsProfiles(
 		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles host %s got an empty SyncML response", host.UUID)
 	}
 	return microsoft_mdm.VerifyHostMDMProfiles(ctx, logger, ds, host, rawResponse)
+}
+
+func directIngestHostCertificates(
+	ctx context.Context,
+	logger log.Logger,
+	host *fleet.Host,
+	ds fleet.Datastore,
+	rows []map[string]string,
+) error {
+	if len(rows) == 0 {
+		// if there are no results, it probably may indicate a problem so we log it
+		level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "no rows returned", "host_id", host.ID)
+		return nil
+	}
+
+	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
+	for _, row := range rows {
+		csum, err := hex.DecodeString(row["sha1"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
+			continue
+		}
+		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["subject"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
+			continue
+		}
+		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(row["issuer"])
+		if err != nil {
+			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
+			continue
+		}
+
+		certs = append(certs, &fleet.HostCertificateRecord{
+			HostID:                    host.ID,
+			SHA1Sum:                   csum,
+			NotValidAfter:             time.Unix(cast.ToInt64(row["not_valid_after"]), 0).UTC(),
+			NotValidBefore:            time.Unix(cast.ToInt64(row["not_valid_before"]), 0).UTC(),
+			CertificateAuthority:      cast.ToBool(row["ca"]),
+			CommonName:                row["common_name"],
+			KeyAlgorithm:              row["key_algorithm"],
+			KeyStrength:               cast.ToInt(row["key_strength"]),
+			KeyUsage:                  row["key_usage"],
+			Serial:                    row["serial"],
+			SigningAlgorithm:          row["signing_algorithm"],
+			SubjectCountry:            subject.Country,
+			SubjectOrganizationalUnit: subject.OrganizationalUnit,
+			SubjectOrganization:       subject.Organization,
+			SubjectCommonName:         subject.CommonName,
+			IssuerCountry:             issuer.Country,
+			IssuerOrganizationalUnit:  issuer.OrganizationalUnit,
+			IssuerOrganization:        issuer.Organization,
+			IssuerCommonName:          issuer.CommonName,
+		})
+	}
+
+	if len(certs) == 0 {
+		// don't overwrite existing certs if we were unable to parse any new ones
+		return nil
+	}
+
+	return ds.UpdateHostCertificates(ctx, host.ID, certs)
 }

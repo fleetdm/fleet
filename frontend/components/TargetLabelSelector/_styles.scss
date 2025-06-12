@@ -1,25 +1,11 @@
 .target-label-selector {
+  width: 100%;
   font-size: $x-small;
 
   &__custom-label-chooser {
-    margin-top: $pad-medium;
-  }
-
-  &__description {
-    margin: $pad-medium 0;
-  }
-
-  &__no-labels {
     display: flex;
-    height: 187px;
     flex-direction: column;
-    align-items: center;
-    gap: $pad-small;
-    justify-content: center;
-
-    span {
-      color: $ui-fleet-black-75;
-    }
+    gap: $pad-medium;
   }
 
   &__checkboxes {

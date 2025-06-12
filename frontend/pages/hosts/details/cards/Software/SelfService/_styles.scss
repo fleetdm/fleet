@@ -1,14 +1,4 @@
 .software-self-service {
-  &__card-header {
-    margin: 0 0 8px 0;
-  }
-
-  &__card-subheader {
-    margin: 0 0 24px 0;
-    color: $ui-fleet-black-75;
-    font-size: $x-small;
-  }
-
   // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?g
   .empty-table__container {
     margin: 64px 0;

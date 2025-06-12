@@ -17,6 +17,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
@@ -93,6 +94,7 @@ func TestMDMApple(t *testing.T) {
 		{"AppleMDMSetBatchAsyncLastSeenAt", testAppleMDMSetBatchAsyncLastSeenAt},
 		{"TestMDMAppleProfileLabels", testMDMAppleProfileLabels},
 		{"AggregateMacOSSettingsAllPlatforms", testAggregateMacOSSettingsAllPlatforms},
+		{"GetMDMAppleEnrolledDeviceDeletedFromFleet", testGetMDMAppleEnrolledDeviceDeletedFromFleet},
 	}
 
 	for _, c := range cases {
@@ -1080,14 +1082,21 @@ func expectAppleDeclarations(
 		tmID = ptr.Uint(0)
 	}
 
-	var got []*fleet.MDMAppleDeclaration
+	ctx := context.Background()
+	var gotUUIDs []string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		ctx := context.Background()
-		return sqlx.SelectContext(ctx, q, &got,
-			`SELECT declaration_uuid, team_id, identifier, name, raw_json, token, created_at, uploaded_at FROM mdm_apple_declarations WHERE team_id = ?`,
+		return sqlx.SelectContext(ctx, q, &gotUUIDs,
+			`SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ?`,
 			tmID)
 	})
 
+	// load each declaration, this will also load its labels
+	var got []*fleet.MDMAppleDeclaration
+	for _, declUUID := range gotUUIDs {
+		decl, err := ds.GetMDMAppleDeclaration(ctx, declUUID)
+		require.NoError(t, err)
+		got = append(got, decl)
+	}
 	// create map of expected declarations keyed by identifier
 	wantMap := make(map[string]*fleet.MDMAppleDeclaration, len(want))
 	for _, cp := range want {
@@ -1101,6 +1110,12 @@ func expectAppleDeclarations(
 			return nil, err
 		}
 		return json.Marshal(ifce)
+	}
+
+	jsonMustMarshal := func(v any) string {
+		b, err := json.Marshal(v)
+		require.NoError(t, err)
+		return string(b)
 	}
 
 	// compare only the fields we care about, and build the resulting map of
@@ -1141,7 +1156,12 @@ func expectAppleDeclarations(
 
 		require.Equal(t, wantD.Name, gotD.Name)
 		require.Equal(t, wantD.Identifier, gotD.Identifier)
-		require.Equal(t, wantD.LabelsIncludeAll, gotD.LabelsIncludeAll)
+
+		// for labels, only care about ID and Name (the exclude, require all
+		// fields, etc. are reflected by the field that contains the label)
+		require.Equal(t, jsonMustMarshal(wantD.LabelsIncludeAll), jsonMustMarshal(gotD.LabelsIncludeAll))
+		require.Equal(t, jsonMustMarshal(wantD.LabelsIncludeAny), jsonMustMarshal(gotD.LabelsIncludeAny))
+		require.Equal(t, jsonMustMarshal(wantD.LabelsExcludeAny), jsonMustMarshal(gotD.LabelsExcludeAny))
 	}
 	return m
 }
@@ -1353,9 +1373,12 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 	}
 
 	for _, l := range labels {
-		if strings.HasPrefix(l.Name, "exclude-") {
+		switch {
+		case strings.HasPrefix(l.Name, "exclude-"):
 			decl.LabelsExcludeAny = append(decl.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
-		} else {
+		case strings.HasPrefix(l.Name, "inclany-"):
+			decl.LabelsIncludeAny = append(decl.LabelsIncludeAny, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		default:
 			decl.LabelsIncludeAll = append(decl.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
 		}
 	}
@@ -1837,7 +1860,7 @@ func nanoEnrollAndSetHostMDMData(t *testing.T, ds *Datastore, host *fleet.Host, 
 }
 
 func nanoEnroll(t *testing.T, ds *Datastore, host *fleet.Host, withUser bool) {
-	_, err := ds.writer(context.Background()).Exec(`INSERT INTO nano_devices (id, authenticate) VALUES (?, 'test')`, host.UUID)
+	_, err := ds.writer(context.Background()).Exec(`INSERT INTO nano_devices (id, serial_number, authenticate, platform, enroll_team_id) VALUES (?, NULLIF(?, ''), 'test', ?, ?)`, host.UUID, host.HardwareSerial, host.Platform, host.TeamID)
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
@@ -4650,7 +4673,7 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	// host has no boostrap package command yet
 	_, err = ds.GetHostBootstrapPackageCommand(ctx, host.UUID)
 	require.Error(t, err)
-	nfe := &notFoundError{}
+	nfe := &common_mysql.NotFoundError{}
 	require.ErrorAs(t, err, &nfe)
 
 	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
@@ -5560,7 +5583,7 @@ func TestRestorePendingDEPHost(t *testing.T) {
 				require.Equal(t, expectedHost.Platform, h.Platform)
 				require.Equal(t, expectedHost.TeamID, h.TeamID)
 			} else {
-				nfe := &notFoundError{}
+				nfe := &common_mysql.NotFoundError{}
 				require.ErrorAs(t, err, &nfe)
 			}
 
@@ -7183,7 +7206,7 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Host and profile are not linked
-	profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID)
+	profile, err := ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	assert.Nil(t, profile)
 
@@ -7203,36 +7226,40 @@ func testMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Host and profile do not have certificate metadata
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID)
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
-	require.NotNil(t, profile)
-	assert.Equal(t, host.UUID, profile.HostUUID)
-	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
-	assert.Nil(t, profile.ChallengeRetrievedAt)
+	assert.Nil(t, profile)
 
 	challengeRetrievedAt := time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)
+	notValidAfter := time.Now().Add(24 * time.Hour).UTC().Round(time.Microsecond)
 	err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMBulkUpsertManagedCertificatePayload{
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          initialCP.ProfileUUID,
 			ChallengeRetrievedAt: &challengeRetrievedAt,
+			NotValidAfter:        &notValidAfter,
+			Type:                 fleet.CAConfigCustomSCEPProxy,
+			CAName:               "test-ca",
 		},
 	})
 	require.NoError(t, err)
 
 	// Check that the managed certificate was inserted correctly
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID)
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, host.UUID, profile.HostUUID)
 	assert.Equal(t, initialCP.ProfileUUID, profile.ProfileUUID)
 	require.NotNil(t, profile.ChallengeRetrievedAt)
 	assert.Equal(t, &challengeRetrievedAt, profile.ChallengeRetrievedAt)
+	assert.Equal(t, &notValidAfter, profile.NotValidAfter)
+	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, profile.Type)
+	assert.Equal(t, "test-ca", profile.CAName)
 
 	// Cleanup should do nothing
 	err = ds.CleanUpMDMManagedCertificates(ctx)
 	require.NoError(t, err)
-	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID)
+	profile, err = ds.GetHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, "test-ca")
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 
@@ -7589,4 +7616,76 @@ func testAggregateMacOSSettingsAllPlatforms(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 0, res.Failed)
 	require.EqualValues(t, 0, res.Verifying)
 	require.EqualValues(t, 0, res.Verified)
+}
+
+func testGetMDMAppleEnrolledDeviceDeletedFromFleet(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create macOS/iOS/iPadOS enrolled devices and an unenrolled one
+	var hosts []*fleet.Host
+	for i, platform := range []string{"darwin", "ios", "ipados", "linux"} {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:        fmt.Sprintf("hostname_%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("osquery-host-id_%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("node-key_%d", i)),
+			UUID:            fmt.Sprintf("uuid_%d", i),
+			HardwareSerial:  fmt.Sprintf("serial_%d", i),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+
+		if platform != "linux" {
+			nanoEnrollAndSetHostMDMData(t, ds, host, false)
+		}
+		hosts = append(hosts, host)
+	}
+
+	// get for any of those hosts returns not found because the host entry still exists
+	for _, h := range hosts {
+		_, err := ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx, h.UUID)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+	}
+	ids, err := ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 10)
+	require.NoError(t, err)
+	require.Len(t, ids, 0)
+
+	// delete the darwin and ios hosts
+	err = ds.DeleteHost(ctx, hosts[0].ID)
+	require.NoError(t, err)
+	err = ds.DeleteHost(ctx, hosts[1].ID)
+	require.NoError(t, err)
+
+	// darwin device info can be retrieved
+	info, err := ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx, hosts[0].UUID)
+	require.NoError(t, err)
+	require.Equal(t, hosts[0].UUID, info.ID)
+	require.Equal(t, hosts[0].HardwareSerial, info.SerialNumber)
+	require.Equal(t, hosts[0].Platform, info.Platform)
+	require.NotEmpty(t, info.Authenticate)
+
+	// ios device info can be retrieved
+	info, err = ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx, hosts[1].UUID)
+	require.NoError(t, err)
+	require.Equal(t, hosts[1].UUID, info.ID)
+	require.Equal(t, hosts[1].HardwareSerial, info.SerialNumber)
+	require.Equal(t, hosts[1].Platform, info.Platform)
+	require.NotEmpty(t, info.Authenticate)
+
+	// the others still cannot be retrieved (add an invalid host uuid for good measure)
+	for _, huuid := range []string{hosts[2].UUID, hosts[3].UUID, uuid.NewString()} {
+		_, err := ds.GetMDMAppleEnrolledDeviceDeletedFromFleet(ctx, huuid)
+		require.Error(t, err)
+		require.True(t, errors.Is(err, sql.ErrNoRows))
+	}
+
+	// list returns only 1 because it ignores macOS
+	ids, err = ds.ListMDMAppleEnrolledIPhoneIpadDeletedFromFleet(ctx, 10)
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+	require.ElementsMatch(t, []string{hosts[1].UUID}, ids)
 }

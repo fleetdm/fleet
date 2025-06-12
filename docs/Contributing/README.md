@@ -27,5 +27,8 @@ Get to grips with Fleet API routes. This documentation is helpful for developing
 ### [Deploying ChromeOS test extensions](./Deploying-chrome-test-ext.md) 
 Learn how to deploy a test version of the fleetd Chrome extension for debug purposes.
 
+### [Upgrading the Go version](./Upgrading-go-version.md) 
+Learn how to update the version of Go used to build Fleet.
+
 ### [FAQ](./FAQ.md) 
 Find commonly asked questions and answers about contributing to Fleet as part of our community.

@@ -10,6 +10,18 @@
     align-items: center;
   }
 
+  &:hover:not(.radio__disabled) {
+    .radio__control-button {
+      border-color: $core-vibrant-blue-over;
+    }
+  }
+
+  &__input,
+  &__label {
+    &:hover {
+      cursor: pointer;
+    }
+  }
   &__input {
     display: flex;
 
@@ -71,6 +83,13 @@
 
     .radio__help-text {
       color: $ui-fleet-black-50;
+    }
+
+    .radio__input,
+    .radio__label {
+      &:hover {
+        cursor: not-allowed;
+      }
     }
   }
 }

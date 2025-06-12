@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -28,7 +29,7 @@ type createLabelResponse struct {
 
 func (r createLabelResponse) Error() error { return r.Err }
 
-func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createLabelRequest)
 
 	label, hostIDs, err := svc.NewLabel(ctx, req.LabelPayload)
@@ -57,6 +58,7 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	label := &fleet.Label{
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		AuthorID:            ptr.Uint(vc.UserID()),
 	}
 
 	if p.Name == "" {
@@ -115,7 +117,7 @@ type modifyLabelResponse struct {
 
 func (r modifyLabelResponse) Error() error { return r.Err }
 
-func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyLabelRequest)
 	label, hostIDs, err := svc.ModifyLabel(ctx, req.ID, req.ModifyLabelPayload)
 	if err != nil {
@@ -203,7 +205,7 @@ type getLabelResponse struct {
 
 func (r getLabelResponse) Error() error { return r.Err }
 
-func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getLabelRequest)
 	label, hostIDs, err := svc.GetLabel(ctx, req.ID)
 	if err != nil {
@@ -244,7 +246,7 @@ type listLabelsResponse struct {
 
 func (r listLabelsResponse) Error() error { return r.Err }
 
-func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listLabelsRequest)
 
 	labels, err := svc.ListLabels(ctx, req.ListOptions)
@@ -302,7 +304,7 @@ type getLabelsSummaryResponse struct {
 
 func (r getLabelsSummaryResponse) Error() error { return r.Err }
 
-func getLabelsSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getLabelsSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	labels, err := svc.LabelsSummary(ctx)
 	if err != nil {
 		return getLabelsSummaryResponse{Err: err}, nil
@@ -327,7 +329,7 @@ type listHostsInLabelRequest struct {
 	ListOptions fleet.HostListOptions `url:"host_options"`
 }
 
-func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostsInLabelRequest)
 	hosts, err := svc.ListHostsInLabel(ctx, req.ID, req.ListOptions)
 	if err != nil {
@@ -397,7 +399,7 @@ type deleteLabelResponse struct {
 
 func (r deleteLabelResponse) Error() error { return r.Err }
 
-func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteLabelRequest)
 	err := svc.DeleteLabel(ctx, req.Name)
 	if err != nil {
@@ -435,7 +437,7 @@ type deleteLabelByIDResponse struct {
 
 func (r deleteLabelByIDResponse) Error() error { return r.Err }
 
-func deleteLabelByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteLabelByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteLabelByIDRequest)
 	err := svc.DeleteLabelByID(ctx, req.ID)
 	if err != nil {
@@ -484,7 +486,7 @@ type applyLabelSpecsResponse struct {
 
 func (r applyLabelSpecsResponse) Error() error { return r.Err }
 
-func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyLabelSpecsRequest)
 	err := svc.ApplyLabelSpecs(ctx, req.Specs)
 	if err != nil {
@@ -528,6 +530,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 				return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "cannot modify built-in label '%s'", name), http.StatusUnprocessableEntity)
 			}
 		}
+
 		regularSpecs = append(regularSpecs, spec)
 	}
 
@@ -554,6 +557,13 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	if len(regularSpecs) == 0 {
 		return nil
 	}
+
+	// Get the user from the context.
+	user, ok := viewer.FromContext(ctx)
+	// If we have a user, mark them as the label's author.
+	if ok {
+		return svc.ds.ApplyLabelSpecsWithAuthor(ctx, regularSpecs, ptr.Uint(user.UserID()))
+	}
 	return svc.ds.ApplyLabelSpecs(ctx, regularSpecs)
 }
 
@@ -568,7 +578,7 @@ type getLabelSpecsResponse struct {
 
 func (r getLabelSpecsResponse) Error() error { return r.Err }
 
-func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	specs, err := svc.GetLabelSpecs(ctx)
 	if err != nil {
 		return getLabelSpecsResponse{Err: err}, nil
@@ -595,7 +605,7 @@ type getLabelSpecResponse struct {
 
 func (r getLabelSpecResponse) Error() error { return r.Err }
 
-func getLabelSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getLabelSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getGenericSpecRequest)
 	spec, err := svc.GetLabelSpec(ctx, req.Name)
 	if err != nil {

@@ -19,6 +19,8 @@ import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import Icon from "components/Icon";
 import Card from "components/Card";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { getPathWithQueryParams } from "utilities/url";
 
 const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
@@ -74,7 +76,7 @@ const baseClass = "calendars-integration";
 
 const Calendars = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { currentTeam, isPremiumTier } = useContext(AppContext);
 
   const [formData, setFormData] = useState<ICalendarsFormData>({
     domain: "",
@@ -85,6 +87,7 @@ const Calendars = (): JSX.Element => {
   const [copyMessage, setCopyMessage] = useState<string>("");
 
   const {
+    data: config,
     isLoading: isLoadingAppConfig,
     refetch: refetchConfig,
     error: errorAppConfig,
@@ -104,6 +107,7 @@ const Calendars = (): JSX.Element => {
       }
     },
   });
+  const gomEnabled = config?.gitops.gitops_mode_enabled;
 
   const { apiKeyJson, domain } = formData;
 
@@ -312,6 +316,7 @@ const Calendars = (): JSX.Element => {
                       ignore1password
                       inputClassName={`${baseClass}__api-key-json`}
                       error={formErrors.apiKeyJson}
+                      disabled={gomEnabled}
                     />
                     <InputField
                       label="Primary domain"
@@ -331,16 +336,21 @@ const Calendars = (): JSX.Element => {
                         </>
                       }
                       error={formErrors.domain}
+                      disabled={gomEnabled}
                     />
-                    <Button
-                      type="submit"
-                      variant="brand"
-                      disabled={Object.keys(formErrors).length > 0}
-                      className="save-loading"
-                      isLoading={isUpdatingSettings}
-                    >
-                      Save
-                    </Button>
+                    <GitOpsModeTooltipWrapper
+                      tipOffset={8}
+                      renderChildren={(dC) => (
+                        <Button
+                          type="submit"
+                          disabled={Object.keys(formErrors).length > 0 || dC}
+                          className="save-loading"
+                          isLoading={isUpdatingSettings}
+                        >
+                          Save
+                        </Button>
+                      )}
+                    />
                   </form>
                 </Card>
               </li>
@@ -412,7 +422,9 @@ const Calendars = (): JSX.Element => {
           <p>
             Now head over to{" "}
             <CustomLink
-              url={paths.MANAGE_POLICIES}
+              url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
+                team_id: currentTeam?.id,
+              })}
               text="Policies &gt; Manage automations"
             />{" "}
             to finish setup.

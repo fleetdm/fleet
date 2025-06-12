@@ -2,7 +2,10 @@ import React, { useContext, useState } from "react";
 import { isEmpty } from "lodash";
 
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+
+import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+
 import configAPI from "services/entities/config";
 import teamsAPI from "services/entities/teams";
 
@@ -10,6 +13,7 @@ import teamsAPI from "services/entities/teams";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 const baseClass = "windows-target-form";
 
@@ -96,6 +100,9 @@ const WindowsTargetForm = ({
   refetchTeamConfig,
 }: IWindowsTargetFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
   const [isSaving, setIsSaving] = useState(false);
   const [deadlineDays, setDeadlineDays] = useState(
     defaultDeadlineDays.toString()
@@ -155,6 +162,7 @@ const WindowsTargetForm = ({
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
+        disabled={gitOpsModeEnabled}
         label="Deadline"
         tooltip="Number of days the end user has before updates are installed and the host is forced to restart."
         helpText="Number of days from 0 to 30."
@@ -163,6 +171,7 @@ const WindowsTargetForm = ({
         onChange={handleDeadlineDaysChange}
       />
       <InputField
+        disabled={gitOpsModeEnabled}
         label="Grace period"
         tooltip="Number of days after the deadline the end user has before the host is forced to restart (only if end user was offline when deadline passed)."
         helpText="Number of days from 0 to 7."
@@ -170,9 +179,14 @@ const WindowsTargetForm = ({
         error={gracePeriodDaysError}
         onChange={handleGracePeriodDays}
       />
-      <Button type="submit" isLoading={isSaving}>
-        Save
-      </Button>
+      <GitOpsModeTooltipWrapper
+        position="right"
+        renderChildren={(disableChildren) => (
+          <Button disabled={disableChildren} type="submit" isLoading={isSaving}>
+            Save
+          </Button>
+        )}
+      />
     </form>
   );
 };

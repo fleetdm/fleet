@@ -15,13 +15,12 @@ import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner";
+import Pagination from "components/Pagination";
 import UploadList from "../components/UploadList";
 import DeleteScriptModal from "./components/DeleteScriptModal";
 import EditScriptModal from "./components/EditScriptModal";
-import ScriptDetailsModal from "./components/ScriptDetailsModal";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
-import ScriptListPagination from "./components/ScriptListPagination";
 import ScriptUploader from "./components/ScriptUploader";
 
 const baseClass = "scripts";
@@ -37,9 +36,7 @@ interface IScriptsProps {
 const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
-  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
   const [showEditScripsModal, setShowEditScriptModal] = useState(false);
-  const [goBackToScriptDetails, setGoBackToScriptDetails] = useState(false); // Used for onCancel in delete modal
 
   const selectedScript = useRef<IScript | null>(null);
 
@@ -86,13 +83,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
 
   const onClickScript = (script: IScript) => {
     selectedScript.current = script;
-    setShowScriptDetailsModal(true);
-  };
-
-  const onCancelScriptDetails = () => {
-    selectedScript.current = null;
-    setShowScriptDetailsModal(false);
-    setGoBackToScriptDetails(false);
+    setShowEditScriptModal(true);
   };
 
   const onEditScript = (script: IScript) => {
@@ -112,12 +103,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
 
   const onCancelDelete = () => {
     setShowDeleteScriptModal(false);
-
-    if (goBackToScriptDetails) {
-      setShowScriptDetailsModal(true);
-    } else {
-      selectedScript.current = null;
-    }
+    selectedScript.current = null;
   };
 
   const onDeleteScript = () => {
@@ -158,9 +144,12 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
             />
           )}
         />
-        <ScriptListPagination
-          meta={meta}
-          isLoading={isLoading}
+        <Pagination
+          disablePrev={isLoading || !meta?.has_previous_results}
+          disableNext={isLoading || !meta?.has_next_results}
+          hidePagination={
+            !isLoading && !meta?.has_previous_results && !meta?.has_next_results
+          }
           onPrevPage={onPrevPage}
           onNextPage={onNextPage}
         />
@@ -198,21 +187,6 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
           scriptId={selectedScript.current?.id}
           onCancel={onCancelDelete}
           onDone={onDeleteScript}
-        />
-      )}
-      {showScriptDetailsModal && selectedScript.current && (
-        <ScriptDetailsModal
-          selectedScriptDetails={{
-            script_id: selectedScript.current?.id,
-            name: selectedScript.current?.name,
-          }}
-          onCancel={onCancelScriptDetails}
-          onDelete={() => {
-            setShowScriptDetailsModal(false);
-            setShowDeleteScriptModal(true);
-            setGoBackToScriptDetails(true);
-          }}
-          runScriptHelpText
         />
       )}
       {showEditScripsModal && selectedScript.current && (

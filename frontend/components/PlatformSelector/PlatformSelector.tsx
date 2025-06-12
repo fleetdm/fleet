@@ -5,7 +5,7 @@ import { IPolicySoftwareToInstall } from "interfaces/policy";
 import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import paths from "router/paths";
 
 interface IPlatformSelectorProps {
@@ -49,9 +49,10 @@ export const PlatformSelector = ({
     }
     const softwareName = installSoftware.name;
     const softwareId = installSoftware.software_title_id.toString();
-    const softwareLink = `${paths.SOFTWARE_TITLE_DETAILS(
-      softwareId
-    )}?${buildQueryStringFromParams({ team_id: currentTeamId })}`;
+    const softwareLink = getPathWithQueryParams(
+      paths.SOFTWARE_TITLE_DETAILS(softwareId),
+      { team_id: currentTeamId }
+    );
 
     return (
       <span className={`${baseClass}__install-software`}>
@@ -75,7 +76,7 @@ export const PlatformSelector = ({
 
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Target:</span>
+      <span className={labelClasses}>Target</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}
@@ -111,7 +112,6 @@ export const PlatformSelector = ({
         </Checkbox>
       </span>
       <div className="form-field__help-text">
-        Policy runs on all hosts with these platform(s).
         {renderInstallSoftwareHelpText()}
       </div>
     </div>

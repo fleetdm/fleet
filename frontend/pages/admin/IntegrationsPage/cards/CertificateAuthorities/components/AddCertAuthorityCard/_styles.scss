@@ -1,0 +1,20 @@
+.add-cert-authority-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $pad-medium;
+
+  &__content {
+    text-align: center;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__title {
+    font-size: $small;
+    font-weight: $bold;
+    margin-bottom: $pad-small;
+  }
+}

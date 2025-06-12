@@ -71,6 +71,10 @@ Wait for build to run, which typically takes about fifteen minutes.
 
 Wait for publish process to complete.
 
+**6. Update the fleetdm/terraform repo**
+
+Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR.
+
 
 **6. Merge milestone pull requests**
 
@@ -140,8 +144,11 @@ Wait for build to run, which typically takes about fifteen minutes.
 
 > During the publish process, the release script will attempt to publish `fleetctl` to NPM. If this times out or otherise fails, you need to publish to NPM manually. From the `/tools/fleetctl-npm/` directory, run `npm publish`.
 
+**6. Update the fleetdm/terraform repo**
 
-**6. Announce the release**
+Update all Fleet version references in our [fleetdm/terraform](https://github.com/fleetdm/fleet-terraform) repo and submit a PR.
+
+**7. Announce the release**
 
 The release script will announce the patch in the #general channel. Open the Fleet channels in the osquery Slack and MacAdmins Slack and update the topic to point to the new release. 
 

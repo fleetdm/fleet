@@ -75,7 +75,7 @@ Fleet supports the following operating system versions on hosts.
 
 | OS         | Supported version(s)                    |
 | :--------- | :-------------------------------------- |
-| macOS      | 13+ (Ventura)                           |
+| macOS      | 14+ (Sonoma)                            |
 | iOS/iPadOS | 17+                                     |
 | Windows    | Pro and Enterprise 10+, Server 2012+    |
 | Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Debian 11+ |
@@ -92,13 +92,11 @@ If a table is not available for your host, Fleet will generally handle things be
 
 ### Linux
 
-Fleet Desktop is supported on Ubuntu and Fedora.
+Fleet Desktop is supported on Ubuntu, Fedora, and Debian.
 
-Fedora and some flavors of Ubuntu (e.g. Kubuntu) require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
+Fedora and Debian hosts require a [GNOME extension](https://extensions.gnome.org/extension/615/appindicator-support/) for Fleet Desktop.
 
 Fleet's default (un)install scripts use `apt-get` for Debian-based distributions, and `dnf` for Red Hat-based distributions. To install packages on CentOS versions prior to 8, either add `dnf` or edit install and uninstall scripts to use the `yum` or `rpm` command.
-
-On Ubuntu, Fleet Desktop currently supports Xorg as X11 server, Wayland is currently not supported. Ubuntu 24.04 comes with Wayland enabled by default. To use X11 instead of Wayland you can set `WaylandEnable=false` in `/etc/gdm3/custom.conf` and reboot.
 
 The `fleetctl package` command is not supported on DISA-STIG distribution.
 

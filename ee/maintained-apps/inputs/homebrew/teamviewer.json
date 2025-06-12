@@ -1,0 +1,7 @@
+{
+  "name": "TeamViewer",
+  "slug": "teamviewer/darwin",
+  "unique_identifier": "com.teamviewer.TeamViewer",
+  "token": "teamviewer",
+  "installer_format": "pkg"
+}

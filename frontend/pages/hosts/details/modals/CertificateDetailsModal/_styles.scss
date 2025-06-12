@@ -1,0 +1,32 @@
+.certificate-details-modal {
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xlarge;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: $small;
+  }
+
+  &__section {
+    display: flex;
+    gap: $pad-small;
+    flex-direction: column;
+    padding-top: $pad-xlarge;
+    border-top: 1px solid $ui-fleet-black-10;
+
+    &:first-child {
+      padding-top: 0;
+      border-top: none;
+    }
+
+    dl {
+      display: flex;
+      flex-direction: column;
+      gap: $pad-xsmall;
+    }
+  }
+}

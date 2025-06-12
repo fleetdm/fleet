@@ -11,8 +11,8 @@ import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import {
-  buildQueryStringFromParams,
   convertParamsToSnakeCase,
+  getPathWithQueryParams,
 } from "utilities/url";
 import {
   ISoftwareApiParams,
@@ -77,7 +77,6 @@ interface ISoftwareTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
-  resetPageIndex: boolean;
   onAddFiltersClick: () => void;
 }
 
@@ -98,7 +97,6 @@ const SoftwareTable = ({
   currentPage,
   teamId,
   isLoading,
-  resetPageIndex,
   onAddFiltersClick,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
@@ -247,17 +245,13 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    if (row.original.id) {
-      const teamQueryParam = buildQueryStringFromParams({
-        team_id: teamId,
-      });
+    if (!row.original.id) return;
 
-      const path = `${PATHS.SOFTWARE_TITLE_DETAILS(
-        row.original.id.toString()
-      )}?${teamQueryParam}`;
+    const detailsPath = showVersions
+      ? PATHS.SOFTWARE_VERSION_DETAILS(row.original.id.toString())
+      : PATHS.SOFTWARE_TITLE_DETAILS(row.original.id.toString());
 
-      router.push(path);
-    }
+    router.push(getPathWithQueryParams(detailsPath, { team_id: teamId }));
   };
 
   const renderSoftwareCount = () => {
@@ -359,7 +353,7 @@ const SoftwareTable = ({
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
-        defaultPageIndex={currentPage}
+        pageIndex={currentPage}
         defaultSearchQuery={query}
         manualSortBy
         pageSize={perPage}
@@ -382,7 +376,6 @@ const SoftwareTable = ({
         renderTableHelpText={renderTableHelpText}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
-        resetPageIndex={resetPageIndex}
       />
     </div>
   );

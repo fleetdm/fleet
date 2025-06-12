@@ -3,127 +3,39 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/gorilla/mux"
 )
 
-// errBadRoute is used for mux errors
-var errBadRoute = errors.New("bad route")
-
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	// The has to happen first, if an error happens we'll redirect to an error
-	// page and the error will be logged
-	if page, ok := response.(htmlPage); ok {
-		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		writeBrowserSecurityHeaders(w)
-		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
-			w.WriteHeader(coder.StatusCode())
-		}
-		_, err := io.WriteString(w, page.html())
-		return err
-	}
+	return endpoint_utils.EncodeCommonResponse(ctx, w, response, jsonMarshal)
+}
 
-	if e, ok := response.(errorer); ok && e.Error() != nil {
-		encodeError(ctx, e.Error(), w)
-		return nil
-	}
-
-	if render, ok := response.(renderHijacker); ok {
-		render.hijackRender(ctx, w)
-		return nil
-	}
-
-	if e, ok := response.(statuser); ok {
-		w.WriteHeader(e.Status())
-		if e.Status() == http.StatusNoContent {
-			return nil
-		}
-	}
-
+func jsonMarshal(w http.ResponseWriter, response interface{}) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(response)
-}
-
-// statuser allows response types to implement a custom
-// http success status - default is 200 OK
-type statuser interface {
-	Status() int
-}
-
-// loads a html page
-type htmlPage interface {
-	html() string
-	Error() error
-}
-
-// renderHijacker can be implemented by response values to take control of
-// their own rendering.
-type renderHijacker interface {
-	hijackRender(ctx context.Context, w http.ResponseWriter)
-}
-
-func uintFromRequest(r *http.Request, name string) (uint64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
-	if !ok {
-		return 0, errBadRoute
-	}
-	u, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return 0, ctxerr.Wrap(r.Context(), err, "uintFromRequest")
-	}
-	return u, nil
 }
 
 func uint32FromRequest(r *http.Request, name string) (uint32, error) {
 	vars := mux.Vars(r)
 	s, ok := vars[name]
 	if !ok {
-		return 0, errBadRoute
+		return 0, endpoint_utils.ErrBadRoute
 	}
 	u, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		return 0, ctxerr.Wrap(r.Context(), err, "uint32FromRequest")
 	}
 	return uint32(u), nil
-}
-
-func intFromRequest(r *http.Request, name string) (int64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
-	if !ok {
-		return 0, errBadRoute
-	}
-	u, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return 0, ctxerr.Wrap(r.Context(), err, "intFromRequest")
-	}
-	return u, nil
-}
-
-func stringFromRequest(r *http.Request, name string) (string, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
-	if !ok {
-		return "", errBadRoute
-	}
-	unescaped, err := url.PathUnescape(s)
-	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
-	}
-	return unescaped, nil
 }
 
 // default number of items to include per page

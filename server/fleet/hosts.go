@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 type HostStatus string
@@ -372,6 +374,28 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+}
+
+type AndroidHost struct {
+	*Host
+	*android.Device
+}
+
+func (ah *AndroidHost) SetNodeKey(enterpriseSpecificID string) {
+	if ah.Host == nil || ah.Device == nil {
+		return
+	}
+	ah.Device.EnterpriseSpecificID = ptr.String(enterpriseSpecificID)
+	// We use node_key as a unique identifier for the host table row.
+	// Since this key is used by other hosts, we use a prefix to avoid conflicts.
+	hostNodeKey := "android/" + enterpriseSpecificID
+	ah.Host.NodeKey = &hostNodeKey
+}
+
+func (ah *AndroidHost) IsValid() bool {
+	return !(ah == nil || ah.Host == nil || ah.Device == nil ||
+		ah.Host.NodeKey == nil || ah.Device.EnterpriseSpecificID == nil ||
+		*ah.Host.NodeKey != "android/"+*ah.Device.EnterpriseSpecificID)
 }
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
@@ -749,6 +773,16 @@ type HostDetail struct {
 
 	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
+	EndUsers          []HostEndUser          `json:"end_users,omitempty"`
+}
+
+type HostEndUser struct {
+	IdpID            string              `json:"idp_id,omitempty"`
+	IdpUserName      string              `json:"idp_username,omitempty"`
+	IdpFullName      string              `json:"idp_full_name,omitempty"`
+	IdpGroups        []string            `json:"idp_groups,omitempty"`
+	IdpInfoUpdatedAt *time.Time          `json:"idp_info_updated_at"`
+	OtherEmails      []HostDeviceMapping `json:"other_emails,omitempty"`
 }
 
 type HostMaintenanceWindow struct {
@@ -825,7 +859,7 @@ func (h *Host) FleetPlatform() string {
 
 // SupportsOsquery returns whether the device runs osquery.
 func (h *Host) SupportsOsquery() bool {
-	return h.Platform != "ios" && h.Platform != "ipados"
+	return h.Platform != "ios" && h.Platform != "ipados" && h.Platform != "android"
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
@@ -870,7 +904,8 @@ func PlatformFromHost(hostPlatform string) string {
 		// Fleet now supports Chrome via fleetd
 		hostPlatform == "chrome",
 		hostPlatform == "ios",
-		hostPlatform == "ipados":
+		hostPlatform == "ipados",
+		hostPlatform == "android":
 		return hostPlatform
 	default:
 		return ""

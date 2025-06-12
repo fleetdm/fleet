@@ -11,7 +11,8 @@ import {
 } from "interfaces/software";
 
 import Modal from "components/Modal";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import { dateAgo } from "utilities/date_format";
@@ -169,11 +170,15 @@ const TabsContent = ({
   software: IHostSoftware;
 }) => {
   return (
-    <TabsWrapper>
+    <TabNav>
       <Tabs>
         <TabList>
-          <Tab>Software details</Tab>
-          <Tab>Install details</Tab>
+          <Tab>
+            <TabText>Software details</TabText>
+          </Tab>
+          <Tab>
+            <TabText>Install details</TabText>
+          </Tab>
         </TabList>
         <TabPanel>
           <SoftwareDetailsContent software={software} />
@@ -185,7 +190,7 @@ const TabsContent = ({
           />
         </TabPanel>
       </Tabs>
-    </TabsWrapper>
+    </TabNav>
   );
 };
 
@@ -207,7 +212,7 @@ const SoftwareDetailsModal = ({
           <SoftwareDetailsContent software={software} />
         )}
         <div className="modal-cta-wrap">
-          <Button type="submit" variant="brand" onClick={onExit}>
+          <Button type="submit" onClick={onExit}>
             Done
           </Button>
         </div>

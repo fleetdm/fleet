@@ -1,11 +1,5 @@
 .manage-policies-page {
   .install-software-modal {
-    .form-field__help-text {
-      font-size: 14px;
-      line-height: 21px;
-      margin-top: $pad-large;
-    }
-
     .form-field--dropdown {
       width: 276px;
       .Select-placeholder {
@@ -20,12 +14,6 @@
         overflow-y: auto;
       }
     }
-    .policy-row {
-      height: 40px;
-      padding-top: 4px;
-      padding-bottom: 4px;
-    }
-
     &__no-software {
       display: flex;
       height: 178px;

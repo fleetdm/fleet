@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net"
 	"net/smtp"
 	"strings"
@@ -238,7 +239,11 @@ func (m mailService) sendMail(e fleet.Email, msg []byte) error {
 	}
 
 	if err := client.Quit(); err != nil {
-		return fmt.Errorf("error on client quit: %w", err)
+		// Ignore EOF errors on quit, which can happen if the server
+		// closes the connection after the message is sent.
+		if !errors.Is(err, io.EOF) {
+			return fmt.Errorf("error on client quit: %w", err)
+		}
 	}
 	return nil
 }

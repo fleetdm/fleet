@@ -44,7 +44,7 @@ type runScriptResponse struct {
 func (r runScriptResponse) Error() error { return r.Err }
 func (r runScriptResponse) Status() int  { return http.StatusAccepted }
 
-func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runScriptRequest)
 
 	var noWait time.Duration
@@ -94,7 +94,7 @@ func (r runScriptSyncResponse) Status() int {
 // this is to be used only by tests, to be able to use a shorter timeout.
 var testRunScriptWaitForResult time.Duration
 
-func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	waitForResult := scripts.MaxServerWaitTime
 	if testRunScriptWaitForResult != 0 {
 		waitForResult = testRunScriptWaitForResult
@@ -115,7 +115,7 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		}
 		// We should still return the execution id and host id in this timeout case,
 		// so the user knows what script request to look at in the UI. We cannot
-		// return an error (field Err) in this case, as the errorer interface's
+		// return an error (field Err) in this case, as the Errorer interface's
 		// rendering logic would take over and only render the error part of the
 		// response struct.
 		hostTimeout = true
@@ -375,7 +375,7 @@ type getScriptResultResponse struct {
 
 func (r getScriptResultResponse) Error() error { return r.Err }
 
-func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getScriptResultRequest)
 	scriptResult, err := svc.GetScriptResult(ctx, req.ExecutionID)
 	if err != nil {
@@ -487,7 +487,7 @@ type createScriptResponse struct {
 
 func (r createScriptResponse) Error() error { return r.Err }
 
-func createScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createScriptRequest)
 
 	scriptFile, err := req.Script.Open()
@@ -580,7 +580,7 @@ type deleteScriptResponse struct {
 func (r deleteScriptResponse) Error() error { return r.Err }
 func (r deleteScriptResponse) Status() int  { return http.StatusNoContent }
 
-func deleteScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteScriptRequest)
 	err := svc.DeleteScript(ctx, req.ScriptID)
 	if err != nil {
@@ -640,7 +640,7 @@ type listScriptsResponse struct {
 
 func (r listScriptsResponse) Error() error { return r.Err }
 
-func listScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listScriptsRequest)
 	scripts, meta, err := svc.ListScripts(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
@@ -695,7 +695,7 @@ type downloadFileResponse struct {
 
 func (r downloadFileResponse) Error() error { return r.Err }
 
-func (r downloadFileResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r downloadFileResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.content)))
 	if r.contentType == "" {
 		r.contentType = "application/octet-stream"
@@ -713,7 +713,7 @@ func (r downloadFileResponse) hijackRender(ctx context.Context, w http.ResponseW
 	}
 }
 
-func getScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getScriptRequest)
 
 	downloadRequested := req.Alt == "media"
@@ -799,7 +799,7 @@ type updateScriptResponse struct {
 
 func (r updateScriptResponse) Error() error { return r.Err }
 
-func updateScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func updateScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateScriptRequest)
 
 	scriptFile, err := req.Script.Open()
@@ -888,7 +888,7 @@ type getHostScriptDetailsResponse struct {
 
 func (r getHostScriptDetailsResponse) Error() error { return r.Err }
 
-func getHostScriptDetailsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getHostScriptDetailsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getHostScriptDetailsRequest)
 	scripts, meta, err := svc.GetHostScriptDetails(ctx, req.HostID, req.ListOptions)
 	if err != nil {
@@ -948,7 +948,7 @@ type batchSetScriptsResponse struct {
 
 func (r batchSetScriptsResponse) Error() error { return r.Err }
 
-func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetScriptsRequest)
 	scriptList, err := svc.BatchSetScripts(ctx, req.TeamID, req.TeamName, req.Scripts, req.DryRun)
 	if err != nil {
@@ -1074,7 +1074,7 @@ type lockHostResponse struct {
 
 func (r lockHostResponse) Error() error { return r.Err }
 
-func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*lockHostRequest)
 	unlockPIN, err := svc.LockHost(ctx, req.HostID, req.ViewPin)
 	if err != nil {
@@ -1115,7 +1115,7 @@ type unlockHostResponse struct {
 
 func (r unlockHostResponse) Error() error { return r.Err }
 
-func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*unlockHostRequest)
 	pin, err := svc.UnlockHost(ctx, req.HostID)
 	if err != nil {
@@ -1156,7 +1156,7 @@ type wipeHostResponse struct {
 
 func (r wipeHostResponse) Error() error { return r.Err }
 
-func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*wipeHostRequest)
 	if err := svc.WipeHost(ctx, req.HostID); err != nil {
 		return wipeHostResponse{Err: err}, nil

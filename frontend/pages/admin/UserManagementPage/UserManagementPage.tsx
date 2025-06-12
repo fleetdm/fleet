@@ -11,10 +11,6 @@ interface IUserManagementProps {
 const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
-      <p className={`${baseClass}__page-description`}>
-        Create new users, customize user permissions, and remove users from
-        Fleet.
-      </p>
       <UsersTable router={router} />
     </div>
   );

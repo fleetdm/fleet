@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -107,6 +108,20 @@ func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal i
 	return user, nil
 }
 
+// HasUsers returns whether Fleet has any users registered
+func (ds *Datastore) HasUsers(ctx context.Context) (bool, error) {
+	var id uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &id, `SELECT id FROM users LIMIT 1`); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "has users check")
+	}
+
+	return id > 0, nil
+}
+
 // ListUsers lists all users with team ID, limit, sort and offset passed in with
 // UserListOptions.
 func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
@@ -141,6 +156,30 @@ func (ds *Datastore) UserByEmail(ctx context.Context, email string) (*fleet.User
 
 func (ds *Datastore) UserByID(ctx context.Context, id uint) (*fleet.User, error) {
 	return ds.findUser(ctx, "id", id)
+}
+
+func (ds *Datastore) UserOrDeletedUserByID(ctx context.Context, id uint) (*fleet.User, error) {
+	user, err := ds.findUser(ctx, "id", id)
+	switch {
+	case fleet.IsNotFound(err):
+		return ds.deletedUserByID(ctx, id)
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "find user")
+	}
+	return user, nil
+}
+
+func (ds *Datastore) deletedUserByID(ctx context.Context, id uint) (*fleet.User, error) {
+	stmt := `SELECT id, name, email, 1 as deleted FROM users_deleted WHERE id = ?`
+	var user fleet.User
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &user, stmt, id)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, ctxerr.Wrap(ctx, notFound("deleted user").WithID(id))
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "selecting deleted user")
+	}
+	return &user, nil
 }
 
 func (ds *Datastore) SaveUser(ctx context.Context, user *fleet.User) error {
@@ -293,6 +332,20 @@ func saveTeamsForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.Use
 
 // DeleteUser deletes the associated user
 func (ds *Datastore) DeleteUser(ctx context.Context, id uint) error {
+	// Transfer user data to deleted_users table for audit/activity purposes
+	stmt := `
+		INSERT INTO users_deleted (id, name, email)
+		SELECT u.id, u.name, u.email
+		FROM users AS u
+		WHERE u.id = ?
+		ON DUPLICATE KEY UPDATE
+			name       = u.name,
+			email      = u.email`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "populate users_deleted entry")
+	}
+
 	return ds.deleteEntity(ctx, usersTable, id)
 }
 

@@ -137,6 +137,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [chromeCount, setChromeCount] = useState(0);
   const [iosCount, setIosCount] = useState(0);
   const [ipadosCount, setIpadosCount] = useState(0);
+  const [androidCount, setAndroidCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -191,6 +192,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     IConfig
   >(["config"], () => configAPI.loadAll(), { ...DEFAULT_USE_QUERY_OPTIONS });
 
+  // TODO(android): remove this when the feature flag is removed
+  const platformOptions = useMemo(() => {
+    if (!config?.android_enabled) {
+      return PLATFORM_DROPDOWN_OPTIONS.filter((o) => o.value !== "android");
+    }
+    return [...PLATFORM_DROPDOWN_OPTIONS];
+  }, [config?.android_enabled]);
+
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ILoadTeamsResponse,
     Error,
@@ -230,24 +239,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "windows"
         ) || { platform: "windows", hosts_count: 0 };
 
-        const chromebooks = data.platforms?.find(
+        const chomeOSHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
         ) || { platform: "chrome", hosts_count: 0 };
 
-        const iphones = data.platforms?.find(
+        const iOSHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "ios"
         ) || { platform: "ios", hosts_count: 0 };
 
-        const ipads = data.platforms?.find(
+        const iPadOSHosts = data.platforms?.find(
           (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
         ) || { platform: "ipados", hosts_count: 0 };
+
+        const androidHosts = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "android"
+        ) || { platform: "android", hosts_count: 0 };
 
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
-        setChromeCount(chromebooks.hosts_count);
-        setIosCount(iphones.hosts_count);
-        setIpadosCount(ipads.hosts_count);
+        setChromeCount(chomeOSHosts.hosts_count);
+        setIosCount(iOSHosts.hosts_count);
+        setIpadosCount(iPadOSHosts.hosts_count);
+        setAndroidCount(androidHosts.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -484,6 +498,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setSoftwareActionUrl(
         index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
       );
+    setSoftwarePageIndex(0);
   };
 
   let refetchActivities = () => {
@@ -540,6 +555,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const HostCountCards = (
     <>
       <PlatformHostCounts
+        androidDevEnabled={!!config?.android_enabled}
         currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
@@ -547,6 +563,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         chromeCount={chromeCount}
         iosCount={iosCount}
         ipadosCount={ipadosCount}
+        androidCount={androidCount}
         builtInLabels={labels}
         selectedPlatform={selectedPlatform}
         errorHosts={!!errorHosts}
@@ -632,6 +649,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
         router={router}
+        softwarePageIndex={softwarePageIndex}
       />
     ),
   });
@@ -764,6 +782,12 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     </>
   );
 
+  const androidLayout = () => (
+    <>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -778,6 +802,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return iosLayout();
       case "ipados":
         return ipadosLayout();
+      case "android":
+        return androidLayout();
       default:
         return allLayout();
     }
@@ -861,7 +887,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             name="platform-filter"
             value={selectedPlatform || ""}
             className={`${baseClass}__platform-filter`}
-            options={PLATFORM_DROPDOWN_OPTIONS}
+            options={platformOptions}
             onChange={(option: SingleValue<CustomOptionType>) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
                 (platform) => platform.value === option?.value

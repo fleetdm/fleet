@@ -19,6 +19,9 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
@@ -95,13 +98,14 @@ type ServerConfig struct {
 	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
 	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
 	FrequentCleanupsEnabled     bool   `yaml:"frequent_cleanups_enabled"`
+	ForceH2C                    bool   `yaml:"force_h2c"`
 	PrivateKey                  string `yaml:"private_key"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
-	return &http.Server{
+	// Create the base server configuration
+	server := &http.Server{
 		Addr:        s.Address,
-		Handler:     handler,
 		ReadTimeout: 25 * time.Second,
 		// WriteTimeout is set for security purposes.
 		// If we don't set it, (bugy or malignant) clients making long running
@@ -114,6 +118,21 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 			return ctx
 		},
 	}
+
+	// Check if H2C (HTTP/2 without TLS) is enabled
+	if s.ForceH2C && !s.TLS {
+		// Create an HTTP/2 server
+		h2s := &http2.Server{}
+
+		// Wrap the original handler with h2c handler
+		// This allows both HTTP/1.1 and HTTP/2 requests without TLS
+		server.Handler = h2c.NewHandler(handler, h2s)
+	} else {
+		// Use regular HTTP/1.1 handler
+		server.Handler = handler
+	}
+
+	return server
 }
 
 // AuthConfig defines configs related to user authorization
@@ -592,6 +611,11 @@ type FleetConfig struct {
 	Packaging        PackagingConfig
 	MDM              MDMConfig
 	Calendar         CalendarConfig
+	Partnerships     PartnershipsConfig
+}
+
+type PartnershipsConfig struct {
+	EnableSecureframe bool `yaml:"enable_secureframe"`
 }
 
 type MDMConfig struct {
@@ -1041,6 +1065,7 @@ func (man Manager) addConfigs() {
 		"When enabled, Fleet limits some features for the Sandbox")
 	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
+	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
@@ -1312,7 +1337,7 @@ func (man Manager) addConfigs() {
 	)
 	man.addConfigInt(
 		"vulnerabilities.max_concurrency",
-		5,
+		1,
 		"Maximum number of concurrent database queries to use for processing vulnerabilities.",
 	)
 
@@ -1374,6 +1399,9 @@ func (man Manager) addConfigs() {
 		"calendar.periodicity", 0,
 		"How much time to wait between processing calendar integration.",
 	)
+
+	// Partnerships
+	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1447,6 +1475,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
 			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
 			FrequentCleanupsEnabled:     man.getConfigBool("server.frequent_cleanups_enabled"),
+			ForceH2C:                    man.getConfigBool("server.force_h2c"),
 			PrivateKey:                  man.getConfigString("server.private_key"),
 		},
 		Auth: AuthConfig{
@@ -1646,6 +1675,9 @@ func (man Manager) LoadConfig() FleetConfig {
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
+		},
+		Partnerships: PartnershipsConfig{
+			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
 		},
 	}
 

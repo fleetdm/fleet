@@ -30,12 +30,7 @@ const BootstrapPackageModal = ({
         <p className={`${baseClass}__details`}>{details}</p>
 
         <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            onClick={onClose}
-            variant="brand"
-            className="delete-loading"
-          >
+          <Button type="button" onClick={onClose} className="delete-loading">
             Done
           </Button>
         </div>

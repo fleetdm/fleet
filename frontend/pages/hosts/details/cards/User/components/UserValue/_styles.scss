@@ -1,0 +1,34 @@
+.user-value {
+  &__single {
+    display: block;
+    @include ellipse-text(270px);
+  }
+
+  &__multi {
+    display: block;
+    @include ellipse-text(197px);
+  }
+
+  @media (max-width: $break-lg) {
+    &__single {
+      @include ellipse-text(200px);
+    }
+
+    &__multi {
+      @include ellipse-text(150px);
+    }
+  }
+
+  // go back to original width values
+  @media (max-width: $break-md) {
+    &__single {
+      display: block;
+      @include ellipse-text(270px);
+    }
+
+    &__multi {
+      display: block;
+      @include ellipse-text(197px);
+    }
+  }
+}

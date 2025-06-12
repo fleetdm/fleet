@@ -274,7 +274,7 @@ module.exports.custom = {
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
     'handbook/product-design': ['sampfluger88','mikermcneil','noahtalerman'],
     'handbook/sales': ['sampfluger88','mikermcneil'],
-    'handbook/demand': ['sampfluger88','mikermcneil'],
+    'handbook/marketing': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],
     'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
 
@@ -381,6 +381,9 @@ module.exports.custom = {
     'ymail.com',
     'qq.com',
   ],
+
+  // Zapier:
+  // zapierWebhookSecret: '…',
 
   // Contact form:
   // slackWebhookUrlForContactForm: '…',

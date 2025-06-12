@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -39,7 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -2532,6 +2533,35 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			},
 		},
 	}, http.StatusUnprocessableEntity, &tmResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestGitOpsModeConfig() {
+	t := s.T()
+
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": true, "repository_url": "" }
+	  }`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, "Repository URL is required when GitOps mode is enabled")
+
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": true, "repository_url": "a.b.cc" }
+	  }`), http.StatusOK)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledGitOpsMode{}.ActivityName(), "", 0)
+
+	// turn off, persists repo url
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": false, "repository_url": "a.b.cc" }
+	  }`), http.StatusOK)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledGitOpsMode{}.ActivityName(), "", 0)
+
+	// Make sure URL isn't cleared after another setting is changed
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"org_info": {"org_name": "Changes"}
+	  }`), http.StatusOK)
+	config, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "a.b.cc", config.UIGitOpsMode.RepositoryURL)
 }
 
 func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID *uint, profileName string, expected *fleet.AppleOSUpdateSettings) {
@@ -5565,7 +5595,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK, &getHostResponse{})
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
-	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusForbidden, &listHostsResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
 
 	// Attempt to delete hosts, should fail.
 	s.DoJSON("DELETE", "/api/latest/fleet/hosts/1", nil, http.StatusForbidden, &deleteHostResponse{})
@@ -5593,10 +5623,10 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusOK, &modifyLabelResponse{})
 
 	// Attempt to get a label, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), getLabelRequest{}, http.StatusForbidden, &getLabelResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), getLabelRequest{}, http.StatusOK, &getLabelResponse{})
 
 	// Attempt to list all labels, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/labels", listLabelsRequest{}, http.StatusForbidden, &listLabelsResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/labels", listLabelsRequest{}, http.StatusOK, &listLabelsResponse{})
 
 	// Attempt to delete a label, should allow.
 	s.DoJSON("DELETE", "/api/latest/fleet/labels/foo2", deleteLabelRequest{}, http.StatusOK, &deleteLabelResponse{})
@@ -7472,6 +7502,8 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	})
 	require.NoError(t, err)
 
+	// it's fine to write directly to host_script_results here because we're not testing the execution
+	// only the script details
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
 INSERT INTO
@@ -10351,7 +10383,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 			require.True(t, found)
 
 			// create and update label and just not possible for non-global users
-			if c.u != adminUserPayload {
+			if c.u != adminUserPayload && (*c.u.Teams)[0].Role != fleet.RoleMaintainer && (*c.u.Teams)[0].Role != fleet.RoleAdmin {
 				s.DoJSON("POST", "/api/latest/fleet/labels", createLabelRequest{
 					LabelPayload: fleet.LabelPayload{
 						Name:  "will fail",
@@ -10374,7 +10406,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	t := s.T()
 
 	token := "good_token"
-	host := createOrbitEnrolledHost(t, "linux", "host1", s.ds)
+	host := createOrbitEnrolledHost(t, "ubuntu", "host1", s.ds)
 	createDeviceTokenForHost(t, s.ds, host.ID, token)
 
 	// no software yet
@@ -10398,7 +10430,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
-		{Name: "bar", Version: "0.0.1", Source: "apps"},
+		{Name: "bar", Version: "0.0.1", Source: "deb_packages"},
 	}
 	us, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
@@ -10651,35 +10683,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
 
-	// Add new software to host -- installed on host, but not by Fleet
-	installedVersion := "1.0.1"
-	softwareAlreadyInstalled := fleet.Software{
-		Name: "DummyApp.app", Version: installedVersion, Source: "apps",
-		BundleIdentifier: "com.example.dummy",
-	}
-	software = append(software, softwareAlreadyInstalled)
-	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
-	require.NoError(t, err)
-	err = s.ds.ReconcileSoftwareTitles(ctx)
-	require.NoError(t, err)
-	// Add installer for software that is already installed on host
-	payload = &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "install",
-		Filename:      "dummy_installer.pkg",
-		Version:       "0.0.2", // The version can be anything -- we match on title
-	}
-	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
-
 	// Get software available for install
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "available_for_install",
 		"true", "order_key", "name", "order_direction", "asc")
-	require.Len(t, getHostSw.Software, 2) // DummyApp.app and ruby
-	assert.Equal(t, softwareAlreadyInstalled.Name, getHostSw.Software[0].Name)
-	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
-	assert.Equal(t, installedVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+	require.Len(t, getHostSw.Software, 1) // ruby.app
+	assert.Equal(t, "ruby", getHostSw.Software[0].Name)
+	assert.Equal(t, *getHostSw.Software[0].Status, fleet.SoftwareInstallPending)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
-	assert.Nil(t, getHostSw.Software[0].Status)
+	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
@@ -11037,10 +11049,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		checkDownloadResponse(t, r, payload.Filename)
 
 		// Get execution ID, normally comes from orbit config
-		var installUUID string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &installUUID, "SELECT execution_id FROM host_software_installs WHERE host_id = ? AND install_script_exit_code IS NULL", hostInTeam.ID)
-		})
+		installUUID := getLatestSoftwareInstallExecID(t, s.ds, hostInTeam.ID)
 
 		// Installation complete, host no longer has access to software
 		s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
@@ -11129,10 +11138,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		checkDownloadResponse(t, r, payload.Filename)
 
 		// Get execution ID, normally comes from orbit config
-		var installUUID string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(context.Background(), q, &installUUID, "SELECT execution_id FROM host_software_installs WHERE host_id = ? AND install_script_exit_code IS NULL", hostInTeam.ID)
-		})
+		installUUID := getLatestSoftwareInstallExecID(t, s.ds, hostInTeam.ID)
 
 		// Installation complete, host no longer has access to software
 		s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
@@ -11550,6 +11556,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.NotNil(t, packages[0].TeamID)
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 
+	var installerHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+
+	require.NotEmpty(t, installerHash)
+
 	softwareToInstallBadSecret := []*fleet.SoftwareInstallerPayload{
 		{
 			URL:           rubyURL,
@@ -11637,7 +11650,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	// Do a request with a valid URL with no team
 	//////////////////////////
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{
-		{URL: rubyURL},
+		{URL: rubyURL, SHA256: installerHash},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, s, "", batchResponse.RequestUUID)
@@ -12342,7 +12355,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", pkgTitleID), nil, http.StatusNoContent,
 		"team_id", fmt.Sprintf("%d", *teamID))
 
-	// install script request succeeds
+	// install software request succeeds
 	resp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID), nil, http.StatusAccepted, &resp)
 
@@ -12523,7 +12536,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	assert.NotEmpty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should exist")
 
-	// Remove the installed app by not returning it
+	// Remove the installed app of h2 by not returning it
 	distributedReq = submitDistributedQueryResultsRequestShim{
 		NodeKey: *h2.NodeKey,
 		Results: map[string]json.RawMessage{
@@ -12544,7 +12557,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.Nil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	assert.Empty(t, getHostSoftwareResp.Software[0].InstalledVersions, "Installed versions should now not exist")
 
-	// Mark original install successful
+	// Mark original h install successful
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -12553,7 +12566,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			"install_script_output": "ok"
 		}`, *h.OrbitNodeKey, installUUID)), http.StatusNoContent)
 
-	// simulate a lock/unlock; this creates the host_mdm_actions table, which reproduces #25144
+	// simulate a lock/unlock on h; this creates the host_mdm_actions table, which reproduces #25144
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", h.ID), nil, http.StatusOK)
 	status, err := s.ds.GetHostLockWipeStatus(context.Background(), h)
 	require.NoError(t, err)
@@ -12568,7 +12581,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, status.UnlockScript.ExecutionID)),
 		http.StatusOK, &orbitScriptResp)
 
-	// Do uninstall
+	// Do uninstall on h
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
@@ -12603,12 +12616,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID), nil, http.StatusBadRequest, &resp)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/uninstall", h.ID, titleID), nil, http.StatusBadRequest, &resp)
 
-	// expect uninstall script to be pending
+	// expect uninstall script (uninstall software works via a script) to be pending
 	var orbitResp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
 	require.Len(t, orbitResp.Notifications.PendingScriptExecutionIDs, 1)
+	require.Equal(t, uninstallExecutionID, orbitResp.Notifications.PendingScriptExecutionIDs[0])
 
 	// Host sends successful uninstall result
 	var orbitPostScriptResp orbitPostScriptResultResponse
@@ -12760,6 +12774,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 1)
 	require.Nil(t, listUpcomingAct.Activities[0].ActorID)
+	require.False(t, listUpcomingAct.Activities[0].FleetInitiated)
 
 	var details fleet.ActivityTypeInstalledSoftware
 	err = json.Unmarshal([]byte(*listUpcomingAct.Activities[0].Details), &details)
@@ -12791,6 +12806,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host1.ID), nil, http.StatusOK, &listPastAct)
 	require.Len(t, listPastAct.Activities, 1)
 	require.Nil(t, listPastAct.Activities[0].ActorID)
+	require.False(t, listPastAct.Activities[0].FleetInitiated)
 
 	err = json.Unmarshal([]byte(*listPastAct.Activities[0].Details), &details)
 	require.NoError(t, err)
@@ -12838,7 +12854,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	latestInstallUUID := func() string {
 		var id string
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
+			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM upcoming_activities ORDER BY id DESC LIMIT 1`)
 		})
 		return id
 	}
@@ -12963,6 +12979,39 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		http.StatusNotFound)
 	// no new activity created
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), lastActID)
+
+	// "re-install", but this time there's an installer download failure
+	s.Do("POST", "/api/fleet/orbit/software_install/result",
+		json.RawMessage(fmt.Sprintf(`{
+			"orbit_node_key": %q,
+			"install_uuid": %q,
+			"install_script_exit_code": %d,
+			"install_script_output": "Installer download failed"
+		}`, *host.OrbitNodeKey, installUUIDs[2], fleet.ExitCodeInstallerDownloadFailed)),
+		http.StatusNoContent)
+	checkResults(result{
+		HostID:      host.ID,
+		InstallUUID: installUUIDs[2],
+		Status:      fleet.SoftwareInstallFailed,
+		Output:      ptr.String(fleet.SoftwareInstallerDownloadFailedCopy),
+	})
+	wantAct = fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   payload3.Title,
+		SoftwarePackage: payload3.Filename,
+		InstallUUID:     installUUIDs[2],
+		Status:          string(fleet.SoftwareInstallFailed),
+	}
+	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+
+	var hostActivityResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &hostActivityResp)
+	require.Len(t, hostActivityResp.Activities, 4)
+	require.NotNil(t, hostActivityResp.Activities[0].Details)
+	var actDetails fleet.ActivityTypeInstalledSoftware
+	require.NoError(t, json.Unmarshal(*hostActivityResp.Activities[0].Details, &actDetails))
+	require.Equal(t, wantAct, actDetails)
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
@@ -13428,7 +13477,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
 	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Unable to extract necessary metadata.")
 }
 
-func (s *integrationEnterpriseTestSuite) TestAutomaticPoliciesWithExeFails() {
+func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -13436,7 +13485,21 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPoliciesWithExeFails() {
 	require.NoError(t, err)
 
 	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some installer script",
+		Filename:      "hello-world-installer.exe",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Uninstall script is required for .exe packages.")
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
+		Filename: "hello-world-installer.exe",
+		TeamID:   &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusBadRequest, "Couldn't add. Install script is required for .exe packages.")
+
+	payload = &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "some installer script",
+		UninstallScript:  "some uninstall script",
 		Filename:         "hello-world-installer.exe",
 		TeamID:           &team.ID,
 		AutomaticInstall: true,
@@ -16051,7 +16114,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
-	ctx := context.Background()
 	t := s.T()
 
 	// Fedora and RHEL have hosts.platform = 'rhel'.
@@ -16068,19 +16130,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareUploadRPM() {
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "rpm_packages")
 
-	latestInstallUUID := func() string {
-		var id string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
-		})
-		return id
-	}
-
 	// Send a request to the host to install the RPM package.
 	var installSoftwareResp installSoftwareResponse
 	beforeInstallRequest := time.Now()
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted, &installSoftwareResp)
-	installUUID := latestInstallUUID()
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, host.ID)
 
 	// Simulate host installing the RPM package.
 	beforeInstallResult := time.Now()
@@ -16144,7 +16198,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
 		var id uint
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_library_app_id = ?", mappID)
+			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_maintained_app_id = ?", mappID)
 		})
 
 		return id
@@ -16154,21 +16208,58 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	expectedApps := maintainedapps.IngestMaintainedApps(t, s.ds)
+	insertedApps := maintained_apps.SyncApps(t, s.ds)
+	expectedApps := insertedApps
 
-	// Edit DB to spoof URLs and SHA256 values so we don't have to actually download the installers
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		h := sha256.New()
-		_, err := h.Write(installerBytes)
+	h := sha256.New()
+	_, err := h.Write(installerBytes)
+	require.NoError(t, err)
+	spoofedSHA := hex.EncodeToString(h.Sum(nil))
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "1",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       installerServer.URL + "/installer.zip",
+			InstallScriptRef:   "foobaz",
+			UninstallScriptRef: "foobaz",
+			SHA256:             spoofedSHA,
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"foobaz": "Hello World!",
+			},
+		}
+
+		switch slug {
+		case "fail":
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+
+		case "notfound":
+			w.WriteHeader(http.StatusNotFound)
+			return
+
+		case "badinstaller":
+			manifest.Versions[0].InstallerURL = installerServer.URL + "/badinstaller"
+
+		case "timeout":
+			manifest.Versions[0].InstallerURL = installerServer.URL + "/timeout"
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
 		require.NoError(t, err)
-		spoofedSHA := hex.EncodeToString(h.Sum(nil))
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET sha256 = ?, installer_url = ?", spoofedSHA, installerServer.URL+"/installer.zip")
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 2", installerServer.URL+"/badinstaller")
-		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, "UPDATE fleet_library_apps SET installer_url = ? WHERE id = 3", installerServer.URL+"/timeout")
-		return err
-	})
+	}))
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 
 	// Create a team
 	var newTeamResp teamResponse
@@ -16183,18 +16274,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.False(t, listMAResp.Meta.HasPreviousResults)
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
-	var listAppsNoID []fleet.MaintainedApp
-	for _, app := range listMAResp.FleetMaintainedApps {
-		app.ID = 0
-		listAppsNoID = append(listAppsNoID, app)
-	}
-	slices.SortFunc(listAppsNoID, func(a, b fleet.MaintainedApp) int {
+
+	slices.SortFunc(listMAResp.FleetMaintainedApps, func(a, b fleet.MaintainedApp) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 	slices.SortFunc(expectedApps, func(a, b fleet.MaintainedApp) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
-	require.Equal(t, expectedApps, listAppsNoID)
+	require.Equal(t, expectedApps, listMAResp.FleetMaintainedApps)
 
 	var listMAResp2 listFleetMaintainedAppsResponse
 	s.DoJSON(
@@ -16211,17 +16298,20 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.True(t, listMAResp2.Meta.HasPreviousResults)
 	require.True(t, listMAResp2.Meta.HasNextResults)
 	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
-	require.Equal(t, listMAResp.FleetMaintainedApps[4:6], listMAResp2.FleetMaintainedApps)
+	require.Contains(t, listMAResp.FleetMaintainedApps, listMAResp2.FleetMaintainedApps[0])
 
 	// Check individual app fetch
 	var getMAResp getFleetMaintainedAppResponse
 	s.DoJSON(http.MethodGet, fmt.Sprintf("/api/latest/fleet/software/fleet_maintained_apps/%d", listMAResp.FleetMaintainedApps[0].ID), getFleetMaintainedAppRequest{}, http.StatusOK, &getMAResp)
 	// TODO this will change when actual install scripts are created.
-	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID)
+	dbAppRecord, err := s.ds.GetMaintainedAppByID(ctx, listMAResp.FleetMaintainedApps[0].ID, nil)
+	require.NoError(t, err)
+	_, err = maintained_apps.Hydrate(ctx, dbAppRecord)
 	require.NoError(t, err)
 	dbAppResponse := fleet.MaintainedApp{
 		ID:              dbAppRecord.ID,
 		Name:            dbAppRecord.Name,
+		Slug:            dbAppRecord.Slug,
 		Version:         dbAppRecord.Version,
 		Platform:        dbAppRecord.Platform,
 		InstallerURL:    dbAppRecord.InstallerURL,
@@ -16288,7 +16378,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		TeamID:            &team.ID,
 		SelfService:       true,
 		PreInstallQuery:   "SELECT 1",
-		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
@@ -16298,21 +16387,24 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		&listMAResp, "team_id", fmt.Sprint(team.ID))
 	require.Nil(t, listMAResp.Err)
 	require.False(t, listMAResp.Meta.HasPreviousResults)
-	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps)-1)
+	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
 	// Validate software installer fields
-	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1)
+	mapp, err := s.ds.GetMaintainedAppByID(ctx, 1, &team.ID)
+	require.NoError(t, err)
+	_, err = maintained_apps.Hydrate(ctx, mapp)
 	require.NoError(t, err)
 	i, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(1))
 	require.NoError(t, err)
-	require.Equal(t, ptr.Uint(1), i.FleetLibraryAppID)
+	require.Equal(t, mapp.TitleID, i.TitleID)
+	require.Equal(t, ptr.Uint(1), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
 	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
 	install, err := s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
 	require.NoError(t, err)
-	require.Equal(t, req.InstallScript, string(install))
+	require.Equal(t, mapp.InstallScript, string(install))
 	require.NotNil(t, i.PostInstallScriptContentID)
 	postinstall, err := s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
 	require.NoError(t, err)
@@ -16334,7 +16426,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, 1, resp.Count)
 	title := resp.SoftwareTitles[0]
 	require.NotNil(t, title.BundleIdentifier)
-	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
+	require.Equal(t, ptr.String(mapp.UniqueIdentifier), title.BundleIdentifier)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 	require.Equal(t, ptr.Bool(req.SelfService), title.SoftwarePackage.SelfService)
@@ -16346,6 +16438,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		0,
 	)
 
+	// Edit DB to point some apps at bad-installer/timeout slugs
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, "UPDATE fleet_maintained_apps SET slug = ? WHERE id = 2", "badinstaller")
+		require.NoError(t, err)
+		_, err = q.ExecContext(ctx, "UPDATE fleet_maintained_apps SET slug = ? WHERE id = 3", "timeout")
+		return err
+	})
+
 	// Should return an error; SHAs don't match up
 	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
 	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
@@ -16354,7 +16454,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	os.Setenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")
 	r = s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 3}, http.StatusGatewayTimeout)
 	os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT")
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.")
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.")
 
 	// Add a maintained app to no team
 
@@ -16362,7 +16462,6 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		AppID:             4,
 		SelfService:       true,
 		PreInstallQuery:   "SELECT 1",
-		InstallScript:     "echo foo",
 		PostInstallScript: "echo done",
 	}
 
@@ -16382,25 +16481,25 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"team_id", "0",
 	)
 
-	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4)
+	mapp, err = s.ds.GetMaintainedAppByID(ctx, 4, ptr.Uint(0))
+	require.NoError(t, err)
+	_, err = maintained_apps.Hydrate(ctx, mapp)
 	require.NoError(t, err)
 	require.Equal(t, 1, resp.Count)
 	title = resp.SoftwareTitles[0]
-	require.NotNil(t, title.BundleIdentifier)
-	require.Equal(t, ptr.String(mapp.BundleIdentifier), title.BundleIdentifier)
+	require.Equal(t, title.ID, *mapp.TitleID)
 	require.Equal(t, mapp.Version, title.SoftwarePackage.Version)
 	require.Equal(t, "installer.zip", title.SoftwarePackage.Name)
 
 	i, err = s.ds.GetSoftwareInstallerMetadataByID(context.Background(), getSoftwareInstallerIDByMAppID(4))
 	require.NoError(t, err)
-	require.Equal(t, ptr.Uint(4), i.FleetLibraryAppID)
+	require.Equal(t, ptr.Uint(4), i.FleetMaintainedAppID)
 	require.Equal(t, mapp.SHA256, i.StorageID)
-	require.Equal(t, "darwin", i.Platform)
 	require.NotEmpty(t, i.InstallScriptContentID)
 	require.Equal(t, req.PreInstallQuery, i.PreInstallQuery)
 	install, err = s.ds.GetAnyScriptContents(ctx, i.InstallScriptContentID)
 	require.NoError(t, err)
-	require.Equal(t, req.InstallScript, string(install))
+	require.Equal(t, mapp.InstallScript, string(install))
 	require.NotNil(t, i.PostInstallScriptContentID)
 	postinstall, err = s.ds.GetAnyScriptContents(ctx, *i.PostInstallScriptContentID)
 	require.NoError(t, err)
@@ -16650,18 +16749,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payload.Title, "deb_packages")
 
-	latestInstallUUID := func() string {
-		var id string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM host_software_installs ORDER BY id DESC LIMIT 1`)
-		})
-		return id
-	}
-
 	// create install request for the software and record a successful result
 	resp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleID), nil, http.StatusAccepted, &resp)
-	installUUID := latestInstallUUID()
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, host.ID)
 
 	s.Do("POST", "/api/fleet/orbit/software_install/result",
 		json.RawMessage(fmt.Sprintf(`{
@@ -16845,4 +16936,264 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	require.Equal(t, "[Install software] ruby (deb)", ts.Policies[1].Name)
 	require.Equal(t, "[Install software] ruby (rpm)", ts.Policies[2].Name)
 	require.Equal(t, "[Install software] Fleet osquery (msi)", ts.Policies[3].Name)
+}
+
+// test for #26668
+func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerOrbitDownloadFailure() {
+	t := s.T()
+
+	// upload an installer
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install script",
+		PreInstallQuery:   "pre install query",
+		PostInstallScript: "post install script",
+		Filename:          "ruby.deb",
+	}
+	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
+
+	// create an orbit host
+	host := createOrbitEnrolledHost(t, "linux", "orbit-host", s.ds)
+	// create a software installation request, is immediately activated
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+
+	// should be listed in upcoming activities
+	var listUpcomingAct listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	swInstallExecID := listUpcomingAct.Activities[0].UUID
+
+	// add a script execution request, not activated yet
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo 'hello'"}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	// software install exec ID is returned in orbit notifications, but not script exec
+	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitResp)
+	require.Equal(t, []string{swInstallExecID}, orbitResp.Notifications.PendingSoftwareInstallerIDs)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// simulate a failed orbit download of the installer - it sends an empty
+	// result (i.e. no result)
+	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+		OrbitNodeKey: *host.OrbitNodeKey,
+		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+			InstallUUID: swInstallExecID,
+		},
+	}, http.StatusNoContent)
+
+	// software install exec ID is still returned in orbit notifications, but not script exec
+	orbitResp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitResp)
+	require.Equal(t, []string{swInstallExecID}, orbitResp.Notifications.PendingSoftwareInstallerIDs)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// installer is still listed as first upcoming activity
+	listUpcomingAct = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 2)
+	require.Equal(t, swInstallExecID, listUpcomingAct.Activities[0].UUID)
+	scriptExecID := listUpcomingAct.Activities[1].UUID
+
+	// record an actual result for the installer
+	s.Do("POST", "/api/fleet/orbit/software_install/result", orbitPostSoftwareInstallResultRequest{
+		OrbitNodeKey: *host.OrbitNodeKey,
+		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+			InstallUUID:           swInstallExecID,
+			InstallScriptExitCode: ptr.Int(0),
+			InstallScriptOutput:   ptr.String("hello"),
+		},
+	}, http.StatusNoContent)
+
+	// now the script exec ID is returned in notifications
+	orbitResp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitResp)
+	require.Equal(t, []string{scriptExecID}, orbitResp.Notifications.PendingScriptExecutionIDs)
+	require.Empty(t, orbitResp.Notifications.PendingSoftwareInstallerIDs)
+
+	// only script is now returned in upcoming
+	listUpcomingAct = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &listUpcomingAct)
+	require.Len(t, listUpcomingAct.Activities, 1)
+	require.Equal(t, scriptExecID, listUpcomingAct.Activities[0].UUID)
+
+	// past activity is created for the software install
+	wantAct := fleet.ActivityTypeInstalledSoftware{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		SoftwareTitle:   "ruby",
+		SoftwarePackage: payload.Filename,
+		InstallUUID:     swInstallExecID,
+		Status:          string(fleet.SoftwareInstalled),
+	}
+	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
+	t := s.T()
+
+	ctx := context.Background()
+
+	// create a team
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create an HTTP server to host the software installer
+	var hitInstallerURL bool
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hitInstallerURL = true
+		if r.URL.Path != "/ruby.deb" && r.URL.Path != "/updated/ruby.deb" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
+		require.NoError(t, err)
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+		_, err = io.Copy(w, file)
+		require.NoError(t, err)
+	})
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	// do a request with a valid URL, but invalid hash, should fail
+	rubyURL := srv.URL + "/ruby.deb"
+	softwareToInstall := []*fleet.SoftwareInstallerPayload{
+		{URL: rubyURL, SHA256: "foobar"},
+	}
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	errMsg := waitBatchSetSoftwareInstallersFailed(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Equal(t, fmt.Sprintf("downloaded installer hash does not match provided hash for installer with url %s", rubyURL), errMsg)
+
+	// payload without URL or hash should fail
+	softwareToInstall[0].SHA256 = ""
+	softwareToInstall[0].URL = ""
+	resp := s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusUnprocessableEntity, "team_name", team1.Name)
+	require.Contains(t, extractServerErrorText(resp.Body), "Couldn't edit software. One or more software packages is missing url or hash_sha256 fields.")
+
+	// Pass in valid URL
+	softwareToInstall[0].URL = rubyURL
+	softwareToInstall[0].SHA256 = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	packages := waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	var installerHash string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
+	})
+	require.NotEmpty(t, installerHash)
+
+	// add the hash to the payload
+	softwareToInstall[0].SHA256 = installerHash
+
+	// dry run shouldn't hit the download endpoint since we included the SHA
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name, "dry_run", "true")
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
+	require.False(t, hitInstallerURL)
+
+	// since we provided the SHA and we'd already added the installer, we should not hit the
+	// download endpoint
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team1.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team1.ID, *packages[0].TeamID)
+	require.False(t, hitInstallerURL)
+
+	// create a new team
+	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + "2",
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create a new user for team 2; doesn't have access to team 1
+	team2Admin := &fleet.User{
+		Name:       "Team 2 Admin",
+		Email:      uuid.NewString() + "@example.com",
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team2,
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	require.NoError(t, team2Admin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), team2Admin)
+	require.NoError(t, err)
+
+	s.setTokenForTest(t, team2Admin.Email, test.GoodPassword)
+
+	// Remove the URL; since the user doesn't have access to team 1 and only the hash is provided,
+	// this should fail
+	softwareToInstall[0].URL = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	errMsg = waitBatchSetSoftwareInstallersFailed(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Contains(t, errMsg, "package not found with hash")
+
+	// user doesn't have access to team1: we should hit the download endpoint
+	softwareToInstall[0].URL = rubyURL
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name, "dry_run", "true")
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Empty(t, packages)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	// same for real run
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, rubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
+	hitInstallerURL = false
+
+	// Send payload with just the SHA; should succeed and not hit the download endpoint because we
+	// downloaded it just above
+	softwareToInstall[0].URL = ""
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Empty(t, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.False(t, hitInstallerURL)
+
+	// Update the URL, should re-download
+	updatedRubyURL := srv.URL + "/updated/ruby.deb"
+	softwareToInstall[0].URL = updatedRubyURL
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	packages = waitBatchSetSoftwareInstallersCompleted(t, s, team2.Name, batchResponse.RequestUUID)
+	require.Len(t, packages, 1)
+	require.NotNil(t, packages[0].TitleID)
+	require.Equal(t, updatedRubyURL, packages[0].URL)
+	require.NotNil(t, packages[0].TeamID)
+	require.Equal(t, team2.ID, *packages[0].TeamID)
+	require.True(t, hitInstallerURL)
 }

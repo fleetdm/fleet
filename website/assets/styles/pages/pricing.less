@@ -65,44 +65,75 @@
     }
     .Security-selected {
       width: 220px;
-      transform: translateX(440px);
+      transform: translateX(218px);
     }
     .IT-selected {
       left: 1px;
       width: 220px;
-      transform: translateX(218px);
+      transform: translateX(440px);
     }
     .all-selected {
       width: 220px;
     }
   }
-
-  [purpose='free-tier-card'] {
-    text-align: left;
-    padding: 40px;
-    border-radius: 15px;
-    width: 100%;
-    box-shadow: none;
-    background: #fff;
+  [purpose='pricing-tiers'] {
+    margin-bottom: 24px;
+  }
+  [purpose='pricing-card-body'] {
+    padding: 24px 32px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
   [purpose='pricing-card'] {
     width: 33%;
+    [purpose='pricing-tier-image'] {
+      height: 149px;
+      width: 100%;
+      border-radius: 12px 12px 0px 0px;
+      background-size: auto 100%;
+      background-position: bottom;
+      background-repeat: no-repeat;
+    }
+
+  }
+  [purpose='free-tier-card'] {
+    text-align: left;
+    padding: 0px;
+    border-radius: 16px;
+    border: 1px solid #E2E4EA;
+    width: 100%;
+    box-shadow: none;
+    background: #fff;
+
+    [purpose='pricing-tier-image'] {
+      background-image: url('/images/pricing-page-card-free-543x233@2x.png');
+    }
   }
   [purpose='premium-tier-card'] {
-    padding: 40px;
-    border-radius: 15px;
+    padding: 0px;
+    border-radius: 16px;
+    border: 1px solid #E2E4EA;
     text-align: left;
     box-shadow: none;
     margin-left: 16px;
     background: #fff;
+    [purpose='pricing-tier-image'] {
+      background-image: url('/images/pricing-page-card-premium-543x233@2x.png');
+    }
   }
   [purpose='custom-tier-card'] {
-    padding: 40px;
-    border-radius: 15px;
+    padding: 0px;
+    border-radius: 16px;
+    border: 1px solid #E2E4EA;
     text-align: left;
     box-shadow: none;
     margin-left: 16px;
     background: #fff;
+    [purpose='pricing-tier-image'] {
+      background-image: url('/images/pricing-page-card-custom-543x233@2x.png');
+    }
     [purpose='pricing-tier-title'] {
       h2 {
         margin-bottom: 17px;
@@ -535,6 +566,16 @@
       padding-left: 0px;
       padding-right: 0px;
     }
+    [purpose='pricing-card'] {
+      width: 33%;
+      [purpose='pricing-tier-image'] {
+        height: 149px;
+        width: 100%;
+        border-radius: 12px 12px 0px 0px;
+        background-size: 100% auto;
+        background-position: center 0px;
+      }
+    }
   }
   @media (max-width: 991px) {
     // >992 width:
@@ -544,21 +585,33 @@
       padding-left: 24px;
       padding-right: 24px;
     }
-    [purpose='free-tier-card'] {
-      margin-bottom: 12px;
-      padding: 40px;
-    }
     [purpose='pricing-card'] {
       width: 100%;
+      [purpose='pricing-tier-image'] {
+        height: 240px;
+        min-height: 100%;
+        max-width: 337px;
+        width: 100%;
+        border-radius: 12px 0px 0px 12px;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+    }
+    [purpose='pricing-card-body'] {
+      padding: 24px 64px;
+    }
+    [purpose='free-tier-card'] {
+      margin-bottom: 16px;
     }
     [purpose='premium-tier-card'] {
       margin-left: 0px;
-      margin-bottom: 12px;
-      padding: 40px;
+      margin-bottom: 16px;
+      [purpose='card-button'] {
+          width: 100%;
+      }
     }
     [purpose='custom-tier-card'] {
       margin-left: 0px;
-      padding: 40px;
     }
   }
 
@@ -574,16 +627,31 @@
       }
       .Security-selected {
         width: 100%;
-        transform: translateY(114px);
+        transform: translateY(55px);
       }
       .IT-selected {
         width: 100%;
         top: 1px;
-        transform: translateY(55px);
+        transform: translateY(114px);
       }
       .all-selected {
         width: 100%;
       }
+    }
+    [purpose='pricing-card'] {
+      width: 100%;
+      [purpose='pricing-tier-image'] {
+        height: auto;
+        min-height: 100%;
+        width: 100%;
+        max-width: 257px;
+        border-radius: 12px 0px 0px 12px;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+    }
+    [purpose='pricing-card-body'] {
+      padding: 24px 32px;
     }
     [purpose='features-table'] {
       .truncated {
@@ -663,16 +731,25 @@
       padding-left: 24px;
       padding-right: 24px;
     }
+    [purpose='pricing-card'] {
+      width: 100%;
+      [purpose='pricing-tier-image'] {
+        height: 233px;
+        min-height: 100%;
+        width: 100%;
+        max-width: unset;
+        border-radius: 12px 12px 0px 0px;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+    }
     [purpose='free-tier-card'] {
-      padding: 24px;
       justify-content: center;
     }
     [purpose='premium-tier-card'] {
-      padding: 24px;
       justify-content: center;
     }
     [purpose='custom-tier-card'] {
-      padding: 24px;
       justify-content: center;
     }
     [purpose='pricing-categories-table'] {

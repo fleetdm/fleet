@@ -1,10 +1,4 @@
 .org-settings {
-  &__page-description {
-    font-size: $x-small;
-    color: $core-fleet-black;
-    @include sticky-settings-description;
-  }
-
   &__sandbox-demo-message {
     margin-top: 3.5rem;
   }
@@ -82,5 +76,9 @@
         margin-bottom: $pad-medium;
       }
     }
+  }
+
+  .disabled-by-gitops-mode {
+    @include disabled;
   }
 }

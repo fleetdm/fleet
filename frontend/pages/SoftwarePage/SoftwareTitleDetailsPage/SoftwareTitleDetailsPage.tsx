@@ -23,7 +23,7 @@ import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
@@ -112,12 +112,12 @@ const SoftwareTitleDetailsPage = ({
       return;
     }
 
-    const queryParams: string = buildQueryStringFromParams({
-      team_id: teamIdForApi,
-    });
-
     // redirect to software titles page if no versions are available
-    router.push(`${paths.SOFTWARE_TITLES}?${queryParams}`);
+    router.push(
+      getPathWithQueryParams(paths.SOFTWARE_TITLES, {
+        team_id: teamIdForApi,
+      })
+    );
   }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
 
   const onTeamChange = useCallback(
@@ -144,7 +144,7 @@ const SoftwareTitleDetailsPage = ({
           softwareInstaller={installerCardData.softwarePackage}
           name={installerCardData.name}
           version={installerCardData.version}
-          uploadedAt={installerCardData.uploadedAt}
+          addedTimestamp={installerCardData.addedTimestamp}
           status={installerCardData.status}
           isSelfService={installerCardData.isSelfService}
           softwareId={softwareId}

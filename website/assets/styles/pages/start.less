@@ -1,9 +1,5 @@
 #start {
   background: linear-gradient(180deg, #E8F1F6 0%, #FFF 16.49%);
-  a {
-    color: @core-fleet-black-75;
-    text-decoration: underline;
-  }
   h1 {
     font-size: 32px;
     font-weight: 800;
@@ -37,8 +33,8 @@
     }
   }
   [purpose='form-container'] {
-    min-width: 632px;
-    max-width: 632px;
+    min-width: 600px;
+    max-width: 600px;
     padding-left: 64px;
     padding-right: 64px;
     padding-top: 32px;
@@ -65,6 +61,21 @@
       border: none;
       border-radius: 12px;
     }
+    [purpose='video-note'] {
+      position: absolute;
+      bottom: 0;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #E6E3D0;
+      background: #FFFEF9;
+      p {
+        margin-bottom: 0px;
+      }
+    }
+
   }
   [purpose='form-tip'] {
     margin-top: 32px;
@@ -88,26 +99,27 @@
     height: 680px;
     max-width: 568px;
     background-size: cover;
-    background-position: center;
+    background-position: left;
     background-repeat: no-repeat;
     border-radius: 16px;
+    position: relative;
     &.stage-one {
-      background-image: url('/images/psystage-1-unaware-558x680@2x.png');
+      background-image: url('/images/psystage-1-unaware-caption-643x784@2x.png');
     }
     &.stage-two {
-      background-image: url('/images/psystage-2-aware-508x784@2x.png');
+      background-image: url('/images/psystage-2-aware-caption-643x784@2x.png ');
     }
     &.stage-three {
-      background-image: url('/images/psystage-3-intrigued-558x680@2x.png');
+      background-image: url('/images/psystage-3-intrigued-caption-643x784@2x.png ');
     }
     &.stage-four {
-      background-image: url('/images/psystage-4-has-use-case-508x784@2x.png');
+      background-image: url('/images/psystage-4-has-use-case-caption-643x784@2x.png');
     }
     &.stage-five {
-      background-image: url('/images/psystage-5-feeling-confident-504x784@2x.png');
+      background-image: url('/images/psystage-5-feeling-confident-caption-643x784@2x.png');
     }
     &.stage-six {
-      background-image: url('/images/psystage-6-has-team-buy-in-504x784@2x.png');
+      background-image: url('/images/psystage-6-has-team-buy-in-caption-648x789@2x.png');
     }
     &.cloud-city {
       background-image: url('/images/cropped-fleet-cloud-city-504x784@2x.png');
@@ -209,10 +221,10 @@
     }
   }
 
-  [purpose='contact-link'] {
-    text-decoration: underline;
-    text-underline-offset: 3.5px;
-  }
+  // [purpose='contact-link'] {
+  //   text-decoration: underline;
+  //   text-underline-offset: 3.5px;
+  // }
   [purpose='form-buttons'] {
     margin-top: 32px;
     display: flex;
@@ -336,6 +348,23 @@
           width: 48px;
         }
       }
+    }
+  }
+  @media (max-width: 1200px) {
+    [purpose='form-container'] {
+      min-width: 540px;
+      max-width: 540px;
+      padding-left: 32px;
+      padding-right: 32px;
+      padding-top: 32px;
+      margin-right: 0px;
+    }
+    [purpose='form-with-video-container'] {
+      width: 100%;
+      max-width: 1200px;
+      padding-left: 32px;
+      padding-right: 32px;
+      padding-top: 32px;
     }
   }
   @media (max-width: 991px) {

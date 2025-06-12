@@ -18,6 +18,8 @@ If some of the following don't apply, delete the relevant line.
 - [ ] A detailed QA plan exists on the associated ticket (if it isn't there, work with the product group's QA engineer to add it)
 - [ ] Manual QA for all new/changed functionality
 - For Orbit and Fleet Desktop changes:
+   - [ ] Make sure fleetd is compatible with the latest released version of Fleet (see [Must rule](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/fleetd-development-and-release-strategy.md)).
    - [ ] Orbit runs on macOS, Linux and Windows. Check if the orbit feature/bugfix should only apply to one platform (`runtime.GOOS`).
    - [ ] Manual QA must be performed in the three main OSs, macOS, Windows and Linux.
    - [ ] Auto-update manual QA, from released version of component to new version (see [tools/tuf/test](../tools/tuf/test/README.md)).
+- [ ] For unreleased bug fixes in a release candidate, confirmed that the fix is not expected to adversely impact load test results or alerted the release DRI if additional load testing is needed.

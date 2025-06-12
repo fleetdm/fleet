@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -29,10 +30,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 )
@@ -48,7 +52,7 @@ type getAppleMDMResponse struct {
 
 func (r getAppleMDMResponse) Error() error { return r.Err }
 
-func getAppleMDMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getAppleMDMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	appleMDM, err := svc.GetAppleMDM(ctx)
 	if err != nil {
 		return getAppleMDMResponse{Err: err}, nil
@@ -90,7 +94,7 @@ type getAppleBMResponse struct {
 
 func (r getAppleBMResponse) Error() error { return r.Err }
 
-func getAppleBMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getAppleBMEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	appleBM, err := svc.GetAppleBM(ctx)
 	if err != nil {
 		return getAppleBMResponse{Err: err}, nil
@@ -123,7 +127,7 @@ type requestMDMAppleCSRResponse struct {
 
 func (r requestMDMAppleCSRResponse) Error() error { return r.Err }
 
-func requestMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func requestMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*requestMDMAppleCSRRequest)
 
 	csr, err := svc.RequestMDMAppleCSR(ctx, req.EmailAddress, req.Organization)
@@ -264,7 +268,7 @@ type createMDMEULAResponse struct {
 
 func (r createMDMEULAResponse) Error() error { return r.Err }
 
-func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createMDMEULARequest)
 	ff, err := req.EULA.Open()
 	if err != nil {
@@ -304,7 +308,7 @@ type getMDMEULAResponse struct {
 
 func (r getMDMEULAResponse) Error() error { return r.Err }
 
-func (r getMDMEULAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getMDMEULAResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -318,7 +322,7 @@ func (r getMDMEULAResponse) hijackRender(ctx context.Context, w http.ResponseWri
 	}
 }
 
-func getMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMEULARequest)
 
 	eula, err := svc.MDMGetEULABytes(ctx, req.Token)
@@ -350,7 +354,7 @@ type getMDMEULAMetadataResponse struct {
 
 func (r getMDMEULAMetadataResponse) Error() error { return r.Err }
 
-func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	eula, err := svc.MDMGetEULAMetadata(ctx)
 	if err != nil {
 		return getMDMEULAMetadataResponse{Err: err}, nil
@@ -381,7 +385,7 @@ type deleteMDMEULAResponse struct {
 
 func (r deleteMDMEULAResponse) Error() error { return r.Err }
 
-func deleteMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMEULARequest)
 	if err := svc.MDMDeleteEULA(ctx, req.Token); err != nil {
 		return deleteMDMEULAResponse{Err: err}, nil
@@ -457,7 +461,7 @@ type runMDMCommandResponse struct {
 
 func (r runMDMCommandResponse) Error() error { return r.Err }
 
-func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func runMDMCommandEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runMDMCommandRequest)
 	result, err := svc.RunMDMCommand(ctx, req.Command, req.HostUUIDs)
 	if err != nil {
@@ -652,7 +656,7 @@ type getMDMCommandResultsResponse struct {
 
 func (r getMDMCommandResultsResponse) Error() error { return r.Err }
 
-func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMCommandResultsRequest)
 	results, err := svc.GetMDMCommandResults(ctx, req.CommandUUID)
 	if err != nil {
@@ -769,7 +773,7 @@ type listMDMCommandsResponse struct {
 
 func (r listMDMCommandsResponse) Error() error { return r.Err }
 
-func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listMDMCommandsRequest)
 	results, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
 		ListOptions: req.ListOptions,
@@ -885,7 +889,7 @@ type getMDMDiskEncryptionSummaryResponse struct {
 
 func (r getMDMDiskEncryptionSummaryResponse) Error() error { return r.Err }
 
-func getMDMDiskEncryptionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMDiskEncryptionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMDiskEncryptionSummaryRequest)
 
 	des, err := svc.GetMDMDiskEncryptionSummary(ctx, req.TeamID)
@@ -922,7 +926,7 @@ type getMDMProfilesSummaryResponse struct {
 
 func (r getMDMProfilesSummaryResponse) Error() error { return r.Err }
 
-func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMProfilesSummaryRequest)
 	res := getMDMProfilesSummaryResponse{}
 
@@ -1018,7 +1022,7 @@ type getMDMConfigProfileResponse struct {
 
 func (r getMDMConfigProfileResponse) Error() error { return r.Err }
 
-func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMConfigProfileRequest)
 
 	downloadRequested := req.Alt == "media"
@@ -1113,7 +1117,7 @@ type deleteMDMConfigProfileResponse struct {
 
 func (r deleteMDMConfigProfileResponse) Error() error { return r.Err }
 
-func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMConfigProfileRequest)
 
 	var err error
@@ -1286,7 +1290,7 @@ type newMDMConfigProfileResponse struct {
 
 func (r newMDMConfigProfileResponse) Error() error { return r.Err }
 
-func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*newMDMConfigProfileRequest)
 
 	ff, err := req.Profile.Open()
@@ -1404,13 +1408,18 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		SyncML: b,
 	}
 	if err := cp.ValidateUserProvided(); err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
+			return nil, ctxerr.Wrap(ctx,
+				&fleet.BadRequestError{Message: msg + " To control these settings use disk encryption endpoint."})
+		}
+
 		// this is not great, but since the validations are shared between the CLI
 		// and the API, we must make some changes to error message here.
-		msg := err.Error()
 		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
 			msg = strings.TrimSpace(msg[:ix])
 		}
-		err := &fleet.BadRequestError{Message: "Couldn't upload. " + msg}
+		err := &fleet.BadRequestError{Message: "Couldn't add. " + msg}
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
@@ -1439,7 +1448,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
 	if err != nil {
-		var existsErr existsErrorInterface
+		var existsErr endpoint_utils.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).
 				WithStatus(http.StatusConflict)
@@ -1535,6 +1544,7 @@ type batchSetMDMProfilesRequest struct {
 	DryRun        bool                         `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
 	AssumeEnabled *bool                        `json:"-" query:"assume_enabled,optional"` // if true, assume MDM is enabled
 	Profiles      backwardsCompatProfilesParam `json:"profiles"`
+	NoCache       bool                         `json:"-" query:"no_cache,optional"`
 }
 
 type backwardsCompatProfilesParam []fleet.MDMProfileBatchPayload
@@ -1575,10 +1585,10 @@ func (r batchSetMDMProfilesResponse) Error() error { return r.Err }
 
 func (r batchSetMDMProfilesResponse) Status() int { return http.StatusNoContent }
 
-func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetMDMProfilesRequest)
 	if err := svc.BatchSetMDMProfiles(
-		ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled,
+		ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled, req.NoCache,
 	); err != nil {
 		return batchSetMDMProfilesResponse{Err: err}, nil
 	}
@@ -1587,17 +1597,25 @@ func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc f
 
 func (svc *Service) BatchSetMDMProfiles(
 	ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool,
-	assumeEnabled *bool,
+	assumeEnabled *bool, noCache bool,
 ) error {
 	var err error
 	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
 		return err
 	}
 
+	if noCache {
+		// The no_cache flag is used in situations where appConfig was just updated, such as gitops
+		ctx = ctxdb.BypassCachedMysql(ctx, true)
+	}
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
+	if noCache {
+		ctx = ctxdb.BypassCachedMysql(ctx, false)
+	}
+
 	if assumeEnabled != nil {
 		appCfg.MDM.WindowsEnabledAndConfigured = *assumeEnabled
 	}
@@ -1617,9 +1635,12 @@ func (svc *Service) BatchSetMDMProfiles(
 		labels = append(labels, profiles[i].LabelsIncludeAny...)
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 	}
-	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "validating labels")
+	var labelMap map[string]fleet.ConfigurationProfileLabel
+	if !dryRun {
+		labelMap, err = svc.batchValidateProfileLabels(ctx, labels)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "validating labels")
+		}
 	}
 
 	// We will not validate the profiles containing secret variables during dry run.
@@ -1672,7 +1693,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	err = validateFleetVariables(ctx, appleProfiles, windowsProfiles, appleDecls)
+	err = validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
@@ -1755,13 +1776,13 @@ func (svc *Service) BatchSetMDMProfiles(
 	return nil
 }
 
-func validateFleetVariables(ctx context.Context, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
 ) error {
 	var err error
 
 	for _, p := range appleProfiles {
-		err = validateConfigProfileFleetVariables(string(p.Mobileconfig))
+		err = validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}
@@ -1981,8 +2002,14 @@ func getAppleProfiles(
 		}
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError("mdm", fmt.Sprintf("macos_settings: %s: %s", prof.Name, err.Error())))
+			var iae *fleet.InvalidArgumentError
+			if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
+				iae = fleet.NewInvalidArgumentError(prof.Name,
+					mobileconfig.DiskEncryptionProfileRestrictionErrMsg+` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`)
+			} else {
+				iae = fleet.NewInvalidArgumentError(prof.Name, err.Error())
+			}
+			return nil, nil, ctxerr.Wrap(ctx, iae)
 		}
 
 		if mdmProf.Name != prof.Name {
@@ -2075,8 +2102,12 @@ func getWindowsProfiles(
 		}
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
+			msg := err.Error()
+			if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
+				msg += ` To control disk encryption use config API endpoint or add "enable_disk_encryption" to your YAML file.`
+			}
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError("mdm", fmt.Sprintf("windows_settings: %s: %s", profile.Name, err.Error())))
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), msg))
 		}
 
 		profs[i] = mdmProf
@@ -2156,7 +2187,7 @@ type listMDMConfigProfilesResponse struct {
 
 func (r listMDMConfigProfilesResponse) Error() error { return r.Err }
 
-func listMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listMDMConfigProfilesRequest)
 
 	profs, meta, err := svc.ListMDMConfigProfiles(ctx, req.TeamID, req.ListOptions)
@@ -2214,7 +2245,7 @@ func (r updateMDMDiskEncryptionResponse) Error() error { return r.Err }
 
 func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoContent }
 
-func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateDiskEncryptionRequest)
 	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption); err != nil {
 		return updateMDMDiskEncryptionResponse{Err: err}, nil
@@ -2267,7 +2298,7 @@ func (r resendHostMDMProfileResponse) Error() error { return r.Err }
 
 func (r resendHostMDMProfileResponse) Status() int { return http.StatusAccepted }
 
-func resendHostMDMProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func resendHostMDMProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*resendHostMDMProfileRequest)
 
 	if err := svc.ResendHostMDMProfile(ctx, req.HostID, req.ProfileUUID); err != nil {
@@ -2394,7 +2425,7 @@ type getMDMAppleCSRResponse struct {
 
 func (r getMDMAppleCSRResponse) Error() error { return r.Err }
 
-func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getMDMAppleCSREndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	signedCSRB64, err := svc.GetMDMAppleCSR(ctx)
 	if err != nil {
 		return &getMDMAppleCSRResponse{Err: err}, nil
@@ -2558,7 +2589,7 @@ func (r uploadMDMAppleAPNSCertResponse) Error() error {
 
 func (r uploadMDMAppleAPNSCertResponse) Status() int { return http.StatusAccepted }
 
-func uploadMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func uploadMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadMDMAppleAPNSCertRequest)
 	file, err := req.File.Open()
 	if err != nil {
@@ -2584,7 +2615,7 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 	}
 
 	if len(privateKey) == 0 {
-		return ctxerr.New(ctx, "Couldn't upload APNs certificate. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		return ctxerr.New(ctx, "Couldn't add APNs certificate. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 
 	if cert == nil {
@@ -2704,7 +2735,7 @@ func (r deleteMDMAppleAPNSCertResponse) Error() error {
 	return r.Err
 }
 
-func deleteMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	if err := svc.DeleteMDMAppleAPNSCert(ctx); err != nil {
 		return &deleteMDMAppleAPNSCertResponse{Err: err}, nil
 	}

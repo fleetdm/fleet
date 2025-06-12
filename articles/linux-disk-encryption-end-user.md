@@ -2,8 +2,7 @@
 
 > This guide is intended for new device setup. If the operating system has already been installed without enabling disk encryption, you will need to re-install in order to turn on full disk encryption.
 
-
-LUKS (Linux Unified Key Setup) is a standard tool for encrypting Linux disks. It uses a "volume key" to encrypt your data, and this key is protected by passphrases. LUKS supports multiple passphrases, allowing you to securely share access or recover encrypted data. Fleet uses LUKS to ensure that only authorized users can access the data on your work computer. 
+LUKS (Linux Unified Key Setup) is a standard tool for encrypting Linux disks. It uses a "volume key" to encrypt your data, and this key is protected by passphrases. LUKS supports multiple passphrases, allowing you to securely share access or recover encrypted data. Fleet uses LUKS to ensure that only authorized users can access the data on your work computer. Fleet supports Linux Unified Key Setup version 2 (LUKS2).
 
 Fleet securely stores a passphrase to ensure that the data on your work computer is always recoverable. To get your computer set up for key escrow, you will first need to enable disk encryption on your end, then provide your encryption passphrase to Fleet.
 
@@ -17,17 +16,17 @@ Follow the steps below to get set up.
   - When installing Ubuntu, choose the option to "Use LVM with encryption."
   - Set a strong passphrase when prompted. This passphrase will be used to encrypt your disk and is separate from your login password.
 
-  ![Ubuntu setup "How do you want to install Ubuntu?" screen](../website/assets/images/articles/ubuntu-1-1200x675@2x.png)
+  ![Linux MDM Ubuntu setup "How do you want to install Ubuntu?" screen](../website/assets/images/articles/ubuntu-1-1200x675@2x.png)
   
-  ![Ubuntu setup: Advanced features > Use LVM and encryption](../website/assets/images/articles/ubuntu-2-1200x675@2x.png)
+  ![Linux MDM Ubuntu setup: Advanced features > Use LVM and encryption](../website/assets/images/articles/ubuntu-2-1200x675@2x.png)
 
   #### Fedora Linux
 
   - During Fedora installation, under **Installation destination** > **Encryption** select the "Encrypt my data" checkbox.
   - Enter a secure passphrase when prompted.
 
-  ![Fedora setup "Installation summary" screen](../website/assets/images/articles/fedora-1-1200x675@2x.png)
-  ![Fedora setup: Installation destination > Encryption > Encrypt my data](../website/assets/images/articles/fedora-2-1200x675@2x.png)
+  ![Linux MDM Fedora setup "Installation summary" screen](../website/assets/images/articles/fedora-1-1200x675@2x.png)
+  ![Linux MDM Fedora setup: Installation destination > Encryption > Encrypt my data ](../website/assets/images/articles/fedora-2-1200x675@2x.png)
 
 ## 2. Verify encryption
 
@@ -54,3 +53,4 @@ Now, your encryption status will update to "verified" in Fleet Desktop, meaning 
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-11-25">
 <meta name="description" value="Instructions for end users to encrypt Linux devices enrolled in Fleet.">
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management, Linux disk encryption, Linux key escrow" />

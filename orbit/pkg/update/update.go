@@ -570,6 +570,8 @@ func goosFromPlatform(platform string) (string, error) {
 		return platform, nil
 	case "linux-arm64":
 		return "linux", nil
+	case "windows-arm64":
+		return "windows", nil
 	default:
 		return "", fmt.Errorf("unknown platform: %s", platform)
 	}
@@ -581,6 +583,8 @@ func goarchFromPlatform(platform string) ([]string, error) {
 		return []string{"amd64", "arm64"}, nil
 	case "windows":
 		return []string{"amd64"}, nil
+	case "windows-arm64":
+		return []string{"arm64"}, nil
 	case "linux":
 		return []string{"amd64"}, nil
 	case "linux-arm64":

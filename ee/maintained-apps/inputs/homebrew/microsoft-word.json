@@ -1,0 +1,7 @@
+{
+  "name": "Microsoft Word",
+  "slug": "microsoft-word/darwin",
+  "unique_identifier": "com.microsoft.Word",
+  "token": "microsoft-word",
+  "installer_format": "pkg"
+}

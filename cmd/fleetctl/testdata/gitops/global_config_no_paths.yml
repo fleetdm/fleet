@@ -1,4 +1,15 @@
 # Test config
+labels:
+  - name: a
+    description: A cool global label
+    query: SELECT 1 FROM osquery_info
+    label_membership_type: dynamic
+  - name: b
+    description: A fresh global label
+    label_membership_type: manual
+    hosts:
+      - host1
+      - host2        
 controls: # Controls added to "No team"
   macos_settings:
     custom_settings:
@@ -36,6 +47,9 @@ queries:
     observer_can_run: false
     automations_enabled: false
     logging: snapshot
+    labels_include_any:
+      - a
+      - b
   - name: orbit_info
     query: SELECT * from orbit_info;
     interval: 0
@@ -58,11 +72,15 @@ policies:
     description: This policy should always fail.
     resolution: There is no resolution for this policy.
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+    labels_include_any:
+      - a
   - name: Passing policy
     platform: linux,windows,darwin,chrome
     description: This policy should always pass.
     resolution: There is no resolution for this policy.
     query: SELECT 1;
+    labels_exclude_any:
+      - b
   - name: No root logins (macOS, Linux)
     platform: linux,darwin
     query: SELECT 1 WHERE NOT EXISTS (SELECT * FROM last
@@ -141,10 +159,7 @@ org_settings:
     zendesk: []
     google_calendar:
       - domain: example.com
-        api_key_json: {
-                        "client_email": "service@example.com",
-                        "private_key": "google_calendar_private_key",
-      }
+        api_key_json: { "client_email": "service@example.com", "private_key": "google_calendar_private_key" }
   mdm:
     end_user_authentication:
       entity_id: ""

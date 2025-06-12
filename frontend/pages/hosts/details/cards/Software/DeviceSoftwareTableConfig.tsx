@@ -50,7 +50,7 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
         const { name, source } = cellProps.row.original;
-        return <SoftwareNameCell name={name} source={source} />;
+        return <SoftwareNameCell name={name} source={source} myDevicePage />;
       },
       sortType: "caseInsensitive",
     },
@@ -84,21 +84,6 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
       },
-    },
-    {
-      Header: "",
-      // accessor ends up defining the classname for this column (`id__header` in this case), but is
-      // type restricted, so using "id" here, which is unsued by another column
-      accessor: "id",
-      disableSortBy: true,
-      Cell: () => (
-        <ViewAllHostsLink
-          rowHover
-          noLink
-          excludeChevron
-          customText="Show details"
-        />
-      ),
     },
   ];
 

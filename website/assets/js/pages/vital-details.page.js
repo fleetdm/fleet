@@ -20,6 +20,8 @@ parasails.registerPage('vital-details', {
     // All links to vitals in the on-page navigation have the currently selected filter appended to them, this lets us persist the user's filter when they navigate to a new page.
     if(['#apple','#linux','#windows','#chrome'].includes(window.location.hash)){
       this.selectedPlatform = window.location.hash.split('#')[1];
+    } else if(bowser.windows){
+      this.selectedPlatform = 'windows';
     }
     let columnNamesForThisQuery = [];
     let tableNamesForThisQuery = [];
@@ -38,7 +40,7 @@ parasails.registerPage('vital-details', {
     });
     (()=>{
       $('pre code').each((i, block) => {
-        if(block.classList.contains('ps')){
+        if(block.classList.contains('ps') || block.classList.contains('sh')){
           window.hljs.highlightElement(block);
           return;
         }
@@ -85,6 +87,7 @@ parasails.registerPage('vital-details', {
       }, 2000);
       navigator.clipboard.writeText(code);
     });
+    window.addEventListener('scroll', this.handleScrollingPlatformFilters);
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -102,7 +105,7 @@ parasails.registerPage('vital-details', {
         if(platformToLookFor === 'chrome'){
           this.goto('/vitals/'+this.chromeVitals[0].slug+'#chrome');
         } else if(platformToLookFor === 'darwin') {
-          this.goto('/vitals/'+this.macOsVitals[0].slug+'#macos');
+          this.goto('/vitals/'+this.macOsVitals[0].slug+'#apple');
         } else if(platformToLookFor === 'linux') {
           this.goto('/vitals/'+this.linuxVitals[0].slug+'#linux');
         } else if(platformToLookFor === 'windows') {
@@ -113,6 +116,22 @@ parasails.registerPage('vital-details', {
 
       }
 
+    },
+    handleScrollingPlatformFilters: function () {
+      let platformFilters = document.querySelector('div[purpose="platform-filters"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      // If the right nav bar exists, add and remove a class based on the current scroll position.
+      if (platformFilters) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+          platformFilters.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
+          platformFilters.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
+        }
+      }
+      this.scrollDistance = scrollTop;
     },
     clickOpenTableOfContents: function () {
       this.modal = 'table-of-contents';

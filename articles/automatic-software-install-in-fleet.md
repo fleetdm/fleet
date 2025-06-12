@@ -4,22 +4,22 @@ In Fleet, you can automatically and remotely install software on hosts. This gui
 
 ## Step-by-step instructions
 
-1. **Adding software**: Follow the [deploying software](https://fleetdm.com/guides/deploy-security-agents) guide to make a software title available for installation. Note that for Fleet maintained Apps and custom packages all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
+1. **Adding software**: Follow the [deploying software](https://fleetdm.com/guides/deploy-software-packages) guide to make a software title available for installation. Note that for Fleet maintained Apps and custom packages all installation steps (pre-install query, install script, and post-install script) will be executed as configured, regardless of the policy that triggers the installation.
 
 Current supported software deployment formats:
-- macOS: .pkg and App Store (VPP) app
-- Windows: .msi, .exe
+- macOS: .pkg, App Store (VPP) apps, and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
+- Windows: .msi, .exe, and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps)
 - Linux: .deb, .rpm
 
-> As of v4.62.0, Fleet can create an automatic install policy for you when you upload a custom package or add a Fleet Maintained App. If you use this "Automatic" installation mode, you do not have to create your own policy, so you can skip the remaining steps of this process.
+> If you check the "Automatic install" box when adding software, you do not have to create your own policy, so you can skip the remaining steps of this process.
 
 2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go the **Policies** tab, select a team, then press the **Add policy** button. Next, click **Create your own policy**, enter your policy SQL, click **Save**, fill in remaining details in the Save modal, then and click **Save** again.
 
 ```sql
-SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
+SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
 ```
 
-> In order to know the exact application name to put in the query (e.g. "Adobe Acrobat Reader.app" in the query above) you can manually install it on a canary/test host and then query `SELECT * from apps;`
+> The bundle ID for a macOS installer or VPP app can be found in the `bundle_identifier` field when [viewing the associated software title via the API](https://fleetdm.com/docs/rest-api/rest-api#get-software).
 
 3. **Open the software install automation modal**: In the **Policies** tab, click the **Manage automations** button on the top-right, then select **Install software** from the context menu that pops up.
 
@@ -43,27 +43,29 @@ Upon failure of the selected policy, the selected software installation will be 
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
 *Detailed flowchart*
 
-App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry installing the app on the host's **Host details** page (learn how [here](https://fleetdm.com/guides/deploy-software-packages#install-the-package)). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
+App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
 
-Currently, App Store apps (VPP) are not installed as [Managed Apps](https://support.apple.com/guide/deployment/distribute-managed-apps-dep575bfed86/web). Uninstalling VPP apps is coming soon.
+Currently, App Store apps (VPP) are not installed as [Managed Apps](https://support.apple.com/guide/deployment/distribute-managed-apps-dep575bfed86/web). Uninstalling VPP apps is [coming soon](https://github.com/fleetdm/fleet/issues/25497).
 
 ## Templates for policy queries
 
-Use the following policy templates to see if the software is already installed. Fleet uses these templates to automatically install software.
+Use the following policy templates to see if the software is already installed at at least the desired version.
 
 ### macOS (pkg and VPP)
 
 ```sql
-SELECT 1 FROM apps WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(bundle_short_version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
+SELECT 1 FROM apps WHERE bundle_identifier = '<YOUR_APP_BUNDLE_ID>' AND version_compare(bundle_short_version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
 ```
 
-> `SOFTWARE_TITLE_NAME` includes the `.app` extension. You can also use `bundle_identifier` for a more precise match that works if an end user renames the app on their machine.
+> You can also use the `name` column for matching (e.g. "Google Chrome.app"), but using `bundle_identifier` is more reliable for macOS apps that have bundle identifiers.
 
 ### Windows (msi and exe)
 
 ```sql
 SELECT 1 FROM programs WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<VERSION>') >= 0;
 ```
+
+> Currently, automatic install policies generated by Fleet for MSIs use `identifying_number` in the `programs` table, which corresponds to an application's ProductCode. ProductCode only refers to a specific version of a specific application, so the policy will fail (triggering an install) if any other version, newer or older, of the application is installed instead. The UpgradeCode attribute ties together multiple versions of the same application, and will be used for MSI auto-install policies [in a future release of Fleet](https://github.com/fleetdm/fleet/issues/27447) [once supported in osquery](https://github.com/fleetdm/fleet/issues/27759).
 
 ### Debian-based (deb)
 
@@ -119,5 +121,5 @@ By automating software deployment, you can gain greater control over what's inst
 <meta name="authorFullName" value="Sharon Katz">
 <meta name="authorGitHubUsername" value="sharon-fdm">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-01-21">
+<meta name="publishedOn" value="2025-02-28">
 <meta name="description" value="A guide to workflows using automatic software installation in Fleet.">

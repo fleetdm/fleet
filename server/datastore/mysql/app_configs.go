@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -51,20 +52,9 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// Check if passwords need to be encrypted
-		if info.Integrations.NDESSCEPProxy.Valid {
-			if info.Integrations.NDESSCEPProxy.Set &&
-				info.Integrations.NDESSCEPProxy.Value.Password != "" &&
-				info.Integrations.NDESSCEPProxy.Value.Password != fleet.MaskedPassword {
-				err := ds.insertOrReplaceConfigAsset(ctx, tx, fleet.MDMConfigAsset{
-					Name:  fleet.MDMAssetNDESPassword,
-					Value: []byte(info.Integrations.NDESSCEPProxy.Value.Password),
-				})
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "processing NDES SCEP proxy password")
-				}
-			}
-			info.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
+		err := ds.saveCAAssets(ctx, tx, info)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "saving CA assets")
 		}
 
 		configBytes, err := json.Marshal(info)
@@ -82,6 +72,63 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 
 		return nil
 	})
+}
+
+// saveCAAssets encrypts and saves the CA assets (passwords, API tokens, etc.) to the database.
+func (ds *Datastore) saveCAAssets(ctx context.Context, tx sqlx.ExtContext, info *fleet.AppConfig) error {
+	if info.Integrations.NDESSCEPProxy.Valid {
+		if info.Integrations.NDESSCEPProxy.Set &&
+			info.Integrations.NDESSCEPProxy.Value.Password != "" &&
+			info.Integrations.NDESSCEPProxy.Value.Password != fleet.MaskedPassword {
+			err := ds.insertOrReplaceConfigAsset(ctx, tx, fleet.MDMConfigAsset{
+				Name:  fleet.MDMAssetNDESPassword,
+				Value: []byte(info.Integrations.NDESSCEPProxy.Value.Password),
+			})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "processing NDES SCEP proxy password")
+			}
+		}
+		info.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
+	}
+
+	if info.Integrations.DigiCert.Valid || info.Integrations.CustomSCEPProxy.Valid {
+		tokensToSave := make([]fleet.CAConfigAsset, 0, len(info.Integrations.DigiCert.Value)+len(info.Integrations.CustomSCEPProxy.Value))
+		if info.Integrations.DigiCert.Valid {
+			for i, ca := range info.Integrations.DigiCert.Value {
+				if ca.APIToken != "" && ca.APIToken != fleet.MaskedPassword {
+					tokensToSave = append(tokensToSave, fleet.CAConfigAsset{
+						Name:  ca.Name,
+						Value: []byte(ca.APIToken),
+						Type:  fleet.CAConfigDigiCert,
+					})
+				}
+				info.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
+			}
+		}
+
+		if info.Integrations.CustomSCEPProxy.Valid {
+			for i, ca := range info.Integrations.CustomSCEPProxy.Value {
+				if ca.Challenge != "" && ca.Challenge != fleet.MaskedPassword {
+					tokensToSave = append(tokensToSave, fleet.CAConfigAsset{
+						Name:  ca.Name,
+						Value: []byte(ca.Challenge),
+						Type:  fleet.CAConfigCustomSCEPProxy,
+					})
+				}
+				info.Integrations.CustomSCEPProxy.Value[i].Challenge = fleet.MaskedPassword
+			}
+		}
+		err := ds.saveCAConfigAssets(ctx, tx, tokensToSave)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "saving CA assets")
+		}
+	}
+
+	return nil
+}
+
+func (ds *Datastore) InsertOrReplaceMDMConfigAsset(ctx context.Context, asset fleet.MDMConfigAsset) error {
+	return ds.insertOrReplaceConfigAsset(ctx, ds.writer(ctx), asset)
 }
 
 func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, tx sqlx.ExtContext, asset fleet.MDMConfigAsset) error {
@@ -108,6 +155,16 @@ func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, tx sqlx.Ext
 	return nil
 }
 
+func (ds *Datastore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	appConfig.MDM.AndroidEnabledAndConfigured = configured
+	return ds.SaveAppConfig(ctx, appConfig)
+}
+
 func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 	var s fleet.EnrollSecret
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
@@ -121,7 +178,7 @@ func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fl
 	return &s, nil
 }
 
-func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 	secretTeamID := sql.NullInt64{}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &secretTeamID, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
@@ -130,7 +187,7 @@ func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string,
 		}
 		return false, ctxerr.Wrap(ctx, err, "check enroll secret availability")
 	}
-	if new {
+	if isNew {
 		// Secret is already in use, so a new team can't use it
 		return false, nil
 	}

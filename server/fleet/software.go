@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -85,6 +86,11 @@ type Software struct {
 	// TitleID is the ID of the associated software title, representing a unique combination of name
 	// and source.
 	TitleID *uint `json:"-" db:"title_id"`
+	// NameSource indicates whether the name for this Software was changed during the migration to
+	// Fleet 4.67.0
+	NameSource string `json:"-" db:"name_source"`
+	// Checksum is the unique checksum generated for this Software.
+	Checksum string `json:"-" db:"checksum"`
 }
 
 func (Software) AuthzType() string {
@@ -105,6 +111,23 @@ func (s Software) ToUniqueStr() string {
 		ss = append(ss, s.ExtensionID, s.Browser)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
+// computeRawChecksum computes the checksum for a software entry
+// The calculation must match the one in softwareChecksumComputedColumn
+func (s Software) ComputeRawChecksum() ([]byte, error) {
+	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
+	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.Browser, s.ExtensionID}
+	// Only incorporate name if the Software is not a macOS app, because names on macOS are easily
+	// mutable and can lead to unintentional duplicates of Software in Fleet.
+	if s.Source != "apps" {
+		cols = append([]string{s.Name}, cols...)
+	}
+	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
+	if err != nil {
+		return nil, err
+	}
+	return h.Sum(nil), nil
 }
 
 type VulnerableSoftware struct {
@@ -223,16 +246,15 @@ type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID                     *uint   `query:"team_id,optional"`
-	VulnerableOnly             bool    `query:"vulnerable,optional"`
-	AvailableForInstall        bool    `query:"available_for_install,optional"`
-	SelfServiceOnly            bool    `query:"self_service,optional"`
-	KnownExploit               bool    `query:"exploit,optional"`
-	MinimumCVSS                float64 `query:"min_cvss_score,optional"`
-	MaximumCVSS                float64 `query:"max_cvss_score,optional"`
-	PackagesOnly               bool    `query:"packages_only,optional"`
-	Platform                   string  `query:"platform,optional"`
-	ExcludeFleetMaintainedApps bool    `query:"exclude_fleet_maintained_apps,optional"`
+	TeamID              *uint   `query:"team_id,optional"`
+	VulnerableOnly      bool    `query:"vulnerable,optional"`
+	AvailableForInstall bool    `query:"available_for_install,optional"`
+	SelfServiceOnly     bool    `query:"self_service,optional"`
+	KnownExploit        bool    `query:"exploit,optional"`
+	MinimumCVSS         float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS         float64 `query:"max_cvss_score,optional"`
+	PackagesOnly        bool    `query:"packages_only,optional"`
+	Platform            string  `query:"platform,optional"`
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -254,7 +276,10 @@ type HostSoftwareTitleListOptions struct {
 	// the host.
 	OnlyAvailableForInstall bool `query:"available_for_install,optional"`
 
-	VulnerableOnly bool `query:"vulnerable,optional"`
+	VulnerableOnly bool    `query:"vulnerable,optional"`
+	KnownExploit   bool    `query:"exploit,optional"`
+	MinimumCVSS    float64 `query:"min_cvss_score,optional"`
+	MaximumCVSS    float64 `query:"max_cvss_score,optional"`
 
 	// Non-MDM-enabled hosts cannot install VPP apps
 	IsMDMEnrolled bool

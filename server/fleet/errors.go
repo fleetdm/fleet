@@ -22,7 +22,7 @@ var (
 	ErrNotConfigured         = &NotConfiguredError{}
 
 	MDMNotConfiguredMessage              = "MDM features aren't turned on in Fleet. For more information about setting up MDM, please visit https://fleetdm.com/docs/using-fleet"
-	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
+	WindowsMDMNotConfiguredMessage       = "Windows MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/windows-mdm"
 	AppleMDMNotConfiguredMessage         = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleABMDefaultTeamDeprecatedMessage = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
 	CantTurnOffMDMForWindowsHostsMessage = "Can't turn off MDM for Windows hosts."
@@ -613,7 +613,7 @@ const (
 	RunScriptHostOfflineErrMsg             = "Script can't run on offline host."
 	RunScriptForbiddenErrMsg               = "You don't have the right permissions in Fleet to run the script."
 	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
-	RunScriptHostTimeoutErrMsg             = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Please try again."
+	RunScriptHostTimeoutErrMsg             = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results."
 	RunScriptScriptsDisabledGloballyErrMsg = "Running scripts is disabled in organization settings."
 	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
 	RunScriptsOrbitDisabledErrMsg          = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
@@ -627,6 +627,9 @@ const (
 
 	// Labels
 	InvalidLabelSpecifiedErrMsg = "Invalid label name(s):"
+
+	// Config
+	InvalidServerURLMsg = `Fleet server URL must use “https” or “http”.`
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
@@ -642,4 +645,9 @@ func (e ConflictError) Error() string {
 // StatusCode implements the kithttp.StatusCoder interface.
 func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
+}
+
+// Errorer interface is implemented by response structs to encode business logic errors
+type Errorer interface {
+	Error() error
 }

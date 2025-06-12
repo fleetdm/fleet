@@ -31,7 +31,7 @@
           </div>
           <div class="col-12 col-md-6 col-lg-2 pt-3 pt-md-0">
             <strong>Cost</strong>
-            <p>${{thisSubscription.subscriptionPrice}}.00/year</p>
+            <p>${{thisSubscription.subscriptionPrice.toFixed(2)}}/year</p>
           </div>
           <div class="col-12 col-md-6 col-lg-2 pt-3 pt-lg-0">
             <strong>No. of devices</strong>
@@ -89,8 +89,8 @@
           <div class="row pb-3 mx-0">
             <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 16px; width: 16px;" src="/images/icon-calendar-32x32@2x.png" alt="A calendar icon"></div>
             <div class="col pl-3">
-              <p>{{thisSubscription.numberOfHosts}} devices @ ${{thisSubscription.subscriptionPrice / thisSubscription.numberOfHosts / 12}}.00/device/month</p>
-              <p>Billed annually at ${{thisSubscription.subscriptionPrice}}.00/yr</p>
+              <p>{{thisSubscription.numberOfHosts}} devices @ ${{(thisSubscription.subscriptionPrice / thisSubscription.numberOfHosts / 12).toFixed(2)}}/device/month</p>
+              <p>Billed annually at ${{thisSubscription.subscriptionPrice.toFixed(2)}}/yr</p>
               <p v-if="willSubscriptionRenew">Next payment on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
               <p v-else>Your subscription will expire on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
             </div>

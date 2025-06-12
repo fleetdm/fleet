@@ -23,15 +23,17 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
-  buildQueryStringFromParams,
   convertParamsToSnakeCase,
+  getPathWithQueryParams,
 } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
-import TabsWrapper from "components/TabsWrapper";
+import TooltipWrapper from "components/TooltipWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
@@ -174,7 +176,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
     false
   );
-  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
     null
   );
@@ -298,22 +299,16 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       setShowAddSoftwareModal(true);
     } else {
       router.push(
-        `${PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}?team_id=${currentTeamId}`
+        getPathWithQueryParams(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED, {
+          team_id: currentTeamId,
+        })
       );
     }
   }, [currentTeamId, router]);
 
-  // Used to reset page number to 0 when modifying filters
-  // Solution reused from ManageHostPage.tsx
-  useEffect(() => {
-    setResetPageIndex(false);
-  }, [queryParams, page]);
-
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      // Used to reset page number to 0 when modifying filters
-      setResetPageIndex(true);
     },
     [handleTeamChange]
   );
@@ -341,15 +336,17 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const navigateToNav = useCallback(
     (i: number): void => {
-      setResetPageIndex(true); // Fixes flakey page reset in table state when switching between tabs
-
       // Only query param to persist between tabs is team id
-      const teamIdParam = buildQueryStringFromParams({
+      const teamIdParam = {
         team_id: location?.query.team_id,
         page: 0, // Fixes flakey page reset in API call when switching between tabs
-      });
+      };
 
-      const navPath = softwareSubNav[i].pathname.concat(`?${teamIdParam}`);
+      const navPath = getPathWithQueryParams(
+        softwareSubNav[i].pathname,
+        teamIdParam
+      );
+
       router.replace(navPath);
     },
     [location, router]
@@ -372,8 +369,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   const renderPageActions = () => {
-    const canManageAutomations =
-      isGlobalAdmin && (!isPremiumTier || isAllTeamsSelected);
+    const canManageAutomations = isGlobalAdmin && isPremiumTier;
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -383,18 +379,45 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     return (
       <div className={`${baseClass}__action-buttons`}>
         {canManageAutomations && (
-          <Button
-            onClick={toggleManageAutomationsModal}
-            className={`${baseClass}__manage-automations`}
-            variant="inverse"
+          <TooltipWrapper
+            underline={false}
+            tipContent={
+              <div className={`${baseClass}__header__tooltip`}>
+                Select &ldquo;All teams&rdquo; to manage automations.
+              </div>
+            }
+            disableTooltip={isAllTeamsSelected}
+            position="top"
+            showArrow
           >
-            Manage automations
-          </Button>
+            <Button
+              disabled={!isAllTeamsSelected}
+              onClick={toggleManageAutomationsModal}
+              className={`${baseClass}__manage-automations`}
+              variant="inverse"
+            >
+              Manage automations
+            </Button>
+          </TooltipWrapper>
         )}
         {canAddSoftware && (
-          <Button onClick={onAddSoftware} variant="brand">
-            <span>Add software</span>
-          </Button>
+          <TooltipWrapper
+            underline={false}
+            tipContent={
+              <div className={`${baseClass}__header__tooltip`}>
+                {isPremiumTier
+                  ? "Select a team to add software."
+                  : "This feature is included in Fleet Premium."}
+              </div>
+            }
+            disableTooltip={!isAllTeamsSelected}
+            position="top"
+            showArrow
+          >
+            <Button onClick={onAddSoftware} disabled={isAllTeamsSelected}>
+              <span>Add software</span>
+            </Button>
+          </TooltipWrapper>
         )}
       </div>
     );
@@ -412,7 +435,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderBody = () => {
     return (
       <div>
-        <TabsWrapper>
+        <TabNav>
           <Tabs
             selectedIndex={getTabIndex(location?.pathname || "")}
             onSelect={navigateToNav}
@@ -421,13 +444,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
               {softwareSubNav.map((navItem) => {
                 return (
                   <Tab key={navItem.name} data-text={navItem.name}>
-                    {navItem.name}
+                    <TabText>{navItem.name}</TabText>
                   </Tab>
                 );
               })}
             </TabList>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
         {React.cloneElement(children, {
           router,
           isSoftwareEnabled: Boolean(
@@ -444,7 +467,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
           vulnFilters: softwareVulnFilters,
-          resetPageIndex,
           addedSoftwareToken,
           onAddFiltersClick: toggleSoftwareFiltersModal,
         })}

@@ -30,16 +30,6 @@ func (m *mockExecCmd) runWithOutput(timeout time.Duration, args ...string) ([]by
 	return m.output, m.exitCode, nil
 }
 
-func (m *mockExecCmd) runWithCancel(args ...string) (cancelFunc func() error, err error) {
-	m.capturedArgs = append(m.capturedArgs, args...)
-
-	if m.err != nil {
-		return nil, m.err
-	}
-
-	return nil, nil
-}
-
 func TestShowEntryArgs(t *testing.T) {
 	testCases := []struct {
 		name         string
@@ -161,35 +151,6 @@ func TestShowInfoError(t *testing.T) {
 			}
 			err := k.ShowInfo(dialog.InfoOptions{})
 			assert.ErrorIs(t, err, tt.expectedErr)
-		})
-	}
-}
-
-func TestShowProgressArgs(t *testing.T) {
-	testCases := []struct {
-		name         string
-		opts         dialog.ProgressOptions
-		expectedArgs []string
-	}{
-		{
-			name: "Basic Progress",
-			opts: dialog.ProgressOptions{
-				Title: "A Title",
-				Text:  "Some text",
-			},
-			expectedArgs: []string{"--msgbox", "Some text", "--title", "A Title"},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			mock := &mockExecCmd{}
-			k := &KDialog{
-				cmdWithCancel: mock.runWithCancel,
-			}
-			_, err := k.ShowProgress(tt.opts)
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expectedArgs, mock.capturedArgs)
 		})
 	}
 }

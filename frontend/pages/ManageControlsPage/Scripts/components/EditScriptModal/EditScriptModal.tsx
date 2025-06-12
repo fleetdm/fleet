@@ -2,6 +2,8 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+import { getPathWithQueryParams } from "utilities/url";
 import scriptAPI from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
@@ -38,6 +40,7 @@ const EditScriptModal = ({
   onExit,
 }: IEditScriptModal) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { currentTeam } = useContext(AppContext);
 
   // Editable script content
   const [scriptFormData, setScriptFormData] = useState("");
@@ -106,19 +109,32 @@ const EditScriptModal = ({
       <>
         <form onSubmit={onSubmit}>
           <Editor
-            value={scriptFormData}
-            onChange={onChange}
-            isFormField
             error={formError}
+            isFormField
+            label="Script"
             onBlur={onBlur}
+            onChange={onChange}
+            value={scriptFormData}
           />
           <div className="form-field__help-text">
             To run this script on a host, go to the{" "}
-            <CustomLink text="Hosts" url={paths.MANAGE_HOSTS} /> page and select
-            a host.
+            <CustomLink
+              text="Hosts"
+              url={getPathWithQueryParams(paths.MANAGE_HOSTS, {
+                team_id: currentTeam?.id,
+              })}
+            />{" "}
+            page and select a host.
             <br />
             To run the script across multiple hosts, add a policy automation on
-            the <CustomLink text="Policies" url={paths.MANAGE_POLICIES} /> page.
+            the{" "}
+            <CustomLink
+              text="Policies"
+              url={getPathWithQueryParams(paths.MANAGE_POLICIES, {
+                team_id: currentTeam?.id,
+              })}
+            />{" "}
+            page.
           </div>
         </form>
         <ModalFooter
@@ -129,7 +145,6 @@ const EditScriptModal = ({
               </Button>
               <Button
                 onClick={onSave}
-                variant="brand"
                 isLoading={isSubmitting}
                 disabled={!!formError}
               >

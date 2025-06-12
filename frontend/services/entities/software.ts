@@ -16,6 +16,7 @@ import { CommaSeparatedPlatformString } from "interfaces/platform";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
+  getPathWithQueryParams,
 } from "utilities/url";
 import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
 import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
@@ -143,6 +144,7 @@ interface IAddFleetMaintainedAppPostBody {
   post_install_script?: string;
   uninstall_script?: string;
   self_service?: boolean;
+  automatic_install?: boolean;
   labels_include_any?: string[];
   labels_exclude_any?: string[];
 }
@@ -281,11 +283,8 @@ export default {
       formData.append("pre_install_query", data.preInstallQuery);
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
-    data.installType &&
-      formData.append(
-        "automatic_install",
-        (data.installType === "automatic").toString()
-      );
+    data.automaticInstall &&
+      formData.append("automatic_install", data.automaticInstall.toString());
     teamId && formData.append("team_id", teamId.toString());
 
     if (data.targetType === "Custom") {
@@ -409,9 +408,14 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getFleetMaintainedApp: (id: number): Promise<IFleetMaintainedAppResponse> => {
+  getFleetMaintainedApp: (
+    id: number,
+    teamId?: string
+  ): Promise<IFleetMaintainedAppResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APP } = endpoints;
-    const path = `${SOFTWARE_FLEET_MAINTAINED_APP(id)}`;
+    const path = getPathWithQueryParams(SOFTWARE_FLEET_MAINTAINED_APP(id), {
+      team_id: teamId,
+    });
     return sendRequest("GET", path);
   },
 
@@ -429,6 +433,7 @@ export default {
       post_install_script: formData.postInstallScript,
       uninstall_script: formData.uninstallScript,
       self_service: formData.selfService,
+      automatic_install: formData.automaticInstall,
     };
 
     if (formData.targetType === "Custom") {

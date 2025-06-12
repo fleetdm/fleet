@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
+
+import { AppContext } from "context/app";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -11,6 +13,7 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { CONTACT_FLEET_LINK } from "utilities/constants";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
@@ -68,6 +71,9 @@ const ManageQueryAutomationsModal = ({
 }: IManageQueryAutomationsModalProps): JSX.Element => {
   // TODO: Error handling, if any
   // const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   // Client side sort queries alphabetically
   const sortedAvailableQueries =
@@ -136,6 +142,7 @@ const ManageQueryAutomationsModal = ({
                           // !isChecked &&
                           //   setErrors((errs) => omit(errs, "queryItems"));
                         }}
+                        disabled={gitOpsModeEnabled}
                       >
                         <TooltipTruncatedText value={name} />
                       </Checkbox>
@@ -184,15 +191,20 @@ const ManageQueryAutomationsModal = ({
           Preview data
         </Button>
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onSubmitQueryAutomations}
-            className="save-loading"
-            isLoading={isUpdatingAutomations}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={6}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                onClick={onSubmitQueryAutomations}
+                className="save-loading"
+                isLoading={isUpdatingAutomations}
+                disabled={disableChildren}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>

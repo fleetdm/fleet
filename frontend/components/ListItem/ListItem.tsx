@@ -17,6 +17,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-pkg"
   | "file-p7m"
   | "file-pem"
+  | "file-certificate"
 >;
 
 /**

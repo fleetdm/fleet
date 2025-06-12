@@ -1,12 +1,12 @@
 import React, { useCallback, useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import VppSetupSteps from "../VppSetupSteps";
 import { getErrorMessage } from "./helpers";
@@ -71,16 +71,21 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
           fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
           onFileUpload={onSelectFile}
+          gitopsCompatible
         />
         <div className="modal-cta-wrap">
-          <Button
-            variant="brand"
-            onClick={uploadVppToken}
-            isLoading={isUploading}
-            disabled={!tokenFile || isUploading}
-          >
-            Add VPP
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                onClick={uploadVppToken}
+                isLoading={isUploading}
+                disabled={!tokenFile || isUploading || disableChildren}
+              >
+                Add VPP
+              </Button>
+            )}
+          />
         </div>
       </>
     </Modal>
