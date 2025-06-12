@@ -633,6 +633,20 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
 
 ## Auth
 
+## auth_sso_session_validity_period
+
+How long an SSO authentication process can take between initiation and callback. Applies to both users logging into the Fleet web UI and end users during MDM enrollment.
+
+> Note: Once logged in, session_duration determines how long a user stays logged into Fleet.
+
+- Default value: `5m` (5 minutes)
+- Environment variable: `FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD`
+- Config file format:
+  ```yaml
+  auth:
+    sso_session_validity_period: 10m
+  ```
+
 ### auth_bcrypt_cost
 
 The bcrypt cost to use when hashing user passwords.
@@ -681,7 +695,7 @@ Size of generated app tokens.
 
 How long invite tokens should be valid for.
 
-- Default value: `5 days`
+- Default value: `5d` (5 days)
 - Environment variable: `FLEET_APP_INVITE_TOKEN_VALIDITY_PERIOD`
 - Config file format:
   ```yaml
