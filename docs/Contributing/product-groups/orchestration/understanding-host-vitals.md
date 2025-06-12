@@ -27,23 +27,11 @@ SELECT
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1, "system" as source,
-		path
+		serial, sha1
 	FROM
 		certificates
 	WHERE
-		path = '/Library/Keychains/System.keychain'
-	UNION
-	SELECT
-		ca, common_name, subject, issuer,
-		key_algorithm, key_strength, key_usage, signing_algorithm,
-		not_valid_after, not_valid_before,
-		serial, sha1, "user" as source,
-		path
-	FROM
-		certificates
-	WHERE
-		path LIKE '/Users/%/Library/Keychains/login.keychain-db';
+		path = '/Library/Keychains/System.keychain';
 ```
 
 ## chromeos_profile_user_info
@@ -53,16 +41,6 @@ SELECT
 - Query:
 ```sql
 SELECT email FROM users
-```
-
-## conditional_access_microsoft_device_id
-
-- Platforms: darwin
-
-- Query:
-```sql
-SELECT * FROM (SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' LIMIT 1)
-		CROSS JOIN (SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1);
 ```
 
 ## disk_encryption_darwin
