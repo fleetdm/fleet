@@ -389,11 +389,6 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 			dirty["Package"] = true
 
-			// Clear the fleet_maintained_app_id because the installer file changed
-			if err := svc.ds.ClearFleetMaintainedAppID(ctx, existingInstaller.InstallerID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "failed to clear fleet_maintained_app_id")
-			}
-
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil

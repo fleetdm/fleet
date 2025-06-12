@@ -496,12 +496,6 @@ func (ds *Datastore) UpdateInstallerSelfServiceFlag(ctx context.Context, selfSer
 	return nil
 }
 
-func (ds *Datastore) ClearFleetMaintainedAppID(ctx context.Context, installerID uint) error {
-	stmt := `UPDATE software_installers SET fleet_maintained_app_id = NULL WHERE id = ?`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, installerID)
-	return ctxerr.Wrap(ctx, err, "clearing fleet_maintained_app_id")
-}
-
 func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {
 	if payload.InstallScript == nil || payload.UninstallScript == nil || payload.PreInstallQuery == nil || payload.SelfService == nil {
 		return ctxerr.Wrap(ctx, errors.New("missing installer update payload fields"), "update installer record")
@@ -527,12 +521,13 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 	}
 
 	var touchUploaded string
+	var clearFleetMaintainedAppID string // FMA becomes custom package when uploading a new installer file
 	if payload.InstallerFile != nil {
 		touchUploaded = ", uploaded_at = NOW()"
+		clearFleetMaintainedAppID = ", fleet_maintained_app_id = NULL"
 	}
 
-	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		stmt := fmt.Sprintf(`UPDATE software_installers SET
+	stmt := fmt.Sprintf(`UPDATE software_installers SET
 	storage_id = ?,
 	filename = ?,
 	version = ?,
@@ -544,8 +539,9 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
     self_service = ?,
 	user_id = ?,
 	user_name = (SELECT name FROM users WHERE id = ?),
-	user_email = (SELECT email FROM users WHERE id = ?) %s
-	WHERE id = ?`, touchUploaded)
+	user_email = (SELECT email FROM users WHERE id = ?)%s%s
+	WHERE id = ?`, touchUploaded, clearFleetMaintainedAppID)
+
 
 		args := []interface{}{
 			payload.StorageID,
