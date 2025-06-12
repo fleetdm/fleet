@@ -72,7 +72,7 @@ The binaries are now available in `./build/`.
 To set up a working local development environment, you must install the following minimum toolset:
 
 * [Go](https://golang.org/doc/install)
-* [Node.js v20.18.1](https://nodejs.org/en/download/) and [Yarn](https://yarnpkg.com/en/docs/install)
+* [Node.js v20.18.1](https://nodejs.org/en/blog/release/v20.18.1) and [Yarn](https://yarnpkg.com/en/docs/install)
 * [GNU Make](https://www.gnu.org/software/make/) (probably already installed if you're on macOS/Linux)
 
 Once you have those minimum requirements, check out this [Loom video](https://www.loom.com/share/e7439f058eb44c45af872abe8f8de4a1) that walks through starting up a local development environment for Fleet.

@@ -109,6 +109,20 @@ export default {
     return sendRequest("GET", path);
   },
 
+  /** Gets more info on FMA/custom package uninstall for device user */
+  getSoftwareUninstallResult: (
+    deviceToken: string,
+    scriptExecutionId: string
+  ) => {
+    const { DEVICE_SOFTWARE_UNINSTALL_RESULTS } = endpoints;
+    const path = DEVICE_SOFTWARE_UNINSTALL_RESULTS(
+      deviceToken,
+      scriptExecutionId
+    );
+
+    return sendRequest("GET", path);
+  },
+
   /** Gets more info on VPP install for device user */
   getVppCommandResult: (deviceToken: string, uuid: string) => {
     const { DEVICE_VPP_COMMAND_RESULTS } = endpoints;

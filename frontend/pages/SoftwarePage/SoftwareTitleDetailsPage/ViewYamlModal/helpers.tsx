@@ -35,7 +35,7 @@ const joinWithCommasAnd = (
   });
 };
 
-export const renderYamlHelperText = ({
+export const renderDownloadFilesText = ({
   preInstallQuery,
   installScript,
   postInstallScript,
@@ -105,8 +105,11 @@ export const renderYamlHelperText = ({
   return (
     <>
       Next, download your {joinWithCommasAnd(items)} and add{" "}
-      {items.length === 1 ? "it" : "them"} to your repository (please use the
-      above {items.length === 1 ? "path" : "paths"}).
+      {items.length === 1 ? "it" : "them"} to your repository using the{" "}
+      {items.length === 1 ? "path" : "paths"} above. If you edited{" "}
+      <b>Advanced options</b>, download and replace the{" "}
+      {items.length === 1 ? "file" : "files"} in your repository with the
+      updated {items.length === 1 ? "one" : "ones"}.
     </>
   );
 };

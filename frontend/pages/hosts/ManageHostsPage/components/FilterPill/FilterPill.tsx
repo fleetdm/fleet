@@ -32,7 +32,11 @@ const FilterPill = ({
   });
 
   const pillText = useRef(null);
-  const isTuncated = useCheckTruncatedElement(pillText);
+  const isTruncated = useCheckTruncatedElement(pillText);
+
+  // if tooltipDescription not provided, behave like TooltipTruncatedText
+  const tooltipContent =
+    tooltipDescription ?? (isTruncated ? label : undefined);
 
   return (
     <div
@@ -45,7 +49,7 @@ const FilterPill = ({
           <div className={labelClasses}>
             {icon && <Icon name={icon} />}
             <span
-              data-tip={tooltipDescription}
+              data-tip={tooltipContent}
               data-for={`filter-pill-tooltip-${label}`}
               className={`${baseClass}__tooltip-text`}
               ref={pillText}
@@ -62,7 +66,7 @@ const FilterPill = ({
             </Button>
           </div>
         </span>
-        {tooltipDescription && (
+        {tooltipContent && (
           <ReactTooltip
             role="tooltip"
             place="top"
@@ -70,9 +74,8 @@ const FilterPill = ({
             backgroundColor={COLORS["tooltip-bg"]}
             id={`filter-pill-tooltip-${label}`}
             data-html
-            disable={!isTuncated}
           >
-            <span>{tooltipDescription}</span>
+            <span>{tooltipContent}</span>
           </ReactTooltip>
         )}
       </>

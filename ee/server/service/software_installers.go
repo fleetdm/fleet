@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -145,6 +146,17 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, titleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
+	}
+
+	if payload.AutomaticInstall {
+		policyAct := fleet.ActivityTypeCreatedPolicy{
+			ID:   addedInstaller.AutomaticInstallPolicies[0].ID,
+			Name: addedInstaller.AutomaticInstallPolicies[0].Name,
+		}
+
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for create automatic install policy for custom package")
+		}
 	}
 
 	return addedInstaller, nil
@@ -1242,11 +1254,14 @@ func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host
 func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
+
+	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+
 	if err != nil {
 		// if error is because the host does not exist, check first if the user
 		// had access to install/uninstall software (to prevent leaking valid host ids).
 		if fleet.IsNotFound(err) {
-			if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+			if !fromMyDevicePage {
 				if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionWrite); err != nil {
 					return err
 				}
@@ -1270,7 +1285,7 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	}
 
 	// authorize with the host's team
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !fromMyDevicePage {
 		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 			return err
 		}
@@ -1343,16 +1358,16 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 
 	// Pending uninstalls will automatically show up in the UI Host Details -> Activity -> Upcoming tab.
 	execID := uuid.NewString()
-	if err = svc.insertSoftwareUninstallRequest(ctx, execID, host, installer); err != nil {
+	if err = svc.insertSoftwareUninstallRequest(ctx, execID, host, installer, fromMyDevicePage); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executionID string, host *fleet.Host,
-	installer *fleet.SoftwareInstaller,
+	installer *fleet.SoftwareInstaller, selfService bool,
 ) error {
-	if err := svc.ds.InsertSoftwareUninstallRequest(ctx, executionID, host.ID, installer.InstallerID); err != nil {
+	if err := svc.ds.InsertSoftwareUninstallRequest(ctx, executionID, host.ID, installer.InstallerID, selfService); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting software uninstall request")
 	}
 	return nil
@@ -1424,6 +1439,18 @@ func (svc *Service) getDeviceSoftwareInstallResults(ctx context.Context, resultU
 
 	res.EnhanceOutputDetails()
 	return res, nil
+}
+
+func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, host *fleet.Host, execID string) (*fleet.HostScriptResult, error) {
+	scriptResult, err := svc.ds.GetSelfServiceUninstallScriptExecutionResult(ctx, execID, host.ID)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get script result")
+	}
+
+	scriptResult.Hostname = host.DisplayName()
+
+	return scriptResult, nil
 }
 
 func (svc *Service) storeSoftware(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {

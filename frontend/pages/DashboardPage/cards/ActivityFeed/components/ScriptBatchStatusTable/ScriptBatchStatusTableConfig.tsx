@@ -7,35 +7,7 @@ import {
   IStringCellProps,
 } from "interfaces/datatable_config";
 import { IScriptBatchSummaryResponse } from "services/entities/scripts";
-import Button from "components/buttons/Button";
-
-interface IHostCountCellProps {
-  status: string;
-  count: number;
-  onClickCancel: () => void;
-}
-
-const HostCountCell = ({
-  status,
-  count,
-  onClickCancel,
-}: IHostCountCellProps) => {
-  const baseClass = "script-batch-status-host-count-cell";
-  return (
-    <div className={baseClass}>
-      <div>{count}</div>
-      {status === "pending" && (
-        <Button
-          className={`${baseClass}__cancel-button`}
-          onClick={onClickCancel}
-          variant="text-icon"
-        >
-          <span>Cancel</span>
-        </Button>
-      )}
-    </div>
-  );
-};
+import ScriptBatchHostCountCell from "../ScriptBatchHostCountCell/ScriptBatchHostCountCell";
 
 type IStatus = "ran" | "pending" | "errored";
 
@@ -72,7 +44,9 @@ type IStatusCellProps = IStringCellProps<IRowData>;
 type IHostCellProps = INumberCellProps<IRowData>;
 
 export const generateTableConfig = (
-  onClickCancel: () => void
+  batchExecutionId: string,
+  onClickCancel: () => void,
+  teamId?: number
 ): IColumnConfig[] => {
   return [
     {
@@ -96,10 +70,12 @@ export const generateTableConfig = (
       disableSortBy: true,
       Cell: ({ cell }: IHostCellProps) => {
         return (
-          <HostCountCell
+          <ScriptBatchHostCountCell
             count={cell.value}
             status={cell.row.original.status}
+            batchExecutionId={batchExecutionId}
             onClickCancel={onClickCancel}
+            teamId={teamId}
           />
         );
       },

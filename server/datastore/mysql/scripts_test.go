@@ -44,6 +44,8 @@ func TestScripts(t *testing.T) {
 		{"UpdateScriptContents", testUpdateScriptContents},
 		{"UpdateDeletingUpcomingScriptExecutions", testUpdateDeletingUpcomingScriptExecutions},
 		{"BatchExecute", testBatchExecute},
+		{"DeleteScriptActivatesNextActivity", testDeleteScriptActivatesNextActivity},
+		{"BatchSetScriptActivatesNextActivity", testBatchSetScriptActivatesNextActivity},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1808,6 +1810,7 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.Equal(t, script.ID, summary.ScriptID)
 	require.Equal(t, script.Name, summary.ScriptName)
 	require.Equal(t, uint(0), *summary.TeamID)
+	require.NotNil(t, summary.CreatedAt)
 
 	// The summary should have two pending hosts and two errored ones, because
 	// the script is not compatible with the hostNoScripts and hostWindows.
@@ -1902,4 +1905,236 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.Equal(t, summary.NumErrored, uint(3))
 	require.Equal(t, summary.NumRan, uint(1))
 	require.Equal(t, summary.NumCanceled, uint(1))
+}
+
+func testDeleteScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create a couple of scripts
+	scriptA, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "a",
+		ScriptContents: "echo 'a'",
+	})
+	require.NoError(t, err)
+	scriptB, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "b",
+		ScriptContents: "echo 'b'",
+	})
+	require.NoError(t, err)
+
+	// create some hosts
+	hosts := make([]*fleet.Host, 4)
+	for i := range hosts {
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(fmt.Sprint(i)),
+			UUID:            fmt.Sprint(i),
+			Hostname:        fmt.Sprintf("%d-foo.local", i),
+			PrimaryIP:       fmt.Sprintf("192.168.1.%d", i),
+			PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-5%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = host
+	}
+
+	// enqueue scripts executions:
+	// * hosts[0]: a, b
+	// * hosts[1]: a, b
+	// * hosts[2]: b, a
+	// * hosts[3]: b
+	execHost0ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[0].ID,
+		ScriptID:    &scriptA.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost0ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[0].ID,
+		ScriptID:    &scriptB.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost1ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[1].ID,
+		ScriptID:    &scriptA.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost1ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[1].ID,
+		ScriptID:    &scriptB.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost2ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[2].ID,
+		ScriptID:    &scriptB.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost2ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[2].ID,
+		ScriptID:    &scriptA.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+	execHost3ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:      hosts[3].ID,
+		ScriptID:    &scriptB.ID,
+		UserID:      &u.ID,
+		SyncRequest: true,
+	})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], execHost0ScriptA.ExecutionID, execHost0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], execHost1ScriptA.ExecutionID, execHost1ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], execHost2ScriptB.ExecutionID, execHost2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptB.ExecutionID)
+
+	// delete scriptA removes pending upcoming activity and activates next activity
+	err = ds.DeleteScript(ctx, scriptA.ID)
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], execHost0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], execHost1ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], execHost2ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptB.ExecutionID)
+}
+
+func testBatchSetScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// batch-set some scripts
+	scripts, err := ds.BatchSetScripts(ctx, nil, []*fleet.Script{
+		{Name: "A", ScriptContents: "C1"},
+		{Name: "B", ScriptContents: "C2"},
+		{Name: "C", ScriptContents: "C3"},
+	})
+	require.NoError(t, err)
+
+	// index scripts by name
+	scriptByName := make(map[string]uint)
+	for _, s := range scripts {
+		scriptByName[s.Name] = s.ID
+	}
+
+	// create some hosts
+	hosts := make([]*fleet.Host, 4)
+	for i := range hosts {
+		host, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         ptr.String(fmt.Sprint(i)),
+			UUID:            fmt.Sprint(i),
+			Hostname:        fmt.Sprintf("%d-foo.local", i),
+			PrimaryIP:       fmt.Sprintf("192.168.1.%d", i),
+			PrimaryMac:      fmt.Sprintf("30-65-EC-6F-C4-5%d", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = host
+	}
+
+	// enqeue script executions:
+	// * hosts[0]: A, C, A, B
+	// * hosts[1]: B, B, C
+	// * hosts[2]: C, A
+	// * hosts[3]: A, B, C
+	execHost0ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[0].ID, ScriptID: ptr.Uint(scriptByName["A"]), SyncRequest: true, ScriptContents: "C1",
+	})
+	require.NoError(t, err)
+	execHost0ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[0].ID, ScriptID: ptr.Uint(scriptByName["C"]), SyncRequest: true, ScriptContents: "C3",
+	})
+	require.NoError(t, err)
+	execHost0ScriptA2, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[0].ID, ScriptID: ptr.Uint(scriptByName["A"]), SyncRequest: true, ScriptContents: "C1",
+	})
+	require.NoError(t, err)
+	execHost0ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[0].ID, ScriptID: ptr.Uint(scriptByName["B"]), SyncRequest: true, ScriptContents: "C2",
+	})
+	require.NoError(t, err)
+	execHost1ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[1].ID, ScriptID: ptr.Uint(scriptByName["B"]), SyncRequest: true, ScriptContents: "C2",
+	})
+	require.NoError(t, err)
+	execHost1ScriptB2, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[1].ID, ScriptID: ptr.Uint(scriptByName["B"]), SyncRequest: true, ScriptContents: "C2",
+	})
+	require.NoError(t, err)
+	execHost1ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[1].ID, ScriptID: ptr.Uint(scriptByName["C"]), SyncRequest: true, ScriptContents: "C3",
+	})
+	require.NoError(t, err)
+	execHost2ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[2].ID, ScriptID: ptr.Uint(scriptByName["C"]), SyncRequest: true, ScriptContents: "C3",
+	})
+	require.NoError(t, err)
+	execHost2ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[2].ID, ScriptID: ptr.Uint(scriptByName["A"]), SyncRequest: true, ScriptContents: "C1",
+	})
+	require.NoError(t, err)
+	execHost3ScriptA, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[3].ID, ScriptID: ptr.Uint(scriptByName["A"]), SyncRequest: true, ScriptContents: "C1",
+	})
+	require.NoError(t, err)
+	execHost3ScriptB, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[3].ID, ScriptID: ptr.Uint(scriptByName["B"]), SyncRequest: true, ScriptContents: "C2",
+	})
+	require.NoError(t, err)
+	execHost3ScriptC, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hosts[3].ID, ScriptID: ptr.Uint(scriptByName["C"]), SyncRequest: true, ScriptContents: "C3",
+	})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], execHost0ScriptA.ExecutionID, execHost0ScriptC.ExecutionID, execHost0ScriptA2.ExecutionID, execHost0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], execHost1ScriptB.ExecutionID, execHost1ScriptB2.ExecutionID, execHost1ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], execHost2ScriptC.ExecutionID, execHost2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptA.ExecutionID, execHost3ScriptB.ExecutionID, execHost3ScriptC.ExecutionID)
+
+	// no change
+	_, err = ds.BatchSetScripts(ctx, nil, []*fleet.Script{
+		{Name: "A", ScriptContents: "C1"},
+		{Name: "B", ScriptContents: "C2"},
+		{Name: "C", ScriptContents: "C3"},
+	})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], execHost0ScriptA.ExecutionID, execHost0ScriptC.ExecutionID, execHost0ScriptA2.ExecutionID, execHost0ScriptB.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], execHost1ScriptB.ExecutionID, execHost1ScriptB2.ExecutionID, execHost1ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], execHost2ScriptC.ExecutionID, execHost2ScriptA.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptA.ExecutionID, execHost3ScriptB.ExecutionID, execHost3ScriptC.ExecutionID)
+
+	// batch-set removes A, updates B and creates D, cancelling any pending A and B executions
+	_, err = ds.BatchSetScripts(ctx, nil, []*fleet.Script{
+		{Name: "B", ScriptContents: "C2updated"},
+		{Name: "C", ScriptContents: "C3"},
+		{Name: "D", ScriptContents: "C4"},
+	})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0], execHost0ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[1], execHost1ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[2], execHost2ScriptC.ExecutionID)
+	checkUpcomingActivities(t, ds, hosts[3], execHost3ScriptC.ExecutionID)
+
+	// batch-set remove all
+	_, err = ds.BatchSetScripts(ctx, nil, []*fleet.Script{})
+	require.NoError(t, err)
+
+	checkUpcomingActivities(t, ds, hosts[0])
+	checkUpcomingActivities(t, ds, hosts[1])
+	checkUpcomingActivities(t, ds, hosts[2])
+	checkUpcomingActivities(t, ds, hosts[3])
 }

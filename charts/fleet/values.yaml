@@ -3,7 +3,7 @@
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 imageRepository: fleetdm/fleet
-imageTag: v4.68.0 # Version of Fleet to deploy
+imageTag: v4.68.1 # Version of Fleet to deploy
 # imagePullSecrets is optional.
 # imagePullSecrets:
 #   - name: docker
@@ -55,10 +55,10 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-  tls:
-    - secretName: chart-example-tls
-      hosts:
-        - chart-example.local
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
 
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server

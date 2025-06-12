@@ -1,5 +1,8 @@
 url: https://downloads.slack-edge.com/desktop-releases/windows/x64/4.44.60/SlackSetup.exe
 self_service: true
+categories:
+  - Productivity
+  - Communication
 labels_include_any:
   - "x86-based Windows hosts"
 install_script:

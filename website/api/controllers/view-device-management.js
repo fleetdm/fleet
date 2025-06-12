@@ -25,11 +25,11 @@ module.exports = {
 
     // Specify an order for the testimonials on this page using the last names of quote authors
     let testimonialOrderForThisPage = [
+      'Bart Reardon',
       'Scott MacVicar',
       'Mike Meyer',
       'Luis Madrigal',
       'Tom Larkin',
-      'Bart Reardon',
       'Kenny Botelho',
       'Erik Gomez',
       'Chandra Majumdar',

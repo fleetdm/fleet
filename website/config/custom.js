@@ -131,8 +131,11 @@ module.exports.custom = {
     '/docs/get-started/faq': 'zayhanlon',
     'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
+    // Fleet's internal IT and security (+dogfooding)
+    'it-and-security': 'allenhouchins',
+
     // 🫧 Articles and release notes
-    'articles': 'sampfluger88',
+    'articles': 'mikermcneil',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -160,9 +163,10 @@ module.exports.custom = {
     'ee/bulk-operations-dashboard': 'eashaw',// (catch-all)
 
     // 🫧 Pricing and features
-    // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
     'handbook/company/pricing-features-table.yml': 'noahtalerman',
     'handbook/company/testimonials.yml': 'mike-j-thomas',
+
+    // Dev process
     'handbook/company/product-groups.md': 'lukeheath',
     'handbook/engineering': 'lukeheath',
     'handbook/product-design': 'noahtalerman',
@@ -175,6 +179,7 @@ module.exports.custom = {
     // 🌐 Repo automation and change control settings
     'CODEOWNERS': 'sampfluger88',
     'website/config/custom.js': 'sampfluger88',
+    '.gitignore': 'sampfluger88',// « what files should not be checked in?
 
     // 🌐 Handbook
     //'handbook': 'mikermcneil', Covered in CODEOWNERS (#16972 2024-02-19)
@@ -220,6 +225,8 @@ module.exports.custom = {
     'schema': ['eashaw'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
+    // Fleet's internal IT and security (+dogfooding)
+    'it-and-security': ['allenhouchins'],
 
     // Articles and release notes
     'CHANGELOG.md': ['mikermcneil', 'noahtalerman', 'lukeheath'],
@@ -268,18 +275,23 @@ module.exports.custom = {
     // Handbook
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
-    'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
     'handbook/company/open-positions.yml': ['sampfluger88','mikermcneil'],
     'handbook/company/communications.md': ['sampfluger88','mikermcneil'],
     'handbook/company/leadership.md': ['sampfluger88','mikermcneil'],
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
     'handbook/finance': ['sampfluger88','mikermcneil'],
-    'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
-    'handbook/product-design': ['sampfluger88','mikermcneil','noahtalerman'],
     'handbook/sales': ['sampfluger88','mikermcneil'],
     'handbook/marketing': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],
-    'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88', 'mikermcneil'],
+
+    // 🫧 Pricing and features and dev process
+    'handbook/company/pricing-features-table.yml': ['noahtalerman', 'mikermcneil'],
+    'handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'zayhanlon'],
+
+    // Dev process
+    'handbook/company/product-groups.md': ['lukeheath','noahtalerman','sampfluger88','mikermcneil'],
+    'handbook/engineering': ['sampfluger88', 'lukeheath'],
+    'handbook/product-design': ['sampfluger88', 'noahtalerman'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
@@ -293,11 +305,11 @@ module.exports.custom = {
     // Config as code for infrastructure, internal security and IT use cases, and more.
     'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
     'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
-    '.github/workflows': ['mikermcneil', 'lukeheath'],//« CI/CD workflows
+    '.github/workflows': ['sampfluger88', 'lukeheath'],//« CI/CD workflows
 
     // Repo automation and change control settings
     'CODEOWNERS': ['mikermcneil', 'sampfluger88', 'lukeheath'],
-    '.gitignore': ['mikermcneil', 'lukeheath', 'rfairburn'],// « what files should not be checked in?
+    '.gitignore': ['lukeheath', 'rfairburn', 'sampfluger88'],// « what files should not be checked in?
     'free-for-all': '*',//« Folder that any fleetie (core team member, not consultants) can push to, willy-nilly
 
     // "Secret handbook"
@@ -411,6 +423,11 @@ module.exports.custom = {
 
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
+
+  // Microsoft compliance proxy
+  // compliancePartnerClientId: '…',
+  // compliancePartnerClientSecret: '…',
+  // cloudCustomerCompliancePartnerSharedSecret: '…',
 
   //…
 
