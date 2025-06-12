@@ -117,12 +117,11 @@ parasails.registerPage('homepage', {
     clickSwitchComparisonMode: async function(mode) {
       this.comparisonTableMode = mode;
       await setTimeout(()=>{
-
         $('[data-toggle="tooltip"]').tooltip({
           container: '#homepage',
           trigger: 'hover',
         });
-      }, 250)
+      }, 250);
     },
     closeModal: function() {
       this.modal = undefined;
