@@ -811,6 +811,8 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	if !svc.shouldUpdate(policyReportedAt, svc.config.Osquery.PolicyUpdateInterval, host.ID) && !host.RefetchRequested {
 		return nil, false, nil
 	}
+	// This must come after the check above to avoid unnecessary queries to the database. Most
+	// requests from live connected hosts will not reach this point
 	disablePolicies, err := svc.disablePoliciesDuringSetupExperience(ctx, host)
 	if err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
