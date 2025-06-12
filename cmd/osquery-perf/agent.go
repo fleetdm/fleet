@@ -877,6 +877,11 @@ func (a *agent) runMacosMDMLoop() {
 						},
 					}
 					mdmCommandPayload, err = a.macMDMClient.Err(mdmCommandPayload.CommandUUID, errChain)
+					if err != nil {
+						log.Printf("MDM Error request failed: %s", err)
+						a.stats.IncrementMDMErrors()
+						break INNER_FOR_LOOP
+					}
 				} else {
 					mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
 					if err != nil {
