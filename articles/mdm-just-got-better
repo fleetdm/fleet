@@ -2,7 +2,7 @@
 
 macOS 26 Tahoe, iOS 26, iPadOS 26, watchOS 26, and visionOS 26 bring powerful changes for Apple admins and IT teams. Hidden in the WWDC25 documentation are updates that quietly transform how organisations onboard, migrate, and manage Apple devices at scale.
 
-## Setup Assistant & Platform SSO Just Leveled Up
+## Setup Assistant & Platform SSO just leveled Up
 
 Platform Single Sign-On (SSO) is now fully integrated into Setup Assistant on macOS, bringing major enhancements to enterprise provisioning:
 
@@ -16,7 +16,7 @@ Platform Single Sign-On (SSO) is now fully integrated into Setup Assistant on ma
 
 This delivers the most frictionless macOS authentication experience to date — secure, seamless, and optimised for large-scale deployment. New devices now onboard faster, with fewer steps and stronger identity controls.
 
-## Managed Device Migration
+## Managed device migration
 
 Apple just made switching MDMs a lot easier. You can now move macOS devices between MDM servers in Apple Business Manager or School Manager—no need to wipe, rely on scripts, or use a vendor migration app. For iOS and iPadOS devices, migration is now possible without starting from scratch.
 
@@ -32,7 +32,7 @@ Apple Business Manager and Apple School Manager introduce:
 
 Whether you’re moving thousands of Macs or iPads, the barrier to change your MDM solution has never been lower.
 
-## Declarative Management Expands
+## Declarative management expands
 
 Apple is continuing its shift to declarative device management, with big gains for automation and compliance:
 
@@ -43,7 +43,7 @@ Apple is continuing its shift to declarative device management, with big gains f
 
 DDM is faster, more reliable, and requires fewer round trips to your MDM server.
 
-## Small Features, Big Wins
+## Small features, big wins
 
 These updates may be under the radar but they make a real difference:
 
@@ -57,7 +57,7 @@ These updates may be under the radar but they make a real difference:
 - Temporary AirPods pairing that automatically clears  
 - Export lists of unmanaged Apple IDs for review  
 
-## Why This Matters for IT Teams and How Fleet Helps
+## Why this matters for IT teams and how Fleet helps
 
 Apple’s WWDC25 updates point to a future of frictionless onboarding, declarative management, and user transparency.
 
@@ -69,7 +69,7 @@ Fleet doesn’t believe in vendor lock-in. And based on Apple’s direction, nei
 
 ---
 
-## Rethink Mac Management with Fleet
+## Rethink Mac management with Fleet
 
 Fleet is open source, fast to deploy, and aligned with the way device management is evolving.
 
