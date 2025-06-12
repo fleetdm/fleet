@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "8.10.75",
+      "version": "8.10.80",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.1password.1password';"
       },
-      "installer_url": "https://downloads.1password.com/mac/1Password-8.10.75-aarch64.zip",
+      "installer_url": "https://downloads.1password.com/mac/1Password-8.10.80-aarch64.zip",
       "install_script_ref": "d88f3fc1",
       "uninstall_script_ref": "f3d9471c",
-      "sha256": "dd846c64f807ccd564a1ce35abe456c2b3bd633f2ff0ec2172fa67d1a424e468",
+      "sha256": "f0f26ae9555300c4162cff6b2f03a1b4ad362997249fba6ce1ebc33cbe84bd8b",
       "default_categories": [
         "Productivity"
       ]

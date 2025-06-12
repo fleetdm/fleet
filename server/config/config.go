@@ -589,41 +589,57 @@ type PackagingConfig struct {
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
 type FleetConfig struct {
-	Mysql            MysqlConfig
-	MysqlReadReplica MysqlConfig `yaml:"mysql_read_replica"`
-	Redis            RedisConfig
-	Server           ServerConfig
-	Auth             AuthConfig
-	App              AppConfig
-	Session          SessionConfig
-	Osquery          OsqueryConfig
-	Activity         ActivityConfig
-	Logging          LoggingConfig
-	Firehose         FirehoseConfig
-	Kinesis          KinesisConfig
-	Lambda           LambdaConfig
-	S3               S3Config
-	Email            EmailConfig
-	SES              SESConfig
-	PubSub           PubSubConfig
-	Filesystem       FilesystemConfig
-	Webhook          WebhookConfig
-	KafkaREST        KafkaRESTConfig
-	License          LicenseConfig
-	Vulnerabilities  VulnerabilitiesConfig
-	Upgrades         UpgradesConfig
-	Sentry           SentryConfig
-	GeoIP            GeoIPConfig
-	Prometheus       PrometheusConfig
-	Packaging        PackagingConfig
-	MDM              MDMConfig
-	Calendar         CalendarConfig
-	Partnerships     PartnershipsConfig
+	Mysql                      MysqlConfig
+	MysqlReadReplica           MysqlConfig `yaml:"mysql_read_replica"`
+	Redis                      RedisConfig
+	Server                     ServerConfig
+	Auth                       AuthConfig
+	App                        AppConfig
+	Session                    SessionConfig
+	Osquery                    OsqueryConfig
+	Activity                   ActivityConfig
+	Logging                    LoggingConfig
+	Firehose                   FirehoseConfig
+	Kinesis                    KinesisConfig
+	Lambda                     LambdaConfig
+	S3                         S3Config
+	Email                      EmailConfig
+	SES                        SESConfig
+	PubSub                     PubSubConfig
+	Filesystem                 FilesystemConfig
+	Webhook                    WebhookConfig
+	KafkaREST                  KafkaRESTConfig
+	License                    LicenseConfig
+	Vulnerabilities            VulnerabilitiesConfig
+	Upgrades                   UpgradesConfig
+	Sentry                     SentryConfig
+	GeoIP                      GeoIPConfig
+	Prometheus                 PrometheusConfig
+	Packaging                  PackagingConfig
+	MDM                        MDMConfig
+	Calendar                   CalendarConfig
+	Partnerships               PartnershipsConfig
+	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
 }
 
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
 	EnablePrimo       bool `yaml:"enable_primo"`
+}
+
+// MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
+// Currently only set on Cloud environments.
+type MicrosoftCompliancePartnerConfig struct {
+	// ProxyAPIKey is a shared key required to use the Microsoft Compliance Partner proxy API (fleetdm.com).
+	ProxyAPIKey string `yaml:"proxy_api_key"`
+	// ProxyURI is the URI of the Microsoft Compliance Partner proxy (for development/testing).
+	ProxyURI string `yaml:"proxy_uri"`
+}
+
+// IsSet returns if the compliance partner configuration is set.
+// Currently only set on Cloud environments.
+func (m MicrosoftCompliancePartnerConfig) IsSet() bool {
+	return m.ProxyAPIKey != ""
 }
 
 type MDMConfig struct {
@@ -1420,6 +1436,11 @@ func (man Manager) addConfigs() {
 
 	// Partnerships
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
+
+	// Microsoft Compliance Partner
+	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
+	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
+
 	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
 }
 
@@ -1704,6 +1725,10 @@ func (man Manager) LoadConfig() FleetConfig {
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
 			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
+		},
+		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
+			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
+			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
 		},
 	}
 

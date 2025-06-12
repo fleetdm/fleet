@@ -547,6 +547,7 @@ var hostRefs = []string{
 	"host_scim_user",
 	"batch_script_execution_host_results",
 	"host_mdm_commands",
+	"microsoft_compliance_partner_host_statuses",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -2999,6 +3000,9 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 				}
 				if err := cleanupQueryResultsOnTeamChange(ctx, tx, hostIDsBatch); err != nil {
 					return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete query results")
+				}
+				if err := cleanupConditionalAccessOnTeamChange(ctx, tx, hostIDsBatch); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete conditional access")
 				}
 
 				query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDsBatch)
