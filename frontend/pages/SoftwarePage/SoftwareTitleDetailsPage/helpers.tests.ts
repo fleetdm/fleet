@@ -27,8 +27,6 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           uninstall_script: "echo bar",
           icon_url: "https://example.com/icon.png",
           automatic_install_policies: [],
-          last_install: null,
-          last_uninstall: null,
           url: "",
         },
         app_store_app: null,

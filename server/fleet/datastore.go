@@ -14,11 +14,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/jmoiron/sqlx"
-
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 type CarveStore interface {
@@ -570,9 +569,10 @@ type Datastore interface {
 	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareInstallerID uint, opts HostSoftwareInstallOptions) (string, error)
 	// InsertSoftwareUninstallRequest tracks a new request to uninstall the provided
 	// software installer on the host. executionID is the script execution ID corresponding to uninstall script
-	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint) error
-	// GetSoftwareTitleNameFromExecutionID returns the software title name associated with the provided software install execution ID.
-	GetSoftwareTitleNameFromExecutionID(ctx context.Context, executionID string) (string, error)
+	InsertSoftwareUninstallRequest(ctx context.Context, executionID string, hostID uint, softwareInstallerID uint, selfService bool) error
+	// GetDetailsForUninstallFromExecutionID returns details from a software uninstall execution needed to create the corresponding activity
+	// Non-error returns are software title name and whether the uninstall was self-service, respectively
+	GetDetailsForUninstallFromExecutionID(ctx context.Context, executionID string) (string, bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -693,6 +693,7 @@ type Datastore interface {
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
+	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -741,6 +742,8 @@ type Datastore interface {
 	GetPoliciesWithAssociatedVPP(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyVPPData, error)
 	GetPoliciesWithAssociatedScript(ctx context.Context, teamID uint, policyIDs []uint) ([]PolicyScriptData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
+	// GetPoliciesForConditionalAccess returns the team policies that are configured for "Conditional access".
+	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint) ([]uint, error)
 
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
@@ -1708,6 +1711,12 @@ type Datastore interface {
 	// received, it is the caller's responsibility to check if that was the case
 	// (with ExitCode being null).
 	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
+	// GetSelfServiceUninstallScriptExecutionResult returns the result of a host script
+	// execution if it was for the specified host and the script was for a self-service uninstall.
+	// It returns the host script results if no results have been received as long as the script
+	// has been activated in the unified queue (will return Not Found if the execution is still in
+	// upcoming_activities). It is the caller's responsibility to check if ExitCode is null.
+	GetSelfServiceUninstallScriptExecutionResult(ctx context.Context, execID string, hostID uint) (*HostScriptResult, error)
 	// ListPendingHostScriptExecutions returns all the pending host script executions, which are those that have yet
 	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
 	// globally disabled (uninstall/lock/unlock/wipe).
@@ -2047,6 +2056,10 @@ type Datastore interface {
 	// ListHostMDMManagedCertificates returns the managed certificates for the given host UUID
 	ListHostMDMManagedCertificates(ctx context.Context, hostUUID string) ([]*MDMManagedCertificate, error)
 
+	// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
+	// also deactivates prior nano commands for the profile UUID and host UUID.
+	ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Secret variables
 
@@ -2114,6 +2127,46 @@ type Datastore interface {
 	ScimLastRequest(ctx context.Context) (*ScimLastRequest, error)
 	// UpdateScimLastRequest updates the last SCIM request info
 	UpdateScimLastRequest(ctx context.Context, lastRequest *ScimLastRequest) error
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Challenges
+
+	// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges table.
+	NewChallenge(ctx context.Context) (string, error)
+	// ConsumeChallenge checks if a valid challenge exists in the challenges table
+	// and deletes it if it does. The error will include sql.ErrNoRows if the challenge
+	// is not found or is expired.
+	ConsumeChallenge(ctx context.Context, challenge string) error
+	// CleanupExpiredChallenges removes expired challenges from the challenges table,
+	// intended to be run as a cron job.
+	CleanupExpiredChallenges(ctx context.Context) (int64, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Microsoft Compliance Partner
+
+	// ConditionalAccessMicrosoftCreateIntegration creates the Conditional Access integration on the datastore.
+	// The integration is created as "not done".
+	// Currently only one integration can be configured, so this method replaces any existing integration.
+	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID, proxyServerSecret string) error
+	// ConditionalAccessMicrosoftGet returns the current Conditional Access integration.
+	// Returns a NotFoundError error if there's none.
+	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	// ConditionalAccessMicrosoftMarkSetupDone marks the configuration as done on the datastore.
+	ConditionalAccessMicrosoftMarkSetupDone(ctx context.Context) error
+	// ConditionalAccessMicrosoftDelete deletes the integration from the datastore.
+	// It will also cleanup all recorded compliance status of all hosts from the datastore.
+	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+	// LoadHostConditionalAccessStatus will load the current "Conditional Access" status of a host.
+	// The status holds Entra's "Device ID", "User Principal Name", and last reported "managed" and "compliant" status.
+	// Returns a NotFoundError error if there's no entry for the host.
+	LoadHostConditionalAccessStatus(ctx context.Context, hostID uint) (*HostConditionalAccessStatus, error)
+	// CreateHostConditionalAccessStatus creates the entry for the host on the datastore.
+	// This does not set the "managed" or "compliant" status yet, this just creates the entry needed with Entra information.
+	// If the host already has a different deviceID/userPrincipalName it will override them.
+	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
+	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
+	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
 }
 
 type AndroidDatastore interface {

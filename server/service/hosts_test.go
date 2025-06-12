@@ -2002,9 +2002,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 				return &fleet.HostLockWipeStatus{}, nil
 			}
 
-			err = svc.WipeHost(ctx, globalHostID)
+			err = svc.WipeHost(ctx, globalHostID, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-			err = svc.WipeHost(ctx, teamHostID)
+			err = svc.WipeHost(ctx, teamHostID, nil)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}

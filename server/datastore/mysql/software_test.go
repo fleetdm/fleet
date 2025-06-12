@@ -3919,14 +3919,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			return err
 		}
 		hostSwi6UninstallUUID = uuid.NewString()
-		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi6UninstallUUID, host.ID, swi6PendingUninstall)
+		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi6UninstallUUID, host.ID, swi6PendingUninstall, false)
 		if err != nil {
 			return err
 		}
 
 		// swi7 is failed uninstall
 		hostSwi7UninstallUUID = uuid.NewString()
-		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi7UninstallUUID, host.ID, swi7FailedUninstall)
+		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi7UninstallUUID, host.ID, swi7FailedUninstall, true)
 		if err != nil {
 			return err
 		}
@@ -3948,7 +3948,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi8 is successful uninstall
 		hostSwi8UninstallUUID = uuid.NewString()
-		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi8UninstallUUID, host.ID, swi8Uninstalled)
+		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi8UninstallUUID, host.ID, swi8Uninstalled, true)
 		if err != nil {
 			return err
 		}
@@ -6492,7 +6492,8 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 		ListOptions: fleet.ListOptions{
 			OrderKey: "name",
 		},
-		VulnerableOnly: true,
+		VulnerableOnly:             true,
+		IncludeAvailableForInstall: true,
 	}
 	// filter by has known exploit
 	knownExploitOpts := fleet.HostSoftwareTitleListOptions{
@@ -6702,21 +6703,52 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, tmHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	// Insert software entry for vpp app
-	_, err = ds.writer(ctx).ExecContext(ctx, `
+	res, err := ds.writer(ctx).ExecContext(ctx, `
         INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
         VALUES (?, ?, ?, ?, ?, ?)
 	`,
-		vPPApp.Name, vPPApp.LatestVersion, "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+		vPPApp.Name, "0.1.1", "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
 	)
+	require.NoError(t, err)
+	vppSoftwareID, err := res.LastInsertId()
 	require.NoError(t, err)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
 
+	_, err = ds.InsertSoftwareVulnerability(
+		ctx,
+		fleet.SoftwareVulnerability{SoftwareID: uint(vppSoftwareID), CVE: "CVE-vpp1-0001"},
+		fleet.NVDSource,
+	)
+	require.NoError(t, err)
+
 	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
+	// "vpp1" app is not in inventory yet, so it should not be returned
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
 	require.NoError(t, err)
 	require.Len(t, sw, 2)
 	require.Equal(t, software[0].Name, sw[0].Name)
 	require.Equal(t, software[1].Name, sw[1].Name)
+
+	// "vpp1" is now in inventory
+	// "vpp1" although vpp, it is vulnerable software installed on host so make sure it is also returned
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_software (host_id, software_id)
+		VALUES (?, ?)
+	`, tmHost.ID, vppSoftwareID)
+	require.NoError(t, err)
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	require.Equal(t, vPPApp.Name, sw[2].Name)
+	require.Len(t, sw[2].InstalledVersions, 1)
+	require.Equal(t, "0.1.1", sw[2].InstalledVersions[0].Version)
+	require.Equal(t, "adam_vpp_1", sw[2].AppStoreApp.AppStoreID)
+	// remove "vpp1" vulnerability
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		DELETE FROM software_cve
+		WHERE software_id = ? AND cve = ?
+	`, vppSoftwareID, "CVE-vpp1-0001")
+	require.NoError(t, err)
 
 	// upcoming_software_install
 	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -6783,7 +6815,7 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	// pending install request
-	err = ds.InsertSoftwareUninstallRequest(ctx, "abc123", tmHost.ID, installerID)
+	err = ds.InsertSoftwareUninstallRequest(ctx, "abc123", tmHost.ID, installerID, true)
 	require.NoError(t, err)
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point
@@ -6822,9 +6854,34 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.Equal(t, software[0].Name, sw[0].Name)
 	require.Equal(t, software[1].Name, sw[1].Name)
 
-	// add vulnerabilities to last_software_install and last_vpp_install
+	// host has vulnerable software installed (not by fleet) that happens to match a vpp app in the fleet catalog
+	hostInstalledVpps := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}},
+		Name:             "vpp3",
+		BundleIdentifier: "com.app.vpp3",
+	}
+	hvpp, err := ds.InsertVPPAppWithTeam(ctx, hostInstalledVpps, &tm.ID)
+	require.NoError(t, err)
+	res, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		hostInstalledVpps.Name, "0.1.0", "apps", hostInstalledVpps.BundleIdentifier, hvpp.TitleID, hex.EncodeToString([]byte("vpp3v0.1.0")),
+	)
+	require.NoError(t, err)
+	time.Sleep(time.Second)
+	vppSoftwareID, err = res.LastInsertId()
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_software (host_id, software_id)
+		VALUES (?, ?)
+	`, tmHost.ID, vppSoftwareID)
+	require.NoError(t, err)
+
+	// add vulnerabilities to last_software_install and last_vpp_install and host installed vpp app
 	vulns = []fleet.SoftwareVulnerability{
 		{SoftwareID: mutationResults.Inserted[0].ID, CVE: "CVE-file1-0003"},
+		{SoftwareID: uint(vppSoftwareID), CVE: "CVE-vpp3-0005"},
 	}
 	for _, v := range vulns {
 		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
@@ -6846,9 +6903,29 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 			Published:        ptr.Time(now),
 			Description:      "description for CVE-vpp1-0004",
 		},
+		{
+			CVE:              "CVE-vpp3-0005",
+			CVSSScore:        ptr.Float64(1.7),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(now.Add(-2 * time.Hour)),
+			Description:      "description for CVE-vpp3-0005",
+		},
 	}
 	err = ds.InsertCVEMeta(context.Background(), cveMeta)
 	require.NoError(t, err)
+
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, vulnerableOnlyOpts)
+	require.NoError(t, err)
+	require.Len(t, sw, 4)
+	require.Equal(t, software[0].Name, sw[0].Name) // "a"
+	require.Equal(t, software[1].Name, sw[1].Name) // "b"
+	require.Equal(t, software[3].Name, sw[2].Name) // "file1"
+	// "vpp3" although vpp, it is vulnerable software installed on host
+	require.Equal(t, hostInstalledVpps.Name, sw[3].Name)
+	require.Len(t, sw[3].InstalledVersions, 1)
+	require.Equal(t, "0.1.0", sw[3].InstalledVersions[0].Version)
+	require.Equal(t, "adam_vpp_3", sw[3].AppStoreApp.AppStoreID)
+
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, knownExploitOpts)
 	require.NoError(t, err)
 	require.Len(t, sw, 1)
@@ -6864,20 +6941,39 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	require.Len(t, sw, 1)
 	require.Equal(t, software[1].Name, sw[0].Name) // should only return "b"
 
+	sw, _, err = ds.ListHostSoftware(ctx, tmHost, fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			OrderKey: "name",
+		},
+		VulnerableOnly:             true,
+		MinimumCVSS:                1.6,
+		IncludeAvailableForInstall: true,
+	})
+	require.NoError(t, err)
+	// should return "a" (2.5), "file1" (1.7), "vpp3" (1.7)
+	require.Len(t, sw, 3)
+	require.Equal(t, software[0].Name, sw[0].Name)       // should only return "a"
+	require.Equal(t, software[3].Name, sw[1].Name)       // should only return "file1"
+	require.Equal(t, hostInstalledVpps.Name, sw[2].Name) // should only return "vpp3"
+
 	matchingsOpts := fleet.HostSoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey: "name",
 		},
-		VulnerableOnly: true,
-		MinimumCVSS:    1.5,
-		MaximumCVSS:    2.0,
+		IncludeAvailableForInstall: true,
+		VulnerableOnly:             true,
+		MinimumCVSS:                1.5,
+		MaximumCVSS:                2.0,
 	}
 
-	// should only return "file1" (vpp1 is not compatible with the platform)
+	// should return "file1" & "vpp3" (vpp1 is not compatible with the platform)
 	sw, _, err = ds.ListHostSoftware(ctx, tmHost, matchingsOpts)
 	require.NoError(t, err)
-	require.Len(t, sw, 1)
+	require.Len(t, sw, 2)
 	require.Equal(t, "file1", sw[0].Name)
+	require.Equal(t, "vpp3", sw[1].Name)
+	require.Len(t, sw[1].InstalledVersions, 1)
+	require.Equal(t, "adam_vpp_3", sw[1].AppStoreApp.AppStoreID)
 }
 
 func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
@@ -7075,7 +7171,7 @@ func testListHostSoftwareQuerySearching(t *testing.T, ds *Datastore) {
 	require.Equal(t, software[0].Name, sw[1].Name)
 	require.Equal(t, vPPApp.Name, sw[2].Name)
 
-	// search with solf-service
+	// search with self-service
 	vPPAppSlack := &fleet.VPPApp{
 		VPPAppTeam:       fleet.VPPAppTeam{SelfService: true, VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}},
 		Name:             "slack",

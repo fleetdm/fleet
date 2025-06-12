@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -382,8 +385,10 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		return getScriptResultResponse{Err: err}, nil
 	}
 
-	// TODO: move this logic out of the endpoint function and consolidate in either the service
-	// method or the fleet package
+	return setUpGetScriptResultResponse(scriptResult), nil
+}
+
+func setUpGetScriptResultResponse(scriptResult *fleet.HostScriptResult) *getScriptResultResponse {
 	hostTimeout := scriptResult.HostTimeout(scripts.MaxServerWaitTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout, scriptResult.Timeout)
 
@@ -399,7 +404,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		ExecutionID:    scriptResult.ExecutionID,
 		Runtime:        scriptResult.Runtime,
 		CreatedAt:      scriptResult.CreatedAt,
-	}, nil
+	}
 }
 
 func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
@@ -1303,12 +1308,35 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	return "", fleet.ErrMissingLicense
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Wipe host
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
+
+func (req *wipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	if r == nil {
+		return nil
+	}
+
+	decoder := json.NewDecoder(io.LimitReader(r, 100*1024))
+	metadata := fleet.MDMWipeMetadata{}
+	if err := decoder.Decode(&metadata); err != nil {
+		if err == io.EOF {
+			// OK ... body is optional
+			return nil
+		}
+		return &fleet.BadRequestError{
+			Message:     "failed to unmarshal request body",
+			InternalErr: err,
+		}
+	}
+	req.Metadata = &metadata
+
+	return nil
+}
 
 type wipeHostRequest struct {
-	HostID uint `url:"id"`
+	HostID   uint `url:"id"`
+	Metadata *fleet.MDMWipeMetadata
 }
 
 type wipeHostResponse struct {
@@ -1321,14 +1349,14 @@ func (r wipeHostResponse) Error() error { return r.Err }
 
 func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*wipeHostRequest)
-	if err := svc.WipeHost(ctx, req.HostID); err != nil {
+	if err := svc.WipeHost(ctx, req.HostID, req.Metadata); err != nil {
 		return wipeHostResponse{Err: err}, nil
 	}
 	// We bail if a host is locked or wiped, so we can assume the host is unlocked at this point
 	return wipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 
-func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
+func (svc *Service) WipeHost(ctx context.Context, _ uint, _ *fleet.MDMWipeMetadata) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

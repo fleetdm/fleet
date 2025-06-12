@@ -1,0 +1,131 @@
+# This file adds teams (Fleet Premium), scripts, policies, and queries to all new Fleet instances.
+
+apiVersion: v1
+kind: config
+spec:
+  scripts:
+    - it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
+    - it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
+    - it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: 💻 Workstations
+    scripts:
+      - it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
+      - it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
+      - it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: 💻🐣 Workstations (canary)
+    scripts:
+      - it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
+      - it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
+      - it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: ☁️ Servers
+    scripts:
+      - it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
+      - it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: ☁️🐣 Servers (canary)
+    scripts:
+      - it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
+      - it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: Compliance exclusions
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: 📱🏢 Company-owned mobile devices
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: 📱🔐 Personal mobile devices
+---
+apiVersion: v1
+kind: policy
+spec:
+  team: "💻 Workstations"
+  name: macOS - No 1Password emergency kit stored in desktop, documents, or downloads folders
+  query: SELECT 1 WHERE 
+    NOT EXISTS (
+      SELECT 1 FROM file WHERE 
+        filename LIKE '%Emergency Kit%.pdf' AND 
+        (path LIKE '/Users/%/Desktop/%' OR path LIKE '/Users/%/Documents/%' OR path LIKE '/Users/%/Downloads/%' OR path LIKE '/Users/Shared/%')
+    );
+  description: Looks for PDF files with file names typically used by 1Password for emergency recovery kits. To protect the performance of your devices, the search is one level deep and limited to the Desktop, Documents, Downloads, and Shared folders.
+  resolution: Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location.
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  team: "💻 Workstations"
+  name: macOS - All available software updates installed
+  query: SELECT 1 FROM software_update WHERE software_update_required = 0;
+  description: This Mac may have outdated system software, which could lead to security vulnerabilities, performance issues, and incompatibility with other systems.
+  resolution: Please take some time and run all available updates from Software Update ( > System Settings > Software Update) and all available app store updates ( > App Store > Updates).
+  platform: darwin
+---
+apiVersion: v1
+kind: policy
+spec:
+  team: "💻 Workstations"
+  name: Windows - All available updates installed
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM windows_updates);
+  description: This Windows device may have outdated system software, which could lead to security vulnerabilities, performance issues, and incompatibility with other systems.
+  resolution: Run all available Windows updates.
+  platform: windows
+---
+apiVersion: v1
+kind: policy
+spec:
+  team: "💻 Workstations"
+  name: Windows - Antivirus signatures up to date
+  query: SELECT 1 FROM windows_security_products WHERE name LIKE '%Microsoft Defender Antivirus%' AND signatures_up_to_date = 1;
+  description: Checks the status of antivirus and signature updates from the Windows Security Center.
+  resolution: Run all available Windows updates.
+  platform: windows
+---
+apiVersion: v1
+kind: policy
+spec:
+  team: "💻 Workstations"
+  name: Linux - Disk encryption enabled
+  query: SELECT 1 FROM mounts m, disk_encryption d WHERE m.device_alias = d.name AND d.encrypted = 1 AND m.path = '/';
+  critical: false
+  description: This policy checks if disk encryption is enabled.
+  resolution: Disk encryption can only be configured during initial operating system install. Please re-install your operating system ensuring disk encryption is enabled.
+  platform: linux
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Collect operating system information
+  description: "Collects operating system information from all devices enrolled in Fleet"
+  query: SELECT * FROM os_version;
+  interval: 300 # Every 5 minutes
+  observer_can_run: true
+  platform: darwin,linux,windows
