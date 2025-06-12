@@ -29,7 +29,6 @@ import Spinner from "components/Spinner";
 import SoftwareFiltersModal from "pages/SoftwarePage/components/modals/SoftwareFiltersModal";
 
 import {
-  buildSoftwareFilterQueryParams,
   buildSoftwareVulnFiltersQueryParams,
   getSoftwareVulnFiltersFromQueryParams,
   ISoftwareVulnFiltersParams,
@@ -37,11 +36,7 @@ import {
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
-import {
-  getHostSoftwareFilterFromQueryParams,
-  getInstallErrorMessage,
-  getUninstallErrorMessage,
-} from "./helpers";
+import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -81,7 +76,6 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   exploit?: string;
   min_cvss_score?: string;
   max_cvss_score?: string;
-  available_for_install?: string;
   category_id?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
@@ -94,7 +88,6 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
     queryParams
   );
-  const availableForInstall = queryParams.available_for_install === "true";
   const categoryId = queryParams?.category_id
     ? parseInt(queryParams.category_id, 10)
     : undefined;
@@ -109,7 +102,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     min_cvss_score: softwareVulnFilters.minCvssScore,
     max_cvss_score: softwareVulnFilters.maxCvssScore,
     exploit: softwareVulnFilters.exploit,
-    available_for_install: availableForInstall,
+    available_for_install: false, // always false for host software
     category_id: categoryId,
   };
 };
@@ -140,7 +133,6 @@ const HostSoftware = ({
 
   const isUnsupported =
     isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
-  const softwareFilter = getHostSoftwareFilterFromQueryParams(queryParams);
 
   // disables install/uninstall actions after click
   const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
@@ -294,7 +286,6 @@ const HostSoftware = ({
       orderKey: queryParams.order_key,
       perPage: queryParams.per_page,
       page: 0, // resets page index
-      ...buildSoftwareFilterQueryParams(softwareFilter),
       ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
     };
 
@@ -316,28 +307,20 @@ const HostSoftware = ({
     toggleSoftwareFiltersModal();
   };
 
-  const onSelectAction = useCallback(
-    (software: IHostSoftware, action: string) => {
-      switch (action) {
-        case "install":
-          installHostSoftwarePackage(software.id);
-          break;
-        case "uninstall":
-          uninstallHostSoftwarePackage(software.id);
-          break;
-        case "showDetails":
-          onShowSoftwareDetails?.(software);
-          break;
-        default:
-          break;
-      }
-    },
-    [
-      installHostSoftwarePackage,
-      onShowSoftwareDetails,
-      uninstallHostSoftwarePackage,
-    ]
-  );
+  // const onSelectAction = useCallback(
+  //   (software: IHostSoftware, action: string) => {
+  //     switch (action) {
+  //       case "showDetails":
+  //         onShowSoftwareDetails?.(software);
+  //         break;
+  //       default:
+  //         break;
+  //     }
+  //   },
+  //   [
+  //     onShowSoftwareDetails,
+  //   ]
+  // );
 
   const tableConfig = useMemo(() => {
     return isMyDevicePage
@@ -350,7 +333,7 @@ const HostSoftware = ({
           softwareIdActionPending,
           router,
           teamId: hostTeamId,
-          onSelectAction,
+          onClickMoreDetails: onShowSoftwareDetails,
         });
   }, [
     isMyDevicePage,
@@ -358,7 +341,6 @@ const HostSoftware = ({
     softwareIdActionPending,
     userHasSWWritePermission,
     hostScriptsEnabled,
-    onSelectAction,
     hostTeamId,
     hostCanWriteSoftware,
     hostMDMEnrolled,
@@ -402,7 +384,6 @@ const HostSoftware = ({
             searchQuery={queryParams.query}
             page={queryParams.page}
             pagePath={pathname}
-            hostSoftwareFilter={softwareFilter}
             vulnFilters={getSoftwareVulnFiltersFromQueryParams(queryParams)}
             onAddFiltersClick={toggleSoftwareFiltersModal}
             pathPrefix={pathname}
@@ -423,21 +404,28 @@ const HostSoftware = ({
     );
   };
 
+  if (isMyDevicePage) {
+    return (
+      <Card
+        className={baseClass}
+        borderRadiusSize="xxlarge"
+        paddingSize="xlarge"
+        includeShadow
+      >
+        <CardHeader
+          header="Software"
+          subheader="Software installed on your device."
+        />
+        {renderHostSoftware()}
+      </Card>
+    );
+  }
+
   return (
-    <Card
-      className={baseClass}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      includeShadow
-    >
-      <CardHeader
-        header="Software"
-        subheader={
-          isMyDevicePage ? "Software installed on your device." : undefined
-        }
-      />
+    <div className={baseClass}>
+      <CardHeader subheader="Software installed on the host." />
       {renderHostSoftware()}
-    </Card>
+    </div>
   );
 };
 
