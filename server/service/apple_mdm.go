@@ -4123,7 +4123,8 @@ func ReconcileAppleProfiles(
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "getting user enrollment for host")
 				}
-				// TODO Jordan Is there a better way to handle this?
+				// TODO Is there a better way to handle this? This likely just means cleanups
+				// haven't run yet
 				if userNanoEnrollment == nil {
 					level.Warn(logger).Log("msg", "host does not have a user enrollment, cannot remove user scoped profile",
 						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
