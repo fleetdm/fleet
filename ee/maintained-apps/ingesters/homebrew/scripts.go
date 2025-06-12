@@ -228,16 +228,18 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 }
 
 type scriptBuilder struct {
-	statements []string
-	variables  map[string]string
-	functions  map[string]string
+	statements   []string
+	variables    map[string]string
+	functions    map[string]string
+	pathsCreated map[string]struct{}
 }
 
 func newScriptBuilder() *scriptBuilder {
 	return &scriptBuilder{
-		statements: []string{},
-		variables:  map[string]string{},
-		functions:  map[string]string{},
+		statements:   []string{},
+		variables:    map[string]string{},
+		functions:    map[string]string{},
+		pathsCreated: map[string]struct{}{},
 	}
 }
 
@@ -328,9 +330,11 @@ sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
 // Symlink writes a command to create a symbolic link from 'source' to 'target'.
 func (s *scriptBuilder) Symlink(source, target string) {
 	pathname := filepath.Dir(target)
-	s.Writef(`if [ -d "%s" ]; then
-	/bin/ln -h -f -s -- "%s" "%s"
-fi`, pathname, source, target)
+	if _, ok := s.pathsCreated[pathname]; !ok {
+		s.Writef("mkdir -p %s", pathname)
+		s.pathsCreated[pathname] = struct{}{}
+	}
+	s.Writef(`[ -d "%s" ] && /bin/ln -h -f -s -- "%s" "%s"`, pathname, source, target)
 }
 
 // String generates the final script as a string.
