@@ -582,9 +582,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return updatedInstaller, nil
 }
 
-func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string,
-	argErr *fleet.InvalidArgumentError,
-) *fleet.InvalidArgumentError {
+func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string, argErr *fleet.InvalidArgumentError) *fleet.InvalidArgumentError {
 	if script != nil {
 		if errScript := svc.ds.ValidateEmbeddedSecrets(ctx, []string{*script}); errScript != nil {
 			if argErr != nil {
@@ -1271,10 +1269,14 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		return ctxerr.Wrap(ctx, err, "get host")
 	}
 
-	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
-		// fleetd is required to install software so if the host is enrolled via plain osquery we return an error
+	platform := host.FleetPlatform()
+	mobileAppleDevice := fleet.AppleDevicePlatform(platform) == fleet.IOSPlatform || fleet.AppleDevicePlatform(platform) == fleet.IPadOSPlatform
+
+	if !mobileAppleDevice && (host.OrbitNodeKey == nil || *host.OrbitNodeKey == "") {
+		// fleetd is required to install software so if the host is
+		// enrolled via plain osquery we return an error
 		svc.authz.SkipAuthorization(ctx)
-		return fleet.NewUserMessageError(errors.New("host does not have fleetd installed"), http.StatusUnprocessableEntity)
+		return fleet.NewUserMessageError(errors.New("Host doesn't have fleetd installed"), http.StatusUnprocessableEntity)
 	}
 
 	// If scripts are disabled (according to the last detail query), we return an error.
@@ -1289,6 +1291,20 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 			return err
 		}
+	}
+	// Try Apple MDM uninstallation for iOS and iPadOS devices
+	if mobileAppleDevice {
+		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "finding VPP app for title")
+		}
+
+		cmdUUID := uuid.NewString()
+		err = svc.mdmAppleCommander.RemoveApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.BundleIdentifier)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "sending command to uninstall VPP %s application to host with serial %s", vppApp.BundleIdentifier, host.HardwareSerial)
+		}
+		return nil
 	}
 
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
