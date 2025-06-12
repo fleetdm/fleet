@@ -334,7 +334,7 @@ func (s *scriptBuilder) Symlink(source, target string) {
 		s.Writef("mkdir -p %s", pathname)
 		s.pathsCreated[pathname] = struct{}{}
 	}
-	s.Writef(`[ -d "%s" ] && /bin/ln -h -f -s -- "%s" "%s"`, pathname, source, target)
+	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, source, target)
 }
 
 // String generates the final script as a string.
