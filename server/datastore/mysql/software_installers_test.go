@@ -3096,36 +3096,30 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
 	require.NoError(t, err)
 
-	// Create an installer with a non-NULL fleet_maintained_app_id
-	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:           "testpkg",
-		Source:          "apps",
-		InstallScript:   "echo install",
-		PreInstallQuery: "SELECT 1",
-		UninstallScript: "echo uninstall",
-		InstallerFile:   tfr,
-		StorageID:       "storageid1",
-		Filename:        "test.pkg",
-		Version:         "1.0",
-		UserID:          user.ID,
-		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	// Create a maintained app
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.maintained1",
 	})
 	require.NoError(t, err)
 
-	// Create a fleet_maintained_apps entry to satisfy foreign key constraint
-	const maintainedAppID = 42
-	_, err = ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO fleet_maintained_apps (id, name, team_id)
-		VALUES (?, 'test-app', 0)
-		ON DUPLICATE KEY UPDATE name=name
-	`, maintainedAppID)
-	require.NoError(t, err)
-
-	// Set fleet_maintained_app_id manually (simulate maintained app)
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`UPDATE software_installers SET fleet_maintained_app_id = ? WHERE id = ?`,
-		maintainedAppID, installerID,
-	)
+	// Create an installer with a non-NULL fleet_maintained_app_id
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "testpkg",
+		Source:               "apps",
+		InstallScript:        "echo install",
+		PreInstallQuery:      "SELECT 1",
+		UninstallScript:      "echo uninstall",
+		InstallerFile:        tfr,
+		StorageID:            "storageid1",
+		Filename:             "test.pkg",
+		Version:              "1.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: ptr.Uint(maintainedApp.ID),
+	})
 	require.NoError(t, err)
 
 	// Prepare update payload with a new installer file (should clear FMA id)
@@ -3150,10 +3144,7 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	require.NoError(t, ds.SaveInstallerUpdates(ctx, payload))
 
 	// Assert that fleet_maintained_app_id is now NULL
-	var fmaid sql.NullInt64
-	require.NoError(t, ds.writer(ctx).QueryRowContext(ctx,
-		`SELECT fleet_maintained_app_id FROM software_installers WHERE id = ?`,
-		installerID,
-	).Scan(&fmaid))
-	assert.False(t, fmaid.Valid, "fleet_maintained_app_id should be NULL after update")
+	var fmaID *uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &fmaID, `SELECT fleet_maintained_app_id FROM software_installers WHERE id = ?`, installerID)
+	assert.Nil(t, fmaID, "fleet_maintained_app_id should be NULL after update")
 }
