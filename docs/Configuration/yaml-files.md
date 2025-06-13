@@ -77,7 +77,7 @@ The `labels:` key is _optional_ in your YAML configuration:
     - "the-CFOs-computer"
   - name: Engineering department
     description: ""
-    type: Host vitals
+    type: host_vitals
     criteria:
       vital: end_user_idp_department
       value: Engineering
