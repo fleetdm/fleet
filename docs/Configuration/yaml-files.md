@@ -53,6 +53,12 @@ labels:
     hosts:
       - "ceo-laptop"
       - "the-CFOs-computer"
+  - name: Engineering department
+    description: Hosts usd by engineers
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_department
+      value: Engineering
 ```
 
 #### Separate file
@@ -70,6 +76,12 @@ labels:
   hosts:
     - "ceo-laptop"
     - "the-CFOs-computer"
+  - name: Engineering department
+    description: Hosts used by engineers
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_department
+      value: Engineering
 ```
 
 `lib/default.yml`
