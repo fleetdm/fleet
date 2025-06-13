@@ -52,6 +52,7 @@
     "Platform": true,
     "AdCampaign": true,
     "MicrosoftComplianceTenant": true,
+    "AndroidEnterprise": true,
     // …and any others.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   },

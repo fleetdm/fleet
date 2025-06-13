@@ -18,7 +18,7 @@ This delivers the most frictionless macOS authentication experience to date — 
 
 ## Managed device migration
 
-Apple just made switching MDMs a lot easier. You can now move macOS devices between MDM servers in Apple Business Manager or School Manager—no need to wipe, rely on scripts, or use a vendor migration app. For iOS and iPadOS devices, migration is now possible without starting from scratch.
+You can now move macOS devices between MDM servers in Apple Business Manager or School Manager. No need to erase, rely on scripts, or use a vendor migration app. For iOS and iPadOS, MDM migration is also available without erasing devices.
 
 Whether you’re switching providers, consolidating tools after an acquisition, or moving from cloud to on-prem (or vice versa), device migration is now native, scalable, and user-driven.
 
@@ -30,7 +30,7 @@ Apple Business Manager and Apple School Manager introduce:
 - App and settings restoration if the new MDM provides them promptly  
 - Prompt to reconnect if the device is offline during migration  
 
-Whether you’re moving thousands of Macs or iPads, the barrier to change your MDM solution has never been lower.
+The barrier to change your MDM solution has never been lower.
 
 ## Declarative management expands
 

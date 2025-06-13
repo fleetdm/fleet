@@ -249,6 +249,12 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_OSQUERY_DB"},
 				Destination: &opt.OsqueryDB,
 			},
+			&cli.StringFlag{
+				Name:        "outfile",
+				Usage:       "Output file for the generated package",
+				Value:       "",
+				Destination: &opt.CustomOutfile,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -336,6 +342,29 @@ func packageCommand() *cli.Command {
 
 			if opt.UseSystemConfiguration && c.String("type") != "pkg" {
 				return errors.New("--use-system-configuration is only available for pkg installers")
+			}
+
+			if opt.CustomOutfile != "" {
+				switch c.String("type") {
+				case "deb":
+					if !strings.HasSuffix(opt.CustomOutfile, ".deb") {
+						return errors.New("output file must end with .deb for DEB packages")
+					}
+				case "rpm":
+					if !strings.HasSuffix(opt.CustomOutfile, ".rpm") {
+						return errors.New("output file must end with .rpm for RPM packages")
+					}
+				case "msi":
+					if !strings.HasSuffix(opt.CustomOutfile, ".msi") {
+						return errors.New("output file must end with .msi for MSI packages")
+					}
+				case "pkg":
+					if !strings.HasSuffix(opt.CustomOutfile, ".pkg") {
+						return errors.New("output file must end with .pkg for PKG packages")
+					}
+				default:
+					return fmt.Errorf("unsupported package type %q for custom outfile", c.String("type"))
+				}
 			}
 
 			linuxPackage := false

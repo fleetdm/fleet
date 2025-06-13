@@ -101,8 +101,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     enabled:
       false && // TODO: reenable when the BE is completed
       !!isGlobalAdmin &&
-      !!config?.mdm.android_enabled_and_configured &&
-      config?.android_enabled, // TODO: remove android feature flag
+      !!config?.mdm.android_enabled_and_configured,
     onSuccess: () => {
       setAndroidEnterpriseDeleted(false);
     },
