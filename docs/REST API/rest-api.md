@@ -2260,6 +2260,7 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
+- [Resend host's configuration profile](#resend-hosts-configuration-profile)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
@@ -4455,9 +4456,10 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 #### Parameters
 
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| id | integer | path | **Required**. ID of the host to be wiped. |
+| Name     | Type              | In   | Description                                                                                                                                                                                                          |
+|----------| ----------------- | ---- |----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id       | integer | path | **Required**. ID of the host to be wiped.                                                                                                                                                                            |
+| windows  | object | body | Optional metadata used when wiping Windows hosts. The object includes a `wipe_type` property that can be used for specifying what type of remote wipe to perform. Allowed values are `"doWipe"` and `"doWipeProtected"`. |
 
 #### Example
 

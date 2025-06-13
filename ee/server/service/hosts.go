@@ -225,7 +225,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	return svc.enqueueUnlockHostRequest(ctx, host, lockWipe)
 }
 
-func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
+func (svc *Service) WipeHost(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -317,7 +317,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	}
 
 	// all good, go ahead with queuing the wipe request.
-	return svc.enqueueWipeHostRequest(ctx, host, lockWipe)
+	return svc.enqueueWipeHostRequest(ctx, host, lockWipe, metadata)
 }
 
 func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus, viewPIN bool) (
@@ -436,7 +436,12 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 	return unlockPIN, nil
 }
 
-func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host, wipeStatus *fleet.HostLockWipeStatus) error {
+func (svc *Service) enqueueWipeHostRequest(
+	ctx context.Context,
+	host *fleet.Host,
+	wipeStatus *fleet.HostLockWipeStatus,
+	metadata *fleet.MDMWipeMetadata,
+) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext
@@ -450,11 +455,16 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 		}
 
 	case "windows":
+		// default wipe type
+		wipeType := fleet.MDMWindowsWipeTypeDoWipeProtected
+		if metadata != nil && metadata.Windows != nil {
+			wipeType = metadata.Windows.WipeType
+		}
 		wipeCmdUUID := uuid.NewString()
 		wipeCmd := &fleet.MDMWindowsCommand{
 			CommandUUID:  wipeCmdUUID,
-			RawCommand:   []byte(fmt.Sprintf(windowsWipeCommand, wipeCmdUUID)),
-			TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+			RawCommand:   []byte(fmt.Sprintf(windowsWipeCommand, wipeCmdUUID, wipeType.String())),
+			TargetLocURI: fmt.Sprintf("./Device/Vendor/MSFT/RemoteWipe/%s", wipeType.String()),
 		}
 		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, wipeCmd); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for windows")
@@ -506,7 +516,7 @@ var (
 			<CmdID>%s</CmdID>
 			<Item>
 				<Target>
-					<LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeProtected</LocURI>
+					<LocURI>./Device/Vendor/MSFT/RemoteWipe/%s</LocURI>
 				</Target>
 				<Meta>
 					<Format xmlns="syncml:metinf">chr</Format>

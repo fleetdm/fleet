@@ -102,7 +102,7 @@ sequenceDiagram
           <key>PayloadContent</key>
           <dict>
              <key>Challenge</key>
-             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_Test_SCEP</string>
+             <string>$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_CA_NAME</string>
              <key>Key Type</key>
              <string>RSA</string>
              <key>Key Usage</key>
@@ -114,7 +114,7 @@ sequenceDiagram
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% WIFI</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
                           </array>
                         </array>
                         <array>
@@ -125,12 +125,12 @@ sequenceDiagram
                         </array>
                     </array>
              <key>URL</key>
-             <string>${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_Test_SCEP}</string>
+             <string>$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_CA_NAME</string>
           </dict>
           <key>PayloadDisplayName</key>
-          <string>SCEP #1</string>
+          <string>WIFI SCEP</string>
           <key>PayloadIdentifier</key>
-          <string>com.fleetdm.custom.scep</string>
+          <string>com.apple.security.scep.9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AC</string>
           <key>PayloadType</key>
           <string>com.apple.security.scep</string>
           <key>PayloadUUID</key>
@@ -142,7 +142,7 @@ sequenceDiagram
     <key>PayloadDisplayName</key>
     <string>SCEP proxy cert</string>
     <key>PayloadIdentifier</key>
-    <string>Fleet.custom.SCEP</string>
+    <string>Fleet.WiFi</string>
     <key>PayloadType</key>
     <string>Configuration</string>
     <key>PayloadUUID</key>

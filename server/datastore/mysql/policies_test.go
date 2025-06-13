@@ -1120,6 +1120,8 @@ func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform str
 		UUID:            uuid.NewString(),
 		Hostname:        hostname,
 		Platform:        platform,
+		OSVersion:       "15.4.1",
+		ComputerName:    hostname,
 	})
 	require.NoError(t, err)
 	if teamID != nil {

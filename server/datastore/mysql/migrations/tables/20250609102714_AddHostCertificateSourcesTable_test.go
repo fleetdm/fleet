@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20250528102714(t *testing.T) {
+func TestUp_20250609102714(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	hostID := insertHost(t, db, nil)
@@ -32,8 +32,12 @@ func TestUp_20250528102714(t *testing.T) {
 	// Apply current migration.
 	applyNext(t, db)
 
-	var source string
-	err := db.Get(&source, `SELECT source FROM host_certificates WHERE id = ?`, certID)
+	var info struct {
+		Source   string
+		Username string
+	}
+	err := db.Get(&info, `SELECT source, username FROM host_certificate_sources WHERE host_certificate_id = ?`, certID)
 	require.NoError(t, err)
-	require.Equal(t, "system", source)
+	require.Equal(t, "system", info.Source)
+	require.Equal(t, "", info.Username)
 }
