@@ -2,7 +2,7 @@ package calendar
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/url"
 	"os"
@@ -183,7 +183,7 @@ func TestGoogleCalendar_DeleteEvent(t *testing.T) {
 		return &url.Error{
 			Op:  "Delete",
 			URL: "https://www.googleapis.com/calendar/v3/calendars/primary/events/8kof698stgkche95kqcn16g4h0?alt=json&prettyPrint=false",
-			Err: fmt.Errorf("oauth2: cannot fetch token: 400 Bad Request\nResponse: {\n  \"error\": \"invalid_grant\",\n  \"error_description\": \"Invalid email or User ID\"\n}"),
+			Err: errors.New("oauth2: cannot fetch token: 400 Bad Request\nResponse: {\n  \"error\": \"invalid_grant\",\n  \"error_description\": \"Invalid email or User ID\"\n}"),
 		}
 	}
 	err = cal.DeleteEvent(&fleet.CalendarEvent{Data: []byte(`{"ID":"event-id"}`)})
