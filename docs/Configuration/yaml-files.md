@@ -890,9 +890,9 @@ It can be configured to automatically populate user information during local acc
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
 
 `oauth_ropc`:
-- `client_id`: is the client ID that identity provider (IdP) provides to identify Fleet with the IdP.        
-- `client_secret`: is client secret provided by the IdP to authenticate Fleet with the IdP. 
-- `token_endpoint_url`: is the URL provided by the IdP.
+- `client_id` is the client ID that identity provider (IdP) provides to identify Fleet with the IdP.        
+- `client_secret` is the client secret provided by the IdP to authenticate Fleet with the IdP. 
+- `token_endpoint_url` is the URL provided by the IdP.
 
 #### Example
 
