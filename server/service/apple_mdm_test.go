@@ -3711,13 +3711,19 @@ func TestMDMApplePreassignEndpoints(t *testing.T) {
 	}
 }
 
-func mobileconfigForTest(name, identifier string, vars ...string) []byte {
+// Helper for creating scoped mobileconfigs. scope is optional and if set to nil is not included in
+// the mobileconfig so that default behavior is used.
+func scopedMobileconfigForTest(name, identifier string, scope *fleet.PayloadScope, vars ...string) []byte {
 	var varsStr strings.Builder
 	for i, v := range vars {
 		if !strings.HasPrefix(v, "FLEET_VAR_") {
 			v = "FLEET_VAR_" + v
 		}
 		varsStr.WriteString(fmt.Sprintf("<key>Var %d</key><string>$%s</string>", i, v))
+	}
+	scopeEntry := ""
+	if scope != nil {
+		scopeEntry = fmt.Sprintf(`\n<key>PayloadScope</key>\n<string>%s</string>`, string(*scope))
 	}
 
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -3733,13 +3739,17 @@ func mobileconfigForTest(name, identifier string, vars ...string) []byte {
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>%s</string>
+	<string>%s</string>%s
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 	%s
 </dict>
 </plist>
-`, name, identifier, uuid.New().String(), varsStr.String()))
+`, name, identifier, uuid.New().String(), scopeEntry, varsStr.String()))
+}
+
+func mobileconfigForTest(name, identifier string, vars ...string) []byte {
+	return scopedMobileconfigForTest(name, identifier, nil, vars...)
 }
 
 func declBytesForTest(identifier string, payloadContent string) []byte {

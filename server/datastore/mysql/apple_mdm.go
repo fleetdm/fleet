@@ -759,15 +759,17 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 // custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
 // the existing flow and the implementation below is that we need to blank the command uuid in order
 // get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
-// it just sends the old bytes again. It feels like we some leaky abstrations somewhere that we need
+// it just sends the old bytes again. It feels like we have some leaky abstrations somewhere that we need
 // to clean up.
 func (ds *Datastore) ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error {
 	deactivateNanoStmt := `
 UPDATE
 	nano_enrollment_queue
+	JOIN nano_enrollments ne
+		ON nano_enrollment_queue.id = ne.id
 	JOIN host_mdm_apple_profiles hmap 
 		ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND 
-			hmap.host_uuid = nano_enrollment_queue.id
+			hmap.host_uuid = ne.device_id
 SET 
 	nano_enrollment_queue.active = 0
 WHERE
@@ -1024,7 +1026,7 @@ func (ds *Datastore) ListMDMAppleCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMAppleCommand, error) {
-	// Note that right now we are explicitly filtering by type = 'Device' but we may want to change
+	// Note that right now we are explicitly filtering by ne.type = 'Device' but we may want to change
 	// the API to allow and show user commands in the future
 	stmt := fmt.Sprintf(`
 SELECT

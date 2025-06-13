@@ -495,7 +495,7 @@ func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datast
 }
 
 func storeDummyConfigProfilesForTest(t *testing.T, ds *Datastore, howMany int) []*fleet.MDMAppleConfigProfile {
-	storedCPs := make([]*fleet.MDMAppleConfigProfile, howMany, howMany)
+	storedCPs := make([]*fleet.MDMAppleConfigProfile, howMany)
 	for i := range howMany {
 		dummyMC := mobileconfig.Mobileconfig([]byte(fmt.Sprintf("DummyTestMobileconfigBytes-%d", i)))
 		dummyCP := fleet.MDMAppleConfigProfile{
