@@ -561,7 +561,7 @@ const removePkgFiles = `remove_pkg_files() {
       | cut -d' ' -f2-
   )
   if [ -n "$root_app_dir" ]; then
-    echo "sudo rmdir \"$root_app_dir\" 2>/dev/null"
-    sudo rmdir "$root_app_dir" 2>/dev/null
+    echo "sudo rmdir -p \"$root_app_dir\" 2>/dev/null || :"
+    sudo rmdir -p "$root_app_dir" 2>/dev/null || :
   fi
 }`
