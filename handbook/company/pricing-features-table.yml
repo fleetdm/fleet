@@ -328,7 +328,7 @@
       moreInfoUrl: https://community.spiceworks.com/topic/138171-is-there-a-way-to-see-what-servers-someone-is-logged-in-on
 - industryName: Human-endpoint mapping (IdP groups)
   description: Add user information (e.g full name and groups) from your identity provider (e.g Okta) to your devices using the SCIM protocol.
-  documentationUrl: https://fleetdm.com/guides/map-end-user-info-to-host-from-okta-idp
+  documentationUrl: https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts
   pricingTableCategories: [Devices]
   productCategories: [Endpoint operations,Device management]
   tier: Premium
