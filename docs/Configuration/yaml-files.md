@@ -26,6 +26,10 @@ You may also wish to create specialized API-Only users which may modify configur
 ## labels
 
 Labels can be specified in your `default.yml` file using inline configuration or references to separate files in your `lib/` folder.
+
+> `labels` is an optional key: if included, existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
+> Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
+
 ### Options
 
 For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
@@ -49,10 +53,6 @@ labels:
       - "ceo-laptop"
       - "the-CFOs-computer"
 ```
-
-The `labels:` key is _optional_ in your YAML configuration:
-+  If it is omitted, any existing labels created via the UI or API will remain untouched by GitOps.
-+  If included, GitOps will replace all existing labels with those specified in the YAML, and any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
 
 #### Separate file
  
