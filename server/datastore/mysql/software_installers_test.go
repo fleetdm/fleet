@@ -3112,8 +3112,20 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	})
 	require.NoError(t, err)
 
+	// Create a fleet_maintained_apps entry to satisfy foreign key constraint
+	const maintainedAppID = 42
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO fleet_maintained_apps (id, name, team_id)
+		VALUES (?, 'test-app', 0)
+		ON DUPLICATE KEY UPDATE name=name
+	`, maintainedAppID)
+	require.NoError(t, err)
+
 	// Set fleet_maintained_app_id manually (simulate maintained app)
-	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = 42 WHERE id = ?`, installerID)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE software_installers SET fleet_maintained_app_id = ? WHERE id = ?`,
+		maintainedAppID, installerID,
+	)
 	require.NoError(t, err)
 
 	// Prepare update payload with a new installer file (should clear FMA id)
@@ -3139,6 +3151,9 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 
 	// Assert that fleet_maintained_app_id is now NULL
 	var fmaid sql.NullInt64
-	require.NoError(t, ds.writer(ctx).QueryRowContext(ctx, `SELECT fleet_maintained_app_id FROM software_installers WHERE id = ?`, installerID).Scan(&fmaid))
+	require.NoError(t, ds.writer(ctx).QueryRowContext(ctx,
+		`SELECT fleet_maintained_app_id FROM software_installers WHERE id = ?`,
+		installerID,
+	).Scan(&fmaid))
 	assert.False(t, fmaid.Valid, "fleet_maintained_app_id should be NULL after update")
 }
