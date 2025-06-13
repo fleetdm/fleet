@@ -4777,3 +4777,193 @@ None.
 ##### Default response
 
 `Status: 200`
+
+## Android fleetdm.com proxy
+
+The following endpoints are exposed on fleetdm.com to proxy Google Android Management API.
+
+### Create Android signup URL
+
+`POST https://fleetdm.com/api/android/v1/signupUrls`
+
+This endpoint is a proxy for the Google Android Management API to create a signup URL for Android Enterprise. The `Origin` header with the Fleet server URL is required.
+
+See the [Google documentation for signupUrls.create](https://developers.google.com/android/management/reference/rest/v1/signupUrls/create) for more details.
+
+#### Parameters
+
+Refer to the Google Android Management API documentation for the request parameters.
+
+#### Example
+
+`POST https://fleetdm.com/api/android/v1/signupUrls?alt=json&callbackUrl=https%3A%2F%2Fexample.com%2Fapi%2Fv1%2Ffleet%2Fandroid_enterprise%2Fconnect%2FLBe-7b1loXPyj-FAIa7dWQEAML4_oaW9d1glwMkaY_Q%3D&prettyPrint=false`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "url": "https://enterprise.google.com/signup/android/email?origin=android&thirdPartyToken=B194BDC81C6B0DCDB",
+  "name": "signupUrls/C42b24423ab5589b"
+}
+```
+
+### Create Android enterprise
+
+`POST https://fleetdm.com/api/android/v1/enterprises`
+
+This endpoint is a proxy for the Google Android Management API to create an Android enterprise. In addition, it creates the PubSub topic and subscription for the enterprise.
+The `Origin` header with the Fleet server URL is required.
+
+See the [Google documentation for enterprises.create](https://developers.google.com/android/management/reference/rest/v1/enterprises/create) for more details.
+
+#### Parameters
+
+| Name            | Type   | In   | Description                                                                    |
+|-----------------|--------|------|--------------------------------------------------------------------------------|
+| enterpriseToken | string | body | **Required.** The enterprise token from signup.                                |
+| signupUrlName   | string | body | **Required.** The signup URL.                                                  |
+| pubsubPushUrl   | string | body | **Required.** The URL that will receive pubsub push notifications from Google. |
+| fleetLicenseKey | string | body | The Fleet license key.                                                         |
+| enterprise      | json   | body | **Required.** The enterprise to create.                                        |
+
+Unlike other proxy endpoints, this endpoint requires additional parameters in the body. Refer to the Google Android Management API documentation for the enterprise-specific parameters.
+
+#### Example
+
+`POST https://fleetdm.com/api/android/v1/enterprises`
+
+```json
+{
+  "fleetLicenseKey": "",
+  "pubsubPushUrl": "https://example.com/api/v1/fleet/android_enterprise/pubsub?token=NjoLUtP7WWP6-UUr-7wlO1AaHbOpvPlodyaItT5SdDVy9vwF2DvwgOao8UcqHAlpefYeZ7MutERDAuBN0Hpr1w==",
+  "enterpriseToken": "EAEFb-jU8o9IssnEGGaXb1krM_qjWdYI1rieiWreqNd7nxaSM0R-YimMOriTFI5yJm2qk2sixijmdkCyDz6A6XdQxNHLdYraNk5dvzPb9H4o3bQEtRontGeI",
+  "signupUrlName": "signupUrls/Cd777504276d345a8",
+  "Enterprise": {
+    "enabledNotificationTypes": [
+      "ENROLLMENT",
+      "STATUS_REPORT",
+      "COMMAND",
+      "USAGE_LOGS"
+    ]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "name": "enterprises/LC0487pz4e",
+  "fleetServerSecret": "9b37a4e5efa314b76199987994ba02"
+}
+```
+
+### Create Android enrollment token
+
+`POST https://fleetdm.com/api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens`
+
+This endpoint is a proxy for the Google Android Management API to create enrollment tokens for Android devices. Requires `Authorization` header with Bearer token.
+
+See the [Google documentation for enterprises.enrollmentTokens.create](https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens/create) for more details.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                     |
+|---------------------|--------|------|-------------------------------------------------|
+| androidEnterpriseId | string | path | **Required.** The ID of the Android enterprise. |
+
+Additional parameters should be provided in the request body as per the Google Android Management API documentation.
+
+#### Example
+
+`POST https://fleetdm.com/api/android/v1/enterprises/LC01234567/enrollmentTokens`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "name": "enterprises/LC0487pz4e/enrollmentTokens/eqkHZKfK3Vk3vrXKGWPmBaM1UseRDVRO2g0dMuz8noc",
+  "value": "KMQBSJSRUFHIQTAELHXP",
+  "expirationTimestamp": "2025-06-09T17:47:12.430901Z",
+  "additionalData": "ZnISqWWWZLcn2mjYHfOzbsz1YjYglf17",
+  "policyName": "enterprises/LC0487pz4e/policies/1",
+  "qrCode": "{\"android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME\":\"com.google.android.apps.work.clouddpc/.receivers.CloudDeviceAdminReceiver\",\"android.app.extra.PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM\":\"I5YvS0O5hXY46mb01BlRjq4oJJGs2kuUcHvVkAPEXlg\",\"android.app.extra.PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION\":\"https://play.google.com/managed/downloadManagingApp?identifier=setup\",\"android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE\":{\"com.google.android.apps.work.clouddpc.EXTRA_ENROLLMENT_TOKEN\":\"KMQBSJSRUFHIQTAELHXP\"}}",
+  "oneTimeOnly": true,
+  "allowPersonalUsage": "PERSONAL_USAGE_ALLOWED"
+}
+```
+
+### Modify Android policies
+
+`PATCH https://fleetdm.com/api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId`
+
+This endpoint is a proxy for the Google Android Management API to modify Android device policies. Requires `Authorization` header with Bearer token.
+
+See the [Google documentation for enterprises.policies.patch](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/patch) for more details.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                          |
+|---------------------|--------|------|------------------------------------------------------|
+| androidEnterpriseId | string | path | **Required.** The ID of the Android enterprise.      |
+| policyId            | string | path | **Required.** The ID of the policy to create/modify. |
+
+Additional parameters should be provided in the request body as per the Google Android Management API documentation.
+
+#### Example
+
+`PATCH https://fleetdm.com/api/android/v1/enterprises/LC01234567/policies/policy1`
+
+```json
+{
+  "statusReportingSettings": {
+    "commonCriteriaModeEnabled": true,
+    "deviceSettingsEnabled": true,
+    "displayInfoEnabled": true,
+    "hardwareStatusEnabled": true,
+    "memoryInfoEnabled": true,
+    "networkInfoEnabled": true,
+    "powerManagementEventsEnabled": true,
+    "softwareInfoEnabled": true,
+    "systemPropertiesEnabled": true
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+```json
+{
+  "name": "enterprises/LC012iajk0/policies/1",
+  "version": "1"
+}
+```
+
+### Delete Android enterprise
+
+`DELETE https://fleetdm.com/api/android/v1/enterprises/:androidEnterpriseId`
+
+This endpoint is a proxy for the Google Android Management API to delete an Android enterprise. Requires `Authorization` header with Bearer token.
+
+See the [Google documentation for enterprises.delete](https://developers.google.com/android/management/reference/rest/v1/enterprises/delete) for more details.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| androidEnterpriseId | string | path | **Required.** The ID of the Android enterprise to delete. |
+
+#### Example
+
+`DELETE https://fleetdm.com/api/android/v1/enterprises/LC01234567`
+
+##### Default response
+
+`Status: 200`
+```json
+{}
+```
