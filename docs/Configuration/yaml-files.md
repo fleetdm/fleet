@@ -48,6 +48,12 @@ labels:
     hosts:
       - "ceo-laptop"
       - "the-CFOs-computer"
+  - name: Engineering department
+    description: "Hosts with end users in engineering"
+    type: Host vitals
+    criteria:
+      vital: end_user_idp_department
+      value: Engineering
 ```
 
 The `labels:` key is _optional_ in your YAML configuration:
@@ -69,6 +75,12 @@ The `labels:` key is _optional_ in your YAML configuration:
   hosts:
     - "ceo-laptop"
     - "the-CFOs-computer"
+  - name: Engineering department
+    description: ""
+    type: Host vitals
+    criteria:
+      vital: end_user_idp_department
+      value: Engineering
 ```
 
 `lib/default.yml`
