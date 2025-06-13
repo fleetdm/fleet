@@ -1,2 +1,2 @@
 - Fixed the Docker Fleet-maintained app install script to prevent a successful install from showing
-up as a failure due to directory existence checks (live as of 2025-06-12 FMA update).
+up as a failure due to directory existence checks (live as of 2025-06-13 FMA update).
