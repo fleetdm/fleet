@@ -26,6 +26,11 @@ You may also wish to create specialized API-Only users which may modify configur
 ## labels
 
 Labels can be specified in your `default.yml` file using inline configuration or references to separate files in your `lib/` folder.
+
+> `labels` is an optional key: if included, existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
+>
+> Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
+
 ### Options
 
 For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
@@ -49,10 +54,6 @@ labels:
       - "ceo-laptop"
       - "the-CFOs-computer"
 ```
-
-The `labels:` key is _optional_ in your YAML configuration:
-+  If it is omitted, any existing labels created via the UI or API will remain untouched by GitOps.
-+  If included, GitOps will replace all existing labels with those specified in the YAML, and any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
 
 #### Separate file
  
@@ -215,62 +216,6 @@ queries:
     labels_include_any:
       - Engineering
       - Customer Support
-```
-
-## labels
-
-Labels can be specified inline in your `default.yml` file. They can also be specified in separate files in your `lib/` folder.
-
-> `labels` is an optional key: if included, existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
-
-### Options
-
-For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
-
-### Example
-
-#### Inline
-  
-`default.yml`
-
-```yaml
-labels: 
-  # Dynamic label:
-  - name: Windows Arm
-    description: Windows hosts that are running on Arm64.
-    query: "SELECT * FROM os_version WHERE arch LIKE 'ARM%';"
-    platform: windows
-  # Manual label
-  - name: Executive (C-suite) computers
-    hosts:
-    - FFHH37NTL8
-    - F2LYH0KG4Y
-    - H4D5WYVN0L
-```
-
-#### Separate file
- 
-`lib/labels-name.labels.yml`
-
-```yaml
-# Dynamic label:
-- name: Windows Arm
-  description: Windows hosts that are running on Arm64.
-  query: "SELECT * FROM os_version WHERE arch LIKE 'ARM%';"
-  platform: windows
-# Manual label
-- name: Executive (C-suite) computers
-  hosts:
-  - FFHH37NTL8
-  - F2LYH0KG4Y
-  - H4D5WYVN0L
-```
-
-`default.yml`
-
-```yaml
-labels:
-  - path: ../lib/labels-name.labels.yml
 ```
 
 ## agent_options
@@ -516,7 +461,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 ### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
-- `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist, Fleet will download the package, then verify that the hash matches, bailing out if it does not match.
+- `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist and a URL was provided, Fleet will download the package, then verify that the hash matches, bailing out if it does not match. If a package with that hash does not yet exist and no URL was provided, the GitOps run will fail.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -561,6 +506,8 @@ Currently, Fleet-maintained apps do not auto-update. To update to the latest ver
 Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify `categories` when adding a self-service Fleet-maintained app, the default categories will be used.
 
 ## org_settings and team_settings
+
+Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
 
 ### features
 
@@ -636,7 +583,7 @@ org_settings:
 
 ### secrets
 
-The `secrets` section defines the valid secrets that hosts can use to enroll to Fleet. Supply one of these secrets when generating the fleetd agent you'll use to enroll hosts. Learn more [here](https://fleetdm.com/docs/using-fleet/enroll-hosts).
+The `secrets` section defines the valid secrets that hosts can use to enroll to Fleet. Supply one of these secrets when generating the fleetd agent you'll use to [enroll hosts](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
 #### Example
 
@@ -675,7 +622,7 @@ org_settings:
 
 ### sso_settings
 
-The `sso_settings` section lets you define single sign-on (SSO) settings. Learn more about SSO in Fleet [here](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
+The `sso_settings` section lets you define [single sign-on (SSO)](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso) settings.
 
 - `enable_sso` (default: `false`)
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
@@ -706,7 +653,7 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
-In addition, you can configure your certificate authorities (CA) to help your end users connect to Wi-Fi. Learn more about certificate authorities in Fleet [here](https://fleetdm.com/guides/certificate-authorities).
+In addition, you can configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi.
 
 #### Example
 
@@ -807,7 +754,7 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 ### webhook_settings
 
-The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
+The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status [automations](https://fleetdm.com/docs/using-fleet/automations).
 
 #### activities_webhook
 
@@ -890,9 +837,7 @@ Can only be configured for all teams (`org_settings`).
 
 #### apple_business_manager
 
-After you've uploaded an Apple Business Manager (ABM) token, the `apple_business_manager` section lets you configure the teams in Fleet new hosts in ABM are automatically added to. Currently, adding an ABM token is only available using Fleet's UI. Learn more [here](https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment).
-
-Currently, managing labels and users, ticket destinations (Jira and Zendesk), Apple Business Manager (ABM) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
+After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment), the `apple_business_manager` section lets you determine which team Apple devices are assigned to in Fleet when they appear in Apple Business Manager.
 
 - `organization_name` is the organization name associated with the Apple Business Manager account.
 - `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
@@ -915,7 +860,7 @@ org_settings:
 
 #### volume_purchasing_program
 
-After you've uploaded a Volume Purchasing Program (VPP) token, the  `volume_purchasing_program` section lets you configure the teams in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI. Learn more [here](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp).
+After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the teams in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
 
 - `location` is the name of the location in the Apple Business Manager account.
 - `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
@@ -938,7 +883,7 @@ Can only be configured for all teams (`org_settings`).
 
 #### end_user_authentication
 
-The `end_user_authentication` section lets you define the identity provider (IdP) settings used for end user authentication during Automated Device Enrollment (ADE). Learn more about end user authentication in Fleet [here](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula).
+The `end_user_authentication` section lets you define the identity provider (IdP) settings used for [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula) during Automated Device Enrollment (ADE).
 
 Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos-setup) key to control the end user experience during ADE.
 
@@ -981,9 +926,8 @@ Can only be configured for all teams (`org_settings`).
 
 #### yara_rules
 
-The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's authenticated
-YARA rule functionality. Learn more about authenticated YARA rules in Fleet
-[here](https://fleetdm.com/guides/remote-yara-rules).
+The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's [authenticated
+YARA rule](https://fleetdm.com/guides/remote-yara-rules) functionality.
 
 ##### Example
 

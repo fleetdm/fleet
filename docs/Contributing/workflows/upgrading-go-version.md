@@ -12,33 +12,15 @@ go install github.com/golangci/golangci-lint/cmd/golangci-lint@<your golangci-li
 
 See the "Go linter" section below about upgrading the Go linter version.
 
-## Files to update
+## Upgrading go for all Fleet
 
-### Go.mod
-
-Update the Go version in [the main go.mod file in Fleet](https://github.com/fleetdm/fleet/blob/main/go.mod) to the new version.
-
-Also update the version in the go.mod files of compiled tools including:
-
-  * [Bitlocker manager](https://github.com/fleetdm/fleet/blob/main/tools/mdm/windows/bitlocker/go.mod)
-  * [DB snapshot](https://github.com/fleetdm/fleet/blob/main/tools/snapshot/go.mod)
-  * [Fleet teams terraform provider](https://github.com/fleetdm/fleet/blob/main/tools/terraform/go.mod)
-
-Do a search for go.mod files to find others that may need updating!
+Run `make update-go version=1.24.4` and update the SHA256 of the updated Dockerfiles manually.
 
 ### Go Linter
 
 The golangci-lint linter used in the [golangci-lint](https://github.com/fleetdm/fleet/actions/workflows/golangci-lint.yml) Github action needs to support the new version of Go.  The linter typically keeps up with Go versions so that the latest version of golangci-lint should support the latest version of Go, but it's worth checking the [changelog](https://github.com/golangci/golangci-lint/blob/main/CHANGELOG.md) to see if it's time for an upgrade. If so, get the commit SHA of the version you'd like to use by finding [its tag on Github](https://github.com/golangci/golangci-lint/tags), clicking on the commit link under the tag name, and copying the full SHA from the URL.  Update the current `go install github.com/golangci/golangci-lint/cmd/golangci-lint` line in the .yml file with the new SHA, and update the comment to indicate the new version. 
 
 Update the instructions in the [Testing and local development doc](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/getting-started/testing-and-local-development.md#test-suite) to reflect the new version of golangci-lint.
-
-### Docker files
-
-Find the `bullseye` and `alpine` variants of the Docker images for the new Go version on [Dockerhub](https://hub.docker.com/_/golang).  Then update any Dockerfiles to pull the new images, including:
-
-  * [Dockerfile-desktop-linux](https://github.com/fleetdm/fleet/blob/main/Dockerfile-desktop-linux)
-  * [loadtest.Dockerfile](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile_)
-  * [mdmproxy/Dockerfile](https://github.com/fleetdm/fleet/blob/main/tools/mdm/migration/mdmproxy/Dockerfile)
 
 ## Smoke-testing the new version locally
 

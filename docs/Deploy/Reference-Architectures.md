@@ -147,20 +147,19 @@ There are a few strategies that can be used to ensure high availability:
 
 #### Database HA
 
-Fleet recommends RDS Aurora MySQL when running on AWS. More details about backups/snapshots can be found
-[here](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Managing.Backups.html). It is also
+Fleet recommends RDS Aurora MySQL when running on AWS with [backups](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Managing.Backups.html) turned on. It is also
 possible to dynamically scale read replicas to increase performance and [enable database fail-over](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Concepts.AuroraHighAvailability.html).
 It is also possible to use [Aurora Global](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html) to
-span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module)_).
+span multiple regions for more advanced configurations (_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module)_).
 
 In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`, there can be benefits to read performance.
 
 **Note:Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
 
 #### Traffic load balancing
-Load balancing enables distributing request traffic over many instances of the backend application. Using AWS Application
-Load Balancer can also [offload SSL termination](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html), freeing Fleet to spend the majority of its allocated compute dedicated 
-to its core functionality. More details about ALB can be found [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
+Load balancing enables distributing request traffic over many instances of the backend application. Using [AWS Application
+Load Balancer](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html) can also [offload SSL termination](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html), freeing Fleet to spend the majority of its allocated compute dedicated 
+to its core functionality.
 
 _**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws-tf-module) all configurations can dynamically scale based on load(cpu/memory) and all configurations
 assume On-Demand pricing (savings are available through Reserved Instances). Calculations do not take into account NAT gateway charges or other networking related ingress/egress costs.**_
@@ -226,7 +225,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | Redis        | 6                       | cache.m6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.16xlarge | 2     |
 
-AWS reference architecture can be found [here](https://github.com/fleetdm/fleet-terraform/tree/main/example). This configuration includes:
+AWS reference architecture can be found in the [reference terraform](https://github.com/fleetdm/fleet-terraform/tree/main/example). This configuration includes:
 
 - VPC
   - Subnets

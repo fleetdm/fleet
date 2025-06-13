@@ -40,15 +40,15 @@ We will start with a traditional workflow to demonstrate the process used to com
 
 > For all examples in this article we will be using the GitHub Desktop app to do commits. Using `git` in the terminal will of course also work. Use whatever you’re most comfortable with.
 
-![gif-1](../website/assets/images/articles/preventing-mistakes-1-1423x771@2x.gif)
+![gif-1](../website/assets/images/articles/preventing-mistakes-1-711x385@2x.gif)
 
 Here, after making changes to the `passcode.json` file, it has been added to the Team we are configuring under the `macos_settings` section.
 
-![gif-2](../website/assets/images/articles/preventing-mistakes-2-960x540@2x.gif)
+![gif-2](../website/assets/images/articles/preventing-mistakes-2-480x270@2x.gif)
 
 GitHub Desktop will automatically pick up changes. You can review each file and make commit comments. If all looks good, push your changes to the working branch.
 
-![gif-3](../website/assets/images/articles/preventing-mistakes-3-1423x771@2x.gif)
+![gif-3](../website/assets/images/articles/preventing-mistakes-3-711x385@2x.gif)
 
 We create a PR to bring this change into the `main` production branch. In this example, branch protections are off so I can merge right to `main` but further on in the article this will change. 
 
@@ -56,7 +56,7 @@ We create a PR to bring this change into the `main` production branch. In this e
 
 Another benefit of a GitOps approach is the ability for members of a team to review changes before they are applied in production. This encourages collaboration while ensuring all modifications to state are following best practices and compliance. In addition, if something breaks (which is inevitable) you have a ‘snapshot’ or point in time with a known working state to which you can easily roll back.
 
-![gif-4](../website/assets/images/articles/preventing-mistakes-4-960x540@2x.gif)
+![gif-4](../website/assets/images/articles/preventing-mistakes-4-480x270@2x.gif)
 
 The newest version of macOS is released and an engineer on your team wants to push a change to require an update of all hosts in the Workstations team. The IT engineer creates a branch to work from and makes the necessary changes, including setting a new target version and deadline.
 
@@ -68,7 +68,7 @@ macos_updates:
 
 Merging is blocked until a member of the team reviews and approves the changes. 
 
-![gif-5](../website/assets/images/articles/preventing-mistakes-5-960x540@2x.gif)
+![gif-5](../website/assets/images/articles/preventing-mistakes-5-480x270@2x.gif)
 
 Our IT manager is listed as the approver for these changes. The approver is notified of a pending PR for review. Is there a problem with some of the changes? Our engineer accidentally put in a version string that is not yet available. This will cause issues for our users when they try to update. The fix? Tag the engineer with some feedback and request changes to be made and re-committed. 
 
