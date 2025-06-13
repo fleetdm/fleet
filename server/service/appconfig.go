@@ -215,7 +215,7 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Logging:           loggingConfig,
 			Email:             emailConfig,
 			SandboxEnabled:    svc.SandboxEnabled(),
-			AndroidEnabled:  true, // Temporary feature flag that will be removed.
+			AndroidEnabled:    true, // Temporary feature flag that will be removed.
 			Partnerships:      partnerships,
 			ConditionalAccess: conditionalAccessSettings,
 		},
