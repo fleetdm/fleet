@@ -3919,14 +3919,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			return err
 		}
 		hostSwi6UninstallUUID = uuid.NewString()
-		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi6UninstallUUID, host.ID, swi6PendingUninstall)
+		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi6UninstallUUID, host.ID, swi6PendingUninstall, false)
 		if err != nil {
 			return err
 		}
 
 		// swi7 is failed uninstall
 		hostSwi7UninstallUUID = uuid.NewString()
-		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi7UninstallUUID, host.ID, swi7FailedUninstall)
+		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi7UninstallUUID, host.ID, swi7FailedUninstall, true)
 		if err != nil {
 			return err
 		}
@@ -3948,7 +3948,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi8 is successful uninstall
 		hostSwi8UninstallUUID = uuid.NewString()
-		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi8UninstallUUID, host.ID, swi8Uninstalled)
+		err = ds.InsertSoftwareUninstallRequest(ctx, hostSwi8UninstallUUID, host.ID, swi8Uninstalled, true)
 		if err != nil {
 			return err
 		}
@@ -6815,7 +6815,7 @@ func testListHostSoftwareVulnerabileAndVPP(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	// pending install request
-	err = ds.InsertSoftwareUninstallRequest(ctx, "abc123", tmHost.ID, installerID)
+	err = ds.InsertSoftwareUninstallRequest(ctx, "abc123", tmHost.ID, installerID, true)
 	require.NoError(t, err)
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	// Ensure that software "a" & "b" are returned as they are the only vulnerable apps at this point

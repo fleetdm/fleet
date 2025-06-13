@@ -6,11 +6,9 @@ At Fleet, openness is one of our core [values](https://fleetdm.com/handbook/comp
 
 [Orbit](https://blog.fleetdm.com/introducing-orbit-for-osquery-751da494d617) is an [osquery](https://github.com/osquery/osquery) runtime and auto-updater. It leverages [The Update Framework](https://theupdateframework.io/) to create a secure update mechanism using a hierarchy of cryptographic keys and operations.
 
-About a year ago, while Orbit was still brand new, not “production-ready,” and in use by almost nobody, we had an external vendor ([Trail of Bits](https://www.trailofbits.com/)) perform a security audit on the Orbit auto-updater functionality.
+About a year ago, while Orbit was still brand new, not “production-ready,” and in use by almost nobody, we had an external vendor ([Trail of Bits](https://www.trailofbits.com/)) perform a [security audit](https://fleetdm.com/docs/using-fleet/security-audits) on the Orbit auto-updater functionality.
 
 We then handled the issues surfaced by the audit publicly in the Fleet repository and the old Orbit repository.
-
-You can read more about the 2021 Orbit auto-updater security audit [here](https://fleetdm.com/docs/using-fleet/security-audits).
 
 ### Testing in the future
 

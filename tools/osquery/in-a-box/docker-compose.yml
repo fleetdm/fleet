@@ -59,7 +59,6 @@ services:
       # This can be configured for testing purposes but otherwise uses the
       # typical default of provided.
       FLEET_OSQUERY_HOST_IDENTIFIER: ${FLEET_OSQUERY_HOST_IDENTIFIER:-provided}
-      FLEET_DEV_MAINTAINED_APPS_BASE_URL: https://raw.githubusercontent.com/fleetdm/fleet/512cb66b456d8f5c3203a5c125d1b293dc628eaf/ee/maintained-apps/outputs
     depends_on:
       - mysql01
       - redis01
@@ -109,7 +108,6 @@ services:
       # This can be configured for testing purposes but otherwise uses the
       # typical default of provided.
       FLEET_OSQUERY_HOST_IDENTIFIER: ${FLEET_OSQUERY_HOST_IDENTIFIER:-provided}
-      FLEET_DEV_MAINTAINED_APPS_BASE_URL: https://raw.githubusercontent.com/fleetdm/fleet/512cb66b456d8f5c3203a5c125d1b293dc628eaf/ee/maintained-apps/outputs
     depends_on:
       - mysql01
       - redis01

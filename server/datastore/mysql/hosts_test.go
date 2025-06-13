@@ -118,6 +118,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListByVulnerability", testHostsListByVulnerability},
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
+		{"HostsListBatchScriptExecution", testHostsListByBatchScriptExecutionStatus},
 		{"HostsExpiration", testHostsExpiration},
 		{"IOSHostExpiration", testIOSHostsExpiration},
 		{"DEPHostExpiration", testDEPHostsExpiration},
@@ -3394,6 +3395,135 @@ func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
 	for _, h := range list {
 		require.Contains(t, []uint{hosts[0].ID, hosts[1].ID}, h.ID)
 	}
+}
+
+func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "user1", "user@example.com", true)
+
+	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.1", "hostnoscripts", "hostnoscriptsuuid", time.Now())
+	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"))
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
+	// Create another host that should not show up in any counts.
+	test.NewHost(t, ds, "host4", "10.0.0.4", "host4key", "host4uuid", time.Now())
+
+	test.SetOrbitEnrollment(t, hostWindows, ds)
+	test.SetOrbitEnrollment(t, host1, ds)
+	test.SetOrbitEnrollment(t, host2, ds)
+	test.SetOrbitEnrollment(t, host3, ds)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hi",
+	})
+	require.NoError(t, err)
+
+	// Execute the batch script on all hosts.
+	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+
+	// Filter by batch script execution ID, without status, should return all hosts
+	hosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID}, 5)
+	expectedHostIds := []uint{host1.ID, host2.ID, host3.ID, hostNoScripts.ID, hostWindows.ID}
+	require.Contains(t, expectedHostIds, hosts[0].ID)
+	require.Contains(t, expectedHostIds, hosts[1].ID)
+	require.Contains(t, expectedHostIds, hosts[2].ID)
+
+	// Count hosts should return 5 as well.
+	count, err := ds.CountHosts(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID})
+	require.NoError(t, err)
+	require.Equal(t, 5, count)
+
+	// At this point, filtering by:
+	// - `pending` should return hosts 1, 2 and 3
+	// - `ran` should return zero hosts
+	// - `errored` should return hostNoScripts and hostWindows
+	// - `cancelled` should return zero hosts
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionPending}, 3)
+	expectedHostIds = []uint{host1.ID, host2.ID, host3.ID}
+	require.Contains(t, expectedHostIds, hosts[0].ID)
+	require.Contains(t, expectedHostIds, hosts[1].ID)
+	require.Contains(t, expectedHostIds, hosts[2].ID)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionRan}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCancelled}, 0)
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 2)
+	expectedHostIds = []uint{hostNoScripts.ID, hostWindows.ID}
+	require.Contains(t, expectedHostIds, hosts[0].ID)
+	require.Contains(t, expectedHostIds, hosts[1].ID)
+
+	// Do another batch script execution with the same hosts, and verify that "pending" returns correctly.
+	// The SQL for retrieving "pending" hosts has to check both the host_script_results table (for hosts
+	// that have "activated" the script acrivity) and the upcoming_activities table (for hosts that
+	// have not yet activated the script activity).
+	secondExecID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionPending}, 3)
+	expectedHostIds = []uint{host1.ID, host2.ID, host3.ID}
+	require.Contains(t, expectedHostIds, hosts[0].ID)
+	require.Contains(t, expectedHostIds, hosts[1].ID)
+	require.Contains(t, expectedHostIds, hosts[2].ID)
+
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionRan}, 0)
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCancelled}, 0)
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 2)
+	expectedHostIds = []uint{hostNoScripts.ID, hostWindows.ID}
+	require.Contains(t, expectedHostIds, hosts[0].ID)
+	require.Contains(t, expectedHostIds, hosts[1].ID)
+
+	// Simulate that host1 ran the script successfully
+	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	require.NoError(t, err)
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host1.ID,
+		ExecutionID: host1Upcoming[0].ExecutionID,
+		Output:      "foo",
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+
+	// Simulate that host2 errored out
+	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	require.NoError(t, err)
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host2.ID,
+		ExecutionID: host2Upcoming[0].ExecutionID,
+		Output:      "bar",
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+
+	// Simulate that host3 cancelled the script execution
+	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
+	require.NoError(t, err)
+
+	// Cancel the execution
+	_, err = ds.CancelHostUpcomingActivity(ctx, host3.ID, host3Upcoming[0].ExecutionID)
+	require.NoError(t, err)
+
+	// At this point, filtering by:
+	// - `pending` should return zero hosts
+	// - `ran` should return host 1
+	// - `errored` should return host2, hostNoScripts and hostWindows
+	// - `cancelled` should return host 3
+	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionPending}, 0)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionRan}, 1)
+	require.Equal(t, host1.ID, hosts[0].ID)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 3)
+	expectedHostIds = []uint{host2.ID, hostNoScripts.ID, hostWindows.ID}
+	require.Contains(t, expectedHostIds, hosts[0].ID)
+	require.Contains(t, expectedHostIds, hosts[1].ID)
+	require.Contains(t, expectedHostIds, hosts[2].ID)
+
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCancelled}, 1)
+	require.Equal(t, host3.ID, hosts[0].ID)
 }
 
 func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore) {
@@ -7311,10 +7441,11 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.True(t, added)
 
 	// Add a host certificate
+	sha1Sum := sha1.Sum([]byte("foo"))
 	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{{
 		HostID:     host.ID,
 		CommonName: "foo",
-		SHA1Sum:    sha1.New().Sum([]byte("foo")),
+		SHA1Sum:    sha1Sum[:],
 	}}))
 
 	// create an android device from this host
@@ -7336,6 +7467,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.BatchExecuteScript(ctx, nil, script.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName")
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

@@ -55,6 +55,8 @@ type appConfigResponseFields struct {
 	Err            error               `json:"error,omitempty"`
 	AndroidEnabled bool                `json:"android_enabled,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
+	// ConditionalAccess holds the Microsoft conditional access configuration.
+	ConditionalAccess *fleet.ConditionalAccessSettings `json:"conditional_access,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to make sure we serialize
@@ -135,6 +137,18 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		return nil, err
 	}
 
+	var conditionalAccessSettings *fleet.ConditionalAccessSettings
+	conditionalAccessIntegration, err := svc.ConditionalAccessMicrosoftGet(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if conditionalAccessIntegration != nil {
+		conditionalAccessSettings = &fleet.ConditionalAccessSettings{
+			MicrosoftEntraTenantID:             conditionalAccessIntegration.TenantID,
+			MicrosoftEntraConnectionConfigured: conditionalAccessIntegration.SetupDone,
+		}
+	}
+
 	isGlobalAdmin := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleAdmin
 	isAnyTeamAdmin := false
 	if vc.User.Teams != nil {
@@ -195,14 +209,15 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			UIGitOpsMode:    appConfig.UIGitOpsMode,
 		},
 		appConfigResponseFields: appConfigResponseFields{
-			UpdateInterval:  updateIntervalConfig,
-			Vulnerabilities: vulnConfig,
-			License:         license,
-			Logging:         loggingConfig,
-			Email:           emailConfig,
-			SandboxEnabled:  svc.SandboxEnabled(),
+			UpdateInterval:    updateIntervalConfig,
+			Vulnerabilities:   vulnConfig,
+			License:           license,
+			Logging:           loggingConfig,
+			Email:             emailConfig,
+			SandboxEnabled:    svc.SandboxEnabled(),
 			AndroidEnabled:  true, // Temporary feature flag that will be removed.
-			Partnerships:    partnerships,
+			Partnerships:      partnerships,
+			ConditionalAccess: conditionalAccessSettings,
 		},
 	}
 	return response, nil
@@ -313,6 +328,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	if appConfig.AgentOptions != nil {
 		oldAgentOptions = string(*appConfig.AgentOptions)
 	}
+
+	oldConditionalAccessEnabled := appConfig.Integrations.ConditionalAccessEnabled
 
 	storedJiraByProjectKey, err := fleet.IndexJiraIntegrations(appConfig.Integrations.Jira)
 	if err != nil {
@@ -476,6 +493,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
 	fleet.ValidateEnabledActivitiesWebhook(appConfig.WebhookSettings.ActivitiesWebhook, invalid)
+
+	var conditionalAccessNoTeamUpdated bool
+	if newAppConfig.Integrations.ConditionalAccessEnabled.Set {
+		if err := fleet.ValidateConditionalAccessIntegration(ctx, svc, oldConditionalAccessEnabled.Value, newAppConfig.Integrations.ConditionalAccessEnabled.Value); err != nil {
+			return nil, err
+		}
+		conditionalAccessNoTeamUpdated = oldConditionalAccessEnabled.Value != newAppConfig.Integrations.ConditionalAccessEnabled.Value
+		appConfig.Integrations.ConditionalAccessEnabled = newAppConfig.Integrations.ConditionalAccessEnabled
+	}
 
 	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
@@ -726,7 +752,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		// svc.DeleteMDMAppleBootstrapPackage here as it would call the (non-premium)
 		// current service implementation. We have to go through the Enterprise
 		// extensions.
-		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil); err != nil {
+		if err := svc.EnterpriseOverrides.DeleteMDMAppleBootstrapPackage(ctx, nil, applyOpts.DryRun); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "delete Apple bootstrap package")
 		}
 	}
@@ -940,6 +966,33 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
+	// Create activity if conditional access was enabled or disabled for "No team".
+	if conditionalAccessNoTeamUpdated {
+		if appConfig.Integrations.ConditionalAccessEnabled.Value {
+			if err := svc.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeEnabledConditionalAccessAutomations{
+					TeamID:   nil,
+					TeamName: "",
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for enabling conditional access")
+			}
+		} else {
+			if err := svc.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeDisabledConditionalAccessAutomations{
+					TeamID:   nil,
+					TeamName: "",
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for disabling conditional access")
+			}
 		}
 	}
 

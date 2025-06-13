@@ -289,7 +289,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				s.Do(
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID),
-					nil,
+					json.RawMessage(`{ "windows": {"wipe_type": "doWipe"}}`),
 					http.StatusOK,
 				)
 
@@ -305,7 +305,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				require.NotNil(t, wipeCmd)
 				require.Equal(t, wipeCmd.Verb, fleet.CmdExec)
 				require.Len(t, wipeCmd.Cmd.Items, 1)
-				require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected", *wipeCmd.Cmd.Items[0].Target)
+				require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipe", *wipeCmd.Cmd.Items[0].Target)
 
 				msgID, err := device.GetCurrentMsgID()
 				require.NoError(t, err)
