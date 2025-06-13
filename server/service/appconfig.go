@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 
@@ -54,7 +53,6 @@ type appConfigResponseFields struct {
 	// SandboxEnabled is true if fleet serve was ran with server.sandbox_enabled=true
 	SandboxEnabled bool                `json:"sandbox_enabled,omitempty"`
 	Err            error               `json:"error,omitempty"`
-	AndroidEnabled bool                `json:"android_enabled,omitempty"`
 	Partnerships   *fleet.Partnerships `json:"partnerships,omitempty"`
 	// ConditionalAccess holds the Microsoft conditional access configuration.
 	ConditionalAccess *fleet.ConditionalAccessSettings `json:"conditional_access,omitempty"`
@@ -216,7 +214,6 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			Logging:           loggingConfig,
 			Email:             emailConfig,
 			SandboxEnabled:    svc.SandboxEnabled(),
-			AndroidEnabled:    os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1", // Temporary feature flag that will be removed.
 			Partnerships:      partnerships,
 			ConditionalAccess: conditionalAccessSettings,
 		},
