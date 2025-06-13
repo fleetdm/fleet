@@ -68,6 +68,7 @@ export interface ISoftwareSelfServiceProps {
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
+  onShowUninstallDetails: (scriptExecutionId?: string) => void;
 }
 
 const SoftwareSelfService = ({
@@ -78,6 +79,7 @@ const SoftwareSelfService = ({
   queryParams,
   router,
   onShowInstallerDetails,
+  onShowUninstallDetails,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -304,6 +306,7 @@ const SoftwareSelfService = ({
       deviceToken,
       onInstall: onInstallOrUninstall,
       onShowInstallerDetails,
+      onShowUninstallDetails,
       onClickUninstallAction: (software) => {
         selectedSoftware.current = {
           softwareId: software.id,

@@ -192,6 +192,7 @@
                 "group_id": 123456789
             }
         ],
+        "conditional_access_enabled": true,
         "google_calendar": [
             {
                 "domain": "fleetdm.com",

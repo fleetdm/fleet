@@ -45,7 +45,7 @@ fleetctl package --type=msi --enroll-secret <secret> --fleet-url https://<your-u
 
 This command creates an `msi` installer pointed at your Fleet instance.
 
-Now we need some awesome queries to run against the hosts we enroll, check out the collection [here](https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/standard-query-library).
+Now we need some awesome queries to run against the hosts we enroll, such as those from our [standard query library](https://github.com/fleetdm/fleet/tree/main/docs/01-Using-Fleet/standard-query-library).
 
 To get them into Fleet we can use `fleetctl` again. Run the following on your terminal:
 

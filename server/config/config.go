@@ -137,8 +137,9 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 
 // AuthConfig defines configs related to user authorization
 type AuthConfig struct {
-	BcryptCost  int `yaml:"bcrypt_cost"`
-	SaltKeySize int `yaml:"salt_key_size"`
+	BcryptCost               int           `yaml:"bcrypt_cost"`
+	SaltKeySize              int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod time.Duration `yaml:"sso_session_validity_period"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -588,41 +589,57 @@ type PackagingConfig struct {
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
 type FleetConfig struct {
-	Mysql            MysqlConfig
-	MysqlReadReplica MysqlConfig `yaml:"mysql_read_replica"`
-	Redis            RedisConfig
-	Server           ServerConfig
-	Auth             AuthConfig
-	App              AppConfig
-	Session          SessionConfig
-	Osquery          OsqueryConfig
-	Activity         ActivityConfig
-	Logging          LoggingConfig
-	Firehose         FirehoseConfig
-	Kinesis          KinesisConfig
-	Lambda           LambdaConfig
-	S3               S3Config
-	Email            EmailConfig
-	SES              SESConfig
-	PubSub           PubSubConfig
-	Filesystem       FilesystemConfig
-	Webhook          WebhookConfig
-	KafkaREST        KafkaRESTConfig
-	License          LicenseConfig
-	Vulnerabilities  VulnerabilitiesConfig
-	Upgrades         UpgradesConfig
-	Sentry           SentryConfig
-	GeoIP            GeoIPConfig
-	Prometheus       PrometheusConfig
-	Packaging        PackagingConfig
-	MDM              MDMConfig
-	Calendar         CalendarConfig
-	Partnerships     PartnershipsConfig
+	Mysql                      MysqlConfig
+	MysqlReadReplica           MysqlConfig `yaml:"mysql_read_replica"`
+	Redis                      RedisConfig
+	Server                     ServerConfig
+	Auth                       AuthConfig
+	App                        AppConfig
+	Session                    SessionConfig
+	Osquery                    OsqueryConfig
+	Activity                   ActivityConfig
+	Logging                    LoggingConfig
+	Firehose                   FirehoseConfig
+	Kinesis                    KinesisConfig
+	Lambda                     LambdaConfig
+	S3                         S3Config
+	Email                      EmailConfig
+	SES                        SESConfig
+	PubSub                     PubSubConfig
+	Filesystem                 FilesystemConfig
+	Webhook                    WebhookConfig
+	KafkaREST                  KafkaRESTConfig
+	License                    LicenseConfig
+	Vulnerabilities            VulnerabilitiesConfig
+	Upgrades                   UpgradesConfig
+	Sentry                     SentryConfig
+	GeoIP                      GeoIPConfig
+	Prometheus                 PrometheusConfig
+	Packaging                  PackagingConfig
+	MDM                        MDMConfig
+	Calendar                   CalendarConfig
+	Partnerships               PartnershipsConfig
+	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
 }
 
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
 	EnablePrimo       bool `yaml:"enable_primo"`
+}
+
+// MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
+// Currently only set on Cloud environments.
+type MicrosoftCompliancePartnerConfig struct {
+	// ProxyAPIKey is a shared key required to use the Microsoft Compliance Partner proxy API (fleetdm.com).
+	ProxyAPIKey string `yaml:"proxy_api_key"`
+	// ProxyURI is the URI of the Microsoft Compliance Partner proxy (for development/testing).
+	ProxyURI string `yaml:"proxy_uri"`
+}
+
+// IsSet returns if the compliance partner configuration is set.
+// Currently only set on Cloud environments.
+func (m MicrosoftCompliancePartnerConfig) IsSet() bool {
+	return m.ProxyAPIKey != ""
 }
 
 type MDMConfig struct {
@@ -695,6 +712,8 @@ type MDMConfig struct {
 	microsoftWSTEP        *tls.Certificate
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
+
+	SSORateLimitPerMinute int `yaml:"sso_rate_limit_per_minute"`
 }
 
 type CalendarConfig struct {
@@ -1083,6 +1102,8 @@ func (man Manager) addConfigs() {
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
 		"Size of salt for passwords")
+	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
+		"Timeout from SSO start to SSO callback")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1405,6 +1426,7 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
+	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -1414,6 +1436,11 @@ func (man Manager) addConfigs() {
 
 	// Partnerships
 	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
+
+	// Microsoft Compliance Partner
+	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
+	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
+
 	man.addConfigBool("partnerships.enable_primo", false, "Cosmetically disables team capabilities in the UI")
 }
 
@@ -1492,8 +1519,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			PrivateKey:                  man.getConfigString("server.private_key"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
+			BcryptCost:               man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:              man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod: man.getConfigDuration("auth.sso_session_validity_period"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -1689,6 +1717,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			SSORateLimitPerMinute:           man.getConfigInt("mdm.sso_rate_limit_per_minute"),
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
@@ -1696,6 +1725,10 @@ func (man Manager) LoadConfig() FleetConfig {
 		Partnerships: PartnershipsConfig{
 			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
 			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
+		},
+		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
+			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
+			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
 		},
 	}
 
@@ -2020,8 +2053,9 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			BcryptCost:  6, // Low cost keeps tests fast
-			SaltKeySize: 24,
+			BcryptCost:               6, // Low cost keeps tests fast
+			SaltKeySize:              24,
+			SsoSessionValidityPeriod: 5 * time.Minute,
 		},
 		Session: SessionConfig{
 			KeySize:  64,

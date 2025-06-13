@@ -952,7 +952,7 @@ func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *u
 }
 
 type statusCounts struct {
-	Status string `db:"status"`
+	Status string `db:"final_status"`
 	Count  uint   `db:"count"`
 }
 
@@ -998,7 +998,7 @@ SELECT
             'verified'
         ELSE
             ''
-    END AS status,
+    END AS final_status,
     SUM(1) AS count
 FROM
     hosts h
@@ -1011,7 +1011,7 @@ WHERE
     hmdm.enrolled = 1 AND
     %s
 GROUP BY
-    status`,
+    final_status`,
 		subqueryFailed,
 		subqueryPending,
 		subqueryVerifying,
@@ -1130,7 +1130,7 @@ SELECT
         END)
     ELSE
         REPLACE((%s), 'bitlocker_', '')
-    END as status,
+    END as final_status,
     SUM(1) as count
 FROM
     hosts h
@@ -1144,7 +1144,7 @@ WHERE
     hmdm.enrolled = 1 AND
     %s
 GROUP BY
-    status`,
+    final_status`,
 		profilesStatus,
 		bitlockerStatus,
 		bitlockerStatus,
@@ -1886,7 +1886,7 @@ WHERE
 `
 
 	const loadToBeDeletedProfiles = `
-SELECT 
+SELECT
 	profile_uuid
 FROM
 	mdm_windows_configuration_profiles
