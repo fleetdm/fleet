@@ -836,4 +836,19 @@ vex-report:
 	sh -c 'echo "## \`fleetdm/fleetctl\` docker image\n" >> security/status.md'
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
 
+# make update-go version=1.24.4
+UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
+UPDATE_GO_MODS := go.mod ./tools/mdm/windows/bitlocker/go.mod ./tools/snapshot/go.mod ./tools/terraform/go.mod
+update-go:
+	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
+	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
+		go run ./tools/tuf/replace $$dockerfile "golang:.+-" "golang:$(version)-" ; \
+		echo "Please update sha256 in $$dockerfile" ; \
+	done
+	@for gomod in $(UPDATE_GO_MODS) ; do \
+		go run ./tools/tuf/replace $$gomod "(?m)^go .+$$" "go $(version)" ; \
+	done
+	@echo "* Updated go to $(version)" > changes/update-go-$(version)
+	@cp changes/update-go-$(version) orbit/changes/update-go-$(version)
+
 include ./tools/makefile-support/helpsystem-targets

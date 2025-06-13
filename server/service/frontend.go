@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -84,8 +83,6 @@ func ServeEndUserEnrollOTA(
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
-	androidFeatureEnabled := os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1"
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		endpoint_utils.WriteBrowserSecurityHeaders(w)
 		setupRequired, err := svc.SetupRequired(r.Context())
@@ -139,7 +136,7 @@ func ServeEndUserEnrollOTA(
 			EnrollURL:             enrollURL,
 			AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
 			MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
-			AndroidFeatureEnabled: androidFeatureEnabled,
+			AndroidFeatureEnabled: true,
 		}); err != nil {
 			herr(w, "execute react template: "+err.Error())
 			return

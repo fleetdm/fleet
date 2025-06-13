@@ -30,7 +30,9 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 			}
 			includeQuitFunc = true
 			for _, appPath := range artifact.App {
-				sb.Writef(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appPath)
+				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
+	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
+fi`, appPath)
 				sb.Copy(appPath, "$APPDIR")
 			}
 
@@ -228,16 +230,18 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 }
 
 type scriptBuilder struct {
-	statements []string
-	variables  map[string]string
-	functions  map[string]string
+	statements   []string
+	variables    map[string]string
+	functions    map[string]string
+	pathsCreated map[string]struct{}
 }
 
 func newScriptBuilder() *scriptBuilder {
 	return &scriptBuilder{
-		statements: []string{},
-		variables:  map[string]string{},
-		functions:  map[string]string{},
+		statements:   []string{},
+		variables:    map[string]string{},
+		functions:    map[string]string{},
+		pathsCreated: map[string]struct{}{},
 	}
 }
 
@@ -328,7 +332,11 @@ sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
 // Symlink writes a command to create a symbolic link from 'source' to 'target'.
 func (s *scriptBuilder) Symlink(source, target string) {
 	pathname := filepath.Dir(target)
-	s.Writef(`[ -d "%s" ] && /bin/ln -h -f -s -- "%s" "%s"`, pathname, source, target)
+	if _, ok := s.pathsCreated[pathname]; !ok {
+		s.Writef("mkdir -p %s", pathname)
+		s.pathsCreated[pathname] = struct{}{}
+	}
+	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, source, target)
 }
 
 // String generates the final script as a string.

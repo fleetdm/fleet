@@ -24,6 +24,8 @@ const DEFAULT_HOST_CERTIFICATE_MOCK: IHostCertificate = {
     organizational_unit: "Test Inc.",
     common_name: "Test Biz",
   },
+  source: "system",
+  username: "",
 };
 
 export const createMockHostCertificate = (
