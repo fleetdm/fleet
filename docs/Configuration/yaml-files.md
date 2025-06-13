@@ -50,7 +50,7 @@ labels:
       - "the-CFOs-computer"
   - name: Engineering department
     description: "Hosts with end users in engineering"
-    type: Host vitals
+    type: host_vitals
     criteria:
       vital: end_user_idp_department
       value: Engineering
