@@ -1481,32 +1481,33 @@ const GlobalActivityItem = ({
   isPremiumTier,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
+  const {
+    actor_full_name: actorName,
+    actor_email: actorEmail,
+    actor_id: actorId,
+    details,
+  } = activity;
+  const { user_email: userEmail, user_id: userId, self_service: selfService } =
+    details || {};
+
   const hasDetails = ACTIVITIES_WITH_DETAILS.has(activity.type);
 
   const renderActivityPrefix = () => {
-    const DEFAULT_ACTOR_DISPLAY = (
-      <b>{activity.fleet_initiated ? "Fleet" : activity.actor_full_name} </b>
-    );
+    // Includes edge case where actor_full_name is not set and fleet_initiated is false
+    // Edge case should never happen as users searching fleet_initiated activities
+    // expect to view all "Fleet" activities.
+    const DEFAULT_ACTOR_DISPLAY = <b>{actorName || "Fleet"}</b>;
 
     switch (activity.type) {
       case ActivityType.UserLoggedIn:
-        return <b>{activity.actor_email} </b>;
+        return <b>{actorEmail} </b>;
       case ActivityType.UserChangedGlobalRole:
       case ActivityType.UserChangedTeamRole:
-        return activity.actor_id === activity.details?.user_id ? (
-          <b>{activity.details?.user_email} </b>
-        ) : (
-          DEFAULT_ACTOR_DISPLAY
-        );
+        return actorId === userId ? <b>{userEmail}</b> : DEFAULT_ACTOR_DISPLAY;
       case ActivityType.InstalledSoftware:
       case ActivityType.UninstalledSoftware:
       case ActivityType.InstalledAppStoreApp:
-        return activity.details?.self_service ? (
-          <span>An end user</span>
-        ) : (
-          DEFAULT_ACTOR_DISPLAY
-        );
-
+        return selfService ? <span>An end user</span> : DEFAULT_ACTOR_DISPLAY;
       default:
         return DEFAULT_ACTOR_DISPLAY;
     }

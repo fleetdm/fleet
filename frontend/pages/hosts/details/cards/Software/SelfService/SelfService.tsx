@@ -397,7 +397,7 @@ const SoftwareSelfService = ({
               info={
                 <>
                   Not finding what you&apos;re looking for?{" "}
-                  <CustomLink url={contactUrl} text="reach out to IT" newTab />
+                  <CustomLink url={contactUrl} text="Reach out to IT" newTab />
                 </>
               }
             />

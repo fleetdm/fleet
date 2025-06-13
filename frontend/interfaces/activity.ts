@@ -148,9 +148,9 @@ export type IHostUpcomingActivityType =
 export interface IActivity {
   created_at: string;
   id: number;
-  actor_full_name: string;
-  actor_id: number;
-  actor_gravatar: string;
+  actor_full_name?: string; // Undefined if fleet initiated / self-service
+  actor_id?: number; // Undefined if fleet initiated / self-service
+  actor_gravatar?: string; // Undefined if fleet initiated / self-service
   actor_email?: string;
   type: ActivityType;
   fleet_initiated: boolean;
