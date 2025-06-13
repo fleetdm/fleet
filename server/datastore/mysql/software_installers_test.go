@@ -3146,5 +3146,6 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	// Assert that fleet_maintained_app_id is now NULL
 	var fmaID *uint
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &fmaID, `SELECT fleet_maintained_app_id FROM software_installers WHERE id = ?`, installerID)
+	require.NoError(t, err)
 	assert.Nil(t, fmaID, "fleet_maintained_app_id should be NULL after update")
 }
