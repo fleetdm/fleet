@@ -62,45 +62,6 @@ func (s *integrationMDMTestSuite) signedProfilesMatch(want, got [][]byte) {
 	require.ElementsMatch(t, want, signedContents)
 }
 
-/*func (s *integrationMDMTestSuite) TestAppleProfileChannels() {
-	t := s.T()
-	ctx := context.Background()
-
-	createManualMDMEnrollWithOrbit := func(secret string, userEnroll bool) *fleet.Host {
-		// orbit enrollment happens before mdm enrollment, otherwise the host would
-		// always receive the "no team" profiles on mdm enrollment since it would
-		// not be part of any team yet (team assignment is done when it enrolls
-		// with orbit).
-		mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-			SCEPChallenge: s.scepChallenge,
-			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
-			MDMURL:        s.server.URL + apple_mdm.MDMPath,
-		}, "MacBookPro16,1")
-
-		// enroll the device with orbit
-		var resp EnrollOrbitResponse
-		s.DoJSON("POST", "/api/fleet/orbit/enroll", EnrollOrbitRequest{
-			EnrollSecret:   secret,
-			HardwareUUID:   mdmDevice.UUID, // will not match any existing host
-			HardwareSerial: mdmDevice.SerialNumber,
-		}, http.StatusOK, &resp)
-		require.NotEmpty(t, resp.OrbitNodeKey)
-		orbitNodeKey := resp.OrbitNodeKey
-		h, err := s.ds.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
-		require.NoError(t, err)
-		h.OrbitNodeKey = &orbitNodeKey
-		h.Platform = "darwin"
-
-		err = mdmDevice.Enroll()
-		require.NoError(t, err)
-
-		return h
-	}
-
-	hostWithUserEnrollment := createManualMDMEnrollWithOrbit("user-enroll-secret", true)
-	hostWithoutUserEnrollment := createManualMDMEnrollWithOrbit("no-user-enroll-secret", false)
-}*/
-
 func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	t := s.T()
 	ctx := context.Background()
