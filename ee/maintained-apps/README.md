@@ -99,7 +99,7 @@ After testing make sure to change the Image URL back to `docker.io/fleetdm/fleet
 
 9. Head to the [Fleet server for testing software](https://fleet-iibe.onrender.com/).
 
-10. If your laptop is already enrolled to a different Fleet (e.g. dogfood), we want to unenroll it before enrolling it to the Fleet server for testing software. Learn how unenroll your laptop [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
+10. If your laptop is already enrolled to a different Fleet (e.g. dogfood), we want to [unenroll it](https://fleetdm.com/guides/how-to-uninstall-fleetd) before enrolling it to the Fleet server for testing software.
 
 11. Enroll your laptop to the Fleet server for testing software by selecting **Add** hosts on the **Hosts** page and following the steps to generate Fleet's agent (fleetd) and install it on your laptop.
 
