@@ -515,7 +515,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 ### packages
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
-- `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist, Fleet will download the package, then verify that the hash matches, bailing out if it does not match.
+- `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist and a URL was provided, Fleet will download the package, then verify that the hash matches, bailing out if it does not match. If a package with that hash does not yet exist and no URL was provided, the GitOps run will fail.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
