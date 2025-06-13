@@ -27,6 +27,43 @@ describe("Activity Feed", () => {
     expect(screen.getByText("2 days ago")).toBeInTheDocument();
   });
 
+  it("renders 'Fleet' as actor when fleet_initiated is set to true", async () => {
+    const currentDate = new Date();
+    currentDate.setDate(currentDate.getDate() - 2);
+
+    const activity = createMockActivity({
+      fleet_initiated: true,
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    // waiting for the activity data to render
+    await screen.findByText("Fleet");
+
+    expect(screen.queryByText("Test User")).not.toBeInTheDocument();
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+  });
+
+  it("renders 'Fleet' as actor when no actor information and fleet_initiated is set to false", async () => {
+    const currentDate = new Date();
+    currentDate.setDate(currentDate.getDate() - 2);
+
+    const activity = createMockActivity({
+      actor_email: "",
+      actor_full_name: undefined,
+      actor_id: undefined,
+      actor_gravatar: undefined,
+    });
+
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    // waiting for the activity data to render
+    await screen.findByText("Fleet");
+
+    expect(screen.queryByText("Test User")).not.toBeInTheDocument();
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+  });
+
   it("renders a default activity for activities without a specific message", () => {
     const activity = createMockActivity({
       type: ActivityType.CreatedPack,
@@ -705,7 +742,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
+          "<b>Test User</b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
         );
       })
     ).toBeInTheDocument();
@@ -722,7 +759,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
+          "<b>Test User</b> changed the macOS Setup Assistant (added <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
         );
       })
     ).toBeInTheDocument();
@@ -739,7 +776,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
+          "<b>Test User</b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts that automatically enroll to no team."
         );
       })
     ).toBeInTheDocument();
@@ -756,7 +793,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
+          "<b>Test User</b> changed the macOS Setup Assistant (deleted <b>dep-profile.json</b>) for hosts  that automatically enroll to the <b>Workstations</b> team."
         );
       })
     ).toBeInTheDocument();
@@ -995,7 +1032,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (manual)</b>."
+          "An end user turned on MDM features for a host with serial number <b>ABCD (manual)</b>."
         );
       })
     ).toBeInTheDocument();
@@ -1016,7 +1053,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b>An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
+          "An end user turned on MDM features for a host with serial number <b>ABCD (automatic)</b>."
         );
       })
     ).toBeInTheDocument();
@@ -1036,7 +1073,7 @@ describe("Activity Feed", () => {
       screen.getByText((content, node) => {
         return (
           node?.innerHTML ===
-          "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
+          "Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
         );
       })
     ).toBeInTheDocument();

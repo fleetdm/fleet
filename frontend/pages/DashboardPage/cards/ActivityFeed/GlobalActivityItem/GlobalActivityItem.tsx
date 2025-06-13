@@ -261,6 +261,7 @@ const TAGGED_TEMPLATES = {
     );
     return <>{hostDisplayName} enrolled in Fleet.</>;
   },
+  // TODO: Look into actor inconsistency
   mdmEnrolled: (activity: IActivity) => {
     if (activity.details?.mdm_platform === "microsoft") {
       return (
@@ -1485,6 +1486,7 @@ const GlobalActivityItem = ({
     actor_full_name: actorName,
     actor_email: actorEmail,
     actor_id: actorId,
+    fleet_initiated: fleetInitiated,
     details,
   } = activity;
   const { user_email: userEmail, user_id: userId, self_service: selfService } =
@@ -1496,7 +1498,9 @@ const GlobalActivityItem = ({
     // Includes edge case where actor_full_name is not set and fleet_initiated is false
     // Edge case should never happen as users searching fleet_initiated activities
     // expect to view all "Fleet" activities.
-    const DEFAULT_ACTOR_DISPLAY = <b>{actorName || "Fleet"}</b>;
+    const DEFAULT_ACTOR_DISPLAY = (
+      <b>{fleetInitiated ? "Fleet" : actorName || "Fleet"}</b>
+    );
 
     switch (activity.type) {
       case ActivityType.UserLoggedIn:
@@ -1508,6 +1512,11 @@ const GlobalActivityItem = ({
       case ActivityType.UninstalledSoftware:
       case ActivityType.InstalledAppStoreApp:
         return selfService ? <span>An end user</span> : DEFAULT_ACTOR_DISPLAY;
+      // Does not render actor for MDM enrollments
+      // Currently uses custom actor within activity copy
+      // TODO: Look into fixing to be consistent with other activities
+      case ActivityType.MdmEnrolled:
+        return undefined;
       default:
         return DEFAULT_ACTOR_DISPLAY;
     }
