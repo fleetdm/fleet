@@ -1,1 +1,1 @@
-Enabled Android MDM support. The functionality is limited to turning on Android MDM and enrolling a BYOD device.
+Enabled Android MDM support. The functionality is limited to turning on Android MDM and enrolling a BYOD device. If your server was already using Android via the experimental DEV_ANDROID_ENABLED=1 flag, please turn off Android MDM before updating your Fleet server.
