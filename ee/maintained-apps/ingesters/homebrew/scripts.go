@@ -545,7 +545,7 @@ const removePkgFiles = `remove_pkg_files() {
     FULL_INSTALL_LOCATION=$(echo "$FULL_INSTALL_LOCATION" | sed 's|//|/|g')
   fi
 
-  echo "sudo pkgutil --files-only --files \"$PKGID\" | sed \"s|^|${FULL_INSTALL_LOCATION}/|\" | tr '\\n' '\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf"
+  echo "sudo pkgutil --only-files --files \"$PKGID\" | sed \"s|^|${FULL_INSTALL_LOCATION}/|\" | tr '\\n' '\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf"
   sudo pkgutil --files-only --files "$PKGID" | sed "s|^|/${INSTALL_LOCATION}/|" | tr '\n' '\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf
 
   echo "sudo pkgutil --only-dirs --files \"$PKGID\" | sed \"s|^|${FULL_INSTALL_LOCATION}/|\" | grep '\\.app$' | tr '\\n' '\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf"
@@ -561,7 +561,7 @@ const removePkgFiles = `remove_pkg_files() {
       | cut -d' ' -f2-
   )
   if [ -n "$root_app_dir" ]; then
-    echo "sudo rmdir --ignore-fail-on-non-empty \"$root_app_dir\""
-    sudo rmdir --ignore-fail-on-non-empty "$root_app_dir"
+    echo "sudo rmdir \"$root_app_dir\" 2>/dev/null"
+    sudo rmdir "$root_app_dir" 2>/dev/null
   fi
 }`
