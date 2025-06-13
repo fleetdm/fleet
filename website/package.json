@@ -48,6 +48,6 @@
   "author": "mikermcneil",
   "license": "SEE LICENSE IN ../LICENSE",
   "engines": {
-    "node": "^14.21"
+    "node": "^20.18"
   }
 }
