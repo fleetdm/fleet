@@ -2037,7 +2037,7 @@ If the `name` is not already associated with an existing team, this API route cr
         }
       },
       "scripts": ["path/to/script.sh"],
-      "software": { 
+      "software": {
         "packages": [
           {
             "url": "https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi",
@@ -2052,7 +2052,7 @@ If the `name` is not already associated with an existing team, this API route cr
             "self_service": true
           }
         ]
-      }  
+      }
     }
   ]
 }
@@ -3519,7 +3519,9 @@ Lists the certificates installed on the current device.
         "organization": "Fleet Device Management Inc.",
         "organizational_unit": "Fleet Device Management Inc.",
         "common_name": "FleetDM"
-      }
+      },
+      "source": "user",
+      "username": "alice"
     }
   ],
   "meta": {
