@@ -88,7 +88,7 @@ https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dvrd/296ebf70-b
     | 0x00000400    | Instructs the client to delete any expired, revoked, or renewed certificate from the user's certificate stores.                                                                                                                                                                                |
     | 0x00002000    | This flag instructs the client to reuse the private key for a smart card–based certificate renewal if it is unable to create a new private key on the card.                                                                                                                                    |
   - `EnrollmentState`
-    The best documentation we can find is [here](https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-enrollmentstate?view=graph-rest-beta)
+    The best documentation we can find is in [Microsoft's Graph REST API Beta docs](https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-enrollmentstate?view=graph-rest-beta).
 
     | Member       | Value | Description                                                                                                        |
     |--------------|-------|--------------------------------------------------------------------------------------------------------------------|
@@ -106,7 +106,7 @@ https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dvrd/296ebf70-b
 
     From what I've seen, value 6 on AAD, 1 on manual
   - `isFederated`
-    According to [this web page](https://learn.microsoft.com/en-us/windows/client-management/federated-authentication-device-enrollment), being federated means that the MDM
+    According to [Microsoft's Federated authentication device enrollment documentation](https://learn.microsoft.com/en-us/windows/client-management/federated-authentication-device-enrollment), being federated means that the MDM
     endpoints and details were fetched from a Discovery endpoint,
     instead of being manually installed. The page does not make mention
     of the specific registry key, but we are making an assumption that
