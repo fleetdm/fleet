@@ -763,6 +763,8 @@ const (
 	MDMAssetNDESPassword MDMAssetName = "ndes_password"
 	// MDMAssetAndroidPubSubToken is the token used to authenticate the Android PubSub messages coming from Google.
 	MDMAssetAndroidPubSubToken MDMAssetName = "android_pubsub_token" // nolint:gosec // Ignore G101: Potential hardcoded credentials
+	// MDMAssetAndroidFleetServerSecret is the bearer token for Android requests sent to the fleetdm.com Android management proxy.
+	MDMAssetAndroidFleetServerSecret MDMAssetName = "android_fleet_server_secret" // nolint:gosec // Ignore G101: Potential hardcoded credentials
 )
 
 type MDMConfigAsset struct {
