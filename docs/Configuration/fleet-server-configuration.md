@@ -637,7 +637,7 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
 
 How long an SSO authentication process can take between initiation and callback. Applies to both users logging into the Fleet web UI and end users during MDM enrollment.
 
-> Note: Once logged in, session_duration determines how long a user stays logged into Fleet.
+> Note: Once logged in, `session_duration` determines how long a user stays logged into Fleet.
 
 - Default value: `5m` (5 minutes)
 - Environment variable: `FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD`
