@@ -30,6 +30,7 @@ func getDestinationURL(idpMetadata *saml.EntityDescriptor) (string, error) {
 // CreateAuthorizationRequest creates a new SAML AuthnRequest and creates a new session in sessionStore.
 // It will generate a RelayState token that will be used as session identifier
 // (the IdP will send it again to Fleet in the callback, and that's how Fleet will authenticate the session).
+// If sessionTTLSeconds is 0 then a default of 5 minutes of TTL is used.
 func CreateAuthorizationRequest(
 	ctx context.Context,
 	samlProvider *saml.ServiceProvider,
