@@ -107,8 +107,8 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/siderolabs/go-blockdevice/v2 v2.0.3
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
-	github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa
-	github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99
+	github.com/smallstep/pkcs7 v0.2.1
+	github.com/smallstep/scep v0.0.0-20250318231241-a25cabb69492
 	github.com/spf13/cast v1.7.1
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
