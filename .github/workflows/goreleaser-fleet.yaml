@@ -81,7 +81,6 @@ jobs:
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
           APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
           APPLE_APP_STORE_CONNECT_KEY: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY }}
@@ -126,6 +125,8 @@ jobs:
           push-to-registry: true
 
       - name: Update fleetdm/fleet:latest and fleetdm/fleetctl:latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           highest_release=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" /repos/fleetdm/fleet/releases | jq -r '.[].tag_name' | sort -r | head -n 1 | sed -e "s/^fleet-//")
           tag=${{ steps.docker.outputs.tag }}
