@@ -30,7 +30,7 @@ When a vulnerability has no primary CVSS score in the [National Vulnerability Da
 
 ### Add custom packages in GitOps mode
 
-In GitOps mode, IT Admins can now use the UI to add a custom package and copy the corresponding YAML. This is useful for managing private software (like CrowdStrike) without a public URL. Learn how [here](https://fleetdm.com/guides/gitops-mode-software).
+In GitOps mode, IT Admins can now use the UI to add a custom package and copy the corresponding YAML. This is useful for managing private software (like CrowdStrike) without a public URL.
 
 ### Bulk resend failed configuration profiles
 
