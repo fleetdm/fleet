@@ -116,6 +116,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2025-06-11">
-<meta name="articleTitle" value="Fleet 4.69.0 | ">
+<meta name="publishedOn" value="2025-06-14">
+<meta name="articleTitle" value="Fleet 4.69.0 | Bulk scripts improvements, Entra ID and authentik foreign vitals, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.69.0-1600x900@2x.png">
