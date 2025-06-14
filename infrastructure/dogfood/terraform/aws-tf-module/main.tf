@@ -75,7 +75,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.15.1"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.15.2"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -162,6 +162,9 @@ module "main" {
       bucket_prefix  = "${local.customer}-software-installers-"
       create_kms_key = true
       kms_alias      = "${local.customer}-software-installers"
+      enable_bucket_versioning           = true
+      expire_noncurrent_versions         = true
+      noncurrent_version_expiration_days = 30
       tags = {
         backup = "true"
       }
