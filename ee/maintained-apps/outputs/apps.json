@@ -100,6 +100,13 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "LastPass",
+      "slug": "lastpass/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.lastpass.lastpassmacdesktop",
+      "description": "LastPass is a password manager that creates, stores, and autofills strong passwords for you."
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
