@@ -3045,6 +3045,7 @@ Device-authenticated routes are routes used by the Fleet Desktop application. Un
 - [Get device's mobile device management (MDM) and Munki information](#get-devices-mobile-device-management-mdm-and-munki-information)
 - [Get Fleet Desktop information](#get-fleet-desktop-information)
 - [Get device's software](#get-devices-software)
+- [Get device's software available for update](#get-devices-software-available-for-update)
 - [Get device's software install results](#get-devices-software-install-results)
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results)
 - [Install self-service software](#install-self-service-software)
@@ -3216,13 +3217,6 @@ Lists the software installed on the current device.
           "installed_paths": ["/Applications/Google Chrome.app"]
         }
       ],
-       "software_package": {
-        "name": "google-chrome-124-0-6367-207.pkg",
-        "version": "121.0",
-        "self_service": true,
-        "icon_url": null,
-        "last_install": null
-      },
       "app_store_app": null
     },
     {
@@ -3249,6 +3243,65 @@ Lists the software installed on the current device.
         "icon_url": "https://example.com/logo-light.jpg",
         "last_install": null
       },
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+#### Get device's software available for update
+
+_Available in Fleet Premium._
+
+Lists the software installed on the current device that can be updated via self-service install. Installed versions are filtered to only update-eligible ones, and install statuses only include pending installs, plus installs that have completed (success or failure) since the last host vitals refetch.
+
+`GET /api/v1/fleet/device/{token}/software/updates`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+##### Example
+
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/updates`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 1,
+  "software": [
+    {
+      "id": 121,
+      "name": "Google Chrome.app",
+      "software_package": {
+        "name": "GoogleChrome.pkg"
+        "version": "125.12.2"
+        "self_service": true,
+        "categories": ["Browsers"],
+     	  "last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+      	  "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
+      "app_store_app": null,
+      "source": "apps",
+      "status": "failed",
+      "installed_versions": [
+        {
+          "version": "121.0",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Applications/Google Chrome.app"]
+        }
+      ],
+      "app_store_app": null
     }
   ],
   "meta": {
