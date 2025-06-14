@@ -6,6 +6,8 @@
 
 Fleet 4.69.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.69.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
+If you're using GitOps to manage Fleet, read the note on [global configuration in GitOps](#global-configuration-in-gitops) before upgrading.
+
 ## Highlights
 
 - Bulk scripts improvements
