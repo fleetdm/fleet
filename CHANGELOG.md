@@ -35,6 +35,8 @@
 - Added ability for gitops mode to add a custom package on the software page to then copy/paste the YAML needed for packages that cannot be referenced with a URL.
 
 ### Other improvements and bug fixes
+- Fixed issue where SSO settings, SMTP settings, Features and MDM end-user authentication settings would not be cleared if they were omitted from YAML files used in a GitOps run. 
+> **GITOPS USERS:** If you have these settings configured via the Fleet web application and you use GitOps to manage your configuration, be sure settings are present in your global YAML settings file before your next GitOps run.
 - Added Neon to the list of platforms that are detected as Linux distributions.
 - Updated scripts so that editing will now cancel queued executions.
 - Warn users of consequences when updating script contents.
@@ -51,7 +53,6 @@
 - Modified the Windows MDM detection query to more accurately detect existing MDM enrollment details on hosts with multiple enrollments.
 - Created consistent UI for the copy button of an input field.
 - Updated the notes for the `disk_info` table to clarify usage in ChromeOS.
-- Fixed issue where SSO settings, SMTP settings, Features and MDM end-user authentication settings would not be cleared if they were omitted from YAML files used in a GitOps run. **NOTE:** If you have these settings configured via tc1he Fleet web application and you use GitOps to manage your configuration, be sure settings are present in your global YAML settings file before your next GitOps run.
 - Fixed an issue where the cursor on the SQL editor would sometimes become misaliged.
 - Fixed slight style issues with the user menu.
 - Fixed an issue where adding/updating a manual label had inconsistent results when multiple hosts shared a serial number.
