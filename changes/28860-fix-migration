@@ -1,3 +1,0 @@
-- Fixed an issue in the database migrations released in 4.68.0 where Apple devices with UDID values
-  longer than 36 characters would cause a failure in the migration process; the `host_uuid` column
-  for tables added by that migration has been increased to accommodate these longer UDID values.

@@ -309,31 +309,7 @@ build_changelog() {
         make changelog
 
         git diff CHANGELOG.md | $GREP_CMD '^+' | sed 's/^+//g' | $GREP_CMD -v CHANGELOG.md > new_changelog
-        prompt=$'I am creating a changelog for an open source project from a list of commit messages. Please format it for me using the following rules:\n1. All items have correct spelling and punctuation.\n2. All items use sentence casing.\n3. All items are past tense.\n4. Each list item is designated with a dash.\n5. Output in markdown format.'
-
-        content=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
-        question="${prompt}\n\n${content}"
-
-        # API endpoint for ChatGPT
-        api_endpoint="https://api.openai.com/v1/chat/completions"
-        output="null"
-
-        # while [[ "$output" == "null" ]]; do
-        #     data_payload=$(jq -n \
-        #                       --arg prompt "$question" \
-        #                       --arg model "gpt-4o" \
-        #                       '{model: $model, messages: [{"role": "user", "content": $prompt}]}')
-
-        #     response=$(curl -s -X POST $api_endpoint \
-        #        -H "Content-Type: application/json" \
-        #        -H "Authorization: Bearer $open_api_key" \
-        #        --data "$data_payload")
-
-        #     echo "${response}"
-
-        #     output=$(echo $response | jq -r .choices[0].message.content)
-        #     echo "${output}"
-        # done
+        output=$(cat new_changelog | sed -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g')
 
         git checkout CHANGELOG.md
         if [[ "$target_date" == "" ]]; then
@@ -689,7 +665,6 @@ if [[ "$minor" == "true" ]]; then
     target_branch="rc-minor-fleet-$next_ver"
 fi
 update_changelog_prepare_branch="update-changelog-prepare-$target_milestone"
-update_changelog_branch="update-changelog-$target_milestone"
 
 # fleet-v4.48.0
 next_tag="fleet-$next_ver"
@@ -880,20 +855,6 @@ if [[ "$failed" == "false" ]]; then
     else
         echo "DRYRUN: Would have switched to main and pulled latest"
     fi
-
-    
-    changelog_and_versions $update_changelog_branch main
-
-
-    if [ "$dry_run" = "false" ]; then
-        # Back on patch / prepare
-        ask "Did changelog for main work? [y/n]"
-        git checkout $target_branch
-        ask "Are you back on the rc branch? [y/n]"
-    else
-        echo "DRYRUN: Would have switched back to branch $target_branch"
-    fi
-
 
     # Check for QA issue
     create_qa_issue
