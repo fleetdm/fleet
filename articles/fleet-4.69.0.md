@@ -12,7 +12,7 @@ Fleet 4.69.0 is now available. See the complete [changelog](https://github.com/f
 - Entra ID and authentik foreign vitals
 - Secondary CVSS scores
 - Self-service software: uninstall
-- Add custom packages via GitOps
+- Add custom packages in GitOps mode
 - Bulk resend failed configuration profiles
 - Turn off MDM on iOS/iPadOS
 
