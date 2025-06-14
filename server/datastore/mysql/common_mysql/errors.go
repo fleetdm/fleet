@@ -3,8 +3,6 @@ package common_mysql
 import (
 	"database/sql"
 	"fmt"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 type NotFoundError struct {
@@ -13,9 +11,6 @@ type NotFoundError struct {
 	Message      string
 	ResourceType string
 }
-
-// Compile-time interface check.
-var _ fleet.NotFoundError = &NotFoundError{}
 
 func NotFound(kind string) *NotFoundError {
 	return &NotFoundError{
