@@ -344,8 +344,10 @@ func (a ActivityTypeAppliedSpecPack) Documentation() (activity string, details s
 }
 
 type ActivityTypeCreatedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedPolicy) ActivityName() string {
@@ -356,15 +358,21 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 	return `Generated when creating policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the created policy.
-- "policy_name": the name of the created policy.`, `{
+- "policy_name": the name of the created policy.
+- "team_id": the ID of the team the policy belongs to.
+- "team_name": the name of the team the policy belongs to.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeEditedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedPolicy) ActivityName() string {
@@ -375,15 +383,21 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 	return `Generated when editing policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
-- "policy_name": the name of the edited policy.`, `{
+- "policy_name": the name of the edited policy.
+- "team_id": the ID of the team the policy belongs to.
+- "team_name": the name of the team the policy belongs to.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedPolicy struct {
-	ID   uint   `json:"policy_id"`
-	Name string `json:"policy_name"`
+	ID       uint    `json:"policy_id"`
+	Name     string  `json:"policy_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedPolicy) ActivityName() string {
@@ -394,9 +408,13 @@ func (a ActivityTypeDeletedPolicy) Documentation() (activity string, details str
 	return `Generated when deleting policies.`,
 		`This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
-- "policy_name": the name of the deleted policy.`, `{
+- "policy_name": the name of the deleted policy.
+- "team_id": the ID of the team the policy belonged to.
+- "team_name": the name of the team the policy belonged to.`, `{
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
@@ -441,8 +459,10 @@ func (a ActivityTypeAppliedSpecPolicy) Documentation() (activity string, details
 }
 
 type ActivityTypeCreatedSavedQuery struct {
-	ID   uint   `json:"query_id"`
-	Name string `json:"query_name"`
+	ID       uint    `json:"query_id"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeCreatedSavedQuery) ActivityName() string {
@@ -453,15 +473,21 @@ func (a ActivityTypeCreatedSavedQuery) Documentation() (activity string, details
 	return `Generated when creating a new query.`,
 		`This activity contains the following fields:
 - "query_id": the ID of the created query.
-- "query_name": the name of the created query.`, `{
+- "query_name": the name of the created query.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeEditedSavedQuery struct {
-	ID   uint   `json:"query_id"`
-	Name string `json:"query_name"`
+	ID       uint    `json:"query_id"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeEditedSavedQuery) ActivityName() string {
@@ -472,14 +498,20 @@ func (a ActivityTypeEditedSavedQuery) Documentation() (activity string, details 
 	return `Generated when editing a saved query.`,
 		`This activity contains the following fields:
 - "query_id": the ID of the query being edited.
-- "query_name": the name of the query being edited.`, `{
+- "query_name": the name of the query being edited.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
 	"query_id": 123,
-	"query_name": "foo"
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedSavedQuery struct {
-	Name string `json:"query_name"`
+	Name     string  `json:"query_name"`
+	TeamID   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
@@ -489,13 +521,19 @@ func (a ActivityTypeDeletedSavedQuery) ActivityName() string {
 func (a ActivityTypeDeletedSavedQuery) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting a saved query.`,
 		`This activity contains the following fields:
-- "query_name": the name of the query being deleted.`, `{
-	"query_name": "foo"
+- "query_name": the name of the query being deleted.
+- "team_id": the ID of the team the query belongs to.
+- "team_name": the name of the team the query belongs to.`, `{
+	"query_name": "foo",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 
 type ActivityTypeDeletedMultipleSavedQuery struct {
-	IDs []uint `json:"query_ids"`
+	IDs      []uint  `json:"query_ids"`
+	Teamid   int64   `json:"team_id"`
+	TeamName *string `json:"team_name,omitempty"`
 }
 
 func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
@@ -505,8 +543,13 @@ func (a ActivityTypeDeletedMultipleSavedQuery) ActivityName() string {
 func (a ActivityTypeDeletedMultipleSavedQuery) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when deleting multiple saved queries.`,
 		`This activity contains the following fields:
-- "query_ids": list of IDs of the deleted saved queries.`, `{
-	"query_ids": [1, 42, 100]
+- "query_ids": list of IDs of the deleted saved queries.
+- "team_id": the ID of the team the queries belonged to.
+- "team_name": the name of the team the queries belonged to, "Global" if global.`,
+		`{
+	"query_ids": [1, 42, 100],
+	"team_id": nil,
+	"team_name": "Global"
 }`
 }
 
