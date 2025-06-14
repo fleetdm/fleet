@@ -1884,6 +1884,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryPending,
 			Checksum:          []byte("csum"),
+			Scope:             fleet.PayloadScopeSystem,
 		},
 	})
 	require.NoError(t, err)
@@ -2372,6 +2373,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 					OperationType:     operationType,
 					Status:            status,
 					Checksum:          []byte("csum"),
+					Scope:             fleet.PayloadScopeSystem,
 				},
 			})
 			require.NoError(t, err)
@@ -13644,6 +13646,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		Status:            badProfile.Status,
 		Detail:            badProfile.Detail,
 		Checksum:          []byte("checksum"),
+		Scope:             fleet.PayloadScopeSystem,
 	}, {
 		ProfileUUID:       goodProfile.ProfileUUID,
 		ProfileIdentifier: goodProfile.Identifier,
@@ -13654,6 +13657,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		Status:            goodProfile.Status,
 		Detail:            goodProfile.Detail,
 		Checksum:          []byte("checksum"),
+		Scope:             fleet.PayloadScopeSystem,
 	}})
 	require.NoError(t, err)
 	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{

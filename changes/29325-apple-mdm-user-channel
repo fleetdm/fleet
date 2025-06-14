@@ -1,0 +1,1 @@
+* Added support for the Apple MDM user channel. When a mobileconfig with a payloadscope of User is targeted for a host with a user channel connection, it will now be sent to the user channel

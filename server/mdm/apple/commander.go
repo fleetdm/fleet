@@ -353,7 +353,7 @@ func (svc *MDMAppleCommander) CertificateList(ctx context.Context, hostUUIDs []s
 		<string>%s</string>
 		<key>Command</key>
 		<dict>
-			<key>MangedOnly</key>
+			<key>ManagedOnly</key>
 			<false/>
 			<key>RequestType</key>
 			<string>CertificateList</string>

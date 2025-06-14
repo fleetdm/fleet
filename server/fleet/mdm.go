@@ -447,6 +447,7 @@ type MDMConfigProfilePayload struct {
 	Name        string `json:"name" db:"name"`
 	Platform    string `json:"platform" db:"platform"`               // "windows" or "darwin"
 	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	Scope       string `json:"scope,omitempty" db:"scope"`           // only set for macOS, can be "System" or "User"
 	// Checksum is the following
 	// - for Apple configuration profiles: the MD5 checksum of the profile contents
 	// - for Apple device declarations: the MD5 checksum of the profile contents and secrets updated timestamp (if profile contains secret variables)
@@ -506,6 +507,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		Checksum:         cp.Checksum,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
+		Scope:            string(cp.Scope),
 		LabelsIncludeAll: cp.LabelsIncludeAll,
 		LabelsIncludeAny: cp.LabelsIncludeAny,
 		LabelsExcludeAny: cp.LabelsExcludeAny,
