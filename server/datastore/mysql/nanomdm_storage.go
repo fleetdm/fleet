@@ -150,7 +150,7 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 		}
 
 		return nil
-	}, s.logger)
+	}, ctxerr.WrapFunc(ctxerr.Wrap), s.logger)
 }
 
 // EnqueueDeviceWipeCommand enqueues a EraseDevice command for the given host.
@@ -175,7 +175,7 @@ func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fle
 		}
 
 		return nil
-	}, s.logger)
+	}, ctxerr.WrapFunc(ctxerr.Wrap), s.logger)
 }
 
 func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
@@ -201,7 +201,7 @@ func (s *NanoMDMStorage) ClearQueue(r *mdm.Request) error {
 			return err
 		}
 		return nil
-	}, s.logger)
+	}, ctxerr.WrapFunc(ctxerr.Wrap), s.logger)
 
 	if err != nil {
 		return err

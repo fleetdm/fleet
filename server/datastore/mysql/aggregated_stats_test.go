@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -153,4 +156,182 @@ func checkAgainstSlowStats(t *testing.T, ds *Datastore, id uint, percentile int,
 	} else {
 		assert.Zero(t, slowp)
 	}
+}
+
+func TestAndroidMDMStats(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	const appleMDMURL = "/mdm/apple/mdm"
+	const serverURL = "http://androidmdm.example.com"
+
+	testCtx := func() context.Context {
+		return t.Context()
+	}
+	appCfg, err := ds.AppConfig(testCtx())
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = serverURL
+	err = ds.SaveAppConfig(testCtx(), appCfg)
+	require.NoError(t, err)
+
+	// create a few android hosts
+	hosts := make([]*fleet.Host, 3)
+	var androidHost0 *android.Host
+	for i := range hosts {
+		host := createAndroidHost(uuid.NewString())
+		result, err := ds.NewAndroidHost(testCtx(), serverURL, host)
+		require.NoError(t, err)
+		hosts[i] = &fleet.Host{
+			ID:              result.ID,
+			TeamID:          result.TeamID,
+			OSVersion:       result.OSVersion,
+			Build:           result.Build,
+			Memory:          result.Memory,
+			HardwareSerial:  result.HardwareSerial,
+			CPUType:         result.CPUType,
+			HardwareModel:   result.HardwareModel,
+			HardwareVendor:  result.HardwareVendor,
+			DetailUpdatedAt: result.DetailUpdatedAt,
+			LabelUpdatedAt:  result.LabelUpdatedAt,
+		}
+
+		if androidHost0 == nil {
+			androidHost0 = host
+		}
+	}
+
+	// create a non-android host
+	macHost, err := ds.NewHost(testCtx(), &fleet.Host{
+		Hostname:       "test-host1-name",
+		OsqueryHostID:  ptr.String("1337"),
+		NodeKey:        ptr.String("1337"),
+		UUID:           "test-uuid-1",
+		Platform:       "darwin",
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macHost, false)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost)
+	require.NoError(t, err)
+
+	// create a non-mdm host
+	linuxHost, err := ds.NewHost(testCtx(), &fleet.Host{
+		Hostname:       "test-host2-name",
+		OsqueryHostID:  ptr.String("1338"),
+		NodeKey:        ptr.String("1338"),
+		UUID:           "test-uuid-2",
+		Platform:       "linux",
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, linuxHost)
+
+	// stats not computed yet
+	statusStats, _, err := ds.AggregatedMDMStatus(testCtx(), nil, "")
+	require.NoError(t, err)
+	solutionsStats, _, err := ds.AggregatedMDMSolutions(testCtx(), nil, "")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{}, statusStats)
+	require.Equal(t, []fleet.AggregatedMDMSolutions(nil), solutionsStats)
+
+	// compute stats
+	err = ds.GenerateAggregatedMunkiAndMDM(testCtx())
+	require.NoError(t, err)
+
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 4}, statusStats)
+	require.Len(t, solutionsStats, 2)
+
+	// both solutions are Fleet
+	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[0].Name)
+	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[1].Name)
+
+	// one is the Android server URL, one is the Apple URL
+	for _, sol := range solutionsStats {
+		switch sol.ServerURL {
+		case serverURL:
+			require.Equal(t, 3, sol.HostsCount)
+		case serverURL + appleMDMURL:
+			require.Equal(t, 1, sol.HostsCount)
+		default:
+			require.Failf(t, "unexpected server URL: %v", sol.ServerURL)
+		}
+	}
+
+	// filter on android
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, EnrolledManualHostsCount: 3}, statusStats)
+	require.Len(t, solutionsStats, 1)
+	require.Equal(t, 3, solutionsStats[0].HostsCount)
+	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
+
+	// turn MDM off for android
+	err = ds.DeleteAllEnterprises(testCtx())
+	require.NoError(t, err)
+	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
+	require.NoError(t, err)
+
+	// compute stats
+	err = ds.GenerateAggregatedMunkiAndMDM(testCtx())
+	require.NoError(t, err)
+
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 1, UnenrolledHostsCount: 3}, statusStats)
+	require.Len(t, solutionsStats, 1)
+	require.Equal(t, 1, solutionsStats[0].HostsCount)
+	require.Equal(t, serverURL+appleMDMURL, solutionsStats[0].ServerURL)
+
+	// filter on android
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 3}, statusStats)
+	require.Len(t, solutionsStats, 0)
+
+	// simulate an android host that re-enrolls
+	err = ds.UpdateAndroidHost(testCtx(), serverURL, androidHost0, true)
+	require.NoError(t, err)
+
+	// compute stats
+	err = ds.GenerateAggregatedMunkiAndMDM(testCtx())
+	require.NoError(t, err)
+
+	// filter on android
+	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
+	require.NoError(t, err)
+	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
+	require.NoError(t, err)
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 2, EnrolledManualHostsCount: 1}, statusStats)
+	require.Len(t, solutionsStats, 1)
+	require.Equal(t, 1, solutionsStats[0].HostsCount)
+	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
+}
+
+func createAndroidHost(enterpriseSpecificID string) *android.Host {
+	host := &android.Host{
+		OSVersion:      "Android 14",
+		Build:          "build",
+		Memory:         1024,
+		TeamID:         nil,
+		HardwareSerial: "hardware_serial",
+		CPUType:        "cpu_type",
+		HardwareModel:  "hardware_model",
+		HardwareVendor: "hardware_vendor",
+		Device: &android.Device{
+			DeviceID:             "device_id",
+			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+			AndroidPolicyID:      ptr.Uint(1),
+			LastPolicySyncTime:   ptr.Time(time.Time{}),
+		},
+	}
+	host.SetNodeKey(enterpriseSpecificID)
+	return host
 }

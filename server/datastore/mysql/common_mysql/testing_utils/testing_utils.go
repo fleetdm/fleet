@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
@@ -74,7 +75,7 @@ func TruncateTables(t testing.TB, db *sqlx.DB, logger log.Logger, nonEmptyTables
 			return err
 		}
 		return nil
-	}, logger))
+	}, ctxerr.WrapFunc(ctxerr.Wrap), logger))
 }
 
 // DatastoreTestOptions configures how the test datastore is created

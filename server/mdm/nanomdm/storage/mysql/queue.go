@@ -68,7 +68,7 @@ func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *md
 	// Deadlock seen in 2024/12/12 loadtest: https://docs.google.com/document/d/1-Q6qFTd7CDm-lh7MVRgpNlNNJijk6JZ4KO49R1fp80U
 	err := common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
 		return enqueue(ctx, tx, ids, cmd)
-	}, loggerWrapper{m.logger})
+	}, ctxerr.WrapFunc(ctxerr.Wrap), loggerWrapper{m.logger})
 	return nil, err
 }
 
@@ -270,7 +270,7 @@ func (m *MySQLStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Cont
 	}
 	return common_mysql.WithRetryTxx(ctx, sqlx.NewDb(m.db, ""), func(tx sqlx.ExtContext) error {
 		return m.bulkDeleteHostUserCommandsWithoutResults(ctx, tx, commandToIDs)
-	}, loggerWrapper{m.logger})
+	}, ctxerr.WrapFunc(ctxerr.Wrap), loggerWrapper{m.logger})
 }
 
 func (m *MySQLStorage) bulkDeleteHostUserCommandsWithoutResults(ctx context.Context, tx sqlx.ExtContext,
