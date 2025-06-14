@@ -28,7 +28,7 @@ Fleet now supports pulling user data—like IdP email, full name, and groups—f
 
 When a vulnerability has no primary CVSS score in the [National Vulnerability Database (NVD)](https://nvd.nist.gov/), Fleet now shows the secondary score instead. This gives Security Engineers better visibility into potential risk and helps prioritize remediation.
 
-### Add custom packages via GitOps
+### Add custom packages in GitOps mode
 
 In GitOps mode, IT Admins can now use the UI to add a custom package and copy the corresponding YAML. This is useful for managing private software (like CrowdStrike) without a public URL. Learn how [here](https://fleetdm.com/guides/gitops-mode-software).
 
