@@ -12,17 +12,11 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type ctxKey int
-
 const (
 	maxRetries = 5
 	// nvdCVEURL is the base link to a CVE on the NVD website, only the CVE code
 	// needs to be appended to make it a valid link.
 	nvdCVEURL = "https://nvd.nist.gov/vuln/detail/"
-
-	// context key for the retry number of a job, made available via the context
-	// to the job processor.
-	retryNumberCtxKey = ctxKey(0)
 )
 
 const (
@@ -209,7 +203,6 @@ func (w *Worker) processJob(ctx context.Context, job *fleet.Job) error {
 		args = *job.Args
 	}
 
-	ctx = context.WithValue(ctx, retryNumberCtxKey, job.Retries)
 	return j.Run(ctx, args)
 }
 
