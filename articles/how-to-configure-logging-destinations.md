@@ -55,7 +55,7 @@ Before streaming data, ensure that you have the necessary infrastructure. The re
 
      - Optionally, ExternalId ([more info](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-user_externalid.html)).
 
-     - Specifics of destination configuration ([Kinesis](https://github.com/fleetdm/fleet/blob/main/terraform/addons/byo-kinesis-logging-destination/target-account/README.md) / [Firehose](https://github.com/fleetdm/fleet/blob/main/terraform/addons/byo-firehose-logging-destination/target-account/README.md)):
+     - Specifics of destination configuration ([Kinesis](https://github.com/fleetdm/fleet-terraform/blob/main/addons/byo-kinesis-logging-destination/target-account/README.md) / [Firehose](https://github.com/fleetdm/fleet-terraform/blob/main/addons/byo-firehose-logging-destination/target-account/README.md)):
 
        - Stream name(s)
 
@@ -78,7 +78,7 @@ Sumo Logic supports data ingestion via HTTP, making it a reliable choice for log
 
 #### For Splunk
 
-Splunk is a powerful platform for searching, monitoring, and analyzing machine-generated big data. Learn how to connect Fleet to Splunk [here](https://fleetdm.com/guides/log-destinations#splunk).
+Splunk is a powerful platform for searching, monitoring, and analyzing machine-generated big data. You can [configure Fleet to send logs to Splunk](https://fleetdm.com/guides/log-destinations#splunk).
 
 
 ### Conclusion

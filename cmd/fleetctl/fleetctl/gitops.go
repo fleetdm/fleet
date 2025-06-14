@@ -133,6 +133,9 @@ func gitopsCommand() *cli.Command {
 			// We only want to have one global config loaded
 			globalConfigLoaded := false
 
+			// List of things we want to do at the end of this run
+			var allPostOps []func() error
+
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, logf)
@@ -313,7 +316,7 @@ func gitopsCommand() *cli.Command {
 				if err != nil {
 					return err
 				}
-				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig,
+				assumptions, postOps, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig,
 					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 				if err != nil {
 					return err
@@ -323,6 +326,7 @@ func gitopsCommand() *cli.Command {
 				} else {
 					teamDryRunAssumptions = assumptions
 				}
+				allPostOps = append(allPostOps, postOps...)
 			}
 
 			// if there were assignments to tokens, and some of the teams were missing at that time, submit a separate patch request to set them now.
@@ -342,11 +346,12 @@ func gitopsCommand() *cli.Command {
 			for _, teamWithApps := range missingVPPTeamsWithApps {
 				_, _ = fmt.Fprintf(c.App.Writer, ReapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
 				teamWithApps.config.Software.AppStoreApps = teamWithApps.vppApps
-				_, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig,
+				_, postOps, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig,
 					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
 				if err != nil {
 					return err
 				}
+				allPostOps = append(allPostOps, postOps...)
 			}
 
 			if flDeleteOtherTeams && appConfig.License.IsPremium() { // skip team deletion for non-premium users
@@ -383,9 +388,17 @@ func gitopsCommand() *cli.Command {
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
 				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
-				_, err = fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
+				_, postOps, err := fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
 					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{})
 				if err != nil {
+					return err
+				}
+
+				allPostOps = append(allPostOps, postOps...)
+			}
+
+			for _, postOp := range allPostOps {
+				if err := postOp(); err != nil {
 					return err
 				}
 			}
@@ -395,6 +408,7 @@ func gitopsCommand() *cli.Command {
 			} else {
 				_, _ = fmt.Fprintf(c.App.Writer, "[!] gitops succeeded\n")
 			}
+
 			return nil
 		},
 	}

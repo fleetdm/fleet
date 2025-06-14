@@ -390,6 +390,10 @@ type UploadSoftwareInstallerPayload struct {
 	AutomaticInstallQuery string
 	Categories            []string
 	CategoryIDs           []uint
+	// AddedAutomaticInstallPolicy is the auto-install policy that can be
+	// automatically created when a software installer is added to Fleet. This field should be set
+	// after software installer creation if AutomaticInstall is true.
+	AddedAutomaticInstallPolicy *Policy
 }
 
 type ExistingSoftwareInstaller struct {
@@ -532,8 +536,9 @@ type SoftwarePackageOrApp struct {
 	PackageURL    *string                `json:"package_url"`
 	// InstallDuringSetup is a boolean that indicates if the package
 	// will be installed during the macos setup experience.
-	InstallDuringSetup *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
-	Categories         []string `json:"categories,omitempty"`
+	InstallDuringSetup   *bool    `json:"install_during_setup,omitempty" db:"install_during_setup"`
+	FleetMaintainedAppID *uint    `json:"fleet_maintained_app_id,omitempty" db:"fleet_maintained_app_id"`
+	Categories           []string `json:"categories,omitempty"`
 }
 
 type SoftwarePackageSpec struct {

@@ -126,6 +126,7 @@ const FleetMaintainedAppDetailsPage = ({
 
   const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
+
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
@@ -198,22 +199,21 @@ const FleetMaintainedAppDetailsPage = ({
 
     setShowAddFleetAppSoftwareModal(true);
 
-    let titleId: number | undefined;
     try {
-      const res = await softwareAPI.addFleetMaintainedApp(
-        parseInt(teamId, 10),
-        {
-          ...formData,
-          appId,
-        }
-      );
-      titleId = res.software_title_id;
+      const {
+        software_title_id: softwareFmaTitleId,
+      } = await softwareAPI.addFleetMaintainedApp(parseInt(teamId, 10), {
+        ...formData,
+        appId,
+      });
 
       router.push(
-        getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-          team_id: teamId,
-          available_for_install: true,
-        })
+        getPathWithQueryParams(
+          PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
+          {
+            team_id: teamId,
+          }
+        )
       );
 
       renderFlash(

@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -382,8 +385,10 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		return getScriptResultResponse{Err: err}, nil
 	}
 
-	// TODO: move this logic out of the endpoint function and consolidate in either the service
-	// method or the fleet package
+	return setUpGetScriptResultResponse(scriptResult), nil
+}
+
+func setUpGetScriptResultResponse(scriptResult *fleet.HostScriptResult) *getScriptResultResponse {
 	hostTimeout := scriptResult.HostTimeout(scripts.MaxServerWaitTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout, scriptResult.Timeout)
 
@@ -399,7 +404,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		ExecutionID:    scriptResult.ExecutionID,
 		Runtime:        scriptResult.Runtime,
 		CreatedAt:      scriptResult.CreatedAt,
-	}, nil
+	}
 }
 
 func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
@@ -946,6 +951,15 @@ type batchSetScriptsResponse struct {
 	Err     error                  `json:"error,omitempty"`
 }
 
+type batchScriptExecutionSummaryRequest struct {
+	BatchExecutionID string `url:"batch_execution_id"`
+}
+
+type batchScriptExecutionSummaryResponse struct {
+	fleet.BatchExecutionSummary
+	Err error `json:"error,omitempty"`
+}
+
 func (r batchSetScriptsResponse) Error() error { return r.Err }
 
 func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -1032,6 +1046,30 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	return scriptResponses, nil
 }
 
+func (r batchScriptExecutionSummaryResponse) Error() error { return r.Err }
+
+func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptExecutionSummaryRequest)
+	summary, err := svc.BatchScriptExecutionSummary(ctx, req.BatchExecutionID)
+	if err != nil {
+		return batchScriptExecutionSummaryResponse{Err: err}, nil
+	}
+	return batchScriptExecutionSummaryResponse{BatchExecutionSummary: *summary}, nil
+}
+
+func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionSummary, error) {
+	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return summary, nil
+}
+
 func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {
 	// first, get the script because we don't know which team id it is for.
 	script, err := svc.ds.Script(ctx, scriptID)
@@ -1061,10 +1099,10 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchScriptRunRequest struct {
-	ScriptID uint   `json:"script_id"`
-	HostIDs  []uint `json:"host_ids"`
+	ScriptID uint                    `json:"script_id"`
+	HostIDs  []uint                  `json:"host_ids"`
+	Filters  *map[string]interface{} `json:"filters"`
 }
-
 type batchScriptRunResponse struct {
 	BatchExecutionID string `json:"batch_execution_id"`
 	Err              error  `json:"error,omitempty"`
@@ -1074,14 +1112,21 @@ func (r batchScriptRunResponse) Error() error { return r.Err }
 
 func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptRunRequest)
-	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs)
+	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs, req.Filters)
 	if err != nil {
 		return batchScriptRunResponse{Err: err}, nil
 	}
 	return batchScriptRunResponse{BatchExecutionID: batchID}, nil
 }
 
-func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint) (string, error) {
+const MAX_BATCH_EXECUTION_HOSTS = 5000
+
+func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error) {
+	// If we are given both host IDs and filters, return an error
+	if len(hostIDs) > 0 && filters != nil {
+		return "", fleet.NewInvalidArgumentError("filters", "cannot specify both host_ids and filters")
+	}
+
 	// First check if scripts are disabled globally. If so, no need for further processing.
 	cfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -1106,7 +1151,63 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		userId = &ctxUser.ID
 	}
 
-	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDs)
+	var hosts []*fleet.Host
+
+	// If we are given filters, we need to get the hosts matching those filters
+	if filters != nil {
+		opt, lid, err := hostListOptionsFromFilters(filters)
+		if err != nil {
+			return "", err
+		}
+
+		if opt == nil {
+			return "", fleet.NewInvalidArgumentError("filters", "filters must be a valid set of host list options")
+		}
+
+		if opt.TeamFilter == nil {
+			return "", fleet.NewInvalidArgumentError("filters", "filters must include a team filter")
+		}
+
+		filter := fleet.TeamFilter{User: ctxUser, IncludeObserver: true}
+
+		// Load hosts, either from label if provided or from all hosts.
+		if lid != nil {
+			hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, *opt)
+		} else {
+			opt.DisableIssues = true // intentionally ignore failing policies
+			hosts, err = svc.ds.ListHosts(ctx, filter, *opt)
+		}
+
+		if err != nil {
+			return "", err
+		}
+	} else {
+		// Get the hosts matching the host IDs
+		hosts, err = svc.ds.ListHostsLiteByIDs(ctx, hostIDs)
+		if err != nil {
+			return "", err
+		}
+	}
+	if len(hosts) == 0 {
+		return "", &fleet.BadRequestError{Message: "no hosts match the specified host IDs"}
+	}
+
+	if len(hosts) > MAX_BATCH_EXECUTION_HOSTS {
+		return "", fleet.NewInvalidArgumentError("filters", "too_many_hosts")
+	}
+
+	hostIDsToExecute := make([]uint, 0, len(hosts))
+	for _, host := range hosts {
+		hostIDsToExecute = append(hostIDsToExecute, host.ID)
+		if host.TeamID == nil && script.TeamID == nil {
+			continue
+		}
+		if host.TeamID == nil || script.TeamID == nil || *host.TeamID != *script.TeamID {
+			return "", fleet.NewInvalidArgumentError("host_ids", "all hosts must be on the same team as the script")
+		}
+	}
+
+	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
@@ -1114,7 +1215,8 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
 		ScriptName:       script.Name,
 		BatchExeuctionID: batchID,
-		HostCount:        uint(len(hostIDs)),
+		HostCount:        uint(len(hostIDsToExecute)),
+		TeamID:           script.TeamID,
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
 	}
@@ -1206,12 +1308,35 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	return "", fleet.ErrMissingLicense
 }
 
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
 // Wipe host
-////////////////////////////////////////////////////////////////////////////////
+// //////////////////////////////////////////////////////////////////////////////
+
+func (req *wipeHostRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+	if r == nil {
+		return nil
+	}
+
+	decoder := json.NewDecoder(io.LimitReader(r, 100*1024))
+	metadata := fleet.MDMWipeMetadata{}
+	if err := decoder.Decode(&metadata); err != nil {
+		if err == io.EOF {
+			// OK ... body is optional
+			return nil
+		}
+		return &fleet.BadRequestError{
+			Message:     "failed to unmarshal request body",
+			InternalErr: err,
+		}
+	}
+	req.Metadata = &metadata
+
+	return nil
+}
 
 type wipeHostRequest struct {
-	HostID uint `url:"id"`
+	HostID   uint `url:"id"`
+	Metadata *fleet.MDMWipeMetadata
 }
 
 type wipeHostResponse struct {
@@ -1224,14 +1349,14 @@ func (r wipeHostResponse) Error() error { return r.Err }
 
 func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*wipeHostRequest)
-	if err := svc.WipeHost(ctx, req.HostID); err != nil {
+	if err := svc.WipeHost(ctx, req.HostID, req.Metadata); err != nil {
 		return wipeHostResponse{Err: err}, nil
 	}
 	// We bail if a host is locked or wiped, so we can assume the host is unlocked at this point
 	return wipeHostResponse{DeviceStatus: fleet.DeviceStatusUnlocked, PendingAction: fleet.PendingActionWipe}, nil
 }
 
-func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
+func (svc *Service) WipeHost(ctx context.Context, _ uint, _ *fleet.MDMWipeMetadata) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

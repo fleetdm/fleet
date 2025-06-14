@@ -36,6 +36,7 @@ const ResendConfigProfileModal = ({
           Resent the <b>{name}</b> configuration profile.
         </>
       );
+      onExit();
     } catch (error) {
       renderFlash(
         "error",
@@ -43,7 +44,6 @@ const ResendConfigProfileModal = ({
       );
     }
     setIsResending(false);
-    onExit();
   };
 
   return (

@@ -6,6 +6,7 @@ import Icon from "components/Icon/Icon";
 const baseClass = "modal";
 
 type ModalWidth = "medium" | "large" | "xlarge" | "auto";
+//                  650px    800px      850px      auto
 
 export interface IModalProps {
   title: string | JSX.Element;

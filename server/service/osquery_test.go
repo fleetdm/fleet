@@ -263,6 +263,7 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: true,
 	},
+	osquery_utils.Integrations{},
 )
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
@@ -1264,6 +1265,10 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 		return map[string]string{}, nil
 	}
 
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
+	}
+
 	lq := live_query_mock.New(t)
 	lq.On("QueriesForHost", uint(1)).Return(map[string]string{}, nil)
 	lq.On("QueriesForHost", uint(2)).Return(map[string]string{}, nil)
@@ -1364,6 +1369,9 @@ func TestGetDistributedQueriesEmptyQuery(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{"empty_policy_query": ""}, nil
 	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
+	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{"empty_live_query": ""}, nil)
 
@@ -1404,6 +1412,9 @@ func TestLabelQueries(t *testing.T) {
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: true,
 		}}, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1570,6 +1581,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -1801,6 +1815,9 @@ func TestDetailQueries(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 		return host, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 
 	// With a new host, we should get the detail queries (and accelerated
@@ -3128,6 +3145,9 @@ func TestPolicyQueries(t *testing.T) {
 			EnableSoftwareInventory: true,
 		}}, nil
 	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
+	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
 
@@ -3291,6 +3311,81 @@ func TestPolicyQueries(t *testing.T) {
 	noPolicyResults(queries)
 }
 
+func TestPolicyQueriesDuringSetupExperience(t *testing.T) {
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestService(t, ds, nil, lq)
+
+	host := &fleet.Host{
+		Platform: "darwin",
+	}
+
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		host = gotHost
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
+	}
+
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return true, nil
+	}
+
+	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
+
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "select 1", "2": "select 42;"}, nil
+	}
+
+	ctx = hostctx.NewContext(ctx, host)
+
+	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+
+	// Should not return the 2 policy queries because we're in setup experience
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform)), len(queries), distQueriesMapKeys(queries))
+	verifyDiscovery(t, queries, discovery)
+
+	checkPolicyResults := func(queries map[string]string, shouldHavePolicies bool) {
+		hasPolicy1, hasPolicy2 := false, false
+		for name := range queries {
+			if strings.HasPrefix(name, hostPolicyQueryPrefix) {
+				if name[len(hostPolicyQueryPrefix):] == "1" {
+					hasPolicy1 = true
+				}
+				if name[len(hostPolicyQueryPrefix):] == "2" {
+					hasPolicy2 = true
+				}
+			}
+		}
+		assert.Equal(t, hasPolicy1, shouldHavePolicies)
+		assert.Equal(t, hasPolicy2, shouldHavePolicies)
+	}
+
+	// Make it appear the host is out of setup experience and ask again for policies
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+		return false, nil
+	}
+
+	queries, discovery, _, err = svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	// Should now return the 2 additional policy queries because we're out of setup experience
+	assert.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2, len(queries), distQueriesMapKeys(queries))
+	verifyDiscovery(t, queries, discovery)
+
+	checkPolicyResults(queries, true)
+}
+
 func TestPolicyWebhooks(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
@@ -3319,6 +3414,9 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
 		host = gotHost
 		return nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -3599,6 +3697,9 @@ func TestLiveQueriesFailing(t *testing.T) {
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
 	}
 
 	ctx = hostctx.NewContext(ctx, host)
@@ -4162,6 +4263,54 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"name":    "python3-urllib3",
 						"version": "1.26.2-2",
 						"source":  "rpm_packages",
+					},
+				},
+			},
+		},
+		{
+			name: "macos codesign query with cdhash_sha256",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos_codesign": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+						"cdhash_sha256":   "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+						"cdhash_sha256":   "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+					},
+				},
+			},
+		},
+		{
+			name: "macos codesign query with no cdhash_sha256 column",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos_codesign": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
+					},
+				},
+			},
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos_codesign": []map[string]string{
+					{
+						"path":            "/Applications/Slack.app",
+						"team_identifier": "com.slack.slack",
 					},
 				},
 			},

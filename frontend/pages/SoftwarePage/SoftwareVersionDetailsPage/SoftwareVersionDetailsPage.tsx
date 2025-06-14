@@ -159,17 +159,23 @@ const SoftwareVersionDetailsPage = ({
           />
         ) : (
           <>
-            <SoftwareDetailsSummary
-              title={`${softwareVersion.name}, ${softwareVersion.version}`}
-              type={formatSoftwareType(softwareVersion)}
-              hosts={hostsCount ?? 0}
-              queryParams={{
-                software_version_id: softwareVersion.id,
-                team_id: teamIdForApi,
-              }}
-              name={softwareVersion.name}
-              source={softwareVersion.source}
-            />
+            <Card
+              borderRadiusSize="xxlarge"
+              includeShadow
+              className={`${baseClass}__summary-section`}
+            >
+              <SoftwareDetailsSummary
+                title={`${softwareVersion.name}, ${softwareVersion.version}`}
+                type={formatSoftwareType(softwareVersion)}
+                hosts={hostsCount ?? 0}
+                queryParams={{
+                  software_version_id: softwareVersion.id,
+                  team_id: teamIdForApi,
+                }}
+                name={softwareVersion.name}
+                source={softwareVersion.source}
+              />
+            </Card>
             <Card
               borderRadiusSize="xxlarge"
               includeShadow

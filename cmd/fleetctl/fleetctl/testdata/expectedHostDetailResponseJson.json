@@ -53,8 +53,8 @@
       "server_url": null,
       "connected_to_fleet": null
     },
-    "mdm_last_seen_at": null,
-    "mdm_last_enrolled_at": null,
+    "last_mdm_checked_in_at": null,
+    "last_mdm_enrolled_at": null,
     "team_id": null,
     "pack_stats": null,
     "team_name": null,
@@ -83,7 +83,8 @@
         "updated_at": "0001-01-01T00:00:00Z",
         "created_at": "0001-01-01T00:00:00Z",
         "critical": false,
-        "calendar_events_enabled": true
+        "calendar_events_enabled": true,
+        "conditional_access_enabled": false
       },
       {
         "id": 2,
@@ -99,7 +100,8 @@
         "updated_at": "0001-01-01T00:00:00Z",
         "created_at": "0001-01-01T00:00:00Z",
         "critical": false,
-        "calendar_events_enabled": false
+        "calendar_events_enabled": false,
+        "conditional_access_enabled": false
       }
     ],
     "status": "offline",

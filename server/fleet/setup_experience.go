@@ -8,10 +8,11 @@ import (
 type SetupExperienceStatusResultStatus string
 
 const (
-	SetupExperienceStatusPending SetupExperienceStatusResultStatus = "pending"
-	SetupExperienceStatusRunning SetupExperienceStatusResultStatus = "running"
-	SetupExperienceStatusSuccess SetupExperienceStatusResultStatus = "success"
-	SetupExperienceStatusFailure SetupExperienceStatusResultStatus = "failure"
+	SetupExperienceStatusPending   SetupExperienceStatusResultStatus = "pending"
+	SetupExperienceStatusRunning   SetupExperienceStatusResultStatus = "running"
+	SetupExperienceStatusSuccess   SetupExperienceStatusResultStatus = "success"
+	SetupExperienceStatusFailure   SetupExperienceStatusResultStatus = "failure"
+	SetupExperienceStatusCancelled SetupExperienceStatusResultStatus = "cancelled"
 )
 
 func (s SetupExperienceStatusResultStatus) IsValid() bool {
@@ -59,19 +60,19 @@ func (s *SetupExperienceStatusResult) IsValid() error {
 	if s.SoftwareInstallerID != nil {
 		colsSet++
 		if s.NanoCommandUUID != nil || s.ScriptExecutionID != nil {
-			return fmt.Errorf("invalid setup experience staus row, software_installer_id set with incorrect secondary value column: %d", s.ID)
+			return fmt.Errorf("invalid setup experience status row, software_installer_id set with incorrect secondary value column: %d", s.ID)
 		}
 	}
 	if s.VPPAppTeamID != nil {
 		colsSet++
 		if s.HostSoftwareInstallsExecutionID != nil || s.ScriptExecutionID != nil {
-			return fmt.Errorf("invalid setup experience staus row, vpp_app_team set with incorrect secondary value column: %d", s.ID)
+			return fmt.Errorf("invalid setup experience status row, vpp_app_team set with incorrect secondary value column: %d", s.ID)
 		}
 	}
 	if s.SetupExperienceScriptID != nil {
 		colsSet++
 		if s.HostSoftwareInstallsExecutionID != nil || s.NanoCommandUUID != nil {
-			return fmt.Errorf("invalid setup experience staus row, setip_experience_script_id set with incorrect secondary value column: %d", s.ID)
+			return fmt.Errorf("invalid setup experience status row, setip_experience_script_id set with incorrect secondary value column: %d", s.ID)
 		}
 	}
 	if colsSet > 1 {
@@ -82,7 +83,6 @@ func (s *SetupExperienceStatusResult) IsValid() error {
 	}
 
 	return nil
-
 }
 
 func (s *SetupExperienceStatusResult) VPPAppID() (*VPPAppID, error) {

@@ -1,0 +1,1 @@
+Fixed several corner cases with Apple DDM profile verification. This includes a migration to clear out "remove" operations with invalid status.

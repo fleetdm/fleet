@@ -462,14 +462,14 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 			require.NoError(t, err)
 			if testcase.platformIsApple {
 				assert.True(t, ds.GetNanoMDMEnrollmentTimesFuncInvoked)
-				require.NotNil(t, hostDetail.MDMLastEnrolledAt)
-				assert.Equal(t, *hostDetail.MDMLastEnrolledAt, ts1)
-				require.NotNil(t, hostDetail.MDMLastSeenAt)
-				assert.Equal(t, *hostDetail.MDMLastSeenAt, ts2)
+				require.NotNil(t, hostDetail.LastMDMEnrolledAt)
+				assert.Equal(t, *hostDetail.LastMDMEnrolledAt, ts1)
+				require.NotNil(t, hostDetail.LastMDMCheckedInAt)
+				assert.Equal(t, *hostDetail.LastMDMCheckedInAt, ts2)
 			} else {
 				assert.False(t, ds.GetNanoMDMEnrollmentTimesFuncInvoked)
-				assert.Nil(t, hostDetail.MDMLastEnrolledAt)
-				assert.Nil(t, hostDetail.MDMLastSeenAt)
+				assert.Nil(t, hostDetail.LastMDMEnrolledAt)
+				assert.Nil(t, hostDetail.LastMDMCheckedInAt)
 			}
 		})
 	}
@@ -801,6 +801,12 @@ func TestHostAuth(t *testing.T) {
 
 	ds.GetCategoriesForSoftwareTitlesFunc = func(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error) {
 		return map[uint][]string{}, nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
+		return nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
+		return time.Time{}, nil
 	}
 
 	testCases := []struct {
@@ -1477,6 +1483,7 @@ func TestHostEncryptionKey(t *testing.T) {
 			) error {
 				act := activity.(fleet.ActivityTypeReadHostDiskEncryptionKey)
 				require.Equal(t, tt.host.ID, act.HostID)
+				require.Equal(t, []uint{tt.host.ID}, act.HostIDs())
 				require.EqualValues(t, act.HostDisplayName, tt.host.DisplayName())
 				return nil
 			}
@@ -1748,6 +1755,12 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
 		return nil, nil, nil
 	}
+	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
+		return nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
+		return time.Time{}, nil
+	}
 
 	cases := []struct {
 		name           string
@@ -1989,9 +2002,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 				return &fleet.HostLockWipeStatus{}, nil
 			}
 
-			err = svc.WipeHost(ctx, globalHostID)
+			err = svc.WipeHost(ctx, globalHostID, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-			err = svc.WipeHost(ctx, teamHostID)
+			err = svc.WipeHost(ctx, teamHostID, nil)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}

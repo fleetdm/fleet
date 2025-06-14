@@ -1132,3 +1132,131 @@ team_settings:
 	require.NoError(t, err)
 	assert.True(t, appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
 }
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitOpsDeletesNonManagedLabels() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Set the required environment variables
+	t.Setenv("FLEET_SERVER_URL", s.Server.URL)
+	t.Setenv("ORG_NAME", "Around the block")
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	var someUser fleet.User
+	for _, u := range s.Users {
+		someUser = u
+		break
+	}
+
+	// 'nonManagedLabel' is associated with a software installer and is
+	// not managed in the ops file so it should be deleted.
+	nonManagedLabel, err := s.DS.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name(),
+		Query: "bye bye label",
+	})
+	require.NoError(t, err)
+
+	installer, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+
+	_, _, err = s.DS.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install zoo",
+		InstallerFile: installer,
+		StorageID:     uuid.NewString(),
+		Filename:      "zoo.pkg",
+		Title:         "zoo",
+		Source:        "apps",
+		Version:       "0.0.1",
+		UserID:        someUser.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{
+			LabelScope: fleet.LabelScopeIncludeAny,
+			ByName: map[string]fleet.LabelIdent{nonManagedLabel.Name: {
+				LabelID:   nonManagedLabel.ID,
+				LabelName: nonManagedLabel.Name,
+			}},
+		},
+	})
+	require.NoError(t, err)
+
+	opsFile := path.Join("..", "..", "fleetctl", "testdata", "gitops", "global_config_no_paths.yml")
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", opsFile})
+
+	// Check label was removed successfully
+	result, err := s.DS.LabelIDsByName(ctx, []string{nonManagedLabel.Name})
+	require.NoError(t, err)
+	require.Empty(t, result)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestMacOSSetupScriptWithFleetSecret() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const secretName = "MY_SECRET"
+	const secretValue = "my-secret-value"
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_SECRET_"+secretName, secretValue)
+
+	// Create a script file that uses the fleet secret
+	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
+	require.NoError(t, err)
+	_, err = scriptFile.WriteString(`echo "Using secret: $FLEET_SECRET_` + secretName)
+	require.NoError(t, err)
+	err = scriptFile.Close()
+	require.NoError(t, err)
+
+	// Create a no-team file with the script
+	const noTeamTemplate = `name: No team
+policies:
+controls:
+  macos_setup:
+    script: %s
+software:
+`
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, scriptFile.Name()))
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	// Create a global file
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`)
+	require.NoError(t, err)
+
+	// Apply the configs
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+
+	// Verify the script was saved
+	_, err = s.DS.GetSetupExperienceScript(ctx, nil)
+	require.NoError(t, err)
+
+	// Verify the secret was saved
+	secretVariables, err := s.DS.GetSecretVariables(ctx, []string{secretName})
+	require.NoError(t, err)
+	require.Equal(t, secretVariables[0].Name, secretName)
+	require.Equal(t, secretVariables[0].Value, secretValue)
+}

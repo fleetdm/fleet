@@ -1,9 +1,15 @@
 import React, { useContext, useState, useEffect } from "react";
+import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import paths from "router/paths";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
-import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
+import {
+  IAppStoreApp,
+  ISoftwarePackage,
+  isSoftwarePackage,
+} from "interfaces/software";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { NotificationContext } from "context/notification";
@@ -16,6 +22,7 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
@@ -47,6 +54,9 @@ interface IEditSoftwareModalProps {
   refetchSoftwareTitle: () => void;
   onExit: () => void;
   installerType: "package" | "vpp";
+  router: InjectedRouter;
+  gitOpsModeEnabled?: boolean;
+  openViewYamlModal: () => void;
 }
 
 const EditSoftwareModal = ({
@@ -56,6 +66,9 @@ const EditSoftwareModal = ({
   onExit,
   refetchSoftwareTitle,
   installerType,
+  router,
+  gitOpsModeEnabled = false,
+  openViewYamlModal,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -180,17 +193,26 @@ const EditSoftwareModal = ({
         },
       });
 
-      renderFlash(
-        "success",
-        <>
-          Successfully edited <b>{formData.software?.name}</b>.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
-        </>
-      );
-      onExit();
+      if (
+        isSoftwarePackage(software) &&
+        software.title_id &&
+        gitOpsModeEnabled
+      ) {
+        // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
+        openViewYamlModal();
+      } else {
+        renderFlash(
+          "success",
+          <>
+            Successfully edited <b>{formData.software?.name}</b>.
+            {formData.selfService
+              ? " The end user can install from Fleet Desktop."
+              : ""}
+          </>
+        );
+      }
       refetchSoftwareTitle();
+      onExit();
     } catch (e) {
       renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
     }
@@ -298,7 +320,6 @@ const EditSoftwareModal = ({
           defaultUninstallScript={softwarePackage.uninstall_script}
           defaultSelfService={softwarePackage.self_service}
           defaultCategories={softwarePackage.categories}
-          gitopsCompatible
         />
       );
     }

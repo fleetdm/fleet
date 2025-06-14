@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -45,8 +46,10 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 		samlProvider,
 		store,
 		"/redir",
+		0,
 	)
 	require.NoError(t, err)
+	assert.Equal(t, 300*time.Second, store.sessionLifetime) // check default is used
 
 	parsed, err := url.Parse(idpURL)
 	require.NoError(t, err)
@@ -62,10 +65,21 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	ssn := store.session
 	require.NotNil(t, ssn)
 	assert.Equal(t, "/redir", ssn.OriginalURL)
+	assert.Equal(t, 5*time.Minute, store.sessionLifetime)
 
 	var meta saml.EntityDescriptor
 	require.NoError(t, xml.Unmarshal([]byte(ssn.Metadata), &meta))
 	assert.Equal(t, "test", meta.EntityID)
+
+	sessionTTL := uint(3600) // seconds
+	_, err = CreateAuthorizationRequest(context.Background(),
+		samlProvider,
+		store,
+		"/redir",
+		sessionTTL,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, 1*time.Hour, store.sessionLifetime)
 }
 
 func inflate(t *testing.T, s string) *saml.AuthnRequest {
@@ -83,7 +97,8 @@ func inflate(t *testing.T, s string) *saml.AuthnRequest {
 }
 
 type mockStore struct {
-	session *Session
+	session         *Session
+	sessionLifetime time.Duration
 }
 
 func (s *mockStore) create(relayStateToken, requestID, originalURL, metadata string, lifetimeSecs uint) error {
@@ -92,6 +107,7 @@ func (s *mockStore) create(relayStateToken, requestID, originalURL, metadata str
 		OriginalURL: originalURL,
 		Metadata:    metadata,
 	}
+	s.sessionLifetime = time.Duration(lifetimeSecs) * time.Second // nolint:gosec // dismiss G115
 	return nil
 }
 

@@ -13,13 +13,11 @@ Script execution is disabled by default. Continue reading to learn how to enable
 
 If you use Fleet's macOS MDM features, scripts are automatically enabled for macOS hosts that have MDM turned on. You're set!
 
-If you don't use MDM features, to enable scripts, we'll deploy a fleetd agent with scripts enabled:
+If you don't use MDM features, to enable scripts, we'll [deploy a fleetd agent](https://fleetdm.com/guides/enroll-hosts) with scripts enabled:
 
 1. Generate a new fleetd agent for macOS, Windows, or Linux using the `fleetctl package` command with the `--enable-scripts` flag. 
 
 2. Deploy fleetd to your hosts. If your hosts already have fleetd installed, you can deploy the new fleetd on-top of the old installation.
-
-Learn more about generating a fleetd agent and deploying it [here](https://fleetdm.com/guides/enroll-hosts).
 
 ## Manually run scripts
 
@@ -47,7 +45,25 @@ fleetctl run-script --script-path=/path/to/script --host=hostname
 
 ## Automatically run scripts
 
-Learn more about automatically running scripts [here](https://fleetdm.com/guides/policy-automation-run-script).
+You can [automatically run scripts](https://fleetdm.com/guides/policy-automation-run-script) using Fleet via policy automations.
+
+## Batch execute scripts
+
+You can execute a script on a large number of hosts at the same time using the Fleet UI or Fleet API.
+
+Fleet UI:
+
+1. In Fleet, go to the **Hosts** page, and select a team.
+
+2. Select the hosts that you want to run the script on.
+
+3. Click the **Run Script** button at the top of the list of hosts.
+
+4. In the **Run Script** modal, mouse over the script you want to run and click **Run Script**.
+
+5. Either close the modal or select another script to run.
+
+Fleet API: See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

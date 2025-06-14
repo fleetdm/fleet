@@ -17,7 +17,7 @@ func Up_20220307104655(tx *sql.Tx) error {
         token VARCHAR(255) NOT NULL,
         PRIMARY KEY (host_id),
         UNIQUE INDEX idx_host_device_auth_token (token)
-    );
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	if _, err := tx.Exec(hostDeviceAuthTable); err != nil {
 		return errors.Wrap(err, "create host_device_auth table")

@@ -6,7 +6,7 @@ _Available in Fleet Premium._
 
 To add IdP host vitals, like the end user's groups and full name, follow steps for your IdP. 
 
-Fleet currently supports [Okta](#okta). [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), are coming soon.
+Fleet currently supports [Okta](#okta). [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), more are coming soon.
 
 
 ## Okta
@@ -36,7 +36,7 @@ To map users from Okta to hosts in Fleet, do the following steps:
 3. For the **Unique identifier field for users**, enter `userName`.
 4. For the **Supported provisioning actions**, select **Push New Users**, **Push Profile Updates**, and **Push Groups**.
 5. For the **Authentication Mode**, select **HTTP Header**.
-6. Create a Fleet API-only user with maintainer permissions and copy API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in Okta's **Authorization** field.
+6. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in Okta's **Authorization** field.
 7. Select the **Test Connector Configuration** button. You should see success message in Okta.
 8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from IdP.
 9. Back in Okta, select **Save**.

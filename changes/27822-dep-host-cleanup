@@ -1,3 +1,0 @@
-- Fixed issue where the host expiry window caused MDM devices assigned to Fleet in Apple Business
-  Manager (ABM) to be repeatedly deleted and re-added to Fleet, which in some cases also caused the
-  device to revert to the default team.

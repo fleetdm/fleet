@@ -29,6 +29,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
   },
   router: createMockRouter(),
   onShowInstallerDetails: noop,
+  onShowUninstallDetails: noop,
 };
 
 describe("SelfService", () => {
@@ -70,7 +71,7 @@ describe("SelfService", () => {
     );
   });
 
-  it("renders 'Reinstall' action button with 'Installed' status", async () => {
+  it("renders installed status and 'Reinstall' and 'Uninstall' action buttons with 'installed'", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -107,6 +108,7 @@ describe("SelfService", () => {
         }}
         router={createMockRouter()}
         onShowInstallerDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -117,12 +119,11 @@ describe("SelfService", () => {
       screen.getByTestId("self-service-table__status--test")
     ).toHaveTextContent("Installed");
 
-    expect(
-      screen.getByTestId("self-service-table__action-button--test")
-    ).toHaveTextContent("Reinstall");
+    expect(screen.getByRole("button", { name: "Reinstall" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
   });
 
-  it("renders 'Retry' action button with 'failed_install' status", async () => {
+  it("renders failed status and 'Retry' and 'Uninstall' action buttons with 'failed_install'", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -144,12 +145,39 @@ describe("SelfService", () => {
       screen.getByTestId("self-service-table__status--test")
     ).toHaveTextContent("Failed");
 
-    expect(
-      screen.getByTestId("self-service-table__action-button--test")
-    ).toHaveTextContent("Retry");
+    expect(screen.getByRole("button", { name: "Retry" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
   });
 
-  it("renders 'Install' action button with no status", async () => {
+  it("renders failed status and 'Install' and 'Retry uninstall' action buttons with 'failed_uninstall' status", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            name: "test-software",
+            status: "failed_uninstall",
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    // waiting for the device software data to render
+    await screen.findByText("test-software");
+
+    expect(
+      screen.getByTestId("self-service-table__status--test")
+    ).toHaveTextContent("Failed");
+
+    expect(screen.getByRole("button", { name: "Install" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Retry uninstall" })
+    ).toBeEnabled();
+  });
+
+  it("renders no status and 'Install' and 'Uninstall' action buttons with no API status", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -171,12 +199,11 @@ describe("SelfService", () => {
       screen.queryByTestId("self-service-table__status--test")
     ).not.toBeInTheDocument();
 
-    expect(
-      screen.getByTestId("self-service-table__action-button--test")
-    ).toHaveTextContent("Install");
+    expect(screen.getByRole("button", { name: "Install" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Uninstall" })).toBeEnabled();
   });
 
-  it("renders no action button with 'pending_install' status", async () => {
+  it("renders installing status and disables action buttons with 'pending_install'", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -196,10 +223,35 @@ describe("SelfService", () => {
 
     expect(
       screen.getByTestId("self-service-table__status--test")
-    ).toHaveTextContent(/Installing.../i);
+    ).toHaveTextContent("Installing...");
+
+    expect(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Uninstall" })).toBeDisabled();
+  });
+
+  it("renders uninstalling status and disables 'Reinstall' and 'Uninstall' action buttons with 'pending_uninstall'", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            name: "test-software",
+            status: "pending_uninstall",
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    // waiting for the device software data to render
+    await screen.findAllByText("test-software");
 
     expect(
-      screen.queryByTestId("self-service-table__action-button--test")
-    ).not.toBeInTheDocument();
+      screen.getByTestId("self-service-table__status--test")
+    ).toHaveTextContent("Uninstalling...");
+
+    expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Uninstall" })).toBeDisabled();
   });
 });

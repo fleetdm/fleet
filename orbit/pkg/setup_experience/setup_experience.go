@@ -33,9 +33,7 @@ type SetupExperiencer struct {
 	// its Run method is called within a WaitGroup,
 	// and no other parts of Orbit need access to this field (or any other parts of the
 	// SetupExperiencer), it's OK to not protect this with a lock.
-	sd *swiftdialog.SwiftDialog
-	// Name of each step -> is that step done
-	steps   map[string]bool
+	sd      *swiftdialog.SwiftDialog
 	uiSteps map[string]swiftdialog.ListItem
 	started bool
 }
@@ -44,7 +42,6 @@ func NewSetupExperiencer(client Client, rootDirPath string) *SetupExperiencer {
 	return &SetupExperiencer{
 		OrbitClient: client,
 		closeChan:   make(chan struct{}),
-		steps:       make(map[string]bool),
 		uiSteps:     make(map[string]swiftdialog.ListItem),
 		rootDirPath: rootDirPath,
 	}
@@ -109,14 +106,10 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		}
 	}
 
-	s.steps["bootstrap"] = true
-
 	if isPending, name := anyProfilePending(payload.ConfigurationProfiles); isPending {
 		log.Info().Msg(fmt.Sprintf("setup experience: profile pending: %s", name))
 		return nil
 	}
-
-	s.steps["config_profiles"] = true
 
 	if payload.AccountConfiguration != nil {
 		if payload.AccountConfiguration.Status != fleet.MDMAppleStatusAcknowledged &&
@@ -128,7 +121,9 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		}
 	}
 
-	s.steps["account_config"] = true
+	// Note that we are setting this based on the current payload only just in case something
+	// was removed from the payload that was there earlier(e.g. a deleted software title).
+	allStepsDone := true
 
 	// Now render the UI for the software and script.
 	if len(payload.Software) > 0 || payload.Script != nil {
@@ -145,6 +140,26 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 			steps = append(steps, payload.Script)
 		}
 
+		// Check for any items that were in the payload that are no longer there. This can happen
+		// if a software title was deleted, for instance
+		for uiStepName, uiStep := range s.uiSteps {
+			uiStepExistsInPayload := false
+			for _, step := range steps {
+				if uiStep.Title == step.Name {
+					uiStepExistsInPayload = true
+					break
+				}
+			}
+			if !uiStepExistsInPayload {
+				log.Info().Msgf("Setup Experience: list item %s removed from payload", uiStep.Title)
+				err = s.sd.DeleteListItemByTitle(uiStep.Title)
+				if err != nil {
+					log.Info().Err(err).Msg("deleting list item removed from payload from setup experience UI")
+				}
+				delete(s.uiSteps, uiStepName)
+			}
+		}
+
 		for _, step := range steps {
 			currentStepState := resultToListItem(step)
 			if priorStepState, ok := s.uiSteps[step.Name]; ok {
@@ -156,7 +171,6 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 					}
 				} else {
 					log.Info().Msgf("setup experience: no change in status for %s", step.Name)
-					continue
 				}
 			} else {
 				err = s.sd.AddListItem(currentStepState)
@@ -164,16 +178,16 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 					log.Info().Err(err).Msg("adding list item in setup experience UI")
 				}
 				s.uiSteps[step.Name] = currentStepState
-				s.steps[step.Name] = false
 			}
 
 			if step.Status == fleet.SetupExperienceStatusFailure || step.Status == fleet.SetupExperienceStatusSuccess {
 				stepsDone++
-				s.steps[step.Name] = true
 				// The swiftDialog progress bar is out of 100
 				for range int(float32(1) / float32(len(steps)) * 100) {
 					prog++
 				}
+			} else {
+				allStepsDone = false
 			}
 		}
 
@@ -193,7 +207,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 	// If we get here, we can render the "done" UI.
 
-	if s.allStepsDone() {
+	if allStepsDone {
 		if err := s.sd.SetMessage(doneMessage); err != nil {
 			log.Info().Err(err).Msg("setting message in setup experience UI")
 		}
@@ -227,16 +241,6 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 	}
 
 	return nil
-}
-
-func (s *SetupExperiencer) allStepsDone() bool {
-	for _, done := range s.steps {
-		if !done {
-			return false
-		}
-	}
-
-	return true
 }
 
 func anyProfilePending(profiles []*fleet.SetupExperienceConfigurationProfileResult) (bool, string) {

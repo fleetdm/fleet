@@ -220,5 +220,4 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	winProfile, err := s.DS.GetMDMWindowsConfigProfile(ctx, windowsProfileUUID)
 	require.NoError(t, err)
 	assert.Contains(t, string(winProfile.SyncML), "${FLEET_SECRET_"+secretName2+"}")
-
 }

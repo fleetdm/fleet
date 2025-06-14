@@ -193,14 +193,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     IConfig
   >(["config"], () => configAPI.loadAll(), { ...DEFAULT_USE_QUERY_OPTIONS });
 
-  // TODO(android): remove this when the feature flag is removed
-  const platformOptions = useMemo(() => {
-    if (!config?.android_enabled) {
-      return PLATFORM_DROPDOWN_OPTIONS.filter((o) => o.value !== "android");
-    }
-    return [...PLATFORM_DROPDOWN_OPTIONS];
-  }, [config?.android_enabled]);
-
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ILoadTeamsResponse,
     Error,
@@ -331,33 +323,37 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       enabled: isRouteOk && isSoftwareEnabled,
       keepPreviousData: true,
       staleTime: 30000, // stale time can be adjusted if fresher data is desired based on software inventory interval
-      onSuccess: (data) => {
-        const hasSoftwareResults = !!data.software && data.software.length > 0;
-
-        if (hasSoftwareResults) {
-          setSoftwareTitleDetail &&
-            setSoftwareTitleDetail(
-              <LastUpdatedText
-                lastUpdatedAt={data.counts_updated_at}
-                customTooltipText={
-                  <>
-                    Fleet periodically queries all hosts to
-                    <br />
-                    retrieve software. Click to view
-                    <br />
-                    hosts for the most up-to-date lists.
-                  </>
-                }
-              />
-            );
-          setShowSoftwareCard(true);
-        } else if (!isViewingVulnerableSoftware) {
-          setShowSoftwareCard(false);
-        }
-        // For vulnerable software with no results, the count query will handle showing the card.
-      },
+      // Don't use onSuccess for UI state: it won't run for cached data, only after a new fetch
     }
   );
+
+  // Keeps UI state in sync with both cached and freshly fetched query results
+  useEffect(() => {
+    const hasSoftwareResults =
+      !!software?.software && software.software.length > 0;
+
+    if (hasSoftwareResults) {
+      setShowSoftwareCard(true);
+      setSoftwareTitleDetail(
+        <LastUpdatedText
+          lastUpdatedAt={software.counts_updated_at}
+          customTooltipText={
+            <>
+              Fleet periodically queries all hosts to
+              <br />
+              retrieve software. Click to view
+              <br />
+              hosts for the most up-to-date lists.
+            </>
+          }
+        />
+      );
+    } else if (!isViewingVulnerableSoftware) {
+      setShowSoftwareCard(false);
+      setSoftwareTitleDetail(null);
+    }
+    // For vulnerable software with no results, the count query will handle showing the card.
+  }, [software, isViewingVulnerableSoftware]);
 
   // If viewing vulnerable software and no results are returned,
   // fetch the count of non-vulnerable software to decide if the card should be shown.
@@ -562,7 +558,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   ) : (
     <>
       <PlatformHostCounts
-        androidDevEnabled={!!config?.android_enabled}
         currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
@@ -629,6 +624,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         setShowActivityFeedTitle={setShowActivityFeedTitle}
         isPremiumTier={isPremiumTier || false}
         setRefetchActivities={setRefetchActivities}
+        router={router}
       />
     ),
   });
@@ -853,7 +849,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const renderDashboardHeader = () => {
-    if (isPremiumTier) {
+    if (isPremiumTier && !config?.partnerships?.enable_primo) {
       if (userTeams) {
         if (userTeams.length > 1 || isOnGlobalTeam) {
           return (
@@ -871,7 +867,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       // userTeams.length should have at least 1 element
       return null;
     }
-    // Free tier
     return <h1>{config?.org_info.org_name}</h1>;
   };
   return !isRouteOk ? (
@@ -892,7 +887,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             name="platform-filter"
             value={selectedPlatform || ""}
             className={`${baseClass}__platform-filter`}
-            options={platformOptions}
+            options={[...PLATFORM_DROPDOWN_OPTIONS]}
             onChange={(option: SingleValue<CustomOptionType>) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
                 (platform) => platform.value === option?.value

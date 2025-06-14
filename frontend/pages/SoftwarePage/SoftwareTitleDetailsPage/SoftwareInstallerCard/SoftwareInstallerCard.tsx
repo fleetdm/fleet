@@ -1,8 +1,8 @@
 /** software/titles/:id > Second section */
 
 import React, { useCallback, useContext, useState } from "react";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import {
@@ -11,34 +11,36 @@ import {
   isSoftwarePackage,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
+import PATHS from "router/paths";
 
-import { getPathWithQueryParams } from "utilities/url";
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Card from "components/Card";
 
-import ActionsDropdown from "components/ActionsDropdown";
 import TooltipWrapper from "components/TooltipWrapper";
-import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 import Tag from "components/Tag";
+import Button from "components/buttons/Button";
 
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import CustomLink from "components/CustomLink";
-import SoftwareDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/SoftwareDetailsWidget";
+import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
+import ViewYamlModal from "../ViewYamlModal";
 
 import {
-  APP_STORE_APP_DROPDOWN_OPTIONS,
-  SOFTWARE_PACKAGE_DROPDOWN_OPTIONS,
+  APP_STORE_APP_ACTION_OPTIONS,
+  SOFTWARE_PACKAGE_ACTION_OPTIONS,
   downloadFile,
 } from "./helpers";
-import AutomaticInstallModal from "../AutomaticInstallModal";
+import InstallerStatusTable from "./InstallerStatusTable";
+import InstallerPoliciesTable from "./InstallerPoliciesTable";
 
 const baseClass = "software-installer-card";
 
@@ -60,7 +62,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
     iconName: "success",
     tooltip: (
       <>
-        Software is installed on these hosts (install script finished
+        Software was installed on these hosts (install script finished
         <br />
         with exit code 0). Currently, if the software is uninstalled, the
         <br />
@@ -92,89 +94,29 @@ const STATUS_DISPLAY_OPTIONS: Record<
   },
 };
 
-interface IInstallerStatusCountProps {
-  softwareId: number;
-  status: SoftwareInstallDisplayStatus;
-  count: number;
-  teamId?: number;
-}
-
-const InstallerStatusCount = ({
-  softwareId,
-  status,
-  count,
-  teamId,
-}: IInstallerStatusCountProps) => {
-  const displayData = STATUS_DISPLAY_OPTIONS[status];
-  const linkUrl = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
-    software_title_id: softwareId,
-    software_status: status,
-    team_id: teamId,
-  });
-
-  return (
-    <DataSet
-      className={`${baseClass}__status`}
-      title={
-        <TooltipWrapper
-          position="top"
-          tipContent={displayData.tooltip}
-          underline={false}
-          showArrow
-          tipOffset={10}
-        >
-          <div className={`${baseClass}__status-title`}>
-            <Icon name={displayData.iconName} />
-            <div>{displayData.displayName}</div>
-          </div>
-        </TooltipWrapper>
-      }
-      value={
-        <a className={`${baseClass}__status-count`} href={linkUrl}>
-          {count} hosts
-        </a>
-      }
-    />
-  );
-};
-
 interface IActionsDropdownProps {
   installerType: "package" | "vpp";
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   onEditSoftwareClick: () => void;
+  gitOpsModeEnabled?: boolean;
+  repoURL?: string;
+  isFMA?: boolean;
 }
 
-const SoftwareActionsDropdown = ({
+export const SoftwareActionButtons = ({
   installerType,
   onDownloadClick,
   onDeleteClick,
   onEditSoftwareClick,
+  gitOpsModeEnabled,
+  repoURL,
+  isFMA,
 }: IActionsDropdownProps) => {
-  const config = useContext(AppContext).config;
-  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
-    config?.gitops || {};
-
-  const onSelect = (action: string) => {
-    switch (action) {
-      case "download":
-        onDownloadClick();
-        break;
-      case "delete":
-        onDeleteClick();
-        break;
-      case "edit":
-        onEditSoftwareClick();
-        break;
-      default:
-      // noop
-    }
-  };
-
   let options =
     installerType === "package"
-      ? [...SOFTWARE_PACKAGE_DROPDOWN_OPTIONS]
-      : [...APP_STORE_APP_DROPDOWN_OPTIONS];
+      ? [...SOFTWARE_PACKAGE_ACTION_OPTIONS]
+      : [...APP_STORE_APP_ACTION_OPTIONS];
 
   if (gitOpsModeEnabled) {
     const tooltipContent = (
@@ -195,7 +137,12 @@ const SoftwareActionsDropdown = ({
       </>
     );
     options = options.map((option) => {
-      if (option.value === "edit" || option.value === "delete") {
+      // edit is disabled in gitOpsMode for VPP only
+      // delete is disabled in gitOpsMode for software types that can't be added in GitOps mode (FMA, VPP)
+      if (
+        (option.value === "edit" && installerType === "vpp") ||
+        (option.value === "delete" && (installerType === "vpp" || isFMA))
+      ) {
         return {
           ...option,
           disabled: true,
@@ -206,20 +153,49 @@ const SoftwareActionsDropdown = ({
     });
   }
 
+  // Map action values to handlers
+  const actionHandlers = {
+    download: onDownloadClick,
+    delete: onDeleteClick,
+    edit: onEditSoftwareClick,
+  };
+
   return (
     <div className={`${baseClass}__actions`}>
-      <ActionsDropdown
-        className={`${baseClass}__software-actions-dropdown`}
-        onChange={onSelect}
-        placeholder="Actions"
-        menuAlign="right"
-        options={options}
-      />
+      {options.map((option) => {
+        const ButtonContent = (
+          <Button
+            key={option.value}
+            className={`btn btn-link ${baseClass}__action-btn`}
+            disabled={option.disabled}
+            onClick={() =>
+              actionHandlers[option.value as keyof typeof actionHandlers]?.()
+            }
+            variant="icon"
+          >
+            <Icon name={option.iconName} color="core-fleet-blue" />
+          </Button>
+        );
+
+        // If there's a tooltip, wrap the button
+        return option.tooltipContent ? (
+          <TooltipWrapper
+            key={option.value}
+            tipContent={option.tooltipContent}
+            underline={false}
+          >
+            {ButtonContent}
+          </TooltipWrapper>
+        ) : (
+          ButtonContent
+        );
+      })}
     </div>
   );
 };
 
 interface ISoftwareInstallerCardProps {
+  softwareTitleName: string;
   name: string;
   version: string | null;
   addedTimestamp: string;
@@ -231,15 +207,20 @@ interface ISoftwareInstallerCardProps {
   isSelfService: boolean;
   softwareId: number;
   teamId: number;
+  teamIdForApi?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
   onDelete: () => void;
   refetchSoftwareTitle: () => void;
+  isLoading: boolean;
+  router: InjectedRouter;
+  gitOpsYamlParam?: boolean;
 }
 
 // NOTE: This component is dependent on having either a software package
 // (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwareInstallerCard = ({
+  softwareTitleName,
   name,
   version,
   addedTimestamp,
@@ -248,26 +229,47 @@ const SoftwareInstallerCard = ({
   softwareInstaller,
   softwareId,
   teamId,
+  teamIdForApi,
   onDelete,
   refetchSoftwareTitle,
+  isLoading,
+  router,
+  gitOpsYamlParam = false,
 }: ISoftwareInstallerCardProps) => {
   const installerType = isSoftwarePackage(softwareInstaller)
     ? "package"
     : "vpp";
+  const isFleetMaintainedApp =
+    "fleet_maintained_app_id" in softwareInstaller &&
+    !!softwareInstaller.fleet_maintained_app_id;
+  const isCustomPackage = installerType === "package" && !isFleetMaintainedApp;
+  const sha256 =
+    "hash_sha256" in softwareInstaller
+      ? softwareInstaller.hash_sha256
+      : undefined;
+
+  const {
+    automatic_install_policies: automaticInstallPolicies,
+  } = softwareInstaller;
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
+    config,
   } = useContext(AppContext);
+
+  const { gitops_mode_enabled: gitOpsModeEnabled, repository_url: repoURL } =
+    config?.gitops || {};
 
   const { renderFlash } = useContext(NotificationContext);
 
+  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
+  // as it automatically opens from adding flow of custom software in gitOps mode
+  const [showViewYamlModal, setShowViewYamlModal] = useState(gitOpsYamlParam);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showAutomaticInstallModal, setShowAutomaticInstallModal] = useState(
-    false
-  );
 
   const onEditSoftwareClick = () => {
     setShowEditSoftwareModal(true);
@@ -275,6 +277,10 @@ const SoftwareInstallerCard = ({
 
   const onDeleteClick = () => {
     setShowDeleteModal(true);
+  };
+
+  const onToggleViewYaml = () => {
+    setShowViewYamlModal(!showViewYamlModal);
   };
 
   const onDeleteSuccess = useCallback(() => {
@@ -338,85 +344,100 @@ const SoftwareInstallerCard = ({
 
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
-      <div className={`${baseClass}__row-1`}>
-        <div className={`${baseClass}__row-1--responsive`}>
-          <SoftwareDetailsWidget
-            softwareName={softwareInstaller?.name || name}
-            installerType={installerType}
-            versionInfo={versionInfo}
-            addedTimestamp={addedTimestamp}
-          />
-          <div className={`${baseClass}__tags-wrapper`}>
-            {Array.isArray(softwareInstaller.automatic_install_policies) &&
-              softwareInstaller.automatic_install_policies.length > 0 && (
+      <div className={`${baseClass}__installer-header`}>
+        <div className={`${baseClass}__row-1`}>
+          <div className={`${baseClass}__row-1--responsive-wrap`}>
+            <InstallerDetailsWidget
+              softwareName={softwareInstaller?.name || name}
+              installerType={installerType}
+              versionInfo={versionInfo}
+              addedTimestamp={addedTimestamp}
+              sha256={sha256}
+              isFma={isFleetMaintainedApp}
+            />
+            <div className={`${baseClass}__tags-wrapper`}>
+              {Array.isArray(automaticInstallPolicies) &&
+                automaticInstallPolicies.length > 0 && (
+                  <TooltipWrapper
+                    showArrow
+                    position="top"
+                    tipContent={
+                      automaticInstallPolicies.length === 1
+                        ? "A policy triggers install."
+                        : `${automaticInstallPolicies.length} policies trigger install.`
+                    }
+                    underline={false}
+                  >
+                    <Tag icon="refresh" text="Automatic install" />
+                  </TooltipWrapper>
+                )}
+              {isSelfService && (
                 <TooltipWrapper
                   showArrow
                   position="top"
-                  tipContent="Click to see policy that triggers automatic install."
+                  tipContent={SELF_SERVICE_TOOLTIP}
                   underline={false}
                 >
-                  <Tag
-                    icon="refresh"
-                    text="Automatic install"
-                    onClick={() => setShowAutomaticInstallModal(true)}
-                  />
+                  <Tag icon="user" text="Self-service" />
                 </TooltipWrapper>
               )}
-            {isSelfService && (
-              <TooltipWrapper
-                showArrow
-                position="top"
-                tipContent={SELF_SERVICE_TOOLTIP}
-                underline={false}
-              >
-                <Tag icon="user" text="Self-service" />
-              </TooltipWrapper>
+            </div>
+          </div>
+          <div className={`${baseClass}__actions-wrapper`}>
+            {showActions && (
+              <SoftwareActionButtons
+                installerType={installerType}
+                onDownloadClick={onDownloadClick}
+                onDeleteClick={onDeleteClick}
+                onEditSoftwareClick={onEditSoftwareClick}
+                gitOpsModeEnabled={gitOpsModeEnabled}
+                repoURL={repoURL}
+                isFMA={isFleetMaintainedApp}
+              />
             )}
           </div>
         </div>
-        <div className={`${baseClass}__actions-wrapper`}>
-          {showActions && (
-            <SoftwareActionsDropdown
-              installerType={installerType}
-              onDownloadClick={onDownloadClick}
-              onDeleteClick={onDeleteClick}
-              onEditSoftwareClick={onEditSoftwareClick}
-            />
+        <div className={`${baseClass}__row-2`}>
+          {gitOpsModeEnabled && isCustomPackage && (
+            <div className={`${baseClass}__yaml-button-wrapper`}>
+              <Button onClick={onToggleViewYaml}>View YAML</Button>
+            </div>
           )}
         </div>
       </div>
-      <div className={`${baseClass}__installer-statuses`}>
-        <InstallerStatusCount
+      <div className={`${baseClass}__installer-status-table`}>
+        <InstallerStatusTable
           softwareId={softwareId}
-          status="installed"
-          count={status.installed}
           teamId={teamId}
-        />
-        <InstallerStatusCount
-          softwareId={softwareId}
-          status="pending"
-          count={status.pending}
-          teamId={teamId}
-        />
-        <InstallerStatusCount
-          softwareId={softwareId}
-          status="failed"
-          count={status.failed}
-          teamId={teamId}
+          status={status}
+          isLoading={isLoading}
         />
       </div>
+      {automaticInstallPolicies && (
+        <div className={`${baseClass}__installer-policies-table`}>
+          <InstallerPoliciesTable
+            teamId={teamId}
+            isLoading={isLoading}
+            policies={automaticInstallPolicies}
+          />
+        </div>
+      )}
       {showEditSoftwareModal && (
         <EditSoftwareModal
+          router={router}
+          gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
           teamId={teamId}
           software={softwareInstaller}
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
+          openViewYamlModal={onToggleViewYaml}
         />
       )}
       {showDeleteModal && (
         <DeleteSoftwareModal
+          gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
           softwareInstallerName={softwareInstaller?.name}
           teamId={teamId}
@@ -424,15 +445,13 @@ const SoftwareInstallerCard = ({
           onSuccess={onDeleteSuccess}
         />
       )}
-      {showAutomaticInstallModal &&
-        softwareInstaller?.automatic_install_policies &&
-        softwareInstaller?.automatic_install_policies.length > 0 && (
-          <AutomaticInstallModal
-            teamId={teamId}
-            policies={softwareInstaller.automatic_install_policies}
-            onExit={() => setShowAutomaticInstallModal(false)}
-          />
-        )}
+      {showViewYamlModal && isCustomPackage && (
+        <ViewYamlModal
+          softwareTitleName={softwareTitleName}
+          softwarePackage={softwareInstaller as ISoftwarePackage}
+          onExit={onToggleViewYaml}
+        />
+      )}
     </Card>
   );
 };

@@ -85,6 +85,14 @@ func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
 	}
 
 	lic, _ := license.FromContext(ctx)
+
+	// Currently we use the presence of Microsoft Compliance Partner settings
+	// (only configured in cloud instances) to determine if a Fleet instance
+	// is a cloud managed instance.
+	if svc.config.MicrosoftCompliancePartner.IsSet() {
+		lic.ManagedCloud = true
+	}
+
 	return lic, nil
 }
 
@@ -242,4 +250,18 @@ func (svc *Service) EmailConfig(ctx context.Context) (*fleet.EmailConfig, error)
 	}
 
 	return email, nil
+}
+
+func (svc *Service) PartnershipsConfig(ctx context.Context) (*fleet.Partnerships, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	enablePrimo := svc.config.Partnerships.EnablePrimo
+	if !enablePrimo {
+		// for now, since this is the only partnership of this type, exclude the whole struct if not enabled
+		return nil, nil
+	}
+	return &fleet.Partnerships{
+		EnablePrimo: svc.config.Partnerships.EnablePrimo,
+	}, nil
 }

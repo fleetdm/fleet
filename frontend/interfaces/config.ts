@@ -15,6 +15,7 @@ export interface ILicense {
   organization: string;
   // Whether the Fleet instance is managed by FleetDM
   managed_cloud: boolean;
+  allow_disable_telemetry: boolean;
 }
 
 export interface IEndUserAuthentication {
@@ -111,7 +112,6 @@ export interface IConfigServerSettings {
 }
 
 export interface IConfig {
-  android_enabled: boolean; // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: string;
     org_logo_url: string;
@@ -190,6 +190,11 @@ export interface IConfig {
   };
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
+  partnerships?: IFleetPartnerships;
+}
+
+interface IFleetPartnerships {
+  enable_primo: boolean;
 }
 
 export interface IWebhookSettings {

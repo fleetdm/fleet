@@ -30,7 +30,6 @@ const InputFieldHiddenContent = ({
         name={name}
         enableShowSecret
         enableCopy
-        copyButtonPosition="inside"
         type={"password"}
         value={value}
         helpText={helpText}

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
+import { InjectedRouter } from "react-router";
 
 import activitiesAPI, {
   IActivitiesResponse,
@@ -24,12 +25,14 @@ import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetai
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/SoftwareDetailsModal";
 import VppDetailsModal from "./components/VPPDetailsModal";
+import ScriptBatchSummaryModal from "./components/ScriptBatchSummaryModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
   setShowActivityFeedTitle: (showActivityFeedTitle: boolean) => void;
   setRefetchActivities: (refetch: () => void) => void;
   isPremiumTier: boolean;
+  router: InjectedRouter;
 }
 
 const DEFAULT_PAGE_SIZE = 8;
@@ -38,6 +41,7 @@ const ActivityFeed = ({
   setShowActivityFeedTitle,
   setRefetchActivities,
   isPremiumTier,
+  router,
 }: IActvityCardProps): JSX.Element => {
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
@@ -63,6 +67,10 @@ const ActivityFeed = ({
     setSoftwareDetails,
   ] = useState<IActivityDetails | null>(null);
   const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
+  const [
+    scriptBatchExecutionDetails,
+    setScriptBatchExecutionDetails,
+  ] = useState<IActivityDetails | null>(null);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -109,7 +117,11 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = ({ type, details }: IShowActivityDetailsData) => {
+  const handleDetailsClick = ({
+    type,
+    details,
+    created_at,
+  }: IShowActivityDetailsData) => {
     switch (type) {
       case ActivityType.LiveQuery:
         queryShown.current = details?.query_sql ?? "";
@@ -144,6 +156,9 @@ const ActivityFeed = ({
       case ActivityType.EditedAppStoreApp:
       case ActivityType.DeletedAppStoreApp:
         setVppDetails({ ...details });
+        break;
+      case ActivityType.RanScriptBatch:
+        setScriptBatchExecutionDetails({ ...details, created_at });
         break;
       default:
         break;
@@ -258,6 +273,13 @@ const ActivityFeed = ({
         <VppDetailsModal
           details={vppDetails}
           onCancel={() => setVppDetails(null)}
+        />
+      )}
+      {scriptBatchExecutionDetails && (
+        <ScriptBatchSummaryModal
+          scriptBatchExecutionDetails={scriptBatchExecutionDetails}
+          onCancel={() => setScriptBatchExecutionDetails(null)}
+          router={router}
         />
       )}
     </div>

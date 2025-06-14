@@ -86,7 +86,6 @@ const AdvancedOptionsFields = ({
         helpText={installScriptHelpText}
         label="Install script"
         labelTooltip={installScriptTooltip}
-        isFormField
       />
       <Editor
         label="Post-install script"
@@ -98,7 +97,6 @@ const AdvancedOptionsFields = ({
         onChange={onChangePostInstallScript}
         value={postInstallScript}
         helpText={postInstallScriptHelpText}
-        isFormField
       />
       <Editor
         label="Uninstall script"
@@ -110,7 +108,6 @@ const AdvancedOptionsFields = ({
         onChange={onChangeUninstallScript}
         value={uninstallScript}
         helpText={uninstallScriptHelpText}
-        isFormField
       />
     </div>
   );

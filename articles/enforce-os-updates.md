@@ -6,7 +6,7 @@ In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hos
 
 ## Turning on enforcement
 
-For Apple (macOS, iOS, and iPadOS) hosts, the you can find the list of available OS versions in the Apple Software Lookup Service [here](https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv). The update will only be enforced if you use a version in that list.
+For Apple (macOS, iOS, and iPadOS) hosts, Apple provides a [list of available OS versions](https://gdmf.apple.com/v2/pmv) in the Apple Software Lookup Service. The update will only be enforced if you use a version in that list.
 
 ### Fleet UI
 
@@ -46,7 +46,7 @@ If the host was turned off when the deadline passed, the update will be schedule
 
 If you set a past date (ex. yesterday) as the deadline, the end user will immediately be prompted to install the update. If they don't, the update will automatically install in one hour. Similarly, if you set the deadline to today, end users will experience the same behavior if it's after 12 PM (end user local time).
 
-For hosts that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest version during ADE before device setup and enrollment can proceed. You can find the latest version in the Apple Software Lookup Service [here](https://gdmf.apple.com/v2/pmv](https://gdmf.apple.com/v2/pmv).
+For hosts that use Automated Device Enrollment (ADE), if the device is below the specified minimum version, it will be required to update to the latest version during ADE before device setup and enrollment can proceed. You can find the latest version in the [Apple Software Lookup Service](https://gdmf.apple.com/v2/pmv). Apple's software updates are relatively large (up to several GBs) so ask your end users to connect to a Wi-Fi network that can handle large downloads during ADE.
 
 ### Windows
 
@@ -58,7 +58,7 @@ End users are encouraged to update Windows via the native Windows dialog.
 
 If an end user was on vacation when the deadline passed, the end user is given a grace period (configured) before the host automatically restarts.
 
-Fleet enforces OS updates for quality and feature updates. Read more about the types of Windows OS updates in the Microsoft documentation [here](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
+Fleet enforces OS updates for quality and feature updates. Microsoft provides documentation on [types of Windows updates](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
 
 ### macOS (below version 14.0)
 

@@ -1,3 +1,42 @@
+## Orbit 1.43.0 (Jun 10, 2025)
+
+* Fixed an issue where the setup experience window would never finish and close if a software installer was deleted while it was running.
+
+* Add `containerd_containers` table on Linux.
+
+* Revised "Migrate to Fleet" link anchor text.
+
+* Added two new Linux tables:
+  * `lsblk`: populated from the output of running `lsblk -n -O`.
+  * `cryptsetup_luks_salt`: given a device path it returns all the key_slots and salts of said device.
+
+* Added new column `cdhash_sha256` to `codesign` table.
+
+## Orbit 1.42.0 (May 15, 2025)
+
+* Made the macOS Setup Experience dialog more reliable by preventing system sleep while it is shown, changing the key combo to cmd+shift+x to exit, keeping it on top of all other windows and making sure it closes once it completes.
+
+* Fixed "concurrent map writes" crashes in orbit when both `EscrowBuddy` and `swiftDialog` components are updated/fetched.
+
+* Removed popup loading indicator for LUKS key escrow.
+
+* Fixed an issue causing Nudge launch failures.
+
+* Improved support for wide aspect ratio icons in the MDM setup experience and migration dialogs for
+  Apple devices.
+
+* When fleetd on a Windows host installs an update it detects from TUF, also update the corresponding `DisplayVersion` in the Registry.
+
+* Added automatic extraction of .tar.gz/.tgz archives prior to running the associated install script.
+
+* Updated Fleet Desktop's "My device" menu item to route to the policies tab on the "My device" web page.
+
+* Updated go to 1.24.2.
+
+* Updated the `windows_updates` Orbit table so that results are only returned iff there are non-installed windows updates.
+
+* Updated orbit linux CI builders to build (musl) static executable. (The main reason for this move was the deprecation of Ubuntu 20.04 runners by Github.)
+
 ## Orbit 1.41.0 (Apr 14, 2025)
 
 * Fixed osquery flag parsing when the argument contained `=`.

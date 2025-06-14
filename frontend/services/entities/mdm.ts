@@ -4,6 +4,7 @@ import {
   IHostMdmProfile,
   IMdmCommandResult,
   IMdmProfile,
+  IMdmSSOReponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
@@ -64,13 +65,13 @@ export interface IAppleSetupEnrollmentProfileResponse {
 }
 
 export interface IMDMSSOParams {
-  dep_device_info: string;
+  deviceinfo: string;
 }
 
 export interface IMDMAppleEnrollmentProfileParams {
   token: string;
   ref?: string;
-  dep_device_info?: string;
+  deviceinfo?: string;
 }
 
 export interface IGetMdmCommandResultsResponse {
@@ -184,9 +185,9 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  initiateMDMAppleSSO: () => {
+  initiateMDMAppleSSO: (params: IMDMSSOParams): Promise<IMdmSSOReponse> => {
     const { MDM_APPLE_SSO } = endpoints;
-    return sendRequest("POST", MDM_APPLE_SSO, {});
+    return sendRequest("POST", MDM_APPLE_SSO, params);
   },
 
   getBootstrapPackageMetadata: (

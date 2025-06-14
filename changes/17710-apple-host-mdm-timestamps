@@ -1,1 +1,0 @@
-Added mdm_last_enrolled_at and mdm_last_seen_at to host detail endpoints to return the last time a host enrolled, or re-enrolled in MDM and the last time a host checked in via MDM, respectively. This data is only returned for macOS, iOS and iPadOS hosts enrolled in Fleet MDM currently, other platforms will return null.

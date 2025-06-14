@@ -14,6 +14,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
+const cacheLifetimeSeconds = uint(300) // in seconds (5 minutes)
+
 func getDestinationURL(idpMetadata *saml.EntityDescriptor) (string, error) {
 	for _, ssoDescriptor := range idpMetadata.IDPSSODescriptors {
 		for _, ssos := range ssoDescriptor.SingleSignOnServices {
@@ -33,6 +35,7 @@ func CreateAuthorizationRequest(
 	samlProvider *saml.ServiceProvider,
 	sessionStore SessionStore,
 	originalURL string,
+	sessionTTLSeconds uint,
 ) (string, error) {
 	idpURL, err := getDestinationURL(samlProvider.IDPMetadata)
 	if err != nil {
@@ -61,15 +64,19 @@ func CreateAuthorizationRequest(
 		return "", ctxerr.Wrap(ctx, err, "generate RelayState token")
 	}
 
+	sessionLifetimeSeconds := cacheLifetimeSeconds
+	if sessionTTLSeconds > 0 {
+		sessionLifetimeSeconds = sessionTTLSeconds
+	}
+
 	// Store the session with RelayState as session identifier.
 	// We cache the metadata so we can check the signatures on the response we get from the IdP.
-	const cacheLifetimeSeconds = 300
 	err = sessionStore.create(
 		relayStateToken,
 		samlAuthRequest.ID,
 		originalURL,
 		metadataWriter.String(),
-		cacheLifetimeSeconds,
+		sessionLifetimeSeconds,
 	)
 	if err != nil {
 		return "", fmt.Errorf("caching SSO session while creating auth request: %w", err)

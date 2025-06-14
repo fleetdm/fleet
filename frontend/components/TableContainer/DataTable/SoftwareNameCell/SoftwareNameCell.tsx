@@ -1,8 +1,8 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
+
 import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
-
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
 import Icon from "components/Icon";
@@ -49,7 +49,8 @@ const installIconMap: Record<InstallType, installIconConfig> = {
         {count === 1
           ? "A policy triggers install."
           : `${count} policies trigger install.`}{" "}
-        End users can reinstall from <b>Fleet Desktop {">"} Self-service</b>.
+        <br /> End users can reinstall from
+        <br /> <b>Fleet Desktop {">"} Self-service</b>.
       </>
     ),
   },
@@ -74,6 +75,7 @@ const InstallIconWithTooltip = ({
   }
 
   const tooltipId = uniqueId();
+
   return (
     <div className={`${baseClass}__install-icon-with-tooltip`}>
       <div

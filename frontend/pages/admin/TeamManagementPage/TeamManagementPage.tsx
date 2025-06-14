@@ -2,6 +2,9 @@ import React, { useState, useCallback, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
+import { PRIMO_TOOLTIP } from "utilities/constants";
+import { getGitOpsModeTipContent } from "utilities/helpers";
+
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
@@ -36,7 +39,9 @@ const TeamManagementPage = (): JSX.Element => {
     setCurrentUser,
     setAvailableTeams,
     setUserSettings,
+    config,
   } = useContext(AppContext);
+
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
@@ -250,6 +255,16 @@ const TeamManagementPage = (): JSX.Element => {
     return <TableCount name="teams" count={teams?.length} />;
   }, [teams]);
 
+  const disabledPrimaryActionTooltip = (() => {
+    if (config?.partnerships?.enable_primo) {
+      return PRIMO_TOOLTIP;
+    }
+    if (config?.gitops?.gitops_mode_enabled && config?.gitops?.repository_url) {
+      return getGitOpsModeTipContent(config.gitops.repository_url);
+    }
+    return null;
+  })();
+
   return (
     <div className={`${baseClass}`}>
       <SandboxGate
@@ -277,13 +292,14 @@ const TeamManagementPage = (): JSX.Element => {
               variant: "default",
               onClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
-              gitOpsModeCompatible: true,
+              disabledTooltipContent: disabledPrimaryActionTooltip,
             }}
             resultsTitle="teams"
             emptyComponent={() => (
               <EmptyTeamsTable
                 className={noTeamsClass}
                 onActionButtonClick={toggleCreateTeamModal}
+                disabledPrimaryActionTooltip={disabledPrimaryActionTooltip}
               />
             )}
             showMarkAllPages={false}

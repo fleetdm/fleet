@@ -35,8 +35,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.SoftwareUpdate' AND 
             name='AutomaticCheckEnabled' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -62,8 +61,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.SoftwareUpdate' AND 
             name='AutomaticDownload' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -89,8 +87,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.SoftwareUpdate' AND 
             name='AutomaticallyInstallMacOSUpdates' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -116,8 +113,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.SoftwareUpdate' AND 
             name='AutomaticallyInstallAppUpdates' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -173,8 +169,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.SoftwareUpdate' AND 
             name='CriticalUpdateInstall' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -206,8 +201,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='enforcedSoftwareUpdateDelay' AND 
-            value <= 30 AND 
-            username = ''
+            value <= 30
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -241,8 +235,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowCloudDocumentSync' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -278,8 +271,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowCloudDocumentSync' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -316,8 +308,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowCloudKeychainSync' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -354,8 +345,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowCloudKeychainSync' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -388,8 +378,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowCloudDesktopAndDocuments' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -456,8 +445,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowAirDrop' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -496,8 +484,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowAirPlayIncomingRequests' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -528,8 +515,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='forceAutomaticDateAndTime' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -825,8 +811,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowContentCaching' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -887,20 +872,17 @@ spec:
       SELECT 1 FROM managed_policies WHERE
         domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
         name = 'homeSharingUIStatus' AND
-        value = '0' AND 
-        username = ''
+        value = '0'
     ) AND EXISTS (
       SELECT 1 FROM managed_policies WHERE
         domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
         name = 'legacySharingUIStatus' AND
-        value = '0' AND 
-        username = ''
+        value = '0'
     ) AND EXISTS (
       SELECT 1 FROM managed_policies WHERE
         domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
         name = 'mediaSharingUIStatus' AND
-        value = '0' AND 
-        username = ''
+        value = '0'
     ) AND NOT EXISTS (
       SELECT 1 FROM managed_policies WHERE
         domain = 'com.apple.preferences.sharing.SharingPrefsExtension' AND
@@ -1013,8 +995,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.controlcenter' AND 
             name='WiFi' AND 
-            value = 18 AND 
-            username = ''
+            value = 18
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -1049,8 +1030,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.controlcenter' AND 
             name='Bluetooth' AND 
-            value = 18 AND 
-            username = ''
+            value = 18
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -1085,8 +1065,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowAssistant' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -1123,8 +1102,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowAssistant' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -1522,8 +1500,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowApplePersonalizedAdvertising' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -1612,8 +1589,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.universalcontrol' AND 
             name='Disable' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -1649,8 +1625,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.universalcontrol' AND 
             name='Disable' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -1825,15 +1800,13 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.screensaver' AND 
             name='askForPassword' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.screensaver' AND 
             name='askForPasswordDelay' AND 
-            value <= 5 AND 
-            username = ''
+            value <= 5
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -1897,29 +1870,25 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.SubmitDiagInfo' AND 
             name='AutoSubmit' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='allowDiagnosticSubmission' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Accessibility' AND 
             name='AXSAudioDonationSiriImprovementEnabled' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='Siri Data Sharing Opt-In Status' AND 
-            value = 2 AND 
-            username = ''
+            value = 2
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -1964,8 +1933,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.screensaver' AND 
             name='idleTime' AND 
-            CAST(value AS INT) <= 1200 AND
-            username = ''
+            CAST(value AS INT) <= 1200
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -2021,8 +1989,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.MCX' AND 
             name='dontAllowFDEDisable' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -2060,8 +2027,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.loginwindow' AND 
             name='SHOWFULLNAME' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -2094,8 +2060,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.loginwindow' AND 
             name='RetriesUntilHint' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -2198,15 +2163,14 @@ spec:
     SELECT 1 WHERE 
       EXISTS (
         SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.login.mcx.DisableAutoLoginClient' AND 
-            name='Disable' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            domain='com.apple.loginwindow' AND 
+            name='com.apple.login.mcx.DisableAutoLoginClient' AND 
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.login.mcx.DisableAutoLoginClient' AND 
-            name='Disable' AND 
+            domain='com.apple.loginwindow' AND 
+            name='com.apple.login.mcx.DisableAutoLoginClient' AND 
             (value != 1 AND value != 'true')
         );  
   purpose: Informational
@@ -2229,8 +2193,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.applicationaccess' AND 
             name='forceOnDeviceOnlyDictation' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -2457,8 +2420,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.mDNSResponder' AND 
             name='NoMulticastAdvertisements' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -2755,8 +2717,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.mobiledevice.passwordpolicy' AND 
             name='requireAlphanumeric' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -2784,8 +2745,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.mobiledevice.passwordpolicy' AND 
             name='minComplexChars' AND 
-            value >= 1 AND 
-            username = ''
+            value >= 1
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -3114,8 +3074,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Safari' AND 
             name='AutoOpenSafeDownloads' AND 
-            (value = 0 OR value = 'false') AND 
-            username = ''
+            (value = 0 OR value = 'false')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -3166,8 +3125,7 @@ spec:
               365 - After one year
               36500 - Set Manually
               */
-            value = 1 AND 
-            username = ''
+            value = 1
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -3198,8 +3156,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Safari' AND 
             name='WarnAboutFraudulentWebsites' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -3236,22 +3193,20 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Safari' AND 
             name='BlockStoragePolicy' AND 
-            value = '2' AND 
-            username = ''
+            value = '2'
+            
         )
       AND EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Safari' AND 
             name='WebKitPreferences.storageBlockingPolicy' AND 
-            value = '1' AND 
-            username = ''
+            value = '1'
         )
       AND EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Safari' AND 
             name='WebKitStorageBlockingPolicy' AND 
-            value = '1' AND 
-            username = ''
+            value = '1'
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -3401,8 +3356,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Safari' AND 
             name='ShowFullURLInSmartSearchField' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true') 
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
@@ -3460,8 +3414,7 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.Terminal' AND 
             name='SecureKeyboardEntry' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
+            (value = 1 OR value = 'true')
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 

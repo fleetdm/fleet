@@ -30,6 +30,8 @@ spec:
   label_updated_at: "0001-01-01T00:00:00Z"
   labels: []
   last_enrolled_at: "0001-01-01T00:00:00Z"
+  last_mdm_checked_in_at: null
+  last_mdm_enrolled_at: null
   last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
@@ -41,8 +43,6 @@ spec:
     pending_action: ""
     server_url: null
     connected_to_fleet: null
-  mdm_last_enrolled_at: null
-  mdm_last_seen_at: null
   memory: 0
   orbit_version: null
   os_version: ""
@@ -68,6 +68,7 @@ spec:
       updated_at: "0001-01-01T00:00:00Z"
       critical: false
       calendar_events_enabled: true
+      conditional_access_enabled: false
     - author_email: "alice@example.com"
       author_id: 1
       author_name: Alice
@@ -82,6 +83,7 @@ spec:
       updated_at: "0001-01-01T00:00:00Z"
       critical: false
       calendar_events_enabled: false
+      conditional_access_enabled: false
   policy_updated_at: "0001-01-01T00:00:00Z"
   public_ip: ""
   primary_ip: ""

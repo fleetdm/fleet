@@ -332,15 +332,23 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 		}
 
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		lifecycleErrs := []error{}
+		serialsWithErrs := []string{}
 		for _, host := range hosts {
 			if fleet.MDMSupported(host.Platform) {
-				err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+				if err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 					Action:   mdmlifecycle.HostActionDelete,
 					Host:     host,
 					Platform: host.Platform,
-				})
-				return err
+				}); err != nil {
+					lifecycleErrs = append(lifecycleErrs, err)
+					serialsWithErrs = append(serialsWithErrs, host.HardwareSerial)
+				}
 			}
+		}
+		if len(lifecycleErrs) > 0 {
+			msg := fmt.Sprintf("failed to recreate pending host records for one or more MDM devices: %+v", serialsWithErrs)
+			return ctxerr.Wrap(ctx, errors.Join(lifecycleErrs...), msg)
 		}
 
 		return nil
@@ -556,6 +564,17 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 		// host once team_id is loaded.
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return nil, err
+		}
+	}
+
+	// recalculate host failing_policies_count & total_issues_count, at most every minute
+	lastUpdated, err := svc.ds.GetHostIssuesLastUpdated(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking host's host_issues last updated:")
+	}
+	if time.Since(lastUpdated) > time.Minute {
+		if err := svc.ds.UpdateHostIssuesFailingPolicies(ctx, []uint{id}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "recalculate host failing policies count:")
 		}
 	}
 
@@ -1210,7 +1229,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
-	var mdmLastSeen *time.Time
+	var mdmLastCheckedIn *time.Time
 	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
@@ -1275,7 +1294,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 				// fetch host last seen at and last enrolled at times, currently only supported for
 				// Apple platforms
-				mdmLastEnrollment, mdmLastSeen, err = svc.ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
+				mdmLastEnrollment, mdmLastCheckedIn, err = svc.ds.GetNanoMDMEnrollmentTimes(ctx, host.UUID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get host mdm enrollment times")
 				}
@@ -1335,14 +1354,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	return &fleet.HostDetail{
-		Host:              *host,
-		Labels:            labels,
-		Packs:             packs,
-		Batteries:         &bats,
-		MaintenanceWindow: nextMw,
-		EndUsers:          endUsers,
-		MDMLastEnrolledAt: mdmLastEnrollment,
-		MDMLastSeenAt:     mdmLastSeen,
+		Host:               *host,
+		Labels:             labels,
+		Packs:              packs,
+		Batteries:          &bats,
+		MaintenanceWindow:  nextMw,
+		EndUsers:           endUsers,
+		LastMDMEnrolledAt:  mdmLastEnrollment,
+		LastMDMCheckedInAt: mdmLastCheckedIn,
 	}, nil
 }
 

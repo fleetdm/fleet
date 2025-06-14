@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -392,6 +393,14 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, newSSOError(err, ssoOrgDisabled), "initiate sso")
 	}
 
+	parsedUrl, err := url.Parse(redirectURL)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url"))
+	}
+	if slices.Contains([]string{"javascript", "vbscript", "data"}, parsedUrl.Scheme) {
+		return "", ctxerr.Wrap(ctx, badRequest("invalid sso redirect url scheme: "+parsedUrl.Scheme))
+	}
+
 	serverURL := appConfig.ServerSettings.ServerURL
 	acsURL := serverURL + svc.config.Server.URLPrefix + "/api/v1/fleet/sso/callback"
 
@@ -417,7 +426,10 @@ func (svc *Service) InitiateSSO(ctx context.Context, redirectURL string) (string
 		return "", ctxerr.Wrap(ctx, err, "failed to create provider from configured metadata")
 	}
 
-	idpURL, err := sso.CreateAuthorizationRequest(ctx, samlProvider, svc.ssoSessionStore, redirectURL)
+	idpURL, err := sso.CreateAuthorizationRequest(
+		ctx, samlProvider, svc.ssoSessionStore, redirectURL,
+		uint(svc.config.Auth.SsoSessionValidityPeriod.Seconds()),
+	)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "InitiateSSO creating authorization")
 	}

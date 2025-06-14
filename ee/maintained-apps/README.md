@@ -69,18 +69,42 @@ These are command lines that will be run _after_ the generated uninstall script 
 
 ### Testing
 
-Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updates to existing apps, skip to step 4.
+Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updates to existing apps, skip to step 5.
 
-1. When a pull request is opened in `inputs/`, the [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
+1. When a pull request (PR) is opened in `inputs/`, the [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
 2. The EM is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the EM will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
-3. Then, the EM builds the app's `outputs/` on the same PR. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
-4. The Product Designer is responsible for testing the app:
-- If the app is a new app, add an icon for the app to the PR. App icons are located [here in the repository](https://github.com/fleetdm/fleet/tree/main/frontend/pages/SoftwarePage/components/icons). Run the [Docker publish GitHub action]() to add the tag to [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags).
-- Run the following `fleetctl preview` command and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
+3. Then, the EM builds the app's `outputs/` on the same PR by running the following command:
 
 ```
-fleetctl preview --tag=<Docker-tag> --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw
+go run cmd/maintained-apps/main.go
 ```
 
-5. If the tests fail, the PD sets the PR to draft and files a bug that links to the PR.
-6. If the test is successful, the PD approves and merges the PR. For new apps, the PD opens a user story to test the new icon, adds it to the #g-software board (`:release` and `#g-software` labels), and assigns the EM.
+4. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
+5. The Product Designer is responsible for testing the app. If the app is a new app, add an icon for the app to the PR. To add the icon, add the SVG as a comment to the PR and then ask the contributor to add the SVG to their PR [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-3728cfaafa50a41f6b017a4ef6ab64f7ce99034a9e90ed46421670f76a2db17f). Also, ask them to update the `index.ts` file [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-628095892e1d16090be1db6cc1a5c9cebc65248c32a8b1312385394818f2907b).
+6. Head to [Render](https://dashboard.render.com/) and sign-in using the credentials in shared 1Password under "Render for testing software". In Render, select **fleet** and, in the left-side bar, select **Environment**. In the **Environment Variables** section, select **Edit**, and udpate the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
+
+```
+FLEET_DEV_MAINTAINED_APPS_BASE_URL: https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs
+```
+
+Make sure you replace the `<PR-branch-name>`.
+
+7. Select **Save and deploy**. For updates to existing apps, skip to step 9.
+
+8. If the app is a new app, we want to use the PR's [Docker tag](https://hub.docker.com/r/fleetdm/fleet/tags) as the **Image URL** in Render. First, find PR's tag in the ["Docker publish" action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) for the PR and select "Publish Docker images." The tag is the last 6-character hash in the output (ex. `f4cd9f7`). Then, in the left-side bar in Render, select **Settings**. In the **Deploy** section, select **Edit** next to **Image**, paste in the Docker tag, and select **Save changes**.
+
+After testing make sure to change the Image URL back to `docker.io/fleetdm/fleet:main` to clean up for next time.
+
+> Currently, if the contributor opened a PR from their fork of the fleetdm/fleet repo, Fleet won't publish a Docker tag. To create a Docker tag, create a copy of the contributor's PR in the fleetdm/fleet repo. To do this, create a new branch (ex. `COPY-contributor-PR-name`) and open a PR from the contributors branch to the copy branch. Merge in those changes and open a PR from your copy branch to `main` in fleetdm/fleet.
+
+9. Head to the [Fleet server for testing software](https://fleet-iibe.onrender.com/).
+
+10. If your laptop is already enrolled to a different Fleet (e.g. dogfood), we want to [unenroll it](https://fleetdm.com/guides/how-to-uninstall-fleetd) before enrolling it to the Fleet server for testing software.
+
+11. Enroll your laptop to the Fleet server for testing software by selecting **Add** hosts on the **Hosts** page and following the steps to generate Fleet's agent (fleetd) and install it on your laptop.
+
+12. Add and test the app: Does the icon look right? Does the app install? Does the app uninstall? Can you open the app once it's installed?
+
+13. If the tests fail, the PD sets the PR to draft, files a bug that links to the PR, and updates the [testing spreadsheet](https://docs.google.com/spreadsheets/d/1H-At5fczHwV2Shm_vZMh0zuWowV7AD7yzHgA0RVN7nQ/edit?gid=0#gid=0).
+    
+14. If the test is successful, the PD approves and merges the PR.

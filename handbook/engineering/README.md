@@ -48,18 +48,18 @@ It's important to frame engineering-initiated user stories the same way we frame
 
 4. Remove the "Product" section and checklist from the issue description. 
 
-5. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering ZenHub board](https://app.zenhub.com/workspaces/engineering-672a4556609a0d000f391584/board). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
+5. Create the issue. The new user story will be automatically placed in the "New Requests" column of the [engineering GitHub board](https://github.com/orgs/fleetdm/projects/73). If you feel the issue is urgent, tag your EM or the engineering output and architecture DRI (@lukeheath) in a comment.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
 
 ### Draft an engineering-initiated story
 
-The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://app.zenhub.com/workspaces/engineering-672a4556609a0d000f391584/board) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning to the engineer listed as the product designer. 
+The engineering output and architecture DRI reviews and triages engineering-initiated stories weekly on the [Engineering board](https://github.com/orgs/fleetdm/projects/73) and selects stories to prioritize for drafting by adding the `:product` label, placing it in the "Ready" column, and assigning to the engineer listed as the product designer. 
 
-1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done]([url](https://fleetdm.com/handbook/company/product-groups#defining-done)). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
+1. The assigned engineer is responsible for completing the user story drafting process by completing the specs and [defining done](https://fleetdm.com/handbook/company/product-groups#defining-done). Move the issue into "In progress" on the drafting board and populate all TODOs in the issue description, define implementation details, and draft the first version of the test plan.
 
-2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review]([url](https://fleetdm.com/handbook/company/product-groups#user-story-reviews)), and then to estimation before prioritizing into an upcoming sprint. 
+2. When all sections have been populated, move it to the "User story review" column on the drafting board and assign to your EM. The EM will bring the story to [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews), and then to estimation before prioritizing into an upcoming sprint. 
 
 
 ### Fix a bug
@@ -127,14 +127,13 @@ To provide full-time focus to the role, the on-call engineer is not expected to 
 
 ### Create a release candidate
 
-All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific. A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
+All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the last Friday of each sprint at 8:00 AM Pacific (see [Fleet's release calendar](https://calendar.google.com/calendar/u/0?cid=Y192Nzk0M2RlcW4xdW5zNDg4YTY1djJkOTRic0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t)). A release candidate branch is created at `rc-minor-fleet-v4.x.x` and no additional feature work or released bug fixes are merged without EM and QA approval.
 
 [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
 
 During the release candidate period, the release candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
 
-Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch. 
-
+Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch.
 
 ### Merge unreleased bug fixes into the release candidate
 
@@ -203,17 +202,16 @@ If code changes are found for any `fleetd` components, create a new release QA i
 
 ### Indicate your product group is release-ready
 
-Once a product group completes its QA process during the release candidate period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
+Once a product group completes its QA process during the release candidate period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their GitHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
 
 
 ### Prepare Fleet release
 
-Documentation on completing the Fleet release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md).
-
+See the ["Releasing Fleet" contributor guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md).
 
 ### Prepare fleetd agent release
 
-Documentation on completing the fleetd agent release process can be found [here](https://github.com/fleetdm/fleet/tree/main/tools/tuf/).
+See [Fleet's TUF release documentation](https://github.com/fleetdm/fleet/blob/main/tools/tuf/README.md).
 
 
 ### Deploy a new release to dogfood
@@ -237,13 +235,13 @@ How to deploy a new release to dogfood:
 
 Immediately after publishing a new release, close out the associated GitHub issues and milestones. 
 
-1. **Update product group boards**: In ZenHub, go to each product group board tracking the current release and filter by the current milestone.
+1. **Update product group boards**: In GitHub Projects, go to each product group board tracking the current release and filter by the current milestone.
 
 2. **Move user stories to drafting board**: Select all items in "Ready for release" that have the `story` label. Apply the `:product` label and remove the `:release` label. These items will move back to the product drafting board.
 
 3. **Confirm and close**: Make sure that all items with the `story` label have left the "Ready for release" column. Select all remaining items in the "Ready for release" column and move them to the "Closed" column. This will close the related GitHub issues.
 
-4. **Confirm and celebrate**: Open the [Drafting](https://app.zenhub.com/workspaces/-drafting-ships-in-6-weeks-6192dd66ea2562000faea25c/board) board. Filter by the current milestone and move all stories to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals).
+4. **Confirm and celebrate**: Open the [Drafting](https://github.com/orgs/fleetdm/projects/67) board. Filter by the current milestone and move all stories to the "Confirm and celebrate" column. Product will close the issues during their [confirm and celebrate ritual](https://fleetdm.com/handbook/product#rituals).
 
 5. **Close GitHub milestone**: Visit [GitHub's milestone page](https://github.com/fleetdm/fleet/milestones) and close the current milestone.
 
@@ -354,8 +352,59 @@ To aid in this process, we have the Stress Test Go Test action (aka the RandoKil
 - Create a branch whose name ends with `-randokiller` (for example `sgress454/enqueue-mdm-command-randokiller`).
 - Modify the [.github/workflows/config/randokiller.json](https://github.com/fleetdm/fleet/blob/main/.github/workflows/config/randokiller.json) file to your specifications (choosing the packages and tests to run, the mysql matrix, and the number of runs to do).
 - Push up the branch with whatever logs/changes you need to help diagnose or fix the flaky test.
-- Monitor the [Stress Test Go Test](https://github.com/fleetdm/fleet/actions/workflows/randokiller-go.yml) workflow for your branch.  
+- Monitor the [Stress Test Go Test](https://github.com/fleetdm/fleet/actions/workflows/randokiller-go.yml) workflow for your branch.
 - Repeat until the stress test passes!  Every push to your branch will trigger a new run of the workflow.
+
+
+### Create and use Architectural Decision Records (ADRs)
+
+Architectural Decision Records (ADRs) document important architectural decisions made along with their context and consequences. They help teams understand why certain technical decisions were made, provide historical context, and ensure knowledge is preserved as the team evolves.
+
+**When to create an ADR:**
+
+Create an ADR when making a significant architectural decision that:
+
+- Has a substantial impact on the system architecture
+- Affects multiple components or product groups
+- Introduces new technologies or frameworks
+- Changes established patterns or approaches
+- Requires trade-offs that should be documented
+- Would benefit future contributors by explaining the reasoning
+
+Examples include choosing a new technology, changing authentication mechanisms, changing a dependency, or establishing a new pattern for handling specific types of data or workflows.
+
+**How to create an ADR:**
+
+1. Navigate to the `docs/Contributing/adr/` directory in the Fleet repository
+2. Copy the `template.md` file to a new file named `NNNN-descriptive-title.md` where:
+   - `NNNN` is the next number in sequence (e.g., `0001`, `0002`)
+   - `descriptive-title` is a brief, hyphenated description of the decision
+3. Fill in the template with your decision details:
+   - **Title**: A descriptive title that summarizes the decision
+   - **Status**: Start with "Proposed" and update as appropriate (Accepted, Rejected, Deprecated, or Superseded)
+   - **Context**: Explain the problem and background that led to this decision
+   - **Decision**: Clearly state the decision that was made
+   - **Consequences**: Describe the resulting context after applying the decision, including both positive and negative consequences
+   - **References**: Include links to related documents or resources
+4. Submit a pull request with your new ADR
+5. Update the ADR's status after review and discussion
+
+**Updating existing ADRs:**
+
+If a decision is superseded by a new decision:
+
+1. Create a new ADR that references the old one
+2. Update the status of the old ADR to "Superseded by [link to new ADR]"
+
+**ADR review process:**
+
+ADRs should be reviewed by:
+
+- The engineering team members most affected by the decision
+- At least one engineering manager
+- The CTO for significant architectural changes
+
+The goal of the review is to ensure the decision is well-documented, the context is clear, and the consequences are thoroughly considered.
 
 
 ### Request product group transfer

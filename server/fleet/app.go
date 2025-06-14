@@ -80,6 +80,15 @@ type SSOSettings struct {
 	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
 }
 
+// ConditionalAccessSettings holds the global settings for the "Conditional access" feature.
+type ConditionalAccessSettings struct {
+	// MicrosoftEntraTenantID is the Entra's tenant ID.
+	MicrosoftEntraTenantID string `json:"microsoft_entra_tenant_id"`
+	// MicrosoftEntraConnectionConfigured is true when the tenant has been configured
+	// for "Conditional access" on Entra and Fleet.
+	MicrosoftEntraConnectionConfigured bool `json:"microsoft_entra_connection_configured"`
+}
+
 // SMTPSettings is part of the AppConfig which defines the wire representation
 // of the app config endpoints
 type SMTPSettings struct {
@@ -556,6 +565,7 @@ type AppConfig struct {
 	//
 	// This field is a pointer to avoid returning this information to non-global-admins.
 	SSOSettings *SSOSettings `json:"sso_settings,omitempty"`
+
 	// FleetDesktop holds settings for Fleet Desktop that can be changed via the API.
 	FleetDesktop FleetDesktopSettings `json:"fleet_desktop"`
 
@@ -1219,6 +1229,10 @@ type ApplySpecOptions struct {
 	// NoCache indicates that cached_mysql calls should be bypassed on the server.
 	// This is needed where related data was just updated and we need that latest data from the DB.
 	NoCache bool
+	// Indicate whether or not the spec should be applied in overwrite mode.
+	// This means that any missing fields in the spec will be set to their default values.
+	// GitOps uses this mode.
+	Overwrite bool
 }
 
 type ApplyTeamSpecOptions struct {
@@ -1253,6 +1267,9 @@ func (o *ApplySpecOptions) RawQuery() string {
 	}
 	if o.NoCache {
 		query.Set("no_cache", "true")
+	}
+	if o.Overwrite {
+		query.Set("overwrite", "true")
 	}
 	return query.Encode()
 }
@@ -1297,7 +1314,7 @@ const (
 	EnrollSecretKind          = "enroll_secret"
 	EnrollSecretDefaultLength = 24
 	// Maximum number of enroll secrets that can be set per team, or globally.
-	// Make sure to change the documentation in docs/Contributing/API-for-Contributors.md
+	// Make sure to change the documentation in docs/Contributing/reference/api-for-contributors.md
 	// if you change that value (look for the string `secrets`).
 	MaxEnrollSecretsCount = 50
 )
@@ -1322,6 +1339,11 @@ const (
 	TierTrial = "trial"
 )
 
+// Partnerships contains specialized configuration options for Fleet partners.
+type Partnerships struct {
+	EnablePrimo bool `json:"enable_primo,omitempty"`
+}
+
 // LicenseInfo contains information about the Fleet license.
 type LicenseInfo struct {
 	// Tier is the license tier (currently "free" or "premium")
@@ -1334,6 +1356,11 @@ type LicenseInfo struct {
 	Expiration time.Time `json:"expiration,omitempty"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
+	// AllowDisableTelemetry allows specific customers to not send analytics
+	AllowDisableTelemetry bool `json:"allow_disable_telemetry,omitempty"`
+	// ManagedCloud indicates whether this Fleet instance is a cloud instance.
+	// Currently only used to display UI features only present on cloud instances.
+	ManagedCloud bool `json:"managed_cloud"`
 }
 
 func (l *LicenseInfo) IsPremium() bool {
@@ -1348,6 +1375,11 @@ func (l *LicenseInfo) ForceUpgrade() {
 	if l.Tier == tierBasicDeprecated {
 		l.Tier = TierPremium
 	}
+}
+
+// Both free and specific premium users are allowed to disable telemetry
+func (l *LicenseInfo) IsAllowDisableTelemetry() bool {
+	return !l.IsPremium() || l.AllowDisableTelemetry
 }
 
 const (

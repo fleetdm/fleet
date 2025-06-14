@@ -261,14 +261,15 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
-	HostUUID      string             `db:"host_uuid" json:"-"`
-	CommandUUID   string             `db:"command_uuid" json:"-"`
-	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
-	Name          string             `db:"name" json:"name"`
-	Identifier    string             `db:"identifier" json:"-"`
-	Status        *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
-	Detail        string             `db:"detail" json:"detail"`
+	HostUUID           string             `db:"host_uuid" json:"-"`
+	CommandUUID        string             `db:"command_uuid" json:"-"`
+	ProfileUUID        string             `db:"profile_uuid" json:"profile_uuid"`
+	Name               string             `db:"name" json:"name"`
+	Identifier         string             `db:"identifier" json:"-"`
+	Status             *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType      MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail             string             `db:"detail" json:"detail"`
+	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"-"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
@@ -352,17 +353,18 @@ func (p *MDMAppleProfilePayload) PendingInstallOnHost() bool {
 }
 
 type MDMAppleBulkUpsertHostProfilePayload struct {
-	ProfileUUID       string
-	ProfileIdentifier string
-	ProfileName       string
-	HostUUID          string
-	CommandUUID       string
-	OperationType     MDMOperationType
-	Status            *MDMDeliveryStatus
-	Detail            string
-	Checksum          []byte
-	SecretsUpdatedAt  *time.Time
-	IgnoreError       bool
+	ProfileUUID        string
+	ProfileIdentifier  string
+	ProfileName        string
+	HostUUID           string
+	CommandUUID        string
+	OperationType      MDMOperationType
+	Status             *MDMDeliveryStatus
+	Detail             string
+	Checksum           []byte
+	SecretsUpdatedAt   *time.Time
+	IgnoreError        bool
+	VariablesUpdatedAt *time.Time
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk
@@ -784,8 +786,12 @@ type MDMAppleDDMManifest struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
-	Identifier  string `db:"identifier"`
-	ServerToken string `db:"token"`
+	DeclarationUUID string    `db:"declaration_uuid"`
+	Identifier      string    `db:"identifier"`
+	ServerToken     string    `db:"token"`
+	Status          *string   `db:"status"`
+	OperationType   *string   `db:"operation_type"`
+	UploadedAt      time.Time `db:"uploaded_at"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM

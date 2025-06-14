@@ -59,7 +59,7 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 3. **Access the app's details page**: Click on the app's name in the table.
 
-4. **Edit the app**: Click on the "Actions" dropdown on the right side of the page. Click "Edit". In the "Edit software" modal, you can change the hosts that you want to target with the app as well as the app's self-service status.
+4. **Edit the app**: Click on the "Actions" dropdown on the right side of the page. Click "Edit". In the "Edit software" modal, you can change the hosts that you want to target with the app as well as the app's [self-service](https://fleetdm.com/guides/software-self-service) status.
 
 ## Install the app
 

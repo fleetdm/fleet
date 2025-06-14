@@ -19,6 +19,7 @@ import deviceApi, {
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
+import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
 import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
@@ -27,13 +28,14 @@ import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwa
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
-import DataError from "components/DataError";
+import DeviceUserError from "components/DeviceUserError";
 import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
 import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
+import UninstallSoftwareModal from "./UninstallSoftwareModal";
 import {
   InstallOrCommandUuid,
   generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig,
@@ -66,6 +68,7 @@ export interface ISoftwareSelfServiceProps {
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
+  onShowUninstallDetails: (scriptExecutionId?: string) => void;
 }
 
 const SoftwareSelfService = ({
@@ -76,12 +79,23 @@ const SoftwareSelfService = ({
   queryParams,
   router,
   onShowInstallerDetails,
+  onShowUninstallDetails,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
   >(undefined);
+  const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
+    false
+  );
+
+  const selectedSoftware = useRef<{
+    softwareId: number;
+    softwareName: string;
+    softwareInstallerType?: string;
+    version: string;
+  } | null>(null);
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
@@ -113,8 +127,8 @@ const SoftwareSelfService = ({
     },
   });
 
-  // Poll for pending installs
-  const { refetch: refetchForPendingInstalls } = useQuery<
+  // Poll for pending installs/uninstalls
+  const { refetch: refetchForPendingInstallsOrUninstalls } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError
   >(
@@ -126,7 +140,11 @@ const SoftwareSelfService = ({
         // Get the set of pending software IDs
         const newPendingSet = new Set(
           response.software
-            .filter((software) => software.status === "pending_install")
+            .filter(
+              (software) =>
+                software.status === "pending_install" ||
+                software.status === "pending_uninstall"
+            )
             .map((software) => String(software.id))
         );
 
@@ -149,10 +167,10 @@ const SoftwareSelfService = ({
             clearTimeout(pollingTimeoutIdRef.current);
           }
           pollingTimeoutIdRef.current = setTimeout(() => {
-            refetchForPendingInstalls();
+            refetchForPendingInstallsOrUninstalls();
           }, 5000);
         } else {
-          // No pending installs, stop polling and refresh data
+          // No pending installs nor pending uninstalls, stop polling and refresh data
           pendingSoftwareSetRef.current = new Set();
           if (pollingTimeoutIdRef.current) {
             clearTimeout(pollingTimeoutIdRef.current);
@@ -171,7 +189,7 @@ const SoftwareSelfService = ({
     }
   );
 
-  const startPollingForPendingInstalls = useCallback(
+  const startPollingForPendingInstallsOrUninstalls = useCallback(
     (pendingIds: string[]) => {
       const newSet = new Set(pendingIds);
       const setsAreEqual =
@@ -184,10 +202,10 @@ const SoftwareSelfService = ({
         if (pollingTimeoutIdRef.current) {
           clearTimeout(pollingTimeoutIdRef.current);
         }
-        refetchForPendingInstalls(); // Starts polling for pending installs
+        refetchForPendingInstallsOrUninstalls(); // Starts polling for pending installs
       }
     },
-    [refetchForPendingInstalls]
+    [refetchForPendingInstallsOrUninstalls]
   );
 
   // Cleanup on unmount
@@ -201,20 +219,22 @@ const SoftwareSelfService = ({
     };
   }, []);
 
-  // On initial load or data change, check for pending installs
+  // On initial load or data change, check for pending installs/uninstalls
   useEffect(() => {
     const pendingSoftware = selfServiceData?.software.filter(
-      (software) => software.status === "pending_install"
+      (software) =>
+        software.status === "pending_install" ||
+        software.status === "pending_uninstall"
     );
     const pendingIds = pendingSoftware?.map((s) => String(s.id)) ?? [];
     if (pendingIds.length > 0) {
-      startPollingForPendingInstalls(pendingIds);
+      startPollingForPendingInstallsOrUninstalls(pendingIds);
     }
-  }, [selfServiceData, startPollingForPendingInstalls]);
+  }, [selfServiceData, startPollingForPendingInstallsOrUninstalls]);
 
-  const onInstall = useCallback(() => {
-    refetchForPendingInstalls();
-  }, [refetchForPendingInstalls]);
+  const onInstallOrUninstall = useCallback(() => {
+    refetchForPendingInstallsOrUninstalls();
+  }, [refetchForPendingInstallsOrUninstalls]);
 
   const onSearchQueryChange = (value: string) => {
     router.push(
@@ -236,6 +256,17 @@ const SoftwareSelfService = ({
         page: 0, // Always reset to page 0 when searching
       })
     );
+  };
+
+  const onExitUninstallSoftwareModal = () => {
+    selectedSoftware.current = null;
+    setShowUninstallSoftwareModal(false);
+  };
+
+  const onSuccessUninstallSoftwareModal = () => {
+    selectedSoftware.current = null;
+    setShowUninstallSoftwareModal(false);
+    onInstallOrUninstall();
   };
 
   const onNextPage = useCallback(() => {
@@ -273,10 +304,22 @@ const SoftwareSelfService = ({
   const tableConfig = useMemo(() => {
     return generateDeviceSoftwareTableConfig({
       deviceToken,
-      onInstall,
+      onInstall: onInstallOrUninstall,
       onShowInstallerDetails,
+      onShowUninstallDetails,
+      onClickUninstallAction: (software) => {
+        selectedSoftware.current = {
+          softwareId: software.id,
+          softwareName: software.name,
+          softwareInstallerType: getExtensionFromFileName(
+            software.software_package?.name || ""
+          ),
+          version: software.software_package?.version || "",
+        };
+        setShowUninstallSoftwareModal(true);
+      },
     });
-  }, [router]);
+  }, [deviceToken, onInstallOrUninstall, onShowInstallerDetails]);
 
   const renderSelfServiceCard = () => {
     const renderHeaderFilters = () => (
@@ -311,7 +354,7 @@ const SoftwareSelfService = ({
     }
 
     if (isError) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      return <DeviceUserError />; // Only shown on DeviceUserPage not HostDetailsPage
     }
 
     if (isEmpty || !selfServiceData) {
@@ -409,28 +452,41 @@ const SoftwareSelfService = ({
   };
 
   return (
-    <Card
-      className={baseClass}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      includeShadow
-    >
-      <CardHeader
-        header="Self-service"
-        subheader={
-          <>
-            Install organization-approved apps provided by your IT department.{" "}
-            {contactUrl && (
-              <span>
-                If you need help,{" "}
-                <CustomLink url={contactUrl} text="reach out to IT" newTab />
-              </span>
-            )}
-          </>
-        }
-      />
-      {renderSelfServiceCard()}
-    </Card>
+    <>
+      <Card
+        className={baseClass}
+        borderRadiusSize="xxlarge"
+        paddingSize="xlarge"
+        includeShadow
+      >
+        <CardHeader
+          header="Self-service"
+          subheader={
+            <>
+              Install organization-approved apps provided by your IT department.{" "}
+              {contactUrl && (
+                <span>
+                  If you need help,{" "}
+                  <CustomLink url={contactUrl} text="reach out to IT" newTab />
+                </span>
+              )}
+            </>
+          }
+        />
+        {renderSelfServiceCard()}
+      </Card>
+      {showUninstallSoftwareModal && selectedSoftware.current && (
+        <UninstallSoftwareModal
+          softwareId={selectedSoftware.current.softwareId}
+          softwareName={selectedSoftware.current.softwareName}
+          softwareInstallerType={selectedSoftware.current.softwareInstallerType}
+          version={selectedSoftware.current.version}
+          token={deviceToken}
+          onExit={onExitUninstallSoftwareModal}
+          onSuccess={onSuccessUninstallSoftwareModal}
+        />
+      )}
+    </>
   );
 };
 

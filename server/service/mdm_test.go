@@ -625,6 +625,20 @@ func TestMDMCommonAuthorization(t *testing.T) {
 		return res, nil
 	}
 
+	ds.GetMDMAppleConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMAppleConfigProfile, error) {
+		var tid uint
+		if pid == "a-team-1-profile" {
+			tid = 1
+		}
+		return &fleet.MDMAppleConfigProfile{
+			ProfileUUID: pid,
+			TeamID:      &tid,
+		}, nil
+	}
+	ds.GetMDMConfigProfileStatusFunc = func(ctx context.Context, pid string) (fleet.MDMConfigProfileStatus, error) {
+		return fleet.MDMConfigProfileStatus{}, nil
+	}
+
 	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamFunc {
 		return func(ctx context.Context, teamID uint) (*fleet.Team, error) {
 			if len(u.Teams) > 0 {
@@ -725,11 +739,15 @@ func TestMDMCommonAuthorization(t *testing.T) {
 			checkShouldFail(err, tt.shouldFailGlobal)
 			_, err = svc.GetMDMWindowsProfilesSummary(ctx, nil)
 			checkShouldFail(err, tt.shouldFailGlobal)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, "a-no-team-profile")
+			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz for MDM summary endpoints (team 1)
 			_, err = svc.GetMDMDiskEncryptionSummary(ctx, ptr.Uint(1))
 			checkShouldFail(err, tt.shouldFailTeam)
 			_, err = svc.GetMDMWindowsProfilesSummary(ctx, ptr.Uint(1))
+			checkShouldFail(err, tt.shouldFailTeam)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, "a-team-1-profile")
 			checkShouldFail(err, tt.shouldFailTeam)
 		})
 	}

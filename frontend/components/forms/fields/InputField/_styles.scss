@@ -3,7 +3,7 @@
   background-color: $ui-light-grey;
   border: solid 1px $ui-fleet-black-10;
   border-radius: $border-radius;
-  font-size: $small;
+  font-size: $x-small;
   padding: $pad-small $pad-medium;
   color: $core-fleet-blue;
   font-family: "Inter", sans-serif;
@@ -35,14 +35,6 @@
     .form-field__label,
     .form-field__help-text {
       color: $ui-fleet-black-50;
-    }
-  }
-
-  &--password {
-    letter-spacing: 4px;
-
-    &::placeholder {
-      letter-spacing: normal;
     }
   }
 
@@ -101,14 +93,6 @@
     display: flex;
     align-items: center;
     position: relative;
-  }
-
-  &__copy-wrapper-outside {
-    position: relative;
-    gap: $pad-medium;
-  }
-
-  &__copy-wrapper-inside {
     position: absolute;
     top: 0;
     right: 0;
@@ -117,23 +101,15 @@
   }
 
   &__input-container.copy-enabled {
-    &.copy-outside {
-      display: flex;
-      align-items: center;
-      gap: $pad-small;
-    }
+    position: relative;
 
-    &.copy-inside {
-      position: relative;
+    .input-field {
+      padding-right: 35px; // horizontal scroll of long inputs will not be hidden by copy button
     }
   }
 
   &__copied-confirmation {
-    font-size: $x-small;
-    background-color: $ui-light-grey;
-    border: solid 1px $ui-fleet-black-10;
-    border-radius: $border-radius-xlarge;
-    padding: $pad-xxsmall 6px;
+    @include copy-message;
   }
 
   &__copied-confirmation-outside {

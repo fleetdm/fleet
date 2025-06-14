@@ -95,6 +95,7 @@ export enum ActivityType {
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
   ResentConfigurationProfile = "resent_configuration_profile",
+  ResentConfigurationProfileBatch = "resent_configuration_profile_batch",
   AddedSoftware = "added_software",
   EditedSoftware = "edited_software",
   DeletedSoftware = "deleted_software",
@@ -115,8 +116,8 @@ export enum ActivityType {
   CanceledUninstallSoftware = "canceled_uninstall_software",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
-  ConfiguredMSEntraConditionalAccess = "added_conditional_access_microsoft",
-  DeletedMSEntraConditionalAccess = "deleted_conditional_access_microsoft",
+  ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
+  DeletedMSEntraConditionalAccess = "deleted_conditional_access_integration_microsoft",
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
@@ -127,6 +128,7 @@ export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.WipedHost
+  | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
@@ -170,9 +172,11 @@ export type IHostUpcomingActivity = Omit<
 };
 
 export interface IActivityDetails {
+  /** Useful for passing this data into an activity details modal */
+  created_at?: string;
   app_store_id?: number;
   bootstrap_package_name?: string;
-  batch_exection_id?: string;
+  batch_execution_id?: string;
   command_uuid?: string;
   deadline_days?: number;
   deadline?: string;

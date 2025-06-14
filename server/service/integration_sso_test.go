@@ -77,8 +77,12 @@ func (s *integrationSSOTestSuite) TestGetSSOSettings() {
 	s.DoJSON("GET", "/api/v1/fleet/sso", nil, http.StatusOK, &resGet)
 	require.True(t, resGet.Settings.SSOEnabled)
 
-	// initiate an SSO auth
+	// Javascript redirect URLs are forbidden
 	var resIni initiateSSOResponse
+	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{"relay_url": "javascript:alert(1)"}, http.StatusBadRequest, &resIni)
+
+	// initiate an SSO auth
+	resIni = initiateSSOResponse{}
 	s.DoJSON("POST", "/api/v1/fleet/sso", map[string]string{}, http.StatusOK, &resIni)
 	require.NotEmpty(t, resIni.URL)
 
