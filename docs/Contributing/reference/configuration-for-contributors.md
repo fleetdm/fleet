@@ -181,6 +181,20 @@ Whether Fleet should enforce the host limit of the license, if true, attempting 
     enforce_host_limit: true
   ```
 
+### license.enable_analytics
+
+For approved Fleet Premium customers only.
+
+Whether to send anonymous usage statistics. Overrides the value set by `enable_analytics` in the [Modify configuration](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) API endpoint.
+
+- Default value: `true`
+- Environment variable: `FLEET_LICENSE_ENABLE_ANALYTICS`
+- Config file format:
+  ```yaml
+  license:
+    enable_analytics: false
+  ```
+
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 
 Use this environment variable to allow `fleetd` to report errors to the server using the [endpoint to report an agent error](./API-for-contributors.md#report-an-agent-error). `fleetd` agents will always report vital errors to Fleet.

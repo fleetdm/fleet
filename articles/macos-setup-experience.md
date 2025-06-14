@@ -40,7 +40,7 @@ To require a EULA, in Fleet, head to **Settings > Integrations > Automatic enrol
 
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a distribution package.
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages).
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
