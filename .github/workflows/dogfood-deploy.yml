@@ -26,6 +26,7 @@ env:
   TF_WORKSPACE: fleet
   TF_VAR_fleet_image: ${{ github.event.inputs.DOCKER_IMAGE || 'fleetdm/fleet:main' }}
   TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
+  TF_VAR_webhook_url: ${{secrets.DOGFOOD_WEBHOOK_URL }}
   TF_VAR_slack_p1_webhook: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
   TF_VAR_slack_p2_webhook: ${{ secrets.SLACK_G_HELP_P2_WEBHOOK_URL }}
   TF_VAR_fleet_sentry_dsn: ${{ secrets.DOGFOOD_SENTRY_DSN }}
