@@ -1,1 +1,0 @@
-- Fleet UI: Added ability for gitOps mode to add a custom package on the software page to then copy/paste the YAML needed for packages that cannot be referenced with a URL
