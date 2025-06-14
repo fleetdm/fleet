@@ -78,9 +78,13 @@ IT Admins can now disable MDM directly from the host detail page. This makes man
 - Added ability to turn off MDM for iPhone and iPad hosts on the hosts details page.
 - Added ability for gitops mode to add a custom package on the software page to then copy/paste the YAML needed for packages that cannot be referenced with a URL.
 
+### Global configuration in GitOps
+
+This release fixed issue where SSO settings, SMTP settings, Features and MDM end-user authentication settings would not be cleared if they were omitted from YAML files used in a GitOps run. 
+
+**If you have these settings configured via the Fleet web application and you use GitOps to manage your configuration, be sure settings are present in your global YAML settings file before your next GitOps run.**
+
 ### Other improvements and bug fixes
-- Fixed issue where SSO settings, SMTP settings, Features and MDM end-user authentication settings would not be cleared if they were omitted from YAML files used in a GitOps run. 
-> **GITOPS USERS:** If you have these settings configured via the Fleet web application and you use GitOps to manage your configuration, be sure settings are present in your global YAML settings file before your next GitOps run.
 - Added Neon to the list of platforms that are detected as Linux distributions.
 - Updated scripts so that editing will now cancel queued executions.
 - Warn users of consequences when updating script contents.
