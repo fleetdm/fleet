@@ -20,11 +20,11 @@ If you're using GitOps to manage Fleet, read the note on [global configuration i
 
 ### Bulk scripts improvements
 
-IT Admins can now run scripts in bulk using host filters. This makes it easy to target and take action on hundreds or more hosts without manually selecting them. Learn more about scripts [here](https://fleetdm.com/guides/scripts).
+IT Admins can now [run scripts in bulk](https://fleetdm.com/guides/scripts#batch-execute-scripts) using host filters. This makes it easy to target and take action on hundreds or more hosts without manually selecting them.
 
 ### Entra ID and authentik foreign vitals
 
-Fleet now supports pulling user data—like IdP email, full name, and groups—from Entra ID or [authentik](https://goauthentik.io/) into host vitals. This helps IT Admins quickly identify the user assigned to each host. Lear nmore [here](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts).
+Fleet now supports [pulling user data](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts)—like IdP email, full name, and groups—from [Entra ID](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#microsoft-entra-id) or [authentik](https://goauthentik.io/) into host vitals. This helps IT Admins quickly identify the user assigned to each host.
 
 ### Secondary CVSS scores
 

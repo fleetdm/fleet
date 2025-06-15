@@ -77,7 +77,7 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 1. From the side menu, select **Provisioning**.
 2. In **Get started with application provisioning** section, select **Connect your application**.
 3. For the **Tenant URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim?aadOptscim062020`.
-4. Create a Fleet API-only user with maintainer permissions and copy API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in the **Secret token** field.
+4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in the **Secret token** field.
 5. Select the **Test connection** button. You should see success message.
 6. Select **Create** and, after successful creation, you'll be redirected to the overview page.
 
@@ -238,7 +238,7 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 1. From the side menu, select **Applications > Providers**, **Create**, **SCIM Provider**, and then **Next**.
 2. Add a friendly name (e.g. "Fleet SCIM provider").
 3. For the **URL**, enter `https://<your_fleet_server_url>/api/v1/fleet/scim`.
-4. Create a Fleet API-only user with maintainer permissions and copy the API token for that user (learn how [here](https://fleetdm.com/guides/fleetctl#create-api-only-user)). Paste your API token in the **Token** field.
+4. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy the API token for that user. Paste your API token in the **Token** field.
 5. Select **Finish** to save provider.
 6. Now, from the side menu, select **Applications > Applications**. Then, select **Create**.
 7. Add a friendly name (e.g. "Fleet SCIM app") and slug (e.g. "fleet-scim-app").
