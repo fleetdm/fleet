@@ -40,9 +40,9 @@ jobs:
       run: |
         BAD_LINK_LINES=$(grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .)
         if [[ -n "$BAD_LINK_LINES" ]]; then
-        echo '❌ fail: links found with "here" or "click here" anchors in Markdown files'
-        echo "$BAD_LINK_LINES"
-        exit 1
+          echo '❌ fail: links found with "here" or "click here" anchors in Markdown files'
+          echo "$BAD_LINK_LINES"
+          exit 1
         fi
 
     - name: Check links
