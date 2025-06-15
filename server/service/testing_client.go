@@ -258,7 +258,12 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 func (ts *withServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	return fleet_httptest.DoHTTPReq(ts.s.T(), decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
+	opts := []fleethttp.ClientOpt{}
+	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
+		opts = append(opts, fleethttp.WithFollowRedir(false))
+	}
+	client := fleethttp.NewClient(opts...)
+	return fleet_httptest.DoHTTPReq(ts.s.T(), client, decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
 }
 
 func decodeJSON(r io.Reader, v interface{}) error {
@@ -421,6 +426,25 @@ func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID stri
 	return string(body)
 }
 
+func (ts *withServer) doWithClient(
+	client *http.Client,
+	verb string, path string, rawBytes []byte,
+	expectedStatusCode int, headers map[string]string,
+	queryParams ...string,
+) *http.Response {
+	return fleet_httptest.DoHTTPReq(
+		ts.s.T(),
+		client,
+		decodeJSON,
+		verb,
+		rawBytes,
+		ts.server.URL+path,
+		headers,
+		expectedStatusCode,
+		queryParams...,
+	)
+}
+
 func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) *http.Response {
 	t := ts.s.T()
 
@@ -428,9 +452,7 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 		t.Skip("SSO tests are disabled")
 	}
 
-	var resIni initiateSSOResponse
-	ts.DoJSON("POST", basePath, map[string]string{}, http.StatusOK, &resIni)
-
+	cookieSecure = false
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
 
@@ -438,6 +460,12 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 		fleethttp.WithFollowRedir(false),
 		fleethttp.WithCookieJar(jar),
 	)
+
+	var resIni initiateSSOResponse
+	httpResponse := ts.doWithClient(client, "POST", basePath, []byte(`{}`), http.StatusOK, nil)
+	err = json.NewDecoder(httpResponse.Body).Decode(&resIni)
+	require.NoError(ts.s.T(), err)
+	require.NoError(ts.s.T(), resIni.Error())
 
 	resp, err := client.Get(resIni.URL)
 	require.NoError(t, err)
@@ -464,17 +492,9 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	matches := re.FindSubmatch(body)
 	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
 	samlResponse := string(matches[1])
-	re = regexp.MustCompile(`name="RelayState" value="([^\s]*)" />`)
-	matches = re.FindSubmatch(body)
-	require.NotEmptyf(t, matches, "callback HTML doesn't contain a RelayState value, got body: %s", body)
-	relayState := string(matches[1])
 
-	ssoURL := basePath + fmt.Sprintf(
-		"/callback?SAMLResponse=%s&RelayState=%s",
-		url.QueryEscape(samlResponse),
-		url.QueryEscape(relayState),
-	)
-	res := ts.DoRawNoAuth("POST", ssoURL, nil, callbackStatus)
+	ssoURL := basePath + "/callback"
+	res := ts.doWithClient(client, "POST", ssoURL, nil, callbackStatus, nil, "SAMLResponse", samlResponse)
 
 	return res
 }

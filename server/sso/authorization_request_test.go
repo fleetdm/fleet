@@ -42,7 +42,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	idpURL, err := CreateAuthorizationRequest(context.Background(),
+	sessionID, idpURL, err := CreateAuthorizationRequest(context.Background(),
 		samlProvider,
 		store,
 		"/redir",
@@ -50,6 +50,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 300*time.Second, store.sessionLifetime) // check default is used
+	require.NotEmpty(t, sessionID)
 
 	parsed, err := url.Parse(idpURL)
 	require.NoError(t, err)
@@ -72,7 +73,7 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	assert.Equal(t, "test", meta.EntityID)
 
 	sessionTTL := uint(3600) // seconds
-	_, err = CreateAuthorizationRequest(context.Background(),
+	sessionID2, _, err := CreateAuthorizationRequest(context.Background(),
 		samlProvider,
 		store,
 		"/redir",
@@ -80,6 +81,8 @@ func TestCreateAuthorizationRequest(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, store.sessionLifetime)
+	require.NotEmpty(t, sessionID)
+	require.NotEqual(t, sessionID, sessionID2)
 }
 
 func inflate(t *testing.T, s string) *saml.AuthnRequest {
@@ -101,7 +104,7 @@ type mockStore struct {
 	sessionLifetime time.Duration
 }
 
-func (s *mockStore) create(relayStateToken, requestID, originalURL, metadata string, lifetimeSecs uint) error {
+func (s *mockStore) create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint) error {
 	s.session = &Session{
 		RequestID:   requestID,
 		OriginalURL: originalURL,
@@ -111,18 +114,18 @@ func (s *mockStore) create(relayStateToken, requestID, originalURL, metadata str
 	return nil
 }
 
-func (s *mockStore) get(relayStateToken string) (*Session, error) {
+func (s *mockStore) get(sessionID string) (*Session, error) {
 	if s.session == nil {
 		return nil, fleet.NewAuthRequiredError("session not found")
 	}
 	return s.session, nil
 }
 
-func (s *mockStore) expire(relayStateToken string) error {
+func (s *mockStore) expire(sessionID string) error {
 	s.session = nil
 	return nil
 }
 
-func (s *mockStore) Fullfill(relayStateToken string) (*Session, error) {
+func (s *mockStore) Fullfill(sessionID string) (*Session, error) {
 	return s.session, nil
 }

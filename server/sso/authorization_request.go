@@ -6,8 +6,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"net/url"
-	"strings"
 
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server"
@@ -28,7 +26,7 @@ func getDestinationURL(idpMetadata *saml.EntityDescriptor) (string, error) {
 }
 
 // CreateAuthorizationRequest creates a new SAML AuthnRequest and creates a new session in sessionStore.
-// It will generate a RelayState token that will be used as session identifier
+// It will generate and return the session identifier.
 // (the IdP will send it again to Fleet in the callback, and that's how Fleet will authenticate the session).
 // If sessionTTLSeconds is 0 then a default of 5 minutes of TTL is used.
 func CreateAuthorizationRequest(
@@ -37,10 +35,10 @@ func CreateAuthorizationRequest(
 	sessionStore SessionStore,
 	originalURL string,
 	sessionTTLSeconds uint,
-) (string, error) {
-	idpURL, err := getDestinationURL(samlProvider.IDPMetadata)
+) (sessionID string, idpURL string, err error) {
+	idpURL, err = getDestinationURL(samlProvider.IDPMetadata)
 	if err != nil {
-		return "", fmt.Errorf("get idp url: %w", err)
+		return "", "", fmt.Errorf("get idp url: %w", err)
 	}
 	samlAuthRequest, err := samlProvider.MakeAuthenticationRequest(
 		idpURL,
@@ -48,7 +46,7 @@ func CreateAuthorizationRequest(
 		"HTTPPostBinding",
 	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "make auth request")
+		return "", "", ctxerr.Wrap(ctx, err, "make auth request")
 	}
 	// We can modify the samlAuthRequest because it's not signed
 	// (not a requirement when using "HTTPRedirectBinding" binding for the request)
@@ -57,12 +55,12 @@ func CreateAuthorizationRequest(
 	var metadataWriter bytes.Buffer
 	err = xml.NewEncoder(&metadataWriter).Encode(samlProvider.IDPMetadata)
 	if err != nil {
-		return "", fmt.Errorf("encoding metadata creating auth request: %w", err)
+		return "", "", fmt.Errorf("encoding metadata creating auth request: %w", err)
 	}
 
-	relayStateToken, err := generateFleetRelayStateToken()
+	sessionID, err = generateSessionID()
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "generate RelayState token")
+		return "", "", ctxerr.Wrap(ctx, err, "generate session ID")
 	}
 
 	sessionLifetimeSeconds := cacheLifetimeSeconds
@@ -70,43 +68,32 @@ func CreateAuthorizationRequest(
 		sessionLifetimeSeconds = sessionTTLSeconds
 	}
 
-	// Store the session with RelayState as session identifier.
+	// Store the session with the generated ID.
 	// We cache the metadata so we can check the signatures on the response we get from the IdP.
 	err = sessionStore.create(
-		relayStateToken,
+		sessionID,
 		samlAuthRequest.ID,
 		originalURL,
 		metadataWriter.String(),
 		sessionLifetimeSeconds,
 	)
 	if err != nil {
-		return "", fmt.Errorf("caching SSO session while creating auth request: %w", err)
+		return "", "", fmt.Errorf("caching SSO session while creating auth request: %w", err)
 	}
 
-	// Escape RelayState (crewjam/saml is not escaping it)
-	relayStateToken = url.QueryEscape(relayStateToken)
-
-	idpRedirectURL, err := samlAuthRequest.Redirect(relayStateToken, samlProvider)
+	relayState := "" // Fleet currently doesn't use/set RelayState
+	idpRedirectURL, err := samlAuthRequest.Redirect(relayState, samlProvider)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "generating redirect")
+		return "", "", ctxerr.Wrap(ctx, err, "generating redirect")
 	}
-	return idpRedirectURL.String(), nil
+	return sessionID, idpRedirectURL.String(), nil
 }
 
-const relayStateTokenPrefix = "fleet_"
-
-func generateFleetRelayStateToken() (string, error) {
-	// Create RelayState token to identify the session.
-	const (
-		relayStateTokenLength = 24
-	)
-	token, err := server.GenerateRandomText(relayStateTokenLength)
+func generateSessionID() (string, error) {
+	const sessionIDLength = 24
+	sessionID, err := server.GenerateRandomText(sessionIDLength)
 	if err != nil {
-		return "", fmt.Errorf("create random RelayState token: %w", err)
+		return "", fmt.Errorf("create random session ID: %w", err)
 	}
-	return relayStateTokenPrefix + token, nil
-}
-
-func checkFleetRelayStateToken(relayState string) bool {
-	return strings.HasPrefix(relayState, relayStateTokenPrefix)
+	return sessionID, nil
 }

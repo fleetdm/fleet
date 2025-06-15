@@ -27,11 +27,11 @@ type Session struct {
 // is constrained in the backing store (Redis) so if the sso process is not completed in
 // a reasonable amount of time, it automatically expires and is removed.
 type SessionStore interface {
-	create(relayStateToken, requestID, originalURL, metadata string, lifetimeSecs uint) error
-	get(relayStateToken string) (*Session, error)
-	expire(relayStateToken string) error
-	// Fullfill loads a session with the given RelayState token, deletes it and returns it.
-	Fullfill(relayStateToken string) (*Session, error)
+	create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint) error
+	get(sessionID string) (*Session, error)
+	expire(sessionID string) error
+	// Fullfill loads a session with the given session ID, deletes it and returns it.
+	Fullfill(sessionID string) (*Session, error)
 }
 
 // NewSessionStore creates a SessionStore
@@ -43,8 +43,8 @@ type store struct {
 	pool fleet.RedisPool
 }
 
-func (s *store) create(relayStateToken, requestID, originalURL, metadata string, lifetimeSecs uint) error {
-	if len(relayStateToken) < 8 {
+func (s *store) create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint) error {
+	if len(sessionID) < 8 {
 		return errors.New("request id must be 8 or more characters in length")
 	}
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
@@ -60,17 +60,17 @@ func (s *store) create(relayStateToken, requestID, originalURL, metadata string,
 	if err != nil {
 		return err
 	}
-	_, err = conn.Do("SETEX", relayStateToken, lifetimeSecs, writer.String())
+	_, err = conn.Do("SETEX", sessionID, lifetimeSecs, writer.String())
 	return err
 }
 
-func (s *store) get(relayStateToken string) (*Session, error) {
+func (s *store) get(sessionID string) (*Session, error) {
 	// not reading from a replica here as this gets called in close succession
 	// in the auth flow, with initiate SSO writing and callback SSO having to
 	// read that write.
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
-	val, err := redigo.String(conn.Do("GET", relayStateToken))
+	val, err := redigo.String(conn.Do("GET", sessionID))
 	if err != nil {
 		if err == redigo.ErrNil {
 			return nil, fleet.NewAuthRequiredError("session not found")
@@ -87,20 +87,20 @@ func (s *store) get(relayStateToken string) (*Session, error) {
 	return &sess, nil
 }
 
-func (s *store) expire(relayStateToken string) error {
+func (s *store) expire(sessionID string) error {
 	conn := redis.ConfigureDoer(s.pool, s.pool.Get())
 	defer conn.Close()
-	_, err := conn.Do("DEL", relayStateToken)
+	_, err := conn.Do("DEL", sessionID)
 	return err
 }
 
-func (s *store) Fullfill(relayStateToken string) (*Session, error) {
-	session, err := s.get(relayStateToken)
+func (s *store) Fullfill(sessionID string) (*Session, error) {
+	session, err := s.get(sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("sso request invalid: %w", err)
 	}
 	// Remove session so that it can't be reused before it expires.
-	err = s.expire(relayStateToken)
+	err = s.expire(sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("remove sso request: %w", err)
 	}
