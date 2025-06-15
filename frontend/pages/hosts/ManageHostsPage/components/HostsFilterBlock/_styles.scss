@@ -26,7 +26,8 @@
 
   &__os_settings-dropdown,
   &__macsettings-dropdown,
-  &__sw-install-status-dropdown {
+  &__sw-install-status-dropdown,
+  &__script-batch-status-dropdown {
     .dropdown__select {
       border: 1px solid #e2e4ea;
     }
