@@ -1,3 +1,49 @@
+## Fleet 4.70.0 (Jun 16, 2025)
+
+### Bug fixes
+
+- Fleet UI: Improved error and loading state for self-service page
+* Fixed result count shown when running a policy.
+* Update vulnerabilities feed to fall back to non-primary CVSSv2/v3 sources when primary (NVD) data is not available, instead of omitting scores entirely.
+* Fixed bug with the 'Observers can run this query' tooltip due to missing styling rules.
+- Updated custom SCEP proxy implementation to include one-time challenges.
+- Fixed possible user invite race condition
+* Added the `source` and `username` fields for host certificates, reporting 'system' or 'user' based on which keychain it was from (for `macOS`, it will be 'user' if coming from the "login" keychain), and the corresponding `username` if the source is 'user'.
+- Fleet UI: Removed sort column buttons for host software columns that do not support sorting
+- Updated migrations to use the `utf8mb4_unicode_ci` collation across all tables and added a test to
+  validate that new migrations use this collation.
+- Updated the Open Policy Agent (OPA) dependency to v1.4.2. **Warning**: this upgrade drops support for YAML 1.1 in configuration files. If you use the `-c` option to specify a configuration file when starting the Fleet server, you will need to update any `yes` or `on` values in the file to `true`, and any `no` or `off` values to `false`.
+* Extended `POST /api/v1/fleet/hosts/:id/wipe` endpoint to allow users to specify the type of remote wipe for windows hosts.
+Added new optional parameter --outfile to fleetctl package to override the filename being generated
+* Uploading a new installer to an Fleet Maintained App no longer reports as Fleet Maintained App
+- Added an audit log activity item for automatic install policy creation.
+- Improved error when trying to apply builtin labels
+* Update copy and remove platform callout in manage automations modal.
+Fixed issue where NDES SCEP admin page was parsed using wrong UTF16 endianness.
+* Update UI references to "Frequency" to now say "Interval"
+* Prevent editing the UI MDM > End user migration section when GitOps mode is enabled, since this is
+GitOps-configurable
+- Fixed manual labels in gitops not selecting hosts by hardware serial or uuid
+* Make the gap between characters in password fields consistent
+- Fleet UI: Consistent 14px font size across all input and dropdown fields
+- Removed username requirements for certain MDM CIS policies
+* Fixed a database bug where the `host_uuid` column was too small in some secondary tables related to ADE-enrollment and IdP accounts.
+- Added macOS redis cluster support
+- Fixed missing CORS header check for JSON requests
+- Changed to using DeleteObject S3 api for GCP interoperability
+Enabled Android MDM support. The functionality is limited to turning on Android MDM and enrolling a BYOD device. **NOTE:** If your server was already using Android via the experimental DEV_ANDROID_ENABLED=1 flag, please turn off Android MDM before updating your Fleet server.
+* Implement searching the teams dropdown
+* Fixed bug when listing software titles for 'All teams' which caused duplicated entries.
+- Support filtering the hosts page for hosts with any of the 3 batch script execution statuses
+- Use the Source Code Pro font in the Disk encryption key modal for clear differentiation between
+  the letter oh and the number zero.
+- update Certificates card on the host details and my device page to show a new
+keychain column
+* Fixed a bug that caused custom OS settings targeted using "include any" label rules to never verify on hosts that only included a subset of the targeted labels
+- Fixed the Docker Fleet-maintained app install script to prevent a successful install from showing
+up as a failure due to directory existence checks (live as of 2025-06-13 FMA update).
+* Updated go to 1.24.4
+
 ## Fleet 4.69.0 (June 14, 2025)
 
 ### Security Engineers
