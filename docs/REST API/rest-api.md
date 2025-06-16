@@ -4839,9 +4839,18 @@ Add a dynamic or manual label.
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
 | query       | string | body | The query in SQL syntax used to filter the hosts. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label) can be included in the request.  |
 | hosts       | array | body | The list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label)  can be included in the request. |
+| criteria    | object | body | See [`criteria`](#criteria)
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
-If both `query` and `hosts` aren't specified, a manual label with no hosts will be created.
+If `query`, `criteria`, and `hosts` aren't specified, a manual label with no hosts will be created.
+
+#### criteria
+
+| Name        | Type   | Description                                                                                                                                                                                                                                  |
+| ----------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| vital       | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"` or `"end_user_idp_department"`. |
+| value       | string | Hosts with vital data matching this value will be added to the label. |
+
 
 #### Example
 
