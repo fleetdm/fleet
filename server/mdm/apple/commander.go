@@ -310,6 +310,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }
 
+// TODO(JVE): add a bool param that controls for ManagedAppsOnly
 func (svc *MDMAppleCommander) InstalledApplicationList(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -318,7 +319,7 @@ func (svc *MDMAppleCommander) InstalledApplicationList(ctx context.Context, host
         <key>Command</key>
         <dict>
             <key>ManagedAppsOnly</key>
-            <false/>
+            <true/>
             <key>RequestType</key>
             <string>InstalledApplicationList</string>
             <key>Items</key>

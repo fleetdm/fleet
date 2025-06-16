@@ -1171,6 +1171,36 @@ the way that the Fleet server works.
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
 				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 
+				mdmCheckinAndCommandService.RegisterCommandHandler("InstalledApplicationList", func(ctx context.Context, commandResults service.Results) error {
+					r, ok := commandResults.(*service.InstalledApplicationListResult)
+					if !ok {
+						return fmt.Errorf("unexpected results type")
+					}
+
+					fmt.Println("Raw:")
+					fmt.Println(string(r.Raw()))
+					fmt.Println()
+					fmt.Printf("r.InstalledApps: %v\n", r.InstalledApps)
+
+					if len(r.InstalledApps) == 0 {
+						return nil
+					}
+
+					if r.InstalledApps[0].Installed {
+						ds.SetVPPInstallAsVerified(ctx, r.UUID())
+					} else {
+						time.Sleep(5 * time.Second)
+						newListCmdUUID := uuid.NewString()
+						if err := ds.UpdateVPPInstallVerificationCommandByVerifyUUID(ctx, r.UUID(), newListCmdUUID); err != nil {
+							return ctxerr.Wrap(ctx, err, "update install record in installed application list handler")
+						}
+						commander.InstalledApplicationList(ctx, []string{r.HostUUID()}, newListCmdUUID)
+					}
+
+					return nil
+				},
+				)
+
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {
 					initFatal(err, "checking SCEP challenge in database")

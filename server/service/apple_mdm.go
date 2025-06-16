@@ -3152,21 +3152,37 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////
 
+type Results interface {
+	// Raw returns the raw bytes of the MDM command result XML.
+	Raw() []byte
+	UUID() string
+	HostUUID() string
+}
+
+type CommandHandler func(ctx context.Context, commandResults Results) error
+
 type MDMAppleCheckinAndCommandService struct {
-	ds           fleet.Datastore
-	logger       kitlog.Logger
-	commander    *apple_mdm.MDMAppleCommander
-	mdmLifecycle *mdmlifecycle.HostLifecycle
+	ds              fleet.Datastore
+	logger          kitlog.Logger
+	commander       *apple_mdm.MDMAppleCommander
+	mdmLifecycle    *mdmlifecycle.HostLifecycle
+	commandHandlers map[string][]CommandHandler
 }
 
 func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
 	mdmLifecycle := mdmlifecycle.New(ds, logger)
 	return &MDMAppleCheckinAndCommandService{
-		ds:           ds,
-		commander:    commander,
-		logger:       logger,
-		mdmLifecycle: mdmLifecycle,
+		ds:              ds,
+		commander:       commander,
+		logger:          logger,
+		mdmLifecycle:    mdmLifecycle,
+		commandHandlers: map[string][]CommandHandler{},
 	}
+}
+
+func (svc *MDMAppleCheckinAndCommandService) RegisterCommandHandler(commandType string, handler CommandHandler) {
+	// TODO(JVE): validate the command type, we should probably have a dedicated Go type and const set
+	svc.commandHandlers[commandType] = append(svc.commandHandlers[commandType], handler)
 }
 
 // Authenticate handles MDM [Authenticate][1] requests.
@@ -3514,9 +3530,31 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
 		}
+
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
+			cmdUUID := uuid.NewString()
+			if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
+			}
+
+			// update the install record
+			if err := svc.ds.UpdateVPPInstallVerificationCommand(r.Context, cmdResult.CommandUUID, cmdUUID); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "update install record")
+			}
+		}
 	case "DeviceConfigured":
 		if err := svc.ds.SetHostAwaitingConfiguration(r.Context, r.ID, false); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
+		}
+	case "InstalledApplicationList":
+		// TODO(JVE): might need another special command UUID prefix to distinguish b/w Fleet
+		// lifecycle commands and ad-hoc commands sent by users
+		level.Debug(svc.logger).Log("msg", "running through handlers for InstalledApplicationList")
+		res := NewInstalledApplicationListResult(cmdResult.Raw, cmdResult.CommandUUID, cmdResult.UDID)
+		for _, f := range svc.commandHandlers["InstalledApplicationList"] {
+			if err := f(r.Context, res); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "InstalledApplicationList handler failed")
+			}
 		}
 	}
 
@@ -3689,6 +3727,31 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	return nil, nil
 }
 
+type InstalledApplicationListResult struct {
+	raw           []byte
+	InstalledApps []fleet.Software
+	uuid          string
+	hostUUID      string
+}
+
+func (i *InstalledApplicationListResult) Raw() []byte      { return i.raw }
+func (i *InstalledApplicationListResult) UUID() string     { return i.uuid }
+func (i *InstalledApplicationListResult) HostUUID() string { return i.hostUUID }
+
+func NewInstalledApplicationListResult(rawResult []byte, uuid, hostUUID string) *InstalledApplicationListResult {
+	// TODO(JVE): probably don't need ctx here (higher level concern, can just use fmt.Errorf), also
+	// should handle this error (can fail on unmarshaling the XML)
+	// Should we handle the unmarshaling elsewhere? Like higher up in CommandAndReportResults, for
+	// all command types? that sounds cleaner...
+	list, _ := unmarshalAppList(context.Background(), rawResult, "apps")
+	return &InstalledApplicationListResult{
+		raw:           rawResult,
+		uuid:          uuid,
+		InstalledApps: list,
+		hostUUID:      hostUUID,
+	}
+}
+
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,
 	error,
 ) {
@@ -3713,12 +3776,19 @@ func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fl
 
 	var software []fleet.Software
 	for _, app := range appsResponse.InstalledApplicationList {
-		software = append(software, fleet.Software{
+		sw := fleet.Software{
 			Name:             truncateString(app["Name"], fleet.SoftwareNameMaxLength),
 			Version:          truncateString(app["ShortVersion"], fleet.SoftwareVersionMaxLength),
 			BundleIdentifier: truncateString(app["Identifier"], fleet.SoftwareBundleIdentifierMaxLength),
 			Source:           source,
-		})
+		}
+		installing, ok := app["Installing"].(bool)
+		if !ok {
+			return nil, ctxerr.New(ctx, "parsing Installing key")
+		}
+
+		sw.Installed = !installing
+		software = append(software, sw)
 	}
 
 	return software, nil

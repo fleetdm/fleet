@@ -651,6 +651,10 @@ type Datastore interface {
 	// from the title IDs to the categories assigned to the installers for those titles.
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
+	UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error
+	SetVPPInstallAsVerified(ctx context.Context, installUUID string) error
+	UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 

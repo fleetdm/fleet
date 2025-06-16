@@ -1464,6 +1464,8 @@ WHERE
 <dict>
     <key>Command</key>
     <dict>
+		<key>InstallAsManaged</key>
+		<true/>
         <key>ManagementFlags</key>
         <integer>0</integer>
         <key>Options</key>
