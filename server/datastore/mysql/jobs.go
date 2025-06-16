@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -83,4 +84,30 @@ WHERE
 	}
 
 	return job, nil
+}
+
+func (ds *Datastore) CleanupWorkerJobs(ctx context.Context, failedSince, completedSince time.Duration) (int64, error) {
+	// using not_before instead of created_at/updated_at to be able to use the
+	// existing index, and the difference between those timestamps will be
+	// minimal (max 5 retries for failed jobs, with a few hours difference).
+	const stmt = `
+	DELETE FROM
+		jobs
+	WHERE
+		(state = ? AND not_before < ?) OR
+		(state = ? AND not_before < ?)
+`
+
+	now := time.Now().UTC()
+	failedBefore := now.Add(-failedSince)
+	completedBefore := now.Add(-completedSince)
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		fleet.JobStateFailure, failedBefore,
+		fleet.JobStateSuccess, completedBefore)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "cleanup worker jobs")
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
 }
