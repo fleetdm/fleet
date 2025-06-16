@@ -4055,6 +4055,8 @@ func ReconcileAppleProfiles(
 					userEnrollmentMap[p.HostUUID] = userEnrollment
 					userEnrollmentsToHostUUIDsMap[userEnrollment] = p.HostUUID
 				} else {
+					// TODO(mna): leave the profile as pending until the user-channel gets created,
+					// or until sufficient time passes after the device-enrollment
 					level.Warn(logger).Log("msg", "host does not have a user enrollment, falling back to system enrollment for user scoped profile",
 						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
 				}
@@ -4126,6 +4128,8 @@ func ReconcileAppleProfiles(
 				// TODO Is there a better way to handle this? This likely just means cleanups
 				// haven't run yet
 				if userNanoEnrollment == nil {
+					// TODO(mna): leave the profile as pending until the user-channel gets created,
+					// or until sufficient time passes after the device-enrollment
 					level.Warn(logger).Log("msg", "host does not have a user enrollment, cannot remove user scoped profile",
 						"host_uuid", p.HostUUID, "profile_uuid", p.ProfileUUID, "profile_identifier", p.ProfileIdentifier)
 					continue
