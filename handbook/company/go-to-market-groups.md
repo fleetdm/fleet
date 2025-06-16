@@ -153,7 +153,7 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 ##### Creating contacts in the wild
 
-Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM ASAP. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person added to Fleet's CRM quickly. To do this:
+Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM ASAP. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
 1. Locate the [help-create-contact](https://fleetdm.slack.com/archives/C091MLXQKQV) channel in Fleet Slack.
 2. Add the person's full name and any other details that can help the team identify the correct person. E.g.:
   - LinkedIn profile URL (this is the best option)
