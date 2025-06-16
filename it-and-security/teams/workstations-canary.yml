@@ -167,6 +167,7 @@ software:
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
     - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
+    - path: ../lib/macos/software/fleet_keynote_theme.yml # Fleet Keynote theme for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
