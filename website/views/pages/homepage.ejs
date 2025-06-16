@@ -94,6 +94,7 @@
       </div>
       <div purpose="feature-with-image">
         <div purpose="feature-image">
+          <!-- <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/" type="video/mp4"></video> -->
           <img alt="TODO: replace with video" src="https://feralgoblin.com/cass/600/435?text=TODO:+add+real+video">
         </div>
 
@@ -201,7 +202,7 @@
                 <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
                 <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
               </div>
-              <div purpose="comparison-column" v-if="['omnissa', 'intune'].includes(comparisonModeForIt)">
+              <div purpose="comparison-column" v-if="['omnissa', 'intune', 'ansible'].includes(comparisonModeForIt)">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'jamf'">
@@ -493,7 +494,7 @@
             </div>
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
-              <div purpose="feature-status" v-if="['tanium', 'chef', 'sccm'].includes(comparisonModeForIt)">
+              <div purpose="feature-status" v-if="['tanium', 'chef', 'sccm', 'ansible'].includes(comparisonModeForIt)">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
               <div purpose="feature-status" v-else-if="comparisonModeForIt === 'puppet'">
