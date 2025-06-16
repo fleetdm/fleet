@@ -358,7 +358,7 @@ const SoftwareSelfService = ({
     }
 
     // No self-service software available hides categories menu and header filters
-    if ((isEmpty || !selfServiceData) && !isFetching && !isLoading) {
+    if ((isEmpty || !selfServiceData) && !isFetching) {
       return (
         <>
           <EmptyTable
@@ -381,7 +381,7 @@ const SoftwareSelfService = ({
               selfServiceData?.software || [],
               queryParams.category_id
             )}
-            isLoading={isLoading || isFetching}
+            isLoading={isFetching}
             defaultSortHeader={DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_key}
             defaultSortDirection={
               DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_direction
