@@ -293,6 +293,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	const (
 		maxWaitTime         = 15 * time.Minute
 		minAttempts         = 10
+		maxAttempts         = 30
 		nextAttemptMinDelay = 30 * time.Second
 	)
 
@@ -311,8 +312,11 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 
 	// if we've reached the minimum number of attempts and the maximum time to
 	// wait, we release the device even if some commands or profiles are still
-	// pending.
-	if args.ReleaseDeviceAttempt >= minAttempts && time.Since(*args.ReleaseDeviceStartedAt) >= maxWaitTime {
+	// pending. We also release in case it reached the maximum number of
+	// attempts, to prevent an issue with clock skew where the wait delay does
+	// not appear to be reached.
+	if (args.ReleaseDeviceAttempt >= minAttempts && time.Since(*args.ReleaseDeviceStartedAt) >= maxWaitTime) ||
+		(args.ReleaseDeviceAttempt >= maxAttempts) {
 		a.Log.Log("info", "releasing device after too many attempts or too long wait", "host_uuid", args.HostUUID, "attempts", args.ReleaseDeviceAttempt)
 		if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
 			return ctxerr.Wrapf(ctx, err, "failed to enqueue DeviceConfigured command after %d attempts", args.ReleaseDeviceAttempt)
