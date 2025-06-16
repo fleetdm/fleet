@@ -34,6 +34,26 @@
     line-height: 150%;
   }
 
+  [purpose='announcement-banner'] {
+    br {
+      display: none;
+    }
+    display: flex;
+    width: 100%;
+    padding: 12px 8px;
+    justify-content: center;
+    align-items: center;
+    background: #0587FF;
+    color: var(--color-brand-white, #FFF);
+    font-family: Inter;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: normal;
+    [parasails-component='animated-arrow-button'] {
+      padding: 0;
+    }
+  }
   [purpose='hero-container'] {
     background: #FFFFFF;
     overflow: hidden;
@@ -1447,6 +1467,11 @@
     }
     h4 {
       font-size: 12px;
+    }
+    [purpose='announcement-banner'] {
+      br {
+        display: block;
+      }
     }
     [purpose='option-container'] {
       height: 33.6px;
