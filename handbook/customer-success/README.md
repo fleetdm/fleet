@@ -17,7 +17,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-customer-success](https://fleetdm.slack.com/archives/C062D0THVV1)).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-help-customers](https://fleetdm.slack.com/archives/C062D0THVV1)).
   - Any Fleet team member can [view the kanban board](https://github.com/fleetdm/fleet#workspaces/-g-customer-success-642c83a53e96760014c978bd/board) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
@@ -177,7 +177,7 @@ Customer Support and 24/7 on-call Engineers are responsible for the first respon
 
 ### Maintain first responder SLA
 
-The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #g-customer-success Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
+The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #help-customers Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
 - **First responders:** Robert Fairburn, Kathy Satterlee
 
 Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
