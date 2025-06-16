@@ -5265,9 +5265,7 @@ func getHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap map[hostProf
 	enrollmentID,
 	profUUID string,
 ) (*fleet.MDMAppleBulkUpsertHostProfilePayload, bool) {
-	var profile *fleet.MDMAppleBulkUpsertHostProfilePayload
-	var ok bool
-	profile, ok = hostProfilesToInstallMap[hostProfileUUID{HostUUID: enrollmentID, ProfileUUID: profUUID}]
+	profile, ok := hostProfilesToInstallMap[hostProfileUUID{HostUUID: enrollmentID, ProfileUUID: profUUID}]
 	if !ok {
 		var hostUUID string
 		// If sending to the user channel the enrollmentID will have to be mapped back to the host UUID.
