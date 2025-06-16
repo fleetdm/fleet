@@ -140,7 +140,7 @@ When Fleeties need a contact created in Fleet's CRM but are unable to do so in t
 2. Log in to Salesforce and navigate to the contact tab, click "New".
 3. Create the contact from research and the context left in the channel. If the account doesn't exist, then it will also need to be created and researched.
 4. Add any additional context to the "Description" field. 
-5. Once the contact and account exist in Salesforce, add the `white-check-mark` emoji (✅) to indicate you're done.
+5. Once the contact and account exist in Salesforce, reply to the thread with the contact URL from Salesforce and add the `white-check-mark` emoji (✅) to indicate you're done.
 
 
 ### Process pending swag requests from the website
