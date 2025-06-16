@@ -101,7 +101,7 @@ Fleet is successful because of our customers and community, and those relationsh
 ### Recording meetings
 
 Capturing video from meetings with customers, prospects, and community members outside the company is an important part of building world-class sales and customer success teams and is a widespread practice across the industry. At Fleet, we use Gong to capture Zoom meetings and share them company-wide. If a team member with a Gong license attends certain meetings, generally those with at least one person from outside of Fleet in attendance.  
-  - While some fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
+  - While some Fleeties may have a Gong seat that is necessary in their work, the typical use case at Fleet is for employees on the company's sales, customer success, or customer support teams. 
   - You should be notified anytime you join a recorded call with an audio message announcing "this meeting is being recorded" or "recording in progress."  To stop a recording, the host of the call can press "Stop." 
   - If the call has external participants and is recorded, this call is stored in Gong for future use. 
 To access a recording saved in Gong, visit [app.gong.io](https://app.gong.io) and sign in with SSO. 
@@ -239,7 +239,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We use [channels over DMs](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels).
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
-- In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
+- In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
 > **Need an app that you don't see in Fleet Slack?** [Create a Digital Experience issue](https://fleetdm.com/handbook/digital-experience#contact-us) to request an app be added to the Fleet Slack workspace.
 
@@ -386,14 +386,13 @@ _**Note:**_ There are only a few "special" labels that are exceptions to this ru
 
 
 > If you're adding multiple labels to an issue template, GitHub won't add both labels unless you put them in an array e.g. `labels: ['~air-guitar', ':product']`.  To verify the syntax is correct, you can preview the template and make sure each label name is in a separate box.  
-> <img width="1645" alt="Screenshot 2025-03-13 at 10 59 03" src="https://github.com/user-attachments/assets/37227cb8-335e-4237-afd9-4144b695ec63" />
 
 
 > ***Create an issue from a Slack message***
 >
 > If you need to track content from a Slack channel (e.g. #help-customers), you can automatically generate a GitHub issue by adding the emoji `create-github-issue` as a reaction to any message. This will automatically: 
 > - Create an issue tagged with the departmental GitHub label that corresponds with the Slack channel. If there isn't a corresponding departmental label for the channel, the issue defaults to the [#g-digital-experience](https://github.com/fleetdm/confidential/issues#workspaces/g-digital-experience-6451748b4eb15200131d4bab/board) kanban board.
-> - Link the 
+
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/97ce6caa-4b21-4cc2-8fcb-91aa03dfc6d6">
 
@@ -600,9 +599,9 @@ If you are in need of additional equipment for any reason, [open a warehouse req
 
 - **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
 
-- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Experience. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
+- **Returning equipment:** Apple computers with remaining AppleCare Protection Plans should be reprovisioned to other Fleeties who may have older or less-capable computers. Equipment should be returned once offboarded for reprovisioning. Coordinate offboarding and return with the Head of Digital Experience. Please return all equipment to the Fleet IT warehouse using Fleet's FedEx account (address and account # in 1Password).
 
-- **Equipment retention and replacement:** Older equipment results in lost productivity of fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
+- **Equipment retention and replacement:** Older equipment results in lost productivity of Fleeties and should be considered for replacement. Replacement candidates are computers that are no longer under an AppleCare+ Protection Plan (or another warranty plan), are >3 years from the [discontinued date](https://everymac.com/systems/apple/macbook_pro/index-macbookpro.html#specs), or when the "Battery condition" status in Fleet is less than "Normal". The old equipment should be evaluated for return or retention as a test environment.
 
 > If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
 
@@ -612,7 +611,7 @@ If you are in need of additional equipment for any reason, [open a warehouse req
 If you are in need of IT support to assist with a software or hardware issue, [open a support request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=) with Digital Experience. A Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part. Reach out to 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 
-## New fleeties
+## New Fleeties
 
 **Welcome to Fleet!** 
 
@@ -686,7 +685,7 @@ During their first week at Fleet, every new team member schedules a contributor 
 - Making sure you can succeed with submitting a PR with the GitHub web editor, modifying docs or handbook, and working with Markdown.
 - Talking about Google Calendar. Make sure you know how to see and subscribe to other team members' calendars and that you can add yourself to an event on someone else's calendar.
 - A quick tour of the Google Drive folder. Does their access look correct? Give access to executed documents on the shared drive as needed. Show how to use “Add to drive” or “favorite,” or just a browser bookmark, so the folder is easily accessible. This is where things go. It's the archive.
-- Make sure you know how to share a Google Doc in the folder for all fleeties to see and access.
+- Make sure you know how to share a Google Doc in the folder for all Fleeties to see and access.
 - Make sure new team members understand the expectations of, and [how to prepare](https://fleetdm.com/handbook/company/leadership#prepare-for-the-program) for, the [CEO shadow program](https://fleetdm.com/handbook/company/leadership#ceo-shadow-program).
 
 
@@ -704,7 +703,7 @@ At Fleet, performance feedback is a continuous process. We give feedback (partic
 - Feedback is something to share with the DRI, who has the context and mission to hear your feedback and decide what to do.
 - Feedback is better shared in a way that doesn't ping the customer. Reading it doesn't help them. 
 - Feedback is ready to share. If it's just an opinion without a solution or an opinion about a customer's contribution without specifically saying why the contribution would make the product worse, it's not feedback that's ready to share.
-- Feedback is how we improve. We encourage all fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
+- Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
 
 When _giving_ feedback:
 
@@ -836,9 +835,9 @@ Compensation at Fleet is determined by benchmarking using [Pave](https://pave.co
 
 ### Payroll dates
 
-US based fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
+US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
 
-Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based fleeties that receive variable compensation will be paid by the 10th. International fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
+Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
 
 
 ### Workiversaries
@@ -853,7 +852,7 @@ Fleet benchmarks US-based team members based on the United States Dollar (USD). 
 
 ### Relocating
 
-When fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/digital-experience#update-personnel-details) by following the directions listed in the relevant issue template.
+When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/digital-experience#update-personnel-details) by following the directions listed in the relevant issue template.
 
 
 ## Writing
@@ -945,7 +944,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 - **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
 - **Fleet the product:** We always say “Fleet” or “Fleet for osquery".  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
-- **Team members:** [Core team members](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant) are “fleeties".
+- **Team members:** [Core team members](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant) are “Fleeties".
 - **Group of devices or virtual servers:** Use "fleet" or "fleets" (lowercase).
 - **Osquery:** Osquery should always be written in lowercase unless used to start a sentence or heading.
 - **Fleetd:** Fleetd should always be written in lowercase unless used to start a sentence or heading.
@@ -1105,7 +1104,7 @@ Use numerals and am or pm without a space in between:
 Use a hyphen between times to indicate a time period:
 - 7am–10:30pm
 
-We have users and fleeties all over the world.🌎 Specify time zones when scheduling events or meetings.
+We have users and Fleeties all over the world.🌎 Specify time zones when scheduling events or meetings.
 
 Abbreviate time zones within the continental United States as follows:
 - Eastern time: ET

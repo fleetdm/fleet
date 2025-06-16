@@ -41,8 +41,8 @@ func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMA
 	profUUID := "a" + uuid.New().String()
 	stmt := `
 INSERT INTO
-    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at, secrets_updated_at)
-(SELECT ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP(), ? FROM DUAL WHERE
+    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at)
+(SELECT ?, ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP(), ? FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
@@ -58,7 +58,7 @@ INSERT INTO
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
-			profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
+			profUUID, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
 			teamID)
 		if err != nil {
 			switch {
@@ -125,6 +125,7 @@ INSERT INTO
 		ProfileID:    uint(profileID), //nolint:gosec // dismiss G115
 		Identifier:   cp.Identifier,
 		Name:         cp.Name,
+		Scope:        cp.Scope,
 		Mobileconfig: cp.Mobileconfig,
 		TeamID:       cp.TeamID,
 	}, nil
@@ -175,6 +176,7 @@ SELECT
 	profile_id,
 	team_id,
 	name,
+	scope,
 	identifier,
 	mobileconfig,
 	created_at,
@@ -221,6 +223,7 @@ SELECT
 	profile_id,
 	team_id,
 	name,
+	scope,
 	identifier,
 	mobileconfig,
 	checksum,
@@ -428,9 +431,11 @@ func cancelAppleHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.E
 	const deactivateNanoStmt = `
 	UPDATE
 		nano_enrollment_queue
+		JOIN nano_enrollments ne
+		    ON nano_enrollment_queue.id = ne.id
 		JOIN host_mdm_apple_profiles hmap
 			ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND
-				hmap.host_uuid = nano_enrollment_queue.id
+				hmap.host_uuid = ne.device_id
 	SET
 		nano_enrollment_queue.active = 0
 	WHERE
@@ -586,7 +591,8 @@ profile_identifier AS identifier,
 -- aggregation functions.
 COALESCE(status, '%s') AS status,
 COALESCE(operation_type, '') AS operation_type,
-COALESCE(detail, '') AS detail
+COALESCE(detail, '') AS detail,
+scope
 FROM
   host_mdm_apple_profiles
 WHERE
@@ -603,7 +609,8 @@ declaration_identifier AS identifier,
 -- aggregation functions.
 COALESCE(status, '%s') AS status,
 COALESCE(operation_type, '') AS operation_type,
-COALESCE(detail, '') AS detail
+COALESCE(detail, '') AS detail,
+scope
 FROM
   host_mdm_apple_declarations
 WHERE
@@ -742,6 +749,68 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 		return nil
 	})
 	return err
+}
+
+// ResendHostCustomSCEPProfile marks a custom SCEP profile to be resent to the host with the given UUID. It
+// also deactivates prior nano commands for the profile UUID and host UUID.
+//
+// FIXME: We really should have a more generic function to handle this, but our existing methods
+// for "resending" profiles don't reevaluate the profile variables so they aren't useful for
+// custom SCEP profiles where we need to regenerate the SCEP challenge. The main difference between
+// the existing flow and the implementation below is that we need to blank the command uuid in order
+// get the reconcile cron to reevaluate the command template to generate the challenge. Otherwise,
+// it just sends the old bytes again. It feels like we have some leaky abstrations somewhere that we need
+// to clean up.
+func (ds *Datastore) ResendHostCustomSCEPProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	deactivateNanoStmt := `
+UPDATE
+	nano_enrollment_queue
+	JOIN nano_enrollments ne
+		ON nano_enrollment_queue.id = ne.id
+	JOIN host_mdm_apple_profiles hmap 
+		ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND 
+			hmap.host_uuid = ne.device_id
+SET 
+	nano_enrollment_queue.active = 0
+WHERE
+	hmap.profile_uuid = ? AND
+	hmap.host_uuid = ?`
+
+	updateStmt := `
+UPDATE
+	host_mdm_apple_profiles
+SET
+	status = NULL,
+	command_uuid = '',
+	detail = '',
+	retries = 0,
+	variables_updated_at = NOW(6)
+WHERE
+	profile_uuid = ? AND
+	host_uuid = ? AND
+	operation_type = ?`
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, deactivateNanoStmt, profUUID, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivating nano_enrollment_queue for commands that were pending send to host")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// this should never happen, log for debugging
+			level.Error(ds.logger).Log("msg", "resend custom scep profile: nano not deactivated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+		}
+
+		res, err = tx.ExecContext(ctx, updateStmt, profUUID, hostUUID, fleet.MDMOperationTypeInstall)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resending host MDM profile")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// this should never happen, log for debugging
+			level.Error(ds.logger).Log("msg", "resend custom scep profile: host mdm apple profiles not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+		}
+
+		return nil
+	})
 }
 
 func (ds *Datastore) NewMDMAppleEnrollmentProfile(
@@ -957,9 +1026,11 @@ func (ds *Datastore) ListMDMAppleCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMAppleCommand, error) {
+	// Note that right now we are explicitly filtering by ne.type = 'Device' but we may want to change
+	// the API to allow and show user commands in the future
 	stmt := fmt.Sprintf(`
 SELECT
-    nvq.id as device_id,
+    ne.device_id as device_id,
     nvq.command_uuid,
     COALESCE(NULLIF(nvq.status, ''), 'Pending') as status,
     COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
@@ -969,9 +1040,13 @@ SELECT
 FROM
     nano_view_queue nvq
 INNER JOIN
+	nano_enrollments ne
+ON
+	nvq.id = ne.id AND type = 'Device'
+INNER JOIN
     hosts h
 ON
-    nvq.id = h.uuid
+    ne.id = h.uuid
 WHERE
    nvq.active = 1 AND
     %s
@@ -1959,6 +2034,21 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 	return &nanoEnroll, nil
 }
 
+func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId string) (*fleet.NanoEnrollment, error) {
+	var nanoEnroll fleet.NanoEnrollment
+	// use writer as it is used just after creation in some cases
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &nanoEnroll, `SELECT id, device_id, type, enabled, token_update_tally
+		FROM nano_enrollments WHERE type = 'User' AND enabled = 1 AND device_id = ? LIMIT 1`, deviceId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrapf(ctx, err, "getting data from nano_enrollments for device id %s", deviceId)
+	}
+
+	return &nanoEnroll, nil
+}
+
 // NOTE: this is only called from a deprecated endpoint that does not support
 // Fleet variables in profiles.
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
@@ -2010,14 +2100,15 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
-    profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at, secrets_updated_at
+    profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
+  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
+  scope = VALUES(scope),
   checksum = VALUES(checksum),
   name = VALUES(name),
   mobileconfig = VALUES(mobileconfig)
@@ -2119,7 +2210,7 @@ ON DUPLICATE KEY UPDATE
 	// contents is the same as it was already).
 	var profileIdentsInsertedOrUpdated []string
 	for _, p := range incomingProfs {
-		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name,
+		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Scope,
 			p.Mobileconfig, p.SecretsUpdatedAt); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
@@ -2342,7 +2433,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		ds.profile_identifier as profile_identifier,
 		ds.profile_name as profile_name,
 		ds.checksum as checksum,
-		ds.secrets_updated_at as secrets_updated_at
+		ds.secrets_updated_at as secrets_updated_at,
+		ds.scope as scope
 	FROM ( %s ) as ds
 		LEFT JOIN host_mdm_apple_profiles hmap
 			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
@@ -2425,7 +2517,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		hmap.status as status,
 		hmap.operation_type as operation_type,
 		COALESCE(hmap.detail, '') as detail,
-		hmap.command_uuid as command_uuid
+		hmap.command_uuid as command_uuid,
+		hmap.scope as scope
 	FROM ( %s ) as ds
 		RIGHT JOIN host_mdm_apple_profiles hmap
 			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
@@ -2544,7 +2637,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 					operation_type,
 					status,
 					command_uuid,
-					detail
+					detail,
+					scope
 				)
 				VALUES %s
 				ON DUPLICATE KEY UPDATE
@@ -2553,7 +2647,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 					command_uuid = VALUES(command_uuid),
 					checksum = VALUES(checksum),
 				    secrets_updated_at = VALUES(secrets_updated_at),
-					detail = VALUES(detail)
+					detail = VALUES(detail),
+					scope = VALUES(scope)
 			`, strings.TrimSuffix(valuePart, ","))
 
 		_, err := tx.ExecContext(ctx, baseStmt, args...)
@@ -2594,10 +2689,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 					OperationType:     pp.OperationType,
 					Detail:            pp.Detail,
 					CommandUUID:       pp.CommandUUID,
+					Scope:             pp.Scope,
 				}
 				pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, p.SecretsUpdatedAt,
-					pp.OperationType, pp.Status, pp.CommandUUID, pp.Detail)
-				psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
+					pp.OperationType, pp.Status, pp.CommandUUID, pp.Detail, p.Scope)
+				psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
 				batchCount++
 
 				if batchCount >= batchSize {
@@ -2622,10 +2718,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			Status:            nil,
 			CommandUUID:       "",
 			Detail:            "",
+			Scope:             p.Scope,
 		}
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, p.SecretsUpdatedAt,
-			fleet.MDMOperationTypeInstall, nil, "", "")
-		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
+			fleet.MDMOperationTypeInstall, nil, "", "", p.Scope)
+		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
 		batchCount++
 
 		if batchCount >= batchSize {
@@ -2659,10 +2756,11 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			Status:            nil,
 			CommandUUID:       "",
 			Detail:            "",
+			Scope:             p.Scope,
 		}
 		pargs = append(pargs, p.ProfileUUID, p.HostUUID, p.ProfileIdentifier, p.ProfileName, p.Checksum, p.SecretsUpdatedAt,
-			fleet.MDMOperationTypeRemove, nil, "", "")
-		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
+			fleet.MDMOperationTypeRemove, nil, "", "", p.Scope)
+		psb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),")
 		batchCount++
 
 		if batchCount >= batchSize {
@@ -2728,6 +2826,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.name as ${entityNameColumn},
 		mae.${checksumColumn} as ${checksumColumn},
 		mae.secrets_updated_at as secrets_updated_at,
+		mae.scope as scope,
 		0 as ${countEntityLabelsColumn},
 		0 as count_non_broken_labels,
 		0 as count_host_labels,
@@ -2762,6 +2861,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.name as ${entityNameColumn},
 		mae.${checksumColumn} as ${checksumColumn},
 		mae.secrets_updated_at as secrets_updated_at,
+		mae.scope as scope,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
@@ -2782,7 +2882,7 @@ func generateDesiredStateQuery(entityType string) string {
 		ne.type = 'Device' AND
 		( %s )
 	GROUP BY
-		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at
+		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at, mae.scope
 	HAVING
 		${countEntityLabelsColumn} > 0 AND count_host_labels = ${countEntityLabelsColumn}
 
@@ -2801,6 +2901,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.name as ${entityNameColumn},
 		mae.${checksumColumn} as ${checksumColumn},
 		mae.secrets_updated_at as secrets_updated_at,
+		mae.scope as scope,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
@@ -2825,7 +2926,7 @@ func generateDesiredStateQuery(entityType string) string {
 		ne.type = 'Device' AND
 		( %s )
 	GROUP BY
-		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at
+		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at, mae.scope
 	HAVING
 		-- considers only the profiles with labels, without any broken label, with results reported after all labels were created and with the host not in any label
 		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} = count_non_broken_labels AND ${countEntityLabelsColumn} = count_host_updated_after_labels AND count_host_labels = 0
@@ -2843,6 +2944,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.name as ${entityNameColumn},
 		mae.${checksumColumn} as ${checksumColumn},
 		mae.secrets_updated_at as secrets_updated_at,
+		mae.scope as scope,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
@@ -2863,7 +2965,7 @@ func generateDesiredStateQuery(entityType string) string {
 		ne.type = 'Device' AND
 		( %s )
 	GROUP BY
-		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at
+		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.${checksumColumn}, mae.secrets_updated_at, mae.scope
 	HAVING
 		${countEntityLabelsColumn} > 0 AND count_host_labels >= 1
 	`, func(s string) string { return dynamicNames[s] })
@@ -2989,7 +3091,8 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		ds.profile_identifier,
 		ds.profile_name,
 		ds.checksum,
-		ds.secrets_updated_at
+		ds.secrets_updated_at,
+		ds.scope
 	FROM %s `,
 		generateEntitiesToInstallQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
@@ -3011,7 +3114,8 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 		hmae.operation_type,
 		COALESCE(hmae.detail, '') as detail,
 		hmae.status,
-		hmae.command_uuid
+		hmae.command_uuid,
+		hmae.scope
 	FROM %s`, generateEntitiesToRemoveQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
@@ -3069,7 +3173,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               checksum,
               secrets_updated_at,
               ignore_error,
-              variables_updated_at
+              variables_updated_at,
+			  scope
             )
             VALUES %s
             ON DUPLICATE KEY UPDATE
@@ -3083,7 +3188,8 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
               profile_identifier = VALUES(profile_identifier),
               profile_name = VALUES(profile_name),
               command_uuid = VALUES(command_uuid),
-              variables_updated_at = VALUES(variables_updated_at)`,
+              variables_updated_at = VALUES(variables_updated_at),
+			  scope = VALUES(scope)`,
 			strings.TrimSuffix(valuePart, ","), fleet.MDMOperationTypeRemove,
 		)
 
@@ -3100,10 +3206,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 	}
 
 	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
-		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID,
-			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError, p.VariablesUpdatedAt,
+			p.Checksum, p.SecretsUpdatedAt, p.IgnoreError, p.VariablesUpdatedAt, p.Scope,
 		}
 		return valuePart, args
 	}
@@ -3591,18 +3697,19 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 			teamID = *cp.TeamID
 		}
 
-		args = append(args, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.SecretsUpdatedAt)
+		args = append(args, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.SecretsUpdatedAt)
 		// see https://stackoverflow.com/a/51393124/1094941
-		sb.WriteString("( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(), ?),")
+		sb.WriteString("( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(), ?),")
 	}
 
 	stmt := fmt.Sprintf(`
           INSERT INTO
-              mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at, secrets_updated_at)
+              mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at)
           VALUES %s
           ON DUPLICATE KEY UPDATE
             uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
             mobileconfig = VALUES(mobileconfig),
+			scope = VALUES(scope),
             checksum = VALUES(checksum),
 		    secrets_updated_at = VALUES(secrets_updated_at)
 `, strings.TrimSuffix(sb.String(), ","))
@@ -3932,6 +4039,7 @@ SELECT
 	profile_id,
 	team_id,
 	name,
+	scope,
 	identifier,
 	mobileconfig,
 	created_at,
@@ -5892,12 +6000,13 @@ GROUP BY h.id`
 	return devices, nil
 }
 
-func (ds *Datastore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) (uuids []string, err error) {
+func (ds *Datastore) GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) (uuids []string, err error) {
 	const stmt = `
 SELECT DISTINCT neq.id
 FROM nano_enrollment_queue neq
+INNER JOIN nano_enrollments ne ON ne.id = neq.id
 LEFT JOIN nano_command_results ncr ON ncr.command_uuid = neq.command_uuid AND ncr.id = neq.id
-WHERE neq.active = 1 AND ncr.status IS NULL
+WHERE neq.active = 1 AND ne.enabled=1 AND ncr.status IS NULL
 AND neq.created_at >= NOW() - INTERVAL 7 DAY
 LIMIT 500
 `
@@ -6347,7 +6456,10 @@ func (ds *Datastore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	stmt := fmt.Sprintf(`
 		DELETE hmap FROM host_mdm_apple_profiles AS hmap
         -- ANTIJOIN: Delete rows that don't have a corresponding entry in nano_enrollment_queue
-		LEFT JOIN nano_enrollment_queue neq ON hmap.host_uuid = neq.id AND hmap.command_uuid = neq.command_uuid AND neq.active = 1
+		-- Note that a given host may have multiple nano_enrollments(device and user) and thus we
+		-- need to account for the use of either of them in the join
+		LEFT JOIN (nano_enrollment_queue neq INNER JOIN nano_enrollments ne ON neq.id = ne.id AND ne.enabled = 1)
+		ON ne.device_id = hmap.host_uuid AND hmap.command_uuid = neq.command_uuid AND neq.active = 1
 		WHERE neq.id IS NULL AND (hmap.status IS NULL OR hmap.status = '%s') AND hmap.updated_at < NOW() - INTERVAL 1 HOUR`,
 		fleet.MDMDeliveryPending)
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {

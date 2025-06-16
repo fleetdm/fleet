@@ -69,13 +69,15 @@ Generated when creating policies.
 This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.
+- "fleet_maintained": whether the policy is maintained by Fleet (e.g. automatic install/patch).
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+  "fleet_maintained": false
 }
 ```
 
@@ -86,13 +88,15 @@ Generated when editing policies.
 This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.
+- "fleet_maintained": whether the policy is maintained by Fleet (e.g. automatic install/patch).
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+  "fleet_maintained": false
 }
 ```
 
@@ -103,13 +107,15 @@ Generated when deleting policies.
 This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.
+- "fleet_maintained": whether the policy is maintained by Fleet (e.g. automatic install/patch).
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+  "fleet_maintained": false
 }
 ```
 
@@ -1800,6 +1806,52 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
   "software_title_id": 12334
+}
+```
+
+## added_conditional_access_integration_microsoft
+
+Generated when Microsoft Entra is connected for conditonal access.
+
+This activity does not contain any detail fields.
+
+## deleted_conditional_access_integration_microsoft
+
+Generated when Microsoft Entra is integration is disconnected.
+
+This activity does not contain any detail fields.
+
+## enabled_conditional_access_automations
+
+Generated when conditional access automations are enabled for a team.
+
+This activity contains the following field:
+- "team_id": The ID of the team  ("null" for "No team").
+- "team_name": The name of the team (empty for "No team").
+
+#### Example
+
+```json
+{
+  "team_id": 5,
+  "team_name": "Workstations"
+}
+```
+
+## disabled_conditional_access_automations
+
+Generated when conditional access automations are disabled for a team.
+
+This activity contains the following field:
+- "team_id": The ID of the team (`null` for "No team").
+- "team_name": The name of the team (empty for "No team").
+
+#### Example
+
+```json
+{
+  "team_id": 5,
+  "team_name": "Workstations"
 }
 ```
 
