@@ -158,7 +158,7 @@ type ListLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet
 
 type LabelsSummaryFunc func(ctx context.Context) ([]*fleet.LabelSummary, error)
 
-type GetHostUUIDsWithPendingMDMAppleCommandsFunc func(ctx context.Context) ([]string, error)
+type GetEnrollmentIDsWithPendingMDMAppleCommandsFunc func(ctx context.Context) ([]string, error)
 
 type LabelQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
@@ -744,6 +744,8 @@ type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time) 
 
 type UpdateJobFunc func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error)
 
+type CleanupWorkerJobsFunc func(ctx context.Context, failedSince time.Duration, completedSince time.Duration) (int64, error)
+
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
@@ -851,6 +853,8 @@ type ListMDMAppleDEPSerialsInHostIDsFunc func(ctx context.Context, hostIDs []uin
 type GetHostDEPAssignmentFunc func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error)
 
 type GetNanoMDMEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
+
+type GetNanoMDMUserEnrollmentFunc func(ctx context.Context, id string) (*fleet.NanoEnrollment, error)
 
 type GetNanoMDMEnrollmentTimesFunc func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)
 
@@ -1593,8 +1597,8 @@ type DataStore struct {
 	LabelsSummaryFunc        LabelsSummaryFunc
 	LabelsSummaryFuncInvoked bool
 
-	GetHostUUIDsWithPendingMDMAppleCommandsFunc        GetHostUUIDsWithPendingMDMAppleCommandsFunc
-	GetHostUUIDsWithPendingMDMAppleCommandsFuncInvoked bool
+	GetEnrollmentIDsWithPendingMDMAppleCommandsFunc        GetEnrollmentIDsWithPendingMDMAppleCommandsFunc
+	GetEnrollmentIDsWithPendingMDMAppleCommandsFuncInvoked bool
 
 	LabelQueriesForHostFunc        LabelQueriesForHostFunc
 	LabelQueriesForHostFuncInvoked bool
@@ -2472,6 +2476,9 @@ type DataStore struct {
 	UpdateJobFunc        UpdateJobFunc
 	UpdateJobFuncInvoked bool
 
+	CleanupWorkerJobsFunc        CleanupWorkerJobsFunc
+	CleanupWorkerJobsFuncInvoked bool
+
 	InnoDBStatusFunc        InnoDBStatusFunc
 	InnoDBStatusFuncInvoked bool
 
@@ -2633,6 +2640,9 @@ type DataStore struct {
 
 	GetNanoMDMEnrollmentFunc        GetNanoMDMEnrollmentFunc
 	GetNanoMDMEnrollmentFuncInvoked bool
+
+	GetNanoMDMUserEnrollmentFunc        GetNanoMDMUserEnrollmentFunc
+	GetNanoMDMUserEnrollmentFuncInvoked bool
 
 	GetNanoMDMEnrollmentTimesFunc        GetNanoMDMEnrollmentTimesFunc
 	GetNanoMDMEnrollmentTimesFuncInvoked bool
@@ -3917,11 +3927,11 @@ func (s *DataStore) LabelsSummary(ctx context.Context) ([]*fleet.LabelSummary, e
 	return s.LabelsSummaryFunc(ctx)
 }
 
-func (s *DataStore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error) {
+func (s *DataStore) GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error) {
 	s.mu.Lock()
-	s.GetHostUUIDsWithPendingMDMAppleCommandsFuncInvoked = true
+	s.GetEnrollmentIDsWithPendingMDMAppleCommandsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostUUIDsWithPendingMDMAppleCommandsFunc(ctx)
+	return s.GetEnrollmentIDsWithPendingMDMAppleCommandsFunc(ctx)
 }
 
 func (s *DataStore) LabelQueriesForHost(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -5968,6 +5978,13 @@ func (s *DataStore) UpdateJob(ctx context.Context, id uint, job *fleet.Job) (*fl
 	return s.UpdateJobFunc(ctx, id, job)
 }
 
+func (s *DataStore) CleanupWorkerJobs(ctx context.Context, failedSince time.Duration, completedSince time.Duration) (int64, error) {
+	s.mu.Lock()
+	s.CleanupWorkerJobsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupWorkerJobsFunc(ctx, failedSince, completedSince)
+}
+
 func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	s.InnoDBStatusFuncInvoked = true
@@ -6344,6 +6361,13 @@ func (s *DataStore) GetNanoMDMEnrollment(ctx context.Context, id string) (*fleet
 	s.GetNanoMDMEnrollmentFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetNanoMDMEnrollmentFunc(ctx, id)
+}
+
+func (s *DataStore) GetNanoMDMUserEnrollment(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+	s.mu.Lock()
+	s.GetNanoMDMUserEnrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetNanoMDMUserEnrollmentFunc(ctx, id)
 }
 
 func (s *DataStore) GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
