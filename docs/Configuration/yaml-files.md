@@ -54,7 +54,7 @@ labels:
       - "ceo-laptop"
       - "the-CFOs-computer"
   - name: Engineering department
-    description: Hosts usd by engineers
+    description: Hosts used by engineers
     label_membership_type: host_vitals
     criteria:
       vital: end_user_idp_department
