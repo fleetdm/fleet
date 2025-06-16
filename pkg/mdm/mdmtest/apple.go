@@ -50,7 +50,7 @@ type TestAppleMDMClient struct {
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
 
-	// UserUUID is a random afke unique ID of a simulated user. Only filled in if a user enrollment
+	// UserUUID is a random fake unique ID of a simulated user. Only filled in if a user enrollment
 	// is done
 	UserUUID string
 	// Username is the username of a simulated user. Only filled in if a user enrollment is done
