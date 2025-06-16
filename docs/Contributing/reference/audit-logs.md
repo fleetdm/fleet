@@ -69,13 +69,15 @@ Generated when creating policies.
 This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.
+- "fleet_maintained": whether the policy is maintained by Fleet (e.g. automatic install/patch).
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+  "fleet_maintained": false
 }
 ```
 
@@ -86,13 +88,15 @@ Generated when editing policies.
 This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.
+- "fleet_maintained": whether the policy is maintained by Fleet (e.g. automatic install/patch).
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+  "fleet_maintained": false
 }
 ```
 
@@ -103,13 +107,15 @@ Generated when deleting policies.
 This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.
+- "fleet_maintained": whether the policy is maintained by Fleet (e.g. automatic install/patch).
 
 #### Example
 
 ```json
 {
 	"policy_id": 123,
-	"policy_name": "foo"
+	"policy_name": "foo",
+  "fleet_maintained": false
 }
 ```
 
