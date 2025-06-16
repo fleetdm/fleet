@@ -203,6 +203,27 @@ database:
     config: ""
     serverName: ""
 
+database_read_replica:
+  # Name of the Secret resource containing MySQL password and TLS secrets
+  address: 127.0.0.1:3306
+  database: fleet
+  username: fleet
+  secretName: mysql-ro
+  passwordKey: mysql-ro-password
+  passwordPath: /path/to/password
+  maxOpenConns: 50
+  maxIdleConns: 50
+  connMaxLifetime: 0
+  tls:
+    enabled: false
+    ## Commented options below are optional.  Uncomment to use.
+    # caCertKey: ca.cert
+    ## Client certificates require both the certKey and keyKey
+    # certKey: client.cert
+    # keyKey: client.key
+    config: ""
+    serverName: ""
+
 ## Section: cache
 # All of the connection settings for Redis
 cache:
