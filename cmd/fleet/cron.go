@@ -890,6 +890,13 @@ func newCleanupsAndAggregationSchedule(
 				return ds.CleanupExpiredPasswordResetRequests(ctx)
 			},
 		),
+		schedule.WithJob(
+			"expired_challenges",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupExpiredChallenges(ctx)
+				return err
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",

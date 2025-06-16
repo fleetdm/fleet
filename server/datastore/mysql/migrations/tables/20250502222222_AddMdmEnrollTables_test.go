@@ -62,7 +62,7 @@ func TestUp_20250502222222(t *testing.T) {
 			fmt.Sprintf("serial-%d", id),
 			fmt.Sprintf("osquery-host-id-%d", id),
 			fmt.Sprintf("node-key-%d", id),
-			fmt.Sprintf("host-uuid-%d", id),
+			fmt.Sprintf("host-uuid-extra-looooooooooooooooooooooooooooooong-%d", id),
 			platform,
 		))
 	}
@@ -115,7 +115,7 @@ func TestUp_20250502222222(t *testing.T) {
 		{
 			name:     "host with unmatched url ref but mdm account email match",
 			hostID:   1,
-			hostUUID: "host-uuid-1",
+			hostUUID: "host-uuid-extra-looooooooooooooooooooooooooooooong-1",
 			hostMDM: hostMDM{
 				HostID:         1,
 				FleetEnrollRef: "nobody-uuid",
@@ -131,7 +131,7 @@ func TestUp_20250502222222(t *testing.T) {
 		{
 			name:     "host with unmatched url ref but multiple mdm account email matches",
 			hostID:   2,
-			hostUUID: "host-uuid-2",
+			hostUUID: "host-uuid-extra-looooooooooooooooooooooooooooooong-2",
 			hostMDM: hostMDM{
 				HostID:         2,
 				FleetEnrollRef: "nobody-uuid",
@@ -150,7 +150,7 @@ func TestUp_20250502222222(t *testing.T) {
 		{
 			name:     "host with legacy match and multiple mdm account email matches",
 			hostID:   3,
-			hostUUID: "host-uuid-3",
+			hostUUID: "host-uuid-extra-looooooooooooooooooooooooooooooong-3",
 			hostMDM: hostMDM{
 				HostID:         3,
 				FleetEnrollRef: "bob-uuid",
@@ -169,7 +169,7 @@ func TestUp_20250502222222(t *testing.T) {
 		{
 			name:     "host with legacy match and no mdm account email matches",
 			hostID:   4,
-			hostUUID: "host-uuid-4",
+			hostUUID: "host-uuid-extra-looooooooooooooooooooooooooooooong-4",
 			hostMDM: hostMDM{
 				HostID:         4,
 				FleetEnrollRef: "bob-uuid",
@@ -184,7 +184,7 @@ func TestUp_20250502222222(t *testing.T) {
 		{
 			name:     "host with no legacy match and no mdm account email matches",
 			hostID:   5,
-			hostUUID: "host-uuid-5",
+			hostUUID: "host-uuid-extra-looooooooooooooooooooooooooooooong-5",
 			hostMDM: hostMDM{
 				HostID:         5,
 				FleetEnrollRef: "nobody-uuid",
@@ -199,7 +199,7 @@ func TestUp_20250502222222(t *testing.T) {
 		{
 			name:     "host with no legacy match and no mdm account emails",
 			hostID:   6,
-			hostUUID: "host-uuid-6",
+			hostUUID: "host-uuid-extra-looooooooooooooooooooooooooooooong-6",
 			hostMDM: hostMDM{
 				HostID:         6,
 				FleetEnrollRef: "nobody-uuid",
@@ -212,7 +212,7 @@ func TestUp_20250502222222(t *testing.T) {
 		{
 			name:     "host with legacy match and no emails",
 			hostID:   7,
-			hostUUID: "host-uuid-7",
+			hostUUID: "host-uuid-extra-looooooooooooooooooooooooooooooong-7",
 			hostMDM: hostMDM{
 				HostID:         7,
 				FleetEnrollRef: "bob-uuid",
@@ -225,7 +225,7 @@ func TestUp_20250502222222(t *testing.T) {
 		{
 			name:     "host with no legacy match and only google emails",
 			hostID:   8,
-			hostUUID: "host-uuid-8",
+			hostUUID: "host-uuid-extra-looooooooooooooooooooooooooooooong-8",
 			hostMDM: hostMDM{
 				HostID:         8,
 				FleetEnrollRef: "nobody-uuid",

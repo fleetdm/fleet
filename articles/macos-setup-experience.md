@@ -40,7 +40,7 @@ To require a EULA, in Fleet, head to **Settings > Integrations > Automatic enrol
 
 ## Bootstrap package
 
-Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a distribution package.
+Fleet supports installing a bootstrap package on macOS hosts that automatically enroll to Fleet. Apple requires that your package is a [distribution package](https://fleetdm.com/learn-more-about/macos-distribution-packages).
 
 This enables installing tools like [Puppet](https://www.puppet.com/), [Munki](https://www.munki.org/munki/), or [Chef](https://www.chef.io/products/chef-infra) for configuration management and/or running custom scripts and installing tools like [DEP notify](https://gitlab.com/Mactroll/DEPNotify) to customize the setup experience for your end users.
 
@@ -136,6 +136,8 @@ To customize the macOS Setup Assistant, we will do the following steps:
 1. Create an automatic enrollment profile
 2. Upload the profile to Fleet
 3. Test the custom macOS Setup Assistant
+
+> It can take up to 10 minutes for a host to get a new automatic enrollment profile. Learn more [here](https://github.com/fleetdm/fleet/issues/27854#issuecomment-2811275551).
 
 ### Step 1: Create an automatic enrollment profile
 

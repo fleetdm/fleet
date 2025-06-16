@@ -223,6 +223,9 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	filename := "fleet-osquery.msi"
+	if opt.CustomOutfile != "" {
+		filename = opt.CustomOutfile
+	}
 	if opt.Architecture == ArchArm64 {
 		filename = "fleet-osquery-arm64.msi"
 	}

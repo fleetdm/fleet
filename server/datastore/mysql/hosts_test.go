@@ -7469,6 +7469,9 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.BatchExecuteScript(ctx, nil, script.ID, []uint{host.ID})
 	require.NoError(t, err)
 
+	err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName")
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
