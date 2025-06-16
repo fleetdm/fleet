@@ -939,7 +939,7 @@ module.exports.routes = {
   // Temporary redirects
   // =============================================================================================================
   // For events, etc. that can be removed after a certain date. Please leave a comment with a valid until date.
-  'GET /funding-announcement': '/'// This will be changed on 2025-06-17.
+  'GET /funding-announcement': '/',// This will be changed on 2025-06-17.
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
