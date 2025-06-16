@@ -24,7 +24,7 @@ IT Admins can now run scripts in bulk using host filters. This makes it easy to 
 
 ### Entra ID and authentik foreign vitals
 
-Fleet now supports pulling user data—like IdP email, full name, and groups—from Entra ID or [authentik](https://goauthentik.io/) into host vitals. This helps IT Admins quickly identify the user assigned to each host. Lear nmore [here](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts).
+Fleet now supports pulling user data—like IdP email, full name, and groups—from Entra ID or [authentik](https://goauthentik.io/) into host vitals. This helps IT Admins quickly identify the user assigned to each host. See the [map IdP users to hosts guide](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts) for more information.
 
 ### Secondary CVSS scores
 
@@ -32,7 +32,7 @@ When a vulnerability has no primary CVSS score in the [National Vulnerability Da
 
 ### Add custom packages in GitOps mode
 
-In GitOps mode, IT Admins can now use the UI to add a custom package and copy the corresponding YAML. This is useful for managing private software (like CrowdStrike) without a public URL.
+In GitOps mode, IT Admins can now use the UI to add a custom package and copy the corresponding YAML. This is useful for managing private software (like CrowdStrike) without a public URL. See the [manage software using GitOps guide](https://fleetdm.com/guides/gitops-mode-software) for more information.
 
 ### Bulk resend failed configuration profiles
 
