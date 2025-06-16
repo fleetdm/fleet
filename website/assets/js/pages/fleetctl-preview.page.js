@@ -15,7 +15,9 @@ parasails.registerPage('fleetctl-preview', {
       linux: '~/.fleetctl/fleetctl preview',
       windows: `%USERPROFILE%\\.fleetctl\\fleetctl preview`,
       npm: 'fleetctl preview',
-    }
+    },
+    // For conditionally rendering messages based on if the user is logged in or not.
+    me: undefined,
 
   },
 

@@ -44,6 +44,9 @@ variable "android_service_credentials" {}
 variable "dogfood_sidecar_enroll_secret" {}
 variable "cloudfront_public_key" {}
 variable "cloudfront_private_key" {}
+variable "webhook_url" {
+  description = "Webhook URL used for Webhook Logging Destination"
+}
 
 data "aws_caller_identity" "current" {}
 
@@ -67,6 +70,10 @@ locals {
     FLEET_CALENDAR_PERIODICITY            = var.fleet_calendar_periodicity
     FLEET_DEV_ANDROID_ENABLED             = "1"
     FLEET_DEV_ANDROID_SERVICE_CREDENTIALS = var.android_service_credentials
+    # Webhook Results & Status Logging Destination
+    FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
+    FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
+    FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
@@ -75,7 +82,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.15.1"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.15.2"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -135,7 +142,6 @@ module "main" {
     }
     extra_iam_policies = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
     extra_environment_variables = merge(
-      module.firehose-logging.fleet_extra_environment_variables,
       module.osquery-carve.fleet_extra_environment_variables,
       module.ses.fleet_extra_environment_variables,
       local.extra_environment_variables,
@@ -162,6 +168,9 @@ module "main" {
       bucket_prefix  = "${local.customer}-software-installers-"
       create_kms_key = true
       kms_alias      = "${local.customer}-software-installers"
+      enable_bucket_versioning           = true
+      expire_noncurrent_versions         = true
+      noncurrent_version_expiration_days = 30
       tags = {
         backup = "true"
       }
@@ -373,6 +382,7 @@ module "mdm" {
   abm_secret_name    = null
 }
 
+# can deprecate once we get webhooks rolling
 module "firehose-logging" {
   source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
   firehose_results_name = "osquery_results"

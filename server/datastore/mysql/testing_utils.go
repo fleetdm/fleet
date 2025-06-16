@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -841,6 +842,47 @@ func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{},
 		return result, ctxerr.Wrap(ctx, err, "rows error")
 	}
 	return result, nil
+}
+
+// NormalizeSQL normalizes the SQL statement by removing extra spaces and new lines, etc.
+func NormalizeSQL(query string) string {
+	query = strings.ToUpper(query)
+	query = strings.TrimSpace(query)
+
+	transformations := []struct {
+		pattern     *regexp.Regexp
+		replacement string
+	}{
+		{
+			// Remove comments
+			regexp.MustCompile(`(?m)--.*$|/\*(?s).*?\*/`),
+			"",
+		},
+		{
+			// Normalize whitespace
+			regexp.MustCompile(`\s+`),
+			" ",
+		},
+		{
+			// Replace spaces around ','
+			regexp.MustCompile(`\s*,\s*`),
+			",",
+		},
+		{
+			// Replace extra spaces before (
+			regexp.MustCompile(`\s*\(\s*`),
+			" (",
+		},
+		{
+			// Replace extra spaces before (
+			regexp.MustCompile(`\s*\)\s*`),
+			") ",
+		},
+	}
+	for _, tx := range transformations {
+		query = tx.pattern.ReplaceAllString(query, tx.replacement)
+	}
+	return query
 }
 
 func checkUpcomingActivities(t *testing.T, ds *Datastore, host *fleet.Host, execIDs ...string) {

@@ -1,3 +1,9 @@
+## Fleet 4.68.1 (Jun 02, 2025)
+
+### Bug fixes
+
+Added `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE` environment variable to allow increasing MDM SSO endpoint rate limit from 10 per minute. When supplied, this parameter also splits MDM SSO into its own rate limit bucket (default is shared with login endpoints).
+
 ## Fleet 4.68.0 (May 22, 2025)
 
 ### Security Engineers

@@ -41,6 +41,7 @@ As soon as we've addressed the next quarter's objectives, the Head of Product De
 
 Product Designers are responsible for [triaging all new reproduced bugs](https://fleetdm.com/handbook/company/product-groups#in-product-drafting).
 
+
 ### Drafting
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
@@ -94,7 +95,7 @@ Additionally:
 2. Add the user story to the agenda for the [design review](https://fleetdm.com/handbook/company/product-groups#design-reviews) meeting.
 3. Attend design review or schedule an ad-hoc design review if you need to move faster.
 
-> As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
+> As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The Product Designer is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
 
 ### Ensure story drafting is complete
@@ -109,6 +110,7 @@ If the story is tied to a customer feature request, the Head of Product Design (
 
 Sometimes, a Product Designer from one product group will draft a user story or bug that is implemented by a different product group. This happens when the original product group is constrained by design or engineering capacity. If this happens, it's up to the original Product Designer to update the "Product Designer" mentioned in the user story or bug and ramp up the new Product Designer so they are prepared to answers questions.
 
+
 ### Revise a draft currently in development
 
 Expedited drafting is the revision of drafted changes currently being developed by
@@ -117,7 +119,7 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
-- A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
+- A user story is taking more effort than was originally estimated, and Product Designer wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
 - A user story on the drafting board won't reach "Ready for spec" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
 
 What happens during expedited drafting?
@@ -130,7 +132,7 @@ What happens during expedited drafting?
 
 ### Write a user story
 
-Product Managers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://github.com/orgs/fleetdm/projects/67). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
+Product Designers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://github.com/orgs/fleetdm/projects/67). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
 
 ### Consider a feature eligible to be flagged
@@ -159,6 +161,7 @@ To signal that the reference docs branch is ready for release, the API design DR
 
 > Anytime there is a missing or incorrect configuration option or REST API endpoint in the docs, it is treated as a released bug to be filed and fixed ASAP.
 
+
 ### Interview a Product Designer candidate
 
 Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications).
@@ -172,9 +175,23 @@ Ensure the interview process follows these steps in order. This process must fol
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
+
 ### Confirm and celebrate
 
 Product Designers (PD) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
+
+If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79). The PD also moved the request to the 🗣️ Ready for feedback column on the [💝 Customer requests](https://github.com/orgs/fleetdm/projects/82) board.
+
+
+### Notify stakeholders when a user story is pushed to the next sprint
+
+[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be [drafted](#drafting) and estimated in a single sprint. When the Product Designers (PD) knows a user story will be pushed, it is the PD's responsibility to notify stakeholders:
+
+1. Comment on the GitHub issue and at-mention the Head of Product Design and anyone listed in the requester field.
+2. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, or #g-orchestration Slack channel.
+
+> Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
+
 
 ## Rituals
 <rituals :rituals="rituals['handbook/product-design/product-design.rituals.yml']"></rituals>
