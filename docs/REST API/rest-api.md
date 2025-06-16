@@ -3563,7 +3563,7 @@ _Available in Fleet Premium_
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| team_id                           | number  | ID of the team to filter by. | 
+| team_id                           | number  | ID of the team to filter by. |
 
 > Note: `label_id` and `status` filters cannot be used at the same time.
 
@@ -3629,7 +3629,7 @@ Turns off MDM for the specified macOS, iOS, or iPadOS host.
 | query                             | string  | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. |
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
-| team_id                           | number  | ID of the team to filter by. | 
+| team_id                           | number  | ID of the team to filter by. |
 
 > Notes: `label_id` and `status` filters cannot be used at the same time.
 
@@ -4299,7 +4299,9 @@ Retrieves the certificates installed on a host.
         "organization": "Fleet Device Management Inc.",
         "organizational_unit": "Fleet Device Management Inc.",
         "common_name": "FleetDM"
-      }
+      },
+      "source": "system",
+      "username": ""
     }
   ],
   "meta": {
@@ -9632,7 +9634,7 @@ Returns information about the specified software. By default, `versions` are sor
         {
           "id": 345,
           "name": "[Install software] Logic Pro",
-        } 
+        }
       ],
       "status": {
         "installed": 3,
@@ -10127,7 +10129,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
       {
         "id": 345,
         "name": "[Install software] Logic Pro",
-      } 
+      }
     ],
     "status": {
       "installed": 3,
