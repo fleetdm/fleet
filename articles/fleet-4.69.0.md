@@ -80,7 +80,7 @@ IT Admins can now disable MDM directly from the host detail page. This makes man
 
 ### Global configuration in GitOps
 
-This release fixed issue where SSO settings, SMTP settings, Features and MDM end-user authentication settings would not be cleared if they were omitted from YAML files used in a GitOps run. 
+This release fixed issue where [SSO settings](https://fleetdm.com/docs/configuration/yaml-files#sso-settings), SMTP settings, [Features](https://fleetdm.com/docs/configuration/yaml-files#features) and [MDM end-user authentication settings](https://fleetdm.com/docs/configuration/yaml-files#end-user-authentication) would not be cleared if they were omitted from YAML files used in a GitOps run. 
 
 **If you have these settings configured via the Fleet web application and you use GitOps to manage your configuration, be sure settings are present in your global YAML settings file before your next GitOps run.**
 
