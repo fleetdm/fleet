@@ -124,7 +124,7 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
 
   - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
   - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
-  - Click on the "Fleet Device Management" brand kit and order preapproved stickers from the templates.
+  - Click on the "Fleet Device Management" brand kit and order pre-approved stickers from the templates.
   - Total sticker quantity should be ~10% of total event attendees.
   - Complete the checkout process. Ensure the address matches the expected receiving address.
 
@@ -133,18 +133,14 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
   - Pens and sticky note pads are ordered through TODO.
 
 
-### Upload contacts to Salesforce after an event
+### Monitor the help-create-contact channel
 
-1. [Create a new lead source](https://fleetdm.lightning.force.com/lightning/setup/ObjectManager/Contact/FieldsAndRelationships/LeadSource/view) with naming convention "[Retired]Events - {Event name}". 
-2. Add the new lead source name to the .csv of leads before uploading to Salesforce.
-    a. Add a new column header labeled "Lead source" and add the new lead source name to each row in the CSV.
-
-
-3. Navigate to the [contact import wizard](https://fleetdm.lightning.force.com/one/one.app#eyJjb21wb25lbnREZWYiOiJvbmU6YWxvaGFQYWdlIiwiYXR0cmlidXRlcyI6eyJhZGRyZXNzIjoiL2RhdGFJbXBvcnRlci9kYXRhSW1wb3J0ZXIuYXBwP29iamVjdFNlbGVjdGlvbj1BY2NvdW50In0sInN0YXRlIjp7fX0%3D):
-    a. Select the standard object "Accounts and Contacts".
-    b. Select "Add new and update existing records" (Do not change the matching rules). 
-    c. Upload the CSV.
-    d. Verify the data is mapped to the correct Salesforce fields and start the Import.
+When Fleeties need a contact created in Fleet's CRM but are unable to do so in the moment, they'll send a message to the ["#help-create-contact" channel](https://fleetdm.slack.com/archives/C091MLXQKQV) in Slack. Use the following steps to add the profile to Fleet's CRM:
+1. Add the `:eyes` emoji (👀) to the Slack thread. 
+2. Log in to Salesforce and navigate to the contact tab, click "New".
+3. Create the contact from research and the context left in the channel. If the account doesn't exist, then it will also need to be created and researched.
+4. Add any additional context to the "Description" field. 
+5. Once the contact and account exist in Salesforce, reply to the thread with the contact URL from Salesforce and add the `white-check-mark` emoji (✅) to indicate you're done.
 
 
 ### Process pending swag requests from the website
