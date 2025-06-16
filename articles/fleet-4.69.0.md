@@ -30,6 +30,10 @@ Fleet now supports [pulling user data](https://fleetdm.com/guides/foreign-vitals
 
 When a vulnerability has no primary CVSS score in the [National Vulnerability Database (NVD)](https://nvd.nist.gov/), Fleet now shows the secondary score instead. This gives Security Engineers better visibility into potential risk and helps prioritize remediation.
 
+### Self-service software: uninstall
+
+End users can now uninstall self-service software via the My device UI, in addition to being able to [install software](https://fleetdm.com/guides/software-self-service#installing-self-service-software-packages) from there. Software uninstalls initiated this way are tracked in Fleet's audit log.
+
 ### Add custom packages in GitOps mode
 
 In GitOps mode, IT Admins can now use the UI to add a custom package and copy the corresponding YAML. This is useful for managing private software (like CrowdStrike) without a public URL. See the [manage software using GitOps guide](https://fleetdm.com/guides/gitops-mode-software) for more information.
