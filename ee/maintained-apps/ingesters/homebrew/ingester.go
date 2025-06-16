@@ -166,6 +166,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, app inputApp) (*maintained
 
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
+	out.Frozen = app.Frozen
 
 	return out, nil
 }
@@ -184,6 +185,7 @@ type inputApp struct {
 	PreUninstallScripts  []string `json:"pre_uninstall_scripts"`
 	PostUninstallScripts []string `json:"post_uninstall_scripts"`
 	DefaultCategories    []string `json:"default_categories"`
+	Frozen               bool     `json:"frozen"`
 }
 
 type brewCask struct {
