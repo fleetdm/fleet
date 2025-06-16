@@ -1,2 +1,4 @@
 url: https://download-installer.cdn.mozilla.net/pub/firefox/releases/138.0.4/mac/en-US/Firefox%20138.0.4.pkg
 self_service: true
+categories:
+  - Browsers

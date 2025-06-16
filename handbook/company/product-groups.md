@@ -28,7 +28,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group                            | Goal _(value for customers and/or community)_                                                                          | Capacity |
 |:-----------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
-| [MDM](#mdm-group)                        | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 117      |
+| [MDM](#mdm-group)                        | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 104      |
 | [Orchestration](#orchestration-group)    | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 117      |
 | [Software](#software-group)              | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 104      |
 
@@ -43,12 +43,12 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
-| Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_
-| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
+| Product Manager                   | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
+| Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_, [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
 
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
 
 
 ### Orchestration group
@@ -59,11 +59,11 @@ The goal of the orchestration group is to increase and exceed [Fleet's product m
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
+| Product Manager                   | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
 | Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Developer                         | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_
+| Developer                         | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C084F4MKYSJ), [kanban release board](https://app.zenhub.com/workspaces/g-orchestration-current-sprint-677307385e8685000f163867/board), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-orchestration) for this product group is `#g-orchestration`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C084F4MKYSJ), [kanban release board](https://github.com/orgs/fleetdm/projects/71), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-orchestration) for this product group is `#g-orchestration`.
 
 
 ### Software group
@@ -74,11 +74,11 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Eugene Kuo](https://www.linkedin.com/in/eugkuo/) _([@eugkuo](https://github.com/eugkuo))_
 | Engineering Manager               | [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
+| Product Manager                   | [Eugene Kuo](https://www.linkedin.com/in/eugkuo/) _([@eugkuo](https://github.com/eugkuo))_
 | Quality Assurance                 | [Janis Watts](https://www.linkedin.com/in/janis-watts-b080ab94/) _([@jmwatts](https://github.com/jmwatts))_
 | Developer                         | [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_, [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://app.zenhub.com/workspaces/g-software-67685f6ff1830a000f347a73/board), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software](https://github.com/fleetdm/fleet/labels/%23g-software)) for this product group is `#g-software`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software](https://github.com/fleetdm/fleet/labels/%23g-software)) for this product group is `#g-software`.
 
 ## Making changes
 
@@ -253,7 +253,7 @@ Anyone in the product group can initiate an air guitar session.
 
 Please read carefully and [pay special attention](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) to UI wireframes.
 
-While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see breakpoints in the user story template [here](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review. 
+While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see [breakpoints in the user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review. 
 
 Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases! When you think you've discovered a blocker, here's how to proceed:
 
@@ -540,7 +540,7 @@ The on-call developer is asked to read, understand, test, correct, and improve a
 
 Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. 
 
-See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22).
+See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. [Outstanding documentation issues](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22) use the `:improve documentation` tag.
 
 - **Engineering alerts**
 The on-call developer is responsible for triaging new alerts in the #help-engineering Slack channel, such as failing unit tests. If the on-call developer has the ability to make the fix, they should do so. Otherwise, they should request help from the appropriate team. Filing a bug is also an option if the issue is not urgent.
@@ -583,33 +583,33 @@ In the Slack reminder thread, the on-call developer includes their retrospective
 
 We have certain design conventions that we include in Fleet. We will document more of these over time.
 
-**Design system**
+### Design system
 
 The 🧩 ["Design System"](https://www.figma.com/file/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-System-(current)?type=design&mode=design&t=BytcobQwypszkxf5-1) component library in Figma is the source of truth for components. Components in the product (documented in [Storybook](https://fleetdm.com/storybook/)) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). As new components are being created, or existing components are being updated, ensure updates are applied to both the Figma Library and Storybook and guidelines are documented in Figma.
 
-**Table empty states**
+### Table empty states
 
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
-**Images**
+### Images
 
 Simple icons (aka any images used in the icon [design system component](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system-(current)?node-id=12-2&t=iO2vXbQ9Sc1kFVEJ-1)) are exported as SVGs. All other images are exported as PNGs, following the [Fleet website image](https://github.com/fleetdm/fleet/tree/main/website/assets/images) naming conventions.
 
-**Form behavior**
+### Form behavior
 
 Pressing the return or enter key with an open form will cause the form to be submitted.
 
-**Internal links**
+### Internal links
 
 For text links that navigate the user to a different page within the Fleet UI, use the `$core-blue` color and `xs-bold` styling. You'll also want to make sure to use the underline style for when the user hovers over these links.
 
-**External links**
+### External links
 
 For a link that navigates the user to an external site (e.g., fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
 
 When including an external link, specify a [redirect on fleetdm.com](https://github.com/fleetdm/fleet/blob/7b751fa50a9a7f81112c5e65334ab05fa2e9e216/website/config/routes.js#L491-L518) rather than the original link. That way, if the URL changes, we can fix it immediately via a PR to the website and users will not need to upgrade to benefit from the fix. Once the design is settled, make a PR for the redirect as part of preparing the story for development.
 
-**Tooltips**
+### Tooltips
 
 All tooltips change the cursor to a question mark on hover. All tooltips have a solid background color.
 
@@ -619,29 +619,29 @@ There are two types of tooltips. The two types of tooltips have some unique styl
 
 2. Tooltips for buttons, bubbles, table row elements, and other non-text elements appear when hovering over the element. These tooltips use center-aligned text. These tooltips include a centered arrow.
 
-**Bold text**
+### Bold text
 
-For copy in the Fleet UI and Fleet documentation, use bold text when referencing UI elements such as buttons, links, column names, form field names, page names, and section names. For an example, check out the bold text in the docs [here](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#step-1-enforce-disk-encryption).
+For copy in the Fleet UI and Fleet documentation, use bold text when referencing UI elements such as buttons, links, column names, form field names, page names, and section names. For an example, check out the bold text in the [guide on enforcing disk encryption](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#step-1-enforce-disk-encryption).
 
 This way, if a user is scanning instructions, the bold text tells them what UI element they should look for.
 
-In the docs, if a UI element is part of a section title (already bold) use double quotes. For an example, see this section title [here](https://fleetdm.com/docs/get-started/faq#what-happened-to-the-schedule-page).
+In the docs, if a UI element is part of a section title (already bold) use double quotes, as shown in the [explanation of MDM on/off in "Why this way"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-mdm-on-off-instead-of-mdm-enrolled-unenrolled).
 
-**Copy in parentheses (additional information)**
+### Copy in parentheses (additional information)
 
 When writing copy, consider whether additional information is necessary before adding it as a new sentence or in parentheses. If the information is needed, use parentheses with an incomplete sentence to keep the copy shorter.
 
-**Writing the time**
+### Writing the time
 
 When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
 
-**Writing error messages**
+### Writing error messages
 
 When writing error messages in the UI or CLI, follow these rules:
 - If the solution to the error isn't obvious, write a message with the **error** followed by the **solution**. For example, "No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
 - If the solution is obvious when additional info is provided, write a message with the **error** followed by **additional info**. For example, "You don’t have permission to run the script. Only users with the maintainer role and above can run scripts."
 
-**Fleetctl commands with `--hosts` or `--host` flag**
+### Fleetctl commands with `--hosts` or `--host` flag
 
 When designing CLI experience for commands that target hosts (e.g. `fleetctl query` or `fleetctl mdm run-command` when including the `--hosts` or `--host` flag), if a non-existing host is specified, use a single error message such as: `Error: No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.`
 
@@ -745,6 +745,8 @@ The Account Executive (AE) schedules this meeting before Fleet commits to one or
 
 If the buyer (aka the "Santa") hasn't reviewed the price in the first order form or we don't have a date attached to the promise(s), then we're not ready for this call.
 
+On the order form, customer promises are reprented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
+
 **Participants:** AE, SC, CTO, VP of Customer Success, and Head of Product Design.  (+ temporarily: CRO)
 
 **Agenda:**
@@ -779,14 +781,14 @@ Start off cross-platform for every option, setting, and feature. If we **prove**
 Fleet product groups employ scrum, an agile methodology, as a core practice in software development. This process is designed around sprints, which last three weeks to align with our release cadence.
 
 New tickets are estimated, specified, and prioritized on the roadmap:
-- [Roadmap](https://app.zenhub.com/workspaces/-roadmap-ships-in-6-weeks-6192dd66ea2562000faea25c/board)
+- [Roadmap](https://github.com/orgs/fleetdm/projects/67/views/4)
 
 
 ### Scrum items
 
 Our scrum boards are exclusively composed of four types of scrum items:
 
-1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers. Occasionally, due to ZenHub's ticket sub-task structure, the term "epic" may be seen. However, we treat these as regular user stories.
+1. **User stories**: These are simple and concise descriptions of features or requirements from the user's perspective, marked with the `story` label. They keep our focus on delivering value to our customers.
 
 2. **Sub-tasks**: These smaller, more manageable tasks contribute to the completion of a larger user story. Sub-tasks are labeled as `~sub-task` and enable us to break down complex tasks into more detailed and easier-to-estimate work units. Sub-tasks are always assigned to exactly one user story.
 
@@ -803,7 +805,7 @@ Sprints align with Fleet's [3-week release cycle](https://fleetdm.com/handbook/c
 
 On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per group.
 
-Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible). To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
+Sprints are managed in [GitHub Projects](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible).
 
 
 ### Sprint numbering

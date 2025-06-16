@@ -112,7 +112,6 @@ export interface IConfigServerSettings {
 }
 
 export interface IConfig {
-  android_enabled: boolean; // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: string;
     org_logo_url: string;

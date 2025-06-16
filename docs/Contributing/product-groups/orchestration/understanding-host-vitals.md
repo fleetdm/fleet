@@ -27,11 +27,23 @@ SELECT
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1
+		serial, sha1, "system" as source,
+		path
 	FROM
 		certificates
 	WHERE
-		path = '/Library/Keychains/System.keychain';
+		path = '/Library/Keychains/System.keychain'
+	UNION
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, "user" as source,
+		path
+	FROM
+		certificates
+	WHERE
+		path LIKE '/Users/%/Library/Keychains/login.keychain-db';
 ```
 
 ## chromeos_profile_user_info

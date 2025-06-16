@@ -552,7 +552,7 @@ e2e-set-desktop-token:
 	docker compose exec -T mysql_test bash -c 'echo "INSERT INTO e2e.host_device_auth (host_id, token) VALUES ($(host_id), \"$(token)\") ON DUPLICATE KEY UPDATE token=VALUES(token)" | MYSQL_PWD=toor mysql -uroot'
 
 changelog:
-	sh -c "find changes -type f | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
+	find changes -type f ! -name .keep -exec awk 'NF' {} + > new-CHANGELOG.md
 	sh -c "cat new-CHANGELOG.md CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md CHANGELOG.md"
 	sh -c "git rm changes/*"
 
@@ -835,5 +835,20 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleet >> security/status.md'
 	sh -c 'echo "## \`fleetdm/fleetctl\` docker image\n" >> security/status.md'
 	sh -c 'go run ./tools/vex-parser ./security/vex/fleetctl >> security/status.md'
+
+# make update-go version=1.24.4
+UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
+UPDATE_GO_MODS := go.mod ./tools/mdm/windows/bitlocker/go.mod ./tools/snapshot/go.mod ./tools/terraform/go.mod
+update-go:
+	@test $(version) || (echo "Mising 'version' argument, usage: 'make update-go version=1.24.4'" ; exit 1)
+	@for dockerfile in $(UPDATE_GO_DOCKERFILES) ; do \
+		go run ./tools/tuf/replace $$dockerfile "golang:.+-" "golang:$(version)-" ; \
+		echo "Please update sha256 in $$dockerfile" ; \
+	done
+	@for gomod in $(UPDATE_GO_MODS) ; do \
+		go run ./tools/tuf/replace $$gomod "(?m)^go .+$$" "go $(version)" ; \
+	done
+	@echo "* Updated go to $(version)" > changes/update-go-$(version)
+	@cp changes/update-go-$(version) orbit/changes/update-go-$(version)
 
 include ./tools/makefile-support/helpsystem-targets

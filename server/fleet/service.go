@@ -31,7 +31,7 @@ type EnterpriseOverrides struct {
 	MDMAppleDisableFileVaultAndEscrow func(ctx context.Context, teamID *uint) error
 	DeleteMDMAppleSetupAssistant      func(ctx context.Context, teamID *uint) error
 	MDMAppleSyncDEPProfiles           func(ctx context.Context) error
-	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
+	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint, dryRun bool) error
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
@@ -965,13 +965,13 @@ type Service interface {
 	// skipped so the error can be raised to the user.
 	VerifyMDMAppleOrWindowsConfigured(ctx context.Context) error
 
-	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint) error
+	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 
 	GetMDMAppleBootstrapPackageMetadata(ctx context.Context, teamID uint, forUpdate bool) (*MDMAppleBootstrapPackage, error)
 
-	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint) error
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *uint, dryRun bool) error
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
@@ -1151,6 +1151,9 @@ type Service interface {
 	// GetScriptResult returns the result of a script run
 	GetScriptResult(ctx context.Context, execID string) (*HostScriptResult, error)
 
+	// GetSelfServiceUninstallScriptResult returns the result of a script run if it's a self-service uninstall for the specified host
+	GetSelfServiceUninstallScriptResult(ctx context.Context, host *Host, execID string) (*HostScriptResult, error)
+
 	// NewScript creates a new (saved) script with its content provided by the
 	// io.Reader r.
 	NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*Script, error)
@@ -1183,7 +1186,7 @@ type Service interface {
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
-	WipeHost(ctx context.Context, hostID uint) error
+	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software installers
@@ -1244,6 +1247,19 @@ type Service interface {
 
 	// ScimDetails returns the details of last access to Fleet's SCIM endpoints
 	ScimDetails(ctx context.Context) (ScimDetails, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Microsoft Conditional Access
+
+	// ConditionalAccessMicrosoftCreateIntegration kicks-off the integration with Entra
+	// and returns the consent URL to redirect the admin to.
+	ConditionalAccessMicrosoftCreateIntegration(ctx context.Context, tenantID string) (adminConsentURL string, err error)
+	// ConditionalAccessMicrosoftGet returns the current (currently unique) integration.
+	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
+	// ConditionalAccessMicrosoftConfirm finalizes the integration (marks integration as done).
+	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
+	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
+	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 }
 
 type KeyValueStore interface {

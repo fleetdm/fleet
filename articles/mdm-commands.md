@@ -23,7 +23,7 @@ The end result simply needs to be a standard, plain text file with the correct k
 
 ### Examples
 
-To restart a macOS host, we can use the "Restart a Device" MDM command documented by Apple [here](https://developer.apple.com/documentation/devicemanagement/restart_a_device#3384428). 
+To restart a macOS host, we can use the ["Restart a Device" MDM command](https://developer.apple.com/documentation/devicemanagement/restart_a_device).
 
 Below is the text to be used as the MDM command payload. Save it as a file and name it something like `apple-restart-device.xml`.
 
@@ -41,7 +41,7 @@ Below is the text to be used as the MDM command payload. Save it as a file and n
 </plist>
 ```
 
-To restart a Windows host, we can use the "Reboot" command documented by Microsoft [here](https://learn.microsoft.com/en-us/windows/client-management/mdm/reboot-csp).
+To restart a Windows host, we can use the ["Reboot" command](https://learn.microsoft.com/en-us/windows/client-management/mdm/reboot-csp).
 
 Below is the text to be used as the MDM command payload. Save it as a file and name it something like `windows-restart-device.xml`.
 
@@ -69,7 +69,7 @@ In Terminal, execute the following command:
 16F4301E-7A88-42AD-8523-A2F73F9D38FA
 ```
 
-> It's not necessary to add the `CommandUUID` to the MDM command payload, but, already having it available makes it's easier and quicker to verify the MDM command result if a check is needed. 
+> It's not necessary to add the `CommandUUID` to the MDM command payload, but having it available makes it easier and quicker to verify the MDM command result if a check is needed. 
 
 A `.plist` with the `CommandUUID` key / value added will look something like this:
 
@@ -93,7 +93,7 @@ A `.plist` with the `CommandUUID` key / value added will look something like thi
 
 ### Step 2: Choose a target host
 
-Run the `fleetctl get hosts --mdm` command to get a list of hosts that are enrolled in Fleet and have MDM enabled. This may not be practical in Fleet environments with a large number hosts without using command line tools to parse the output, e.g.,
+Run the `fleetctl get hosts --mdm` command to get a list of hosts that are enrolled in Fleet and have MDM enabled. This may not be practical in Fleet environments with a large number of hosts without using command line tools to parse the output, e.g.,
 
 Use something like `grep` with `fleetctl`:
 
@@ -128,7 +128,7 @@ To deliver the MDM command payload with `fleetctl`, use something like the follo
 
 For targeting multiple hosts, the `--hosts` option can be populated with comma-separated values.
 
-To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. This is true for Apple and Windows MDM command payloads. E.g., to encode the `.plist` in Terminal:
+To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. This is true for both Apple and Windows MDM command payloads. E.g., to encode the `.plist` in Terminal:
 
 ```
 % echo '<?xml version="1.0" encoding="UTF-8"?>
@@ -188,15 +188,15 @@ To verify the MDM command result with the Fleet API, use a command that conforms
 
 ## Troubleshooting
 
-You can view a list of the 1,000 most recent MDM commands executed in Fleet by running:
+You can view a list of the 1000 most recent MDM commands executed in Fleet by running:
 
 `fleetctl get mdm-commands`
 
-The output will be sorted by "most recent first" and will include timestamp, targeted hostname, command type, execution status and command ID.
+The output will be sorted by the "most recent first" column and will include timestamp, targeted hostname, command type, execution status and command ID values.
 
 The command ID can be used to view MDM command results as documented in Step 4.
 
-You can also get this list of MDM commands from the Fleet API with:
+You can also get this list of MDM commands from the Fleet API with something like:
 
 ```
 % /usr/bin/curl -LSs \

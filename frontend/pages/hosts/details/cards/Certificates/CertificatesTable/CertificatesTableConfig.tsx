@@ -10,6 +10,8 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import StatusIndicator from "components/StatusIndicator";
 import { IIndicatorValue } from "components/StatusIndicator/StatusIndicator";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import TooltipWrapper from "components/TooltipWrapper";
 
 type IHostCertificatesTableConfig = Column<IHostCertificate>;
 
@@ -21,6 +23,23 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
         <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
+    {
+      accessor: "source",
+      disableSortBy: true,
+      Header: "Keychain",
+      Cell: (cellProps) => {
+        if (cellProps.cell.value === "system") {
+          return <TextCell value="System" />;
+        }
+        return (
+          <TooltipWrapper
+            tipContent={cellProps.cell.row.original.username || "Unknown user"}
+          >
+            User
+          </TooltipWrapper>
+        );
+      },
     },
     {
       accessor: "not_valid_after",
