@@ -2,6 +2,7 @@ package scep
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
 	"github.com/rs/zerolog"
@@ -124,24 +126,66 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 		return fmt.Errorf("parse CA cert: %w", err)
 	}
 
-	// Generate RSA key pair
-	privateKey, err := rsa.GenerateKey(rand.Reader, rsaKeySize)
+	// Initialize TEE (TPM 2.0 on Linux)
+	// TODO: These paths should be configurable
+	publicBlobPath := filepath.Join(c.certDestDir, "tpm_public.blob")
+	privateBlobPath := filepath.Join(c.certDestDir, "tpm_private.blob")
+	teeDevice, err := tee.NewTPM2(
+		tee.WithLogger(c.logger),
+		tee.WithPublicBlobPath(publicBlobPath),
+		tee.WithPrivateBlobPath(privateBlobPath),
+	)
 	if err != nil {
-		return fmt.Errorf("generate RSA private key: %w", err)
+		return fmt.Errorf("initialize TEE: %w", err)
+	}
+	defer teeDevice.Close()
+
+	// Create ECC key in TEE for signing (automatically selects best ECC curve)
+	teeKey, err := teeDevice.CreateKey(ctx)
+	if err != nil {
+		return fmt.Errorf("create TEE key: %w", err)
+	}
+	defer teeKey.Close()
+
+	// Get signer from TEE key
+	teeSigner, err := teeKey.Signer()
+	if err != nil {
+		return fmt.Errorf("get TEE signer: %w", err)
 	}
 
-	// Generate CSR
+	// Get public key
+	publicKey := teeSigner.Public()
+
+	// Create a temporary RSA key pair in memory for SCEP envelope decryption
+	// ECC keys cannot be used for decryption, so we need RSA for this purpose
+	tempRSAKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return fmt.Errorf("generate temporary RSA key: %w", err)
+	}
+
+	// Determine signature algorithm based on key type
+	var sigAlg x509.SignatureAlgorithm
+	switch publicKey.(type) {
+	case *ecdsa.PublicKey:
+		sigAlg = x509.ECDSAWithSHA256
+	case *rsa.PublicKey:
+		sigAlg = x509.SHA256WithRSA
+	default:
+		return fmt.Errorf("unsupported key type: %T", publicKey)
+	}
+
+	// Generate CSR using TEE key
 	csrTemplate := x509util.CertificateRequest{
 		CertificateRequest: x509.CertificateRequest{
 			Subject: pkix.Name{
 				CommonName: c.commonName,
 			},
-			SignatureAlgorithm: x509.SHA256WithRSA,
+			SignatureAlgorithm: sigAlg,
 		},
 		ChallengePassword: c.scepChallenge,
 	}
 
-	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, privateKey)
+	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, teeSigner)
 	if err != nil {
 		return fmt.Errorf("create CSR: %w", err)
 	}
@@ -150,7 +194,8 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 		return fmt.Errorf("parse CSR: %w", err)
 	}
 
-	// Create a self-signed certificate for client authentication
+	// Create a self-signed certificate for client authentication using the temporary RSA key
+	// This certificate will be used for SCEP envelope decryption
 	deviceCertificateTemplate := x509.Certificate{
 		Subject: pkix.Name{
 			CommonName:   c.commonName,
@@ -167,8 +212,8 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 		rand.Reader,
 		&deviceCertificateTemplate,
 		&deviceCertificateTemplate,
-		&privateKey.PublicKey,
-		privateKey,
+		&tempRSAKey.PublicKey,
+		tempRSAKey,
 	)
 	if err != nil {
 		return fmt.Errorf("create device certificate: %w", err)
@@ -183,7 +228,7 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 	pkiMsgReq := &scep.PKIMessage{
 		MessageType: scep.PKCSReq,
 		Recipients:  caCert,
-		SignerKey:   privateKey,
+		SignerKey:   teeSigner,
 		SignerCert:  deviceCertificateForRequest,
 		CSRReqMessage: &scep.CSRReqMessage{
 			ChallengePassword: c.scepChallenge,
@@ -209,22 +254,30 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 		return fmt.Errorf("PKIMessage CSR request failed with code: %s, fail info: %s", pkiMsgResp.PKIStatus, pkiMsgResp.FailInfo)
 	}
 
-	if err := pkiMsgResp.DecryptPKIEnvelope(deviceCertificateForRequest, privateKey); err != nil {
+	// Use the temporary RSA key for decryption (ECC keys don't support decryption)
+	if err := pkiMsgResp.DecryptPKIEnvelope(deviceCertificateForRequest, tempRSAKey); err != nil {
 		return fmt.Errorf("decrypt PKI envelope: %w", err)
 	}
 
-	// Save the certificate and private key
+	// Save the certificate and TEE key context (the ECC signing key)
 	cert := pkiMsgResp.CertRepMessage.Certificate
-	if err := c.saveCertAndKey(cert, privateKey); err != nil {
-		return fmt.Errorf("save cert and key: %w", err)
+
+	// Marshal the TEE key context (this is the ECC key we want to save for signing)
+	keyContext, err := teeKey.Marshal()
+	if err != nil {
+		return fmt.Errorf("marshal TEE key: %w", err)
+	}
+
+	if err := c.saveCertAndTEEKey(cert, keyContext); err != nil {
+		return fmt.Errorf("save cert and TEE key: %w", err)
 	}
 
 	c.logger.Info().Msg("SCEP enrollment successful")
 	return nil
 }
 
-// saveCertAndKey saves the certificate and private key to the certDestDir
-func (c *Client) saveCertAndKey(cert *x509.Certificate, key *rsa.PrivateKey) error {
+// saveCertAndTEEKey saves the certificate and TEE key context to the certDestDir
+func (c *Client) saveCertAndTEEKey(cert *x509.Certificate, keyContext []byte) error {
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(c.certDestDir, 0o755); err != nil {
 		return fmt.Errorf("create cert directory: %w", err)
@@ -232,7 +285,7 @@ func (c *Client) saveCertAndKey(cert *x509.Certificate, key *rsa.PrivateKey) err
 
 	// Save certificate
 	certPath := filepath.Join(c.certDestDir, constant.FleetTLSClientCertificateFileName)
-	certFile, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	certFile, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return fmt.Errorf("create cert file: %w", err)
 	}
@@ -245,26 +298,26 @@ func (c *Client) saveCertAndKey(cert *x509.Certificate, key *rsa.PrivateKey) err
 		return fmt.Errorf("encode cert: %w", err)
 	}
 
-	// Save the private key
+	// Save the TEE key context
 	keyPath := filepath.Join(c.certDestDir, constant.FleetTLSClientKeyFileName)
-	keyFile, err := os.OpenFile(keyPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	keyFile, err := os.OpenFile(keyPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return fmt.Errorf("create key file: %w", err)
 	}
 	defer keyFile.Close()
 
-	keyBytes := x509.MarshalPKCS1PrivateKey(key)
+	// Save TEE key context as PEM
 	if err := pem.Encode(keyFile, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: keyBytes,
+		Type:  "TEE KEY CONTEXT",
+		Bytes: keyContext,
 	}); err != nil {
-		return fmt.Errorf("encode key: %w", err)
+		return fmt.Errorf("encode TEE key context: %w", err)
 	}
 
 	c.logger.Info().
 		Str("cert_path", certPath).
 		Str("key_path", keyPath).
-		Msg("Saved certificate and private key")
+		Msg("Saved certificate and TEE key context")
 
 	return nil
 }

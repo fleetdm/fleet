@@ -59,6 +59,7 @@ require (
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v37 v37.0.0
+	github.com/google/go-tpm v0.9.3
 	github.com/google/uuid v1.6.0
 	github.com/goreleaser/nfpm/v2 v2.10.0
 	github.com/gorilla/mux v1.8.1
