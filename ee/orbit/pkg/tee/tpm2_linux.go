@@ -119,6 +119,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 			FixedTPM:            true,
 			FixedParent:         true,
 			SensitiveDataOrigin: true,
+			UserWithAuth:        true, // Required even if password is nil
 			SignEncrypt:         true,
 			Decrypt:             true,
 		},
