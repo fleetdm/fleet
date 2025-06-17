@@ -135,7 +135,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 	createKey, err := tpm2.Create{
 		ParentHandle: parentKeyHandle,
 		InPublic:     eccTemplate,
-	}.Execute(t.device, parentKeyHandle.Auth)
+	}.Execute(t.device)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to create child key")
 		return nil, fmt.Errorf("create child key: %w", err)
@@ -147,7 +147,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 		ParentHandle: parentKeyHandle,
 		InPrivate:    createKey.OutPrivate,
 		InPublic:     createKey.OutPublic,
-	}.Execute(t.device, parentKeyHandle.Auth)
+	}.Execute(t.device)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to load key")
 		return nil, fmt.Errorf("load key: %w", err)
@@ -197,7 +197,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 }
 
 // createParentKey creates a transient Storage Root Key for use as a parent key
-func (t *tpm2TEE) createParentKey() (tpm2.AuthHandle, error) {
+func (t *tpm2TEE) createParentKey() (tpm2.NamedHandle, error) {
 	t.logger.Debug().Msg("Creating transient RSA 2048-bit parent key")
 
 	// Create a parent key template with required attributes
@@ -237,18 +237,17 @@ func (t *tpm2TEE) createParentKey() (tpm2.AuthHandle, error) {
 	}.Execute(t.device)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to create transient parent key")
-		return tpm2.AuthHandle{}, fmt.Errorf("create transient parent key: %w", err)
+		return tpm2.NamedHandle{}, fmt.Errorf("create transient parent key: %w", err)
 	}
 
 	t.logger.Info().
 		Str("handle", fmt.Sprintf("0x%x", primaryKey.ObjectHandle)).
 		Msg("Created transient parent key successfully")
 
-	// Return the transient key as an AuthHandle with HMAC session
-	return tpm2.AuthHandle{
+	// Return the transient key as a NamedHandle
+	return tpm2.NamedHandle{
 		Handle: primaryKey.ObjectHandle,
 		Name:   primaryKey.Name,
-		Auth:   tpm2.HMAC(tpm2.TPMAlgSHA256, 16),
 	}, nil
 }
 
@@ -379,7 +378,7 @@ func (t *tpm2TEE) LoadKey(_ context.Context) (Key, error) {
 		ParentHandle: parentKeyHandle,
 		InPrivate:    *privateBlob,
 		InPublic:     *publicBlob,
-	}.Execute(t.device, parentKeyHandle.Auth)
+	}.Execute(t.device)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to load parent key")
 		return nil, fmt.Errorf("load parent key: %w", err)
