@@ -264,6 +264,7 @@ func (t *tpm2TEE) selectBestECCCurve() (tpm2.TPMECCCurve, string) {
 		ObjectAttributes: tpm2.TPMAObject{
 			FixedTPM:            true,
 			FixedParent:         true,
+			UserWithAuth:        true, // Required even if password is nil
 			SensitiveDataOrigin: true,
 			SignEncrypt:         true,
 			Decrypt:             true,
