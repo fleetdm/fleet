@@ -133,7 +133,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 	// Create the key under the transient parent
 	t.logger.Debug().Msg("Creating child key")
 	createKey, err := tpm2.Create{
-		ParentHandle: parentKeyHandle.Handle,
+		ParentHandle: parentKeyHandle,
 		InPublic:     eccTemplate,
 	}.Execute(t.device, parentKeyHandle.Auth)
 	if err != nil {
@@ -144,7 +144,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 	// Load the key
 	t.logger.Debug().Msg("Loading created key")
 	loadedKey, err := tpm2.Load{
-		ParentHandle: parentKeyHandle.Handle,
+		ParentHandle: parentKeyHandle,
 		InPrivate:    createKey.OutPrivate,
 		InPublic:     createKey.OutPublic,
 	}.Execute(t.device, parentKeyHandle.Auth)
@@ -233,7 +233,7 @@ func (t *tpm2TEE) createParentKey() (tpm2.AuthHandle, error) {
 	primaryKey, err := tpm2.CreatePrimary{
 		PrimaryHandle: tpm2.TPMRHOwner,
 		InPublic:      parentTemplate,
-	}.Execute(t.device)
+	}.Execute(t.device, tpm2.PasswordAuth(nil))
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to create transient parent key")
 		return tpm2.AuthHandle{}, fmt.Errorf("create transient parent key: %w", err)
@@ -375,7 +375,7 @@ func (t *tpm2TEE) LoadKey(_ context.Context) (Key, error) {
 	// Load the key using the parent
 	t.logger.Debug().Uint32("parent_handle", uint32(parentKeyHandle.Handle)).Msg("Loading parent key")
 	loadedKey, err := tpm2.Load{
-		ParentHandle: parentKeyHandle.Handle,
+		ParentHandle: parentKeyHandle,
 		InPrivate:    *privateBlob,
 		InPublic:     *publicBlob,
 	}.Execute(t.device, parentKeyHandle.Auth)
