@@ -277,7 +277,7 @@ func (t *tpm2TEE) getOrCreateParentKey() (tpm2.TPMHandle, error) {
 	t.logger.Debug().Msg("Persisting SRK")
 	_, err = tpm2.EvictControl{
 		Auth:             tpm2.TPMRHOwner,
-		ObjectHandle:     primaryKey.ObjectHandle,
+		ObjectHandle:     tpm2.NamedHandle{Handle: primaryKey.ObjectHandle, Name: primaryKey.Name},
 		PersistentHandle: tpm2.TPMHandle(srkHandle),
 	}.Execute(t.device)
 	defer func() {
