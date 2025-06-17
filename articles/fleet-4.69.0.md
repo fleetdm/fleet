@@ -32,7 +32,7 @@ When a vulnerability has no primary CVSS score in the [National Vulnerability Da
 
 ### Add custom packages in GitOps mode
 
-In GitOps mode, IT Admins can now use the UI to add a custom package and copy the corresponding YAML. This is useful for managing private software (like CrowdStrike) without a public URL.
+In GitOps mode, IT Admins can now use the UI to add a custom package and copy the corresponding YAML. This is useful for managing private software (like CrowdStrike) without a public URL. See the [manage software using GitOps guide](https://fleetdm.com/guides/gitops-mode-software) for more information.
 
 ### Bulk resend failed configuration profiles
 
@@ -80,7 +80,7 @@ IT Admins can now disable MDM directly from the host detail page. This makes man
 
 ### Global configuration in GitOps
 
-This release fixed issue where SSO settings, SMTP settings, Features and MDM end-user authentication settings would not be cleared if they were omitted from YAML files used in a GitOps run. 
+This release fixed issue where [SSO settings](https://fleetdm.com/docs/configuration/yaml-files#sso-settings), [Features](https://fleetdm.com/docs/configuration/yaml-files#features) and [MDM end-user authentication settings](https://fleetdm.com/docs/configuration/yaml-files#end-user-authentication) would not be cleared if they were omitted from YAML files used in a GitOps run.
 
 **If you have these settings configured via the Fleet web application and you use GitOps to manage your configuration, be sure settings are present in your global YAML settings file before your next GitOps run.**
 
@@ -93,7 +93,7 @@ This release fixed issue where SSO settings, SMTP settings, Features and MDM end
 - Stopped policy automations from running on macOS hosts until after setup experience finishes so that Fleet doesn't attempt to install software twice.
 - Added tooltip informing users a test email will be sent when SMTP settings are changed.
 - Added copyable SHA256 hash to the software details page.
-- Added device user API error state to replace generic Fleet UI error state in Fleet desktop. 
+- Added device user API error state to replace generic Fleet UI error state in Fleet desktop.
 - Revised PKG custom package parsing to pick the correct app name and bundle ID in more instances.
 - Ensured consistent failing policies and total issues counts on the host details page by re-calculating these counts every time the API receives a request for that host.
 - Allowed Fleet secret environment variables for the MacOS setup script.
