@@ -208,6 +208,7 @@ func (t *tpm2TEE) createParentKey() (tpm2.AuthHandle, error) {
 			FixedTPM:            true,
 			FixedParent:         true,
 			SensitiveDataOrigin: true,
+			UserWithAuth:        true, // Required, even if we use nil password
 			Decrypt:             true,
 			Restricted:          true,
 		},
@@ -233,7 +234,7 @@ func (t *tpm2TEE) createParentKey() (tpm2.AuthHandle, error) {
 	primaryKey, err := tpm2.CreatePrimary{
 		PrimaryHandle: tpm2.TPMRHOwner,
 		InPublic:      parentTemplate,
-	}.Execute(t.device, tpm2.PasswordAuth(nil))
+	}.Execute(t.device)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to create transient parent key")
 		return tpm2.AuthHandle{}, fmt.Errorf("create transient parent key: %w", err)
