@@ -767,10 +767,10 @@ UPDATE
 	nano_enrollment_queue
 	JOIN nano_enrollments ne
 		ON nano_enrollment_queue.id = ne.id
-	JOIN host_mdm_apple_profiles hmap 
-		ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND 
+	JOIN host_mdm_apple_profiles hmap
+		ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND
 			hmap.host_uuid = ne.device_id
-SET 
+SET
 	nano_enrollment_queue.active = 0
 WHERE
 	hmap.profile_uuid = ? AND
@@ -3013,6 +3013,18 @@ func generateEntitiesToInstallQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
+	// TODO(mna): alternate approach: do not return as "to install" user-channel
+	// profiles for which the host doesn't have a user-channel registered yet
+	// (within some time window after device enrollment).
+	//
+	// Pros of this approach: no need to do some extra logic in
+	// ReconcileAppleProfiles, automatically works for label-constrained profiles
+	// (since this filtering happens after the desired state query), easily
+	// portable to declarations if/when we need to support it.
+	//
+	// Cons is of course more complex query, but this query is already quite
+	// complex and this new condition is not too bad. Also, similar logic is
+	// needed in the "to remove" query.
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
 		LEFT JOIN ${hostMDMAppleEntityTable} hmae
