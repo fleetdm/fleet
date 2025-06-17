@@ -62,6 +62,361 @@ parasails.registerPage('configuration-builder', {
     profileFilename: undefined,
     profileDescription: undefined,
     // mac OS payloads.
+    macosCategoriesAndPayloads: [
+      {
+        categoryName: 'Privacy & security',
+        categorySlug: 'macos-privacy-and-security',
+        subcategories: [
+          {
+            subcategoryName: 'Device lock',
+            subcategorySlug: 'macos-device-lock',
+            description: 'Settings related to screen lock and passwords.',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/passcode',
+            payloads: [
+              {
+                name: 'Require device password',
+                uniqueSlug: 'macos-enable-force-pin',
+                tooltip: 'Require a password to unlock the device',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'boolean',// Used to generate a configuration profile
+                  settingKey: 'forcePIN',// Used to generate a configuration profile
+                  trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+                  falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+                },
+              },
+              {
+                name: 'Allow simple password',
+                uniqueSlug: 'macos-enable-allow-simple-pin',
+                tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'boolean',// Used to generate a configuration profile
+                  settingKey: 'allowSimple',// Used to generate a configuration profile
+                  trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+                  falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+                },
+              },
+              {
+                name: 'Max inactivity time before device locks',
+                uniqueSlug: 'macos-max-inactivity',
+                tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 4,
+                  minValue: 0,
+                  maxValue: 60,
+                  unitLabel: 'minutes'
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'integer',// Used to generate a configuration profile
+                  settingKey: 'maxInactivity',// Used to generate a configuration profile
+                },
+              },
+              {
+                name: 'Minimum password length',
+                uniqueSlug: 'macos-min-length',
+                tooltip: 'The minimum overall length of the passcode.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 16,
+                  unitLabel: 'characters'
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'integer',// Used to generate a configuration profile
+                  settingKey: 'minLength',// Used to generate a configuration profile
+                },
+              },
+              {
+                name: 'Require alphanumeric password',
+                uniqueSlug: 'macos-require-alphanumeric-password',
+                tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'boolean',// Used to generate a configuration profile
+                  settingKey: 'requireAlphanumeric',// Used to generate a configuration profile
+                  trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+                  falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+                },
+              },
+              {
+                name: 'Change passcode at next login',
+                uniqueSlug: 'macos-change-at-next-auth',
+                tooltip: 'If true, the system causes a password reset to occur the next time the user tries to authenticate.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                  trueValue: 0,
+                  falseValue: 1
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'boolean',// Used to generate a configuration profile
+                  settingKey: 'changeAtNextAuth',// Used to generate a configuration profile
+                  trueValue: '<true/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+                  falseValue: '<false/>',// (type=boolean only) Used to keep track of what values the boolean input represents.
+                },
+              },
+              {
+                name: 'Maximum number of failed attempts',
+                uniqueSlug: 'macos-max-failed-attempts',
+                tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in macOS, the system locks the device.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 11,
+                  minValue: 2,
+                  maxValue: 11,
+                  unitLabel: 'attempts'
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'integer',// Used to generate a configuration profile
+                  settingKey: 'maxFailedAttempts',// Used to generate a configuration profile
+                },
+              },
+              {
+                name: 'Max grace period',
+                uniqueSlug: 'macos-max-grace-period',
+                tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 999,
+                  unitLabel: 'minutes'
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'integer',// Used to generate a configuration profile
+                  settingKey: 'maxGracePeriod',// Used to generate a configuration profile
+                },
+              },
+              {
+                name: 'Max passcode age',
+                uniqueSlug: 'macos-max-pin-age',
+                tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 999,
+                  unitLabel: 'days'
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'integer',// Used to generate a configuration profile
+                  settingKey: 'maxPINAgeInDays',// Used to generate a configuration profile
+                },
+              },
+              {
+                name: 'Minimum complex characters',
+                uniqueSlug: 'macos-min-complex-characters',
+                tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 4,
+                  unitLabel: 'characters'
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'integer',// Used to generate a configuration profile
+                  settingKey: 'minComplexChars',// Used to generate a configuration profile
+                },
+              },
+              {
+                name: 'Minutes until failed login reset',
+                uniqueSlug: 'macos-minutes-until-failed-login-reset',
+                tooltip: 'The number of minutes before the system resets the login after the maximum number of unsuccessful login attempts is reached.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 4,
+                  unitLabel: 'minutes'
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'integer',// Used to generate a configuration profile
+                  settingKey: 'minutesUntilFailedLoginReset',// Used to generate a configuration profile
+                },
+              },
+              {
+                name: 'Passcode history',
+                uniqueSlug: 'macos-passcode-history',
+                tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  minValue: 1,
+                  maxValue: 50,
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'integer',// Used to generate a configuration profile
+                  settingKey: 'pinHistory',// Used to generate a configuration profile
+                },
+              },
+            ],
+          }
+        ]
+      },
+    ],
+    windowsCategoriesAndPayloads: [
+      {
+        categoryName: 'Privacy & security',
+        categorySlug: 'windows-privacy-and-security',
+        subcategories: [
+          {
+            subcategoryName: 'Device lock',
+            subcategorySlug: 'windows-device-lock',
+            description: 'Settings related to screen lock and passwords.',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock',
+            payloads: [
+              {
+                name: 'Enable device password',
+                uniqueSlug: 'windows-device-lock-enable-device-lock',
+                tooltip: 'Require a password to unlock the device',
+                category: 'Device lock',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'int',// Used to generate a configuration profile
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled',// Used to generate a configuration profile
+                  trueValue: 0,// (type=boolean only) Used to keep track of what values the boolean input represents.
+                  falseValue: 1,// (type=boolean only) Used to keep track of what values the boolean input represents.
+                },
+              },
+              {
+                name: 'Max inactivity time before device locks',
+                uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks',
+                category: 'Device lock',
+                tooltip: 'The number of seconds a device can remain inactive before a password is required to unlock the device.',
+                supportedAccessTypes: ['add', 'replace'],
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-device-lock-enable-device-lock',
+                    dependingOnSettingValue: true,
+                  }
+                ],
+                formInput: {
+                  type: 'number',
+                  maxValue: 9000,
+                  minValue: 1,
+                  unitLabel: 'seconds'
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'int',// Used to generate a configuration profile
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled',// Used to generate a configuration profile
+                },
+              },
+              {
+                name: 'Require alphanumeric device password',
+                uniqueSlug: 'windows-device-lock-require-alphanumeric-device-password',
+                category: 'Device lock',
+                supportedAccessTypes: ['add', 'replace'],
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-device-lock-enable-device-lock',
+                    dependingOnSettingValue: true,
+                  }
+                ],
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'Password or alphanumeric PIN required',
+                      value: '1'
+                    },
+                    {
+                      name: 'Password or Numeric PIN required',
+                      value: '2'
+                    },
+                    {
+                      name: 'Password, Numeric PIN, or alphanumeric PIN required',
+                      value: '3',
+                    }
+                  ]
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'int',// Used to generate a configuration profile
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/AlphanumericDevicePasswordRequired',// Used to generate a configuration profile
+                },
+              },
+              {
+                name: 'Min password length',
+                toolTip: 'The minimum number of characters a device\'s password must be',
+                uniqueSlug: 'windows-device-lock-min-password-length',
+                category: 'Device lock',
+                supportedAccessTypes: ['add', 'replace'],
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-device-lock-enable-device-lock',
+                    dependingOnSettingValue: true,
+                  }
+                ],
+                formInput: {
+                  type: 'number',
+                  defaultValue: 4,
+                  minValue: 4,
+                  maxValue: 16,
+                  unitLabel: 'characters'
+                },
+                formOutput: {// For the compiler
+                  settingFormat: 'int',// Used to generate a configuration profile
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength',// Used to generate a configuration profile
+                },
+              }
+            ],
+          }
+        ]
+      },
+    ],
+
     macOSPayloads: [
       {
         name: 'Require device password',
@@ -589,6 +944,7 @@ parasails.registerPage('configuration-builder', {
       }
     },
     clickSelectPayloadCategory: function(payloadGroup) {
+      console.log(this.payloadGroup);
       this.selectedPayloadCategory = payloadGroup;
       this._enableToolTips();
     },
