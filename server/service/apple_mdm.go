@@ -3532,14 +3532,23 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
-			cmdUUID := uuid.NewString()
-			if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID); err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
+			// Only send a new InstalledApplicationList command if there's not one in flight
+			pendingCmds, err := svc.ds.GetPendingMDMCommandsByHost(r.Context, cmdResult.UDID, "InstalledApplicationList")
+			if err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}
+			if len(pendingCmds) == 0 {
 
-			// update the install record
-			if err := svc.ds.UpdateVPPInstallVerificationCommand(r.Context, cmdResult.CommandUUID, cmdUUID); err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "update install record")
+				cmdUUID := uuid.NewString()
+				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID); err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
+				}
+
+				// update the install record
+				if err := svc.ds.UpdateVPPInstallVerificationCommand(r.Context, cmdResult.CommandUUID, cmdUUID); err != nil {
+					return nil, ctxerr.Wrap(r.Context, err, "update install record")
+				}
+
 			}
 		}
 	case "DeviceConfigured":

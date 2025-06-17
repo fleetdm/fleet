@@ -1723,3 +1723,78 @@ FROM vpp_apps`
 
 	return apps, nil
 }
+
+func (ds *Datastore) GetVPPInstallAckTimeByVerificationUUID(ctx context.Context, verificationUUID string) (*time.Time, error) {
+	stmt := `
+SELECT
+	ncr.updated_at
+FROM nano_command_results ncr
+JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
+WHERE hvsi.verification_command_uuid = ?
+	`
+
+	var updatedAt time.Time
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &updatedAt, stmt, verificationUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp install ack time by verification uuid")
+	}
+
+	return ptr.Time(updatedAt), nil
+}
+
+func (ds *Datastore) UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error {
+	stmt := `
+UPDATE host_vpp_software_installs
+SET verification_command_uuid = ? 
+WHERE command_uuid = ?
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, verifyCommandUUID, installUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "update vpp install verification command")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error {
+	stmt := `
+UPDATE host_vpp_software_installs
+SET verification_command_uuid = ? 
+WHERE verification_command_uuid = ?
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, verifyCommandUUID, oldVerifyUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "update vpp install verification command")
+	}
+
+	return nil
+}
+
+// TODO(JVE): better name
+func (ds *Datastore) SetVPPInstallAsVerified(ctx context.Context, installUUID string) error {
+	stmt := `
+UPDATE host_vpp_software_installs
+SET verification_at = CURRENT_TIMESTAMP()
+WHERE verification_command_uuid = ?
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, installUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set vpp install as verified")
+	}
+
+	return nil
+}
+
+// TODO(JVE): better name
+func (ds *Datastore) SetVPPInstallAsFailed(ctx context.Context, verificationUUID string) error {
+	stmt := `
+UPDATE host_vpp_software_installs
+SET verification_failed_at = CURRENT_TIMESTAMP()
+WHERE verification_command_uuid = ?
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, verificationUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "set vpp install as verified")
+	}
+
+	return nil
+}

@@ -654,6 +654,9 @@ type Datastore interface {
 	UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error
 	SetVPPInstallAsVerified(ctx context.Context, installUUID string) error
 	UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
+	GetPendingMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error)
+	GetVPPInstallAckTimeByVerificationUUID(ctx context.Context, verificationUUID string) (*time.Time, error)
+	SetVPPInstallAsFailed(ctx context.Context, verificationUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore

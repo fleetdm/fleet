@@ -1957,3 +1957,23 @@ GROUP BY
 
 	return counts, nil
 }
+
+func (ds *Datastore) GetPendingMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error) {
+	stmt := `
+SELECT
+    nvq.command_uuid AS command_uuid
+FROM
+    nano_view_queue nvq
+WHERE
+   nvq.active = 1 
+   AND nvq.id = ?
+   AND nvq.request_type = ?
+   AND status != 'Acknowledged'`
+
+	var cmdUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cmdUUIDs, stmt, hostUUID, commandType); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get pending mdm commands by host")
+	}
+
+	return cmdUUIDs, nil
+}
