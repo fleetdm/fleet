@@ -209,9 +209,11 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	}
 
 	process(u.PkgUtil, func(pkgID string) {
+		sb.AddFunction("expand_pkgid_and_map", expandWildcardPkgs)
 		sb.AddFunction("remove_pkg_files", removePkgFiles)
+		sb.AddFunction("forget_pkg", forgetPkgFunc)
 		sb.Writef("remove_pkg_files '%s'", pkgID)
-		sb.Writef("sudo pkgutil --forget '%s'", pkgID)
+		sb.Writef("forget_pkg '%s'", pkgID)
 	})
 
 	process(u.Delete, func(path string) {
@@ -537,7 +539,27 @@ const sendSignalFunc = `send_signal() {
   sleep 3
 }`
 
+const expandWildcardPkgs = `expand_pkgid_and_map() {
+  local PKGID="$1"
+  local FUNC="$2"
+  if [[ "$PKGID" == *"*" ]]; then
+    local prefix="${PKGID%\*}"
+    echo "Expanding wildcard for PKGID: $PKGID"
+    for receipt in $(pkgutil --pkgs | grep "^${prefix}"); do
+      echo "Processing $receipt"
+      "$FUNC" "$receipt"
+    done
+  else
+    "$FUNC" "$PKGID"
+  fi
+}`
+
 const removePkgFiles = `remove_pkg_files() {
+  local PKGID="$1"
+  expand_pkgid_and_map "$PKGID" remove_receipt_files
+}
+
+remove_receipt_files() {
   local PKGID="$1"
   local PKGINFO VOLUME INSTALL_LOCATION FULL_INSTALL_LOCATION
 
@@ -572,4 +594,14 @@ const removePkgFiles = `remove_pkg_files() {
     echo "sudo rmdir -p \"$root_app_dir\" 2>/dev/null || :"
     sudo rmdir -p "$root_app_dir" 2>/dev/null || :
   fi
+}`
+
+const forgetPkgFunc = `forget_pkg() {
+  local PKGID="$1"
+  expand_pkgid_and_map "$PKGID" forget_receipt
+}
+
+forget_receipt() {
+  local PKGID="$1"
+  sudo pkgutil --forget "$PKGID"
 }`
