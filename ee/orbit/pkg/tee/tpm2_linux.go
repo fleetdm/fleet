@@ -202,7 +202,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 }
 
 // getOrCreateParentKey gets the Storage Root Key at the standard handle, or creates and persists it if it doesn't exist
-func (t *tpm2TEE) getOrCreateParentKey() (tpm2.TPMHandle, error) {
+func (t *tpm2TEE) getOrCreateParentKey() (tpm2.NamedHandle, error) {
 	t.logger.Debug().Str("handle", fmt.Sprintf("0x%x", srkHandle)).Msg("Checking for existing SRK")
 
 	// Try to read the public key at the SRK handle
@@ -215,7 +215,7 @@ func (t *tpm2TEE) getOrCreateParentKey() (tpm2.TPMHandle, error) {
 
 		pub, err := readPublic.OutPublic.Contents()
 		if err != nil {
-			return 0, fmt.Errorf("get SRK public contents: %w", err)
+			return tpm2.NamedHandle{}, fmt.Errorf("get SRK public contents: %w", err)
 		}
 
 		// Check required attributes that a persistent key must have.
@@ -223,14 +223,14 @@ func (t *tpm2TEE) getOrCreateParentKey() (tpm2.TPMHandle, error) {
 		if attrs.Decrypt && attrs.Restricted && attrs.FixedTPM &&
 			attrs.FixedParent && attrs.SensitiveDataOrigin {
 			t.logger.Info().Str("handle", fmt.Sprintf("0x%x", srkHandle)).Msg("Using existing SRK with correct attributes")
-			return tpm2.TPMHandle(srkHandle), nil
+			return tpm2.NamedHandle{Handle: tpm2.TPMHandle(srkHandle), Name: readPublic.Name}, nil
 		}
 
 		// Otherwise fail because we do not handle a persistent key with wrong attributes at this point.
 		err = fmt.Errorf("existing SRK has incorrect attributes: decrypt=%v, restricted=%v, fixedTPM=%v, fixedParent=%v, sensitiveDataOrigin=%v",
 			attrs.Decrypt, attrs.Restricted, attrs.FixedTPM, attrs.FixedParent, attrs.SensitiveDataOrigin)
 		t.logger.Err(err)
-		return 0, err
+		return tpm2.NamedHandle{}, err
 	}
 
 	// Create an SRK template with required attributes
@@ -270,7 +270,7 @@ func (t *tpm2TEE) getOrCreateParentKey() (tpm2.TPMHandle, error) {
 	}.Execute(t.device)
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to create RSA SRK")
-		return 0, fmt.Errorf("create RSA SRK: %w", err)
+		return tpm2.NamedHandle{}, fmt.Errorf("create RSA SRK: %w", err)
 	}
 
 	// Persist the SRK at the standard handle
@@ -289,11 +289,11 @@ func (t *tpm2TEE) getOrCreateParentKey() (tpm2.TPMHandle, error) {
 	}()
 	if err != nil {
 		t.logger.Error().Err(err).Msg("Failed to persist SRK")
-		return 0, fmt.Errorf("persist SRK: %w", err)
+		return tpm2.NamedHandle{}, fmt.Errorf("persist SRK: %w", err)
 	}
 
 	t.logger.Info().Str("handle", fmt.Sprintf("0x%x", srkHandle)).Msg("Created and persisted new SRK")
-	return tpm2.TPMHandle(srkHandle), nil
+	return tpm2.NamedHandle{Handle: tpm2.TPMHandle(srkHandle), Name: primaryKey.Name}, nil
 }
 
 // selectBestECCCurve checks if the TPM supports ECC P-384, otherwise returns P-256
@@ -418,7 +418,7 @@ func (t *tpm2TEE) LoadKey(_ context.Context) (Key, error) {
 	}
 
 	// Load the key using the parent SRK
-	t.logger.Debug().Uint32("parent_handle", uint32(parentKeyHandle)).Msg("Loading key under SRK")
+	t.logger.Debug().Uint32("parent_handle", uint32(parentKeyHandle.Handle)).Msg("Loading key under SRK")
 	loadedKey, err := tpm2.Load{
 		ParentHandle: parentKeyHandle,
 		InPrivate:    *privateBlob,
