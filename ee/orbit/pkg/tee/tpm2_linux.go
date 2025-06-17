@@ -188,7 +188,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 	// Create and return the key
 	return &tpm2Key{
 		tpm:         t.device,
-		handle:      loadedKey.ObjectHandle,
+		handle:      tpm2.NamedHandle{Handle: loadedKey.ObjectHandle, Name: loadedKey.Name},
 		public:      createKey.OutPublic,
 		context:     keyContext.Context,
 		shouldFlush: true,
@@ -409,7 +409,7 @@ func (t *tpm2TEE) LoadKey(_ context.Context) (Key, error) {
 
 	return &tpm2Key{
 		tpm:         t.device,
-		handle:      loadedKey.ObjectHandle,
+		handle:      tpm2.NamedHandle{Handle: loadedKey.ObjectHandle, Name: loadedKey.Name},
 		public:      *publicBlob,
 		context:     keyContext.Context,
 		shouldFlush: true,
@@ -433,7 +433,7 @@ func (t *tpm2TEE) Close() error {
 // tpm2Key implements the Key interface using TPM 2.0.
 type tpm2Key struct {
 	tpm         transport.TPMCloser
-	handle      tpm2.TPMHandle
+	handle      tpm2.NamedHandle
 	public      tpm2.TPM2BPublic
 	context     tpm2.TPMSContext
 	shouldFlush bool
@@ -500,12 +500,12 @@ func (k *tpm2Key) Marshal() ([]byte, error) {
 }
 
 func (k *tpm2Key) Close() error {
-	if k.shouldFlush && k.handle != 0 {
+	if k.shouldFlush && k.handle.Handle != 0 {
 		flush := tpm2.FlushContext{
-			FlushHandle: k.handle,
+			FlushHandle: k.handle.Handle,
 		}
 		_, err := flush.Execute(k.tpm)
-		k.handle = 0
+		k.handle = tpm2.NamedHandle{}
 		return err
 	}
 	return nil
@@ -514,7 +514,7 @@ func (k *tpm2Key) Close() error {
 // tpm2Signer implements crypto.Signer using TPM 2.0.
 type tpm2Signer struct {
 	tpm       transport.TPMCloser
-	handle    tpm2.TPMHandle
+	handle    tpm2.NamedHandle
 	publicKey crypto.PublicKey
 }
 
