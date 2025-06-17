@@ -4,33 +4,33 @@
   h2 {
     color: var(--Fleet-Black-100, #192147);
 
-    /* Title S (FKA h4) */
+
     font-family: Inter;
     font-size: 20px;
     font-style: normal;
     font-weight: 800;
-    line-height: 24px; /* 120% */
+    line-height: 24px;
     margin-bottom: 10px;
   }
   h3 {
     color: var(--text-text-brand, #192147);
 
-    /* Title M (FKA h3) */
+
     font-family: Inter;
     font-size: 24px;
     font-style: normal;
     font-weight: 800;
-    line-height: 28.8px; /* 120% */
+    line-height: 28.8px;
   }
   p {
     color: var(--text-text-primary, #515774);
 
-    /* Body SM (FKA Card text) */
+
     font-family: Inter;
     font-size: 14px;
     font-style: normal;
     font-weight: 400;
-    line-height: 150%; /* 142.857% */
+    line-height: 150%;
   }
   [purpose='page-header'] {// Note: this overrides the header styles in layout.less.
     max-width: 100%;
@@ -115,7 +115,7 @@
   [purpose='platform-button'] {
     display: flex;
     height: 120px;
-    padding: var(--spacing-spacing-sm, 16px) var(--spacing-spacing-xl, 64px);
+    padding: 16px 64px;
     flex-direction: column;
     justify-content: center;
     align-items: center;
@@ -279,7 +279,7 @@
     height: 100%;
     position: relative;
     z-index: 1;
-    padding: var(--spacing-spacing-md, 24px) var(--spacing-spacing-xs, 8px) var(--spacing-spacing-md, 24px) var(--spacing-spacing-sm, 16px);
+    padding: 24px 8px 24px 16px;
     flex-direction: column;
     align-items: flex-start;
     border-right: 1px solid var(--border-border-primary, #E2E4EA);
@@ -292,16 +292,16 @@
     width: 100%;
     a {
       color: var(--text-text-primary, #515774);
-      padding: var(--spacing-spacing-xxs, 4px) var(--spacing-spacing-xs, 8px) var(--spacing-spacing-xxs, 4px) var(--spacing-spacing-xxs, 4px);
+      padding: 4px 8px 4px 4px;
       align-self: stretch;
       width: 100%;
       cursor: pointer;
-      /* Body SM (FKA Card text) */
+
       font-family: Inter;
       font-size: 14px;
       font-style: normal;
       font-weight: 400;
-      line-height: 20px; /* 142.857% */
+      line-height: 20px;
       &.selected {
         border-radius: var(--spacing-spacing-xxs, 4px);
         background: var(--surface-surface-secondary, #F9FAFC);
@@ -311,7 +311,7 @@
   [purpose='subcategories'] {
     a {
       display: flex;
-      padding: var(--spacing-spacing-xxs, 4px) var(--spacing-spacing-xs, 8px) var(--spacing-spacing-xxs, 4px) var(--spacing-spacing-md, 24px);
+      padding: 4px 4px 4px 24px;
       flex-direction: column;
       align-items: flex-start;
       width: 100%;
@@ -348,12 +348,12 @@
       color: var(--text-text-primary, #515774);
       text-align: center;
 
-      /* Body XS (FKA p small) */
+
       font-family: Inter;
       font-size: 12px;
       font-style: normal;
       font-weight: 400;
-      line-height: 18px; /* 150% */
+      line-height: 18px;
     }
 
   }
@@ -392,7 +392,7 @@
   }
   [purpose='subcategory-header'] {
     display: flex;
-    padding: var(--spacing-spacing-lg, 32px) var(--spacing-spacing-sm, 16px);
+    padding: 32px 16px;
     flex-direction: column;
     align-items: flex-start;
     align-self: stretch;
@@ -400,28 +400,26 @@
     h2 {
       color: var(--text-text-brand, #192147);
 
-      /* Title XS */
+
       font-family: Inter;
       font-size: 16px;
       font-style: normal;
       font-weight: 800;
-      line-height: 120%; /* 120% */
+      line-height: 120%;
     }
     p {
       color: var(--text-text-primary, #515774);
-
-      /* Body SM (FKA Card text) */
       font-family: Inter;
       font-size: 14px;
       font-style: normal;
       font-weight: 400;
-      line-height: 20px; /* 142.857% */
+      line-height: 20px;
     }
 
   }
   [purpose='subcategory-options'] {
     display: flex;
-    padding: var(--spacing-spacing-lg, 32px) var(--spacing-spacing-sm, 16px) var(--spacing-spacing-sm, 16px) var(--spacing-spacing-sm, 16px);
+    padding: 32px 16px  16px 16px;
     flex-direction: column;
     align-items: flex-start;
     align-self: stretch;
@@ -430,7 +428,7 @@
       flex-direction: row;
       align-items: center;
       justify-content: center;
-      padding: var(--spacing-spacing-xs, 8px) var(--spacing-spacing-xs, 8px) var(--spacing-spacing-xs, 8px) var(--spacing-spacing-xxs, 4px);
+      padding: 8px 8px 8px 4px;
       label {
         margin-bottom: 0px;
         display: flex;
@@ -554,7 +552,7 @@
   }
   [purpose='payload-option'] {
     display: flex;
-    padding: var(--spacing-spacing-lg, 32px) var(--spacing-spacing-md, 24px);
+    padding: 32px 24px;
     flex-direction: column;
     align-items: flex-start;
     align-self: stretch;
@@ -569,7 +567,7 @@
       font-size: 13px;
       font-style: normal;
       font-weight: 400;
-      line-height: 24px; /* 184.615% */
+      line-height: 24px;
       // text-transform: uppercase;
     }
     [purpose='option-value'] {
@@ -594,7 +592,7 @@
         user-select: none;
         cursor: pointer;
         width: fit-content;
-        padding: var(--spacing-spacing-xs, 8px) 0px;
+        padding: 8px 0px;
         margin-bottom: 0px;
         display: flex;
         flex-direction: row;
@@ -604,8 +602,7 @@
         font-size: 14px;
         font-style: normal;
         font-weight: 400;
-        line-height: 20px; /* 142.857% */
-        white-space: nowrap;
+        line-height: 20px;
         height: fit-content;
         border: none;
         input {
@@ -712,7 +709,7 @@
       background: var(--Off-white, #F9FAFC);
       display: flex;
       width: 129px;
-      padding: var(--spacing-1, 8px) var(--spacing-2, 16px);
+      padding: 8px 16px;
       justify-content: center;
       align-items: center;
       gap: var(--spacing-2, 16px);
@@ -721,12 +718,12 @@
       color: var(--text-text-primary, #515774);
       text-align: center;
 
-      /* Body SM (bold) */
+
       font-family: Inter;
       font-size: 14px;
       font-style: normal;
       font-weight: 700;
-      line-height: 21px; /* 150% */
+      line-height: 21px;
       cursor: pointer;
     }
 
@@ -735,7 +732,7 @@
     border-radius: 8px;
     background: var(--Core-Fleet-Black, #192147);
     display: flex;
-    padding: var(--spacing-1, 8px) var(--spacing-2, 16px);
+    padding: 8px 16px;
     height: 37px;
     justify-content: center;
     align-items: center;
@@ -745,11 +742,11 @@
     font-weight: 700;
     text-align: center;
 
-    /* Body SM (bold) */
+
     font-family: Inter;
     font-size: 14px;
     font-style: normal;
-    line-height: 21px; /* 150% */
+    line-height: 21px;
     .button-text {
       display: flex;
       // justify-content: center;
@@ -760,11 +757,11 @@
       font-weight: 700;
       text-align: center;
 
-      /* Body SM (bold) */
+
       font-family: Inter;
       font-size: 14px;
       font-style: normal;
-      line-height: 21px; /* 150% */
+      line-height: 21px;
     }
   }
   input.form-control {
@@ -802,7 +799,7 @@
       font-size: 13px;
       font-style: normal;
       font-weight: 700;
-      line-height: 15.6px; /* 120% */
+      line-height: 15.6px;
     }
     [purpose='modal-form-option'] {
       margin-bottom: 24px;
@@ -822,10 +819,5 @@
       }
     }
   }
-
-  @media(max-width: 1000px) {
-
-  }
-
 
 }
