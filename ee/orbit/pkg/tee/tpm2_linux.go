@@ -159,7 +159,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 	}
 
 	t.logger.Debug().
-		Uint32("handle", uint32(loadedKey.ObjectHandle)).
+		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("Key loaded successfully")
 
 	// Save the key context
@@ -180,7 +180,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 	}
 
 	t.logger.Info().
-		Uint32("handle", uint32(loadedKey.ObjectHandle)).
+		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("Key created and context saved successfully")
 
 	// Write TPM blobs to files
@@ -203,7 +203,7 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 
 // getOrCreateParentKey gets the Storage Root Key at the standard handle, or creates and persists it if it doesn't exist
 func (t *tpm2TEE) getOrCreateParentKey() (tpm2.TPMHandle, error) {
-	t.logger.Debug().Uint32("handle", srkHandle).Msg("Checking for existing SRK")
+	t.logger.Debug().Str("handle", fmt.Sprintf("0x%x", srkHandle)).Msg("Checking for existing SRK")
 
 	// Try to read the public key at the SRK handle
 	readPublic, err := tpm2.ReadPublic{
@@ -222,7 +222,7 @@ func (t *tpm2TEE) getOrCreateParentKey() (tpm2.TPMHandle, error) {
 		attrs := pub.ObjectAttributes
 		if attrs.Decrypt && attrs.Restricted && attrs.FixedTPM &&
 			attrs.FixedParent && attrs.SensitiveDataOrigin {
-			t.logger.Info().Uint32("handle", srkHandle).Msg("Using existing SRK with correct attributes")
+			t.logger.Info().Str("handle", fmt.Sprintf("0x%x", srkHandle)).Msg("Using existing SRK with correct attributes")
 			return tpm2.TPMHandle(srkHandle), nil
 		}
 
@@ -292,7 +292,7 @@ func (t *tpm2TEE) getOrCreateParentKey() (tpm2.TPMHandle, error) {
 		return 0, fmt.Errorf("persist SRK: %w", err)
 	}
 
-	t.logger.Info().Uint32("handle", srkHandle).Msg("Created and persisted new SRK")
+	t.logger.Info().Str("handle", fmt.Sprintf("0x%x", srkHandle)).Msg("Created and persisted new SRK")
 	return tpm2.TPMHandle(srkHandle), nil
 }
 
@@ -430,7 +430,7 @@ func (t *tpm2TEE) LoadKey(_ context.Context) (Key, error) {
 	}
 
 	t.logger.Debug().
-		Uint32("handle", uint32(loadedKey.ObjectHandle)).
+		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("Key loaded successfully")
 
 	// Save the key context for potential future use
@@ -449,7 +449,7 @@ func (t *tpm2TEE) LoadKey(_ context.Context) (Key, error) {
 	}
 
 	t.logger.Info().
-		Uint32("handle", uint32(loadedKey.ObjectHandle)).
+		Str("handle", fmt.Sprintf("0x%x", loadedKey.ObjectHandle)).
 		Msg("Key loaded from blobs successfully")
 
 	return &tpm2Key{

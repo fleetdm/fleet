@@ -7,20 +7,21 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log"
+	"testing"
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
 	"github.com/rs/zerolog"
 )
 
-func ExampleTEE() {
+func TestExampleTEE(t *testing.T) {
 	// Create a logger
 	logger := zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
 
 	// Initialize TEE (TPM 2.0 on Linux)
 	teeDevice, err := tee.NewTPM2(
 		tee.WithLogger(logger),
-		tee.WithPublicBlobPath("/tmp/tpm_public.blob"),
-		tee.WithPrivateBlobPath("/tmp/tpm_private.blob"),
+		tee.WithPublicBlobPath("./temp/tpm_public.blob"),
+		tee.WithPrivateBlobPath("./temp/tpm_private.blob"),
 	)
 	if err != nil {
 		log.Fatalf("Failed to initialize TEE: %v", err)
@@ -68,30 +69,30 @@ func ExampleTEE() {
 	fmt.Println("Key successfully saved and loaded")
 }
 
-func ExampleKey_Decrypter() {
-	// Create a logger
-	logger := zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
-
-	// Initialize TEE
-	teeDevice, err := tee.NewTPM2(
-		tee.WithLogger(logger),
-		tee.WithPublicBlobPath("/tmp/tpm_public2.blob"),
-		tee.WithPrivateBlobPath("/tmp/tpm_private2.blob"),
-	)
-	if err != nil {
-		log.Fatalf("Failed to initialize TEE: %v", err)
-	}
-	defer teeDevice.Close()
-
-	// Create a key
-	ctx := context.Background()
-	key, err := teeDevice.CreateKey(ctx)
-	if err != nil {
-		log.Fatalf("Failed to create key: %v", err)
-	}
-	defer key.Close()
-
-	// Note: ECC keys don't support decryption operations
-	// The Decrypter interface has been removed since ECC keys don't support decryption
-	fmt.Println("ECC key created successfully (decryption not supported)")
-}
+//func ExampleKey_Decrypter() {
+//	// Create a logger
+//	logger := zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
+//
+//	// Initialize TEE
+//	teeDevice, err := tee.NewTPM2(
+//		tee.WithLogger(logger),
+//		tee.WithPublicBlobPath("/tmp/tpm_public2.blob"),
+//		tee.WithPrivateBlobPath("/tmp/tpm_private2.blob"),
+//	)
+//	if err != nil {
+//		log.Fatalf("Failed to initialize TEE: %v", err)
+//	}
+//	defer teeDevice.Close()
+//
+//	// Create a key
+//	ctx := context.Background()
+//	key, err := teeDevice.CreateKey(ctx)
+//	if err != nil {
+//		log.Fatalf("Failed to create key: %v", err)
+//	}
+//	defer key.Close()
+//
+//	// Note: ECC keys don't support decryption operations
+//	// The Decrypter interface has been removed since ECC keys don't support decryption
+//	fmt.Println("ECC key created successfully (decryption not supported)")
+//}
