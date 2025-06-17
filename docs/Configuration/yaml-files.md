@@ -26,6 +26,11 @@ You may also wish to create specialized API-Only users which may modify configur
 ## labels
 
 Labels can be specified in your `default.yml` file using inline configuration or references to separate files in your `lib/` folder.
+
+> `labels` is an optional key: if included, existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
+>
+> Any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
+
 ### Options
 
 For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
@@ -49,10 +54,6 @@ labels:
       - "ceo-laptop"
       - "the-CFOs-computer"
 ```
-
-The `labels:` key is _optional_ in your YAML configuration:
-+  If it is omitted, any existing labels created via the UI or API will remain untouched by GitOps.
-+  If included, GitOps will replace all existing labels with those specified in the YAML, and any labels referenced in other sections (like [policies](https://fleetdm.com/docs/configuration/yaml-files#policies), [queries](https://fleetdm.com/docs/configuration/yaml-files#queries) or [software](https://fleetdm.com/docs/configuration/yaml-files#software)) _must_ be specified in the `labels` section.
 
 #### Separate file
  
@@ -215,62 +216,6 @@ queries:
     labels_include_any:
       - Engineering
       - Customer Support
-```
-
-## labels
-
-Labels can be specified inline in your `default.yml` file. They can also be specified in separate files in your `lib/` folder.
-
-> `labels` is an optional key: if included, existing labels not listed will be deleted. If the `label` key is omitted, existing labels will stay intact. For this reason, enabling [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) _does not_ restrict creating/editing labels via the UI.
-
-### Options
-
-For possible options, see the parameters for the [Add label API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-label).
-
-### Example
-
-#### Inline
-  
-`default.yml`
-
-```yaml
-labels: 
-  # Dynamic label:
-  - name: Windows Arm
-    description: Windows hosts that are running on Arm64.
-    query: "SELECT * FROM os_version WHERE arch LIKE 'ARM%';"
-    platform: windows
-  # Manual label
-  - name: Executive (C-suite) computers
-    hosts:
-    - FFHH37NTL8
-    - F2LYH0KG4Y
-    - H4D5WYVN0L
-```
-
-#### Separate file
- 
-`lib/labels-name.labels.yml`
-
-```yaml
-# Dynamic label:
-- name: Windows Arm
-  description: Windows hosts that are running on Arm64.
-  query: "SELECT * FROM os_version WHERE arch LIKE 'ARM%';"
-  platform: windows
-# Manual label
-- name: Executive (C-suite) computers
-  hosts:
-  - FFHH37NTL8
-  - F2LYH0KG4Y
-  - H4D5WYVN0L
-```
-
-`default.yml`
-
-```yaml
-labels:
-  - path: ../lib/labels-name.labels.yml
 ```
 
 ## agent_options
@@ -516,6 +461,11 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist, Fleet will download the package, then verify that the hash matches, bailing out if it does not match.
+
+> Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
+
+> You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI, API, or the `fleetctl upload-software` command. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
+
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -526,6 +476,8 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
 #### Example
+
+##### With URL
 
 `lib/software-name.package.yml`:
 
@@ -540,6 +492,15 @@ post_install_script:
 categories:
   - Browsers
 self_service: true
+```
+
+##### With hash
+
+You can get an output similar to that below when `fleetctl upload-software` successfully uploads a software package.
+
+```yaml
+# Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1
+- hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
 ```
 
 ### app_store_apps
@@ -958,6 +919,22 @@ org_settings:
       idp_name: Okta
       metadata: $END_USER_SSO_METADATA
       metadata_url: ""
+```
+
+Can only be configured for all teams (`org_settings`).
+
+##### end_user_license_agreement
+
+You can require an end user to agree to an end user license agreement (EULA) before they can use their new Mac. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.
+
+- `end_user_license_agreement` is the path to the PDF document.
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    end_user_license_agreement: ./lib/eula.pdf
 ```
 
 Can only be configured for all teams (`org_settings`).

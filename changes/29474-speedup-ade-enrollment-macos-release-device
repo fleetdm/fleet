@@ -1,0 +1,1 @@
+* Improved releasing a macOS device during ADE enrollment, by increasing the frequency of checks for readiness.

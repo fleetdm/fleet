@@ -199,10 +199,16 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	}
 
 	if u.Script.IsOther {
+		// for supported FMAs, this is a map with "executable" as the script path and "sudo" with sudo set to true
 		addUserVar()
-		for _, path := range u.Script.Other {
-			sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, path)
+		if u.Script.Other["args"] != nil {
+			panic("Args found in Homebrew uninstall script; not yet implemented in ingester")
 		}
+		if u.Script.Other["sudo"] != true {
+			panic("sudo not found or something other than true")
+		}
+
+		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo '%s')`, u.Script.Other["executable"])
 	} else if len(u.Script.String) > 0 {
 		addUserVar()
 		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, u.Script.String)

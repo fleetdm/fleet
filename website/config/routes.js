@@ -903,6 +903,7 @@ module.exports.routes = {
   'GET /learn-more-about/how-to-connect-android-enterprise': '/guides/android-mdm-setup',
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
+  'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
 
@@ -938,8 +939,7 @@ module.exports.routes = {
   // Temporary redirects
   // =============================================================================================================
   // For events, etc. that can be removed after a certain date. Please leave a comment with a valid until date.
-  'GET /rsaparty':               'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm', // Valid until 2024-05-09
-  'GET /rsavip':                 'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm&discount=Fleet2024', // Valid until 2024-05-09
+  'GET /funding-announcement': 'https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management',// This will be changed on 2025-06-17.
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗

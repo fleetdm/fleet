@@ -27,7 +27,7 @@ import (
 
 var (
 	rxOption       = regexp.MustCompile(`\-\-(\w+)\s`)
-	osqueryVersion = "5.14.1"
+	osqueryVersion = "5.17.0"
 
 	structTpl = template.Must(template.New("struct").Funcs(template.FuncMap{
 		"camelCase": camelCaseOptionName,
@@ -69,7 +69,7 @@ func main() {
 	if runtime.GOOS != "darwin" {
 		log.Fatal("Currently only supported on macOS")
 	}
-	urlStr := fmt.Sprintf("https://tuf.fleetctl.com/targets/osqueryd/macos-app/%s/osqueryd.app.tar.gz", osqueryVersion)
+	urlStr := fmt.Sprintf("https://updates.fleetdm.com/targets/osqueryd/macos-app/%s/osqueryd.app.tar.gz", osqueryVersion)
 	osqueryTUFURL, err := url.Parse(urlStr)
 	if err != nil {
 		log.Fatalf("parse osquery TUF URL: %q: %s", urlStr, err)
