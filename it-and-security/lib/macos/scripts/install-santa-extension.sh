@@ -2,6 +2,11 @@
 
 # Santa universal extension installer script
 # Downloads and installs the latest santa_universal.ext from GitHub
+# Safe for deployment via Fleet (schedules orbit restart to avoid script termination)
+#
+# Usage:
+#   sudo ./install_santa_extension.sh          # Default: scheduled restart (Fleet-safe)
+#   sudo ./install_santa_extension.sh immediate # Immediate restart (manual execution)
 
 set -e  # Exit on any error
 
@@ -13,6 +18,9 @@ EXTENSIONS_LOAD_FILE="$OSQUERY_DIR/extensions.load"
 EXTENSION_NAME="santa_universal.ext"
 EXTENSION_PATH="$EXTENSION_DIR/$EXTENSION_NAME"
 BACKUP_PATH="$EXTENSION_PATH.backup.$(date +%Y%m%d_%H%M%S)"
+
+# Command line options
+IMMEDIATE_RESTART=${1:-false}  # Pass "immediate" as first argument for immediate restart
 
 echo "Starting Santa Extension installation..."
 
@@ -68,41 +76,42 @@ backup_existing() {
     fi
 }
 
-# Function to get latest release download URL using redirect
-get_latest_release_url() {
-    # GitHub redirects /releases/latest to the actual latest release page
-    local latest_url="https://github.com/$GITHUB_REPO/releases/latest"
-    log "Finding latest release URL..."
+# Function to get the latest release tag from GitHub
+get_latest_release_tag() {
+    log "Finding latest release tag..."
     
-    # Get the redirect location (actual latest release URL)
-    local actual_release_url
-    if ! actual_release_url=$(curl -s -o /dev/null -w "%{redirect_url}" "$latest_url"); then
-        log "Error: Failed to get latest release redirect"
+    # Try to get the latest release page and extract the actual tag
+    local releases_url="https://github.com/$GITHUB_REPO/releases/latest"
+    local response
+    
+    if ! response=$(curl -s -L "$releases_url"); then
+        log "Error: Failed to fetch releases page"
         return 1
     fi
     
-    if [[ -z "$actual_release_url" ]]; then
-        log "Error: No redirect found for latest release"
+    # Extract the actual tag from the redirected URL or page content
+    # Look for the tag in the URL path or in the page content
+    local tag
+    tag=$(echo "$response" | grep -o 'releases/tag/[^"]*' | head -1 | sed 's|releases/tag/||' | sed 's|".*||')
+    
+    if [[ -z "$tag" ]]; then
+        # Alternative: look for version tags in the page content
+        tag=$(echo "$response" | grep -o 'tag/[v0-9][^"]*' | head -1 | sed 's|tag/||' | sed 's|".*||')
+    fi
+    
+    if [[ -z "$tag" ]]; then
+        log "Error: Could not determine latest release tag"
         return 1
     fi
     
-    log "Latest release URL: $actual_release_url"
-    
-    # Extract version tag from the URL (e.g., https://github.com/user/repo/releases/tag/v1.0.0)
-    local version_tag
-    version_tag=$(echo "$actual_release_url" | sed 's|.*/tag/||')
-    
-    if [[ -z "$version_tag" ]]; then
-        log "Error: Could not extract version tag from URL"
-        return 1
-    fi
-    
-    log "Found version tag: $version_tag"
-    
-    # Construct download URL
-    local download_url="https://github.com/$GITHUB_REPO/releases/download/$version_tag/$EXTENSION_NAME"
-    log "Constructed download URL: $download_url"
-    
+    log "Found latest release tag: $tag"
+    echo "$tag"
+}
+
+# Function to construct download URL with specific tag
+get_download_url_with_tag() {
+    local tag="$1"
+    local download_url="https://github.com/$GITHUB_REPO/releases/download/$tag/$EXTENSION_NAME"
     echo "$download_url"
 }
 
@@ -142,34 +151,51 @@ validate_download() {
 download_latest_release() {
     log "Starting download process..."
     
-    local download_url
-    if ! download_url=$(get_latest_release_url); then
-        log "Error: Failed to get download URL"
-        exit 1
-    fi
-    
-    log "Downloading $EXTENSION_NAME..."
-    
     # Create temporary file for download
     local temp_file
     temp_file=$(mktemp)
     
-    # Download with progress and error handling
-    if curl -L --progress-bar --fail -o "$temp_file" "$download_url"; then
-        log "Download completed successfully"
+    # First, try the direct latest download URL
+    local direct_url="https://github.com/$GITHUB_REPO/releases/latest/download/$EXTENSION_NAME"
+    log "Attempting direct download from: $direct_url"
+    
+    if curl -L --progress-bar --fail -o "$temp_file" "$direct_url" 2>/dev/null; then
+        log "Direct download successful"
+    else
+        log "Direct download failed, getting actual release tag..."
         
-        # Validate the download
-        if validate_download "$temp_file"; then
-            # Move to final location
-            mv "$temp_file" "$EXTENSION_PATH"
-            log "File moved to final location: $EXTENSION_PATH"
-        else
-            log "Error: File validation failed"
+        # Get the actual latest release tag
+        local latest_tag
+        if ! latest_tag=$(get_latest_release_tag); then
+            log "Error: Could not determine latest release tag"
             rm -f "$temp_file"
             exit 1
         fi
+        
+        # Construct download URL with the actual tag
+        local download_url
+        download_url=$(get_download_url_with_tag "$latest_tag")
+        log "Download URL with tag: $download_url"
+        
+        # Download with the specific tag
+        if curl -L --progress-bar --fail -o "$temp_file" "$download_url"; then
+            log "Download with specific tag successful"
+        else
+            log "Error: Download failed with both methods"
+            log "Please verify that '$EXTENSION_NAME' exists in the latest release at:"
+            log "https://github.com/$GITHUB_REPO/releases/latest"
+            rm -f "$temp_file"
+            exit 1
+        fi
+    fi
+    
+    # Validate the download
+    if validate_download "$temp_file"; then
+        # Move to final location
+        mv "$temp_file" "$EXTENSION_PATH"
+        log "File moved to final location: $EXTENSION_PATH"
     else
-        log "Error: Download failed"
+        log "Error: File validation failed"
         rm -f "$temp_file"
         exit 1
     fi
@@ -231,28 +257,56 @@ test_extension() {
     fi
 }
 
-# Function to restart orbit with better error handling
-restart_orbit() {
-    log "Restarting orbit service..."
-    
-    # Check if orbit service exists
-    if launchctl list | grep -q "com.fleetdm.orbit"; then
-        if launchctl kickstart -k system/com.fleetdm.orbit; then
-            log "Orbit service restarted successfully"
-            
-            # Wait a moment and check if service is running
-            sleep 2
-            if launchctl list | grep -q "com.fleetdm.orbit"; then
-                log "Orbit service is running"
+# Function to schedule orbit restart in background or restart immediately
+handle_orbit_restart() {
+    if [[ "$IMMEDIATE_RESTART" == "immediate" ]]; then
+        log "Immediate restart requested - restarting orbit service now..."
+        
+        # Check if orbit service exists
+        if launchctl list | grep -q "com.fleetdm.orbit"; then
+            if launchctl kickstart -k system/com.fleetdm.orbit; then
+                log "Orbit service restarted successfully"
+                
+                # Wait a moment and check if service is running
+                sleep 2
+                if launchctl list | grep -q "com.fleetdm.orbit"; then
+                    log "Orbit service is running"
+                else
+                    log "Warning: Orbit service may not be running properly"
+                fi
             else
-                log "Warning: Orbit service may not be running properly"
+                log "Warning: Failed to restart orbit service"
             fi
         else
-            log "Warning: Failed to restart orbit service"
-            log "You may need to restart it manually with: sudo launchctl kickstart -k system/com.fleetdm.orbit"
+            log "Warning: Orbit service not found"
         fi
     else
-        log "Warning: Orbit service not found. Extension will load on next orbit startup."
+        log "Scheduling orbit service restart (safe for Fleet deployment)..."
+        
+        # Check if orbit service exists
+        if launchctl list | grep -q "com.fleetdm.orbit"; then
+            log "Orbit service found. Scheduling restart in 5 seconds..."
+            
+            # Create a properly detached background process that Fleet won't wait for
+            # Using nohup and redirecting all output to prevent Fleet from waiting
+            nohup bash -c "
+                sleep 5
+                echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Restarting orbit service...\" >> /var/log/santa_installer.log 2>&1
+                if launchctl kickstart -k system/com.fleetdm.orbit >> /var/log/santa_installer.log 2>&1; then
+                    echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Orbit service restarted successfully\" >> /var/log/santa_installer.log 2>&1
+                else
+                    echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Warning: Failed to restart orbit service\" >> /var/log/santa_installer.log 2>&1
+                fi
+            " >/dev/null 2>&1 &
+            
+            # Disown the process so the script can exit cleanly
+            disown
+            
+            log "Orbit restart scheduled for 5 seconds after script completion"
+            log "Check /var/log/santa_installer.log for restart status"
+        else
+            log "Warning: Orbit service not found. Extension will load on next orbit startup."
+        fi
     fi
 }
 
@@ -279,6 +333,14 @@ trap cleanup_on_failure ERR
 # Main execution
 main() {
     log "=== Santa Extension Installer Started ==="
+    if [[ "$IMMEDIATE_RESTART" == "immediate" ]]; then
+        log "Mode: Immediate restart (manual execution)"
+    else
+        log "Mode: Scheduled restart (safe for Fleet deployment)"
+    fi
+    
+    # Ensure log directory exists for background process
+    mkdir -p /var/log
     
     check_root
     check_prerequisites
@@ -301,8 +363,8 @@ main() {
     # Setup extensions.load file
     setup_extensions_load
     
-    # Restart orbit
-    restart_orbit
+    # Handle orbit restart (scheduled for Fleet deployment, immediate for manual)
+    handle_orbit_restart
     
     # Clean up backup on success
     if [[ -f "$BACKUP_PATH" ]]; then
@@ -313,7 +375,11 @@ main() {
     log "=== Installation completed successfully! ==="
     log "Extension installed at: $EXTENSION_PATH"
     log "Extensions configuration: $EXTENSIONS_LOAD_FILE"
-    log "The extension should be loaded automatically by osquery/Fleet"
+    if [[ "$IMMEDIATE_RESTART" == "immediate" ]]; then
+        log "Orbit service has been restarted immediately"
+    else
+        log "Orbit service restart has been scheduled for 5 seconds"
+    fi
     echo ""
 }
 
