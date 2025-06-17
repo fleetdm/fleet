@@ -20,11 +20,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const (
-	// srkHandle is the standard handle for the Storage Root Key of TPM 2.0
-	srkHandle = 0x81000001
-)
-
 // tpm2TEE implements the TEE interface using TPM 2.0.
 type tpm2TEE struct {
 	device          transport.TPMCloser
@@ -107,7 +102,7 @@ func NewTPM2(opts ...TPM2Option) (TEE, error) {
 func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 	t.logger.Info().Msg("Creating new ECC key in TPM")
 
-	parentKeyHandle, err := t.getOrCreateParentKey()
+	parentKeyHandle, err := t.createParentKey()
 	if err != nil {
 		return nil, fmt.Errorf("get or create TPM parent key: %w", err)
 	}
@@ -135,15 +130,15 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 		),
 	})
 
-	// Create the key under the persisted parent
-	t.logger.Debug().Msg("Creating key under SRK")
+	// Create the key under the transient parent
+	t.logger.Debug().Msg("Creating child key")
 	createKey, err := tpm2.Create{
 		ParentHandle: parentKeyHandle,
 		InPublic:     eccTemplate,
 	}.Execute(t.device)
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to create key under SRK")
-		return nil, fmt.Errorf("create key under SRK: %w", err)
+		t.logger.Error().Err(err).Msg("Failed to create child key")
+		return nil, fmt.Errorf("create child key: %w", err)
 	}
 
 	// Load the key
@@ -201,41 +196,12 @@ func (t *tpm2TEE) CreateKey(_ context.Context) (Key, error) {
 	}, nil
 }
 
-// getOrCreateParentKey gets the Storage Root Key at the standard handle, or creates and persists it if it doesn't exist
-func (t *tpm2TEE) getOrCreateParentKey() (tpm2.NamedHandle, error) {
-	t.logger.Debug().Str("handle", fmt.Sprintf("0x%x", srkHandle)).Msg("Checking for existing SRK")
+// createParentKey creates a transient Storage Root Key for use as a parent key
+func (t *tpm2TEE) createParentKey() (tpm2.AuthHandle, error) {
+	t.logger.Debug().Msg("Creating transient RSA 2048-bit parent key")
 
-	// Try to read the public key at the SRK handle
-	readPublic, err := tpm2.ReadPublic{
-		ObjectHandle: tpm2.TPMHandle(srkHandle),
-	}.Execute(t.device)
-	if err == nil {
-		// SRK exists, verify it has the required attributes
-		t.logger.Debug().Msg("Found existing SRK, verifying attributes")
-
-		pub, err := readPublic.OutPublic.Contents()
-		if err != nil {
-			return tpm2.NamedHandle{}, fmt.Errorf("get SRK public contents: %w", err)
-		}
-
-		// Check required attributes that a persistent key must have.
-		attrs := pub.ObjectAttributes
-		if attrs.Decrypt && attrs.Restricted && attrs.FixedTPM &&
-			attrs.FixedParent && attrs.SensitiveDataOrigin {
-			t.logger.Info().Str("handle", fmt.Sprintf("0x%x", srkHandle)).Msg("Using existing SRK with correct attributes")
-			return tpm2.NamedHandle{Handle: tpm2.TPMHandle(srkHandle), Name: readPublic.Name}, nil
-		}
-
-		// Otherwise fail because we do not handle a persistent key with wrong attributes at this point.
-		err = fmt.Errorf("existing SRK has incorrect attributes: decrypt=%v, restricted=%v, fixedTPM=%v, fixedParent=%v, sensitiveDataOrigin=%v",
-			attrs.Decrypt, attrs.Restricted, attrs.FixedTPM, attrs.FixedParent, attrs.SensitiveDataOrigin)
-		t.logger.Err(err)
-		return tpm2.NamedHandle{}, err
-	}
-
-	// Create an SRK template with required attributes
-	t.logger.Debug().Msg("Creating new RSA 2048-bit SRK")
-	srkTemplate := tpm2.New2B(tpm2.TPMTPublic{
+	// Create a parent key template with required attributes
+	parentTemplate := tpm2.New2B(tpm2.TPMTPublic{
 		Type:    tpm2.TPMAlgRSA,
 		NameAlg: tpm2.TPMAlgSHA256,
 		ObjectAttributes: tpm2.TPMAObject{
@@ -266,34 +232,23 @@ func (t *tpm2TEE) getOrCreateParentKey() (tpm2.NamedHandle, error) {
 
 	primaryKey, err := tpm2.CreatePrimary{
 		PrimaryHandle: tpm2.TPMRHOwner,
-		InPublic:      srkTemplate,
+		InPublic:      parentTemplate,
 	}.Execute(t.device)
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to create RSA SRK")
-		return tpm2.NamedHandle{}, fmt.Errorf("create RSA SRK: %w", err)
+		t.logger.Error().Err(err).Msg("Failed to create transient parent key")
+		return tpm2.AuthHandle{}, fmt.Errorf("create transient parent key: %w", err)
 	}
 
-	// Persist the SRK at the standard handle
-	t.logger.Debug().Msg("Persisting SRK")
-	_, err = tpm2.EvictControl{
-		Auth:             tpm2.TPMRHOwner,
-		ObjectHandle:     tpm2.NamedHandle{Handle: primaryKey.ObjectHandle, Name: primaryKey.Name},
-		PersistentHandle: tpm2.TPMHandle(srkHandle),
-	}.Execute(t.device, tpm2.PasswordAuth(nil))
-	defer func() {
-		// Clean up the transient object since the key has been persistent to a permanent handle.
-		flush := tpm2.FlushContext{
-			FlushHandle: primaryKey.ObjectHandle,
-		}
-		_, _ = flush.Execute(t.device)
-	}()
-	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to persist SRK")
-		return tpm2.NamedHandle{}, fmt.Errorf("persist SRK: %w", err)
-	}
+	t.logger.Info().
+		Str("handle", fmt.Sprintf("0x%x", primaryKey.ObjectHandle)).
+		Msg("Created transient parent key successfully")
 
-	t.logger.Info().Str("handle", fmt.Sprintf("0x%x", srkHandle)).Msg("Created and persisted new SRK")
-	return tpm2.NamedHandle{Handle: tpm2.TPMHandle(srkHandle), Name: primaryKey.Name}, nil
+	// Return the transient key as an AuthHandle with nil password
+	return tpm2.AuthHandle{
+		Handle: primaryKey.ObjectHandle,
+		Name:   primaryKey.Name,
+		Auth:   tpm2.PasswordAuth(nil),
+	}, nil
 }
 
 // selectBestECCCurve checks if the TPM supports ECC P-384, otherwise returns P-256
@@ -411,22 +366,22 @@ func (t *tpm2TEE) LoadKey(_ context.Context) (Key, error) {
 		return nil, fmt.Errorf("unmarshal private blob: %w", err)
 	}
 
-	// Get the parent key handle (SRK)
-	parentKeyHandle, err := t.getOrCreateParentKey()
+	// Get the parent key handle
+	parentKeyHandle, err := t.createParentKey()
 	if err != nil {
 		return nil, fmt.Errorf("get parent key: %w", err)
 	}
 
-	// Load the key using the parent SRK
-	t.logger.Debug().Uint32("parent_handle", uint32(parentKeyHandle.Handle)).Msg("Loading key under SRK")
+	// Load the key using the parent
+	t.logger.Debug().Uint32("parent_handle", uint32(parentKeyHandle.Handle)).Msg("Loading parent key")
 	loadedKey, err := tpm2.Load{
 		ParentHandle: parentKeyHandle,
 		InPrivate:    *privateBlob,
 		InPublic:     *publicBlob,
 	}.Execute(t.device)
 	if err != nil {
-		t.logger.Error().Err(err).Msg("Failed to load key under SRK")
-		return nil, fmt.Errorf("load key under SRK: %w", err)
+		t.logger.Error().Err(err).Msg("Failed to load parent key")
+		return nil, fmt.Errorf("load parent key: %w", err)
 	}
 
 	t.logger.Debug().
