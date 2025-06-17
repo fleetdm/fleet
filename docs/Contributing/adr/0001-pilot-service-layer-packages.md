@@ -2,11 +2,11 @@
 
 ## Status 🚦
 
-Proposed
+Accepted
 
 ## Date 📅
 
-2025-06-09
+2025-06-17
 
 ## Context 🔍
 
