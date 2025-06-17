@@ -1788,11 +1788,19 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// Filter by inexistent software.
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(9999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_version_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(9999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_title_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_title_id", fmt.Sprint(9999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.SoftwareTitle)
 
 	// Filter by non-existent team.
 	resp = listHostsResponse{}
