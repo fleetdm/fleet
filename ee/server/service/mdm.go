@@ -672,7 +672,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	return nil
 }
 
-func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
+func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// initiate SSO.
 	svc.authz.SkipAuthorization(ctx)
@@ -681,7 +681,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting app config")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
 	mdmSSOSettings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
@@ -692,7 +692,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 	// this means some teams may not use SSO even if it is configured.
 	if mdmSSOSettings.IsEmpty() {
 		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
-		return "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "initiate mdm sso")
 	}
 
 	serverURL := appConfig.MDMUrl()
@@ -704,30 +704,31 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context) (string, error) {
 		&mdmSSOSettings,
 	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")
 	}
 
 	// originalURL is unused in the MDM flow.
 	originalURL := "/"
-	idpURL, err := sso.CreateAuthorizationRequest(ctx,
+	sessionDurationSeconds = int(svc.config.Auth.SsoSessionValidityPeriod.Seconds())
+	sessionID, idpURL, err = sso.CreateAuthorizationRequest(ctx,
 		samlProvider, svc.ssoSessionStore, originalURL,
-		uint(svc.config.Auth.SsoSessionValidityPeriod.Seconds()),
+		uint(sessionDurationSeconds), //nolint:gosec // dismiss G115
 	)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "InitiateMDMAppleSSO creating authorization")
+		return "", 0, "", ctxerr.Wrap(ctx, err, "InitiateMDMAppleSSO creating authorization")
 	}
 
-	return idpURL, nil
+	return sessionID, sessionDurationSeconds, idpURL, nil
 }
 
-func (svc *Service) MDMAppleSSOCallback(ctx context.Context, relayStateToken string, samlResponse []byte) string {
+func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
 	// skipauth: User context does not yet exist. Unauthenticated users may
 	// hit the SSO callback.
 	svc.authz.SkipAuthorization(ctx)
 
 	logging.WithLevel(logging.WithNoUser(ctx), level.Info)
 
-	profileToken, enrollmentRef, eulaToken, err := svc.mdmSSOHandleCallbackAuth(ctx, relayStateToken, samlResponse)
+	profileToken, enrollmentRef, eulaToken, err := svc.mdmSSOHandleCallbackAuth(ctx, sessionID, samlResponse)
 	if err != nil {
 		logging.WithErr(ctx, err)
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true"
@@ -747,7 +748,7 @@ func (svc *Service) MDMAppleSSOCallback(ctx context.Context, relayStateToken str
 
 func (svc *Service) mdmSSOHandleCallbackAuth(
 	ctx context.Context,
-	relayStateToken string,
+	sessionID string,
 	samlResponse []byte,
 ) (profileToken string, enrollmentReference string,
 	eulaToken string, err error,
@@ -780,7 +781,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		appConfig.MDMUrl() + svc.config.Server.URLPrefix + "/api/v1/fleet/mdm/sso/callback",
 	}
 	samlProvider, requestID, err := sso.SAMLProviderFromSession(
-		ctx, relayStateToken, svc.ssoSessionStore, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
+		ctx, sessionID, svc.ssoSessionStore, acsURL, mdmSSOSettings.EntityID, expectedAudiences,
 	)
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "failed to create provider from metadata")

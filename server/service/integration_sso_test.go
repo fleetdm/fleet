@@ -511,18 +511,13 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 	samlResponse := string(matches[1])
 	samlResponseDecoded, err := base64.RawStdEncoding.DecodeString(samlResponse)
 	require.NoError(t, err)
-	re = regexp.MustCompile(`name="RelayState" value="([^\s]*)" />`)
-	matches = re.FindSubmatch(body)
-	require.NotEmptyf(t, matches, "callback HTML doesn't contain a RelayState value, got body: %s", body)
-	relayState := string(matches[1])
 
 	tamperedSAMLResponseDecoded := strings.ReplaceAll(string(samlResponseDecoded), idpUsername, "sso_us3r2")
 	tampteredSAMLResponseEncoded := base64.RawStdEncoding.EncodeToString([]byte(tamperedSAMLResponseDecoded))
 
 	ssoURL := fmt.Sprintf(
-		"/api/v1/fleet/sso/callback?SAMLResponse=%s&RelayState=%s",
+		"/api/v1/fleet/sso/callback?SAMLResponse=%s",
 		url.QueryEscape(tampteredSAMLResponseEncoded),
-		url.QueryEscape(relayState),
 	)
 	resp = s.DoRawNoAuth("POST", ssoURL, nil, http.StatusOK)
 
