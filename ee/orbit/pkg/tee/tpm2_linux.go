@@ -244,11 +244,11 @@ func (t *tpm2TEE) createParentKey() (tpm2.AuthHandle, error) {
 		Str("handle", fmt.Sprintf("0x%x", primaryKey.ObjectHandle)).
 		Msg("Created transient parent key successfully")
 
-	// Return the transient key as an AuthHandle with nil password
+	// Return the transient key as an AuthHandle with HMAC session
 	return tpm2.AuthHandle{
 		Handle: primaryKey.ObjectHandle,
 		Name:   primaryKey.Name,
-		Auth:   tpm2.PasswordAuth(nil),
+		Auth:   tpm2.HMAC(tpm2.TPMAlgSHA256, 16),
 	}, nil
 }
 
