@@ -459,7 +459,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Max failed attempts',
-                toolTip: 'The number of authentication failures allowed before the device will be wiped. A value of 0 disables device wipe functionality.',
+                tooltip: 'The number of authentication failures allowed before the device will be wiped. A value of 0 disables device wipe functionality.',
                 uniqueSlug: 'windows-device-lock-max-failed-attempts',
                 category: 'Device lock',
                 supportedAccessTypes: ['add', 'replace'],
@@ -483,7 +483,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Max password age',
-                toolTip: `Determines the period of time (in days) that a password can be used before the system requires the user to change it. You can set passwords to expire after a number of days between 1 and 999, or you can specify that passwords never expire by setting the number of days to 0.`,
+                tooltip: `Determines the period of time (in days) that a password can be used before the system requires the user to change it. You can set passwords to expire after a number of days between 1 and 999, or you can specify that passwords never expire by setting the number of days to 0.`,
                 uniqueSlug: 'windows-device-lock-max-password-age',
                 category: 'Device lock',
                 supportedAccessTypes: ['add', 'replace'],
@@ -501,7 +501,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Min password age',
-                toolTip: `Determines the period of time (in days) that a password must be used before the user can change it. You can set a value between 1 and 998 days, or you can allow changes immediately by setting the number of days to 0. If the maximum password age is set to 0, the minimum password age can be set to any value between 0 and 998. Configure the minimum password age to be more than 0 if you want Enforce password history to be effective.`,
+                tooltip: `Determines the period of time (in days) that a password must be used before the user can change it. You can set a value between 1 and 998 days, or you can allow changes immediately by setting the number of days to 0. If the maximum password age is set to 0, the minimum password age can be set to any value between 0 and 998. Configure the minimum password age to be more than 0 if you want Enforce password history to be effective.`,
                 uniqueSlug: 'windows-device-lock-min-password-age',
                 category: 'Device lock',
                 supportedAccessTypes: ['add', 'replace'],
@@ -519,7 +519,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Min password length',
-                toolTip: 'The minimum number of characters a device\'s password must be',
+                tooltip: 'The minimum number of characters a device\'s password must be',
                 uniqueSlug: 'windows-device-lock-min-password-length',
                 category: 'Device lock',
                 supportedAccessTypes: ['add', 'replace'],
@@ -543,7 +543,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Min number of types of complex characters in device password',
-                toolTip: `The number of complex element types (uppercase and lowercase letters, numbers, and punctuation) required for a strong PIN or password.`,
+                tooltip: `The number of complex element types (uppercase and lowercase letters, numbers, and punctuation) required for a strong PIN or password.`,
                 uniqueSlug: 'windows-device-min-types-of-complex-characters',
                 category: 'Device lock',
                 supportedAccessTypes: ['add', 'replace'],
@@ -585,7 +585,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Allow simple device password',
-                toolTip: `Specifies whether PINs or passwords such as 1111 or 1234 are allowed. For the desktop, it also controls the use of picture passwords.`,
+                tooltip: `Specifies whether PINs or passwords such as 1111 or 1234 are allowed. For the desktop, it also controls the use of picture passwords.`,
                 uniqueSlug: 'windows-device-lock-allow-simple-device-password',
                 category: 'Device lock',
                 supportedAccessTypes: ['add', 'replace'],
@@ -607,7 +607,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Clear text password',
-                toolTip: `This security setting determines whether the operating system stores passwords using reversible encryption. Storing passwords using reversible encryption is essentially the same as storing plaintext versions of the passwords. For this reason, this policy should never be enabled unless application requirements outweigh the need to protect password information.`,
+                tooltip: `This security setting determines whether the operating system stores passwords using reversible encryption. Storing passwords using reversible encryption is essentially the same as storing plaintext versions of the passwords. For this reason, this policy should never be enabled unless application requirements outweigh the need to protect password information.`,
                 uniqueSlug: 'windows-device-lock-clear-text-password',
                 category: 'Device lock',
                 supportedAccessTypes: ['add', 'replace'],
@@ -623,7 +623,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Prevent enabling lock screen camera',
-                toolTip: `Disables the lock screen camera toggle switch in PC Settings and prevents a camera from being invoked on the lock screen.`,
+                tooltip: `Disables the lock screen camera toggle switch in PC Settings and prevents a camera from being invoked on the lock screen.`,
                 uniqueSlug: 'windows-device-lock-disable-screen-camera',
                 category: 'Device lock',
                 supportedAccessTypes: ['add', 'replace'],
@@ -639,7 +639,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Password must meet complexity requirements',
-                toolTip: `If this policy is enabled, passwords must meet the following minimum requirements:
+                tooltip: `If this policy is enabled, passwords must meet the following minimum requirements:
                     - Not contain the user's account name or parts of the user's full name that exceed two consecutive characters
                     - Be at least six characters in length
                     - Contain characters from three of the following four categories:
