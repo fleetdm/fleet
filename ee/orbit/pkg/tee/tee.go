@@ -3,7 +3,6 @@ package tee
 import (
 	"context"
 	"crypto"
-	"io"
 )
 
 // TEE (Trusted Execution Environment) provides an interface for hardware-based
@@ -33,22 +32,8 @@ type Key interface {
 	// Public returns the public key associated with this TEE key.
 	Public() (crypto.PublicKey, error)
 
-	// Marshal serializes the key context for persistent storage.
-	// Note: LoadKey now reads from files instead of using this context data.
-	Marshal() ([]byte, error)
-
 	// Close releases any resources associated with this key.
 	Close() error
-}
-
-// Signer implements crypto.Signer using a TEE key.
-type Signer interface {
-	crypto.Signer
-
-	// Sign signs the given digest with the TEE key.
-	// The rand parameter is ignored as the TEE uses its own RNG.
-	// The digest must be the result of hashing the message with opts.HashFunc().
-	Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error)
 }
 
 // ErrKeyNotFound is returned when attempting to load a key that doesn't exist.

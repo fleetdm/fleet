@@ -497,10 +497,6 @@ func (k *tpm2Key) Public() (crypto.PublicKey, error) {
 	return signer.Public(), nil
 }
 
-func (k *tpm2Key) Marshal() ([]byte, error) {
-	return tpm2.Marshal(k.context), nil
-}
-
 func (k *tpm2Key) Close() error {
 	if k.shouldFlush && k.handle.Handle != 0 {
 		flush := tpm2.FlushContext{
@@ -520,13 +516,16 @@ type tpm2Signer struct {
 	publicKey crypto.PublicKey
 }
 
+// _ ensures tpm2Signer satisfies the crypto.Signer interface at compile time.
+var _ crypto.Signer = (*tpm2Signer)(nil)
+
 func (s *tpm2Signer) Public() crypto.PublicKey {
 	return s.publicKey
 }
 
-func (s *tpm2Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+func (s *tpm2Signer) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	// Determine hash algorithm
-	hashAlg := tpm2.TPMAlgSHA256
+	var hashAlg tpm2.TPMAlgID
 	switch opts.HashFunc() {
 	case crypto.SHA1:
 		hashAlg = tpm2.TPMAlgSHA1
@@ -536,6 +535,8 @@ func (s *tpm2Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts)
 		hashAlg = tpm2.TPMAlgSHA384
 	case crypto.SHA512:
 		hashAlg = tpm2.TPMAlgSHA512
+	default:
+		hashAlg = tpm2.TPMAlgSHA256
 	}
 
 	// Sign with TPM using ECDSA.
