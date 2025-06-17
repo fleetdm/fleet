@@ -344,8 +344,9 @@
     justify-content: center;
     margin-top: 48px;
     margin-bottom: 48px;
+    text-decoration: none;
     h4 {
-      color: #515774;
+      color: #192147;
       text-align: center;
       text-transform: unset;
       font-family: Inter;
@@ -402,6 +403,7 @@
     padding-bottom: 80px;
     padding-top: 32px;
     text-align: center;
+    text-decoration: none;
   }
   [purpose='quote-logo'] {
     height: 32px;
@@ -887,6 +889,10 @@
     [purpose='page-section'] {
       margin-bottom: 120px;
     }
+    [purpose='feature-cards'] {
+      display: flex;
+      margin-bottom: 128px;
+    }
     [purpose='video-modal'] {
       [purpose='modal-dialog'] {
         width: 100%;
@@ -956,7 +962,7 @@
     }
     [purpose='feature-cards'] {
       display: flex;
-      margin-bottom: 128px;
+      margin-bottom: 96px;
     }
     [purpose='feature-card'] {
       max-width: unset;
@@ -1123,9 +1129,7 @@
     [purpose='page-section'] {
       margin-bottom: 80px;
     }
-    [purpose='integrations-section'] {
-      margin-top: 64px;
-    }
+
     [purpose='feature-with-image'] {
       flex-direction: column-reverse;
       margin-bottom: 104px;
@@ -1294,6 +1298,10 @@
     }
     [purpose='option-container'] {
       height: 38.4px;
+    }
+    [purpose='feature-cards'] {
+      display: flex;
+      margin-bottom: 80px;
     }
     [purpose='homepage-hero'] {
       padding-bottom: 307px;
@@ -1476,7 +1484,14 @@
     [purpose='option-container'] {
       height: 33.6px;
     }
-
+    [purpose='feature-table'] {
+      [purpose='feature-name'] {
+        height: unset;
+        p {
+          white-space: wrap;
+        }
+      }
+    }
     [purpose='homepage-hero'] {
       padding-top: 44px;
       padding-left: 16px;
