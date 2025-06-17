@@ -279,7 +279,7 @@ func (t *tpm2TEE) getOrCreateParentKey() (tpm2.NamedHandle, error) {
 		Auth:             tpm2.TPMRHOwner,
 		ObjectHandle:     tpm2.NamedHandle{Handle: primaryKey.ObjectHandle, Name: primaryKey.Name},
 		PersistentHandle: tpm2.TPMHandle(srkHandle),
-	}.Execute(t.device)
+	}.Execute(t.device, tpm2.PasswordAuth(nil))
 	defer func() {
 		// Clean up the transient object since the key has been persistent to a permanent handle.
 		flush := tpm2.FlushContext{
