@@ -12,6 +12,7 @@ import {
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
+
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -30,7 +31,6 @@ import {
   getUninstallButtonText,
   DisplayActionItems,
 } from "../Software/SelfService/SelfServiceTableConfig";
-import { getDropdownOptionTooltipContent } from "../../HostDetailsPage/HostActionsDropdown/helpers";
 
 export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
@@ -89,10 +89,8 @@ interface IButtonActionState {
   uninstallTooltip?: string | JSX.Element;
 }
 
-const getButtonActionState = ({
+export const getButtonActionState = ({
   hostScriptsEnabled,
-  // softwareIdActionPending,
-  softwareId,
   status,
   app_store_app,
   hostMDMEnrolled,
@@ -106,8 +104,8 @@ const getButtonActionState = ({
   if (!hostScriptsEnabled && !app_store_app) {
     installDisabled = true;
     uninstallDisabled = true;
-    installTooltip = getDropdownOptionTooltipContent("installSoftware");
-    uninstallTooltip = getDropdownOptionTooltipContent("uninstallSoftware");
+    installTooltip = "To install, turn on host scripts.";
+    uninstallTooltip = "To uninstall, turn on host scripts.";
   }
 
   if (pendingStatuses.includes(status || "")) {
@@ -133,7 +131,7 @@ const getButtonActionState = ({
   };
 };
 
-const InstallerStatusAction = ({
+export const InstallerStatusAction = ({
   software,
   onClickInstallAction,
   onClickUninstallAction,
