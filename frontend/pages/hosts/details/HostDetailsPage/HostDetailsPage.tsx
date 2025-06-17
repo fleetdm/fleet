@@ -954,15 +954,12 @@ const HostDetailsPage = ({
                 id={host.id}
                 platform={host.platform}
                 softwareUpdatedAt={host.software_updated_at}
-                hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
-                hostScriptsEnabled={host.scripts_enabled || false}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={parseHostSoftwareQueryParams(location.query)}
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
-                hostMDMEnrolled={host.mdm.connected_to_fleet}
               />
               {isDarwinHost && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -989,6 +986,7 @@ const HostDetailsPage = ({
                 onShowSoftwareDetails={onShowSoftwareDetails}
                 hostTeamId={host.team_id || 0}
                 hostMDMEnrolled={host.mdm.connected_to_fleet}
+                isHostOnline={host.status === "online"}
               />
             </TabPanel>
           </>
@@ -998,15 +996,12 @@ const HostDetailsPage = ({
               id={host.id}
               platform={host.platform}
               softwareUpdatedAt={host.software_updated_at}
-              hostCanWriteSoftware={!!host.orbit_version || isIosOrIpadosHost}
-              hostScriptsEnabled={host.scripts_enabled || false}
               isSoftwareEnabled={featuresConfig?.enable_software_inventory}
               router={router}
               queryParams={parseHostSoftwareQueryParams(location.query)}
               pathname={location.pathname}
               onShowSoftwareDetails={setSelectedSoftwareDetails}
               hostTeamId={host.team_id || 0}
-              hostMDMEnrolled={host.mdm.connected_to_fleet}
             />
             {isDarwinHost && macadmins?.munki?.version && (
               <MunkiIssuesCard

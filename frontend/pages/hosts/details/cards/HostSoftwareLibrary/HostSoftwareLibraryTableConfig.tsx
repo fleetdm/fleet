@@ -1,13 +1,6 @@
-import React, {
-  useState,
-  useContext,
-  useRef,
-  useEffect,
-  useCallback,
-} from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
-import { NotificationContext } from "context/notification";
 
 import {
   IHostAppStoreApp,
@@ -17,18 +10,14 @@ import {
   SoftwareSource,
   formatSoftwareType,
 } from "interfaces/software";
-import {
-  IHeaderProps,
-  INumberCellProps,
-  IStringCellProps,
-} from "interfaces/datatable_config";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
+import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
@@ -41,6 +30,7 @@ import {
   getUninstallButtonText,
   DisplayActionItems,
 } from "../Software/SelfService/SelfServiceTableConfig";
+import { getDropdownOptionTooltipContent } from "../../HostDetailsPage/HostActionsDropdown/helpers";
 
 export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
@@ -62,10 +52,8 @@ type IVersionsCellProps = CellProps<
 type IActionCellProps = CellProps<IHostSoftware, IHostSoftware["status"]>;
 
 export interface generateActionsProps {
-  userHasSWWritePermission: boolean;
   hostScriptsEnabled: boolean;
-  hostCanWriteSoftware: boolean;
-  softwareIdActionPending: number | null;
+  // hostCanWriteSoftware: boolean; // TODO: this is not used in the component, but it is passed as a prop why
   softwareId: number;
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
@@ -76,29 +64,100 @@ export interface generateActionsProps {
 interface IHostSWLibraryTableHeaders {
   userHasSWWritePermission: boolean;
   hostScriptsEnabled?: boolean;
-  hostCanWriteSoftware: boolean;
-  softwareIdActionPending: number | null;
+  // hostCanWriteSoftware: boolean;
   router: InjectedRouter;
   teamId: number;
   hostMDMEnrolled?: boolean;
   baseClass: string;
   onShowSoftwareDetails?: (software?: IHostSoftware) => void;
+  onClickInstallAction: (softwareId: number) => void;
+  onClickUninstallAction: (softwareId: number) => void;
+  isHostOnline: boolean;
 }
 
 interface IInstallerStatusActionsProps {
   software: IHostSoftware;
-  onInstallOrUninstall: () => void;
-  onClickUninstallAction: (software?: IHostSoftware) => void;
+  onClickInstallAction: (softwareId: number) => void;
+  onClickUninstallAction: (softwareId: number) => void;
   baseClass: string;
 }
 
+interface IButtonActionState {
+  installDisabled: boolean;
+  installTooltip?: string | JSX.Element;
+  uninstallDisabled: boolean;
+  uninstallTooltip?: string | JSX.Element;
+}
+
+const getButtonActionState = ({
+  hostScriptsEnabled,
+  // softwareIdActionPending,
+  softwareId,
+  status,
+  app_store_app,
+  hostMDMEnrolled,
+}: generateActionsProps): IButtonActionState => {
+  const pendingStatuses = ["pending_install", "pending_uninstall"];
+  let installDisabled = false;
+  let uninstallDisabled = false;
+  let installTooltip: JSX.Element | string | undefined;
+  let uninstallTooltip: JSX.Element | string | undefined;
+
+  if (!hostScriptsEnabled && !app_store_app) {
+    installDisabled = true;
+    uninstallDisabled = true;
+    installTooltip = getDropdownOptionTooltipContent("installSoftware");
+    uninstallTooltip = getDropdownOptionTooltipContent("uninstallSoftware");
+  }
+
+  if (pendingStatuses.includes(status || "")) {
+    installDisabled = true;
+    uninstallDisabled = true;
+  }
+
+  if (app_store_app) {
+    // Hidden uninstall button for app store apps but disabled just in case
+    uninstallDisabled = true;
+
+    if (!hostMDMEnrolled) {
+      installDisabled = true;
+      installTooltip = "To install, turn on MDM for this host.";
+    }
+  }
+
+  return {
+    installDisabled,
+    installTooltip: installTooltip || undefined,
+    uninstallDisabled,
+    uninstallTooltip: uninstallTooltip || undefined,
+  };
+};
+
 const InstallerStatusAction = ({
-  software: { id, status, software_package, app_store_app },
-  onInstallOrUninstall,
+  software,
+  onClickInstallAction,
   onClickUninstallAction,
   baseClass,
-}: IInstallerStatusActionsProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  hostScriptsEnabled,
+  hostMDMEnrolled,
+}: IInstallerStatusActionsProps & Partial<generateActionsProps>) => {
+  const { id, status, software_package, app_store_app } = software;
+
+  const {
+    installDisabled,
+    installTooltip,
+    uninstallDisabled,
+    uninstallTooltip,
+  } = getButtonActionState({
+    hostScriptsEnabled: hostScriptsEnabled || false,
+    softwareId: id,
+    status,
+    app_store_app,
+    hostMDMEnrolled,
+    software_package,
+  });
+
+  // const { renderFlash } = useContext(NotificationContext);
 
   // displayActionItems is used to track the display text and icons of the install and uninstall button
   const [
@@ -135,10 +194,8 @@ const InstallerStatusAction = ({
     }
   }, [status]);
 
-  const isAppStoreApp = !!app_store_app;
-  const canUninstallSoftware = !isAppStoreApp && !!software_package;
-
   const isMountedRef = useRef(false);
+
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -146,54 +203,61 @@ const InstallerStatusAction = ({
     };
   }, []);
 
-  const onClickInstallAction = useCallback(async () => {
-    console.log("TODO");
-  }, []);
-
   return (
     <div className={`${baseClass}__item-actions`}>
       <div className={`${baseClass}__item-action`}>
-        <Button
-          variant="text-icon"
-          type="button"
-          className={`${baseClass}__item-action-button`}
-          onClick={onClickInstallAction}
-          disabled={
-            status === "pending_install" || status === "pending_uninstall"
-          }
+        <TooltipWrapper
+          tipContent={installTooltip}
+          underline={false}
+          showArrow
+          position="top"
         >
-          <Icon
-            name={displayActionItems.install.icon}
-            color="core-fleet-blue"
-            size="small"
-          />
-
-          <span data-testid={`${baseClass}__install-button--test`}>
-            {displayActionItems.install.text}
-          </span>
-        </Button>
-      </div>
-      <div className={`${baseClass}__item-action`}>
-        {canUninstallSoftware && (
           <Button
             variant="text-icon"
             type="button"
             className={`${baseClass}__item-action-button`}
-            onClick={onClickUninstallAction}
-            disabled={
-              status === "pending_install" || status === "pending_uninstall"
-            }
+            onClick={() => onClickInstallAction(id)}
+            disabled={installDisabled}
           >
             <Icon
-              name={displayActionItems.uninstall.icon}
+              name={displayActionItems.install.icon}
               color="core-fleet-blue"
               size="small"
             />
-            <span data-testid={`${baseClass}__uninstall-button--test`}>
-              {displayActionItems.uninstall.text}
+            <span data-testid={`${baseClass}__install-button--test`}>
+              {displayActionItems.install.text}
             </span>
           </Button>
-        )}
+        </TooltipWrapper>
+      </div>
+      <div className={`${baseClass}__item-action`}>
+        {app_store_app
+          ? null
+          : software_package && (
+              <TooltipWrapper
+                tipContent={uninstallTooltip}
+                underline={false}
+                showArrow
+                position="top"
+              >
+                <Button
+                  variant="text-icon"
+                  type="button"
+                  className={`${baseClass}__item-action-button`}
+                  onClick={() => onClickUninstallAction(id)}
+                  disabled={uninstallDisabled}
+                >
+                  <Icon
+                    name={displayActionItems.uninstall.icon}
+                    color="core-fleet-blue"
+                    size="small"
+                  />
+                  <span data-testid={`${baseClass}__uninstall-button--test`}>
+                    {displayActionItems.uninstall.text}
+                  </span>
+                </Button>
+              </TooltipWrapper>
+            )}
       </div>
     </div>
   );
@@ -204,13 +268,15 @@ const InstallerStatusAction = ({
 export const generateHostSWLibraryTableHeaders = ({
   userHasSWWritePermission,
   hostScriptsEnabled = false,
-  hostCanWriteSoftware,
-  softwareIdActionPending,
+  // hostCanWriteSoftware,
   router,
   teamId,
   hostMDMEnrolled,
   baseClass,
   onShowSoftwareDetails,
+  onClickInstallAction,
+  onClickUninstallAction,
+  isHostOnline,
 }: IHostSWLibraryTableHeaders): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -247,6 +313,7 @@ export const generateHostSWLibraryTableHeaders = ({
           <InstallStatusCell
             software={original}
             onShowSoftwareDetails={onShowSoftwareDetails}
+            isHostOnline={isHostOnline}
           />
         );
       },
@@ -305,17 +372,21 @@ export const generateHostSWLibraryTableHeaders = ({
         return (
           <InstallerStatusAction
             software={cellProps.row.original}
-            onInstallOrUninstall={() => {
-              console.log("TODO: install or uninstall action");
-            }}
-            onClickUninstallAction={() => console.log("TODO: uninstall action")}
+            onClickInstallAction={onClickInstallAction}
+            onClickUninstallAction={onClickUninstallAction}
             baseClass={baseClass}
+            hostScriptsEnabled={hostScriptsEnabled}
+            hostMDMEnrolled={hostMDMEnrolled}
           />
         );
       },
     },
   ];
 
+  // we want to hide the install/uninstall actions if the user doesn't have write permission
+  if (!userHasSWWritePermission) {
+    tableHeaders.pop();
+  }
   return tableHeaders;
 };
 

@@ -584,7 +584,7 @@ const DeviceUserPage = ({
                     <SoftwareCard
                       id={deviceAuthToken}
                       softwareUpdatedAt={host.software_updated_at}
-                      hostCanWriteSoftware={!!host.orbit_version}
+                      // hostCanWriteSoftware={!!host.orbit_version} // TODO: Confirm removal of this prop
                       router={router}
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}

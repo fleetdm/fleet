@@ -29,7 +29,7 @@ const HashCell = ({
       .catch(() => setCopyMessage("Copy failed"));
 
     // Clear message after 1 second
-    setTimeout(() => setCopyMessage(""), 100);
+    setTimeout(() => setCopyMessage(""), 1000);
 
     return false;
   };

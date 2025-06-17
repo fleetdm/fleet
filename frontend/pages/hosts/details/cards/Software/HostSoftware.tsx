@@ -49,16 +49,13 @@ interface IHostSoftwareProps {
   id: number | string;
   platform: HostPlatform;
   softwareUpdatedAt?: string;
-  hostCanWriteSoftware: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
   hostTeamId: number;
   onShowSoftwareDetails: (software: IHostSoftware) => void;
   isSoftwareEnabled?: boolean;
-  hostScriptsEnabled?: boolean;
   isMyDevicePage?: boolean;
-  hostMDMEnrolled?: boolean;
 }
 
 const DEFAULT_SEARCH_QUERY = "";
@@ -111,8 +108,6 @@ const HostSoftware = ({
   id,
   platform,
   softwareUpdatedAt,
-  hostCanWriteSoftware,
-  hostScriptsEnabled,
   router,
   queryParams,
   pathname,
@@ -120,7 +115,6 @@ const HostSoftware = ({
   onShowSoftwareDetails,
   isSoftwareEnabled = false,
   isMyDevicePage = false,
-  hostMDMEnrolled,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const {
@@ -307,44 +301,15 @@ const HostSoftware = ({
     toggleSoftwareFiltersModal();
   };
 
-  // const onSelectAction = useCallback(
-  //   (software: IHostSoftware, action: string) => {
-  //     switch (action) {
-  //       case "showDetails":
-  //         onShowSoftwareDetails?.(software);
-  //         break;
-  //       default:
-  //         break;
-  //     }
-  //   },
-  //   [
-  //     onShowSoftwareDetails,
-  //   ]
-  // );
-
   const tableConfig = useMemo(() => {
     return isMyDevicePage
       ? generateDeviceSoftwareTableConfig()
       : generateHostSoftwareTableConfig({
-          userHasSWWritePermission,
-          hostScriptsEnabled,
-          hostCanWriteSoftware,
-          hostMDMEnrolled,
-          softwareIdActionPending,
           router,
           teamId: hostTeamId,
           onClickMoreDetails: onShowSoftwareDetails,
         });
-  }, [
-    isMyDevicePage,
-    router,
-    softwareIdActionPending,
-    userHasSWWritePermission,
-    hostScriptsEnabled,
-    hostTeamId,
-    hostCanWriteSoftware,
-    hostMDMEnrolled,
-  ]);
+  }, [isMyDevicePage, router, hostTeamId, onShowSoftwareDetails]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading

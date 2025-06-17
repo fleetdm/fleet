@@ -22,16 +22,21 @@ interface InstallUuid {
 export type InstallOrCommandUuid = CommandUuid | InstallUuid;
 
 type IStatusValue = SoftwareInstallStatus;
+interface DisplayTextArgs {
+  isSelfService?: boolean;
+  isHostOnline?: boolean;
+}
 interface TootipArgs {
   isSelfService?: boolean;
   softwareName?: string | null;
   lastInstalledAt?: string;
   isAppStoreApp?: boolean;
+  isHostOnline?: boolean;
 }
 
 export type IStatusDisplayConfig = {
   iconName?: "success" | "pending-outline" | "error" | "install";
-  displayText: string | JSX.Element;
+  displayText: string | ((args: DisplayTextArgs) => string | JSX.Element);
   tooltip: (args: TootipArgs) => ReactNode;
 };
 
@@ -60,28 +65,30 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   pending_install: {
     iconName: "pending-outline",
-    displayText: "Installing...",
-    tooltip: ({ isSelfService }) =>
-      isSelfService ? (
+    displayText: ({ isSelfService, isHostOnline }) =>
+      isSelfService || isHostOnline ? "Installing..." : "Install pending",
+    tooltip: ({ isSelfService, isHostOnline }) =>
+      isSelfService || isHostOnline ? (
         "Fleet is installing software."
       ) : (
         <>
-          Fleet is installing or will install
+          Fleet will install software
           <br /> when the host comes online.
         </>
       ),
   },
   pending_uninstall: {
     iconName: "pending-outline",
-    displayText: "Uninstalling...",
-    tooltip: ({ isSelfService }) =>
-      isSelfService ? (
-        "Fleet is installing software."
+    displayText: ({ isSelfService, isHostOnline }) =>
+      isSelfService || isHostOnline ? "Uninstalling..." : "Uninstall pending",
+    tooltip: ({ isSelfService, isHostOnline }) =>
+      isSelfService || isHostOnline ? (
+        "Fleet is uninstalling software."
       ) : (
         <>
-          Fleet is uninstalling or will uninstall
+          Fleet will uninstall software
           <br />
-          software when the host comes online.
+          when the host comes online.
         </>
       ),
   },
@@ -117,6 +124,7 @@ type IInstallStatusCellProps = {
   onShowSSInstallDetails?: (uuid?: InstallOrCommandUuid) => void;
   onShowSSUninstallDetails?: (scriptExecutionId?: string) => void;
   isSelfService?: boolean;
+  isHostOnline?: boolean;
 };
 
 const InstallStatusCell = ({
@@ -125,6 +133,7 @@ const InstallStatusCell = ({
   onShowSSInstallDetails,
   onShowSSUninstallDetails,
   isSelfService = false,
+  isHostOnline = false,
 }: IInstallStatusCellProps) => {
   const { app_store_app, software_package, status } = software;
   // FIXME: Improve the way we handle polymophism of software_package and app_store_app
@@ -168,8 +177,19 @@ const InstallStatusCell = ({
 
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
+  const resolveDisplayText = (
+    displayText: IStatusDisplayConfig["displayText"]
+  ) => {
+    if (typeof displayText === "function") {
+      return displayText({ isSelfService, isHostOnline });
+    }
+    return displayText;
+  };
+
   const renderDisplayStatus = () => {
-    if (lastInstall && displayConfig.displayText === "Failed") {
+    const resolvedDisplayText = resolveDisplayText(displayConfig.displayText);
+
+    if (lastInstall && resolvedDisplayText === "Failed") {
       return (
         <Button
           className={`${baseClass}__item-status-button`}
@@ -192,12 +212,12 @@ const InstallStatusCell = ({
             }
           }}
         >
-          {displayConfig.displayText}
+          {resolvedDisplayText}
         </Button>
       );
     }
 
-    if (lastUninstall && displayConfig.displayText === "Failed (uninstall)") {
+    if (lastUninstall && resolvedDisplayText === "Failed (uninstall)") {
       return (
         <Button
           className={`${baseClass}__item-status-button`}
@@ -219,12 +239,12 @@ const InstallStatusCell = ({
             }
           }}
         >
-          {displayConfig.displayText}
+          {resolvedDisplayText}
         </Button>
       );
     }
 
-    return displayConfig.displayText;
+    return resolvedDisplayText;
   };
 
   const softwareName = software_package?.name;
@@ -235,13 +255,16 @@ const InstallStatusCell = ({
         lastInstalledAt: lastInstall?.installed_at,
         softwareName,
         isAppStoreApp: hasAppStoreApp,
+        isSelfService,
+        isHostOnline,
       })}
       showArrow
       underline={false}
       position="top"
     >
       <div className={`${baseClass}__status-content`}>
-        {isSelfService && displayConfig.iconName === "pending-outline" ? (
+        {(isSelfService || isHostOnline) &&
+        displayConfig.iconName === "pending-outline" ? (
           <Spinner size="x-small" includeContainer={false} centered={false} />
         ) : (
           displayConfig?.iconName && <Icon name={displayConfig.iconName} />
