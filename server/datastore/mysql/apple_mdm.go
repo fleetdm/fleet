@@ -3037,21 +3037,20 @@ func generateEntitiesToInstallQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
-	// TODO(mna): alternate approach: do not return as "to install" user-channel
-	// profiles for which the host doesn't have a user-channel registered yet
-	// (within some time window after device enrollment).
+	// NOTE(mna): do not return as "to install" the user-channel profiles for
+	// which the host doesn't have a user-channel registered yet (within some
+	// time window after device enrollment).
 	//
 	// Pros of this approach: no need to do some extra logic in
 	// ReconcileAppleProfiles, automatically works for label-constrained profiles
-	// without adding complexity to this big sub-query with many unions (since
+	// without adding complexity to the big sub-query with many unions (since
 	// this filtering happens after the desired state query), also supports
 	// declarations "automatically", user-scoped profiles are correctly ignored
 	// everywhere we rely on the "to install" list.
 	//
-	// Cons is of course more complex query, but this query is already quite
-	// complex and this new condition is not too bad. Also, similar logic is
-	// needed in the "to remove" query, and in the bulk set pending logic where
-	// the desired state is used directly.
+	// Cons is of course a more complex query, but the final query is already
+	// quite complex and this new condition is not too bad, and it would be
+	// required *somewhere* anyway.
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
 		LEFT JOIN ${hostMDMAppleEntityTable} hmae
