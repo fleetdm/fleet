@@ -73,7 +73,7 @@ func TestExampleTEE(t *testing.T) {
 		}
 		defer key.Close()
 
-		fmt.Println("Key successfully saved and loaded")
+		fmt.Println("Key successfully loaded")
 
 		// Get a signer for the key
 		signer, err := key.Signer()
