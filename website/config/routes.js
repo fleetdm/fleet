@@ -498,6 +498,22 @@ module.exports.routes = {
     }
   },
 
+  'GET /remediate': {
+    action: 'microsoft-proxy/view-remediate',
+    locals: {
+      showConfigurationProfileLayout: true,
+      hideStartCTA: true,
+    }
+  },
+
+  'GET /turn-on-mdm': {
+    action: 'microsoft-proxy/view-turn-on-mdm',
+    locals: {
+      showConfigurationProfileLayout: true,
+      hideStartCTA: true,
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝

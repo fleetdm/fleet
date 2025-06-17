@@ -73,4 +73,6 @@ module.exports.policies = {
   'microsoft-proxy/receive-redirect-from-microsoft': true,
   'view-configuration-builder': true,
   'android-proxy/*': true,
+  'microsoft-proxy/view-remediate': true,
+  'microsoft-proxy/view-turn-on-mdm': true,
 };
