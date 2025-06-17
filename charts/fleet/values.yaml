@@ -210,7 +210,7 @@ database:
 #  # Name of the Secret resource containing MySQL password and TLS secrets
 #  address: 127.0.0.1:3306
 #  database: fleet
-#  username: fleet
+#  username: fleet-ro
 #  ## Password configuration. Pick whether you'd like to load from secret or from an accessible mount path.
 #  ## Added from Secret
 #  secretName: mysql-ro
