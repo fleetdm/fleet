@@ -17,56 +17,82 @@ func TestExampleTEE(t *testing.T) {
 	// Create a logger
 	logger := zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
 
-	// Initialize TEE (TPM 2.0 on Linux)
-	teeDevice, err := tee.NewTPM2(
-		tee.WithLogger(logger),
-		tee.WithPublicBlobPath("./temp/tpm_public.blob"),
-		tee.WithPrivateBlobPath("./temp/tpm_private.blob"),
-	)
-	if err != nil {
-		log.Fatalf("Failed to initialize TEE: %v", err)
-	}
-	defer teeDevice.Close()
+	t.Run("CreateKey", func(t *testing.T) {
+		// Initialize TEE (TPM 2.0 on Linux)
+		teeDevice, err := tee.NewTPM2(
+			tee.WithLogger(logger),
+			tee.WithPublicBlobPath("./temp/tpm_public.blob"),
+			tee.WithPrivateBlobPath("./temp/tpm_private.blob"),
+		)
+		if err != nil {
+			log.Fatalf("Failed to initialize TEE: %v", err)
+		}
+		defer teeDevice.Close()
 
-	// Create an ECC key in the TEE (automatically selects best curve)
-	ctx := context.Background()
-	key, err := teeDevice.CreateKey(ctx)
-	if err != nil {
-		log.Fatalf("Failed to create key: %v", err)
-	}
-	defer key.Close()
+		// Create an ECC key in the TEE (automatically selects best curve)
+		ctx := context.Background()
+		key, err := teeDevice.CreateKey(ctx)
+		if err != nil {
+			log.Fatalf("Failed to create key: %v", err)
+		}
+		defer key.Close()
 
-	// Get a signer for the key
-	signer, err := key.Signer()
-	if err != nil {
-		log.Fatalf("Failed to get signer: %v", err)
-	}
+		// Get a signer for the key
+		signer, err := key.Signer()
+		if err != nil {
+			log.Fatalf("Failed to get signer: %v", err)
+		}
 
-	// Sign some data
-	message := []byte("Hello, TEE!")
-	hash := sha256.Sum256(message)
-	signature, err := signer.Sign(rand.Reader, hash[:], crypto.SHA256)
-	if err != nil {
-		log.Fatalf("Failed to sign: %v", err)
-	}
+		// Sign some data
+		message := []byte("Hello, TEE!")
+		hash := sha256.Sum256(message)
+		signature, err := signer.Sign(rand.Reader, hash[:], crypto.SHA256)
+		if err != nil {
+			log.Fatalf("Failed to sign: %v", err)
+		}
 
-	fmt.Printf("Signature created: %x\n", signature)
+		fmt.Printf("Signature created: %x\n", signature)
+	})
 
-	// The key blobs are automatically saved to files during CreateKey
-	// Marshal is still available for compatibility but not needed for LoadKey
-	_, err = key.Marshal()
-	if err != nil {
-		log.Fatalf("Failed to marshal key: %v", err)
-	}
+	t.Run("LoadKey", func(t *testing.T) {
+		// Initialize TEE (TPM 2.0 on Linux)
+		teeDevice, err := tee.NewTPM2(
+			tee.WithLogger(logger),
+			tee.WithPublicBlobPath("./temp/tpm_public.blob"),
+			tee.WithPrivateBlobPath("./temp/tpm_private.blob"),
+		)
+		if err != nil {
+			log.Fatalf("Failed to initialize TEE: %v", err)
+		}
+		defer teeDevice.Close()
 
-	// Later, load the key back from the saved blobs
-	loadedKey, err := teeDevice.LoadKey(ctx)
-	if err != nil {
-		log.Fatalf("Failed to load key: %v", err)
-	}
-	defer loadedKey.Close()
+		// Later, load the key back from the saved blobs
+		key, err := teeDevice.LoadKey(context.Background())
+		if err != nil {
+			log.Fatalf("Failed to load key: %v", err)
+		}
+		defer key.Close()
 
-	fmt.Println("Key successfully saved and loaded")
+		fmt.Println("Key successfully saved and loaded")
+
+		// Get a signer for the key
+		signer, err := key.Signer()
+		if err != nil {
+			log.Fatalf("Failed to get signer: %v", err)
+		}
+
+		// Sign some data
+		message := []byte("Hello, TEE!")
+		hash := sha256.Sum256(message)
+		signature, err := signer.Sign(rand.Reader, hash[:], crypto.SHA256)
+		if err != nil {
+			log.Fatalf("Failed to sign: %v", err)
+		}
+
+		fmt.Printf("Signature created: %x\n", signature)
+
+	})
+
 }
 
 //func ExampleKey_Decrypter() {
