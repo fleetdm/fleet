@@ -64,10 +64,9 @@ module.exports = {
     });
     let token = oauthResponse.access_token;
 
-
     let idOfCallToGenerateTranscriptFor = payload.object.conversation_id;
     let informationAboutThisCall = await sails.helpers.http.get.with({
-      url: `https://api.zoom.us/v2/zra/conversations/${idOfCallToGenerateTranscriptFor}`,
+      url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}`,
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -78,7 +77,7 @@ module.exports = {
 
     // Get a transcript of the call.
     let callTranscript = await sails.helpers.http.get.with({
-      url: `https://api.zoom.us/v2/zra/conversations/${idOfCallToGenerateTranscriptFor}/interactions?page_size=300`,
+      url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?page_size=300`,
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -93,7 +92,7 @@ module.exports = {
     if(tokenForNextPageOfResults) {
       await sails.helpers.flow.until(async()=>{
         let thisPageOfCallInformation = await sails.helpers.http.get.with({
-          url: `https://api.zoom.us/v2/zra/conversations/${idOfCallToGenerateTranscriptFor}/interactions?next_page_token=${tokenForNextPageOfResults}`,
+          url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?next_page_token=${tokenForNextPageOfResults}`,
           headers: {
             'Authorization': `Bearer ${token}`
           }
