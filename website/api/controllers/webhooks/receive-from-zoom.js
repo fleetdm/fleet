@@ -33,11 +33,12 @@ module.exports = {
 
   exits: {
     success: { description: 'A webhook event has successfully been received.'},
-    unexpectedEvent: {description: 'The receive-from-zoom webhook received an unexpected event.', responseType: 'badRequest'},
+    callInfoNotFound: {description: 'No information about this call could be found in the Zoom API.', responseType: 'badRequest'},
+    callTranscriptNotFound: {description: 'No transcript for this call could be found in the Zoom API.', responseType: 'badRequest'},
   },
 
 
-  fn: async function ({ payload }) {
+  fn: async function ({ event, payload }) {
 
     if (!sails.config.custom.zoomWebhookSecret) {
       throw new Error('No Zoom webhook secret configured!  (Please set `sails.config.custom.zoomWebhookSecret`.)');
@@ -70,6 +71,10 @@ module.exports = {
       headers: {
         'Authorization': `Bearer ${token}`
       }
+    })
+    .intercept({raw: {statusCode: 409}}, (err)=>{
+      sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get information about the call. Full error: ${require('util').inspect(err, {depth: 3})}`)
+      return 'callInfoNotFound';
     }).intercept((err)=>{
       return new Error(`When sending a request to get information about a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
     });
@@ -81,6 +86,10 @@ module.exports = {
       headers: {
         'Authorization': `Bearer ${token}`
       }
+    })
+    .intercept({raw: {statusCode: 409}}, (err)=>{
+      sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get a transcript of the call. Full error: ${require('util').inspect(err, {depth: 3})}`)
+      return 'callTranscriptNotFound';
     }).intercept((err)=>{
       return new Error(`When sending a request to get a transcript of a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
     });
