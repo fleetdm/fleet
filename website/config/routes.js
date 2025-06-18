@@ -498,7 +498,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /remediate': {
+  'GET /microsoft-compliance-partner/remediate': {
     action: 'microsoft-proxy/view-remediate',
     locals: {
       showConfigurationProfileLayout: true,
@@ -506,7 +506,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /turn-on-mdm': {
+  'GET /microsoft-compliance-partner/turn-on-mdm': {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
