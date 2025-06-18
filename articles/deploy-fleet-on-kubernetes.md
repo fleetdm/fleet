@@ -1,20 +1,24 @@
+> **Updated -** June 18th, 2025, by [Jorge Falcon](https://github.com/BCTBB).
+
 # Deploy Fleet on Kubernetes
-
-> **Archived -** While still usable, this guide has not been updated recently. See the [Deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) docs for supported deployment methods.
-
-> **Updated -** May 8th, 2025, by [Jorge Falcon](https://github.com/BCTBB).
 
 ![Deploy Fleet on Kubernetes](../website/assets/images/articles/deploy-fleet-on-kubernetes-800x450@2x.png)
 
-In this guide, we will focus on deploying Fleet only on a Kubernetes cluster. This guide has been written and tested using k3s, but should function on self-hosted Kubernetes, Lightweight Kubernetes, or managed Kubernetes offerings.
+In this guide, we will focus on deploying Fleet only on a Kubernetes cluster using Helm or Terraform. This guide has been written and tested using k3s, but should function on self-hosted Kubernetes, Lightweight Kubernetes, or managed Kubernetes offerings.
 
 ## Getting Started
 
 > You will need to have **Helm (v3)** and/or **Terraform (v1.10.2**).
+> - If you intend to deploy using the Fleet Helm chart, you will only need to have Helm (v3).
+> - If you intend to deploy using Terraform, you will, at minimum, need Terraform installed. If you intend to deploy MySQL and/or Redis to your k8s cluster using this guide, for testing, then you will also need Helm (v3).
 
-Before we get started with deploying Fleet through Helm or Terraform you will need access to a Kubernetes cluster, MySQL database, and Redis cluster. We will also need to create some secrets to instruct Fleet on how to connect to MySQL and Redis.
+Before we get started with deploying Fleet, you will need 
+1. Access to a Kubernetes cluster
+2. Access to a MySQL database (or you can deploy one to your Kubernetes cluster using Helm)
+3. Access to a Redis cluster (or you can deploy one to your Kubernetes cluster using Helm)
 
-Ensure a namespace is created or already exists for your Fleet deployment resources. Example of creating a kubernetes namespace - replace `<namespace>` with the name of the namespace you'd like to use.
+Additionally, ensure a namespace is created or already exists for your Fleet deployment resources. 
+- Example of creating a kubernetes namespace
 
 ```sh
 kubectl create ns <namespace>
@@ -28,7 +32,7 @@ kubectl create ns <namespace>
 
 The MySQL that we will use for this tutorial is not replicated and it is not Highly Available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc), I suggest using their MySQL product if possible as running HA MySQL in Kubernetes can be complex. To make this tutorial cloud provider agnostic however, we will use a non-replicated instance of MySQL.
 
-To install MySQL from Helm, run the following command. Note that there are some options that need to be defined:
+To install MySQL from Helm, run the following command.
 
 - There should be a `fleet` database created
 - The default user's username should be `fleet`
@@ -64,7 +68,7 @@ helm install fleet-cache \
 This helm package will create a Kubernetes `Service` which exposes the Redis server to the rest of the cluster on the following DNS address:
 
 ```
-fleet-cache-redis-headless:6379
+fleet-cache-redis-master:6379
 ```
 
 We will use this address when we configure the Kubernetes deployment, but if you're not using a Helm-installed Redis in your deployment, you'll have to change this in your Kubernetes config files. 
@@ -81,9 +85,24 @@ To apply the secrets, you can modify the examples below as necessary and deploy 
 kubectl apply -f <example-manifest.yml>
 ```
 
-### MySQL and Redis
+### MySQL
 
 - Your mysql password will be what you set in the helm install command
+
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysql
+  namespace: <namespace>
+type: kubernetes.io/basic-auth
+stringData:
+  password: <mysql-password-here>
+```
+
+### Redis
+
 - Your redis password can be retrieved with the following command `kubectl get secret --namespace <namespace> fleet-cache-redis -o jsonpath="{.data.redis-password}" | base64 -d`
 
 ```yaml
@@ -96,15 +115,6 @@ metadata:
 type: kubernetes.io/basic-auth
 stringData:
   password: <redis-password-here>
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mysql
-  namespace: <namespace>
-type: kubernetes.io/basic-auth
-stringData:
-  password: <mysql-password-here>
 ```
 
 ### TLS Certificates (nginx)
@@ -123,6 +133,121 @@ data:
     <base64-encoded-tls-crt>
   tls.key: |
     <base64-encoded-tls-key>
+```
+
+The TLS Secret name should be configured in your:
+**Helm (values.yaml)**
+- Update `hostName` to match the `SAN` covered by your TLS secret (configured above)
+- Update `ingress` to match the details of `hostName` and the name of the secret that you've configured. In the example the secret name is `chart-example-tls`
+
+```yaml
+hostName: fleet.localhost
+```
+```yaml
+ingress:
+  enabled: true
+  className: ""
+  annotations:
+    {}
+    # kubernetes.io/tls-acme: "true"
+    # nginx.ingress.kubernetes.io/proxy-body-size: 10m
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: chart-example-tls
+      hosts:
+        - chart-example.local
+```
+
+**Terraform (fleet-terraform/k8s/example/main.tf)**
+- Update `hostname` to match the SAN covered by your TLS secret (configured above)
+- Update `ingress` to match the details of `hostname` and the name of the secret that you've configured. In the example the secret name is `chart-example-tls`
+
+```
+hostname = "chart-example.local"
+```
+```
+ingress = {
+    enabled = true
+    class_name = ""
+    annotations = {}
+    labels = {}
+    hosts = [{
+      name = "chart-example.local"
+      paths = [{
+          path = "/"
+          path_type = "ImplementationSpecific"
+      }]
+    }]
+    tls = {
+      secret_name = "chart-example-tls"
+      hosts = [
+          "chart-example.local"
+      ]
+    }
+}
+```
+
+### Fleet Premium License
+
+If you have a Fleet premium license that you'd like to configure.
+
+**Helm (values.yaml)**
+
+- Create and apply secret for the fleet-license
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fleet-license
+  namespace: fleet
+type: Opaque
+stringData:
+  license-key: <license-key>
+```
+
+- Update the values.yaml to include the details for the secret you've created containing the Fleet Premium license.
+```
+...
+fleet:
+...
+  license:
+    secretName: fleet-license
+    licenseKey: license-key
+...
+```
+
+**Terraform (fleet-terraform/k8s/example/main.tf)**
+
+- Create and apply secret for the fleet-license
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fleet-license
+  namespace: fleet
+type: Opaque
+stringData:
+  license-key: <license-key>
+```
+
+- Update the main.tf to include the details for the secret you've created containing the Fleet Premium license.
+```
+...
+    fleet = {
+      ...
+        license = {
+            secret_name = ""
+            license_key = "license-key"
+        }
+...
 ```
 
 ## Deployment
@@ -196,7 +321,7 @@ If your Fleet deployment was successful, you should be able to access fleet with
 
 Fleet requires that there be no active connections to the MySQL Fleet database, prior to initializing a deployment, as Database migrations are often included and risk failing. Below are instructions that can be followed to Upgrade Fleet using Helm or Terraform
 
-#### Helm
+**Helm**
 
 If you've deployed Fleet with Helm, prior to an upgrade, you will need to update your `values.yml` to update the `imageTag` to be a newer version of a Fleet container image tag. Afterwards, you will need to make sure no Fleet pods are running.
 
@@ -213,7 +338,7 @@ helm upgrade --install fleet fleet \
   --values values.yaml
 ```
 
-#### Terraform
+**Terraform**
 
 If you've deployed Fleet with Terraform, prior to an upgrade, you will need to update your `main.tf` to update the `image_tag` to be a newer version of Fleet container image tag. Afterwards, you can initiate a Terraform apply instructing Terraform to also initiate a database migration.
 
