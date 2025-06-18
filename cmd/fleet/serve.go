@@ -60,6 +60,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
+	"github.com/fleetdm/fleet/v4/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
@@ -1208,6 +1209,15 @@ the way that the Fleet server works.
 					commander,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
+				}
+
+				if err := scep.RegisterSCEP(
+					rootMux,
+					scepStorage,
+					mdmStorage,
+					logger,
+				); err != nil {
+					initFatal(err, "setup fleetd SCEP service")
 				}
 			}
 
