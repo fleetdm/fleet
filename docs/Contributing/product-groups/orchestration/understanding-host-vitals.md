@@ -175,8 +175,31 @@ SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND re
 ```
 
 - Query:
-```sql
+```
+<dynamically generated>
+```
 
+## mdm_config_profiles_windows
+
+- Platforms: windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm_bridge'
+```
+
+- Query:
+```
+<dynamically generated>
+```
+
+## mdm_device_id_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT name, data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\OMADM\MDMDeviceID\DeviceClientId';
 ```
 
 ## mdm_disk_encryption_key_file_darwin
