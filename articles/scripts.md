@@ -63,6 +63,15 @@ Fleet UI:
 
 5. Either close the modal or select another script to run.
 
+After you've initiated a batch script run, you can see its status by finding the related activity on the main dashboard:
+
+1. Click the logo in the upper-left corner of the page.
+2. If your Fleet instance has multiple teams, select "All Teams" from the dropdown.
+3. In the "Activity" section, click on the related activity (for example, "**John Doe** ran the **check-status.sh** script on 5 hosts")
+4. A modal window will pop up displaying the number of hosts targeted and breaking down the host count by how many have run the script successfully, how many are pending (waiting to run the script) and how many have returned an _error_ (either because they were not eligible to run the script, or because the script returned an error).  
+5. You may click the numbers next to "Ran", "Pending" and "Error" to view the list of hosts in that state.
+
+
 Fleet API: See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
 
 <meta name="category" value="guides">
