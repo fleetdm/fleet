@@ -9,13 +9,13 @@ import {
 import { noop } from "lodash";
 import {
   getButtonActionState,
-  InstallerStatusAction,
-} from "./HostSoftwareLibraryTableConfig";
+  InstallerActionCell,
+} from "./InstallerActionCell";
 
 const mockSoftwarePackage = createMockHostSoftwarePackage();
 const mockAppStoreApp = createMockHostAppStoreApp();
 
-describe("getButtonActionState", () => {
+describe("getButtonActionState helper function", () => {
   it("disables both buttons and sets tooltips when host scripts are off and not an app store app", () => {
     const result = getButtonActionState({
       hostScriptsEnabled: false,
@@ -110,13 +110,13 @@ describe("getButtonActionState", () => {
   });
 });
 
-describe("InstallerStatusAction", () => {
+describe("InstallerActionCell component", () => {
   const baseClass = "test";
   const defaultSoftware = createMockHostSoftware();
 
   it("renders install and uninstall buttons with correct text and enabled state", () => {
     render(
-      <InstallerStatusAction
+      <InstallerActionCell
         software={defaultSoftware}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -141,7 +141,7 @@ describe("InstallerStatusAction", () => {
 
   it("disables install button and shows tooltip", () => {
     render(
-      <InstallerStatusAction
+      <InstallerActionCell
         software={defaultSoftware}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -157,7 +157,7 @@ describe("InstallerStatusAction", () => {
 
   it("does not render uninstall button for app store app", () => {
     render(
-      <InstallerStatusAction
+      <InstallerActionCell
         software={{
           ...defaultSoftware,
           software_package: null,
@@ -178,7 +178,7 @@ describe("InstallerStatusAction", () => {
 
   it("does not render uninstall button if no software_package", () => {
     render(
-      <InstallerStatusAction
+      <InstallerActionCell
         software={{ ...defaultSoftware, software_package: null }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -195,7 +195,7 @@ describe("InstallerStatusAction", () => {
 
   it("updates button text/icon when status changes to non-pending", () => {
     const { rerender } = render(
-      <InstallerStatusAction
+      <InstallerActionCell
         software={{ ...defaultSoftware, status: "pending_install" }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -212,7 +212,7 @@ describe("InstallerStatusAction", () => {
 
     // Change status to installed
     rerender(
-      <InstallerStatusAction
+      <InstallerActionCell
         software={{ ...defaultSoftware, status: "installed" }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}

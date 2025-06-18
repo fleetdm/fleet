@@ -6,28 +6,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 import InstalledPathCell from "./InstalledPathCell";
 
-// Mock subcomponents for isolation
-jest.mock(
-  "components/TableContainer/DataTable/TextCell",
-  () => ({ value, ...props }: any) => (
-    <div data-testid="textcell" {...props}>
-      {value}
-    </div>
-  )
-);
-jest.mock(
-  "components/TableContainer/DataTable/TooltipTruncatedTextCell",
-  () => ({ value, ...props }: any) => (
-    <div data-testid="tooltipcell" {...props}>
-      {value}
-    </div>
-  )
-);
-jest.mock("components/buttons/Button", () => ({ children, ...props }: any) => (
-  <button {...props}>{children}</button>
-));
-
-describe("InstalledPathCell", () => {
+describe("InstalledPathCell component", () => {
   it("renders empty cell when installedVersion is null", () => {
     render(
       <InstalledPathCell
@@ -69,7 +48,7 @@ describe("InstalledPathCell", () => {
             ...DEFAULT_INSTALLED_VERSION,
             signature_information: [
               {
-                installed_path: "/Applications/mock.app",
+                installed_path: path,
                 team_identifier: "12345TEAMIDENT",
                 hash_sha256: null,
               },
@@ -79,7 +58,7 @@ describe("InstalledPathCell", () => {
         onClickMultiplePaths={jest.fn()}
       />
     );
-    expect(screen.getByTestId("tooltipcell")).toHaveTextContent(path);
+    expect(screen.getAllByText(path).length).toBeGreaterThan(0);
   });
 
   it("renders button for multiple unique paths and calls handler", () => {

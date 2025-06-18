@@ -232,7 +232,7 @@ const HostSoftwareTable = ({
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
         manualSortBy
-        keyboardSelectableRows
+        keyboardSelectableRows={isMyDevicePage}
         // my device page row clickability
         disableMultiRowSelect={isMyDevicePage}
         onClickRow={isMyDevicePage ? onClickMyDeviceRow : undefined}

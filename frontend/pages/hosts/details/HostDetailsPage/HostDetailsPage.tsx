@@ -146,7 +146,7 @@ interface ISearchQueryData {
 }
 
 interface IHostDetailsSubNavItem {
-  name: string | JSX.Element;
+  name: React.ReactNode;
   title: string;
   pathname: string;
   count?: number;

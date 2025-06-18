@@ -16,21 +16,12 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
-import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
 import InstallStatusCell from "../Software/InstallStatusCell";
-import {
-  getInstallButtonIcon,
-  getInstallButtonText,
-  getUninstallButtonIcon,
-  getUninstallButtonText,
-  DisplayActionItems,
-} from "../Software/SelfService/SelfServiceTableConfig";
+import InstallerActionCell from "./InstallerActionCell/InstallerActionCell";
 
 export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },
@@ -51,15 +42,6 @@ type IVersionsCellProps = CellProps<
 >;
 type IActionCellProps = CellProps<IHostSoftware, IHostSoftware["status"]>;
 
-export interface generateActionsProps {
-  hostScriptsEnabled: boolean;
-  softwareId: number;
-  status: SoftwareInstallStatus | null;
-  software_package: IHostSoftwarePackage | null;
-  app_store_app: IHostAppStoreApp | null;
-  hostMDMEnrolled?: boolean;
-}
-
 interface IHostSWLibraryTableHeaders {
   userHasSWWritePermission: boolean;
   hostScriptsEnabled?: boolean;
@@ -72,192 +54,6 @@ interface IHostSWLibraryTableHeaders {
   onClickUninstallAction: (softwareId: number) => void;
   isHostOnline: boolean;
 }
-
-interface IInstallerStatusActionsProps {
-  software: IHostSoftware;
-  onClickInstallAction: (softwareId: number) => void;
-  onClickUninstallAction: (softwareId: number) => void;
-  baseClass: string;
-}
-
-interface IButtonActionState {
-  installDisabled: boolean;
-  installTooltip?: string | JSX.Element;
-  uninstallDisabled: boolean;
-  uninstallTooltip?: string | JSX.Element;
-}
-
-export const getButtonActionState = ({
-  hostScriptsEnabled,
-  status,
-  app_store_app,
-  hostMDMEnrolled,
-}: generateActionsProps): IButtonActionState => {
-  const pendingStatuses = ["pending_install", "pending_uninstall"];
-  let installDisabled = false;
-  let uninstallDisabled = false;
-  let installTooltip: JSX.Element | string | undefined;
-  let uninstallTooltip: JSX.Element | string | undefined;
-
-  if (!hostScriptsEnabled && !app_store_app) {
-    installDisabled = true;
-    uninstallDisabled = true;
-    installTooltip = "To install, turn on host scripts.";
-    uninstallTooltip = "To uninstall, turn on host scripts.";
-  }
-
-  if (pendingStatuses.includes(status || "")) {
-    installDisabled = true;
-    uninstallDisabled = true;
-  }
-
-  if (app_store_app) {
-    // Hidden uninstall button for app store apps but disabled just in case
-    uninstallDisabled = true;
-
-    if (!hostMDMEnrolled) {
-      installDisabled = true;
-      installTooltip = "To install, turn on MDM for this host.";
-    }
-  }
-
-  return {
-    installDisabled,
-    installTooltip: installTooltip || undefined,
-    uninstallDisabled,
-    uninstallTooltip: uninstallTooltip || undefined,
-  };
-};
-
-export const InstallerStatusAction = ({
-  software,
-  onClickInstallAction,
-  onClickUninstallAction,
-  baseClass,
-  hostScriptsEnabled,
-  hostMDMEnrolled,
-}: IInstallerStatusActionsProps & Partial<generateActionsProps>) => {
-  const { id, status, software_package, app_store_app } = software;
-
-  const {
-    installDisabled,
-    installTooltip,
-    uninstallDisabled,
-    uninstallTooltip,
-  } = getButtonActionState({
-    hostScriptsEnabled: hostScriptsEnabled || false,
-    softwareId: id,
-    status,
-    app_store_app,
-    hostMDMEnrolled,
-    software_package,
-  });
-
-  // const { renderFlash } = useContext(NotificationContext);
-
-  // displayActionItems is used to track the display text and icons of the install and uninstall button
-  const [
-    displayActionItems,
-    setDisplayActionItems,
-  ] = useState<DisplayActionItems>({
-    install: {
-      text: getInstallButtonText(status),
-      icon: getInstallButtonIcon(status),
-    },
-    uninstall: {
-      text: getUninstallButtonText(status),
-      icon: getUninstallButtonIcon(status),
-    },
-  });
-
-  useEffect(() => {
-    // We update the text/icon only when we see a change to a non-pending status
-    // Pending statuses keep the original text shown (e.g. "Retry" text on failed
-    // install shouldn't change to "Install" text because it was clicked and went
-    // pending. Once the status is no longer pending, like 'installed' the
-    // text will update to "Reinstall")
-    if (status !== "pending_install" && status !== "pending_uninstall") {
-      setDisplayActionItems({
-        install: {
-          text: getInstallButtonText(status),
-          icon: getInstallButtonIcon(status),
-        },
-        uninstall: {
-          text: getUninstallButtonText(status),
-          icon: getUninstallButtonIcon(status),
-        },
-      });
-    }
-  }, [status]);
-
-  const isMountedRef = useRef(false);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  return (
-    <div className={`${baseClass}__item-actions`}>
-      <div className={`${baseClass}__item-action`}>
-        <TooltipWrapper
-          tipContent={installTooltip}
-          underline={false}
-          showArrow
-          position="top"
-        >
-          <Button
-            variant="text-icon"
-            type="button"
-            className={`${baseClass}__item-action-button`}
-            onClick={() => onClickInstallAction(id)}
-            disabled={installDisabled}
-          >
-            <Icon
-              name={displayActionItems.install.icon}
-              color="core-fleet-blue"
-              size="small"
-            />
-            <span data-testid={`${baseClass}__install-button--test`}>
-              {displayActionItems.install.text}
-            </span>
-          </Button>
-        </TooltipWrapper>
-      </div>
-      <div className={`${baseClass}__item-action`}>
-        {app_store_app
-          ? null
-          : software_package && (
-              <TooltipWrapper
-                tipContent={uninstallTooltip}
-                underline={false}
-                showArrow
-                position="top"
-              >
-                <Button
-                  variant="text-icon"
-                  type="button"
-                  className={`${baseClass}__item-action-button`}
-                  onClick={() => onClickUninstallAction(id)}
-                  disabled={uninstallDisabled}
-                >
-                  <Icon
-                    name={displayActionItems.uninstall.icon}
-                    color="core-fleet-blue"
-                    size="small"
-                  />
-                  <span data-testid={`${baseClass}__uninstall-button--test`}>
-                    {displayActionItems.uninstall.text}
-                  </span>
-                </Button>
-              </TooltipWrapper>
-            )}
-      </div>
-    </div>
-  );
-};
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -365,7 +161,7 @@ export const generateHostSWLibraryTableHeaders = ({
       disableSortBy: true,
       Cell: (cellProps: IActionCellProps) => {
         return (
-          <InstallerStatusAction
+          <InstallerActionCell
             software={cellProps.row.original}
             onClickInstallAction={onClickInstallAction}
             onClickUninstallAction={onClickUninstallAction}
@@ -378,7 +174,7 @@ export const generateHostSWLibraryTableHeaders = ({
     },
   ];
 
-  // we want to hide the install/uninstall actions if the user doesn't have write permission
+  // Hide the install/uninstall actions if the user doesn't have write permission
   if (!userHasSWWritePermission) {
     tableHeaders.pop();
   }

@@ -36,7 +36,7 @@ interface TootipArgs {
 
 export type IStatusDisplayConfig = {
   iconName?: "success" | "pending-outline" | "error" | "install";
-  displayText: string | ((args: DisplayTextArgs) => string | JSX.Element);
+  displayText: string | ((args: DisplayTextArgs) => React.ReactNode);
   tooltip: (args: TootipArgs) => ReactNode;
 };
 

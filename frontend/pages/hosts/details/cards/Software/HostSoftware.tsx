@@ -388,7 +388,7 @@ const HostSoftware = ({
 
   return (
     <div className={baseClass}>
-      <CardHeader subheader="Software installed on the host." />
+      <CardHeader subheader="Software installed on this host." />
       {renderHostSoftware()}
     </div>
   );

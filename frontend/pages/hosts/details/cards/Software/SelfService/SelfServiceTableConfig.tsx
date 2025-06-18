@@ -94,7 +94,7 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
   },
 };
 
-interface IInstallerStatusActionsProps {
+interface ISSInstallerActionCellProps {
   deviceToken: string;
   software: IHostSoftware;
   onInstallOrUninstall: () => void;
@@ -164,12 +164,13 @@ export const getUninstallButtonIcon = (
   }
 };
 
-const InstallerStatusAction = ({
+// TODO: Create and move into /components directory
+const SSInstallerActionCell = ({
   deviceToken,
   software: { id, status, software_package, app_store_app },
   onInstallOrUninstall,
   onClickUninstallAction,
-}: IInstallerStatusActionsProps) => {
+}: ISSInstallerActionCellProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   // displayActionItems is used to track the display text and icons of the install and uninstall button
@@ -348,7 +349,7 @@ export const generateSoftwareTableHeaders = ({
       disableSortBy: true,
       Cell: (cellProps: IActionCellProps) => {
         return (
-          <InstallerStatusAction
+          <SSInstallerActionCell
             deviceToken={deviceToken}
             software={cellProps.row.original}
             onInstallOrUninstall={onInstall}

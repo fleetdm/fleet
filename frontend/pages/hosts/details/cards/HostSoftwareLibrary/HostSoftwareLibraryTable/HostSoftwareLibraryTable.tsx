@@ -161,7 +161,6 @@ const HostSoftwareLibraryTable = ({
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
         manualSortBy
-        keyboardSelectableRows
       />
     </div>
   );

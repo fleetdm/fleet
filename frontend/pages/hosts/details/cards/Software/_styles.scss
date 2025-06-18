@@ -22,6 +22,7 @@
       .data-table {
         &__wrapper {
           overflow-x: auto;
+          overflow-y: hidden;
         }
       }
     }
@@ -49,66 +50,9 @@
     .data-table-block {
       .data-table__table {
         thead {
-          .name__header {
-            display: table-cell;
-            width: auto;
-          }
-          .status__header {
-            display: table-cell;
-            width: auto;
-          }
-          .Version__header {
-            display: table-cell;
-            width: auto;
-          }
-          .source__header {
-            display: table-cell;
-          }
           .Vulnerabilities__header {
             display: table-cell;
             max-width: px-to-rem(140);
-          }
-          // this is called `id` only due to typing concerns in the table config – it is for the
-          // "Actions" column
-          .id__header {
-            width: px-to-rem(72);
-          }
-        }
-        tbody {
-          tr {
-            .name__cell {
-              display: table-cell;
-              width: auto;
-            }
-            .status__cell {
-              display: table-cell;
-              width: auto;
-            }
-            .Version__cell {
-              display: table-cell;
-              width: auto;
-            }
-            .source__cell {
-              display: table-cell;
-            }
-            .Vulnerabilities__cell {
-              display: table-cell;
-            }
-
-            // Very little real estate at 768px
-            @media (max-width: ($break-sm - 1)) {
-              .name__cell {
-                .software-name {
-                  max-width: 190px;
-                }
-              }
-
-              .Version__cell {
-                .text-cell {
-                  max-width: 95px;
-                }
-              }
-            }
           }
         }
       }

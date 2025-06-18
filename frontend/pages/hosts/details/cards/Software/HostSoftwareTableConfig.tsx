@@ -21,6 +21,7 @@ import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCe
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
@@ -109,7 +110,15 @@ export const generateSoftwareTableHeaders = ({
       ),
     },
     {
-      Header: "Last used",
+      Header: (): JSX.Element => {
+        const titleWithToolTip = (
+          <TooltipWrapper tipContent={<>Date and time of last open.</>}>
+            Last used
+          </TooltipWrapper>
+        );
+        return <HeaderCell value={titleWithToolTip} disableSortBy />;
+      },
+      id: "Last used",
       disableSortBy: true,
       accessor: (originalRow) => {
         // Extract all last_opened_at values, filter out null/undefined, and ensure valid dates

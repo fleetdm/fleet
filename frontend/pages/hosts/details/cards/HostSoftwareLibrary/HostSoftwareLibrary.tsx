@@ -394,7 +394,7 @@ const HostSoftwareLibrary = ({
 
   return (
     <div className={baseClass}>
-      <CardHeader subheader="Software available to install on this device." />
+      <CardHeader subheader="Software available to install on this host." />
       {renderHostSoftware()}
     </div>
   );

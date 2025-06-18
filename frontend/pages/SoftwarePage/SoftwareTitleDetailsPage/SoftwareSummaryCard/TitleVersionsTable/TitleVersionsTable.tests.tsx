@@ -4,7 +4,7 @@ import { createMockRouter } from "test/test-utils";
 import { ISoftwareTitleVersion } from "interfaces/software";
 import TitleVersionsTable from "./TitleVersionsTable";
 
-const mockRouter = createMockRouter;
+const mockRouter = createMockRouter();
 
 describe("TitleVersionsTable", () => {
   it("renders version names as links and footer info", () => {

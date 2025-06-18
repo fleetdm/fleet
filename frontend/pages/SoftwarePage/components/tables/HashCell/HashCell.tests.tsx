@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import { noop } from "lodash";
 import { DEFAULT_INSTALLED_VERSION } from "__mocks__/hostMock";
@@ -7,17 +7,7 @@ import { DEFAULT_INSTALLED_VERSION } from "__mocks__/hostMock";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import HashCell from "./HashCell";
 
-describe("HashCell", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
-  });
-
+describe("HashCell component", () => {
   it("renders empty cell when installedVersion is null", () => {
     render(
       <HashCell installedVersion={null} onClickMultipleHashes={jest.fn()} />
