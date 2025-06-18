@@ -450,7 +450,7 @@ func (k *tpm2Key) Signer() (crypto.Signer, error) {
 	}
 
 	if pub.Type != tpm2.TPMAlgECC {
-		return nil, fmt.Errorf("not an ECC key")
+		return nil, errors.New("not an ECC key")
 	}
 
 	eccDetail, err := pub.Parameters.ECCDetail()
