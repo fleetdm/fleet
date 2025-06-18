@@ -41,7 +41,6 @@ interface IHostInstallersProps {
   id: number | string;
   platform: HostPlatform;
   softwareUpdatedAt?: string;
-  hostCanWriteSoftware: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareLibraryQueryParams>;
   pathname: string;
@@ -96,7 +95,6 @@ const HostSoftwareLibrary = ({
   id,
   platform,
   softwareUpdatedAt,
-  hostCanWriteSoftware,
   hostScriptsEnabled,
   router,
   queryParams,
@@ -344,7 +342,6 @@ const HostSoftwareLibrary = ({
     return generateHostSWLibraryTableHeaders({
       userHasSWWritePermission,
       hostScriptsEnabled,
-      // hostCanWriteSoftware,
       hostMDMEnrolled,
       router,
       teamId: hostTeamId,
@@ -359,7 +356,6 @@ const HostSoftwareLibrary = ({
     userHasSWWritePermission,
     hostScriptsEnabled,
     hostTeamId,
-    // hostCanWriteSoftware,
     hostMDMEnrolled,
     onShowSoftwareDetails,
     onClickInstallAction,

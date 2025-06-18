@@ -53,7 +53,6 @@ type IActionCellProps = CellProps<IHostSoftware, IHostSoftware["status"]>;
 
 export interface generateActionsProps {
   hostScriptsEnabled: boolean;
-  // hostCanWriteSoftware: boolean; // TODO: this is not used in the component, but it is passed as a prop why
   softwareId: number;
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
@@ -64,7 +63,6 @@ export interface generateActionsProps {
 interface IHostSWLibraryTableHeaders {
   userHasSWWritePermission: boolean;
   hostScriptsEnabled?: boolean;
-  // hostCanWriteSoftware: boolean;
   router: InjectedRouter;
   teamId: number;
   hostMDMEnrolled?: boolean;
@@ -266,7 +264,6 @@ export const InstallerStatusAction = ({
 export const generateHostSWLibraryTableHeaders = ({
   userHasSWWritePermission,
   hostScriptsEnabled = false,
-  // hostCanWriteSoftware,
   router,
   teamId,
   hostMDMEnrolled,
