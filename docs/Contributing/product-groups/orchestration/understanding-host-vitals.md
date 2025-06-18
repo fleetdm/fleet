@@ -171,12 +171,12 @@ select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles'
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles') AND EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_user_profiles')
 ```
 
 - Query:
 ```sql
-SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";
+
 ```
 
 ## mdm_disk_encryption_key_file_darwin
