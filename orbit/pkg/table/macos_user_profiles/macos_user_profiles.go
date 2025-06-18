@@ -13,10 +13,6 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-type profilesOutput struct {
-	ComputerLevel []profilePayload `plist:"_computerlevel"`
-}
-
 type profilePayload struct {
 	ProfileIdentifier        string
 	ProfileInstallDate       string
@@ -74,21 +70,22 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, err
 	}
 
-	return generateResults(profiles), nil
+	return generateResults(profiles[username], username), nil
 }
 
-func generateResults(profiles profilesOutput) []map[string]string {
+func generateResults(profiles []profilePayload, username string) []map[string]string {
 	var results []map[string]string
-	for _, payload := range profiles.ComputerLevel {
+	for _, profile := range profiles {
 		result := map[string]string{
-			"identifier":         payload.ProfileIdentifier,
-			"install_date":       payload.ProfileInstallDate,
-			"display_name":       payload.ProfileDisplayName,
-			"description":        payload.ProfileDescription,
-			"verification_state": payload.ProfileVerificationState,
-			"uuid":               payload.ProfileUUID,
-			"organization":       payload.ProfileOrganization,
-			"type":               payload.ProfileType,
+			"identifier":         profile.ProfileIdentifier,
+			"install_date":       profile.ProfileInstallDate,
+			"display_name":       profile.ProfileDisplayName,
+			"description":        profile.ProfileDescription,
+			"verification_state": profile.ProfileVerificationState,
+			"uuid":               profile.ProfileUUID,
+			"organization":       profile.ProfileOrganization,
+			"type":               profile.ProfileType,
+			"username":           username,
 		}
 		results = append(results, result)
 	}
@@ -96,8 +93,8 @@ func generateResults(profiles profilesOutput) []map[string]string {
 	return results
 }
 
-func unmarshalProfilesOutput(theBytes []byte) (profilesOutput, error) {
-	var profiles profilesOutput
+func unmarshalProfilesOutput(theBytes []byte) (map[string][]profilePayload, error) {
+	var profiles map[string][]profilePayload
 	if err := plist.Unmarshal(theBytes, &profiles); err != nil {
 		return profiles, fmt.Errorf("unmarshal profiles output: %w", err)
 	}
