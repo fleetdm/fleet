@@ -3,7 +3,7 @@
   background-color: $ui-light-grey;
   border: solid 1px $ui-fleet-black-10;
   border-radius: $border-radius;
-  font-size: $small;
+  font-size: $x-small;
   padding: $pad-small $pad-medium;
   color: $core-fleet-blue;
   font-family: "Inter", sans-serif;
@@ -35,14 +35,6 @@
     .form-field__label,
     .form-field__help-text {
       color: $ui-fleet-black-50;
-    }
-  }
-
-  &--password {
-    letter-spacing: 4px;
-
-    &::placeholder {
-      letter-spacing: normal;
     }
   }
 

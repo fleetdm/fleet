@@ -67,13 +67,10 @@ const MdmSettingsSection = ({
           turnOnWindowsMdm={navigateToWindowsMdm}
           editWindowsMdm={navigateToWindowsMdm}
         />
-        {/* TODO: feature flag check, remove when feature releases */}
-        {config?.android_enabled && (
-          <AndroidMdmCard
-            turnOffAndroidMdm={navigateToAndroidMdm}
-            editAndroidMdm={navigateToAndroidMdm}
-          />
-        )}
+        <AndroidMdmCard
+          turnOffAndroidMdm={navigateToAndroidMdm}
+          editAndroidMdm={navigateToAndroidMdm}
+        />
       </div>
     );
   };

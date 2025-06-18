@@ -135,7 +135,7 @@ module.exports.custom = {
     'it-and-security': 'allenhouchins',
 
     // 🫧 Articles and release notes
-    'articles': 'mikermcneil',
+    'articles': 'rachaelshaw',
     'CHANGELOG.md': 'lukeheath',
 
     // 🫧 Website (fleetdm.com)
@@ -182,7 +182,7 @@ module.exports.custom = {
     '.gitignore': 'sampfluger88',// « what files should not be checked in?
 
     // 🌐 Handbook
-    //'handbook': 'mikermcneil', Covered in CODEOWNERS (#16972 2024-02-19)
+    //'handbook': 'samfp', Covered in CODEOWNERS (#16972 2024-02-19)
 
 
     // 🌐 GitHub issue templates
@@ -424,6 +424,17 @@ module.exports.custom = {
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
 
-  //…
+
+  // Microsoft compliance proxy
+  // compliancePartnerClientId: '…',
+  // compliancePartnerClientSecret: '…',
+  // cloudCustomerCompliancePartnerSharedSecret: '…',
+
+
+  // Android proxy
+  // androidEnterpriseProjectId: '…',
+  // androidEnterpriseServiceAccountEmailAddress: '…',
+  // androidEnterpriseServiceAccountPrivateKey: '…',
+
 
 };

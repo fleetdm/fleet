@@ -167,6 +167,7 @@ software:
     - path: ../lib/macos/software/1password.yml # 1Password for macOS
     - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
+    - path: ../lib/macos/software/fleet_keynote_theme.yml # Fleet Keynote theme for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
@@ -186,12 +187,11 @@ software:
     - app_store_id: '409183694' # Keynote
       self_service: true
   fleet_maintained_apps:
+    # macOS apps
     - slug: brave-browser/darwin # Brave for macOS (ARM)
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
-    - slug: brave-browser/windows # Brave for Windows
-      self_service: true
     - slug: docker/darwin # Docker for macOS (ARM)
       self_service: true
       labels_include_any:
@@ -202,8 +202,10 @@ software:
       self_service: true
       labels_include_any:
         - Apple Silicon macOS hosts
+    - slug: microsoft-teams/darwin # Microsoft Teams for macOS
+      self_service: true
+    # Windows apps
+    - slug: brave-browser/windows # Brave for Windows
+      self_service: true
     - slug: visual-studio-code/windows # Microsoft Visual Studio for Windows
       self_service: true
-      categories:
-        - Communication
-        - Productivity

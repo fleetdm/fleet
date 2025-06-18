@@ -132,7 +132,8 @@ Anyone is free to contribute to the free or paid features of the project. We are
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
 ## How can I uninstall fleetd?
-To uninstall Fleet's agent (fleetd), follow the instructions [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
+
+See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
 ## What is your commitment to open source stewardship?
 
@@ -183,8 +184,7 @@ The update frequency for labels is configurable with the [—osquery_label_updat
 
 ### Can I modify built-in labels?
 
-While it is possible to modify built-in labels using `fleetctl` or the REST API, doing so is not recommended because it can lead to errors in the Fleet UI.
-Find more information [here](https://github.com/fleetdm/fleet/issues/12479).
+No, [built-in labels cannot be modified](https://github.com/fleetdm/fleet/issues/18034).
 
 ### How do I revoke the authorization tokens for a user?
 
@@ -351,7 +351,7 @@ fleetctl package --fleetctl package --type=deb --fleet-url=https://localhost:808
 
 ### Can I hide known vulnerabilities that I feel are insignificant?
 
-This isn't currently supported, but we're working on it! You can track that issue [here](https://github.com/fleetdm/fleet/issues/3152).
+This isn't currently supported, but a [feature request for dismissing vulnerabilities](https://github.com/fleetdm/fleet/issues/22761) is tracked in GitHub.
 
 ### Can I create reports based on historical data in Fleet?
 
@@ -364,11 +364,6 @@ Currently, Fleet only stores the current state of your hosts (when they last com
 The [REST API](https://fleetdm.com/docs/using-fleet/rest-api) is somewhat similar to fleetctl, but it tends to be used more by other computer programs rather than human users (although humans can use it too). For example, our [Fleet UI](https://fleetdm.com/docs/using-fleet/rest-api) talks to the server via the REST API. Folks can also use the REST API if they want to build their own programs that talk to the Fleet server.
 
 The [Fleet UI](https://fleetdm.com/docs/using-fleet/fleet-ui) is built for human users to make interfacing with the Fleet server user-friendly and visually appealing. It also makes things simpler and more accessible to a broader range of users.
-
-
-### Why can't I run queries with `fleetctl` using a new API-only user?
-
-In versions prior to Fleet 4.13, a password reset is needed before a new API-only user can perform queries. You can find detailed instructions for setting that up [here](https://github.com/fleetdm/fleet/blob/a1eba3d5b945cb3339004dd1181526c137dc901c/docs/Using-Fleet/fleetctl-CLI.md#reset-the-password).
 
 ### Can I audit actions taken in Fleet?
 
@@ -397,7 +392,7 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 ### How do I downgrade from Fleet Premium to Fleet Free?
 
-> If you'd like to renew your Fleet Premium license key, please contact us [here](https://fleetdm.com/company/contact).
+> If you'd like to renew your Fleet Premium license key, please [contact us](https://fleetdm.com/company/contact).
 
 **Back up your users and update all team-level users to global users**
 
@@ -425,7 +420,7 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 **Remove your Fleet Premium license key**
 
-1. Remove your license key from your Fleet configuration. Documentation on where the license key is located in your configuration is [here](https://fleetdm.com/docs/deploying/configuration#license).
+1. Remove your license key from your [Fleet configuration](https://fleetdm.com/docs/deploying/configuration#license).
 2. Restart your Fleet server.
 
 ### If I use a software orchestration tool (Ansible, Chef, Puppet, etc.) to manage agent options, do I have to apply the same options in the Fleet UI?
@@ -484,10 +479,7 @@ Packs are a function of osquery that provide a portable format to import/export 
 
 Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features and (in Fleet Premium) can target specific groups of hosts via teams.
 
-The "Packs" section of the UI has been removed, but access via the API and CLI is still available for backward compatibility. The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to queries.
-
-Read more about osquery packs and Fleet's commitment to supporting them [here](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs).
-
+The "Packs" section of the UI has been removed, but [access to query packs via the API and CLI is still available](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs). The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to queries.
 
 ### What happens when I turn off MDM?
 
@@ -498,8 +490,8 @@ When you turn off MDM for a host, Fleet removes the enforcement of all macOS set
 To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
 
 ### What does "package root files: heat failed" mean?
-We've found this error when you try to build an MSI on Docker 4.17. The underlying issue has been fixed in Docker 4.18, so we recommend upgrading. More information [here](https://github.com/fleetdm/fleet/issues/10700)
 
+We've found this error when you try to build an MSI on Docker 4.17. The underlying issue has been fixed in Docker 4.18, so [we recommend upgrading to Docker 4.18 or later](https://github.com/fleetdm/fleet/issues/10700).
 
 ## Deployment
 
@@ -577,7 +569,7 @@ NODE_TLS_REJECT_UNAUTHORIZED=0 sails console
 
 ### I'm only getting partial results from live queries
 
-Redis has an internal buffer limit for pubsub that Fleet uses to communicate query results. If this buffer is filled, extra data is dropped. To fix this, we recommend disabling the buffer size limit. Most installs of Redis should have plenty of spare memory to not run into issues. More info about this limit can be found [here](https://redis.io/topics/clients#:~:text=Pub%2FSub%20clients%20have%20a,64%20megabyte%20per%2060%20second.) and [here](https://raw.githubusercontent.com/redis/redis/unstable/redis.conf) (search for client-output-buffer-limit).
+Redis has an internal buffer limit for pubsub that Fleet uses to communicate query results. If this buffer is filled, extra data is dropped. To fix this, we recommend disabling the [pubsub buffer size limit in redis.conf](https://github.com/bertramdev/redis-lab/blob/6b764063013d6d5df0a902bdfea802c526a13881/redis.conf#L564). Most installs of Redis should have plenty of spare memory to not run into issues.
 
 We recommend a config like the following:
 
@@ -653,7 +645,7 @@ The user `fleet prepare db` (via environment variable `FLEET_MYSQL_USERNAME` or 
 
 ### Does Fleet support MySQL replication?
 
-You can deploy MySQL or Maria any way you want. We recommend using managed/hosted mysql so you don't have to think about it, but you can think about it more if you want. Read replicas are supported. You can read more about MySQL configuration [here](https://fleetdm.com/docs/deploying/configuration#mysql).
+Yes, and we recommend replication for production deployments. See our [MySQL configuration documentation](https://fleetdm.com/docs/deploying/configuration#mysql).
 
 ### What is duplicate enrollment, and how do I fix it?
 
@@ -712,10 +704,10 @@ Fleet requires at least MySQL version 8.0.36, and is tested [with versions 8.0.3
 
 ### How do I migrate from Fleet Free to Fleet Premium?
 
-To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in the Fleet's config file. See [here](https://fleetdm.com/docs/deploying/configuration#license) for more details. Note: You don't need to redeploy Fleet after the migration.
+To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in [Fleet's config file](https://fleetdm.com/docs/deploying/configuration#license). You don't need to redeploy Fleet after the migration.
 
 ### What Redis versions are supported?
-Fleet is tested with Redis 5.0.14 and 6.2.7. Any version of Redis after version 5 will typically work well.
+Fleet is tested with Redis 6, as well as the latest release of Redis 5. Any version of Redis after version 5 will typically work well.
 
 ### Will my older version of Fleet work with Redis 6?
 

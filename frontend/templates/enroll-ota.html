@@ -260,8 +260,6 @@
       // using string comparison to satisfy the linter.
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
-      // TODO: remove android feature flag
-      const ANDROID_FEATURE_ENABLED = "{{.AndroidFeatureEnabled}}" === "true";
 
       const getPlatform = () => {
         const userAgent = navigator.userAgent;
@@ -376,8 +374,7 @@
 
         // quick exit if platform is unsupported
         if (
-          platform === "unsupported" ||
-          (!ANDROID_FEATURE_ENABLED && platform === "android") // TODO: remove android feature flag
+          platform === "unsupported"
         ) {
           renderContent("unsupported-template");
           return;

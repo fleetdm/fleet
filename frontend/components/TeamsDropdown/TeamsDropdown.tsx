@@ -9,6 +9,8 @@ import Select, {
 
 import { COLORS } from "styles/var/colors";
 import { PADDING } from "styles/var/padding";
+import { FONT_SIZES, FONT_WEIGHTS } from "styles/var/fonts";
+
 import classnames from "classnames";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -119,10 +121,9 @@ const TeamsDropdown = ({
   };
 
   // see https://react-select.com/styles#the-styles-prop
-  // `provided` here corresponds to `baseStyles` in the docs
   const customStyles: StylesConfig<INumberDropdownOption, false> = {
-    control: (provided, state) => ({
-      ...provided,
+    control: (baseStyles, state) => ({
+      ...baseStyles,
       display: "flex",
       flexDirection: "row",
       padding: "8px 0",
@@ -143,9 +144,6 @@ const TeamsDropdown = ({
       // When tabbing
       // Relies on --is-focused for styling as &:focus-visible cannot be applied
       "&.team-dropdown__control--is-focused": {
-        ".team-dropdown__single-value": {
-          color: COLORS["core-vibrant-blue-over"],
-        },
         ".team-dropdown__indicator path": {
           stroke: COLORS["core-vibrant-blue-over"],
         },
@@ -174,8 +172,8 @@ const TeamsDropdown = ({
         },
       }),
     }),
-    singleValue: (provided) => ({
-      ...provided,
+    singleValue: (baseStyles) => ({
+      ...baseStyles,
       fontSize: "24px",
       lineHeight: "normal",
       paddingLeft: 0,
@@ -184,8 +182,8 @@ const TeamsDropdown = ({
       // omit grid-column-end for automatic width
       gridArea: "1/1/2",
     }),
-    dropdownIndicator: (provided) => ({
-      ...provided,
+    dropdownIndicator: (baseStyles) => ({
+      ...baseStyles,
       display: "flex",
       padding: "2px",
       margin: "0 5px",
@@ -193,8 +191,8 @@ const TeamsDropdown = ({
         transition: "transform 0.25s ease",
       },
     }),
-    menu: (provided) => ({
-      ...provided,
+    menu: (baseStyles) => ({
+      ...baseStyles,
       boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
       borderRadius: "4px",
       zIndex: 6,
@@ -208,16 +206,28 @@ const TeamsDropdown = ({
       animation: "fade-in 150ms ease-out",
     }),
     // Placeholder is never shown on teams dropdown
-    menuList: (provided) => ({
-      ...provided,
+    menuList: (baseStyles) => ({
+      ...baseStyles,
       padding: PADDING["pad-small"],
+      ".team-dropdown__menu-notice--no-options": {
+        textAlign: "left",
+        color: COLORS["ui-fleet-black-50"],
+        fontSize: FONT_SIZES["xx-small"],
+        fontWeight: FONT_WEIGHTS.regular,
+      },
     }),
-    valueContainer: (provided) => ({
-      ...provided,
+    valueContainer: (baseStyles) => ({
+      ...baseStyles,
       padding: 0,
     }),
-    option: (provided, state) => ({
-      ...provided,
+    input: (baseStyles) => ({
+      ...baseStyles,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    }),
+    option: (baseStyles, state) => ({
+      ...baseStyles,
       padding: "10px 8px",
       fontSize: "14px",
       borderRadius: "4px",
@@ -254,7 +264,8 @@ const TeamsDropdown = ({
             // If newValue is null or undefined, we don't call onChange
           }}
           isDisabled={isDisabled}
-          isSearchable={false}
+          isSearchable
+          noOptionsMessage={() => "No matching teams"}
           styles={customStyles}
           components={{
             DropdownIndicator: CustomDropdownIndicator,
