@@ -5244,7 +5244,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		Description:      "a long description of the cve",
 	}}))
 
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now().UTC()))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now().UTC(), kitlog.NewNopLogger()))
 
 	var resp listSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &resp)
@@ -8437,7 +8437,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs, kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
@@ -8691,7 +8691,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	// calculate hosts counts
 	hostsCountTs = time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs, kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
@@ -9047,7 +9047,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	// calculate hosts counts
 	hostsCountTs = time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs, kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
@@ -9439,7 +9439,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs, kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
@@ -13587,7 +13587,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	require.Len(t, resp.SoftwareTitles, 1)
 
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs, kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 	resp = listSoftwareTitlesResponse{}
@@ -13621,7 +13621,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
 	require.Len(t, host.Software, 5)
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs, kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
@@ -13790,7 +13790,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	require.Len(t, host.Software, 4)
 
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs, kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 	resp := listSoftwareTitlesResponse{}
@@ -13898,7 +13898,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	)
 
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs, kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 	resp = listSoftwareTitlesResponse{}
@@ -14965,7 +14965,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host1Team1.ID, software)
 	require.NoError(t, err)
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 	// Get software title ID of the software.
@@ -16345,7 +16345,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallersWithoutBundleIden
 	require.Empty(t, software[0].BundleIdentifier)
 	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
-	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 

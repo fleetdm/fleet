@@ -198,7 +198,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	}
 
 	// Do the software/titles cleanup.
-	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
+	err = ts.ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger())
 	require.NoError(t, err)
 	err = ts.ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)

@@ -168,7 +168,7 @@ func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 		{
 			Name: "cron_sync_host_software",
 			VulnFunc: func(ctx context.Context) error {
-				return ds.SyncHostsSoftware(ctx, time.Now())
+				return ds.SyncHostsSoftware(ctx, time.Now(), logger)
 			},
 		},
 		{

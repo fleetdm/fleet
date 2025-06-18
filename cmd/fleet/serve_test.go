@@ -331,7 +331,7 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	) (*fleet.OSVersions, error) {
 		return &fleet.OSVersions{}, nil
 	}
-	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
+	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time, logger kitlog.Logger) error {
 		return nil
 	}
 
@@ -681,7 +681,7 @@ func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
 		// features.enable_software_inventory is false
 		return &fleet.AppConfig{}, nil
 	}
-	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time) error {
+	ds.SyncHostsSoftwareFunc = func(ctx context.Context, updatedAt time.Time, logger kitlog.Logger) error {
 		return nil
 	}
 

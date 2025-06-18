@@ -873,7 +873,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs, log.NewNopLogger()))
 
 	countReq := countSoftwareRequest{}
 	countResp := countSoftwareResponse{}
@@ -1563,7 +1563,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.NoError(t, err)
 	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host0, false))
 
-	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now(), log.NewNopLogger())
 	require.NoError(t, err)
 	err = s.ds.ReconcileSoftwareTitles(context.Background())
 	require.NoError(t, err)
@@ -7546,7 +7546,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs, log.NewNopLogger()))
 
 	// now the list software endpoint returns the software, get the first page without vulns
 	lsResp = listSoftwareResponse{}
@@ -9279,7 +9279,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
-	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now(), log.NewNopLogger())
 	require.NoError(t, err)
 
 	host2, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -12992,7 +12992,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.NoError(t, err)
 
 	hostsCountTs := time.Now().UTC()
-	err = s.ds.SyncHostsSoftware(context.Background(), hostsCountTs)
+	err = s.ds.SyncHostsSoftware(context.Background(), hostsCountTs, log.NewNopLogger())
 	require.NoError(t, err)
 
 	getHostSoftwareResp := getHostSoftwareResponse{}
