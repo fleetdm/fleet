@@ -7,6 +7,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { getPathWithQueryParams } from "utilities/url";
 import { IApiError } from "interfaces/errors";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 
 import DynamicLabelForm from "pages/labels/components/DynamicLabelForm";
 import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
@@ -38,7 +39,10 @@ const DynamicLabel = ({
         .then((res) => {
           router.push(
             getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(res.label.id), {
-              team_id: currentTeam?.id,
+              team_id:
+                currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
+                  ? API_ALL_TEAMS_ID
+                  : currentTeam?.id || API_ALL_TEAMS_ID,
             })
           );
           renderFlash("success", "Label added successfully.");
