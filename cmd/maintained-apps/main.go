@@ -13,6 +13,7 @@ import (
 	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew"
 	"github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -38,8 +39,8 @@ func main() {
 		"ee/maintained-apps/inputs/winget":   winget.IngestApps,
 	}
 
-	for p, i := range ingesters {
-		apps, err := i(ctx, logger, p, *slugPtr)
+	for inputDir, ingest := range ingesters {
+		apps, err := ingest(ctx, logger, inputDir, *slugPtr)
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to ingest apps", "error", err)
 		}
@@ -74,15 +75,23 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 		return ctxerr.Wrap(ctx, err, "marshaling output app manifest")
 	}
 
-	// Overwrite the file, since right now we're only caring about 1 version (latest). If we
-	// care about previous data, it will be in our Git history.
-	outPath := path.Join(maintained_apps.OutputPath, app.SlugAppName())
+	outDir := path.Join(maintained_apps.OutputPath, app.SlugAppName())
 
-	if err := os.MkdirAll(outPath, os.ModePerm); err != nil {
+	if err := os.MkdirAll(outDir, os.ModePerm); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
-	if err := os.WriteFile(path.Join(maintained_apps.OutputPath, fmt.Sprintf("%s.json", app.Slug)), outBytes, 0o644); err != nil {
-		return ctxerr.Wrap(ctx, err, "writing output json file")
+	outFilePath := path.Join(maintained_apps.OutputPath, fmt.Sprintf("%s.json", app.Slug))
+	outFileExists, err := file.Exists(outFilePath)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if output json file exists")
+	}
+
+	// Overwrite the file unless frozen, since right now we're only caring about 1 version (latest). If we
+	// care about previous data, it will be in our Git history.
+	if !app.Frozen || !outFileExists {
+		if err := os.WriteFile(outFilePath, outBytes, 0o644); err != nil {
+			return ctxerr.Wrap(ctx, err, "writing output json file")
+		}
 	}
 
 	return nil
@@ -90,13 +99,13 @@ func processOutput(ctx context.Context, app *maintained_apps.FMAManifestApp) err
 
 func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifestApp) error {
 	appListFilePath := path.Join(maintained_apps.OutputPath, "apps.json")
-	file, err := os.ReadFile(appListFilePath)
+	inputJson, err := os.ReadFile(appListFilePath)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading output apps list file")
 	}
 
 	var outputAppsFile maintained_apps.FMAListFile
-	if err := json.Unmarshal(file, &outputAppsFile); err != nil {
+	if err := json.Unmarshal(inputJson, &outputAppsFile); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshaling output apps list file")
 	}
 
