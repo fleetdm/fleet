@@ -150,34 +150,38 @@ spec:
                     key: {{ .Values.database_read_replica.passwordKey }}
               {{- end }}
               {{- if .Values.database_read_replica.maxOpenConns }}
-              - name: FLEET_MYSQL_READ_MAX_OPEN_CONNS
+              - name: FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS
                 value: "{{ .Values.database_read_replica.maxOpenConns }}"
               {{- end }}
               {{- if .Values.database_read_replica.maxIdleConns }}
-              - name: FLEET_MYSQL_READ_MAX_IDLE_CONNS
+              - name: FLEET_MYSQL_READ_REPLICA_MAX_IDLE_CONNS
                 value: "{{ .Values.database_read_replica.maxIdleConns }}"
               {{- end }}
               {{- if .Values.database_read_replica.connMaxLifetime }}
-              - name: FLEET_MYSQL_READ_CONN_MAX_LIFETIME
+              - name: FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME
                 value: "{{ .Values.database_read_replica.connMaxLifetime }}"
               {{- end }}
               {{- if .Values.database_read_replica.tls.enabled }}
               {{- if .Values.database_read_replica.tls.caCertKey }}
-              - name: FLEET_MYSQL_READ_TLS_CA
+              - name: FLEET_MYSQL_READ_REPLICA_TLS_CA
                 value: "/secrets/mysql/{{ .Values.database_read_replica.tls.caCertKey }}"
               {{- end }}
               {{- if .Values.database_read_replica.tls.certKey }}
-              - name: FLEET_MYSQL_READ_TLS_CERT
+              - name: FLEET_MYSQL_READ_REPLICA_TLS_CERT
                 value: "/secrets/mysql/{{ .Values.database_read_replica.tls.certKey }}"
               {{- end }}
               {{- if .Values.database_read_replica.tls.keyKey }}
-              - name: FLEET_MYSQL_READ_TLS_KEY
+              - name: FLEET_MYSQL_READ_REPLICA_TLS_KEY
                 value: "/secrets/mysql/{{ .Values.database_read_replica.tls.keyKey }}"
               {{- end }}
-              - name: FLEET_MYSQL_READ_TLS_CONFIG
+              {{- if .Values.database_read_replica.tls.config }}
+              - name: FLEET_MYSQL_READ_REPLICA_TLS_CONFIG
                 value: "{{ .Values.database_read_replica.tls.config }}"
-              - name: FLEET_MYSQL_READ_TLS_SERVER_NAME
+              {{- end }}
+              {{- if .Values.database_read_replica.tls.serverName }}
+              - name: FLEET_MYSQL_READ_REPLICA_TLS_SERVER_NAME
                 value: "{{ .Values.database_read_replica.tls.serverName }}"
+              {{- end }}
               {{- end }}
               ## END MYSQL READ REPLICA SECTION
               ## BEGIN REDIS SECTION
