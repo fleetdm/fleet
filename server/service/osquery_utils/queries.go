@@ -2070,8 +2070,13 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host 
 		WHERE
 			type = "Configuration"`
 
-	var username string
-	// TODO: load user-channel short username if available...
+	username, err := ds.GetNanoMDMUserEnrollmentUsername(ctx, host.UUID)
+	if err != nil {
+		logger.Log("component", "service",
+			"method", "QueryFunc - macos config profiles", "err", err)
+		return "", false
+	}
+
 	if username != "" {
 		query += fmt.Sprintf(`
 			UNION
