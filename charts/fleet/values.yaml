@@ -189,7 +189,7 @@ database:
   address: 127.0.0.1:3306
   database: fleet
   username: fleet
-  passwordKey: password
+  passwordKey: mysql-password
   maxOpenConns: 50
   maxIdleConns: 50
   connMaxLifetime: 0
@@ -210,7 +210,7 @@ cache:
   database: "0"
   usePassword: false
   secretName: redis
-  passwordKey: password
+  passwordKey: redis-password
 
 ## Section: GKE
 # Settings that make running on Google Kubernetes Engine easier

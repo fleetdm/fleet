@@ -135,15 +135,40 @@ data:
     <base64-encoded-tls-key>
 ```
 
-The TLS Secret name should be configured in your:
-**Helm (values.yaml)**
-- Update `hostName` to match the `SAN` covered by your TLS secret (configured above)
-- Update `ingress` to match the details of `hostName` and the name of the secret that you've configured. In the example the secret name is `chart-example-tls`
+### Fleet Premium License
+
+If you have a Fleet premium license that you'd like to configure.
+
+- Create and apply secret for the fleet-license
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fleet-license
+  namespace: fleet
+type: Opaque
+stringData:
+  license-key: <license-key>
+```
+
+## Deployment
+
+While the examples below support ingress settings, they are limited to nginx. If you or your organization would like to use a specific ingress controller, they can be configured to handle and route traffic to the Fleet pods.
+
+#### Helm
+
+To configure preferences for Fleet for use in Helm, including secret names, MySQL and Redis hostnames, and TLS certificates, download the [values.yaml](https://raw.githubusercontent.com/fleetdm/fleet/main/charts/fleet/values.yaml) and change the settings to match your configuration.
+
+Please note you will need all dependencies configured prior to installing the Fleet Helm Chart as it will try and run database migrations immediately.
+
+- Update the `values.yaml` to include the details for the secret you've created containing your TLS certificate information.
+  - Update `hostName` to match the `SAN` covered by your TLS secret (configured above)
+  - Update `ingress` to match the details of `hostName` and the name of the secret that you've configured. In the example the secret name is `chart-example-tls`
 
 ```yaml
-hostName: fleet.localhost
-```
-```yaml
+hostName: chart-example.local
+...
 ingress:
   enabled: true
   className: ""
@@ -164,9 +189,76 @@ ingress:
         - chart-example.local
 ```
 
-**Terraform (fleet-terraform/k8s/example/main.tf)**
-- Update `hostname` to match the SAN covered by your TLS secret (configured above)
-- Update `ingress` to match the details of `hostname` and the name of the secret that you've configured. In the example the secret name is `chart-example-tls`
+- Update the `values.yaml` to include the details for the secret you've created containing the Fleet Premium license.
+```yaml
+...
+fleet:
+...
+  license:
+    secretName: fleet-license
+    licenseKey: license-key
+...
+```
+
+- Update `values.yaml` to include the details for MySQL
+```
+...
+## Section: database
+# All of the connection settings for MySQL
+database:
+  # Name of the Secret resource containing MySQL password and TLS secrets
+  secretName: mysql
+  address: fleet-database-mysql:3306
+  database: fleet
+  username: fleet
+  passwordKey: password
+  maxOpenConns: 50
+  maxIdleConns: 50
+  connMaxLifetime: 0
+  tls:
+    enabled: false
+    ## Commented options below are optional.  Uncomment to use.
+    # caCertKey: ca.cert
+    ## Client certificates require both the certKey and keyKey
+    # certKey: client.cert
+    # keyKey: client.key
+    config: ""
+    serverName: ""
+...    
+```
+
+- Update `values.yaml` to include the details for Redis
+```yaml
+...
+## Section: cache
+# All of the connection settings for Redis
+cache:
+  address: fleet-cache-redis-master:6379
+  database: "0"
+  usePassword: false
+  secretName: redis
+  passwordKey: redis-password
+...
+```
+
+Once you have those configured, run the following:
+
+```sh
+helm upgrade --install fleet fleet \
+  --repo https://fleetdm.github.io/fleet/charts \
+  --namespace <namespace> \
+  --values values.yaml
+```
+
+#### Terraform
+
+Let's start by cloning the [fleet-terraform repository](https://github.com/fleetdm/fleet-terraform).
+
+To configure preferences for Fleet for use in Terraform, including secret names, including secret names, MySQL and Redis hostnames, and TLS certificates, we'll be modifying `fleet-terraform/k8s/example/main.tf`.
+
+- Update the `main.tf` to include the details for the secret you've created containing your TLS certificate information.
+ - Update `hostname` to match the SAN covered by your TLS secret (configured above)
+ - Update `ingress` to match the details of `hostname` and the name of the secret that you've configured. In the example the secret name is `chart-example-tls`
 
 ```
 hostname = "chart-example.local"
@@ -193,52 +285,7 @@ ingress = {
 }
 ```
 
-### Fleet Premium License
-
-If you have a Fleet premium license that you'd like to configure.
-
-**Helm (values.yaml)**
-
-- Create and apply secret for the fleet-license
-```yaml
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: fleet-license
-  namespace: fleet
-type: Opaque
-stringData:
-  license-key: <license-key>
-```
-
-- Update the values.yaml to include the details for the secret you've created containing the Fleet Premium license.
-```
-...
-fleet:
-...
-  license:
-    secretName: fleet-license
-    licenseKey: license-key
-...
-```
-
-**Terraform (fleet-terraform/k8s/example/main.tf)**
-
-- Create and apply secret for the fleet-license
-```yaml
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: fleet-license
-  namespace: fleet
-type: Opaque
-stringData:
-  license-key: <license-key>
-```
-
-- Update the main.tf to include the details for the secret you've created containing the Fleet Premium license.
+- Update the `main.tf` to include the details for the secret you've created containing the Fleet Premium license.
 ```
 ...
     fleet = {
@@ -250,30 +297,45 @@ stringData:
 ...
 ```
 
-## Deployment
+- Update `main.tf` to include the details for MySQL
+```yaml
+...
+database = {
+    enabled = false
+    secret_name = "mysql"
+    address = "fleet-database-mysql:3306"
+    database = "fleet"
+    username = "fleet"
+    password_key = "password"
+    max_open_conns = 50
+    max_idle_conns = 50
+    conn_max_lifetime = 0
 
-While the examples below support ingress settings, they are limited to nginx. If you or your organization would like to use a specific ingress controller, they can be configured to handle and route traffic to the Fleet pods.
-
-#### Helm
-
-To configure preferences for Fleet for use in Helm, including secret names, MySQL and Redis hostnames, and TLS certificates, download the [values.yaml](https://raw.githubusercontent.com/fleetdm/fleet/main/charts/fleet/values.yaml) and change the settings to match your configuration.
-
-Please note you will need all dependencies configured prior to installing the Fleet Helm Chart as it will try and run database migrations immediately.
-
-Once you have those configured, run the following:
-
-```sh
-helm upgrade --install fleet fleet \
-  --repo https://fleetdm.github.io/fleet/charts \
-  --namespace <namespace> \
-  --values values.yaml
+    tls = {
+        enabled = false
+        config = ""
+        server_name = ""
+        ca_cert_key = ""
+        cert_key = ""
+        key_key = ""
+    }
+}
+...    
 ```
 
-#### Terraform
-
-Let's start by cloning the [fleet-terraform repository](https://github.com/fleetdm/fleet-terraform).
-
-To configure preferences for Fleet for use in Terraform, including secret names, including secret names, MySQL and Redis hostnames, and TLS certificates, we'll be modifying `fleet-terraform/k8s/example/main.tf`.
+- Update `main.tf` to include the details for Redis
+```yaml
+...
+  cache = {
+      enabled = false
+      address = "fleet-cache-redis-master:6379"
+      database = "0"
+      use_password = true
+      secret_name = "redis"
+      password_key = "password"
+  }
+...
+```
 
 Before you can leverage the Terraform module, you will need to modify the `main.tf` with your configuration preferences for Fleet and `provider.tf` with your KUBECONFIG details for authentication. The following [link to the kubernetes provider terraform docs](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/guides/getting-started.html) has examples documented for AWS EKS, GCP GKE, and Azure.
 
@@ -304,7 +366,7 @@ Once you have those configured, run the following:
   terraform apply
   ```
 
-I have a published [README.md](https://github.com/fleetdm/fleet-terraform/blob/tf-fleetk8s-support/k8s/README.md) with additional information and examples related to Fleet Kubernetes deployments through Terraform.
+I have a published [README.md](https://github.com/fleetdm/fleet-terraform/blob/main/k8s/README.md) with additional information and examples related to Fleet Kubernetes deployments through Terraform.
 
 ## Verify the Deployment
 
