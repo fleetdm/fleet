@@ -171,6 +171,20 @@ select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 
 - Discovery query:
 ```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles') AND NOT EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_user_profiles');
+```
+
+- Query:
+```sql
+SELECT display_name, identifier, install_date FROM macos_profiles WHERE type = "Configuration";
+```
+
+## mdm_config_profiles_darwin_with_user
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
 SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles') AND EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_user_profiles')
 ```
 
