@@ -2,15 +2,21 @@ package scep
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
 	_ "embed"
 	"encoding/pem"
+	"io"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
@@ -29,6 +35,8 @@ const (
 // TestNewClientValidation tests the validation of parameters in the NewClient function
 func TestNewClientValidation(t *testing.T) {
 	certDir := t.TempDir()
+	testTEEDevice, err := newTestTEE()
+	require.NoError(t, err, "Failed to create test TEE")
 
 	// Define test cases
 	testCases := []struct {
@@ -40,6 +48,7 @@ func TestNewClientValidation(t *testing.T) {
 		{
 			name: "missing common name",
 			options: []Option{
+				WithTEE(testTEEDevice),
 				WithURL("https://example.com/scep"),
 				WithChallenge("test-challenge"),
 				WithCertDestDir(certDir),
@@ -51,6 +60,7 @@ func TestNewClientValidation(t *testing.T) {
 		{
 			name: "missing URL",
 			options: []Option{
+				WithTEE(testTEEDevice),
 				WithURL(""),
 				WithChallenge("test-challenge"),
 				WithCertDestDir(certDir),
@@ -62,6 +72,7 @@ func TestNewClientValidation(t *testing.T) {
 		{
 			name: "missing cert destination directory",
 			options: []Option{
+				WithTEE(testTEEDevice),
 				WithURL("https://example.com/scep"),
 				WithChallenge("test-challenge"),
 				WithCertDestDir(""),
@@ -71,8 +82,21 @@ func TestNewClientValidation(t *testing.T) {
 			errorMsg:    "should fail with empty certDestDir",
 		},
 		{
+			name: "missing TEE",
+			options: []Option{
+				WithURL("https://example.com/scep"),
+				WithChallenge("test-challenge"),
+				WithCertDestDir(certDir),
+				WithCommonName("test-device"),
+				WithTimeout(5 * time.Second),
+			},
+			expectError: true,
+			errorMsg:    "should fail without TEE",
+		},
+		{
 			name: "all required parameters",
 			options: []Option{
+				WithTEE(testTEEDevice),
 				WithURL("https://example.com/scep"),
 				WithChallenge("test-challenge"),
 				WithCertDestDir(certDir),
@@ -112,8 +136,13 @@ func TestClient_FetchAndSaveCert(t *testing.T) {
 		// Create a temporary directory for storing certificates
 		certDir := t.TempDir()
 
+		// Create test TEE implementation
+		testTEEDevice, err := newTestTEE()
+		require.NoError(t, err, "Failed to create test TEE")
+
 		// Create a SCEP client with all required parameters
 		client, err := NewClient(
+			WithTEE(testTEEDevice),
 			WithURL(scepServer.URL+"/scep"),
 			WithChallenge(challengePassword),
 			WithCertDestDir(certDir),
@@ -129,15 +158,12 @@ func TestClient_FetchAndSaveCert(t *testing.T) {
 		err = client.FetchAndSaveCert(ctx)
 		require.NoError(t, err, "FetchAndSaveCert should succeed")
 
-		// Verify that the certificate and key files were created
+		// Verify that the certificate file was created
 		certPath := filepath.Join(certDir, constant.FleetTLSClientCertificateFileName)
-		keyPath := filepath.Join(certDir, constant.FleetTLSClientKeyFileName)
 
-		// Check if files exist
+		// Check if the certificate file exists
 		_, err = os.Stat(certPath)
 		require.NoError(t, err, "Certificate file should exist")
-		_, err = os.Stat(keyPath)
-		require.NoError(t, err, "Key file should exist")
 
 		// Verify certificate content
 		certData, err := os.ReadFile(certPath)
@@ -153,20 +179,22 @@ func TestClient_FetchAndSaveCert(t *testing.T) {
 		// Verify the certificate has the correct ExtKeyUsage
 		assert.Contains(t, cert.ExtKeyUsage, x509.ExtKeyUsageClientAuth, "Certificate should have ExtKeyUsageClientAuth")
 
-		// Verify key content
-		keyData, err := os.ReadFile(keyPath)
-		require.NoError(t, err, "Should be able to read key file")
-		keyBlock, _ := pem.Decode(keyData)
-		require.NotNil(t, keyBlock, "Key should be in PEM format")
-		require.Equal(t, "RSA PRIVATE KEY", keyBlock.Type, "Key block type should be RSA PRIVATE KEY")
+		// Verify the certificate was signed by the CA (the CA in our test uses RSA)
+		// The CSR was signed with our ECC key, but the final certificate is signed by the CA
+		assert.Equal(t, x509.SHA256WithRSA, cert.SignatureAlgorithm, "Certificate should be signed by CA with RSA")
 	})
 
 	t.Run("bad challenge password", func(t *testing.T) {
 		// Create a temporary directory for storing certificates
 		certDir := t.TempDir()
 
+		// Create test TEE implementation
+		testTEEDevice, err := newTestTEE()
+		require.NoError(t, err, "Failed to create test TEE")
+
 		// Create a SCEP client with all required parameters
 		client, err := NewClient(
+			WithTEE(testTEEDevice),
 			WithURL(scepServer.URL+"/scep"),
 			WithChallenge("BAD"),
 			WithCertDestDir(certDir),
@@ -178,7 +206,6 @@ func TestClient_FetchAndSaveCert(t *testing.T) {
 		err = client.FetchAndSaveCert(t.Context())
 		assert.ErrorContains(t, err, "PKIMessage CSR request failed", "FetchAndSaveCert should fail with bad challenge password")
 	})
-
 }
 
 //go:embed testdata/ca.crt
@@ -234,4 +261,70 @@ func StartTestSCEPServer(t *testing.T) *httptest.Server {
 	}
 	scepServer := newSCEPServer(t)
 	return scepServer
+}
+
+// testTEE implements the TEE interface for testing purposes using in-memory ECC P-384 keys
+type testTEE struct {
+	key *ecdsa.PrivateKey
+}
+
+// testKey implements the Key interface for testing
+type testKey struct {
+	key *ecdsa.PrivateKey
+}
+
+// testSigner implements crypto.Signer for testing
+type testSigner struct {
+	key *ecdsa.PrivateKey
+}
+
+// newTestTEE creates a new test TEE implementation with an ECC P-384 key
+func newTestTEE() (*testTEE, error) {
+	// Create ECC P-384 key in memory
+	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return &testTEE{key: key}, nil
+}
+
+// CreateKey implements TEE.CreateKey
+func (t *testTEE) CreateKey(_ context.Context) (tee.Key, error) {
+	return &testKey{key: t.key}, nil
+}
+
+// LoadKey implements TEE.LoadKey
+func (t *testTEE) LoadKey(_ context.Context) (tee.Key, error) {
+	return &testKey{key: t.key}, nil
+}
+
+// Close implements TEE.Close
+func (t *testTEE) Close() error {
+	return nil
+}
+
+// Signer implements Key.Signer
+func (k *testKey) Signer() (crypto.Signer, error) {
+	return &testSigner{key: k.key}, nil
+}
+
+// Public implements Key.Public
+func (k *testKey) Public() (crypto.PublicKey, error) {
+	return &k.key.PublicKey, nil
+}
+
+// Close implements Key.Close
+func (k *testKey) Close() error {
+	return nil
+}
+
+// Public implements crypto.Signer.Public
+func (s *testSigner) Public() crypto.PublicKey {
+	return &s.key.PublicKey
+}
+
+// Sign implements crypto.Signer.Sign
+func (s *testSigner) Sign(rand io.Reader, digest []byte, _ crypto.SignerOpts) ([]byte, error) {
+	return ecdsa.SignASN1(rand, s.key, digest)
 }

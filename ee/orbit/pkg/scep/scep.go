@@ -22,20 +22,18 @@ import (
 	"github.com/smallstep/scep/x509util"
 )
 
-const (
-	rsaKeySize = 4096
-)
-
 // Client fetches a certificate using SCEP protocol.
 // SCEP protocol overview: https://www.cisco.com/c/en/us/support/docs/security-vpn/public-key-infrastructure-pki/116167-technote-scep-00.html
 type Client struct {
+	// teeDevice is a TPM/TEE device which will hold the private key of the cert
+	teeDevice tee.TEE
 	// commonName is the CN of the certificate request (required)
 	commonName string
 	// scepChallenge: SCEP challenge password, which could be static or dynamic.
 	scepChallenge string
-	// scepUrl: The URL of the SCEP server which supports the SCEP protocol (required)
-	scepUrl string
-	// certDestDir: The destination directory where retrieved cert and its private key will be saved (required)
+	// scepURL: The URL of the SCEP server which supports the SCEP protocol (required)
+	scepURL string
+	// certDestDir: The destination directory where retrieved cert will be saved (required)
 	certDestDir string
 	timeout     time.Duration
 	logger      zerolog.Logger
@@ -43,6 +41,12 @@ type Client struct {
 
 // Option is a functional option for configuring a SCEP Client
 type Option func(*Client)
+
+func WithTEE(tee tee.TEE) Option {
+	return func(c *Client) {
+		c.teeDevice = tee
+	}
+}
 
 // WithLogger sets the logger for the Client
 func WithLogger(logger zerolog.Logger) Option {
@@ -61,7 +65,7 @@ func WithChallenge(challenge string) Option {
 // WithURL sets the SCEP server URL
 func WithURL(url string) Option {
 	return func(c *Client) {
-		c.scepUrl = url
+		c.scepURL = url
 	}
 }
 
@@ -100,7 +104,7 @@ func NewClient(opts ...Option) (*Client, error) {
 
 	// Check that required options are set.
 	// SCEP challenge is optional since the SCEP server could allow an empty challenge.
-	if c.scepUrl == "" || c.certDestDir == "" || c.commonName == "" {
+	if c.scepURL == "" || c.certDestDir == "" || c.commonName == "" || c.teeDevice == nil {
 		return nil, errors.New("required SCEP client options not set")
 	}
 
@@ -112,7 +116,7 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 	// We assume the required fields have already been validated by the NewClient factory.
 
 	kitLogger := &zerologAdapter{logger: c.logger}
-	scepClient, err := scepclient.New(c.scepUrl, kitLogger, &c.timeout)
+	scepClient, err := scepclient.New(c.scepURL, kitLogger, &c.timeout)
 	if err != nil {
 		return fmt.Errorf("create SCEP client: %w", err)
 	}
@@ -128,20 +132,20 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 
 	// Initialize TEE (TPM 2.0 on Linux)
 	// TODO: These paths should be configurable
-	publicBlobPath := filepath.Join(c.certDestDir, "tpm_public.blob")
-	privateBlobPath := filepath.Join(c.certDestDir, "tpm_private.blob")
-	teeDevice, err := tee.NewTPM2(
-		tee.WithLogger(c.logger),
-		tee.WithPublicBlobPath(publicBlobPath),
-		tee.WithPrivateBlobPath(privateBlobPath),
-	)
-	if err != nil {
-		return fmt.Errorf("initialize TEE: %w", err)
-	}
-	defer teeDevice.Close()
+	// publicBlobPath := filepath.Join(c.certDestDir, "tpm_public.blob")
+	// privateBlobPath := filepath.Join(c.certDestDir, "tpm_private.blob")
+	// teeDevice, err := tee.NewTPM2(
+	// 	tee.WithLogger(c.logger),
+	// 	tee.WithPublicBlobPath(publicBlobPath),
+	// 	tee.WithPrivateBlobPath(privateBlobPath),
+	// )
+	// if err != nil {
+	// 	return fmt.Errorf("initialize TEE: %w", err)
+	// }
+	// defer teeDevice.Close()
 
-	// Create ECC key in TEE for signing (automatically selects best ECC curve)
-	teeKey, err := teeDevice.CreateKey(ctx)
+	// Create a key in TEE for signing
+	teeKey, err := c.teeDevice.CreateKey(ctx)
 	if err != nil {
 		return fmt.Errorf("create TEE key: %w", err)
 	}
@@ -163,7 +167,7 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 		return fmt.Errorf("generate temporary RSA key: %w", err)
 	}
 
-	// Determine signature algorithm based on key type
+	// Determine signature algorithm based on the key type
 	var sigAlg x509.SignatureAlgorithm
 	switch publicKey.(type) {
 	case *ecdsa.PublicKey:
@@ -194,8 +198,9 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 		return fmt.Errorf("parse CSR: %w", err)
 	}
 
-	// Create a self-signed certificate for client authentication using the temporary RSA key
-	// This certificate will be used for SCEP envelope decryption
+	// Create a self-signed certificate for SCEP protocol using the temporary RSA key
+	// The SCEP protocol requires RSA for both signing and decryption
+	// The actual CSR will be signed with the ECC key from TEE
 	deviceCertificateTemplate := x509.Certificate{
 		Subject: pkix.Name{
 			CommonName:   c.commonName,
@@ -225,10 +230,12 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 	}
 
 	// Send PKCSReq message to SCEP server
+	// Use RSA key for SCEP protocol (signing and decryption)
+	// The CSR itself was already signed with the ECC key from TEE
 	pkiMsgReq := &scep.PKIMessage{
 		MessageType: scep.PKCSReq,
 		Recipients:  caCert,
-		SignerKey:   teeSigner,
+		SignerKey:   tempRSAKey, // Use RSA key for SCEP protocol
 		SignerCert:  deviceCertificateForRequest,
 		CSRReqMessage: &scep.CSRReqMessage{
 			ChallengePassword: c.scepChallenge,
@@ -259,16 +266,7 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 		return fmt.Errorf("decrypt PKI envelope: %w", err)
 	}
 
-	// Save the certificate and TEE key context (the ECC signing key)
-	cert := pkiMsgResp.CertRepMessage.Certificate
-
-	// Marshal the TEE key context (this is the ECC key we want to save for signing)
-	keyContext, err := teeKey.Marshal()
-	if err != nil {
-		return fmt.Errorf("marshal TEE key: %w", err)
-	}
-
-	if err := c.saveCertAndTEEKey(cert, keyContext); err != nil {
+	if err := c.saveCert(pkiMsgResp.CertRepMessage.Certificate); err != nil {
 		return fmt.Errorf("save cert and TEE key: %w", err)
 	}
 
@@ -276,8 +274,8 @@ func (c *Client) FetchAndSaveCert(ctx context.Context) error {
 	return nil
 }
 
-// saveCertAndTEEKey saves the certificate and TEE key context to the certDestDir
-func (c *Client) saveCertAndTEEKey(cert *x509.Certificate, keyContext []byte) error {
+// saveCert saves the certificate and TEE key context to the certDestDir
+func (c *Client) saveCert(cert *x509.Certificate) error {
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(c.certDestDir, 0o755); err != nil {
 		return fmt.Errorf("create cert directory: %w", err)
@@ -298,26 +296,9 @@ func (c *Client) saveCertAndTEEKey(cert *x509.Certificate, keyContext []byte) er
 		return fmt.Errorf("encode cert: %w", err)
 	}
 
-	// Save the TEE key context
-	keyPath := filepath.Join(c.certDestDir, constant.FleetTLSClientKeyFileName)
-	keyFile, err := os.OpenFile(keyPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
-	if err != nil {
-		return fmt.Errorf("create key file: %w", err)
-	}
-	defer keyFile.Close()
-
-	// Save TEE key context as PEM
-	if err := pem.Encode(keyFile, &pem.Block{
-		Type:  "TEE KEY CONTEXT",
-		Bytes: keyContext,
-	}); err != nil {
-		return fmt.Errorf("encode TEE key context: %w", err)
-	}
-
 	c.logger.Info().
 		Str("cert_path", certPath).
-		Str("key_path", keyPath).
-		Msg("Saved certificate and TEE key context")
+		Msg("Saved certificate")
 
 	return nil
 }

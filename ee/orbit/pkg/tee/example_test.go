@@ -1,3 +1,5 @@
+//go:build linux
+
 package tee_test
 
 import (
@@ -14,6 +16,8 @@ import (
 )
 
 func TestExampleTEE(t *testing.T) {
+	t.Skip("For local development only, with a TPM.")
+
 	// Create a logger
 	logger := zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
 
@@ -94,31 +98,3 @@ func TestExampleTEE(t *testing.T) {
 	})
 
 }
-
-//func ExampleKey_Decrypter() {
-//	// Create a logger
-//	logger := zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
-//
-//	// Initialize TEE
-//	teeDevice, err := tee.NewTPM2(
-//		tee.WithLogger(logger),
-//		tee.WithPublicBlobPath("/tmp/tpm_public2.blob"),
-//		tee.WithPrivateBlobPath("/tmp/tpm_private2.blob"),
-//	)
-//	if err != nil {
-//		log.Fatalf("Failed to initialize TEE: %v", err)
-//	}
-//	defer teeDevice.Close()
-//
-//	// Create a key
-//	ctx := context.Background()
-//	key, err := teeDevice.CreateKey(ctx)
-//	if err != nil {
-//		log.Fatalf("Failed to create key: %v", err)
-//	}
-//	defer key.Close()
-//
-//	// Note: ECC keys don't support decryption operations
-//	// The Decrypter interface has been removed since ECC keys don't support decryption
-//	fmt.Println("ECC key created successfully (decryption not supported)")
-//}
