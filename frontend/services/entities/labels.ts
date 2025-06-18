@@ -15,11 +15,12 @@ export interface ILabelsSummaryResponse {
   labels: ILabelSummary[];
 }
 
+interface ICreateLabelBody {}
 export interface ICreateLabelResponse {
   label: ILabel;
 }
 export type IUpdateLabelResponse = ICreateLabelResponse;
-export type IGetLabelResonse = ICreateLabelResponse;
+export type IGetLabelResponse = ICreateLabelResponse;
 
 export interface IGetHostsInLabelResponse {
   hosts: IHost[];
@@ -117,7 +118,7 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getLabel: (labelId: number): Promise<IGetLabelResonse> => {
+  getLabel: (labelId: number): Promise<IGetLabelResponse> => {
     const { LABEL } = endpoints;
     return sendRequest("GET", LABEL(labelId));
   },
