@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmwarepasswd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ioreg"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/macos_user_profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
@@ -61,6 +62,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("corestorage_logical_volume_families", corestorage.LogicalVolumeFamiliesColumns(), corestorage.LogicalVolumeFamiliesGenerate),
 		table.NewPlugin("filevault_prk", filevault_prk.Columns(), filevault_prk.Generate),
 		table.NewPlugin("find_cmd", find_cmd.Columns(), find_cmd.Generate),
+		table.NewPlugin("macos_user_profiles", macos_user_profiles.Columns(), macos_user_profiles.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
