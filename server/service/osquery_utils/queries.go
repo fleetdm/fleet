@@ -743,10 +743,13 @@ var extraDetailQueries = map[string]DetailQuery{
 // configured
 var mdmQueries = map[string]DetailQuery{
 	"mdm_config_profiles_darwin": {
-		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";`,
+		QueryFunc:        buildConfigProfilesMacOSQuery,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestMacOSProfiles,
-		Discovery:        discoveryTable("macos_profiles"),
+		Discovery: generateSQLForAllExists(
+			discoveryTable("macos_profiles"),
+			discoveryTable("macos_user_profiles"),
+		),
 	},
 	"mdm_config_profiles_windows": {
 		QueryFunc:        buildConfigProfilesWindowsQuery,
@@ -2054,6 +2057,36 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	}
 
 	return ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64Key, "", decryptable)
+}
+
+func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+	query := `
+		SELECT
+			display_name,
+			identifier,
+			install_date
+		FROM
+			macos_profiles
+		WHERE
+			type = "Configuration"`
+
+	var username string
+	// TODO: load user-channel short username if available...
+	if username != "" {
+		query += fmt.Sprintf(`
+			UNION
+
+			SELECT
+				display_name,
+				identifier,
+				install_date
+			FROM
+				macos_user_profiles
+			WHERE
+				username = %q AND
+				type = "Configuration"`, username)
+	}
+	return query, true
 }
 
 func directIngestMacOSProfiles(
