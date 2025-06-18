@@ -144,6 +144,7 @@ spec:
           {{- end }}
           ## END MYSQL SECTION
           ## BEGIN MYSQL READ REPLICA SECTION
+          {{- if .Values.database_read_replica }}
           {{- if .Values.database_read_replica.address }}
           - name: FLEET_MYSQL_READ_REPLICA_ADDRESS
             value: "{{ .Values.database_read_replica.address }}"
@@ -199,6 +200,7 @@ spec:
           {{- if .Values.database_read_replica.tls.serverName }}
           - name: FLEET_MYSQL_READ_REPLICA_TLS_SERVER_NAME
             value: "{{ .Values.database_read_replica.tls.serverName }}"
+          {{- end }}
           {{- end }}
           {{- end }}
           ## END MYSQL READ REPLICA SECTION
