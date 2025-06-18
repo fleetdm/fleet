@@ -108,6 +108,9 @@ func NewClient(opts ...Option) (*Client, error) {
 		return nil, errors.New("required SCEP client options not set")
 	}
 
+	// Set up logger with component tag
+	c.logger = c.logger.With().Str("component", "scep").Logger()
+
 	return c, nil
 }
 
