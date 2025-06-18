@@ -42,7 +42,7 @@ const DynamicLabel = ({
               team_id:
                 currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
                   ? API_ALL_TEAMS_ID
-                  : currentTeam?.id || API_ALL_TEAMS_ID,
+                  : currentTeam?.id,
             })
           );
           renderFlash("success", "Label added successfully.");
