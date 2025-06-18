@@ -212,3 +212,5 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
 export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {
   return { ...DEFAULT_CONFIG_MOCK, ...overrides };
 };
+
+export default createMockConfig;
