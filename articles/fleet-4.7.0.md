@@ -1,5 +1,9 @@
 # Does Fleet 4.7.0 bring more power to your osquery compliance policies? Yes.
 
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/HxBQvlV14Lc?si=VLYS7QxPuP3TLbjG" frameborder="0" allowfullscreen></iframe>
+</div>
+
 ![Fleet 4.7.0](../website/assets/images/articles/fleet-4.7.0-cover-1600x900@2x.jpg)
 
 We’ve been working hard this month to improve how policies are handled within Fleet and continue towards our goal of making the power of osquery more easily accessible to our less-technical users — we hear you, knowing what you want to ask your devices is one thing, but creating effective queries with SQL can sometimes = 🤯
