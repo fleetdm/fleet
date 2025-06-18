@@ -755,6 +755,15 @@ Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses de
 3. In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
 
 
+### E-group meetings
+
+Once every three weeks, the CEO will meet with the department heads (Head of Product Design, CTO, CRO, CFO, VP of Customer Success, and Head of Digital Expereince) for 30 minutes. If one of the department heads cannot make it, the meeting will be rescheduled (either a different time of the day or sometime during the same week asap by the Apprentice). 
+
+On weeks where a full E-group meeting takes place (e.g. OKR brainstorming), it will be held after the E-group roundup from 3-5pm CT. 
+
+The agenda, [¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit?tab=t.0), will be used for all E-group meetings where prepping for the E-group roundup will happen weekly. 
+
+
 ### Process and backup E-group agenda 
 
 Follow these steps to process and backup the E-group agenda: 
