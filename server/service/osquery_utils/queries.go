@@ -743,6 +743,12 @@ var extraDetailQueries = map[string]DetailQuery{
 // configured
 var mdmQueries = map[string]DetailQuery{
 	"mdm_config_profiles_darwin": {
+		Query:            `SELECT display_name, identifier, install_date FROM macos_profiles WHERE type = "Configuration";`,
+		Platforms:        []string{"darwin"},
+		DirectIngestFunc: directIngestMacOSProfiles,
+		Discovery:        fmt.Sprintf(`SELECT 1 WHERE EXISTS (%s) AND NOT EXISTS (%s);`, discoveryTable("macos_profiles"), discoveryTable("macos_user_profiles")),
+	},
+	"mdm_config_profiles_darwin_with_user": {
 		QueryFunc:        buildConfigProfilesMacOSQuery,
 		Platforms:        []string{"darwin"},
 		DirectIngestFunc: directIngestMacOSProfiles,
