@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
+	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -66,11 +67,6 @@ const (
 	logErrorMissingExecMsg       logError = "bad desktop executable"
 	logErrorMissingDomainSubstr  logError = "Domain=OSLaunchdErrorDomain Code=112"
 	logErrorMissingDomainMsg     logError = "missing specified domain"
-
-	mTLSSCEPChallengeFlag   = "fleet-mtls-challenge"
-	mTLSSCEPChallengeEnvVar = "ORBIT_FLEET_MTLS_CHALLENGE"
-	mTLSSCEPUrlFlag         = "fleet-mtls-scep-url"
-	mTLSSCEPUrlEnvVar       = "ORBIT_FLEET_MTLS_SCEP_URL"
 )
 
 func main() {
@@ -226,16 +222,6 @@ func main() {
 			Name:    "osquery-db",
 			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
-		},
-		&cli.StringFlag{
-			Name:    mTLSSCEPChallengeFlag,
-			Usage:   "Sets the SCEP challenge for requesting the mTLS client certificate.",
-			EnvVars: []string{mTLSSCEPChallengeEnvVar},
-		},
-		&cli.StringFlag{
-			Name:    mTLSSCEPUrlFlag,
-			Usage:   "Sets the SCEP URL for requesting the mTLS client certificate.",
-			EnvVars: []string{mTLSSCEPUrlEnvVar},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -929,31 +915,64 @@ func main() {
 		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
 		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
 		var fleetClientCrt *certificate.Certificate
-		loadCertificatesForMTLS := func() error {
-			fleetClientCrt, err = certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
-			return err
+		// TODO: re-enable MTLS support
+		// loadCertificatesForMTLS := func() error {
+		// 	fleetClientCrt, err = certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+		// 	return err
+		// }
+		// if err = loadCertificatesForMTLS(); err != nil {
+		// 	return fmt.Errorf("error loading fleet client certificate: %w", err)
+		// }
+
+		// TODO: Add --fleet-managed-client-certificate option
+		// Initialize TPM 2.0 device for hardware-based cryptography
+		teeDevice, err := tee.NewTPM2(
+			// Enable detailed logging for TPM operations
+			tee.WithLogger(log.Logger),
+
+			// Specify paths for storing TPM key blobs
+			// These files will contain the encrypted key material that can only be used by this TPM
+			tee.WithPublicBlobPath(filepath.Join(c.String("root-dir"), "tpm_cms_pub.blob")),
+			tee.WithPrivateBlobPath(filepath.Join(c.String("root-dir"), "tpm_cms_priv.blob")),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to initialize TPM: %w", err)
 		}
-		if err = loadCertificatesForMTLS(); err != nil {
-			return fmt.Errorf("error loading fleet client certificate: %w", err)
+		defer teeDevice.Close()
+		// Check whether we need to request a new cert.
+		key, err := teeDevice.LoadKey(c.Context)
+		var keyFound bool
+		if err != nil {
+			// TODO: Don't use errors for flow control.
+			log.Info().Err(err).Msg("No key found in TPM. Generating a new key.")
+		} else {
+			keyFound = true
+			log.Info().Msg("Key found in TPM. Using it.")
 		}
 
-		// Check whether we need to request a new cert.
-		if fleetClientCrt == nil && c.String(mTLSSCEPUrlFlag) != "" {
+		if !keyFound {
 			client, err := scep.NewClient(
-				scep.WithURL(c.String(mTLSSCEPUrlFlag)),
-				scep.WithChallenge(c.String(mTLSSCEPChallengeFlag)),
+				scep.WithTEE(teeDevice),
+				scep.WithLogger(log.Logger),
+				scep.WithURL(fleetURL+"/api/fleet/orbit/scep"),
+				scep.WithChallenge(c.String("enroll-secret")),
 				scep.WithCertDestDir(c.String("root-dir")),
-				scep.WithCommonName(osqueryHostInfo.HardwareUUID))
+				scep.WithCommonName(fmt.Sprintf("host-%s-%s", osqueryHostInfo.HardwareUUID, osqueryHostInfo.HardwareSerial)),
+			)
 			if err != nil {
 				return fmt.Errorf("error creating scep client: %w", err)
 			}
 			if err = client.FetchAndSaveCert(c.Context); err != nil {
 				return fmt.Errorf("error fetching and saving SCEP cert: %w", err)
 			}
-			// Once we have a new mTLS client certificate, we need to load it again.
-			if err = loadCertificatesForMTLS(); err != nil {
-				return fmt.Errorf("error loading fleet client certificate: %w", err)
+			key, err = teeDevice.LoadKey(c.Context)
+			if err != nil {
+				return fmt.Errorf("error loading key: %w", err)
 			}
+		}
+		if key != nil {
+			log.Info().Msg("Key from TPM is valid.")
+			defer key.Close()
 		}
 
 		var fleetClientCertificate *tls.Certificate
