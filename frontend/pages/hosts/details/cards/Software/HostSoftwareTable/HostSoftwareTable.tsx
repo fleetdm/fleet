@@ -9,7 +9,6 @@ import { QueryParams } from "utilities/url";
 import {
   buildSoftwareVulnFiltersQueryParams,
   getVulnFilterRenderDetails,
-  IHostSoftwareDropdownFilterVal,
   ISoftwareVulnFiltersParams,
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
@@ -23,12 +22,9 @@ import {
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { SingleValue } from "react-select-5";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
@@ -83,45 +79,6 @@ const HostSoftwareTable = ({
   isMyDevicePage,
   onShowSoftwareDetails,
 }: IHostSoftwareTableProps) => {
-  const handleFilterDropdownChange = useCallback(
-    (selectedFilter: SingleValue<CustomOptionType>) => {
-      const newParams: QueryParams = {
-        query: searchQuery,
-        order_key: sortHeader,
-        order_direction: sortDirection,
-        page: 0,
-        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
-      };
-
-      if (selectedFilter?.value === "installableSoftware") {
-        newParams.available_for_install = true.toString();
-      }
-      const nextPath = getNextLocationPath({
-        pathPrefix,
-        routeTemplate,
-        queryParams: newParams,
-      });
-
-      const prevYScroll = window.scrollY;
-      setTimeout(() => {
-        window.scroll({
-          top: prevYScroll,
-          behavior: "smooth",
-        });
-      }, 0);
-      router.replace(nextPath);
-    },
-    [
-      pathPrefix,
-      routeTemplate,
-      router,
-      searchQuery,
-      sortDirection,
-      sortHeader,
-      vulnFilters,
-    ]
-  );
-
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
