@@ -229,7 +229,9 @@ spec:
               {{- if .Values.fleet.securityContext.runAsUser }}
               runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
               {{- end }}
-              runAsNonRoot: true
+              {{- if .Values.fleet.securityContext.runAsNonRoot }}
+              runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+              {{- end }}
             volumeMounts:
               - name: tmp
                 mountPath: /tmp
@@ -264,7 +266,9 @@ spec:
               {{- if .Values.fleet.securityContext.runAsUser }}
               runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
               {{- end }}
-              runAsNonRoot: true
+              {{- if .Values.fleet.securityContext.runAsNonRoot }}
+              runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+              {{- end }}
           {{- end }}
           {{- with .Values.imagePullSecrets }}
           imagePullSecrets:

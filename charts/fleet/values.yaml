@@ -107,8 +107,9 @@ fleet:
     licenseKey: license-key
   extraVolumes: []
   extraVolumeMounts: []
-  # Currently only passes runAsUser and runAsGroup
+  # Currently only passes runAsNonRoot, runAsUser, runAsGroup
   securityContext:
+    runAsNonRoot: true
     runAsUser: 3333
     runAsGroup: 3333
 # Whether to make fleet vulnerability processing run in a dedicated container

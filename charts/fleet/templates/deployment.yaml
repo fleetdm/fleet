@@ -367,7 +367,9 @@ spec:
           {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
           {{- end }}
-          runAsNonRoot: true
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -430,7 +432,9 @@ spec:
           {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
           {{- end }}
-          runAsNonRoot: true
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
       {{- end }}
       hostPID: false
       hostNetwork: false
