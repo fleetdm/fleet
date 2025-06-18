@@ -59,7 +59,29 @@ html, body {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 500ms;
 }
-
+[purpose='announcement-banner'] {
+  br {
+    display: none;
+    @media (max-width: 375px) {
+      display: block;
+    }
+  }
+  display: flex;
+  width: 100%;
+  padding: 12px 8px;
+  justify-content: center;
+  align-items: center;
+  background: #0587FF;
+  color: var(--color-brand-white, #FFF);
+  font-family: Inter;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+  [parasails-component='animated-arrow-button'] {
+    padding: 0;
+  }
+}
 [purpose='continue-banner'] {
   z-index: 198;
   position: fixed;
