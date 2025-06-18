@@ -1,12 +1,10 @@
-import React, { useState, useRef, useEffect } from "react";
+import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
 import {
   IHostAppStoreApp,
   IHostSoftware,
-  IHostSoftwarePackage,
-  SoftwareInstallStatus,
   SoftwareSource,
   formatSoftwareType,
 } from "interfaces/software";
@@ -20,8 +18,8 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
+import InstallerActionCell from "./InstallerActionCell";
 import InstallStatusCell from "../Software/InstallStatusCell";
-import InstallerActionCell from "./InstallerActionCell/InstallerActionCell";
 
 export const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
   { value: "showDetails", label: "Show details", disabled: false },

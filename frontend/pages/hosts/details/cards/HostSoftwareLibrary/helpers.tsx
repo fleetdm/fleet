@@ -31,7 +31,6 @@ const showAPIMessage = (message: string) => {
   );
 };
 
-// eslint-disable-next-line import/prefer-default-export
 export const getInstallErrorMessage = (e: unknown) => {
   const reason = upperFirst(trimEnd(getErrorReason(e), "."));
 
@@ -48,7 +47,6 @@ export const getInstallErrorMessage = (e: unknown) => {
   return DEFAULT_INSTALL_ERROR_MESSAGE;
 };
 
-// eslint-disable-next-line import/prefer-default-export
 export const getUninstallErrorMessage = (e: unknown) => {
   const reason = upperFirst(trimEnd(getErrorReason(e), "."));
 
