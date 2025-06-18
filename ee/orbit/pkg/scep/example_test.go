@@ -16,6 +16,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const (
+	scepURL       = "https://example.com/scep"
+	scepChallenge = "challenge"
+	commonName    = "fleet-device"
+)
+
 // ExampleClient_FetchAndSaveCert demonstrates how to use the SCEP client
 // to obtain a certificate from an external SCEP server using a challenge password
 // with actual TPM hardware for secure key operations.
@@ -30,17 +36,18 @@ import (
 // - SCEP server URL and challenge password
 // - Write permissions to certificate directory
 func TestExampleSCEPWithTPM(t *testing.T) {
-	t.Skip("For local development only, with a TPM.")
+	// t.Skip("For local development only, with a TPM.")
 
 	// Create a logger for monitoring the enrollment process
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	// Create a directory for storing certificates and TPM key blobs
-	certDir, err := os.MkdirTemp("", "scep_tpm_example")
-	if err != nil {
-		log.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(certDir)
+	//certDir, err := os.MkdirTemp("", "scep_tpm_example")
+	//if err != nil {
+	//	log.Fatalf("Failed to create temp dir: %v", err)
+	//}
+	//defer os.RemoveAll(certDir)
+	certDir := "./victor"
 
 	// Initialize TPM 2.0 device for hardware-based cryptography
 	// The TPM will automatically select the best ECC curve (P-384 preferred, P-256 fallback)
@@ -65,19 +72,19 @@ func TestExampleSCEPWithTPM(t *testing.T) {
 
 		// Required: SCEP server URL
 		// Replace with your actual SCEP server endpoint
-		scep.WithURL("https://your-scep-server.example.com/scep"),
+		scep.WithURL(scepURL),
 
 		// Required: Challenge password for SCEP authentication
 		// This is typically provided by your SCEP server administrator
 		// In production, consider using environment variables: os.Getenv("SCEP_CHALLENGE")
-		scep.WithChallenge("your-challenge-password-here"),
+		scep.WithChallenge(scepChallenge),
 
 		// Required: Directory where the certificate will be saved
 		scep.WithCertDestDir(certDir),
 
 		// Required: Common name for the certificate
 		// This should uniquely identify your device/client
-		scep.WithCommonName("fleet-device-001"),
+		scep.WithCommonName(commonName),
 
 		// Optional: Logger for debugging and monitoring
 		scep.WithLogger(logger),
