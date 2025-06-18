@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -1772,7 +1773,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 //
 // After aggregation, it cleans up unused software (e.g. software installed
 // on removed hosts, software uninstalled on hosts, etc.)
-func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error {
+func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time, logger kitlog.Logger) error {
 	const (
 		resetStmt = `
       UPDATE software_host_counts
@@ -1866,7 +1867,10 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		return ctxerr.Wrap(ctx, err, "get min/max software_id")
 	}
 
+	level.Info(logger).Log("min_id", minMax.Min, "max_id", minMax.Max)
+
 	for minSoftwareID, maxSoftwareID := minMax.Min-1, minMax.Min-1+countHostSoftwareBatchSize; minSoftwareID < minMax.Max; minSoftwareID, maxSoftwareID = maxSoftwareID, maxSoftwareID+countHostSoftwareBatchSize {
+		level.Info(logger).Log("batch_minimum", minSoftwareID, "batch_maximum", maxSoftwareID)
 
 		// next get a cursor for the global and team counts for each software
 		stmtLabel := []string{"global", "team", "noteam"}
@@ -1895,6 +1899,8 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 					return ctxerr.Wrapf(ctx, err, "scan %s row into variables", stmtLabel[i])
 				}
 
+				level.Info(logger).Log("host_count", count, "team_id", teamID, "software_id", sid, "global_stats", global_stats)
+
 				args = append(args, sid, count, teamID, global_stats, updatedAt)
 				batchCount++
 
@@ -1903,6 +1909,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 					if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
 						return ctxerr.Wrapf(ctx, err, "insert %s batch into software_host_counts", stmtLabel[i])
 					}
+					level.Info(logger).Log("batch_flushed", batchCount)
 
 					args = args[:0]
 					batchCount = 0
@@ -1913,6 +1920,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 				if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(insertStmt, values), args...); err != nil {
 					return ctxerr.Wrapf(ctx, err, "insert last %s batch into software_host_counts", stmtLabel[i])
 				}
+				level.Info(logger).Log("final_batch_flushed", batchCount)
 			}
 			if err := rows.Err(); err != nil {
 				return ctxerr.Wrapf(ctx, err, "iterate over %s host_software counts", stmtLabel[i])

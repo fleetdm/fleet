@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1101,7 +1102,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.SyncHostsSoftware(context.Background(), time.Now())
+	err = ds.SyncHostsSoftware(context.Background(), time.Now(), kitlog.NewNopLogger())
 	require.NoError(t, err)
 
 	softwareVulns := []fleet.SoftwareVulnerability{

@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -913,7 +914,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now(), kitlog.NewNopLogger()))
 
 	t.Run("lists everything", func(t *testing.T) {
 		opts := fleet.SoftwareListOptions{
@@ -955,7 +956,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
 
-		require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+		require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now(), kitlog.NewNopLogger()))
 
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
@@ -1286,7 +1287,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 
 	_ = listSoftwareCheckCount(t, ds, 16, 16, globalOpts, false)
 	checkTableTotalCount(32)
@@ -1295,7 +1296,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteHost(ctx, host0.ID))
 	require.NoError(t, ds.DeleteHost(ctx, hostTemp.ID))
 
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
 	want := []fleet.Software{
 		{Name: "foo", Version: "0.0.3", HostsCount: 2},
@@ -1313,7 +1314,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
 	want = []fleet.Software{
@@ -1384,7 +1385,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 
 	// after a call to Calculate, the global counts are updated and the team counts appear
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 
 	globalCounts = listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
 	want = []fleet.Software{
@@ -1426,7 +1427,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	_, err = ds.UpdateHostSoftware(ctx, host4.ID, software4)
 	require.NoError(t, err)
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
 	want = []fleet.Software{
@@ -1458,7 +1459,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteTeam(ctx, team2.ID))
 
 	// this call will remove team2 from the software host counts table
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 
 	globalCounts = listSoftwareCheckCount(t, ds, 3, 3, globalOpts, false)
 	want = []fleet.Software{
@@ -1643,7 +1644,7 @@ func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
 		require.True(t, inserted)
 	}
 
-	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now(), kitlog.NewNopLogger()))
 }
 
 func testDeleteSoftwareVulnerabilities(t *testing.T, ds *Datastore) {
@@ -1848,7 +1849,7 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// ListSoftware uses host_software_counts table.
-	err = ds.SyncHostsSoftware(ctx, time.Now())
+	err = ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger())
 	require.NoError(t, err)
 
 	// Check the returned software.
@@ -1942,7 +1943,7 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	require.Empty(t, hosts)
 
 	// ListSoftware uses host_software_counts table.
-	err = ds.SyncHostsSoftware(ctx, time.Now())
+	err = ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger())
 	require.NoError(t, err)
 
 	software = listSoftwareCheckCount(t, ds, 3, 3, opts, false)
@@ -2472,7 +2473,7 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 		_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 		require.NoError(t, err)
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
-		require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+		require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 
 		// Add vulnerabilities and CVEMeta
 		var meta []fleet.CVEMeta
@@ -3305,7 +3306,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2[:2])
 	require.NoError(t, err)
 	// SyncHostsSoftware will remove the above software item from the software table
-	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now(), kitlog.NewNopLogger()))
 	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]})
 
 	// bar is no longer associated with any host so the title should be deleted
@@ -3318,7 +3319,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	// add bar to host 3
 	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, []fleet.Software{expectedSoftware[3], expectedSoftware[4]})
 	require.NoError(t, err)
-	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now(), kitlog.NewNopLogger()))
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
 	require.Len(t, gotTitles, 4)
@@ -5730,7 +5731,7 @@ func testListSoftwareVersionsVulnerabilityFilters(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now(), kitlog.NewNopLogger()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 

@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -605,7 +606,7 @@ type Datastore interface {
 	//
 	// After aggregation, it cleans up unused software (e.g. software installed
 	// on removed hosts, software uninstalled on hosts, etc.)
-	SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error
+	SyncHostsSoftware(ctx context.Context, updatedAt time.Time, logger log.Logger) error
 
 	// ReconcileSoftwareTitles ensures the software_titles and software tables are in sync.
 	// It inserts new software titles and updates the software table with the title_id.

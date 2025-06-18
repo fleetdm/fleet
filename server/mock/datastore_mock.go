@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -456,7 +457,7 @@ type SoftwareByIDFunc func(ctx context.Context, id uint, teamID *uint, includeCV
 
 type ListSoftwareByHostIDShortFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
-type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time) error
+type SyncHostsSoftwareFunc func(ctx context.Context, updatedAt time.Time, logger log.Logger) error
 
 type ReconcileSoftwareTitlesFunc func(ctx context.Context) error
 
@@ -4940,11 +4941,11 @@ func (s *DataStore) ListSoftwareByHostIDShort(ctx context.Context, hostID uint) 
 	return s.ListSoftwareByHostIDShortFunc(ctx, hostID)
 }
 
-func (s *DataStore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time) error {
+func (s *DataStore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time, logger log.Logger) error {
 	s.mu.Lock()
 	s.SyncHostsSoftwareFuncInvoked = true
 	s.mu.Unlock()
-	return s.SyncHostsSoftwareFunc(ctx, updatedAt)
+	return s.SyncHostsSoftwareFunc(ctx, updatedAt, logger)
 }
 
 func (s *DataStore) ReconcileSoftwareTitles(ctx context.Context) error {

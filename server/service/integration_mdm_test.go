@@ -11437,7 +11437,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	// TODO: add test for GET /hosts/:id/certificates endpoint, should match up with testCerts
 
 	hostsCountTs := time.Now().UTC()
-	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs, kitlog.NewNopLogger()))
 	ctx := context.Background()
 	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
