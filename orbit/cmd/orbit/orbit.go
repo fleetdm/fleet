@@ -1000,7 +1000,7 @@ func main() {
 			signer, err := httpsig.NewSigner(httpsig.SigningProfile{
 				Algorithm: httpsig.Algo_ECDSA_P384_SHA384, // TODO: allow to use P256
 				Fields:    httpsig.Fields("@method", "@target-uri", "content-digest"),
-				Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaAlgorithm, httpsig.MetaCreated, httpsig.MetaNonce},
+				Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
 			}, httpsig.SigningKey{
 				Key:       cryptoSigner,
 				MetaKeyID: certSN,

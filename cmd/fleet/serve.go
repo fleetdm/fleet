@@ -56,6 +56,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/httpsig"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
@@ -1246,6 +1247,12 @@ the way that the Fleet server works.
 				}
 			}
 
+			httpSig := httpsig.NewHTTPSig(ds, logger)
+			verifier, err := httpSig.Verifier()
+			if err != nil {
+				initFatal(err, "setup httpsig verifier")
+			}
+
 			// We must wrap the Handler here to set special per-endpoint Read/Write
 			// timeouts, so that we have access to the raw http.ResponseWriter.
 			// Otherwise, the handler is wrapped by the promhttp response delegator,
@@ -1322,6 +1329,22 @@ the way that the Fleet server works.
 							"response_writer", fmt.Sprintf("%+v", rw),
 							"err", err,
 						)
+					}
+				}
+
+				// TODO: Figure out a cleaner approach here. Use standard Go middleware approach.
+				if strings.Contains(req.URL.Path, "/api/fleet/orbit/") && !strings.HasSuffix(req.URL.Path, "/api/fleet/orbit/ping") {
+					result, err := verifier.Verify(req)
+					if err != nil {
+						level.Error(logger).Log("msg", "failed to verify request signature", "path", req.URL.Path, "err", err)
+						// http.Error(rw, err.Error(), http.StatusUnauthorized)
+						// return
+					} else {
+						if !result.Verified {
+							level.Info(logger).Log("msg", "request not verified", "path", req.URL.Path)
+							// http.Error(rw, "request not verified", http.StatusUnauthorized)
+							// return
+						}
 					}
 				}
 
