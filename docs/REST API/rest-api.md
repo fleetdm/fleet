@@ -726,9 +726,9 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 {
   "certificate_authorities": [
     {
-      "id": 1,
-      "name": "NDES_VPN",
-      "type": "ndes"
+      "id": 3,
+      "name": "DIGICERT_PROD",
+      "type": "digicert"
     },
     {
       "id": 2,
@@ -736,19 +736,9 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
       "type": "digicert"
     },
     {
-      "id": 3,
-      "name": "DIGICERT_PROD",
-      "type": "digicert"
-    },
-    {
-      "id": 4,
-      "name": "SCEP_CERTIFICATE_STAGE",
-      "type": "custom_scep"
-    },
-    {
-      "id": 5,
-      "name": "SCEP_CERTIFICATE_PROD",
-      "type": "custom_scep"
+      "id": 7,
+      "name": "HYDRANT_WIFI_PROD",
+      "type": "hydrant"
     },
     {
       "id": 6,
@@ -756,9 +746,19 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
       "type": "hydrant"
     },
     {
-      "id": 7,
-      "name": "HYDRANT_WIFI_PROD",
-      "type": "hydrant"
+      "id": 1,
+      "name": "NDES_VPN",
+      "type": "ndes"
+    },
+    {
+      "id": 5,
+      "name": "SCEP_CERTIFICATE_PROD",
+      "type": "custom_scep"
+    },
+    {
+      "id": 4,
+      "name": "SCEP_CERTIFICATE_STAGE",
+      "type": "custom_scep"
     }
   ]
 }
