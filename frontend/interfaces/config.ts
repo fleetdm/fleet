@@ -225,7 +225,7 @@ export interface ILoggingConfig {
   json: boolean;
   result: {
     plugin: LogDestination;
-    config: {
+    config?: {
       status_log_file: string;
       result_log_file: string;
       enable_log_rotation: boolean;
@@ -234,7 +234,7 @@ export interface ILoggingConfig {
       result_url?: string;
     };
   };
-  status: {
+  status?: {
     plugin: string;
     config: {
       status_log_file: string;
