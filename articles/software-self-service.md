@@ -2,11 +2,9 @@
 
 ![Software self-service](../website/assets/images/articles/software-self-service-1600x900@2x.png)
 
+_Available in Fleet Premium_
+
 Fleet’s self-service software feature empowers end users by allowing them to independently install approved software packages from a curated list through the Fleet Desktop “My device” page. This not only reduces the administrative burden on IT teams but also enhances user productivity and satisfaction. In this guide, we will walk you through the process of uploading, editing, and managing self-service software packages in Fleet, enabling seamless software distribution and management.
-
-## Prerequisites
-
-* Fleet Premium is required for software self-service.
 
 > Software packages can be added to a specific team or to "No team." "No team" is the default assignment for hosts that are not part of any specific team.
 
