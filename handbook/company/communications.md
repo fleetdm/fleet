@@ -2,6 +2,13 @@
 This page covers the things every team member needs to know to effectively contribute at Fleet.
 
 
+## Strategy
+
+You can read about the company's positioning and product strategy in ["🎐 Why Fleet?" (private google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
+
+You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market groups page](https://fleetdm.com/handbook/company/go-to-market-groups).
+
+
 ## All hands
 
 Every month, Fleet holds a company-wide meeting called the "All hands". 
@@ -16,13 +23,6 @@ Every week, the "Executive" or "E-group", including the CEO, CTO, Head of Produc
 Every three weeks, the E-group will meet for a more in-depth discussion immediately following the "¶ 🗣 Roundup (E-Group)" meeting, regarding the achievement of strategic short and long-term company goals. This is the "¶ 🗣 E-Group review" meeting, typically held from 3-5pm CT.  If one of the department heads cannot attend this meeting, the Apprentice will reschedule the E-group review, as close to the original time as possible, while verifying that all E-group members can attend. 
 
 The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit?tab=t.0)" agenda will be processed every week and used for all E-group meetings. 
-
-
-## Strategy
-
-You can read about the company's positioning and product strategy in ["🎐 Why Fleet?" (private google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
-
-You can read about Fleet's Go-To-Market (GTM) strategy on our [Go-To-Market groups page](https://fleetdm.com/handbook/company/go-to-market-groups).
 
 
 ## Security 
