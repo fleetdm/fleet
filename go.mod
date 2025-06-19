@@ -326,4 +326,4 @@ tool (
 	github.com/quasilyte/go-ruleguard/dsl
 )
 
-replace github.com/remitly-oss/httpsig-go => github.com/getvictor/httpsig-go v0.0.0-20250619174410-f54b82bcc25f
+replace github.com/remitly-oss/httpsig-go => github.com/getvictor/httpsig-go v0.0.0-20250619220223-4b8303547620
