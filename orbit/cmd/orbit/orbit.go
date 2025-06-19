@@ -1016,11 +1016,6 @@ func main() {
 					close(interruptCh)
 				},
 			})
-		} else {
-			// Create empty auth manager even when not in OpenFrame mode
-			// to maintain single point of creation
-			authManager = openframe.NewOpenFrameAuthorizationManager()
-			log.Debug().Msg("Created OpenFrame authorization manager for non-OpenFrame mode")
 		}
 
 		orbitClient, err := service.NewOrbitClient(
