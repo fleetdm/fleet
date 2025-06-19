@@ -14,7 +14,7 @@ module.exports = {
     let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
 
 
-    await User.stream().eachRecord(async (thisUser)=>{
+    await User.stream({}).eachRecord(async (thisUser)=>{
       // Generate a new trial license key for the user.
       let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
         numberOfHosts: 10,
@@ -33,7 +33,7 @@ module.exports = {
         // Send an email informing the user that their new Fleet premium trial is available.
         await sails.helpers.sendTemplateEmail.with({
           template: 'email-fleet-premium-trial',
-          layout: 'layout-nurture-email',
+          layout: 'layout-email',
           templateData: {
             emailAddress: thisUser.emailAddress
           },
