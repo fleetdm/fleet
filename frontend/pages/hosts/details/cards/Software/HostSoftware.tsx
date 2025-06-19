@@ -18,7 +18,6 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
 import { convertParamsToSnakeCase } from "utilities/url";
 
-import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
 import Card from "components/Card/Card";
@@ -36,7 +35,6 @@ import {
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
-import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -116,22 +114,11 @@ const HostSoftware = ({
   isSoftwareEnabled = false,
   isMyDevicePage = false,
 }: IHostSoftwareProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const {
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
-    isPremiumTier,
-  } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
 
   const isUnsupported =
     isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
 
-  // disables install/uninstall actions after click
-  const [softwareIdActionPending, setSoftwareIdActionPending] = useState<
-    number | null
-  >(null);
   const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
     false
   );
@@ -141,7 +128,6 @@ const HostSoftware = ({
     isLoading: hostSoftwareLoading,
     isError: hostSoftwareError,
     isFetching: hostSoftwareFetching,
-    refetch: refetchHostSoftware,
   } = useQuery<
     IGetHostSoftwareResponse,
     AxiosError,
@@ -172,7 +158,6 @@ const HostSoftware = ({
     isLoading: deviceSoftwareLoading,
     isError: deviceSoftwareError,
     isFetching: deviceSoftwareFetching,
-    refetch: refetchDeviceSoftware,
   } = useQuery<
     IGetDeviceSoftwareResponse,
     AxiosError,
@@ -194,54 +179,6 @@ const HostSoftware = ({
       keepPreviousData: true,
       staleTime: 7000,
     }
-  );
-
-  const refetchSoftware = useMemo(
-    () => (isMyDevicePage ? refetchDeviceSoftware : refetchHostSoftware),
-    [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
-  );
-
-  const userHasSWWritePermission = Boolean(
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
-  );
-
-  const installHostSoftwarePackage = useCallback(
-    async (softwareId: number) => {
-      setSoftwareIdActionPending(softwareId);
-      try {
-        await hostAPI.installHostSoftwarePackage(id as number, softwareId);
-        renderFlash(
-          "success",
-          "Software is installing or will install when the host comes online."
-        );
-      } catch (e) {
-        renderFlash("error", getInstallErrorMessage(e));
-      }
-      setSoftwareIdActionPending(null);
-      refetchSoftware();
-    },
-    [id, renderFlash, refetchSoftware]
-  );
-
-  const uninstallHostSoftwarePackage = useCallback(
-    async (softwareId: number) => {
-      setSoftwareIdActionPending(softwareId);
-      try {
-        await hostAPI.uninstallHostSoftwarePackage(id as number, softwareId);
-        renderFlash(
-          "success",
-          <>
-            Software is uninstalling or will uninstall when the host comes
-            online. To see details, go to <b>Details &gt; Activity</b>.
-          </>
-        );
-      } catch (e) {
-        renderFlash("error", getUninstallErrorMessage(e));
-      }
-      setSoftwareIdActionPending(null);
-      refetchSoftware();
-    },
-    [id, renderFlash, refetchSoftware]
   );
 
   const toggleSoftwareFiltersModal = useCallback(() => {
