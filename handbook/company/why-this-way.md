@@ -1,6 +1,6 @@
 # 💭 Why this way?
 
-At Fleet, we rarely label ideas as drafts or theories.  Everything is [always in draft](https://about.gitlab.com/handbook/values/#everything-is-in-draft) and subject to change in future iterations.
+At Fleet, we rarely label ideas as drafts or theories.  Everything is [at this link]](https://about.gitlab.com/handbook/values/#everything-is-in-draft) and subject to change in future iterations.
 
 To increase clarity and encourage teams to make decisions quickly, leaders and [DRIs](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) sometimes need to explicitly mention when they are voicing an [opinion](https://blog.codinghorror.com/strong-opinions-weakly-held/) or a [decision](https://about.gitlab.com/handbook/values/#disagree-commit-and-disagree).  When an _opinion_ is voiced, there's space for near-term debate.  When a _decision_ is voiced, team commitment is required.
 
