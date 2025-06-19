@@ -1,7 +1,9 @@
 package scep
 
 import (
+	"bytes"
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
@@ -12,7 +14,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
@@ -344,25 +345,30 @@ func (a *zerologAdapter) Log(keyvals ...interface{}) error {
 	return nil
 }
 
-func GetCertSerialNumberAsHex(path string) (string, error) {
+func GetCert(path string) (*x509.Certificate, error) {
 	// Read certificate file
 	certPEMBytes, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("read certificate file: %w", err)
+		return nil, fmt.Errorf("read certificate file: %w", err)
 	}
 
 	// Decode PEM block
 	block, _ := pem.Decode(certPEMBytes)
 	if block == nil || block.Type != "CERTIFICATE" {
-		return "", fmt.Errorf("failed to decode PEM block containing certificate")
+		return nil, fmt.Errorf("failed to decode PEM block containing certificate")
 	}
 
-	// Parse certificate
-	cert, err := x509.ParseCertificate(block.Bytes)
+	return x509.ParseCertificate(block.Bytes)
+}
+
+func PublicKeysEqual(a, b crypto.PublicKey) (bool, error) {
+	derA, err := x509.MarshalPKIXPublicKey(a)
 	if err != nil {
-		return "", fmt.Errorf("parse certificate: %w", err)
+		return false, fmt.Errorf("marshal a: %w", err)
 	}
-
-	// Return serial number as hex string
-	return strings.ToUpper(cert.SerialNumber.Text(16)), nil
+	derB, err := x509.MarshalPKIXPublicKey(b)
+	if err != nil {
+		return false, fmt.Errorf("marshal b: %w", err)
+	}
+	return bytes.Equal(derA, derB), nil
 }

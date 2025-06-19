@@ -993,10 +993,27 @@ func main() {
 			if err != nil {
 				return fmt.Errorf("error getting TPM-backed signer: %w", err)
 			}
-			certSN, err := scep.GetCertSerialNumberAsHex(filepath.Join(c.String("root-dir"), constant.FleetHTTPSignatureCertificateFileName))
+			cert, err := scep.GetCert(filepath.Join(c.String("root-dir"), constant.FleetHTTPSignatureCertificateFileName))
 			if err != nil {
-				return fmt.Errorf("error getting cert serial number: %w", err)
+				return fmt.Errorf("error getting cert: %w", err)
 			}
+
+			// Compare the TPM key with the certificate public key
+			tpmPubKey, err := key.Public()
+			if err != nil {
+				return fmt.Errorf("error getting TPM public key: %w", err)
+			}
+			keysEqual, err := scep.PublicKeysEqual(tpmPubKey, cert.PublicKey)
+			if err != nil {
+				return fmt.Errorf("error comparing public keys: %w", err)
+			}
+			if !keysEqual {
+				return fmt.Errorf("TPM key does not match certificate public key")
+			}
+			log.Debug().Msg("TPM public key matches certificate public key")
+
+			// Get serial number as hex string
+			certSN := strings.ToUpper(cert.SerialNumber.Text(16))
 			signer, err := httpsig.NewSigner(httpsig.SigningProfile{
 				Algorithm: httpsig.Algo_ECDSA_P384_SHA384, // TODO: allow to use P256
 				Fields:    httpsig.Fields("@method", "@target-uri", "content-digest"),
