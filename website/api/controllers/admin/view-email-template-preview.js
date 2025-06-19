@@ -136,7 +136,7 @@ module.exports = {
         };
         break;
       case 'email-fleet-premium-trial':
-        layout = 'layout-nurture-email';
+        // layout = 'layout-nurture-email';
         fakeData = {
           firstName: 'Sage',
           emailAddress: 'sage@example.com',
