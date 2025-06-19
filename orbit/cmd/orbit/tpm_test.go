@@ -7,7 +7,9 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -90,6 +92,37 @@ func (ks *tpmKeyStore) Fetch(_ context.Context, _ http.Header, _ httpsig.Metadat
 	return nil, fmt.Errorf("not implemented")
 }
 
+// publicKeyToPEM converts a public key to PEM format for debugging
+func publicKeyToPEM(pubKey crypto.PublicKey) (string, error) {
+	pubKeyBytes, err := x509.MarshalPKIXPublicKey(pubKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal public key: %w", err)
+	}
+
+	pemBlock := &pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pubKeyBytes,
+	}
+
+	return string(pem.EncodeToMemory(pemBlock)), nil
+}
+
+// logHTTPSignatureHeaders logs the Signature and Signature-Input headers for debugging
+func logHTTPSignatureHeaders(t *testing.T, req *http.Request, requestType string) {
+	signature := req.Header.Get("Signature")
+	signatureInput := req.Header.Get("Signature-Input")
+
+	t.Logf("🔍 %s Request HTTP Signature Headers:", requestType)
+	t.Logf("📝 Signature: %s", signature)
+	t.Logf("📋 Signature-Input: %s", signatureInput)
+
+	// Also log other relevant headers
+	contentDigest := req.Header.Get("Content-Digest")
+	if contentDigest != "" {
+		t.Logf("🔐 Content-Digest: %s", contentDigest)
+	}
+}
+
 // TestTPMHTTPSignatureVerification tests HTTP signature creation and verification
 // using TPM-generated ECC keys through the TEE interface
 func TestTPMHTTPSignatureVerification(t *testing.T) {
@@ -123,6 +156,11 @@ func TestTPMHTTPSignatureVerification(t *testing.T) {
 	publicKey, err := teeKey.Public()
 	require.NoError(t, err, "Failed to get public key from TPM")
 
+	// Print public key in PEM format for debugging
+	pubKeyPEM, err := publicKeyToPEM(publicKey)
+	require.NoError(t, err, "Failed to convert public key to PEM")
+	t.Logf("🔑 TPM Public Key (PEM format):\n%s", pubKeyPEM)
+
 	// Determine the algorithm based on the key type
 	var algo httpsig.Algorithm
 	switch pub := publicKey.(type) {
@@ -141,6 +179,15 @@ func TestTPMHTTPSignatureVerification(t *testing.T) {
 
 	// Create a key ID for the signature
 	keyID := "tpm-key-001"
+
+	// Log key details for debugging
+	if ecdsaKey, ok := publicKey.(*ecdsa.PublicKey); ok {
+		t.Logf("🔐 TPM Key Details:")
+		t.Logf("   Algorithm: %s", algo)
+		t.Logf("   Curve: %s", ecdsaKey.Curve.Params().Name)
+		t.Logf("   Bit Size: %d", ecdsaKey.Curve.Params().BitSize)
+		t.Logf("   Key ID: %s", keyID)
+	}
 
 	// Create TPM signer that wraps the TEE key
 	tpmSigner := newTPMSigner(teeKey, keyID)
@@ -165,12 +212,18 @@ func TestTPMHTTPSignatureVerification(t *testing.T) {
 
 	// Create test server with HTTP signature verification
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Log signature headers for debugging
+		logHTTPSignatureHeaders(t, r, r.Method)
+
 		// Verify the HTTP signature
 		_, err := verifier.Verify(r)
 		if err != nil {
+			t.Logf("❌ Signature verification failed: %v", err)
 			http.Error(w, fmt.Sprintf("Signature verification failed: %v", err), http.StatusUnauthorized)
 			return
 		}
+
+		t.Logf("✅ Signature verification succeeded for %s %s", r.Method, r.URL.Path)
 
 		// If verification succeeds, return success response
 		w.WriteHeader(http.StatusOK)
