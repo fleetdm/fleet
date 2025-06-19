@@ -45,6 +45,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/openframe"
 	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
@@ -220,6 +221,21 @@ func main() {
 			Name:    "osquery-db",
 			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
+		},
+		&cli.BoolFlag{
+			Name:    "openframe-mode",
+			Usage:   "Enable OpenFrame mode for osquery",
+			EnvVars: []string{"ORBIT_OPENFRAME_MODE"},
+		},
+		&cli.StringFlag{
+			Name:    "openframe-secret",
+			Usage:   "OpenFrame secret for authentication",
+			EnvVars: []string{"ORBIT_OPENFRAME_SECRET"},
+		},
+		&cli.StringFlag{
+			Name:    "openframe-osquery-path",
+			Usage:   "Custom path to osqueryd binary when using OpenFrame mode",
+			EnvVars: []string{"ORBIT_OPENFRAME_OSQUERY_PATH"},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -664,10 +680,32 @@ func main() {
 		} else {
 			log.Info().Msg("running with auto updates disabled")
 			updater = update.NewDisabled(opt)
-			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
-			if err != nil {
-				log.Fatal().Err(err).Msgf("locate %s", constant.OsqueryTUFTargetName)
+
+			if c.Bool("openframe-mode") {
+				log.Info().Msg("Use custom osqueryd path for openframe mode")
+
+				osquerydPath = c.String("openframe-osquery-path")
+				if (osquerydPath == "") {
+					log.Fatal().Msg("openframe-osquery-path must be specified when openframe-mode is enabled")
+				}
+
+				if _, err := os.Stat(osquerydPath); err != nil {
+					if errors.Is(err, os.ErrNotExist) {
+						log.Fatal().Str("path", osquerydPath).Msg("Custom openframe osqueryd binary not found")
+					} else {
+						log.Fatal().Err(err).Str("path", osquerydPath).Msg("Failed to check custom openframe osqueryd binary")
+					}
+				}
+			
+				log.Info().Str("path", osquerydPath).Msg("Using custom osqueryd binary")
+			} else {
+				log.Info().Msg("Use default osqueryd path")
+				osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+				if err != nil {
+					log.Fatal().Err(err).Msgf("locate %s", constant.OsqueryTUFTargetName)
+				}
 			}
+
 			if c.Bool("fleet-desktop") {
 				if runtime.GOOS == "darwin" {
 					desktopPath, err = updater.DirLocalPath(constant.DesktopTUFTargetName)
@@ -682,6 +720,7 @@ func main() {
 				}
 			}
 		}
+		
 
 		// Clear leftover files from updates
 		if err := filepath.Walk(c.String("root-dir"), func(path string, info fs.FileInfo, err error) error {
@@ -810,78 +849,61 @@ func main() {
 			}
 		}
 
-		var certPath string
-		if fleetURL != "https://" && c.Bool("insecure") {
-			proxy, err := insecure.NewTLSProxy(fleetURL)
-			if err != nil {
-				return fmt.Errorf("create TLS proxy: %w", err)
-			}
-
-			addSubsystem(&g, "insecure proxy", &wrapSubsystem{
-				execute: func() error {
-					log.Info().
-						Str("addr", fmt.Sprintf("localhost:%d", proxy.Port)).
-						Str("target", c.String("fleet-url")).
-						Msg("using insecure TLS proxy")
-					err := proxy.InsecureServeTLS()
-					return err
-				},
-				interrupt: func(err error) {
-					if err := proxy.Close(); err != nil {
-						log.Error().Err(err).Msg("close proxy")
-					}
-				},
-			})
-
-			// Directory to store proxy related assets
-			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
-			if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
-				return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
-			}
-
-			certPath = filepath.Join(proxyDirectory, "fleet.crt")
-
-			// Write cert that proxy uses
-			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.FileMode(0o644))
-			if err != nil {
-				return fmt.Errorf("write server cert: %w", err)
-			}
-
-			// Rewrite URL to the proxy URL. Note the proxy handles any URL
-			// prefix so we don't need to carry that over here.
-			parsedURL := &url.URL{
-				Scheme: "https",
-				Host:   fmt.Sprintf("localhost:%d", proxy.Port),
-			}
-
-			// Check and log if there are any errors with TLS connection.
-			pool, err := certificate.LoadPEM(certPath)
-			if err != nil {
-				return fmt.Errorf("load certificate: %w", err)
-			}
-			if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
-				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
-			}
-
-			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
-				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
-			)
-		} else if fleetURL != "https://" {
-			if enrollSecret == "" {
-				return errors.New("enroll secret must be specified to connect to Fleet server")
-			}
-
+		var fleetClientCertificate *tls.Certificate
+		var fleetClientCrt *certificate.Certificate
+		if c.Bool("openframe-mode") {
 			parsedURL, err := url.Parse(fleetURL)
 			if err != nil {
 				return fmt.Errorf("parse URL: %w", err)
 			}
-
 			options = append(options,
 				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
 			)
+		} else {
+			var certPath string
+			if fleetURL != "https://" && c.Bool("insecure") {
+				proxy, err := insecure.NewTLSProxy(fleetURL)
+				if err != nil {
+					return fmt.Errorf("create TLS proxy: %w", err)
+				}
 
-			if certPath = c.String("fleet-certificate"); certPath != "" {
+				addSubsystem(&g, "insecure proxy", &wrapSubsystem{
+					execute: func() error {
+						log.Info().
+							Str("addr", fmt.Sprintf("localhost:%d", proxy.Port)).
+							Str("target", c.String("fleet-url")).
+							Msg("using insecure TLS proxy")
+						err := proxy.InsecureServeTLS()
+						return err
+					},
+					interrupt: func(err error) {
+						if err := proxy.Close(); err != nil {
+							log.Error().Err(err).Msg("close proxy")
+						}
+					},
+				})
+
+				// Directory to store proxy related assets
+				proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+				if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
+					return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
+				}
+
+				certPath = filepath.Join(proxyDirectory, "fleet.crt")
+
+				// Write cert that proxy uses
+				err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.FileMode(0o644))
+				if err != nil {
+					return fmt.Errorf("write server cert: %w", err)
+				}
+
+				// Rewrite URL to the proxy URL. Note the proxy handles any URL
+				// prefix so we don't need to carry that over here.
+				parsedURL := &url.URL{
+					Scheme: "https",
+					Host:   fmt.Sprintf("localhost:%d", proxy.Port),
+				}
+
 				// Check and log if there are any errors with TLS connection.
 				pool, err := certificate.LoadPEM(certPath)
 				if err != nil {
@@ -892,38 +914,113 @@ func main() {
 				}
 
 				options = append(options,
+					osquery.WithFlags(osquery.FleetFlags(parsedURL)),
 					osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 				)
-			} else {
-				certPath = filepath.Join(c.String("root-dir"), "certs.pem")
-				if exists, err := file.Exists(certPath); err == nil && exists {
-					_, err = certificate.LoadPEM(certPath)
-					if err != nil {
-						return fmt.Errorf("load certs.pem: %w", err)
-					}
-					options = append(options, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
-				} else {
-					log.Info().Msg("No cert chain available. Relying on system store.")
+			} else if fleetURL != "https://" {
+				if enrollSecret == "" {
+					return errors.New("enroll secret must be specified to connect to Fleet server")
 				}
+
+				parsedURL, err := url.Parse(fleetURL)
+				if err != nil {
+					return fmt.Errorf("parse URL: %w", err)
+				}
+
+				options = append(options,
+					osquery.WithFlags(osquery.FleetFlags(parsedURL)),
+				)
+
+				if certPath = c.String("fleet-certificate"); certPath != "" {
+					// Check and log if there are any errors with TLS connection.
+					pool, err := certificate.LoadPEM(certPath)
+					if err != nil {
+						return fmt.Errorf("load certificate: %w", err)
+					}
+					if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
+						log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
+					}
+
+					options = append(options,
+						osquery.WithFlags([]string{"--tls_server_certs", certPath}),
+					)
+				} else {
+					certPath = filepath.Join(c.String("root-dir"), "certs.pem")
+					if exists, err := file.Exists(certPath); err == nil && exists {
+						_, err = certificate.LoadPEM(certPath)
+						if err != nil {
+							return fmt.Errorf("load certs.pem: %w", err)
+						}
+						options = append(options, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
+					} else {
+						log.Info().Msg("No cert chain available. Relying on system store.")
+					}
+				}
+
 			}
 
+			fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
+			fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
+			fleetClientCrt, err := certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+			if err != nil {
+				return fmt.Errorf("error loading fleet client certificate: %w", err)
+			}
+
+			if fleetClientCrt != nil {
+				log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to Fleet.")
+				fleetClientCertificate = &fleetClientCrt.Crt
+				options = append(options, osquery.WithFlags([]string{
+					"--tls_client_cert", fleetClientCertPath,
+					"--tls_client_key", fleetClientKeyPath,
+				}))
+			}
 		}
 
-		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
-		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
-		fleetClientCrt, err := certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
-		if err != nil {
-			return fmt.Errorf("error loading fleet client certificate: %w", err)
-		}
+		// Create authorization manager for OpenFrame authentication
+		// Always create an instance to ensure single point of creation
+		var authManager *openframe.OpenFrameAuthorizationManager
+		if c.Bool("openframe-mode") {
+			// Create encryption service for token extraction
+			encryptionService := openframe.NewOpenframeEncryptionService(c.String("openframe-secret"))
+			
+			// Create token extractor
+			tokenExtractor := openframe.NewOpenframeTokenExtractor(encryptionService)
 
-		var fleetClientCertificate *tls.Certificate
-		if fleetClientCrt != nil {
-			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to Fleet.")
-			fleetClientCertificate = &fleetClientCrt.Crt
-			options = append(options, osquery.WithFlags([]string{
-				"--tls_client_cert", fleetClientCertPath,
-				"--tls_client_key", fleetClientKeyPath,
-			}))
+			openframeToken, err := tokenExtractor.ExtractToken()
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to extract OpenFrame token")
+				return fmt.Errorf("failed to extract OpenFrame token: %w", err)
+			}
+			log.Info().Msg("OpenFrame token extracted successfully")
+
+			authManager = openframe.NewOpenFrameAuthorizationManagerWithToken(openframeToken)
+			
+			// Create and start token refresher
+			tokenRefresher := openframe.NewOpenframeTokenRefresher(tokenExtractor, authManager)
+			if err := tokenRefresher.Start(); err != nil {
+				log.Error().Err(err).Msg("Failed to start OpenFrame token refresher")
+			} else {
+				log.Info().Msg("OpenFrame token refresher started successfully")
+			}
+			
+			// Add token refresher to the run group for proper lifecycle management
+			interruptCh := make(chan struct{})
+			addSubsystem(&g, "openframe token refresher", &wrapSubsystem{
+				execute: func() error {
+					// Keep the token refresher running until interrupted
+					<-interruptCh
+					return nil
+				},
+				interrupt: func(err error) {
+					tokenRefresher.Stop()
+					close(interruptCh)
+				},
+			})
+		} else {
+			// Create empty auth manager even when not in OpenFrame mode
+			// to maintain single point of creation
+			authManager = openframe.NewOpenFrameAuthorizationManager()
+			log.Debug().Msg("Created OpenFrame authorization manager for non-OpenFrame mode")
 		}
 
 		orbitClient, err := service.NewOrbitClient(
@@ -942,6 +1039,8 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			c.Bool("openframe-mode"),
+			authManager,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1195,6 +1294,12 @@ func main() {
 		// override all other flags and flagfile entries.
 		options = append(options, osquery.WithFlags(c.Args().Slice()))
 
+		// Add OpenFrame parameters if enabled
+		if c.Bool("openframe-mode") {
+			options = append(options, osquery.WithFlags([]string{"--openframe-mode", "true"}))
+			options = append(options, osquery.WithFlags([]string{"--openframe-secret", c.String("openframe-secret")}))
+		}
+
 		// Create an osquery runner with the provided options.
 		r, err := osquery.NewRunner(osquerydPath, options...)
 		if err != nil {
@@ -1219,6 +1324,8 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			c.Bool("openframe-mode"),
+			authManager,
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)

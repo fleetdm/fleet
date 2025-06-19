@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/openframe"
 	"github.com/rs/zerolog/log"
 )
 
@@ -60,6 +61,10 @@ type OrbitClient struct {
 	receiverUpdateContext context.Context
 	// receiverUpdateCancelFunc is used to cancel receiverUpdateContext.
 	receiverUpdateCancelFunc context.CancelFunc
+
+	// openframe mode
+	openFrameMode bool
+	authManager   *openframe.OpenFrameAuthorizationManager
 }
 
 // time-to-live for config cache
@@ -96,7 +101,9 @@ func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params
 	}
 
 	var request *http.Request
+	var fullURL string
 	if external {
+		fullURL = pathOrURL
 		request, err = http.NewRequestWithContext(
 			ctx,
 			verb,
@@ -112,10 +119,11 @@ func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params
 			return fmt.Errorf("parsing URL: %w", err)
 		}
 
+		fullURL = oc.url(parsedURL.Path, parsedURL.RawQuery).String()
 		request, err = http.NewRequestWithContext(
 			ctx,
 			verb,
-			oc.url(parsedURL.Path, parsedURL.RawQuery).String(),
+			fullURL,
 			bytes.NewBuffer(bodyBytes),
 		)
 		if err != nil {
@@ -123,6 +131,25 @@ func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params
 		}
 		oc.setClientCapabilitiesHeader(request)
 	}
+
+	// if openframe mode |
+	if oc.openFrameMode {
+		// Add custom header for all requests
+		authToken := oc.authManager.GetToken()
+		if authToken != "" {
+			request.Header.Add("Authorization", "Bearer " + authToken)
+		} else {
+			log.Warn().Msg("authToken is empty, not adding Authorization header")
+		}
+	}
+
+	// Log the request details for debugging
+	log.Debug().
+		Str("verb", verb).
+		Str("path", pathOrURL).
+		Str("full_url", fullURL).
+		Msg("making HTTP request")
+
 	response, err := oc.http.Do(request)
 	if err != nil {
 		oc.setLastRecordedError(err)
@@ -167,9 +194,18 @@ func NewOrbitClient(
 	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
 	onGetConfigErrFns *OnGetConfigErrFuncs,
+	openFrameMode bool,
+	authManager *openframe.OpenFrameAuthorizationManager,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.GetOrbitClientCapabilities()
-	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
+	urlPrefix := ""
+	if openFrameMode {
+		log.Info().Msg("Add tools agent prefix for openframe mode")
+		urlPrefix = "/tools/agent/fleet"
+	} else {
+		log.Info().Msg("Add no tools agent prefix for non-openframe mode")
+	}
+	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, urlPrefix, fleetClientCert, orbitCapabilities)
 	if err != nil {
 		return nil, err
 	}
@@ -188,6 +224,8 @@ func NewOrbitClient(
 		ReceiverUpdateInterval:     defaultOrbitConfigReceiverInterval,
 		receiverUpdateContext:      ctx,
 		receiverUpdateCancelFunc:   cancelFunc,
+		authManager:                authManager,
+		openFrameMode:              openFrameMode,
 	}, nil
 }
 
