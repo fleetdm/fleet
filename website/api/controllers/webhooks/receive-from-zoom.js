@@ -67,12 +67,12 @@ module.exports = {
 
     let idOfCallToGenerateTranscriptFor = payload.object.conversation_id;
     let informationAboutThisCall = await sails.helpers.http.get.with({
-      url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}`,
+      url: `https://api.zoom.us/v2/zra/conversations/${idOfCallToGenerateTranscriptFor}`,
       headers: {
         'Authorization': `Bearer ${token}`
       }
     })
-    .intercept({raw: {statusCode: 409}}, (err)=>{
+    .intercept({raw: {statusCode: 404}}, (err)=>{
       sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get information about the call. Full error: ${require('util').inspect(err, {depth: 3})}`);
       return 'callInfoNotFound';
     }).intercept((err)=>{
@@ -82,12 +82,12 @@ module.exports = {
 
     // Get a transcript of the call.
     let callTranscript = await sails.helpers.http.get.with({
-      url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?page_size=300`,
+      url: `https://api.zoom.us/v2/zra/conversations/${idOfCallToGenerateTranscriptFor}/interactions?page_size=300`,
       headers: {
         'Authorization': `Bearer ${token}`
       }
     })
-    .intercept({raw: {statusCode: 409}}, (err)=>{
+    .intercept({raw: {statusCode: 404}}, (err)=>{
       sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get a transcript of the call. Full error: ${require('util').inspect(err, {depth: 3})}`);
       return 'callTranscriptNotFound';
     }).intercept((err)=>{
@@ -101,7 +101,7 @@ module.exports = {
     if(tokenForNextPageOfResults) {
       await sails.helpers.flow.until(async()=>{
         let thisPageOfCallInformation = await sails.helpers.http.get.with({
-          url: `https://api.zoom.us/v2/zra/conversations/${encodeURIComponent(idOfCallToGenerateTranscriptFor)}/interactions?next_page_token=${tokenForNextPageOfResults}`,
+          url: `https://api.zoom.us/v2/zra/conversations/${idOfCallToGenerateTranscriptFor}/interactions?next_page_token=${tokenForNextPageOfResults}`,
           headers: {
             'Authorization': `Bearer ${token}`
           }
