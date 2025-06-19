@@ -12,35 +12,35 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 
 ### Add self-service software
 
-1. Click “Software” in the main navigation menu.
-2. Click the dropdown in the upper left corner of the page and click on the team to which you want to add the software package.
-3. Click the “Add software” button in the upper right corner of the page.
+1. Select “Software” in the main navigation menu.
+2. Select the team to which you want to add the software package from the dropdown in the upper left corner of the page.
+3. Press the “Add software” button in the upper right corner of the page.
 4. Stay on the "Fleet-maintained" tab to add a Fleet-maintained App, or select one of the other tabs if you want to add an App Store (VPP) app or upload a custom software package.
 5. Based on the type of software you would like to add, follow instructions for adding a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app), a [VPP app](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#add-the-app-to-fleet), or a [custom package](https://fleetdm.com/guides/deploy-software-packages#add-a-custom-package). In each case, you can check the **Self-service** box when adding software to make it immediately available for self-service installation once added.
 
 ### Enable self-service on existing software
 
-1. Click “Software” in the main navigation menu.
-2. Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
-3. To make it easier to find your software, click on the dropdown to the left of the search bar and select "Available for install". This will filter the results in the table to only show software that can be installed on hosts. If you still don’t see your software, you can page through the results or search for your software's name in the search bar. Once you find the software, click its row in the table.
-4. Click the ✏️ icon, then under "Options", check "Self-service." You can also select categories where the software will be visible to end users viewing software on the **My device > Self-service** page.
-5. Click "Save."
+1. Select “Software” in the main navigation menu.
+2. Select the team to which you added the software from the dropdown in the upper left corner of the page.
+3. To make it easier to find your software, select "Available for install" from the drop-down to the left of the search bar. This will filter the results in the table to only show software that can be installed on hosts. If you still don’t see your software, you can page through the results or search for your software's name in the search bar. Once you find the software, select its row in the table.
+4. Press the ✏️ icon, then under "Options", check "Self-service." You can also select categories where the software will be visible to end users viewing software on the **My device > Self-service** page.
+5. Press the "Save" button.
 
 ### Download a self-service software package
 
-1. Click “Software” in the main navigation menu.
-2. Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
-3. Click on the dropdown to the left of the search bar and select “Self-service” and page through the results or search for your software package’s name in the search bar.
-4. Click on the software package’s name.
-5. Click the Download icon (to the left of the ✏️ icon) near the software package's filename.
+1. Select “Software” in the main navigation menu.
+2. Select the team to which you added the software from the dropdown in the upper left corner of the page.
+3. Select “Self-service” from the dropdown to the left of the search bar and page through the results, or search for your software’s name in the search bar.
+4. Select the row containing the software’s name.
+5. Press the Download icon (to the left of the ✏️ icon) near the software package's filename.
 
 ### Delete self-service software
 
-1. Click “Software” in the main navigation menu.
-2. Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
-3. Click on the dropdown to the left of the search bar and select “Self-service” and page through the results or search for your software package’s name in the search bar.
-4. Click on the software package’s name.
-5. Click the 🗑️ icon near the software package's filename, then click the "Delete" button to confirm.
+1. Select “Software” in the main navigation menu.
+2. Select the team to which you added the software from the dropdown in the upper left corner of the page.
+3. Select “Self-service” from the dropdown to the left of the search bar and page through the results, or search for your software’s name in the search bar.
+4. Select the row containing the software’s name.
+5. Press the 🗑️ icon near the software package's filename, then press the "Delete" button to confirm.
 
 ### Install self-service software
 
