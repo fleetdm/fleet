@@ -1016,8 +1016,9 @@ func main() {
 			certSN := strings.ToUpper(cert.SerialNumber.Text(16))
 			signer, err := httpsig.NewSigner(httpsig.SigningProfile{
 				Algorithm: httpsig.Algo_ECDSA_P384_SHA384, // TODO: allow to use P256
-				Fields:    httpsig.Fields("@method", "@target-uri", "content-digest"),
-				Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
+				// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
+				Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
+				Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
 			}, httpsig.SigningKey{
 				Key:       cryptoSigner,
 				MetaKeyID: certSN,

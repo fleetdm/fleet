@@ -1341,7 +1341,7 @@ the way that the Fleet server works.
 						// return
 					} else {
 						if !result.Verified {
-							level.Info(logger).Log("msg", "request not verified", "path", req.URL.Path)
+							level.Error(logger).Log("msg", "request not verified", "path", req.URL.Path)
 							// http.Error(rw, "request not verified", http.StatusUnauthorized)
 							// return
 						}

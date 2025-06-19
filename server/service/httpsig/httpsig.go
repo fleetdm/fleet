@@ -30,10 +30,11 @@ func NewHTTPSig(ds fleet.Datastore, logger log.Logger) *HTTPSig {
 
 func (h *HTTPSig) Verifier() (*httpsig.Verifier, error) {
 	return httpsig.NewVerifier(h, httpsig.VerifyProfile{
-		SignatureLabel:     httpsig.DefaultSignatureLabel,
-		AllowedAlgorithms:  []httpsig.Algorithm{httpsig.Algo_ECDSA_P256_SHA256, httpsig.Algo_ECDSA_P384_SHA384},
-		RequiredFields:     httpsig.Fields("@method", "@target-uri", "content-digest"),
-		RequiredMetadata:   []httpsig.Metadata{httpsig.MetaCreated, httpsig.MetaKeyID, httpsig.MetaNonce},
+		SignatureLabel:    httpsig.DefaultSignatureLabel,
+		AllowedAlgorithms: []httpsig.Algorithm{httpsig.Algo_ECDSA_P256_SHA256, httpsig.Algo_ECDSA_P384_SHA384},
+		// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
+		RequiredFields:     httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
+		RequiredMetadata:   []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
 		DisallowedMetadata: []httpsig.Metadata{httpsig.MetaAlgorithm}, // The algorithm should be looked up from the keyid not an explicit setting.
 	})
 }
