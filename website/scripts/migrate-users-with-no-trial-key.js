@@ -33,7 +33,6 @@ module.exports = {
         // Send an email informing the user that their new Fleet premium trial is available.
         await sails.helpers.sendTemplateEmail.with({
           template: 'email-fleet-premium-trial',
-          layout: 'layout-email',
           templateData: {
             emailAddress: thisUser.emailAddress
           },
