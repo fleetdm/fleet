@@ -506,7 +506,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /microsoft-compliance-partner/turn-on-mdm': {
+  'GET /microsoft-compliance-partner/enroll': {
     action: 'microsoft-proxy/view-turn-on-mdm',
     locals: {
       showConfigurationProfileLayout: true,
