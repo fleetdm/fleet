@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
@@ -285,7 +286,7 @@ func (c *Client) saveCert(cert *x509.Certificate) error {
 	}
 
 	// Save certificate
-	certPath := filepath.Join(c.certDestDir, constant.FleetTLSClientCertificateFileName)
+	certPath := filepath.Join(c.certDestDir, constant.FleetHTTPSignatureCertificateFileName)
 	certFile, err := os.OpenFile(certPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return fmt.Errorf("create cert file: %w", err)
@@ -341,4 +342,27 @@ func (a *zerologAdapter) Log(keyvals ...interface{}) error {
 	event.Msg(msg)
 
 	return nil
+}
+
+func GetCertSerialNumberAsHex(path string) (string, error) {
+	// Read certificate file
+	certPEMBytes, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read certificate file: %w", err)
+	}
+
+	// Decode PEM block
+	block, _ := pem.Decode(certPEMBytes)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return "", fmt.Errorf("failed to decode PEM block containing certificate")
+	}
+
+	// Parse certificate
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return "", fmt.Errorf("parse certificate: %w", err)
+	}
+
+	// Return serial number as hex string
+	return strings.ToUpper(cert.SerialNumber.Text(16)), nil
 }

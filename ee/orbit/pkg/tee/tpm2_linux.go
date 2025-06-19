@@ -7,7 +7,6 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"encoding/asn1"
 	"errors"
 	"fmt"
 	"io"
@@ -464,7 +463,7 @@ func (k *tpm2Key) Signer() (crypto.Signer, error) {
 	}
 
 	// Create crypto.PublicKey based on curve
-	var publicKey crypto.PublicKey
+	var publicKey *ecdsa.PublicKey
 	switch eccDetail.CurveID {
 	case tpm2.TPMECCNistP256:
 		publicKey = &ecdsa.PublicKey{
@@ -513,7 +512,7 @@ func (k *tpm2Key) Close() error {
 type tpm2Signer struct {
 	tpm       transport.TPMCloser
 	handle    tpm2.NamedHandle
-	publicKey crypto.PublicKey
+	publicKey *ecdsa.PublicKey
 }
 
 // _ ensures tpm2Signer satisfies the crypto.Signer interface at compile time.
@@ -527,16 +526,12 @@ func (s *tpm2Signer) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([
 	// Determine hash algorithm
 	var hashAlg tpm2.TPMAlgID
 	switch opts.HashFunc() {
-	case crypto.SHA1:
-		hashAlg = tpm2.TPMAlgSHA1
 	case crypto.SHA256:
 		hashAlg = tpm2.TPMAlgSHA256
 	case crypto.SHA384:
 		hashAlg = tpm2.TPMAlgSHA384
-	case crypto.SHA512:
-		hashAlg = tpm2.TPMAlgSHA512
 	default:
-		hashAlg = tpm2.TPMAlgSHA256
+		return nil, fmt.Errorf("unsupported hash function: %v", opts.HashFunc())
 	}
 
 	// Sign with TPM using ECDSA.
@@ -576,25 +571,27 @@ func (s *tpm2Signer) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) ([
 		return nil, fmt.Errorf("get ECDSA signature: %w", err)
 	}
 
-	// Convert TPM ECDSA signature to standard format
-	// TPM returns r and s as separate values, we need to encode them properly
-	rBytes := ecdsaSig.SignatureR.Buffer
-	sBytes := ecdsaSig.SignatureS.Buffer
+	// Choose the correct curve based on the key
+	curveBits := s.publicKey.Curve.Params().BitSize
+	coordSize := (curveBits + 7) / 8 // bytes per coordinate
 
-	// Create ASN.1 DER encoded signature
-	return encodeECDSASignature(rBytes, sBytes)
-}
+	// Allocate the output buffer
+	sig := make([]byte, 2*coordSize)
 
-// ecdsaSignature represents an ECDSA signature in ASN.1 DER format
-type ecdsaSignature struct {
-	R, S *big.Int
-}
+	// Copy R, left-padded
+	sigR := ecdsaSig.SignatureR.Buffer
+	if len(sigR) > coordSize {
+		return nil, fmt.Errorf("TPM ECDSA signature R too long: got %d bytes, expected max %d", len(sigR), coordSize)
+	}
+	copy(sig[coordSize-len(sigR):coordSize], sigR)
 
-// encodeECDSASignature encodes r and s values into ASN.1 DER format
-func encodeECDSASignature(rBytes, sBytes []byte) ([]byte, error) {
-	r := new(big.Int).SetBytes(rBytes)
-	s := new(big.Int).SetBytes(sBytes)
+	// Copy S, left-padded
+	sigS := ecdsaSig.SignatureS.Buffer
+	if len(sigS) > coordSize {
+		return nil, fmt.Errorf("TPM ECDSA signature S too long: got %d bytes, expected max %d", len(sigS), coordSize)
+	}
+	copy(sig[2*coordSize-len(sigS):], sigS)
 
-	sig := ecdsaSignature{R: r, S: s}
-	return asn1.Marshal(sig)
+	// The final signature now contains r||s, fixed-width, RFC 9421–compatible
+	return sig, nil
 }

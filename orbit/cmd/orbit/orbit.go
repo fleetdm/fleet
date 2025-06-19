@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -49,6 +50,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/oklog/run"
+	"github.com/remitly-oss/httpsig-go"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
@@ -985,6 +987,32 @@ func main() {
 			}))
 		}
 
+		var signerWrapper func(*http.Client) *http.Client
+		if key != nil {
+			cryptoSigner, err := key.Signer()
+			if err != nil {
+				return fmt.Errorf("error getting TPM-backed signer: %w", err)
+			}
+			certSN, err := scep.GetCertSerialNumberAsHex(filepath.Join(c.String("root-dir"), constant.FleetHTTPSignatureCertificateFileName))
+			if err != nil {
+				return fmt.Errorf("error getting cert serial number: %w", err)
+			}
+			signer, err := httpsig.NewSigner(httpsig.SigningProfile{
+				Algorithm: httpsig.Algo_ECDSA_P384_SHA384, // TODO: allow to use P256
+				Fields:    httpsig.Fields("@method", "@target-uri", "content-digest"),
+				Metadata:  []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaAlgorithm, httpsig.MetaCreated, httpsig.MetaNonce},
+			}, httpsig.SigningKey{
+				Key:       cryptoSigner,
+				MetaKeyID: certSN,
+			})
+			if err != nil {
+				return fmt.Errorf("error creating signer: %w", err)
+			}
+			signerWrapper = func(client *http.Client) *http.Client {
+				return httpsig.NewHTTPClient(client, signer, nil)
+			}
+		}
+
 		orbitClient, err := service.NewOrbitClient(
 			c.String("root-dir"),
 			fleetURL,
@@ -1001,6 +1029,7 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			signerWrapper,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1278,6 +1307,7 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			nil,
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)

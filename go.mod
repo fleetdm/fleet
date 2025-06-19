@@ -98,6 +98,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
+	github.com/remitly-oss/httpsig-go v1.1.3
 	github.com/rs/zerolog v1.32.0
 	github.com/russellhaering/goxmldsig v1.2.0
 	github.com/saferwall/pe v1.5.5
@@ -200,6 +201,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
+	github.com/dunglas/httpsfv v1.0.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/elastic/go-sysinfo v1.11.2 // indirect
@@ -323,3 +325,5 @@ tool (
 	github.com/kevinburke/go-bindata
 	github.com/quasilyte/go-ruleguard/dsl
 )
+
+replace github.com/remitly-oss/httpsig-go => github.com/getvictor/httpsig-go v0.0.0-20250619174410-f54b82bcc25f
