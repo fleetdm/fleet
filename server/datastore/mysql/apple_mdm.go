@@ -582,39 +582,40 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 func (ds *Datastore) GetHostMDMAppleProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 	stmt := fmt.Sprintf(`
 SELECT
-profile_uuid,
-profile_name AS name,
-profile_identifier AS identifier,
--- internally, a NULL status implies that the cron needs to pick up
--- this profile, for the user that difference doesn't exist, the
--- profile is effectively pending. This is consistent with all our
--- aggregation functions.
-COALESCE(status, '%s') AS status,
-COALESCE(operation_type, '') AS operation_type,
-COALESCE(detail, '') AS detail,
-scope
+	profile_uuid,
+	profile_name AS name,
+	profile_identifier AS identifier,
+	-- internally, a NULL status implies that the cron needs to pick up
+	-- this profile, for the user that difference doesn't exist, the
+	-- profile is effectively pending. This is consistent with all our
+	-- aggregation functions.
+	COALESCE(status, '%s') AS status,
+	COALESCE(operation_type, '') AS operation_type,
+	COALESCE(detail, '') AS detail,
+	scope
 FROM
-  host_mdm_apple_profiles
+	host_mdm_apple_profiles
 WHERE
-  host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
+	host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
 
 UNION ALL
+
 SELECT
-declaration_uuid AS profile_uuid,
-declaration_name AS name,
-declaration_identifier AS identifier,
--- internally, a NULL status implies that the cron needs to pick up
--- this profile, for the user that difference doesn't exist, the
--- profile is effectively pending. This is consistent with all our
--- aggregation functions.
-COALESCE(status, '%s') AS status,
-COALESCE(operation_type, '') AS operation_type,
-COALESCE(detail, '') AS detail,
-scope
+	declaration_uuid AS profile_uuid,
+	declaration_name AS name,
+	declaration_identifier AS identifier,
+	-- internally, a NULL status implies that the cron needs to pick up
+	-- this profile, for the user that difference doesn't exist, the
+	-- profile is effectively pending. This is consistent with all our
+	-- aggregation functions.
+	COALESCE(status, '%s') AS status,
+	COALESCE(operation_type, '') AS operation_type,
+	COALESCE(detail, '') AS detail,
+	scope
 FROM
-  host_mdm_apple_declarations
+	host_mdm_apple_declarations
 WHERE
-  host_uuid = ? AND declaration_name NOT IN (?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+	host_uuid = ? AND declaration_name NOT IN (?) AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -767,10 +768,10 @@ UPDATE
 	nano_enrollment_queue
 	JOIN nano_enrollments ne
 		ON nano_enrollment_queue.id = ne.id
-	JOIN host_mdm_apple_profiles hmap 
-		ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND 
+	JOIN host_mdm_apple_profiles hmap
+		ON hmap.command_uuid = nano_enrollment_queue.command_uuid AND
 			hmap.host_uuid = ne.device_id
-SET 
+SET
 	nano_enrollment_queue.active = 0
 WHERE
 	hmap.profile_uuid = ? AND
@@ -2397,6 +2398,12 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		return false, nil
 	}
 
+	// no need to worry about whether the user-channel exists yet or not for the
+	// user-scoped profiles here (which will be returned by the generated desired
+	// state) because this is just to set the status to null so they are
+	// considered on the next reconciliation cron job (and in that
+	// reconciliation, they will be ignored from the "to install/to remove" list
+	// if necessary).
 	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
 
 	// TODO(mna): the conditions here (and in toRemoveStmt) are subtly different
@@ -2827,6 +2834,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.${checksumColumn} as ${checksumColumn},
 		mae.secrets_updated_at as secrets_updated_at,
 		mae.scope as scope,
+		nd.authenticate_at as device_enrolled_at,
 		0 as ${countEntityLabelsColumn},
 		0 as count_non_broken_labels,
 		0 as count_host_labels,
@@ -2837,6 +2845,8 @@ func generateDesiredStateQuery(entityType string) string {
 				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
+			JOIN nano_devices nd
+				ON nd.id = ne.device_id
 	WHERE
 		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
@@ -2862,6 +2872,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.${checksumColumn} as ${checksumColumn},
 		mae.secrets_updated_at as secrets_updated_at,
 		mae.scope as scope,
+		nd.authenticate_at as device_enrolled_at,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
@@ -2872,6 +2883,8 @@ func generateDesiredStateQuery(entityType string) string {
 				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
+			JOIN nano_devices nd
+				ON nd.id = ne.device_id
 			JOIN ${mdmEntityLabelsTable} mel
 				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn} AND mel.exclude = 0 AND mel.require_all = 1
 			LEFT OUTER JOIN label_membership lm
@@ -2902,6 +2915,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.${checksumColumn} as ${checksumColumn},
 		mae.secrets_updated_at as secrets_updated_at,
 		mae.scope as scope,
+		nd.authenticate_at as device_enrolled_at,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
@@ -2914,6 +2928,8 @@ func generateDesiredStateQuery(entityType string) string {
 				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
+			JOIN nano_devices nd
+				ON nd.id = ne.device_id
 			JOIN ${mdmEntityLabelsTable} mel
 				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn} AND mel.exclude = 1 AND mel.require_all = 0
 			LEFT OUTER JOIN labels lbl
@@ -2945,6 +2961,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.${checksumColumn} as ${checksumColumn},
 		mae.secrets_updated_at as secrets_updated_at,
 		mae.scope as scope,
+		nd.authenticate_at as device_enrolled_at,
 		COUNT(*) as ${countEntityLabelsColumn},
 		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels,
@@ -2955,6 +2972,8 @@ func generateDesiredStateQuery(entityType string) string {
 				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
+			JOIN nano_devices nd
+				ON nd.id = ne.device_id
 			JOIN ${mdmEntityLabelsTable} mel
 				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn} AND mel.exclude = 0 AND mel.require_all = 0
 			LEFT OUTER JOIN label_membership lm
@@ -2970,6 +2989,11 @@ func generateDesiredStateQuery(entityType string) string {
 		${countEntityLabelsColumn} > 0 AND count_host_labels >= 1
 	`, func(s string) string { return dynamicNames[s] })
 }
+
+// Number of hours to wait for a user enrollment to exist for a host after its
+// device enrollment. After that duration, the user-scoped profiles will be
+// delivered to the device-channel.
+const hoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 
 // generateEntitiesToInstallQuery is a set difference between:
 //
@@ -3013,20 +3037,54 @@ func generateEntitiesToInstallQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
+	// NOTE(mna): do not return as "to install" the user-channel profiles for
+	// which the host doesn't have a user-channel registered yet (within some
+	// time window after device enrollment).
+	//
+	// Pros of this approach: no need to do some extra logic in
+	// ReconcileAppleProfiles, automatically works for label-constrained profiles
+	// without adding complexity to the big sub-query with many unions (since
+	// this filtering happens after the desired state query), also supports
+	// declarations "automatically", user-scoped profiles are correctly ignored
+	// everywhere we rely on the "to install" list.
+	//
+	// Cons is of course a more complex query, but the final query is already
+	// quite complex and this new condition is not too bad, and it would be
+	// required *somewhere* anyway.
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
 		LEFT JOIN ${hostMDMAppleEntityTable} hmae
 			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
 	WHERE
-		-- entity has been updated
-		( hmae.${checksumColumn} != ds.${checksumColumn} ) OR IFNULL(hmae.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
-		-- entity in A but not in B
-		( hmae.${entityUUIDColumn} IS NULL AND hmae.host_uuid IS NULL ) OR
-		-- entities in A and B but with operation type "remove"
-		( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
-		-- entities in A and B with operation type "install" and NULL status
-		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
-`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"))
+		(
+			-- not user-scoped
+			ds.scope != 'User' OR
+			-- user-scoped and user-channel exists
+			( ds.scope = 'User' AND EXISTS (
+				SELECT 1
+				FROM nano_enrollments ne
+				WHERE
+					ne.type = 'User' AND
+					ne.enabled = 1 AND
+					ne.device_id = ds.host_uuid
+			) ) OR
+			-- user-scoped, no user-channel but sufficient delay after device enrollment
+			-- (which will result in deploying the profile to the device channel)
+			( ds.scope = 'User' AND ds.device_enrolled_at < (NOW() - INTERVAL %d HOUR) )
+		) AND (
+			-- entity has been updated
+			( hmae.${checksumColumn} != ds.${checksumColumn} ) OR IFNULL(hmae.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
+			-- entity in A but not in B
+			( hmae.${entityUUIDColumn} IS NULL AND hmae.host_uuid IS NULL ) OR
+			-- entities in A and B but with operation type "remove"
+			( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
+			-- entities in A and B with operation type "install" and NULL status
+			( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
+		)
+`, func(s string) string { return dynamicNames[s] }),
+		fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE", "TRUE"),
+		hoursToWaitForUserEnrollmentAfterDeviceEnrollment,
+	)
 }
 
 // generateEntitiesToRemoveQuery is a set difference between:
@@ -3061,6 +3119,11 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 		panic(fmt.Sprintf("unknown entity type %q", entityType))
 	}
 
+	// NOTE(mna): there is no check for an existing user-enrollment here, because
+	// if a user-scoped profile is identified as "to remove", it has to have been
+	// delivered at some point, either because a user-channel did exist, or
+	// because it was delivered to the device-channel after the maximum wait
+	// delay. Either way, it should proceed with removal.
 	return fmt.Sprintf(os.Expand(`
 	( %s ) as ds
 		RIGHT JOIN ${hostMDMAppleEntityTable} hmae

@@ -380,6 +380,14 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 			continue
 		}
 
+		// NOTE: user-scoped profiles are ignored because they are not sent by Fleet
+		// until after the device is released - there is no user-channel available
+		// on the host until after the release, and after the user actually created
+		// the user account.
+		if prof.Scope == fleet.PayloadScopeUser {
+			continue
+		}
+
 		// if it has any pending profiles, then its profiles are not done being
 		// delivered (installed or removed).
 		if prof.Status == nil || *prof.Status == fleet.MDMDeliveryPending {
