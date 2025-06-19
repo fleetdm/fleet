@@ -13,6 +13,8 @@ import { getErrorReason } from "interfaces/errors";
 
 import configAPI from "services/entities/config";
 
+import SettingsSection from "pages/admin/components/SettingsSection";
+
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio/Radio";
@@ -21,7 +23,7 @@ import Button from "components/buttons/Button/Button";
 import SectionHeader from "components/SectionHeader";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable/EmptyTable";
-import SettingsSection from "pages/admin/components/SettingsSection";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
@@ -129,7 +131,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   };
 
   const formClasses = classnames(`${baseClass}__end-user-migration-form`, {
-    disabled: !formData.isEnabled,
+    disabled: !formData.isEnabled || config?.gitops.gitops_mode_enabled,
   });
 
   if (!isPremiumTier) {
@@ -164,14 +166,14 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           alt="end user migration preview"
           className={`${baseClass}__migration-preview`}
         />
-        <Slider
-          value={formData.isEnabled}
-          onChange={toggleMigrationEnabled}
-          activeText="Enabled"
-          inactiveText="Disabled"
-          className={`${baseClass}__enabled-slider`}
-        />
         <div className={`form ${formClasses}`}>
+          <Slider
+            value={formData.isEnabled}
+            onChange={toggleMigrationEnabled}
+            activeText="Enabled"
+            inactiveText="Disabled"
+            className={`${baseClass}__enabled-slider`}
+          />
           <div className={`form-field ${baseClass}__mode-field`}>
             <div className="form-field__label">Mode</div>
             <Radio
@@ -229,7 +231,14 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
         >
           Preview payload
         </Button>
-        <Button onClick={onSubmit}>Save</Button>
+        <GitOpsModeTooltipWrapper
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
+            <Button onClick={onSubmit} disabled={disableChildren}>
+              Save
+            </Button>
+          )}
+        />
       </form>
       {showExamplePayload && (
         <ExampleWebhookUrlPayloadModal onCancel={toggleExamplePayloadModal} />

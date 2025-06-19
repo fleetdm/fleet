@@ -1,4 +1,4 @@
-# Vehicle manufacturer transitions to Fleet for endpoint security
+# Vehicle manufacturer transitions to Fleet for vulnerability automation
 
 <div purpose="attribution-quote">
 

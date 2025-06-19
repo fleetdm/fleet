@@ -173,6 +173,13 @@ func (e MDMAppleCommandTimeoutError) StatusCode() int {
 	return http.StatusGatewayTimeout
 }
 
+type PayloadScope string
+
+const (
+	PayloadScopeUser   PayloadScope = "User"
+	PayloadScopeSystem PayloadScope = "System"
+)
+
 // MDMAppleConfigProfile represents an Apple MDM configuration profile in Fleet.
 // Configuration profiles are used to configure Apple devices .
 // See also https://developer.apple.com/documentation/devicemanagement/configuring_multiple_devices_using_profiles.
@@ -190,6 +197,11 @@ type MDMAppleConfigProfile struct {
 	// Identifier corresponds to the payload identifier of the associated mobileconfig payload.
 	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
 	Identifier string `db:"identifier" json:"identifier"`
+	// Scope is the PayloadScope attribute of the profile. It is used to determine how the profile
+	// is applied. Valid values are "User" and "System". System profiles are applied to the
+	// device channel whereas User scoped profiles are applied to the user channel if it exists for
+	// a given host, otherwise the device channel.
+	Scope PayloadScope `db:"scope" json:"scope"`
 	// Name corresponds to the payload display name of the associated mobileconfig payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
@@ -242,6 +254,7 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 		Identifier:   cp.PayloadIdentifier,
 		Name:         cp.PayloadDisplayName,
 		Mobileconfig: mc,
+		Scope:        PayloadScope(cp.PayloadScope),
 	}, nil
 }
 
@@ -270,6 +283,7 @@ type HostMDMAppleProfile struct {
 	OperationType      MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail             string             `db:"detail" json:"detail"`
 	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"-"`
+	Scope              PayloadScope       `db:"scope" json:"scope"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
@@ -332,6 +346,7 @@ type MDMAppleProfilePayload struct {
 	Detail            string             `db:"detail"`
 	CommandUUID       string             `db:"command_uuid"`
 	IgnoreError       bool               `db:"ignore_error"`
+	Scope             PayloadScope       `db:"scope"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
@@ -365,6 +380,7 @@ type MDMAppleBulkUpsertHostProfilePayload struct {
 	SecretsUpdatedAt   *time.Time
 	IgnoreError        bool
 	VariablesUpdatedAt *time.Time
+	Scope              PayloadScope
 }
 
 // MDMAppleFileVaultSummary reports the number of macOS hosts being managed with Apples disk

@@ -44,15 +44,7 @@ Note that Firehose logging has limits [discussed in the documentation](https://d
 
 ## Webhook
 
-Results from scheduled queries are written to an arbitrary external webhook of your choosing. To use, run Fleet with the
-following environment variables set:
-
-```
-FLEET_OSQUERY_RESULT_LOG_PLUGIN="webhook"
-FLEET_WEBHOOK_STATUS_URL="<target_status_url>"
-FLEET_WEBHOOK_RESULT_URL="<target_result_url>" 
-```
-
+See [webhook configuration docs](https://fleetdm.com/docs/deploying/configuration#webhook)
 
 ## Snowflake
 

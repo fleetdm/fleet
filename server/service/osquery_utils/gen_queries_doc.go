@@ -30,6 +30,9 @@ func main() {
 			EnableSoftwareInventory: true,
 			EnableHostUsers:         true,
 		},
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: true,
+		},
 	)
 	var b strings.Builder
 

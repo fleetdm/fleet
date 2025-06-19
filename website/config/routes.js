@@ -498,6 +498,22 @@ module.exports.routes = {
     }
   },
 
+  'GET /microsoft-compliance-partner/remediate': {
+    action: 'microsoft-proxy/view-remediate',
+    locals: {
+      showConfigurationProfileLayout: true,
+      hideStartCTA: true,
+    }
+  },
+
+  'GET /microsoft-compliance-partner/turn-on-mdm': {
+    action: 'microsoft-proxy/view-turn-on-mdm',
+    locals: {
+      showConfigurationProfileLayout: true,
+      hideStartCTA: true,
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -903,6 +919,7 @@ module.exports.routes = {
   'GET /learn-more-about/how-to-connect-android-enterprise': '/guides/android-mdm-setup',
   'GET /learn-more-about/custom-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet2',
   'GET /learn-more-about/ndes-scep-configuration-profile': '/guides/connect-end-user-to-wifi-with-certificate#step-2-add-scep-configuration-profile-to-fleet',
+  'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
 
@@ -938,8 +955,7 @@ module.exports.routes = {
   // Temporary redirects
   // =============================================================================================================
   // For events, etc. that can be removed after a certain date. Please leave a comment with a valid until date.
-  'GET /rsaparty':               'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm', // Valid until 2024-05-09
-  'GET /rsavip':                 'https://www.eventbrite.com/e/fleet-launch-party-at-rsac-tickets-877549332677?aff=fleetdm&discount=Fleet2024', // Valid until 2024-05-09
+  'GET /funding-announcement': 'https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management',// This will be changed on 2025-06-17.
 
 
   //  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
@@ -951,6 +967,17 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-from-zapier': { action: 'webhooks/receive-from-zapier', csrf: false },
   'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},
   'POST /api/v1/webhooks/receive-from-clay': { action: 'webhooks/receive-from-clay', csrf: false},
+
+
+  //  ╔═╗╔╗╔╔╦╗╦═╗╔═╗╦╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ╠═╣║║║ ║║╠╦╝║ ║║ ║║  ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false},
+  'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false},
+  'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
+  'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false},
+  'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
+
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
@@ -988,6 +1015,18 @@ module.exports.routes = {
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
   'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
+
+
+
+  //  ╔╦╗╦╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔╦╗  ╔═╗╦═╗╔═╗═╗ ╦╦ ╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
+  //  ║║║║║  ╠╦╝║ ║╚═╗║ ║╠╣  ║   ╠═╝╠╦╝║ ║╔╩╦╝╚╦╝  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗
+  //  ╩ ╩╩╚═╝╩╚═╚═╝╚═╝╚═╝╚   ╩   ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
+  'POST /api/v1/microsoft-compliance-partner': { action: 'microsoft-proxy/create-compliance-partner-tenant', csrf: false },
+  'GET /api/v1/microsoft-compliance-partner/settings': { action: 'microsoft-proxy/get-compliance-partner-settings' },
+  'DELETE /api/v1/microsoft-compliance-partner': { action: 'microsoft-proxy/remove-one-compliance-partner-tenant', csrf: false },
+  'POST /api/v1/microsoft-compliance-partner/device': { action: 'microsoft-proxy/update-one-devices-compliance-status', csrf: false },
+  'GET /api/v1/microsoft-compliance-partner/device/message': { action: 'microsoft-proxy/get-one-compliance-status-result', },
+  'GET /api/v1/microsoft-compliance-partner/adminconsent': { action: 'microsoft-proxy/receive-redirect-from-microsoft', },
 
   // Well known resources https://datatracker.ietf.org/doc/html/rfc8615
   // =============================================================================================================

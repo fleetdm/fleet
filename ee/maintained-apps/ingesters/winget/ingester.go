@@ -299,6 +299,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
+	out.Frozen = input.Frozen
 
 	return &out, nil
 }
@@ -354,6 +355,7 @@ type inputApp struct {
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
+	Frozen            bool     `json:"frozen"`
 }
 
 type installerManifest struct {

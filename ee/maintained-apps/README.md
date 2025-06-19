@@ -1,5 +1,14 @@
 # Fleet-maintained apps (FMA)
 
+## Freezing an existing app
+
+Add `"frozen": true` to the appropriate input JSON file to pause automated updates to the corresponding output manifest.
+To aid in testing, manifests will still be generated for frozen inputs if the output file doesn't exist.
+
+Apps should be frozen when updating the manifest would introduce regressions on ability to install/uninstall the app.
+Frozen apps should have bugs filed, and fixes for those bugs should unfreeze the app and bump it to the latest version
+as part of the fix PR.
+
 ## Adding a new app
 
 1. Decide on a source for the app's metadata. We currently support homebrew as a source for macOS apps.
@@ -99,7 +108,7 @@ After testing make sure to change the Image URL back to `docker.io/fleetdm/fleet
 
 9. Head to the [Fleet server for testing software](https://fleet-iibe.onrender.com/).
 
-10. If your laptop is already enrolled to a different Fleet (e.g. dogfood), we want to unenroll it before enrolling it to the Fleet server for testing software. Learn how unenroll your laptop [here](https://fleetdm.com/guides/how-to-uninstall-fleetd).
+10. If your laptop is already enrolled to a different Fleet (e.g. dogfood), we want to [unenroll it](https://fleetdm.com/guides/how-to-uninstall-fleetd) before enrolling it to the Fleet server for testing software.
 
 11. Enroll your laptop to the Fleet server for testing software by selecting **Add** hosts on the **Hosts** page and following the steps to generate Fleet's agent (fleetd) and install it on your laptop.
 

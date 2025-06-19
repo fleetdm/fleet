@@ -47,8 +47,8 @@ config:
 
 ### options and command_line_flags
 
-- `options` include the agent settings listed under `osqueryOptions` [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These can be updated without a fleetd restart.
-- `command_line_flags` include the agent settings listed under osqueryCommandLineFlags [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These are only updated when fleetd restarts. 
+- `options` include the agent settings listed under `osqueryOptions` in [`agent_options_generated.go`](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These can be updated without a fleetd restart.
+- `command_line_flags` include the agent settings listed under osqueryCommandLineFlags in [`agent_options_generated.go`](https://github.com/fleetdm/fleet/blob/main/server/fleet/agent_options_generated.go). These are only updated when fleetd restarts. 
 
 To see a description for all available settings, first [enroll your host](https://fleetdm.com/guides/enroll-hosts) to Fleet. Then, open your **Terminal** app and run `sudo orbit shell` to open an interactive osquery shell. Then run the following osquery query:
 
@@ -78,11 +78,11 @@ In the `decorators` key, you can specify queries to include additional informati
 
 ### yara
 
-You can use Fleet to configure the `yara` and `yara_events` osquery tables. Learn more about YARA configuration and continuous monitoring [here](https://fleetdm.com/guides/remote-yara-rules#basic-article).
+You can use Fleet to configure the `yara` and `yara_events` osquery tables, used to administer [YARA rules]((https://fleetdm.com/guides/remote-yara-rules) for continuous monitoring.
 
 ## extensions
 
-> This feature requires a custom TUF auto-update server (available in Fleet Premium). Learn more [here](https://fleetdm.com/guides/fleetd-updates).
+> This feature requires a custom TUF [auto-update server](https://fleetdm.com/guides/fleetd-updates) (available in Fleet Premium).
 
 The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
 
@@ -179,7 +179,7 @@ In the above example:
 
 _Available in Fleet Premium_
 
-Users can configure fleetd component TUF auto-update channels from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component. Available options for update channels can be viewed [here](https://fleetdm.com/docs/using-fleet/enroll-hosts#specifying-update-channels).
+Users can configure fleetd component TUF [auto-update channels](https://fleetdm.com/docs/using-fleet/enroll-hosts#specifying-update-channels) from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component.
 
 #### Examples
 

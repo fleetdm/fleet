@@ -217,6 +217,7 @@ export const generateSoftwareTableHeaders = ({
               Install status
             </TooltipWrapper>
           }
+          disableSortBy
         />
       ),
       disableSortBy: true,
@@ -241,6 +242,7 @@ export const generateSoftwareTableHeaders = ({
               Installed version
             </TooltipWrapper>
           }
+          disableSortBy
         />
       ),
       id: "version",

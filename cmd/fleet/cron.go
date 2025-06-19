@@ -890,6 +890,13 @@ func newCleanupsAndAggregationSchedule(
 				return ds.CleanupExpiredPasswordResetRequests(ctx)
 			},
 		),
+		schedule.WithJob(
+			"expired_challenges",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupExpiredChallenges(ctx)
+				return err
+			},
+		),
 		// Run aggregation jobs after cleanups.
 		schedule.WithJob(
 			"query_aggregated_stats",
@@ -990,6 +997,14 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
+		}),
+		schedule.WithJob("cleanup_worker_jobs", func(ctx context.Context) error {
+			const (
+				failedSince    = 365 * 24 * time.Hour // keep failed jobs for 1 year
+				completedSince = 90 * 24 * time.Hour  // keep completed (successful) jobs for ~3 months
+			)
+			_, err := ds.CleanupWorkerJobs(ctx, failedSince, completedSince)
+			return err
 		}),
 	)
 

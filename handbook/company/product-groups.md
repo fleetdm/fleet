@@ -28,7 +28,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group                            | Goal _(value for customers and/or community)_                                                                          | Capacity |
 |:-----------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
-| [MDM](#mdm-group)                        | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 117      |
+| [MDM](#mdm-group)                        | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 104      |
 | [Orchestration](#orchestration-group)    | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 117      |
 | [Software](#software-group)              | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 104      |
 
@@ -43,9 +43,9 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
-| Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_
-| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
+| Product Manager                   | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
+| Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_, [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
 
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
@@ -59,9 +59,9 @@ The goal of the orchestration group is to increase and exceed [Fleet's product m
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
+| Product Manager                   | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
 | Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Developer                         | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_
+| Developer                         | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C084F4MKYSJ), [kanban release board](https://github.com/orgs/fleetdm/projects/71), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-orchestration) for this product group is `#g-orchestration`.
 
@@ -74,7 +74,7 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Eugene Kuo](https://www.linkedin.com/in/eugkuo/) _([@eugkuo](https://github.com/eugkuo))_
 | Engineering Manager               | [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
+| Product Manager                   | [Eugene Kuo](https://www.linkedin.com/in/eugkuo/) _([@eugkuo](https://github.com/eugkuo))_
 | Quality Assurance                 | [Janis Watts](https://www.linkedin.com/in/janis-watts-b080ab94/) _([@jmwatts](https://github.com/jmwatts))_
 | Developer                         | [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_, [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_
 
@@ -540,7 +540,7 @@ The on-call developer is asked to read, understand, test, correct, and improve a
 
 Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. 
 
-See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. [Outstanding documentation issues](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22) use the `:improve documentation` tag.
+See [Writing](https://fleetdm.com/handbook/company/communications#writing) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. [Outstanding documentation issues](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22) use the `:improve documentation` tag.
 
 - **Engineering alerts**
 The on-call developer is responsible for triaging new alerts in the #help-engineering Slack channel, such as failing unit tests. If the on-call developer has the ability to make the fix, they should do so. Otherwise, they should request help from the appropriate team. Filing a bug is also an option if the issue is not urgent.
