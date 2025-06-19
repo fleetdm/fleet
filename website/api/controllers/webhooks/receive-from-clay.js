@@ -84,6 +84,11 @@ module.exports = {
       }
     });
 
+    if(!recordIds.salesforceAccountId) {
+      sails.log.warn(`When the receive-from-clay received information about a user's activity (name: ${firstName} ${lastName}), activity: ${intentSignal}). A contact was successfully updated, but the webhook is unable to continue because this contact is not associated with any Salesforce account record. Contact ID: ${recordIds.salesforceContactId}`)
+      throw 'couldNotCreateActivity';
+    }
+
     let trimmedLinkedinUrl = linkedinUrl.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS, '');
 
     // Create the new Fleet website page view record.
