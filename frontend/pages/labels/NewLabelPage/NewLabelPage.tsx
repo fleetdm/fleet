@@ -1,40 +1,13 @@
 import React, { useCallback, useContext, useState } from "react";
-import { Tab, TabList, Tabs } from "react-tabs";
 
 import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 
-import PATHS from "router/paths";
 import { RouteComponentProps } from "react-router";
-
-interface ILabelSubNavItem {
-  name: string;
-  pathname: string;
-}
-
-const labelSubNav: ILabelSubNavItem[] = [
-  {
-    name: "Dynamic",
-    pathname: PATHS.LABEL_NEW_DYNAMIC,
-  },
-  {
-    name: "Manual",
-    pathname: PATHS.LABEL_NEW_MANUAL,
-  },
-];
-
-const getTabIndex = (path: string): number => {
-  return labelSubNav.findIndex((navItem) => {
-    // tab stays highlighted for paths that start with same pathname
-    return path.startsWith(navItem.pathname);
-  });
-};
 
 const baseClass = "new-label-page";
 
@@ -48,15 +21,6 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
   );
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
   const [showOpenSidebarButton, setShowOpenSidebarButton] = useState(false);
-
-  const isDynamicLabel = location.pathname.includes("dynamic");
-
-  const navigateToNav = useCallback(
-    (i: number): void => {
-      router.replace(labelSubNav[i].pathname);
-    },
-    [router]
-  );
 
   const onCloseSidebar = () => {
     setSidePanelOpen(false);
@@ -80,27 +44,12 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
           Dynamic (smart) labels are assigned to hosts if the query returns
           results. Manual labels are assigned to selected hosts.
         </p>
-        <TabNav className={`${baseClass}__new-label-tab-nav`}>
-          <Tabs
-            selectedIndex={getTabIndex(location?.pathname || "")}
-            onSelect={navigateToNav}
-          >
-            <TabList>
-              {labelSubNav.map((navItem) => {
-                return (
-                  <Tab key={navItem.name} data-text={navItem.name}>
-                    <TabText>{navItem.name}</TabText>
-                  </Tab>
-                );
-              })}
-            </TabList>
-          </Tabs>
-        </TabNav>
-        {React.cloneElement(children, {
+        {/* {React.cloneElement(children, {
           showOpenSidebarButton,
           onOpenSidebar,
           onOsqueryTableSelect,
-        })}
+        })} */}
+        {/* TODO - replace this with the new aggregate form */}
       </MainContent>
       {isDynamicLabel && isSidePanelOpen && (
         <SidePanelContent>
