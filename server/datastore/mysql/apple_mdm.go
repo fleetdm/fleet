@@ -4608,7 +4608,19 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			return ctxerr.Wrap(ctx, err, "resetting disk encryption key information for host")
 		}
 
-		if host.Platform == "darwin" {
+		// Do platform-specific cleanup.
+		switch host.Platform {
+		case "ios", "ipados":
+			// Clear refetch commands for iOS and iPadOS hosts.
+			// FIXME: Do we care about wipe/lock commands? How can we consolidate this with host deletion? See https://github.com/fleetdm/fleet/pull/29283/files#r2098735905
+			_, err = tx.ExecContext(ctx, `
+					DELETE FROM host_mdm_commands
+					WHERE host_id = ? AND instr(command_type, ?)`, host.ID, fleet.RefetchBaseCommandUUIDPrefix)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "resetting host_mdm_commands for host")
+			}
+
+		case "darwin":
 			// Deleting the matching entry on this table will cause
 			// the aggregate report to show this host as 'pending' to
 			// install the bootstrap package.
