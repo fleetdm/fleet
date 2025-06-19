@@ -105,3 +105,7 @@ tools/test_extensions/hello_world/linux
 
 # Residual files when building fleet_tables extension.
 fleet_tables_*.ext
+
+# Openframe
+orbit**
+osquery**
