@@ -39,10 +39,9 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
   return (
     <>
       <MainContent className={baseClass}>
-        <h1>Add label</h1>
+        <h1>New label</h1>
         <p className={`${baseClass}__page-description`}>
-          Dynamic (smart) labels are assigned to hosts if the query returns
-          results. Manual labels are assigned to selected hosts.
+          Create a newwwalbel for targeting and filtering hosts.
         </p>
         {/* {React.cloneElement(children, {
           showOpenSidebarButton,
