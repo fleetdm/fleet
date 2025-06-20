@@ -79,7 +79,7 @@ After our engineer has updated code from the review, the approver can do a final
 ![Pr Approval](../website/assets/images/articles/pr-approval-2-933x483@2x.jpg)
 
 ## GitOps mode in the UI
-Fleet supports locking down the UI with [GitOps mode](https://fleetdm.com/guides/articles/gitops-mode), which prevents manual updates to any features or
+Fleet supports locking down the UI with [GitOps mode](https://fleetdm.com/guides/gitops-mode), which prevents manual updates to any features or
 settings configurable with GitOps.
 
 ## Conclusion
