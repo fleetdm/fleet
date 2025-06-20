@@ -1207,6 +1207,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			if softwareTitle.SoftwarePackage.SelfService {
 				softwareSpec["self_service"] = softwareTitle.SoftwarePackage.SelfService
 			}
+
+			if softwareTitle.SoftwarePackage.URL != "" {
+				softwareSpec["url"] = softwareTitle.SoftwarePackage.URL
+			}
 		}
 
 		if cmd.AppConfig.License.IsPremium() {
