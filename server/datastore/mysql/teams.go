@@ -408,9 +408,9 @@ func (ds *Datastore) TeamFeatures(ctx context.Context, tid uint) (*fleet.Feature
 }
 
 func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Features, error) {
-	sql := `SELECT config->'$.features' as features FROM teams WHERE id = ?`
+	stmt := fmt.Sprintf(`SELECT config->'$.features' as features FROM teams WHERE id = %d`, tid) // safe due to uint
 	var raw *json.RawMessage
-	if err := sqlx.GetContext(ctx, q, &raw, sql, tid); err != nil {
+	if err := sqlx.GetContext(ctx, q, &raw, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get team config features")
 	}
 
