@@ -267,7 +267,7 @@ describe("EditQueryForm - component", () => {
     expect(automationsSlider).toBeInTheDocument();
 
     // Check if the automations are enabled
-    const automationsButton = within(automationsSlider).getByRole("button");
+    const automationsButton = within(automationsSlider).getByRole("switch");
     expect(automationsButton).toHaveClass("fleet-slider--active");
 
     // Check if the warning icon is present

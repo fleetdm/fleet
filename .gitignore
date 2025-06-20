@@ -85,6 +85,7 @@ macoffice_rel_notes/
 
 # IDE
 .vscode
+.cursor
 
 # residual files when running the build-windows tool
 orbit/cmd/desktop/manifest.xml
