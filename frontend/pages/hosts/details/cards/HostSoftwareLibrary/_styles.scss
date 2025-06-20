@@ -28,7 +28,6 @@
       .data-table {
         &__wrapper {
           overflow-x: auto;
-          overflow-y: hidden;
         }
       }
     }
@@ -79,6 +78,12 @@
 
             .Actions__cell {
               display: flex;
+
+              // Undoes vertical click margin found on table container tooltips
+              // TODO: Refactor vertical click margin on component level not table level
+              .data-table-block .data-table tbody .component__tooltip-wrapper {
+                margin: 0;
+              }
             }
           }
         }
