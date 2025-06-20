@@ -6634,14 +6634,6 @@ None.
       "name": "🔳🏢 Company-owned iPads",
       "id": 3
     },
-    "ios_team_personal_hosts": {
-      "name": "📱🔐 Personal mobile devices",
-      "id": 1
-    },
-    "ipados_team_personal_hosts": {
-      "name": "📱🔐 Personal mobile devices",
-      "id": 1
-    },
   }
 ]
 ```
