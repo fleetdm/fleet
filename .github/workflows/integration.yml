@@ -63,8 +63,12 @@ jobs:
         sudo sysctl -w net.core.rmem_max=2500000
 
         # Install cloudflared
-        wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+        #
+        # We pin to version 2025.5.0 because something broke with 2025.6.1.
+        # 2025.6.1 fails with "failed to create tunnel: Unknown output format 'default'"
+        wget https://github.com/cloudflare/cloudflared/releases/download/2025.5.0/cloudflared-linux-amd64.deb
         sudo dpkg -i cloudflared-linux-amd64.deb
+
         # Add secret
         echo "$CERT_PEM" | base64 -d > cert.pem
         # Start tunnel

@@ -1,0 +1,2 @@
+- Fixed a bug that prevented users from adding VPP apps to macOS setup experience if the iOS version
+  of the app was also added to their team software library.

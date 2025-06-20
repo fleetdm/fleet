@@ -1,20 +1,10 @@
 import React from "react";
 import { screen, render } from "@testing-library/react";
+import { createMockRouter } from "test/test-utils";
 import { ISoftwareTitleVersion } from "interfaces/software";
 import TitleVersionsTable from "./TitleVersionsTable";
 
-// TODO: figure out how to mock the router properly.
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
-};
+const mockRouter = createMockRouter();
 
 describe("TitleVersionsTable", () => {
   it("renders version names as links and footer info", () => {

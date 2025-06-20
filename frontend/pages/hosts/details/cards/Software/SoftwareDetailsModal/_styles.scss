@@ -65,6 +65,8 @@
   }
 
   .react-tabs__tab-panel {
-    margin-top: $pad-large;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
   }
 }

@@ -7,10 +7,6 @@ export type ISoftwareDropdownFilterVal =
   | "installableSoftware"
   | "selfServiceSoftware";
 
-export type IHostSoftwareDropdownFilterVal =
-  | ISoftwareDropdownFilterVal
-  | "vulnerableSoftware";
-
 export const SOFTWARE_TITLES_DROPDOWN_OPTIONS = [
   {
     disabled: false,
