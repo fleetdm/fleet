@@ -935,7 +935,7 @@ Once a week, the Apprentice will review the "community activity report" and add 
 
 ### Schedule travel for the CEO
 
-The Apprentice schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
+The Apprentice will verify daily that the CEO's calendar is accurate for any commitment or booked travel. The Apprentice is the DRI for scheduling all travel arrangements for the CEO, including flights, hotels, and reservations if needed. The CEO's traveling preferences in descending order of importance are:
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
   - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
@@ -943,6 +943,7 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
   - Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
+  - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
 
 
 ### Schedule CEO interview
