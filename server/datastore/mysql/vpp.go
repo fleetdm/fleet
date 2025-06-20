@@ -1724,21 +1724,23 @@ FROM vpp_apps`
 	return apps, nil
 }
 
-func (ds *Datastore) GetVPPInstallAckTimeByVerificationUUID(ctx context.Context, verificationUUID string) (*time.Time, error) {
+func (ds *Datastore) GetVPPInstallByVerificationUUID(ctx context.Context, verificationUUID string) (*fleet.HostVPPSoftwareInstall, error) {
 	stmt := `
 SELECT
-	ncr.updated_at
+	hvsi.command_uuid AS command_uuid,
+	hvsi.host_id AS host_id,
+	ncr.updated_at AS ack_at
 FROM nano_command_results ncr
 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
 WHERE hvsi.verification_command_uuid = ?
 	`
 
-	var updatedAt time.Time
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &updatedAt, stmt, verificationUUID); err != nil {
+	var result fleet.HostVPPSoftwareInstall
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, verificationUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get vpp install ack time by verification uuid")
 	}
 
-	return ptr.Time(updatedAt), nil
+	return &result, nil
 }
 
 func (ds *Datastore) UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error {
@@ -1770,18 +1772,24 @@ WHERE verification_command_uuid = ?
 }
 
 // TODO(JVE): better name
-func (ds *Datastore) SetVPPInstallAsVerified(ctx context.Context, installUUID string) error {
+func (ds *Datastore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
 SET verification_at = CURRENT_TIMESTAMP()
-WHERE verification_command_uuid = ?
+WHERE command_uuid = ?
 	`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, installUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set vpp install as verified")
-	}
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, stmt, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "set vpp install as verified")
+		}
 
-	return nil
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+		}
+
+		return nil
+	})
 }
 
 // TODO(JVE): better name

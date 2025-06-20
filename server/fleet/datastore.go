@@ -652,10 +652,10 @@ type Datastore interface {
 	GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, team_id *uint) (map[uint][]string, error)
 
 	UpdateVPPInstallVerificationCommand(ctx context.Context, installUUID, verifyCommandUUID string) error
-	SetVPPInstallAsVerified(ctx context.Context, installUUID string) error
+	SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error
 	UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error
 	GetPendingMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error)
-	GetVPPInstallAckTimeByVerificationUUID(ctx context.Context, verificationUUID string) (*time.Time, error)
+	GetVPPInstallByVerificationUUID(ctx context.Context, verificationUUID string) (*HostVPPSoftwareInstall, error)
 	SetVPPInstallAsFailed(ctx context.Context, verificationUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////

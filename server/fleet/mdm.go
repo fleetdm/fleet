@@ -1017,3 +1017,12 @@ type MDMConfigProfileStatus struct {
 type MDMWipeMetadata struct {
 	Windows *MDMWindowsWipeMetadata
 }
+
+type MDMCommandResults interface {
+	// Raw returns the raw bytes of the MDM command result XML.
+	Raw() []byte
+	UUID() string
+	HostUUID() string
+}
+
+type CommandHandler func(ctx context.Context, results MDMCommandResults) error

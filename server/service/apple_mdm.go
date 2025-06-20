@@ -3152,21 +3152,12 @@ func (svc *Service) MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamI
 // Implementation of nanomdm's CheckinAndCommandService interface
 ////////////////////////////////////////////////////////////////////////////////
 
-type Results interface {
-	// Raw returns the raw bytes of the MDM command result XML.
-	Raw() []byte
-	UUID() string
-	HostUUID() string
-}
-
-type CommandHandler func(ctx context.Context, commandResults Results) error
-
 type MDMAppleCheckinAndCommandService struct {
 	ds              fleet.Datastore
 	logger          kitlog.Logger
 	commander       *apple_mdm.MDMAppleCommander
 	mdmLifecycle    *mdmlifecycle.HostLifecycle
-	commandHandlers map[string][]CommandHandler
+	commandHandlers map[string][]fleet.CommandHandler
 }
 
 func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger kitlog.Logger) *MDMAppleCheckinAndCommandService {
@@ -3176,11 +3167,11 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 		commander:       commander,
 		logger:          logger,
 		mdmLifecycle:    mdmLifecycle,
-		commandHandlers: map[string][]CommandHandler{},
+		commandHandlers: map[string][]fleet.CommandHandler{},
 	}
 }
 
-func (svc *MDMAppleCheckinAndCommandService) RegisterCommandHandler(commandType string, handler CommandHandler) {
+func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType string, handler fleet.CommandHandler) {
 	// TODO(JVE): validate the command type, we should probably have a dedicated Go type and const set
 	svc.commandHandlers[commandType] = append(svc.commandHandlers[commandType], handler)
 }
@@ -3741,7 +3732,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 }
 
 type InstalledApplicationListResult interface {
-	Results
+	fleet.MDMCommandResults
 	InstalledApps() []fleet.Software
 }
 
@@ -3758,10 +3749,6 @@ func (i *installedApplicationListResult) HostUUID() string                { retu
 func (i *installedApplicationListResult) InstalledApps() []fleet.Software { return i.installedApps }
 
 func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uuid, hostUUID string) (InstalledApplicationListResult, error) {
-	// TODO(JVE): probably don't need ctx here (higher level concern, can just use fmt.Errorf), also
-	// should handle this error (can fail on unmarshaling the XML)
-	// Should we handle the unmarshaling elsewhere? Like higher up in CommandAndReportResults, for
-	// all command types? that sounds cleaner...
 	list, err := unmarshalAppList(ctx, rawResult, "apps")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshal app list for new installed application list result")
@@ -3773,6 +3760,74 @@ func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uu
 		installedApps: list,
 		hostUUID:      hostUUID,
 	}, nil
+}
+
+func NewInstalledApplicationListResultsHandler(
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+	verifyTimeout, verifyRequestDelay time.Duration,
+) func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
+	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
+		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
+		if !ok {
+			return fmt.Errorf("unexpected results type")
+		}
+
+		installedApps := installedAppResult.InstalledApps()
+		// TODO(JVE): remove this debug logging
+		fmt.Println("Raw:")
+		fmt.Println(string(installedAppResult.Raw()))
+		fmt.Println()
+		fmt.Printf("r.InstalledApps: %v\n", installedApps)
+
+		if len(installedApps) == 0 {
+			// Nothing to do
+			return nil
+		}
+
+		for _, a := range installedApps {
+
+			install, err := ds.GetVPPInstallByVerificationUUID(ctx, installedAppResult.UUID())
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
+			}
+
+			if a.Installed {
+				if err := ds.SetVPPInstallAsVerified(ctx, install.HostID, install.InstallCommandUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
+				}
+				continue
+			}
+
+			if install.InstallCommandAckAt != nil && time.Since(*install.InstallCommandAckAt) > verifyTimeout {
+				if err := ds.SetVPPInstallAsFailed(ctx, installedAppResult.UUID()); err != nil {
+					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
+				}
+
+				continue
+			}
+
+			// Pause to avoid sending too many commands at once
+			time.Sleep(verifyRequestDelay)
+			pendingCmds, err := ds.GetPendingMDMCommandsByHost(ctx, installedAppResult.HostUUID(), "InstalledApplicationList")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: get pending mdm commands by host")
+			}
+			// Only send a new list command if none are in flight. If there's one in
+			// flight, the install will be verified by that one.
+			if len(pendingCmds) == 0 {
+				newListCmdUUID := uuid.NewString()
+				if err := ds.UpdateVPPInstallVerificationCommandByVerifyUUID(ctx, installedAppResult.UUID(), newListCmdUUID); err != nil {
+					return ctxerr.Wrap(ctx, err, "update install record in installed application list handler")
+				}
+				commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, newListCmdUUID)
+				level.Debug(logger).Log("msg", "new installed application list command sent", "uuid", newListCmdUUID)
+			}
+		}
+
+		return nil
+	}
 }
 
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,

@@ -122,3 +122,9 @@ type ErrVPPTokenTeamConstraint struct {
 func (e ErrVPPTokenTeamConstraint) Error() string {
 	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
 }
+
+type HostVPPSoftwareInstall struct {
+	InstallCommandUUID  string     `db:"command_uuid"`
+	InstallCommandAckAt *time.Time `db:"ack_at"`
+	HostID              uint       `db:"host_id"`
+}

@@ -1171,68 +1171,7 @@ the way that the Fleet server works.
 				ddmService := service.NewMDMAppleDDMService(ds, logger)
 				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 
-				mdmCheckinAndCommandService.RegisterCommandHandler("InstalledApplicationList", func(ctx context.Context, commandResults service.Results) error {
-					installedAppResults, ok := commandResults.(service.InstalledApplicationListResult)
-					if !ok {
-						return fmt.Errorf("unexpected results type")
-					}
-
-					installedApps := installedAppResults.InstalledApps()
-					// TODO(JVE): remove this debug logging
-					fmt.Println("Raw:")
-					fmt.Println(string(installedAppResults.Raw()))
-					fmt.Println()
-					fmt.Printf("r.InstalledApps: %v\n", installedApps)
-
-					if len(installedApps) == 0 {
-						// Nothing to do
-						return nil
-					}
-
-					for _, a := range installedApps {
-						if a.Installed {
-							if err := ds.SetVPPInstallAsVerified(ctx, installedAppResults.UUID()); err != nil {
-								return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
-							}
-							continue
-						}
-
-						ackTime, err := ds.GetVPPInstallAckTimeByVerificationUUID(ctx, installedAppResults.UUID())
-						if err != nil {
-							return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting ack time for install command")
-						}
-
-						if time.Since(*ackTime) > config.Server.VPPVerifyTimeout {
-							if err := ds.SetVPPInstallAsFailed(ctx, installedAppResults.UUID()); err != nil {
-								return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
-							}
-
-							continue
-						}
-
-						// Pause to avoid sending too many commands at once
-						time.Sleep(config.Server.VPPVerifyRequestDelay)
-						fmt.Printf("config.Server.VPPVerifyRequestDelay: %v\n", config.Server.VPPVerifyRequestDelay)
-
-						pendingCmds, err := ds.GetPendingMDMCommandsByHost(ctx, installedAppResults.HostUUID(), "InstalledApplicationList")
-						if err != nil {
-							return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: get pending mdm commands by host")
-						}
-						// Only send a new list command if none are in flight. If there's one in
-						// flight, the install will be verified by that one.
-						if len(pendingCmds) == 0 {
-							newListCmdUUID := uuid.NewString()
-							if err := ds.UpdateVPPInstallVerificationCommandByVerifyUUID(ctx, installedAppResults.UUID(), newListCmdUUID); err != nil {
-								return ctxerr.Wrap(ctx, err, "update install record in installed application list handler")
-							}
-							commander.InstalledApplicationList(ctx, []string{installedAppResults.HostUUID()}, newListCmdUUID)
-							level.Debug(logger).Log("msg", "new installed application list command sent", "uuid", newListCmdUUID)
-						}
-					}
-
-					return nil
-				},
-				)
+				mdmCheckinAndCommandService.RegisterResultsHandler("InstalledApplicationList", service.NewInstalledApplicationListResultsHandler(ds, commander, logger, config.Server.VPPVerifyTimeout, config.Server.VPPVerifyRequestDelay))
 
 				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
 				if err != nil {
