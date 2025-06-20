@@ -310,6 +310,9 @@ type agent struct {
 	certificatesMutex        sync.RWMutex
 	certificatesCache        []map[string]string
 	commonSoftwareNameSuffix string
+
+	entraIDDeviceID          string
+	entraIDUserPrincipalName string
 }
 
 func (a *agent) GetSerialNumber() string {
@@ -465,6 +468,9 @@ func newAgent(
 		scheduledQueryData:       new(sync.Map),
 		commonSoftwareNameSuffix: commonSoftwareNameSuffix,
 		mdmProfileFailureProb:    mdmProfileFailureProb,
+
+		entraIDDeviceID:          uuid.NewString(),
+		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
 	}
 }
 
@@ -1806,6 +1812,15 @@ func (a *agent) mdmMac() []map[string]string {
 	}
 }
 
+func (a *agent) entraConditionalAccess() []map[string]string {
+	return []map[string]string{
+		{
+			"device_id":           a.entraIDDeviceID,
+			"user_principal_name": a.entraIDUserPrincipalName,
+		},
+	}
+}
+
 func (a *agent) mdmEnrolled() bool {
 	a.isEnrolledToMDMMu.Lock()
 	defer a.isEnrolledToMDMMu.Unlock()
@@ -2155,6 +2170,14 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		ss := statusOK
 		if rand.Intn(10) > 0 { // 90% success
 			results = a.mdmMac()
+		} else {
+			ss = statusNotOK
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"conditional_access_microsoft_device_id":
+		ss := statusOK
+		if rand.Intn(10) > 0 { // 90% success
+			results = a.entraConditionalAccess()
 		} else {
 			ss = statusNotOK
 		}
