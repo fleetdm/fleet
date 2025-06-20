@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -9,8 +9,8 @@ import {
   IHostAppStoreApp,
   SoftwareInstallStatus,
 } from "interfaces/software";
+import { IconNames } from "components/icons";
 import {
-  DisplayActionItems,
   getInstallButtonText,
   getInstallButtonIcon,
   getUninstallButtonText,
@@ -24,6 +24,11 @@ export interface generateActionsProps {
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
   hostMDMEnrolled?: boolean;
+}
+
+interface DisplayActionItems {
+  install: { text: string; icon: IconNames };
+  uninstall: { text: string; icon: IconNames };
 }
 
 interface IInstallerActionCellProps {
@@ -105,10 +110,7 @@ export const InstallerActionCell = ({
     software_package,
   });
 
-  const [
-    displayActionItems,
-    setDisplayActionItems,
-  ] = useState<DisplayActionItems>({
+  const displayActionItems: DisplayActionItems = {
     install: {
       text: getInstallButtonText(status),
       icon: getInstallButtonIcon(status),
@@ -117,22 +119,7 @@ export const InstallerActionCell = ({
       text: getUninstallButtonText(status),
       icon: getUninstallButtonIcon(status),
     },
-  });
-
-  useEffect(() => {
-    if (status !== "pending_install" && status !== "pending_uninstall") {
-      setDisplayActionItems({
-        install: {
-          text: getInstallButtonText(status),
-          icon: getInstallButtonIcon(status),
-        },
-        uninstall: {
-          text: getUninstallButtonText(status),
-          icon: getUninstallButtonIcon(status),
-        },
-      });
-    }
-  }, [status]);
+  };
 
   return (
     <div className={`${baseClass}__item-actions`}>

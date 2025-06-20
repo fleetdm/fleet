@@ -70,7 +70,7 @@
           tr {
             .status__cell {
               display: table-cell;
-              width: auto;
+              min-width: 140px; // Fixed width when status changes after clicking install/uninstall
 
               .component__tooltip-wrapper {
                 margin: 0; // Override 10px vertical margin

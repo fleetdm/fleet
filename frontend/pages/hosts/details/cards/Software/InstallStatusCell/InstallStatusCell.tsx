@@ -150,7 +150,6 @@ const InstallStatusCell = ({
   } else {
     return (
       <TextCell
-        value={undefined}
         grey
         italic
         emptyCellTooltipText={
@@ -175,6 +174,34 @@ const InstallStatusCell = ({
     );
   }
 
+  const onClickFailedInstall = () => {
+    if (isSelfService && onShowSSInstallDetails && lastInstall) {
+      if ("command_uuid" in lastInstall) {
+        onShowSSInstallDetails({ command_uuid: lastInstall.command_uuid });
+      } else if ("install_uuid" in lastInstall) {
+        onShowSSInstallDetails({ install_uuid: lastInstall.install_uuid });
+      } else {
+        onShowSSInstallDetails(undefined);
+      }
+    } else {
+      onShowSoftwareDetails && onShowSoftwareDetails(software);
+    }
+  };
+
+  const onClickFailedUninstall = () => {
+    if (isSelfService && onShowSSUninstallDetails && lastUninstall) {
+      if ("script_execution_id" in lastUninstall) {
+        onShowSSUninstallDetails(
+          (lastUninstall as { script_execution_id: string }).script_execution_id
+        );
+      } else {
+        onShowSSUninstallDetails(undefined);
+      }
+    } else {
+      onShowSoftwareDetails && onShowSoftwareDetails(software);
+    }
+  };
+
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
   const resolveDisplayText = (
@@ -194,23 +221,7 @@ const InstallStatusCell = ({
         <Button
           className={`${baseClass}__item-status-button`}
           variant="text-icon"
-          onClick={() => {
-            if (isSelfService && onShowSSInstallDetails) {
-              if ("command_uuid" in lastInstall) {
-                onShowSSInstallDetails({
-                  command_uuid: lastInstall.command_uuid,
-                });
-              } else if ("install_uuid" in lastInstall) {
-                onShowSSInstallDetails({
-                  install_uuid: lastInstall.install_uuid,
-                });
-              } else {
-                onShowSSInstallDetails(undefined);
-              }
-            } else {
-              onShowSoftwareDetails && onShowSoftwareDetails(software);
-            }
-          }}
+          onClick={onClickFailedInstall}
         >
           {resolvedDisplayText}
         </Button>
@@ -222,22 +233,7 @@ const InstallStatusCell = ({
         <Button
           className={`${baseClass}__item-status-button`}
           variant="text-icon"
-          onClick={() => {
-            if (isSelfService && onShowSSUninstallDetails) {
-              // If the last uninstall has a script_execution_id, we pass it to the handler
-              if ("script_execution_id" in lastUninstall) {
-                onShowSSUninstallDetails(
-                  (lastUninstall as {
-                    script_execution_id: string;
-                  }).script_execution_id
-                );
-              } else {
-                onShowSSUninstallDetails(undefined);
-              }
-            } else {
-              onShowSoftwareDetails && onShowSoftwareDetails(software);
-            }
-          }}
+          onClick={onClickFailedUninstall}
         >
           {resolvedDisplayText}
         </Button>
