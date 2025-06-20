@@ -58,13 +58,6 @@
       "description": "Cloudflare WARP enhances internet safety and performance by encrypting your data and optimizing connections for privacy."
     },
     {
-      "name": "Company Portal",
-      "slug": "intune-company-portal/darwin",
-      "platform": "darwin",
-      "unique_identifier": "Company Portal",
-      "description": "Company Portal is an app to help manage access to corporate apps, data, and resources."
-    },
-    {
       "name": "Amazon DCV",
       "slug": "dcv-viewer/darwin",
       "platform": "darwin",
