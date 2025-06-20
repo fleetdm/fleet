@@ -36,7 +36,7 @@ const (
 // - SCEP server URL and challenge password
 // - Write permissions to certificate directory
 func TestExampleSCEPWithTPM(t *testing.T) {
-	// t.Skip("For local development only, with a TPM.")
+	t.Skip("For local development only, with a TPM.")
 
 	// Create a logger for monitoring the enrollment process
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
@@ -113,15 +113,15 @@ func TestExampleSCEPWithTPM(t *testing.T) {
 		// Handle common error scenarios
 		switch {
 		case err.Error() == "context deadline exceeded":
-			log.Fatalf("SCEP enrollment timed out - check network connectivity and server availability: %v", err)
+			t.Fatalf("SCEP enrollment timed out - check network connectivity and server availability: %v", err)
 		case err.Error() == "PKIMessage CSR request failed":
-			log.Fatalf("SCEP authentication failed - check challenge password: %v", err)
+			t.Fatalf("SCEP authentication failed - check challenge password: %v", err)
 		case err.Error() == "get CA cert":
-			log.Fatalf("Failed to connect to SCEP server - check server URL: %v", err)
+			t.Fatalf("Failed to connect to SCEP server - check server URL: %v", err)
 		case err.Error() == "initialize TEE":
-			log.Fatalf("TPM initialization failed - check TPM hardware availability: %v", err)
+			t.Fatalf("TPM initialization failed - check TPM hardware availability: %v", err)
 		default:
-			log.Fatalf("SCEP enrollment failed: %v", err)
+			t.Fatalf("SCEP enrollment failed: %v", err)
 		}
 	}
 
