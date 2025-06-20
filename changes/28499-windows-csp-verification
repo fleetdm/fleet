@@ -1,0 +1,1 @@
+* Windows Custom OS Settings such as Win32/Desktop Bridge ADMX policies that do not return any data for verification are now marked verified after the host has acknowledged the MDM install command
