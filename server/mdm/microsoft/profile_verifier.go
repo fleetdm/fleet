@@ -154,13 +154,17 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds
 		// it's okay if we didn't get a result
 		gotResults := profileResults.cmdRefToResult[ref]
 		// non-200 status don't have results. Consider it failed
-		// TODO: should we be more granular instead? eg: special case
-		// `4xx` responses? I'm sure there are edge cases we're not
-		// accounting for here, but it's unclear at this moment.
+		// unless it falls into a special case we know about.
+		// TODO: There are likely more to be added
 		var equal bool
 		switch {
 		case !strings.HasPrefix(gotStatus, "2"):
-			equal = false
+			// For unknown reasons these always return a 404 so mark as equal in that case.
+			// See comments on functions below for further details
+			if gotStatus == "404" && (IsADMXInstallConfigOperationCSP(locURI) || IsWin32OrDesktopBridgeADMXCSP(locURI)) {
+				level.Debug(logger).Log("msg", "ADMX policy install operation or Win32/Desktop Bridge ADMX policy returned 404, marking as verified", "profile_uuid", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
+				equal = true
+			}
 		case wantData == gotResults:
 			equal = true
 		case wlanxml.IsWLANXML(wantData):
@@ -175,6 +179,11 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds
 				err = fmt.Errorf("comparing ADMX policies: %w", err)
 				return
 			}
+		default:
+			// We don't know how to compare this so we're going to assume it was equal since it had
+			// a good status code
+			level.Debug(logger).Log("msg", "Windows profile is not WLAN XML or ADMX but returned a 2XX result, marking it verified", "profile", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
+			equal = true
 		}
 		if !equal {
 			level.Debug(logger).Log("msg", "Windows profile verification failed", "profile", profile.Name, "host_id", host.ID)
@@ -232,4 +241,22 @@ func transformProfileResults(rawProfileResultsSyncML []byte) (profileResultsTran
 		}
 	}
 	return transform, nil
+}
+
+// These two methods are for detection of ADMX ingestion and Win32/Desktop Bridge ADMX policies.
+// Documentation here: https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration
+// For reasons not entirely clear, attempting to use the Get verb to fetch the results of either the
+// ADMXInstall operatiion or the config then installed against it will return a 404 so for now the best
+// we can do is detect them and mark them as verified.
+func IsADMXInstallConfigOperationCSP(locURI string) bool {
+	normalizedLocURI := strings.ToLower(locURI)
+	return strings.HasPrefix(normalizedLocURI, "./vendor/msft/policy/configoperations/admxinstall/") || strings.HasPrefix(normalizedLocURI, "./device/vendor/msft/policy/configoperations/admxinstall")
+}
+
+func IsWin32OrDesktopBridgeADMXCSP(locURI string) bool {
+	normalizedLocURI := strings.ToLower(locURI)
+	if strings.HasPrefix(normalizedLocURI, "./vendor/msft/policy/config/") || strings.HasPrefix(normalizedLocURI, "./user/vendor/msft/policy/config/") || strings.HasPrefix(normalizedLocURI, "./device/vendor/msft/policy/config/") {
+		return strings.Contains(normalizedLocURI, "~")
+	}
+	return false
 }

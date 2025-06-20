@@ -2384,9 +2384,11 @@ func buildConfigProfilesWindowsQuery(
 	gotProfiles := false
 	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
 		// Per the [docs][1], to `<Get>` configurations you must
-		// replace `/Policy/Config` with `Policy/Result`
+		// replace `/Policy/Config/` with `Policy/Result/`
 		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
-		locURI = strings.Replace(locURI, "/Policy/Config", "/Policy/Result", 1)
+		// Note that the trailing slash is important because there is also /Policy/ConfigOperations
+		// for ADMX policy ingestion which does not have a corresponding Result URI.
+		locURI = strings.Replace(locURI, "/Policy/Config/", "/Policy/Result/", 1)
 		sb.WriteString(
 			// NOTE: intentionally building the xml as a one-liner
 			// to prevent any errors in the query.
@@ -2415,6 +2417,8 @@ func buildConfigProfilesWindowsQuery(
 		return "", false
 	}
 	sb.WriteString("</SyncBody>")
+	input := sb.String()
+	fmt.Printf("Input for MDM Windows profiles: %s\n", input) // Debugging line, can be removed later
 	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String()), true
 }
 

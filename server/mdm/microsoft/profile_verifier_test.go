@@ -213,9 +213,9 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				{"N3", "200", "L3", "D3"},
 				{"N4", "200", "L4", "D4"},
 			},
-			toVerify: []string{"N3", "N4"},
-			toFail:   []string{"N2"},
-			toRetry:  []string{"N1"},
+			toVerify: []string{"N1", "N2", "N3", "N4"},
+			toFail:   []string{},
+			toRetry:  []string{},
 		},
 		{
 			name: "Get fails",
@@ -509,6 +509,127 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			require.True(t, ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked)
 			ds.UpdateHostMDMProfilesVerificationFuncInvoked = false
 			ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked = false
+		})
+	}
+}
+
+func TestIsWin32OrDesktopBridgeADMXCSP(t *testing.T) {
+	testCases := []struct {
+		name     string
+		locURI   string
+		expected bool
+	}{
+		{
+			name:     "ADMX desktop bridge",
+			locURI:   "",
+			expected: false,
+		},
+		{
+			name:     "properly formatted ADMX win32/desktop bridge app locURI with a specific category",
+			locURI:   "./Device/Vendor/MSFT/Policy/Config/ContosoCompanyApp~Policy~ParentCategoryArea~Category1/L_PolicyConfigurationMode",
+			expected: true,
+		},
+		{
+			name:     "properly formatted ADMX win32/desktop bridge app with the default category",
+			locURI:   "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/Subteam",
+			expected: true,
+		},
+		{
+			name:     "Base ADMXInstall node for app",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp",
+			expected: false,
+		},
+		{
+			name:     "ADMXInstall node with ADMX policy filename",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp/Policy/FleetTestAppAdmxFilename",
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := IsWin32OrDesktopBridgeADMXCSP(tc.locURI)
+			require.Equal(t, tc.expected, result)
+			result = IsWin32OrDesktopBridgeADMXCSP(strings.ToUpper(tc.locURI))
+			require.Equal(t, tc.expected, result, "Expected same result for uppercased locURI")
+			result = IsWin32OrDesktopBridgeADMXCSP(strings.ToLower(tc.locURI))
+			require.Equal(t, tc.expected, result, "Expected same result for lowercased locURI")
+
+			// a locURI starting with "./Vendor/" is implicitly device scoped, so we should
+			// get the same result if we expliclty scope it with ./Device/Vendor/
+			if strings.HasPrefix(tc.locURI, "./Vendor/") {
+				explicitlyDeviceScopedLocURI := strings.Replace(tc.locURI, "./Vendor/", "./Device/Vendor/", 1)
+				result = IsWin32OrDesktopBridgeADMXCSP(explicitlyDeviceScopedLocURI)
+				require.Equal(t, tc.expected, result, "Expected same result for explicitly and implicitly device scoped locURIs")
+				result = IsWin32OrDesktopBridgeADMXCSP(strings.ToUpper(tc.locURI))
+				require.Equal(t, tc.expected, result, "Expected same result for uppercased locURI when explicitly device scoped")
+				result = IsWin32OrDesktopBridgeADMXCSP(strings.ToLower(tc.locURI))
+				require.Equal(t, tc.expected, result, "Expected same result for lowercased locURI when explicitly device scoped")
+			}
+		})
+	}
+}
+
+func TestIsADMXInstallConfigOperationCSP(t *testing.T) {
+	testCases := []struct {
+		name     string
+		locURI   string
+		expected bool
+	}{
+		{
+			name:     "Base ADMXInstall node for app",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp",
+			expected: true,
+		},
+		{
+			name:     "ADMXInstall node with ADMX policy filename",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp/Policy/FleetTestAppAdmxFilename",
+			expected: true,
+		},
+		{
+			name:     "empty string",
+			locURI:   "",
+			expected: false,
+		},
+		// User-scoped ConfigOperations are not supported per Microsoft documentation
+		{
+			name:     "Unsupported User-scoped ADMXInstall node",
+			locURI:   "./User/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/FleetTestApp",
+			expected: false,
+		},
+		// Neither of these are valid or supported paths and should definitely not be picked up by
+		// this logic
+		{
+			name:     "Similar looking ADMX path but not ADMXInstall",
+			locURI:   "./Vendor/MSFT/Policy/ConfigOperations/ADMX/Something",
+			expected: false,
+		},
+		{
+			name:     "ADMXInstall under /Config/ path",
+			locURI:   "./Vendor/MSFT/Policy/Config/ADMXInstall",
+			expected: false,
+		},
+		{
+			name:     "Partial path but not full ADMXInstall",
+			locURI:   "./Vendor/MSFT/Policy",
+			expected: false,
+		},
+		{
+			name:     "Another Partial path but not full ADMXInstall",
+			locURI:   "./Vendor/MSFT",
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := IsADMXInstallConfigOperationCSP(tc.locURI)
+			require.Equal(t, tc.expected, result)
+			if strings.HasPrefix(tc.locURI, "./Vendor/") {
+				explicitlyDeviceScopedLocURI := strings.Replace(tc.locURI, "./Vendor/", "./Device/Vendor/", 1)
+				result = IsADMXInstallConfigOperationCSP(explicitlyDeviceScopedLocURI)
+				require.Equal(t, tc.expected, result, "Expected same result for explicitly and implicitly device scoped locURIs")
+			}
 		})
 	}
 }
