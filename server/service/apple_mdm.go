@@ -3801,7 +3801,7 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			if install.InstallCommandAckAt != nil && time.Since(*install.InstallCommandAckAt) > verifyTimeout {
-				if err := ds.SetVPPInstallAsFailed(ctx, installedAppResult.UUID()); err != nil {
+				if err := ds.SetVPPInstallAsFailed(ctx, install.HostID, install.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
 

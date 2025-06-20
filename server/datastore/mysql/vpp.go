@@ -1771,7 +1771,6 @@ WHERE verification_command_uuid = ?
 	return nil
 }
 
-// TODO(JVE): better name
 func (ds *Datastore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
@@ -1785,24 +1784,29 @@ WHERE command_uuid = ?
 		}
 
 		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install verify")
 		}
 
 		return nil
 	})
 }
 
-// TODO(JVE): better name
-func (ds *Datastore) SetVPPInstallAsFailed(ctx context.Context, verificationUUID string) error {
+func (ds *Datastore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP()
-WHERE verification_command_uuid = ?
+WHERE command_uuid = ?
 	`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, verificationUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set vpp install as verified")
-	}
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "set vpp install as verified")
+		}
 
-	return nil
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, installUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install failed")
+		}
+
+		return nil
+	})
 }
