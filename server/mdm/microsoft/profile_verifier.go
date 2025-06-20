@@ -159,6 +159,7 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds
 		var equal bool
 		switch {
 		case !strings.HasPrefix(gotStatus, "2"):
+			equal = false
 			// For unknown reasons these always return a 404 so mark as equal in that case.
 			// See comments on functions below for further details
 			if gotStatus == "404" && (IsADMXInstallConfigOperationCSP(locURI) || IsWin32OrDesktopBridgeADMXCSP(locURI)) {
