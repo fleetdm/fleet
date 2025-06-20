@@ -1,5 +1,14 @@
 # Fleet-maintained apps (FMA)
 
+## Freezing an existing app
+
+Add `"frozen": true` to the appropriate input JSON file to pause automated updates to the corresponding output manifest.
+To aid in testing, manifests will still be generated for frozen inputs if the output file doesn't exist.
+
+Apps should be frozen when updating the manifest would introduce regressions on ability to install/uninstall the app.
+Frozen apps should have bugs filed, and fixes for those bugs should unfreeze the app and bump it to the latest version
+as part of the fix PR.
+
 ## Adding a new app
 
 1. Decide on a source for the app's metadata. We currently support homebrew as a source for macOS apps.

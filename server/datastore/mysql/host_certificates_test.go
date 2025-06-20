@@ -165,7 +165,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	// test that we can update the host_mdm_managed_certificates table when
 	// ingesting the associated certificate from the host
 	ctx := context.Background()
-	initialCP := storeDummyConfigProfileForTest(t, ds)
+	initialCP := storeDummyConfigProfilesForTest(t, ds, 1)[0]
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -188,6 +188,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 			OperationType:     fleet.MDMOperationTypeInstall,
 			CommandUUID:       "command-uuid",
 			Checksum:          []byte("checksum"),
+			Scope:             fleet.PayloadScopeSystem,
 		},
 	},
 	)

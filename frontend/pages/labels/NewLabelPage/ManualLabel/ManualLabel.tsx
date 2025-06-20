@@ -7,6 +7,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { getPathWithQueryParams } from "utilities/url";
 import { IApiError } from "interfaces/errors";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 
 import ManualLabelForm from "pages/labels/components/ManualLabelForm";
 import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
@@ -29,7 +30,10 @@ const ManualLabel = ({ router }: IManualLabelProps) => {
         .then((res) => {
           router.push(
             getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(res.label.id), {
-              team_id: currentTeam?.id,
+              team_id:
+                currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
+                  ? API_ALL_TEAMS_ID
+                  : currentTeam?.id,
             })
           );
           renderFlash("success", "Label added successfully.");

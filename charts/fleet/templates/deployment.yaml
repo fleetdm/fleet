@@ -143,6 +143,67 @@ spec:
             value: "{{ .Values.database.tls.serverName }}"
           {{- end }}
           ## END MYSQL SECTION
+          ## BEGIN MYSQL READ REPLICA SECTION
+          {{- if .Values.database_read_replica }}
+          {{- if .Values.database_read_replica.address }}
+          - name: FLEET_MYSQL_READ_REPLICA_ADDRESS
+            value: "{{ .Values.database_read_replica.address }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.database }}
+          - name: FLEET_MYSQL_READ_REPLICA_DATABASE
+            value: "{{ .Values.database_read_replica.database }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.username }}
+          - name: FLEET_MYSQL_READ_REPLICA_USERNAME
+            value: "{{ .Values.database_read_replica.username }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.passwordPath }}
+          - name: FLEET_MYSQL_READ_REPLICA_PASSWORD_PATH
+            value: "{{ .Values.database_read_replica.passwordPath }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.secretName }}
+          - name: FLEET_MYSQL_READ_REPLICA_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.database_read_replica.secretName }}
+                key: {{ .Values.database_read_replica.passwordKey }}
+          {{- end }}
+          {{- if .Values.database_read_replica.maxOpenConns }}
+          - name: FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS
+            value: "{{ .Values.database_read_replica.maxOpenConns }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.maxIdleConns }}
+          - name: FLEET_MYSQL_READ_REPLICA_MAX_IDLE_CONNS
+            value: "{{ .Values.database_read_replica.maxIdleConns }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.connMaxLifetime }}
+          - name: FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME
+            value: "{{ .Values.database_read_replica.connMaxLifetime }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.enabled }}
+          {{- if .Values.database_read_replica.tls.caCertKey }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_CA
+            value: "/secrets/mysql/{{ .Values.database_read_replica.tls.caCertKey }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.certKey }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_CERT
+            value: "/secrets/mysql/{{ .Values.database_read_replica.tls.certKey }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.keyKey }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_KEY
+            value: "/secrets/mysql/{{ .Values.database_read_replica.tls.keyKey }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.config }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_CONFIG
+            value: "{{ .Values.database_read_replica.tls.config }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.serverName }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_SERVER_NAME
+            value: "{{ .Values.database_read_replica.tls.serverName }}"
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          ## END MYSQL READ REPLICA SECTION
           ## BEGIN REDIS SECTION
           - name: FLEET_REDIS_ADDRESS
             value: "{{ .Values.cache.address }}"
@@ -312,7 +373,9 @@ spec:
           {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
           {{- end }}
-          runAsNonRoot: true
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -375,7 +438,9 @@ spec:
           {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
           {{- end }}
-          runAsNonRoot: true
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
       {{- end }}
       hostPID: false
       hostNetwork: false

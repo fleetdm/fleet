@@ -1884,6 +1884,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryPending,
 			Checksum:          []byte("csum"),
+			Scope:             fleet.PayloadScopeSystem,
 		},
 	})
 	require.NoError(t, err)
@@ -2372,6 +2373,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 					OperationType:     operationType,
 					Status:            status,
 					Checksum:          []byte("csum"),
+					Scope:             fleet.PayloadScopeSystem,
 				},
 			})
 			require.NoError(t, err)
@@ -13644,6 +13646,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		Status:            badProfile.Status,
 		Detail:            badProfile.Detail,
 		Checksum:          []byte("checksum"),
+		Scope:             fleet.PayloadScopeSystem,
 	}, {
 		ProfileUUID:       goodProfile.ProfileUUID,
 		ProfileIdentifier: goodProfile.Identifier,
@@ -13654,6 +13657,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		Status:            goodProfile.Status,
 		Detail:            goodProfile.Detail,
 		Checksum:          []byte("checksum"),
+		Scope:             fleet.PayloadScopeSystem,
 	}})
 	require.NoError(t, err)
 	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
@@ -13706,11 +13710,14 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "not implemented")
 
-	// Configure a bad SCEP URL
+	// Configure a bad SCEP URL using local test server
+	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
+	defer cleanup()
+
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 	appConf.Integrations.NDESSCEPProxy.Valid = true
-	appConf.Integrations.NDESSCEPProxy.Value.URL = "https://httpstat.us/410"
+	appConf.Integrations.NDESSCEPProxy.Value.URL = testServer.URL
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(t, err)
 
@@ -13860,8 +13867,11 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	ctx := context.Background()
 	digiCertServer := createMockDigiCertServer(t)
 
-	// Add DigiCert integration with bad URL
-	caBad := getDigiCertIntegration("https://httpstat.us/410", "ca")
+	// Add DigiCert integration with bad URL using local test server
+	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
+	defer cleanup()
+
+	caBad := getDigiCertIntegration(testServer.URL, "ca")
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
 			"digicert": []fleet.DigiCertIntegration{caBad},
@@ -14551,8 +14561,11 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	scepServer := scep_server.StartTestSCEPServer(t)
 	scepServerURL := scepServer.URL + "/scep"
 
-	// Add custom SCEP integration with bad URL
-	caBad := getCustomSCEPIntegration("https://httpstat.us/410", "ca")
+	// Add custom SCEP integration with bad URL using local test server
+	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
+	defer cleanup()
+
+	caBad := getCustomSCEPIntegration(testServer.URL, "ca")
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
 			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{caBad},
@@ -16874,4 +16887,18 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
 	require.Empty(t, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+}
+
+// createTestServerWithStatusCode creates a local HTTP test server that always returns the specified status code.
+// The server should be closed after use by calling the returned cleanup function.
+func createTestServerWithStatusCode(statusCode int) (*httptest.Server, func()) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(statusCode)
+	}))
+
+	cleanup := func() {
+		server.Close()
+	}
+
+	return server, cleanup
 }

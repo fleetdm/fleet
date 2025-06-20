@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
-	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -26,7 +25,6 @@ func (ds *Datastore) NewChallenge(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Println("New challenge created:", challenge)
 	return challenge, nil
 }
 

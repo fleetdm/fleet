@@ -208,7 +208,7 @@ type Datastore interface {
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
-	GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
+	GetEnrollmentIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
 
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
@@ -1049,6 +1049,10 @@ type Datastore interface {
 	// UpdateJobs updates an existing job. Call this after processing a job.
 	UpdateJob(ctx context.Context, id uint, job *Job) (*Job, error)
 
+	// CleanupWorkerJobs deletes jobs in a final state that are older than the
+	// provided durations. It returns the number of jobs deleted and an error.
+	CleanupWorkerJobs(ctx context.Context, failedSince, completedSince time.Duration) (int64, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 
@@ -1234,6 +1238,10 @@ type Datastore interface {
 
 	// GetNanoMDMEnrollment returns the nano enrollment information for the device id.
 	GetNanoMDMEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
+
+	// GetNanoMDMUserEnrollment returns the active nano user channel enrollment information for the device
+	// id. Right now only one user channel enrollment is supported per device
+	GetNanoMDMUserEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
 	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
 	// MDM protocol seen time for the host with the given UUID

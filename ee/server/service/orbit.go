@@ -53,6 +53,14 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			continue
 		}
 
+		// NOTE: user-scoped profiles are ignored because they are not sent by Fleet
+		// until after the device is released - there is no user-channel available
+		// on the host until after the release, and after the user actually created
+		// the user account.
+		if prof.Scope == fleet.PayloadScopeUser {
+			continue
+		}
+
 		status := fleet.MDMDeliveryPending
 		if prof.Status != nil {
 			status = *prof.Status
@@ -138,7 +146,6 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		if err := svc.mdmAppleCommander.DeviceConfigured(ctx, host.UUID, uuid.NewString()); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
 		}
-
 	}
 
 	_, err = svc.SetupExperienceNextStep(ctx, host.UUID)

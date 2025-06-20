@@ -9,6 +9,15 @@ Every month, Fleet holds a company-wide meeting called the "All hands".
 All team members should attend the "All hands" every month.  "All hands" meetings are recorded, To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" meetings. Team members who cannot attend are expected to watch the recording within a few days. 
 
 
+### E-group 
+
+Every week, the "Executive" or "E-group", including the CEO, CTO, Head of Product Design, CRO, CFO, VP of Customer Success, and Head of Digital Experience, will hold a 30-minute "¶ 🗣 Roundup (E-Group)" meeting to discuss the company's immediate needs and address any blockers.
+
+Every three weeks, the E-group will meet for a more in-depth discussion immediately following the "¶ 🗣 Roundup (E-Group)" meeting, regarding the achievement of strategic short and long-term company goals. This is the "¶ 🗣 E-Group review" meeting, typically held from 3-5pm CT.  If one of the department heads cannot attend this meeting, the Apprentice will reschedule the E-group review, as close to the original time as possible, while verifying that all E-group members can attend. 
+
+The "[¶ 🗣 E-Group weekly [no shadows]](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit?tab=t.0)" agenda will be processed every week and used for all E-group meetings. 
+
+
 ## Strategy
 
 You can read about the company's positioning and product strategy in ["🎐 Why Fleet?" (private google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
@@ -877,7 +886,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 Don’t duplicate content. Link to existing places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. Linking to existing material when something comes up is a gentle way to remind and train using the foundation we've already built.
 
-Create headings that make good permalinks, use links and add missing links. Don't anchor links with "here" or "click here"; [linking relevant words is better for accessibility](https://granicus.com/blog/why-click-here-links-are-bad/) and better for SEO.
+Create headings that make good permalinks, use links and add missing links. Don't anchor links with "here" or "click here"; [linking relevant words is better for accessibility](https://granicus.com/blog/why-click-here-links-are-bad/) and better for SEO. We run `grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .` in CI to make sure those link anchors don't slip in.
 
 ### What would Mister Rogers say?
 
