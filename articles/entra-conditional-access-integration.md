@@ -141,14 +141,6 @@ Upload the following configuration profile:
 
 After the profile is deployed to end-user devices, users will see a notification and will perform the authentication flow with Entra ID.
 
-## Configure Fleet policies for Conditional Access
-
-The final step is to configure Fleet policies that will determine whether a device is marked as "compliant" or "not compliant" on Entra.
-
-Go to `Policies` > `Select team` > `Automations` > `Conditional access`.
-1. Make sure the feature is enabled for the team.
-2. Check the policies you want for Conditional access.
-
 ![Entra ID Platform SSO notification](../website/assets/images/entra-platform-sso-notification.png)
 
 > The user might hit the following message if it attempts to log in to a Microsoft services/apps right away after authenticating via Platform SSO (Fleet can take up to one hour to gather the information and send it to Intune):
@@ -157,12 +149,41 @@ Go to `Policies` > `Select team` > `Automations` > `Conditional access`.
 
 On that scenario, after hitting "Continue" the user will be redirected to https://fleetdm.com/microsoft-compliance-partner/enroll which will advise to click on the Fleet tray icon "My device" > "🔄 Refetch". The refetch will synchronize data to Intune and the user will be able to log in to Microsoft services/apps without entering credentials.
 
+## Configure Fleet policies for Conditional Access
+
+The final step is to configure Fleet policies that will determine whether a device is marked as "compliant" or "not compliant" on Entra.
+
+Go to `Policies` > `Select team` > `Automations` > `Conditional access`.
+1. Make sure the feature is enabled for the team.
+2. Check the policies you want for Conditional access.
+
+## Configure "Conditional Access" policies on Entra
+
+Once Fleet policies are configured you also need to configure Entra ID "Conditional Access" policies to block end-users access to specific resources when Fleet reports non-compliance.
+[Building a Conditional Access policy](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-policies) outlines the steps to create such policies on Entra ID.
+
+For instance, you can create a policy to "block access to Office 365 on macOS devices reported as non-compliant by Fleet":
+![Entra ID Conditional Access policy example](../website/assets/images/entra-conditional-access-policy.png)
+
 ### Disabling "Conditional Access" on a team
 
 If you need all your hosts on a team to be marked as "Compliant" (e.g. to unblock access to a resource) go to `Policies` > `Select team` > `Automations` > `Conditional access`, uncheck all policies and hit `Save`. The hosts will be marked as "Compliant" the next time they check in with policy results (within one hour, or by refetching manually).
 
 To disable the "Conditional Access" feature on a team go to `Policies` > `Select team` > `Automations` > `Conditional access` > `Disable`.
 Once disabled, hosts will not be reporting compliance status to Entra anymore.
+
+## End users with access blocked experience
+
+When a Fleet policy configured for conditional access starts failing on a host, then the user will be logged out and blocked from logging in to Entra ID.
+
+E.g. here's "Microsoft Teams" message on a blocked host:
+![Microsoft Teams message user needs to login again](../website/assets/images/entra-conditional-access-microsoft-teams-log-message.png)
+
+And here's the error message when trying to re-login:
+![User tries to log in again](../website/assets/images/entra-conditional-access-relogin.png)
+
+Clicking on "Check Compliance" redirects the user to https://fleetdm.com/microsoft-compliance-partner/remediate.
+The user will be able to log in again once the failing policies are remediated.
 
 ## GitOps
 
