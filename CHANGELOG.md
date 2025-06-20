@@ -1,3 +1,4 @@
+
 ## Fleet 4.70.0 (Jun 25, 2025)
 
 ### Security Engineers
@@ -11,6 +12,7 @@
 > **NOTE:** If your server was already using Android via the experimental DEV_ANDROID_ENABLED=1 flag, please turn off Android MDM before updating your Fleet server.
 - Added support for filtering the hosts page for hosts with any of the 3 batch script execution statuses.
 - Extended `POST /api/v1/fleet/hosts/:id/wipe` endpoint to allow users to specify the type of remote wipe for windows hosts.
+- Improved releasing a macOS device during ADE enrollment, by increasing the frequency of checks for readiness.
 - Added an audit log activity item for automatic install policy creation.
 
 ### Other improvements and bug fixes
@@ -44,6 +46,7 @@
 - Fixed a bug that caused custom OS settings targeted using "include any" label rules to never verify on hosts that only included a subset of the targeted labels
 - Fixed the Docker Fleet-maintained app install script to prevent a successful install from showing
 up as a failure due to directory existence checks (live as of 2025-06-13 FMA update).
+- Fixed issue causing a 500 error when clicking "Manage Automations" from the Queries page when osquery logging has certain configurations.
 
 ## Fleet 4.69.0 (June 14, 2025)
 
