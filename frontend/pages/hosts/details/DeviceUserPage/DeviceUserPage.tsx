@@ -76,7 +76,7 @@ import {
   generateOtherEmailsValues,
 } from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
-import { InstallOrCommandUuid } from "../cards/Software/SelfService/SelfServiceTableConfig";
+import { InstallOrCommandUuid } from "../cards/Software/InstallStatusCell/InstallStatusCell";
 import { AppInstallDetailsModal } from "../../../../components/ActivityDetails/InstallDetails/AppInstallDetails";
 
 const baseClass = "device-user";
@@ -340,7 +340,7 @@ const DeviceUserPage = ({
     setShowOSSettingsModal(!showOSSettingsModal);
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
-  const onShowInstallerDetails = useCallback(
+  const onShowInstallDetails = useCallback(
     (uuid?: InstallOrCommandUuid) => {
       setSelectedSelfServiceUuid(uuid);
     },
@@ -527,7 +527,7 @@ const DeviceUserPage = ({
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       router={router}
-                      onShowInstallerDetails={onShowInstallerDetails}
+                      onShowInstallDetails={onShowInstallDetails}
                       onShowUninstallDetails={onShowUninstallDetails}
                     />
                   </TabPanel>
@@ -584,7 +584,6 @@ const DeviceUserPage = ({
                     <SoftwareCard
                       id={deviceAuthToken}
                       softwareUpdatedAt={host.software_updated_at}
-                      hostCanWriteSoftware={!!host.orbit_version}
                       router={router}
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}

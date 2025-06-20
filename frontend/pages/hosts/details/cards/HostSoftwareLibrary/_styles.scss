@@ -1,7 +1,13 @@
-.software-card {
+.host-software-library-card {
   .table-container {
     .stackable-header {
       min-width: initial; // Fix card overflow on low widths
+    }
+
+    .children-wrapper {
+      display: flex;
+      gap: $pad-small;
+      align-items: center;
     }
   }
 
@@ -27,7 +33,18 @@
     }
   }
 
-  .host-software-table {
+  &__item-actions {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-large;
+    align-items: center;
+  }
+
+  &__item-action {
+    min-width: 82px;
+  }
+
+  .host-sw-library-table {
     &__software-filter {
       min-width: 240px;
       width: 240px; // Override .form-field 100%
@@ -48,10 +65,26 @@
 
     .data-table-block {
       .data-table__table {
-        thead {
-          .Vulnerabilities__header {
-            display: table-cell;
-            max-width: px-to-rem(140);
+        tbody {
+          tr {
+            .status__cell {
+              display: table-cell;
+              min-width: 140px; // Fixed width when status changes after clicking install/uninstall
+
+              .component__tooltip-wrapper {
+                margin: 0; // Override 10px vertical margin
+              }
+            }
+
+            .Actions__cell {
+              display: flex;
+
+              // Undoes vertical click margin found on table container tooltips
+              // TODO: Refactor vertical click margin on component level not table level
+              .data-table-block .data-table tbody .component__tooltip-wrapper {
+                margin: 0;
+              }
+            }
           }
         }
       }
