@@ -562,6 +562,43 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/app_schemes.yml"
   },
   {
+    "name": "app_sso_platform",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Returns device and login information parsed from the \"app-sso platform -s\" command (\"Platform SSO\" extensions).",
+    "columns": [
+      {
+        "name": "extension_identifier",
+        "type": "text",
+        "required": true,
+        "description": "Extension identifier of the Platform SSO extension (e.g. \"com.microsoft.CompanyPortalMac.ssoextension\")."
+      },
+      {
+        "name": "realm",
+        "type": "text",
+        "required": true,
+        "description": "Realm of the user that logged via Platform SSO (e.g. \"KERBEROS.MICROSOFTONLINE.COM\")."
+      },
+      {
+        "name": "device_id",
+        "type": "text",
+        "required": false,
+        "description": "Device ID extracted from \"Device Configuration\" -> \"deviceSigningCertificate\" -> Subject -> CommonName."
+      },
+      {
+        "name": "user_principal_name",
+        "type": "text",
+        "required": false,
+        "description": "User principal name of the user that logged in via Platform SSO."
+      }
+    ],
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "evented": false,
+    "url": "https://fleetdm.com/tables/app_sso_platform",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/app_sso_platform.yml"
+  },
+  {
     "name": "apparmor_events",
     "description": "Track AppArmor events.",
     "url": "https://fleetdm.com/tables/apparmor_events",
