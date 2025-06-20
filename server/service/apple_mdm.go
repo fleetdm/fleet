@@ -3558,8 +3558,12 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 	case "InstalledApplicationList":
 		// TODO(JVE): might need another special command UUID prefix to distinguish b/w Fleet
 		// lifecycle commands and ad-hoc commands sent by users
-		level.Debug(svc.logger).Log("msg", "running through handlers for InstalledApplicationList")
-		res := NewInstalledApplicationListResult(cmdResult.Raw, cmdResult.CommandUUID, cmdResult.UDID)
+		level.Debug(svc.logger).Log("msg", "calling handlers for InstalledApplicationList")
+		res, err := NewInstalledApplicationListResult(r.Context, cmdResult.Raw, cmdResult.CommandUUID, cmdResult.UDID)
+		if err != nil {
+			return nil, err
+		}
+
 		for _, f := range svc.commandHandlers["InstalledApplicationList"] {
 			if err := f(r.Context, res); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "InstalledApplicationList handler failed")
@@ -3736,29 +3740,39 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	return nil, nil
 }
 
-type InstalledApplicationListResult struct {
+type InstalledApplicationListResult interface {
+	Results
+	InstalledApps() []fleet.Software
+}
+
+type installedApplicationListResult struct {
 	raw           []byte
-	InstalledApps []fleet.Software
+	installedApps []fleet.Software
 	uuid          string
 	hostUUID      string
 }
 
-func (i *InstalledApplicationListResult) Raw() []byte      { return i.raw }
-func (i *InstalledApplicationListResult) UUID() string     { return i.uuid }
-func (i *InstalledApplicationListResult) HostUUID() string { return i.hostUUID }
+func (i *installedApplicationListResult) Raw() []byte                     { return i.raw }
+func (i *installedApplicationListResult) UUID() string                    { return i.uuid }
+func (i *installedApplicationListResult) HostUUID() string                { return i.hostUUID }
+func (i *installedApplicationListResult) InstalledApps() []fleet.Software { return i.installedApps }
 
-func NewInstalledApplicationListResult(rawResult []byte, uuid, hostUUID string) *InstalledApplicationListResult {
+func NewInstalledApplicationListResult(ctx context.Context, rawResult []byte, uuid, hostUUID string) (InstalledApplicationListResult, error) {
 	// TODO(JVE): probably don't need ctx here (higher level concern, can just use fmt.Errorf), also
 	// should handle this error (can fail on unmarshaling the XML)
 	// Should we handle the unmarshaling elsewhere? Like higher up in CommandAndReportResults, for
 	// all command types? that sounds cleaner...
-	list, _ := unmarshalAppList(context.Background(), rawResult, "apps")
-	return &InstalledApplicationListResult{
+	list, err := unmarshalAppList(ctx, rawResult, "apps")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshal app list for new installed application list result")
+	}
+
+	return &installedApplicationListResult{
 		raw:           rawResult,
 		uuid:          uuid,
-		InstalledApps: list,
+		installedApps: list,
 		hostUUID:      hostUUID,
-	}
+	}, nil
 }
 
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,

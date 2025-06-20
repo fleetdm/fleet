@@ -101,6 +101,7 @@ type ServerConfig struct {
 	ForceH2C                    bool          `yaml:"force_h2c"`
 	PrivateKey                  string        `yaml:"private_key"`
 	VPPVerifyTimeout            time.Duration `yaml:"vpp_verify_timeout"`
+	VPPVerifyRequestDelay       time.Duration `yaml:"vpp_verify_request_delay"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -1095,6 +1096,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
 	man.addConfigDuration("server.vpp_verify_timeout", 5*time.Minute, "Maximum amout of time to wait for VPP app install verification")
+	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1520,6 +1522,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			ForceH2C:                    man.getConfigBool("server.force_h2c"),
 			PrivateKey:                  man.getConfigString("server.private_key"),
 			VPPVerifyTimeout:            man.getConfigDuration("server.vpp_verify_timeout"),
+			VPPVerifyRequestDelay:       man.getConfigDuration("server.vpp_verify_request_delay"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:               man.getConfigInt("auth.bcrypt_cost"),
