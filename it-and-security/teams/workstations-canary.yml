@@ -162,6 +162,7 @@ policies:
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml
+  - path: ../lib/macos/queries/collect-macos-compatibility-data.yml
 software:
   packages:
     - path: ../lib/macos/software/mozilla-firefox.yml # Mozilla Firefox for MacOS (universal)
