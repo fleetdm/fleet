@@ -42,11 +42,11 @@ func TestExampleSCEPWithTPM(t *testing.T) {
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	// Create a directory for storing certificates and TPM key blobs
-	//certDir, err := os.MkdirTemp("", "scep_tpm_example")
-	//if err != nil {
-	//	log.Fatalf("Failed to create temp dir: %v", err)
-	//}
-	//defer os.RemoveAll(certDir)
+	// certDir, err := os.MkdirTemp("", "scep_tpm_example")
+	// if err != nil {
+	// 	log.Fatalf("Failed to create temp dir: %v", err)
+	// }
+	// defer os.RemoveAll(certDir)
 	certDir := "./victor"
 
 	// Initialize TPM 2.0 device for hardware-based cryptography
@@ -94,7 +94,7 @@ func TestExampleSCEPWithTPM(t *testing.T) {
 		scep.WithTimeout(2*time.Minute),
 	)
 	if err != nil {
-		log.Fatalf("Failed to create SCEP client: %v", err)
+		t.Fatalf("Failed to create SCEP client: %v", err)
 	}
 
 	// Create context with timeout for the entire enrollment operation

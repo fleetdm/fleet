@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/remitly-oss/httpsig-go"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -89,7 +91,7 @@ func (ks *tpmKeyStore) FetchByKeyID(ctx context.Context, _ http.Header, keyID st
 }
 
 func (ks *tpmKeyStore) Fetch(_ context.Context, _ http.Header, _ httpsig.MetadataProvider) (httpsig.KeySpecer, error) {
-	return nil, fmt.Errorf("not implemented")
+	return nil, errors.New("not implemented")
 }
 
 // publicKeyToPEM converts a public key to PEM format for debugging
@@ -227,7 +229,7 @@ func TestTPMHTTPSignatureVerification(t *testing.T) {
 
 		// If verification succeeds, return success response
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("TPM HTTP signature verified successfully!"))
+		_, _ = w.Write([]byte("TPM HTTP signature verified successfully!"))
 	}))
 	defer testServer.Close()
 
@@ -243,9 +245,7 @@ func TestTPMHTTPSignatureVerification(t *testing.T) {
 	require.NoError(t, err, "Failed to create TPM-based signer")
 
 	// Create HTTP client with signature support
-	baseClient := &http.Client{
-		Timeout: 10 * time.Second,
-	}
+	baseClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	signedClient := httpsig.NewHTTPClient(baseClient, signer, nil)
 
 	// Test 1: Make a GET request to the test server
@@ -365,6 +365,8 @@ func TestTPMHTTPSignatureVerificationFailure(t *testing.T) {
 		case 384:
 			algo = httpsig.Algo_ECDSA_P384_SHA384
 		}
+	default:
+		t.Fatalf("Unsupported public key type: %T", correctPubKey)
 	}
 
 	// Set up key store with the correct public key
@@ -394,7 +396,7 @@ func TestTPMHTTPSignatureVerificationFailure(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("This should not be reached"))
+		_, _ = w.Write([]byte("This should not be reached"))
 	}))
 	defer testServer.Close()
 
@@ -410,7 +412,7 @@ func TestTPMHTTPSignatureVerificationFailure(t *testing.T) {
 	require.NoError(t, err, "Failed to create wrong TPM signer")
 
 	// Create signed client
-	baseClient := &http.Client{Timeout: 10 * time.Second}
+	baseClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	signedClient := httpsig.NewHTTPClient(baseClient, signer, nil)
 
 	// Make request (should fail verification)

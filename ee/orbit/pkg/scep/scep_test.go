@@ -159,7 +159,7 @@ func TestClient_FetchAndSaveCert(t *testing.T) {
 		require.NoError(t, err, "FetchAndSaveCert should succeed")
 
 		// Verify that the certificate file was created
-		certPath := filepath.Join(certDir, constant.FleetTLSClientCertificateFileName)
+		certPath := filepath.Join(certDir, constant.FleetHTTPSignatureCertificateFileName)
 
 		// Check if the certificate file exists
 		_, err = os.Stat(certPath)
