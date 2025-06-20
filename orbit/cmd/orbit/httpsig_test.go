@@ -8,6 +8,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/remitly-oss/httpsig-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -93,7 +95,7 @@ func (ks *inMemoryKeyStore) FetchByKeyID(ctx context.Context, _ http.Header, key
 }
 
 func (ks *inMemoryKeyStore) Fetch(_ context.Context, _ http.Header, _ httpsig.MetadataProvider) (httpsig.KeySpecer, error) {
-	return nil, fmt.Errorf("not implemented")
+	return nil, errors.New("not implemented")
 }
 
 // TestHTTPSignatureVerification tests HTTP signature creation and verification
@@ -138,7 +140,7 @@ func TestHTTPSignatureVerification(t *testing.T) {
 
 		// If verification succeeds, return success response
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("HTTP signature verified successfully!"))
+		_, _ = w.Write([]byte("HTTP signature verified successfully!"))
 	}))
 	defer testServer.Close()
 
@@ -154,9 +156,7 @@ func TestHTTPSignatureVerification(t *testing.T) {
 	require.NoError(t, err, "Failed to create signer")
 
 	// Create HTTP client with signature support - similar to orbit.go
-	baseClient := &http.Client{
-		Timeout: 10 * time.Second,
-	}
+	baseClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	signedClient := httpsig.NewHTTPClient(baseClient, signer, nil)
 
 	// Test 1: Make a GET request to the test server
@@ -255,7 +255,7 @@ func TestHTTPSignatureVerificationFailure(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("This should not be reached"))
+		_, _ = w.Write([]byte("This should not be reached"))
 	}))
 	defer testServer.Close()
 
@@ -271,7 +271,7 @@ func TestHTTPSignatureVerificationFailure(t *testing.T) {
 	require.NoError(t, err, "Failed to create signer")
 
 	// Create signed client
-	baseClient := &http.Client{Timeout: 10 * time.Second}
+	baseClient := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	signedClient := httpsig.NewHTTPClient(baseClient, signer, nil)
 
 	// Make request (should fail verification)

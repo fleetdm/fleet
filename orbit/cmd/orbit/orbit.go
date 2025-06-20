@@ -1008,7 +1008,7 @@ func main() {
 				return fmt.Errorf("error comparing public keys: %w", err)
 			}
 			if !keysEqual {
-				return fmt.Errorf("TPM key does not match certificate public key")
+				return errors.New("TPM key does not match certificate public key")
 			}
 			log.Debug().Msg("TPM public key matches certificate public key")
 

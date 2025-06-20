@@ -51,7 +51,7 @@ func (h *HTTPSig) FetchByKeyID(ctx context.Context, _ http.Header, keyID string)
 
 	block, _ := pem.Decode([]byte(pemData))
 	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block")
+		return nil, errors.New("failed to decode PEM block")
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)

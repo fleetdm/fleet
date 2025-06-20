@@ -1339,12 +1339,10 @@ the way that the Fleet server works.
 						level.Error(logger).Log("msg", "failed to verify request signature", "path", req.URL.Path, "err", err)
 						// http.Error(rw, err.Error(), http.StatusUnauthorized)
 						// return
-					} else {
-						if !result.Verified {
-							level.Error(logger).Log("msg", "request not verified", "path", req.URL.Path)
-							// http.Error(rw, "request not verified", http.StatusUnauthorized)
-							// return
-						}
+					} else if !result.Verified {
+						level.Error(logger).Log("msg", "request not verified", "path", req.URL.Path)
+						// http.Error(rw, "request not verified", http.StatusUnauthorized)
+						// return
 					}
 				}
 

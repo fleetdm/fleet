@@ -355,7 +355,7 @@ func GetCert(path string) (*x509.Certificate, error) {
 	// Decode PEM block
 	block, _ := pem.Decode(certPEMBytes)
 	if block == nil || block.Type != "CERTIFICATE" {
-		return nil, fmt.Errorf("failed to decode PEM block containing certificate")
+		return nil, errors.New("failed to decode PEM block containing certificate")
 	}
 
 	return x509.ParseCertificate(block.Bytes)
