@@ -427,6 +427,31 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toFail:   []string{"N1"},
 			toRetry:  []string{},
 		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s but is marked verified`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
 	}
 
 	for _, tt := range cases {
