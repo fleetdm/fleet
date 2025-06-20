@@ -894,9 +894,11 @@ After you've uploaded an Apple Business Manager (ABM) token, the `apple_business
 Currently, managing labels and users, ticket destinations (Jira and Zendesk), Apple Business Manager (ABM) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
 - `organization_name` is the organization name associated with the Apple Business Manager account.
-- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
-- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
-- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
+- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ios_team_for_personal_hosts` is the team where personal iOS hosts are automatically added when end user signs in with Managed Apple Account. If not specified, defaults to "No team".
+- `ipados_team_for_personal_hosts` is the team where personal iPadOS hosts are automatically added when end user signs in with Managed Apple Account. If not specified, defaults to "No team".
 
 #### Example
 
@@ -908,6 +910,8 @@ org_settings:
       macos_team: 💻 Workstations
       ios_team: 📱🏢 Company-owned iPhones
       ipados_team: 🔳🏢 Company-owned iPads
+      ios_team_for_personal_hosts: 📱🔐 Personal mobile devices
+      ipados_team_for_personal_hosts: 📱🔐 Personal mobile devices
 ```
 
 > Apple Business Manager settings can only be configured for all teams (`org_settings`).
