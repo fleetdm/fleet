@@ -1,21 +1,27 @@
 import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
 import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+
 import { getNextLocationPath } from "utilities/helpers";
-import { QueryParams } from "utilities/url";
+import { convertParamsToSnakeCase, QueryParams } from "utilities/url";
+import { SUPPORT_LINK } from "utilities/constants";
 
 import { HostPlatform, isAndroid } from "interfaces/platform";
 
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
-import { SUPPORT_LINK } from "utilities/constants";
+
+import { DROPDOWN_OPTIONS, IHostSWLibraryDropdownFilterVal } from "../helpers";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -32,6 +38,7 @@ interface IHostSoftwareLibraryTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
+  selfService: boolean;
 }
 
 const HostSoftwareLibraryTable = ({
@@ -43,6 +50,7 @@ const HostSoftwareLibraryTable = ({
   sortHeader,
   sortDirection,
   searchQuery,
+  selfService,
   page,
   pagePath,
 }: IHostSoftwareLibraryTableProps) => {
@@ -105,6 +113,26 @@ const HostSoftwareLibraryTable = ({
     [determineQueryParamChange, pagePath, generateNewQueryParams, router]
   );
 
+  const handleCustomFilterDropdownChange = (
+    value: IHostSWLibraryDropdownFilterVal
+  ) => {
+    const queryParams: QueryParams = {
+      query: searchQuery,
+      orderDirection: sortDirection,
+      orderKey: sortHeader,
+      page: 0, // resets page index
+      selfService: value === "selfService",
+    };
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: pagePath,
+        routeTemplate: "",
+        queryParams: convertParamsToSnakeCase(queryParams),
+      })
+    );
+  };
+
   const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
 
@@ -140,6 +168,26 @@ const HostSoftwareLibraryTable = ({
     );
   }
 
+  const renderCustomControls = () => {
+    return (
+      <div className={`${baseClass}__filter-controls`}>
+        <DropdownWrapper
+          name="host-library-filter"
+          value={selfService ? "selfService" : "available"}
+          className={`${baseClass}__host-library-filter`}
+          options={DROPDOWN_OPTIONS}
+          onChange={(newValue: SingleValue<CustomOptionType>) =>
+            newValue &&
+            handleCustomFilterDropdownChange(
+              newValue.value as IHostSWLibraryDropdownFilterVal
+            )
+          }
+          variant="table-filter"
+        />
+      </div>
+    );
+  };
+
   return (
     <div className={baseClass}>
       <TableContainer
@@ -155,8 +203,8 @@ const HostSoftwareLibraryTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
+        customControl={showFilterHeaders ? renderCustomControls : undefined}
         emptyComponent={memoizedEmptyComponent}
-        stackControls
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={showFilterHeaders}

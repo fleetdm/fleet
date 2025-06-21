@@ -49,7 +49,13 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
         const { name, source } = cellProps.row.original;
-        return <SoftwareNameCell name={name} source={source} myDevicePage />;
+        return (
+          <SoftwareNameCell
+            name={name}
+            source={source}
+            pageContext="deviceUser"
+          />
+        );
       },
       sortType: "caseInsensitive",
     },

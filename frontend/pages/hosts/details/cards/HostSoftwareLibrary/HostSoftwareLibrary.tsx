@@ -26,7 +26,7 @@ import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 
-import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTableConfig";
+import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
 import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
 import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
 
@@ -63,11 +63,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
   query?: string;
   order_key?: string;
   order_direction?: "asc" | "desc";
-  vulnerable?: string;
-  exploit?: string;
-  min_cvss_score?: string;
-  max_cvss_score?: string;
-  category_id?: string;
+  self_service?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -76,9 +72,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
-  const categoryId = queryParams?.category_id
-    ? parseInt(queryParams.category_id, 10)
-    : undefined;
+  const selfService = queryParams?.self_service === "true";
 
   return {
     page,
@@ -87,7 +81,7 @@ export const parseHostSoftwareLibraryQueryParams = (queryParams: {
     order_direction: sortDirection,
     per_page: pageSize,
     available_for_install: true, // always true for host installers
-    category_id: categoryId,
+    self_service: selfService,
   };
 };
 
@@ -142,11 +136,10 @@ const HostSoftwareLibrary = ({
     AxiosError,
     IGetHostSoftwareResponse,
     IHostSoftwareQueryKey[]
-  >(queryKey, (context) => hostAPI.getHostSoftware(context.queryKey[0]), {
+  >(queryKey, () => hostAPI.getHostSoftware(queryKey[0]), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: isSoftwareEnabled && !isUnsupported,
     keepPreviousData: true,
-    staleTime: 7000,
     onSuccess: (response) => {
       setHostSoftwareLibraryRes(response);
     },
@@ -388,6 +381,7 @@ const HostSoftwareLibrary = ({
         searchQuery={queryParams.query}
         page={queryParams.page}
         pagePath={pathname}
+        selfService={queryParams.self_service}
       />
     );
   };

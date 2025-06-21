@@ -76,7 +76,7 @@ const TooltipWrapper = ({
 
   return (
     <span className={wrapperClassNames}>
-      <div className={elementClassNames} data-tooltip-id={tipId}>
+      <div className={elementClassNames} data-tip data-tooltip-id={tipId}>
         {children}
       </div>
       {!disableTooltip && (

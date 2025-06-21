@@ -26,6 +26,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     max_cvss_score: undefined,
     exploit: false,
     category_id: undefined,
+    self_service: false,
   },
   router: createMockRouter(),
   onShowInstallDetails: noop,
@@ -105,6 +106,7 @@ describe("SelfService", () => {
           max_cvss_score: undefined,
           exploit: false,
           category_id: undefined,
+          self_service: false,
         }}
         router={createMockRouter()}
         onShowInstallDetails={noop}
