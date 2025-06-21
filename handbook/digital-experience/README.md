@@ -936,6 +936,7 @@ Once a week, the Apprentice will review the "community activity report" and add 
 ### Schedule travel for the CEO
 
 The Apprentice will verify daily that the CEO's calendar is accurate for any commitment or booked travel. The Apprentice is the DRI for scheduling all travel arrangements for the CEO, including flights, hotels, and reservations if needed. The CEO's traveling preferences in descending order of importance are:
+  - Mark the CEO as OOO (Out Of Office) IMMEDIATELY to avoid conflicts, as soon as travel is even tentitively planned.
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
   - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
