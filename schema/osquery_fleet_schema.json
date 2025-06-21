@@ -15883,6 +15883,74 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_rsr.yml"
   },
   {
+    "name": "macos_user_profiles",
+    "evented": false,
+    "description": "High level information on installed user profiles enrollment.",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "platforms": [
+      "darwin"
+    ],
+    "examples": "Identify all profiles for user 'alice'. A single username equality condition is always required.\n\n```\nSELECT display_name, install_date FROM macos_user_profiles WHERE username='alice';\n```",
+    "columns": [
+      {
+        "name": "description",
+        "description": "The description of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "display_name",
+        "description": "The display name of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "identifier",
+        "description": "The identifier of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "install_date",
+        "description": "Date and time at which the profile was installed.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "organization",
+        "description": "The profile's organization value.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "type",
+        "description": "The type of profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "uuid",
+        "description": "The [UUID](https://en.wikipedia.org/wiki/Universally_unique_identifier) of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "verification_state",
+        "description": "The verification state of the profile.",
+        "required": false,
+        "type": "text"
+      },
+      {
+        "name": "username",
+        "description": "The username for which the profile is installed.",
+        "required": true,
+        "type": "text"
+      }
+    ],
+    "url": "https://fleetdm.com/tables/macos_user_profiles",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_user_profiles.yml"
+  },
+  {
     "name": "magic",
     "description": "Magic number recognition library table.",
     "url": "https://fleetdm.com/tables/magic",

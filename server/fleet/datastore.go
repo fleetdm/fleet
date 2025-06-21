@@ -1236,6 +1236,11 @@ type Datastore interface {
 	// id. Right now only one user channel enrollment is supported per device
 	GetNanoMDMUserEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
+	// GetNanoMDMUserEnrollmentUsername returns the short username of the user
+	// channel enrollment for the device id. Right now only one user channel
+	// enrollment is supported per device.
+	GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error)
+
 	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
 	// MDM protocol seen time for the host with the given UUID
 	GetNanoMDMEnrollmentTimes(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error)

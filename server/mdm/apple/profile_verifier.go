@@ -41,32 +41,39 @@ import (
 // VerifyHostMDMProfiles performs the verification of the MDM profiles installed on a host and
 // updates the verification status in the datastore. It is intended to be called by Fleet osquery
 // service when the Fleet server ingests host details.
-func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, installed map[string]*fleet.HostMacOSProfile) error {
-	expected, err := ds.GetHostMDMProfilesExpectedForVerification(ctx, host)
+func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, installedByProfIdentifier map[string]*fleet.HostMacOSProfile) error {
+	// TODO(mna): for user-channel profiles, we allow up to 2h before sending the
+	// profile to the host, but the grace period for verification is 1h, so it
+	// would be marked as missing if the host doesn't report it within 1h. The
+	// expected profiles should probably also have the user-channel existence
+	// check to avoid returning user-scoped profiles as "expected" if it's within
+	// that period.
+
+	expectedByProfIdentifier, err := ds.GetHostMDMProfilesExpectedForVerification(ctx, host)
 	if err != nil {
 		return err
 	}
 
-	missing := make([]string, 0, len(expected))
-	verified := make([]string, 0, len(expected))
-	for key, ep := range expected {
-		withinGracePeriod := ep.IsWithinGracePeriod(host.DetailUpdatedAt)
-		ip, ok := installed[key]
+	missing := make([]string, 0, len(expectedByProfIdentifier))
+	verified := make([]string, 0, len(expectedByProfIdentifier))
+	for profileIdentifier, expectedProfile := range expectedByProfIdentifier {
+		withinGracePeriod := expectedProfile.IsWithinGracePeriod(host.DetailUpdatedAt)
+		installedProfile, ok := installedByProfIdentifier[profileIdentifier]
 		if !ok {
 			// expected profile is missing from host
 			if !withinGracePeriod {
-				missing = append(missing, key)
+				missing = append(missing, profileIdentifier)
 			}
 			continue
 		}
-		if ip.InstallDate.Before(ep.EarliestInstallDate) {
+		if installedProfile.InstallDate.Before(expectedProfile.EarliestInstallDate) {
 			// installed profile is outdated
 			if !withinGracePeriod {
-				missing = append(missing, key)
+				missing = append(missing, profileIdentifier)
 			}
 			continue
 		}
-		verified = append(verified, key)
+		verified = append(verified, profileIdentifier)
 	}
 
 	toFail := make([]string, 0, len(missing))
