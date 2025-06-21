@@ -1,0 +1,1 @@
+* Fixed bug with the run script modal on the Hosts page when running under FreeTier due to invalid teamId filter.

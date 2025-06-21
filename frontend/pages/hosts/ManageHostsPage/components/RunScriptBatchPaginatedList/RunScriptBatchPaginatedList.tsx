@@ -3,7 +3,7 @@ import { useQueryClient } from "react-query";
 
 import scriptAPI, { IScriptsResponse } from "services/entities/scripts";
 
-import { IScript } from "interfaces/script";
+import { addTeamIdCriteria, IScript } from "interfaces/script";
 
 import PaginatedList from "components/PaginatedList";
 import Button from "components/buttons/Button";
@@ -19,6 +19,7 @@ interface IRunScriptBatchPaginatedList {
   onRunScript: (script: IPaginatedListScript) => Promise<void>;
   isUpdating: boolean;
   teamId: number;
+  isFreeTier?: boolean;
   scriptCount: number;
   setScriptForDetails: (script: IPaginatedListScript) => void;
 }
@@ -28,6 +29,7 @@ export const SCRIPT_BATCH_PAGE_SIZE = 6;
 const RunScriptBatchPaginatedList = ({
   onRunScript: _onRunScript,
   isUpdating,
+  isFreeTier,
   teamId,
   scriptCount,
   setScriptForDetails,
@@ -40,12 +42,15 @@ const RunScriptBatchPaginatedList = ({
       // scripts not supported for All teams
       const fetchPromise = queryClient.fetchQuery(
         [
-          {
-            scope: "scripts",
-            team_id: teamId,
-            page: pageNumber,
-            per_page: SCRIPT_BATCH_PAGE_SIZE,
-          },
+          addTeamIdCriteria(
+            {
+              scope: "scripts",
+              page: pageNumber,
+              per_page: SCRIPT_BATCH_PAGE_SIZE,
+            },
+            teamId,
+            isFreeTier
+          ),
         ],
         ({ queryKey }) => {
           return scriptAPI.getScripts(queryKey[0]);
@@ -56,7 +61,7 @@ const RunScriptBatchPaginatedList = ({
         return scripts || [];
       });
     },
-    [queryClient, teamId]
+    [queryClient, teamId, isFreeTier]
   );
 
   const onRunScript = useCallback(

@@ -5,7 +5,7 @@ import classnames from "classnames";
 
 import { NotificationContext } from "context/notification";
 
-import { IScript } from "interfaces/script";
+import { addTeamIdCriteria, IScript } from "interfaces/script";
 import { getErrorReason } from "interfaces/errors";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -33,6 +33,8 @@ interface IRunScriptBatchModal {
   // `filters` as needed
   filters: Omit<IScriptBatchSupportedFilters, "team_id">;
   teamId: number;
+  // If we are on the free tier, we don't want to apply any kind of team filters (since the feature is Premium only).
+  isFreeTier?: boolean;
   totalFilteredHostsCount: number;
   selectedHostIds: number[];
   onCancel: () => void;
@@ -44,6 +46,7 @@ const RunScriptBatchModal = ({
   totalFilteredHostsCount,
   selectedHostIds,
   teamId,
+  isFreeTier,
   onCancel,
 }: IRunScriptBatchModal) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -52,19 +55,14 @@ const RunScriptBatchModal = ({
   const [scriptForDetails, setScriptForDetails] = useState<
     IPaginatedListScript | undefined
   >(undefined);
-  // just used to get total number of scripts, could be optimized by implementing a dedicated scriptsCount endpoint
+  // just used to get the total number of scripts, could be optimized by implementing a dedicated scriptsCount endpoint
   const { data: scripts } = useQuery<
     IScriptsResponse,
     Error,
     IScript[],
     IListScriptsQueryKey[]
   >(
-    [
-      {
-        scope: "scripts",
-        team_id: teamId,
-      },
-    ],
+    [addTeamIdCriteria({ scope: "scripts" }, teamId, isFreeTier)],
     ({ queryKey }) => {
       return scriptsAPI.getScripts(queryKey[0]);
     },
@@ -80,7 +78,10 @@ const RunScriptBatchModal = ({
       setIsUpdating(true);
       const body = runByFilters
         ? // satisfy IScriptBatchSupportedFilters
-          { script_id: script.id, filters: { ...filters, team_id: teamId } }
+          {
+            script_id: script.id,
+            filters: addTeamIdCriteria(filters, teamId, isFreeTier),
+          }
         : { script_id: script.id, host_ids: selectedHostIds };
       try {
         await scriptsAPI.runScriptBatch(body);
@@ -118,7 +119,16 @@ const RunScriptBatchModal = ({
           info={
             <>
               You can add saved scripts{" "}
-              <a href={`/controls/scripts?team_id=${teamId}`}>here</a>.
+              <a
+                href={
+                  isFreeTier
+                    ? "/controls/scripts"
+                    : `/controls/scripts?team_id=${teamId}`
+                }
+              >
+                here
+              </a>
+              .
             </>
           }
         />
@@ -140,6 +150,7 @@ const RunScriptBatchModal = ({
           onRunScript={onRunScriptBatch}
           isUpdating={isUpdating}
           teamId={teamId}
+          isFreeTier={isFreeTier}
           scriptCount={scripts.length}
           setScriptForDetails={setScriptForDetails}
         />
