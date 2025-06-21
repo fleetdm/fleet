@@ -23,6 +23,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
 
+### Respond to a customer feature comparison request
+
+AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to the "🎐🗣 Design review (#g-digital-experience)" meeting for CEO review. The rep will:
+- Add themselves and the [Contracts and Compliance Engineer](https://fleetdm.com/handbook/digital-experience#team) to the "🎐🗣 Design review (#g-digital-experience)" calendar event (on the Office hours calendar).
+- Review with the CEO, and iterate on the comparison until approved by the CEO to provide to the prospect.  
+
+
 ### Demo Fleet to a prospect
 
 To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
