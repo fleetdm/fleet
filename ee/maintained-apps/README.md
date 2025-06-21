@@ -93,7 +93,7 @@ go run cmd/maintained-apps/main.go
 6. Head to [Render](https://dashboard.render.com/) and sign-in using the credentials in shared 1Password under "Render for testing software". In Render, select **fleet** and, in the left-side bar, select **Environment**. In the **Environment Variables** section, select **Edit**, and udpate the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
 
 ```
-FLEET_DEV_MAINTAINED_APPS_BASE_URL: https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs
+https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/<PR-branch-name>/ee/maintained-apps/outputs
 ```
 
 Make sure you replace the `<PR-branch-name>`.
