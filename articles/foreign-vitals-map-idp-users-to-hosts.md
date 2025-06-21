@@ -4,10 +4,11 @@
 
 _Available in Fleet Premium._
 
-To add IdP host vitals, like the end user's groups and full name, follow steps for your IdP. 
+Fleet currently gathers your end user's IdP username when [end users log in](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication) during the automatic enrollment (DEP) setup process.  
 
-Fleet currently supports [Okta](#okta). [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), more are coming soon.
+By connecting Fleet to your IdP to sync user data, you can add additional information, like the end user's groups and full name to your host data in Fleet. This allows you to leverage IdP information as variables in macOS configuration profiles. See [this guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#step-4-add-pkcs-12-configuration-profile-to-fleet) for deploying a wifi certificate for an example. 
 
+Fleet currently supports syncing data with [Okta](#okta). [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), more are coming soon.
 
 ## Okta
 
@@ -251,8 +252,6 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 After following the steps above, you should be able to see the latest requests from your IdP to Fleet if you navigate to **Settings > Integrations > Identity Provider (IdP)**. 
 
 To verify that user information is added to a host, go to the host that has IdP username assigned, and verify that **Full name (IdP)** and **Groups (IdP)** are populated correctly.
-
-> Currently, the IdP username is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the [end user authenticates](https://fleetdm.com/docs/rest-api/rest-api#mdm-macos-setup) with the IdP and the DEP profile has `await_device_configured` set to `true` (default in the [automatic enrollment profile](https://fleetdm.com/guides/macos-setup-experience#step-1-create-an-automatic-enrollment-profile)).
 
 ### Troubleshooting
 
