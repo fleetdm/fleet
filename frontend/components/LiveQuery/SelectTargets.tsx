@@ -27,14 +27,14 @@ import { capitalize } from "lodash";
 import permissions from "utilities/permissions";
 
 import PageError from "components/DataError";
-import TargetsInput from "components/LiveQuery/TargetsInput";
+import TargetsInput from "components/LinkWithContext/TargetsInput";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import SearchField from "components/forms/fields/SearchField";
 import RevealButton from "components/buttons/RevealButton";
 import TargetPillSelector from "./TargetChipSelector";
-import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
+import { generateTableHeaders } from "../LinkWithContext/TargetsInput/TargetsInputHostsTableConfig";
 
 interface ISelectTargetsProps {
   baseClass: string;

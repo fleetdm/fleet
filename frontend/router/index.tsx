@@ -32,8 +32,6 @@ import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
 import NewLabelPage from "pages/labels/NewLabelPage";
-import DynamicLabel from "pages/labels/NewLabelPage/DynamicLabel";
-import ManualLabel from "pages/labels/NewLabelPage/ManualLabel";
 import EditLabelPage from "pages/labels/EditLabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
@@ -230,8 +228,10 @@ const routes = (
             <IndexRedirect to="new/dynamic" />
             <Route path="new" component={NewLabelPage}>
               <IndexRedirect to="dynamic" />
-              <Route path="dynamic" component={DynamicLabel} />
-              <Route path="manual" component={ManualLabel} />
+              {/* maintaining all 3 sub-routes for "backward-compatibility" of URL routes. NewLabelPage sets is initial label type by checking the URL */}
+              <Route path="dynamic" component={NewLabelPage}>
+              <Route path="manual" component={NewLabelPage}>
+              <Route path="idp" component={NewLabelPage}>
             </Route>
             <Route path=":label_id" component={EditLabelPage} />
           </Route>

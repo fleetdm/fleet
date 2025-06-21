@@ -15,7 +15,25 @@ export default PropTypes.shape({
 });
 
 export type LabelType = "regular" | "builtin";
-export type LabelMembershipType = "dynamic" | "manual";
+export type LabelMembershipType = "dynamic" | "manual" | "host-vitals";
+
+type LeafCriterion = {
+  vital: "end_user_idp_group" | "end_user_idp_department"; // for now, may expand to be configurable
+  value: string; // from user input
+};
+
+type AndCriterion = {
+  and: LabelHostVitalsCriteria[];
+};
+
+type OrCriterion = {
+  or: LabelHostVitalsCriteria[];
+};
+
+export type LabelHostVitalsCriteria =
+  | LeafCriterion
+  | AndCriterion
+  | OrCriterion;
 
 export interface ILabelSummary {
   id: number;
@@ -43,17 +61,22 @@ export interface ILabel extends ILabelSummary {
   created_at: string;
   updated_at: string;
   uuid?: string;
-  query: string;
-  label_membership_type: LabelMembershipType;
   host_count?: number; // returned for built-in labels but not custom labels
   display_text: string;
   count: number; // seems to be a repeat of hosts_count issue #1618
-  host_ids: number[] | null;
   type?: "custom" | "platform" | "status" | "all";
   slug?: string; // e.g., "labels/13" | "online"
   target_type?: string; // e.g., "labels"
-  platform: string;
   author_id?: number;
+
+  label_membership_type: LabelMembershipType;
+  // dynamic-specific
+  query: string; // does return '""' for other types
+  platform: string; // does return '""' for other types
+  // host-vitals-specific
+  criteria: LabelHostVitalsCriteria | null;
+  // manual-specific
+  host_ids: number[] | null;
 }
 
 // corresponding to fleet>server>fleet>labels.go>LabelSpec

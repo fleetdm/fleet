@@ -6,6 +6,7 @@ import { ILabel, ILabelSummary } from "interfaces/label";
 import { IDynamicLabelFormData } from "pages/labels/components/DynamicLabelForm/DynamicLabelForm";
 import { IManualLabelFormData } from "pages/labels/components/ManualLabelForm/ManualLabelForm";
 import { IHost } from "interfaces/host";
+import { INewLabelFormData } from "pages/labels/NewLabelPage/NewLabelPage";
 
 export interface ILabelsResponse {
   labels: ILabel[];
@@ -15,7 +16,6 @@ export interface ILabelsSummaryResponse {
   labels: ILabelSummary[];
 }
 
-interface ICreateLabelBody {}
 export interface ICreateLabelResponse {
   label: ILabel;
 }
@@ -32,9 +32,8 @@ const isManualLabelFormData = (
   return "targetedHosts" in formData;
 };
 
-const generateCreateLabelBody = (
-  formData: IDynamicLabelFormData | IManualLabelFormData
-) => {
+const generateCreateLabelBody = (formData: INewLabelFormData) => {
+  // TODO - handle all of this in a switch case inside the create API method
   // we need to prepare the post body for only manual labels.
   if (isManualLabelFormData(formData)) {
     return {
@@ -71,9 +70,7 @@ export const getCustomLabels = <T extends { label_type: string; name: string }>(
 };
 
 export default {
-  create: (
-    formData: IDynamicLabelFormData | IManualLabelFormData
-  ): Promise<ICreateLabelResponse> => {
+  create: (formData: INewLabelFormData): Promise<ICreateLabelResponse> => {
     const { LABELS } = endpoints;
     const postBody = generateCreateLabelBody(formData);
     return sendRequest("POST", LABELS, postBody);
