@@ -1,5 +1,5 @@
 - name: Collect macOS compatibility data
-  automations_enabled: false
+  automations_enabled: true
   description: Collects macOS compatibility data from macOS hosts.
   discard_data: false
   interval: 604800
