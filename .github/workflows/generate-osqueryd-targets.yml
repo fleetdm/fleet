@@ -24,7 +24,7 @@ defaults:
     shell: bash
 
 env:
-  OSQUERY_VERSION: 5.17.0
+  OSQUERY_VERSION: 5.18.0
 
 permissions:
   id-token: write
