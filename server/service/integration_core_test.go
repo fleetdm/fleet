@@ -3244,6 +3244,13 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	require.NotNil(t, getResp.Host.TeamID)
+	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
+	require.NotNil(t, getResp.Host.TeamName)
+	require.Equal(t, tm1.Name, *getResp.Host.TeamName)
+
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[1].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
