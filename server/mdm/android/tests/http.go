@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/go-json-experiment/json"
@@ -41,7 +42,12 @@ func (ts *WithServer) DoRaw(verb string, path string, rawBytes []byte, expectedS
 func (ts *WithServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	return httptest.DoHTTPReq(ts.T(), decodeJSON, verb, rawBytes, ts.Server.URL+path, headers, expectedStatusCode, queryParams...)
+	opts := []fleethttp.ClientOpt{}
+	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
+		opts = append(opts, fleethttp.WithFollowRedir(false))
+	}
+	client := fleethttp.NewClient(opts...)
+	return httptest.DoHTTPReq(ts.T(), client, decodeJSON, verb, rawBytes, ts.Server.URL+path, headers, expectedStatusCode, queryParams...)
 }
 
 func decodeJSON(r io.Reader, v interface{}) error {

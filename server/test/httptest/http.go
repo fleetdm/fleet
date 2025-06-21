@@ -7,25 +7,25 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/stretchr/testify/require"
 )
 
-func DoHTTPReq(t *testing.T, jsonDecoder func(r io.Reader, v interface{}) error, verb string, rawBytes []byte, urlPath string,
-	headers map[string]string, expectedStatusCode int, queryParams ...string) *http.Response {
+func DoHTTPReq(
+	t *testing.T,
+	client *http.Client,
+	jsonDecoder func(r io.Reader, v interface{}) error,
+	verb string, rawBytes []byte, urlPath string,
+	headers map[string]string,
+	expectedStatusCode int,
+	queryParams ...string,
+) *http.Response {
 	requestBody := io.NopCloser(bytes.NewBuffer(rawBytes))
 	req, err := http.NewRequest(verb, urlPath, requestBody)
 	require.NoError(t, err)
 	for key, val := range headers {
 		req.Header.Add(key, val)
 	}
-
-	opts := []fleethttp.ClientOpt{}
-	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
-		opts = append(opts, fleethttp.WithFollowRedir(false))
-	}
-	client := fleethttp.NewClient(opts...)
 
 	if len(queryParams)%2 != 0 {
 		require.Fail(t, "need even number of params: key value")

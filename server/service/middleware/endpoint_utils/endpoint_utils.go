@@ -684,6 +684,10 @@ func EncodeCommonResponse(
 	response interface{},
 	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
 ) error {
+	if cs, ok := response.(cookieSetter); ok {
+		cs.SetCookies(ctx, w)
+	}
+
 	// The has to happen first, if an error happens we'll redirect to an error
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
@@ -732,4 +736,9 @@ type htmlPage interface {
 // their own rendering.
 type renderHijacker interface {
 	HijackRender(ctx context.Context, w http.ResponseWriter)
+}
+
+// cookieSetter can be implemented by response values to set cookies on the response.
+type cookieSetter interface {
+	SetCookies(ctx context.Context, w http.ResponseWriter)
 }
