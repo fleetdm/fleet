@@ -59,6 +59,7 @@ require (
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v37 v37.0.0
+	github.com/google/go-tpm v0.9.5
 	github.com/google/uuid v1.6.0
 	github.com/goreleaser/nfpm/v2 v2.10.0
 	github.com/gorilla/mux v1.8.1
@@ -97,6 +98,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
+	github.com/remitly-oss/httpsig-go v1.1.3
 	github.com/rs/zerolog v1.32.0
 	github.com/russellhaering/goxmldsig v1.2.0
 	github.com/saferwall/pe v1.5.5
@@ -107,8 +109,8 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.3
 	github.com/siderolabs/go-blockdevice/v2 v2.0.3
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
-	github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa
-	github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99
+	github.com/smallstep/pkcs7 v0.2.1
+	github.com/smallstep/scep v0.0.0-20250318231241-a25cabb69492
 	github.com/spf13/cast v1.7.1
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
@@ -199,6 +201,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
+	github.com/dunglas/httpsfv v1.0.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/elastic/go-sysinfo v1.11.2 // indirect
@@ -322,3 +325,5 @@ tool (
 	github.com/kevinburke/go-bindata
 	github.com/quasilyte/go-ruleguard/dsl
 )
+
+replace github.com/remitly-oss/httpsig-go => github.com/getvictor/httpsig-go v0.0.0-20250619220223-4b8303547620

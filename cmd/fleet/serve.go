@@ -56,10 +56,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/httpsig"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
+	"github.com/fleetdm/fleet/v4/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
@@ -1209,6 +1211,15 @@ the way that the Fleet server works.
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
+
+				if err := scep.RegisterSCEP(
+					rootMux,
+					scepStorage,
+					mdmStorage,
+					logger,
+				); err != nil {
+					initFatal(err, "setup fleetd SCEP service")
+				}
 			}
 
 			if license.IsPremium() {
@@ -1234,6 +1245,12 @@ the way that the Fleet server works.
 				} else {
 					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
 				}
+			}
+
+			httpSig := httpsig.NewHTTPSig(ds, logger)
+			verifier, err := httpSig.Verifier()
+			if err != nil {
+				initFatal(err, "setup httpsig verifier")
 			}
 
 			// We must wrap the Handler here to set special per-endpoint Read/Write
@@ -1312,6 +1329,20 @@ the way that the Fleet server works.
 							"response_writer", fmt.Sprintf("%+v", rw),
 							"err", err,
 						)
+					}
+				}
+
+				// TODO: Figure out a cleaner approach here. Use standard Go middleware approach.
+				if strings.Contains(req.URL.Path, "/api/fleet/orbit/") && !strings.HasSuffix(req.URL.Path, "/api/fleet/orbit/ping") {
+					result, err := verifier.Verify(req)
+					if err != nil {
+						level.Error(logger).Log("msg", "failed to verify request signature", "path", req.URL.Path, "err", err)
+						// http.Error(rw, err.Error(), http.StatusUnauthorized)
+						// return
+					} else if !result.Verified {
+						level.Error(logger).Log("msg", "request not verified", "path", req.URL.Path)
+						// http.Error(rw, "request not verified", http.StatusUnauthorized)
+						// return
 					}
 				}
 
