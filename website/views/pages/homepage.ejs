@@ -786,7 +786,7 @@
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurposeForSecurity">
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'rapid'">Rapid 7</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div>
-                <div class="dropdown-item" @click="comparisonModeForSecurity = 'defender'">Defender</div>
+                <!-- <div class="dropdown-item" @click="comparisonModeForSecurity = 'defender'">Defender</div> -->
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'tanium'">Tanium</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'qualys'">Qualys</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'tenable'">Tenable</div>
@@ -881,7 +881,7 @@
                 <img src="/images/icon-android-16x16@2x.png" alt="Android" >
                 <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
               </div>
-              <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'qualys', 'defender'">
+              <div purpose="comparison-column" v-if="['qualys'].includes(comparisonModeForSecurity)">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column" v-else>
@@ -956,12 +956,8 @@
               <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'crowdstrike'">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="comparison-column" v-else-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
                 <p>Mobile not supported</p>
-              </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'defender'">
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
               </div>
               <div purpose="comparison-column" v-else>
                 <p>Additional purchase</p>
@@ -1005,7 +1001,7 @@
           <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurposeForSecurity">
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'rapid'">Rapid 7</div>
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div>
-            <div class="dropdown-item" @click="comparisonModeForSecurity = 'defender'">Defender</div>
+            <!-- <div class="dropdown-item" @click="comparisonModeForSecurity = 'defender'">Defender</div> -->
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'tanium'">Tanium</div>
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'qualys'">Qualys</div>
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'tenable'">Tenable</div>
@@ -1125,7 +1121,7 @@
             </div>
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
+              <div purpose="feature-status" v-if="['qualys'].includes(comparisonModeForSecurity)">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="feature-status" v-else>
@@ -1221,12 +1217,8 @@
               <div purpose="feature-status" v-if="comparisonModeForSecurity === 'crowdstrike'">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="feature-status" v-else-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
                 <p>Mobile not supported</p>
-              </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForSecurity === 'defender'">
-                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
-                <img src="/images/os-linux-black-50-16x16@2x.png" alt="linux logo" >
               </div>
               <div purpose="feature-status" v-else>
                 <p>Additional purchase</p>
