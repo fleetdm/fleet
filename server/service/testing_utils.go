@@ -318,7 +318,7 @@ type mockMailService struct {
 	Invoked     bool
 }
 
-func (svc *mockMailService) SendEmail(e fleet.Email) error {
+func (svc *mockMailService) SendEmail(ctx context.Context, e fleet.Email) error {
 	svc.Invoked = true
 	return svc.SendEmailFn(e)
 }

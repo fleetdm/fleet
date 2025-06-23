@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/lambda"
-	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
+	aws_config "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -24,60 +23,60 @@ const (
 	lambdaMaxSizeOfPayload = 6 * 1000 * 1000 // 6MB
 )
 
+type LambdaAPI interface {
+	Invoke(ctx context.Context, params *lambda.InvokeInput, optFns ...func(*lambda.Options)) (*lambda.InvokeOutput, error)
+}
+
 type lambdaLogWriter struct {
-	client       lambdaiface.LambdaAPI
+	client       LambdaAPI
 	functionName string
 	logger       log.Logger
 }
 
 func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, stsExternalID, functionName string, logger log.Logger) (*lambdaLogWriter, error) {
-	conf := &aws.Config{
-		Region: &region,
-	}
+	var opts []func(*aws_config.LoadOptions) error
 
 	// Only provide static credentials if we have them
-	// otherwise use the default credentials provider chain
+	// otherwise use the default credentials provider chain.
 	if id != "" && secret != "" {
-		conf.Credentials = credentials.NewStaticCredentials(id, secret, "")
+		opts = append(opts,
+			aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(id, secret, "")),
+		)
 	}
 
-	sess, err := session.NewSession(conf)
-	if err != nil {
-		return nil, fmt.Errorf("create Lambda client: %w", err)
-	}
-
+	// cfg.StsAssumeRoleArn has been marked as deprecated, but we still set it in case users are using it.
 	if stsAssumeRoleArn != "" {
-		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
+		opts = append(opts, aws_config.WithAssumeRoleCredentialOptions(func(r *stscreds.AssumeRoleOptions) {
+			r.RoleARN = stsAssumeRoleArn
 			if stsExternalID != "" {
-				provider.ExternalID = &stsExternalID
+				r.ExternalID = &stsExternalID
 			}
-		})
-		conf.Credentials = creds
-
-		sess, err = session.NewSession(conf)
-
-		if err != nil {
-			return nil, fmt.Errorf("create Lambda client: %w", err)
-		}
+		}))
 	}
-	client := lambda.New(sess)
+
+	opts = append(opts, aws_config.WithRegion(region))
+	conf, err := aws_config.LoadDefaultConfig(context.Background(), opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create default config: %w", err)
+	}
+	lambdaClient := lambda.NewFromConfig(conf)
 
 	f := &lambdaLogWriter{
-		client:       client,
+		client:       lambdaClient,
 		functionName: functionName,
 		logger:       logger,
 	}
-	if err := f.validateFunction(); err != nil {
+	if err := f.validateFunction(context.Background()); err != nil {
 		return nil, fmt.Errorf("validate lambda: %w", err)
 	}
 	return f, nil
 }
 
-func (f *lambdaLogWriter) validateFunction() error {
-	out, err := f.client.Invoke(
+func (f *lambdaLogWriter) validateFunction(ctx context.Context) error {
+	out, err := f.client.Invoke(ctx,
 		&lambda.InvokeInput{
 			FunctionName:   &f.functionName,
-			InvocationType: aws.String("DryRun"),
+			InvocationType: types.InvocationTypeDryRun,
 		},
 	)
 	if err != nil {
@@ -108,7 +107,7 @@ func (f *lambdaLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 			continue
 		}
 
-		out, err := f.client.Invoke(
+		out, err := f.client.Invoke(ctx,
 			&lambda.InvokeInput{
 				FunctionName: &f.functionName,
 				Payload:      []byte(log),
