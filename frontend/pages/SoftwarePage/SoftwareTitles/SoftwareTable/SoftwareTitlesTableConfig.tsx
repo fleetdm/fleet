@@ -10,6 +10,7 @@ import {
 import PATHS from "router/paths";
 
 import { getPathWithQueryParams } from "utilities/url";
+import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
@@ -68,23 +69,20 @@ const getSoftwareNameCellData = (
   );
 
   const { software_package, app_store_app } = softwareTitle;
-  let hasPackage = false;
+  let hasInstaller = false;
   let isSelfService = false;
   let installType: "manual" | "automatic" | undefined;
   let iconUrl: string | null = null;
-  let automaticInstallPoliciesCount = 0;
   if (software_package) {
-    hasPackage = true;
+    hasInstaller = true;
     isSelfService = software_package.self_service;
     installType =
       software_package.automatic_install_policies &&
       software_package.automatic_install_policies.length > 0
         ? "automatic"
         : "manual";
-    automaticInstallPoliciesCount =
-      software_package.automatic_install_policies?.length || 0;
   } else if (app_store_app) {
-    hasPackage = true;
+    hasInstaller = true;
     isSelfService = app_store_app.self_service;
     iconUrl = app_store_app.icon_url;
     installType =
@@ -92,9 +90,11 @@ const getSoftwareNameCellData = (
       app_store_app.automatic_install_policies.length > 0
         ? "automatic"
         : "manual";
-    automaticInstallPoliciesCount =
-      app_store_app.automatic_install_policies?.length || 0;
   }
+
+  const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
+    softwareTitle
+  );
 
   const isAllTeams = teamId === undefined;
 
@@ -102,7 +102,7 @@ const getSoftwareNameCellData = (
     name: softwareTitle.name,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
-    hasPackage: hasPackage && !isAllTeams,
+    hasInstaller: hasInstaller && !isAllTeams,
     isSelfService,
     installType,
     iconUrl,
@@ -133,9 +133,8 @@ const generateTableHeaders = (
             source={nameCellData.source}
             path={nameCellData.path}
             router={router}
-            hasPackage={nameCellData.hasPackage}
+            hasInstaller={nameCellData.hasInstaller}
             isSelfService={nameCellData.isSelfService}
-            installType={nameCellData.installType}
             iconUrl={nameCellData.iconUrl ?? undefined}
             automaticInstallPoliciesCount={
               nameCellData.automaticInstallPoliciesCount

@@ -36,11 +36,9 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import Pagination from "components/Pagination";
 
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
-import {
-  InstallOrCommandUuid,
-  generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig,
-} from "./SelfServiceTableConfig";
+import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./SelfServiceTableConfig";
 import { parseHostSoftwareQueryParams } from "../HostSoftware";
+import { InstallOrCommandUuid } from "../InstallStatusCell/InstallStatusCell";
 
 import {
   CATEGORIES_NAV_ITEMS,
@@ -67,7 +65,7 @@ export interface ISoftwareSelfServiceProps {
   pathname: string;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   router: InjectedRouter;
-  onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
+  onShowInstallDetails: (uuid?: InstallOrCommandUuid) => void;
   onShowUninstallDetails: (scriptExecutionId?: string) => void;
 }
 
@@ -78,7 +76,7 @@ const SoftwareSelfService = ({
   pathname,
   queryParams,
   router,
-  onShowInstallerDetails,
+  onShowInstallDetails,
   onShowUninstallDetails,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -305,7 +303,7 @@ const SoftwareSelfService = ({
     return generateDeviceSoftwareTableConfig({
       deviceToken,
       onInstall: onInstallOrUninstall,
-      onShowInstallerDetails,
+      onShowInstallDetails,
       onShowUninstallDetails,
       onClickUninstallAction: (software) => {
         selectedSoftware.current = {
@@ -319,7 +317,7 @@ const SoftwareSelfService = ({
         setShowUninstallSoftwareModal(true);
       },
     });
-  }, [deviceToken, onInstallOrUninstall, onShowInstallerDetails]);
+  }, [deviceToken, onInstallOrUninstall, onShowInstallDetails]);
 
   const renderSelfServiceCard = () => {
     const renderHeaderFilters = () => (

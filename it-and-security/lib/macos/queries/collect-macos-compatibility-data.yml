@@ -1,5 +1,5 @@
 - name: Collect macOS compatibility data
-  automations_enabled: false
+  automations_enabled: true
   description: Collects macOS compatibility data from macOS hosts.
   discard_data: false
   interval: 604800
@@ -8,4 +8,4 @@
   platform: "darwin"
   query: SELECT * FROM macos_compatibility;
   labels_include_any:
-    - Santa test devices
+    - macOS compatibility extension installed

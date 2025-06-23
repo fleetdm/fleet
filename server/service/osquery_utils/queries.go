@@ -861,9 +861,10 @@ var windowsUpdateHistory = DetailQuery{
 
 // entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
 var entraIDDetails = DetailQuery{
-	// The query ingests Entra's Device ID and User Principal Name of the account that logged in to the device (using Company Portal.app).
-	Query: `SELECT * FROM (SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' LIMIT 1)
-		CROSS JOIN (SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1);`,
+	// The query ingests Entra's Device ID and User Principal Name of the account
+	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
+	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
+	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestEntraIDDetails,
 }
@@ -1545,9 +1546,9 @@ func directIngestEntraIDDetails(
 		return ctxerr.New(ctx, "empty Entra ID device_id")
 	}
 	userPrincipalName := row["user_principal_name"]
-	if userPrincipalName == "" {
-		return ctxerr.New(ctx, "empty Entra ID user_principal_name")
-	}
+	// userPrincipalName can be empty on macOS workstations with e.g. two accounts:
+	// one logged in to Entra and the other one not logged in.
+	// While the second one is logged in, it would report the same Device ID but empty user principal name.
 
 	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
@@ -1737,6 +1738,10 @@ func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var users []fleet.HostUser
 	for _, row := range rows {
+		if row["uid"] == "" {
+			// Under certain circumstances, broken users can come back with empty UIDs. We don't want them
+			continue
+		}
 		uid, err := strconv.Atoi(row["uid"])
 		if err != nil {
 			// Chrome returns uids that are much larger than a 32 bit int, ignore this.
