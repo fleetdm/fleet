@@ -46,7 +46,7 @@ helm install fleet-database \
 
 This helm package will create a Kubernetes `Service` which exposes the MySQL server to the rest of the cluster on the following DNS address:
 
-```
+```txt
 fleet-database-mysql:3306
 ```
 
@@ -67,7 +67,7 @@ helm install fleet-cache \
 
 This helm package will create a Kubernetes `Service` which exposes the Redis server to the rest of the cluster on the following DNS address:
 
-```
+```txt
 fleet-cache-redis-master:6379
 ```
 
@@ -201,7 +201,7 @@ fleet:
 ```
 
 - Update `values.yaml` to include the details for MySQL
-```
+```yaml
 ...
 ## Section: database
 # All of the connection settings for MySQL
@@ -260,10 +260,10 @@ To configure preferences for Fleet for use in Terraform, including secret names,
  - Update `hostname` to match the SAN covered by your TLS secret (configured above)
  - Update `ingress` to match the details of `hostname` and the name of the secret that you've configured. In the example the secret name is `chart-example-tls`
 
-```
+```txt
 hostname = "chart-example.local"
 ```
-```
+```txt
 ingress = {
     enabled = true
     class_name = ""
@@ -286,7 +286,7 @@ ingress = {
 ```
 
 - Update the `main.tf` to include the details for the secret you've created containing the Fleet Premium license.
-```
+```txt
 ...
     fleet = {
       ...
@@ -298,7 +298,7 @@ ingress = {
 ```
 
 - Update `main.tf` to include the details for MySQL
-```yaml
+```txt
 ...
 database = {
     enabled = false
@@ -324,7 +324,7 @@ database = {
 ```
 
 - Update `main.tf` to include the details for Redis
-```yaml
+```txt
 ...
   cache = {
       enabled = false
@@ -339,7 +339,7 @@ database = {
 
 Before you can leverage the Terraform module, you will need to modify the `main.tf` with your configuration preferences for Fleet and `provider.tf` with your KUBECONFIG details for authentication. The following [link to the kubernetes provider terraform docs](https://registry.terraform.io/providers/hashicorp/kubernetes/latest/docs/guides/getting-started.html) has examples documented for AWS EKS, GCP GKE, and Azure.
 
-```
+```txt
 provider "kubernetes" {
   # config_path = "/path/to/kubeconfig"
   config_path = ""
@@ -350,21 +350,21 @@ Once you have those configured, run the following:
 
 1. If you have not used Terraform before, you must run the following to initialize your Terraform prior to installing Fleet:
 
-  ```sh
-  terraform init
-  ```
+```sh
+terraform init
+```
 
 2. To dry-run the Terraform deployment and see resources that Terraform believes will be deployed:
 
-  ```sh
-  terraform plan
-  ```
+```sh
+terraform plan
+```
 
 3. If you're happy with the results returned by the Terraform plan, you can apply the deployment:
 
-  ```sh
-  terraform apply
-  ```
+```sh
+terraform apply
+```
 
 I have a published [README.md](https://github.com/fleetdm/fleet-terraform/blob/main/k8s/README.md) with additional information and examples related to Fleet Kubernetes deployments through Terraform.
 
