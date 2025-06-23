@@ -14399,6 +14399,14 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.Len(t, team1CalendarEvents, 1)
 	assert.Equal(t, previousEvent, team1CalendarEvents[0])
 
+	err = s.ds.DeleteHost(ctx, host1Team1.ID)
+	require.NoError(t, err)
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+
 	// Trigger calendar should cleanup the events
 	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
 	assert.Equal(t, 0, calendar.MockChannelsCount())
