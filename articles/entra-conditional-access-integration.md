@@ -44,7 +44,7 @@ To configure automatic installation on your macOS devices you go to `Software` >
 
 !['Company Portal.app' automatic install](../website/assets/images/company-portal-automatic.png)
 
-### Label for "Company portal.app installed"
+### Label "Company Portal installed"
 
 We will need to create a dynamic label to determine which macOS devices have "Company Portal" installed.
 We will use this label to conditionally deploy a Platform SSO configuration profile (next step).
@@ -139,16 +139,6 @@ Upload the following configuration profile:
 
 > `UserSecureEnclaveKey` will be mandatory starting in Q3 2025, see https://learn.microsoft.com/en-us/entra/identity-platform/apple-sso-plugin#upcoming-changes-to-device-identity-key-storage.
 
-After the profile is deployed to end-user devices, users will see a notification and will perform the authentication flow with Entra ID.
-
-![Entra ID Platform SSO notification](../website/assets/images/entra-platform-sso-notification.png)
-
-> The user might hit the following message if it attempts to log in to a Microsoft services/apps right away after authenticating via Platform SSO (Fleet can take up to one hour to gather the information and send it to Intune):
-
-![Entra ID Platform SSO refetch needed](../website/assets/images/entra-platform-sso-refetch-needed.png)
-
-On that scenario, after hitting "Continue" the user will be redirected to https://fleetdm.com/microsoft-compliance-partner/enroll which will advise to click on the Fleet tray icon "My device" > "🔄 Refetch". The refetch will synchronize data to Intune and the user will be able to log in to Microsoft services/apps without entering credentials.
-
 ## Configure Fleet policies for Conditional Access
 
 The final step is to configure Fleet policies that will determine whether a device is marked as "compliant" or "not compliant" on Entra.
@@ -172,7 +162,21 @@ If you need all your hosts on a team to be marked as "Compliant" (e.g. to unbloc
 To disable the "Conditional Access" feature on a team go to `Policies` > `Select team` > `Automations` > `Conditional access` > `Disable`.
 Once disabled, hosts will not be reporting compliance status to Entra anymore.
 
-## End users with access blocked experience
+## End user experience
+
+### Platform SSO registration
+
+After the Platform SSO profile is deployed to end-user devices, users will see a notification and will perform the authentication flow with Entra ID.
+
+![Entra ID Platform SSO notification](../website/assets/images/entra-platform-sso-notification.png)
+
+After following the authentication steps, the user might hit the following message if it attempts to log in to a Microsoft services/apps right away after authenticating via Platform SSO (Fleet can take up to one hour to gather the information and send it to Intune):
+
+![Entra ID Platform SSO refetch needed](../website/assets/images/entra-platform-sso-refetch-needed.png)
+
+On that scenario, after hitting "Continue" the user will be redirected to https://fleetdm.com/microsoft-compliance-partner/enroll which will advise to click on the Fleet tray icon "My device" > "🔄 Refetch". The refetch will synchronize data to Intune and the user will be able to log in to Microsoft services/apps without entering credentials.
+
+### Access blocked experience
 
 When a Fleet policy configured for conditional access starts failing on a host, then the user will be logged out and blocked from logging in to Entra ID.
 
