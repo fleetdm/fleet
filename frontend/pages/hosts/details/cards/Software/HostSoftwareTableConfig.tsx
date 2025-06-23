@@ -72,7 +72,7 @@ export const generateSoftwareTableHeaders = ({
           { team_id: teamId }
         );
 
-        const hasPackage = !!app_store_app || !!software_package;
+        const hasInstaller = !!app_store_app || !!software_package;
         const isSelfService =
           app_store_app?.self_service || software_package?.self_service;
         const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
@@ -87,7 +87,7 @@ export const generateSoftwareTableHeaders = ({
             iconUrl={app_store_app?.icon_url}
             path={softwareTitleDetailsPath}
             router={router}
-            hasPackage={hasPackage}
+            hasInstaller={hasInstaller}
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"

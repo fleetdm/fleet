@@ -13,7 +13,8 @@ const defaultProps = {
 };
 
 describe("SoftwareNameCell icon rendering", () => {
-  it("does not show icon when no installer, no self-service, no auto install (Software Title page)", () => {
+  // 2 "No installer" tests
+  it("does not show icon when no installer (Software Title page)", () => {
     const render = createCustomRenderer();
     render(<SoftwareNameCell {...defaultProps} />);
     expect(screen.queryByTestId("install-icon")).toBeNull();
@@ -22,7 +23,7 @@ describe("SoftwareNameCell icon rendering", () => {
     expect(screen.queryByTestId("automatic-self-service-icon")).toBeNull();
   });
 
-  it("does not show icon when no installer, no self-service, no auto install (Host Inventory)", () => {
+  it("does not show icon when no installer (Host Inventory)", () => {
     const render = createCustomRenderer();
     render(<SoftwareNameCell {...defaultProps} pageContext="hostDetails" />);
     expect(screen.queryByTestId("install-icon")).toBeNull();
@@ -31,20 +32,51 @@ describe("SoftwareNameCell icon rendering", () => {
     expect(screen.queryByTestId("automatic-self-service-icon")).toBeNull();
   });
 
-  it("does not show icon when no self-service, no auto install since installer icon is redundant because every item on host library is an installer (Host Library)", () => {
+  // Skip testing no installer + hostDetailsLibrary pageContext because that can never happen
+
+  // 3 "has installer" tests
+  it("shows install icon for manual installer (Software Title page)", async () => {
     const render = createCustomRenderer();
-    render(
-      <SoftwareNameCell {...defaultProps} pageContext="hostDetailsLibrary" />
-    );
-    expect(screen.queryByTestId("install-icon")).toBeNull();
-    expect(screen.queryByTestId("user-icon")).toBeNull();
-    expect(screen.queryByTestId("refresh-icon")).toBeNull();
-    expect(screen.queryByTestId("automatic-self-service-icon")).toBeNull();
+    render(<SoftwareNameCell {...defaultProps} hasInstaller />);
+    const icon = screen.getByTestId("install-icon");
+    await userEvent.hover(icon);
+    expect(
+      await screen.findByText(
+        /Software can be installed on the host details page/i
+      )
+    ).toBeInTheDocument();
   });
 
+  it("shows install icon for manual installer (Host Inventory)", async () => {
+    const render = createCustomRenderer();
+    render(
+      <SoftwareNameCell
+        {...defaultProps}
+        hasInstaller
+        pageContext="hostDetails"
+      />
+    );
+    const icon = screen.getByTestId("install-icon");
+    await userEvent.hover(icon);
+    expect(await screen.findByText(/on the Library tab/i)).toBeInTheDocument();
+  });
+
+  it("does not show install icon for manual installer (Host Library) as every software on that page will have an installer", () => {
+    const render = createCustomRenderer();
+    render(
+      <SoftwareNameCell
+        {...defaultProps}
+        hasInstaller
+        pageContext="hostDetailsLibrary"
+      />
+    );
+    expect(screen.queryByTestId("install-icon")).toBeNull();
+  });
+
+  // 3 "self service installer" tests
   it("shows user icon for self-service software (Software Title page)", async () => {
     const render = createCustomRenderer();
-    render(<SoftwareNameCell {...defaultProps} hasPackage isSelfService />);
+    render(<SoftwareNameCell {...defaultProps} hasInstaller isSelfService />);
     const icon = screen.getByTestId("user-icon");
     await userEvent.hover(icon);
     expect(
@@ -57,7 +89,7 @@ describe("SoftwareNameCell icon rendering", () => {
     render(
       <SoftwareNameCell
         {...defaultProps}
-        hasPackage
+        hasInstaller
         isSelfService
         pageContext="hostDetails"
       />
@@ -74,7 +106,7 @@ describe("SoftwareNameCell icon rendering", () => {
     render(
       <SoftwareNameCell
         {...defaultProps}
-        hasPackage
+        hasInstaller
         isSelfService
         pageContext="hostDetailsLibrary"
       />
@@ -86,12 +118,13 @@ describe("SoftwareNameCell icon rendering", () => {
     ).toBeInTheDocument();
   });
 
+  // 3 "auto installer" tests
   it("shows refresh icon for auto-install software (Software Title page)", async () => {
     const render = createCustomRenderer();
     render(
       <SoftwareNameCell
         {...defaultProps}
-        hasPackage
+        hasInstaller
         automaticInstallPoliciesCount={2}
       />
     );
@@ -107,7 +140,7 @@ describe("SoftwareNameCell icon rendering", () => {
     render(
       <SoftwareNameCell
         {...defaultProps}
-        hasPackage
+        hasInstaller
         automaticInstallPoliciesCount={3}
         pageContext="hostDetails"
       />
@@ -124,7 +157,7 @@ describe("SoftwareNameCell icon rendering", () => {
     render(
       <SoftwareNameCell
         {...defaultProps}
-        hasPackage
+        hasInstaller
         automaticInstallPoliciesCount={1}
         pageContext="hostDetailsLibrary"
       />
@@ -136,12 +169,13 @@ describe("SoftwareNameCell icon rendering", () => {
     ).toBeInTheDocument();
   });
 
+  // 3 "self service + auto installer" tests
   it("shows automatic-self-service icon for self-service + auto-install (Software Title page)", async () => {
     const render = createCustomRenderer();
     render(
       <SoftwareNameCell
         {...defaultProps}
-        hasPackage
+        hasInstaller
         isSelfService
         automaticInstallPoliciesCount={2}
       />
@@ -161,7 +195,7 @@ describe("SoftwareNameCell icon rendering", () => {
     render(
       <SoftwareNameCell
         {...defaultProps}
-        hasPackage
+        hasInstaller
         isSelfService
         automaticInstallPoliciesCount={2}
         pageContext="hostDetails"
@@ -182,7 +216,7 @@ describe("SoftwareNameCell icon rendering", () => {
     render(
       <SoftwareNameCell
         {...defaultProps}
-        hasPackage
+        hasInstaller
         isSelfService
         automaticInstallPoliciesCount={2}
         pageContext="hostDetailsLibrary"
@@ -196,41 +230,5 @@ describe("SoftwareNameCell icon rendering", () => {
     expect(
       await screen.findByText(/End users can reinstall/i)
     ).toBeInTheDocument();
-  });
-
-  it("shows install icon for manual installer (Software Title page)", async () => {
-    const render = createCustomRenderer();
-    render(<SoftwareNameCell {...defaultProps} hasPackage />);
-    const icon = screen.getByTestId("install-icon");
-    await userEvent.hover(icon);
-    expect(
-      await screen.findByText(/Software can be installed on host details page/i)
-    ).toBeInTheDocument();
-  });
-
-  it("shows install icon for manual installer (Host Inventory)", async () => {
-    const render = createCustomRenderer();
-    render(
-      <SoftwareNameCell
-        {...defaultProps}
-        hasPackage
-        pageContext="hostDetails"
-      />
-    );
-    const icon = screen.getByTestId("install-icon");
-    await userEvent.hover(icon);
-    expect(await screen.findByText(/on the Library tab/i)).toBeInTheDocument();
-  });
-
-  it("does not show install icon for manual installer (Host Library, redundant)", () => {
-    const render = createCustomRenderer();
-    render(
-      <SoftwareNameCell
-        {...defaultProps}
-        hasPackage
-        pageContext="hostDetailsLibrary"
-      />
-    );
-    expect(screen.queryByTestId("install-icon")).toBeNull();
   });
 });

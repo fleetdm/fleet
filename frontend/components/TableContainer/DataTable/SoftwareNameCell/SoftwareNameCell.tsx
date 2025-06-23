@@ -42,11 +42,8 @@ const installIconMap: Record<InstallType, InstallIconConfig> = {
     iconName: "install",
     tooltip: ({ pageContext }) => (
       <>
-        Software can be installed on{" "}
-        {pageContext === "hostDetails"
-          ? "the Library tab"
-          : "Host details page"}
-        .
+        Software can be installed on the{" "}
+        {pageContext === "hostDetails" ? "Library tab" : "Host details page"}.
       </>
     ),
   },
@@ -137,7 +134,7 @@ interface ISoftwareNameCellProps {
   path?: string;
   router?: InjectedRouter;
   pageContext?: PageContext;
-  hasPackage?: boolean;
+  hasInstaller?: boolean;
   isSelfService?: boolean;
   automaticInstallPoliciesCount?: number;
   /** e.g. app_store_app's override default icons with URLs */
@@ -150,7 +147,7 @@ const SoftwareNameCell = ({
   path,
   router,
   pageContext,
-  hasPackage = false,
+  hasInstaller = false,
   isSelfService = false,
   automaticInstallPoliciesCount,
   iconUrl,
@@ -191,7 +188,7 @@ const SoftwareNameCell = ({
       prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
       value={name}
       suffix={
-        hasPackage ? (
+        hasInstaller ? (
           <InstallIconWithTooltip
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
