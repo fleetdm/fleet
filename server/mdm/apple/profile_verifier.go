@@ -42,12 +42,16 @@ import (
 // updates the verification status in the datastore. It is intended to be called by Fleet osquery
 // service when the Fleet server ingests host details.
 func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStore, host *fleet.Host, installedByProfIdentifier map[string]*fleet.HostMacOSProfile) error {
-	// TODO(mna): for user-channel profiles, we allow up to 2h before sending the
-	// profile to the host, but the grace period for verification is 1h, so it
-	// would be marked as missing if the host doesn't report it within 1h. The
-	// expected profiles should probably also have the user-channel existence
-	// check to avoid returning user-scoped profiles as "expected" if it's within
-	// that period.
+	// NOTE: for user-scoped profiles, we allow up to a few hours (see
+	// mysql.hoursToWaitForUserEnrollmentAfterDeviceEnrollment for actual value)
+	// before sending the profile to the host, but the grace period for
+	// verification can be lower (see
+	// fleet.ExpectedMDMProfile.IsWithinGracePeriod for actual value), so it will
+	// be identified as missing if the host doesn't report it within that delay.
+	// However, this is fine because it will result as a no-op in
+	// UpdateHostMDMProfilesVerification since the status of a profile in that
+	// situation for the host is NULL (no command sent yet), not "pending" or
+	// something else.
 
 	expectedByProfIdentifier, err := ds.GetHostMDMProfilesExpectedForVerification(ctx, host)
 	if err != nil {

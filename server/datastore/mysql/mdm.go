@@ -591,6 +591,8 @@ SET
 WHERE
 	host_uuid = ?
 	AND operation_type = ?
+	-- do not increment retry unnecessarily if the status is already null, no MDM command was sent
+	AND status IS NOT NULL
 	AND %s IN(?)`
 
 	args := []interface{}{
@@ -864,7 +866,7 @@ func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.
 	stmt := `
 -- profiles without labels
 SELECT
-    macp.profile_uuid AS profile_uuid,
+	macp.profile_uuid AS profile_uuid,
 	macp.identifier AS identifier,
 	0 AS count_profile_labels,
 	0 AS count_non_broken_labels,
