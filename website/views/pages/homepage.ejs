@@ -786,6 +786,7 @@
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurposeForSecurity">
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'rapid'">Rapid 7</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div>
+                <div class="dropdown-item" @click="comparisonModeForSecurity = 'defender'">Defender</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'tanium'">Tanium</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'qualys'">Qualys</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'tenable'">Tenable</div>
@@ -804,7 +805,7 @@
               <div purpose="comparison-column" v-if="['rapid', 'crowdstrike', 'tanium'].includes(comparisonModeForSecurity)">
                 <p>Proprietary</p>
               </div>
-              <div purpose="comparison-column" v-else-if="['qualys', 'tenable'].includes(comparisonModeForSecurity)">
+              <div purpose="comparison-column" v-else-if="['qualys', 'tenable', 'defender'].includes(comparisonModeForSecurity)">
                 <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
@@ -864,7 +865,7 @@
                 <p>Bring your own</p>
               </div>
               <div purpose="comparison-column">
-                <p>Out of the box</p>
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
 
@@ -880,7 +881,7 @@
                 <img src="/images/icon-android-16x16@2x.png" alt="Android" >
                 <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
               </div>
-              <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'qualys', 'defender'">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="comparison-column" v-else>
@@ -914,11 +915,11 @@
                 <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
                 <img src="/images/icon-ios-16x16@2x.png" alt="iOS">
               </div>
-              <div purpose="comparison-column" v-if="comparisonModeForSecurity === 'tanium'">
-                <p>Mobile not supported</p>
+              <div purpose="comparison-column" v-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
+                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
-              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'qualys'">
-                <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
+              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'tanium'">
+                <p>Mobile not supported</p>
               </div>
               <div purpose="comparison-column" v-else>
                 <p>Additional purchase</p>
@@ -958,6 +959,10 @@
               <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'qualys'">
                 <p>Mobile not supported</p>
               </div>
+              <div purpose="comparison-column" v-else-if="comparisonModeForSecurity === 'defender'">
+                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
+                <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
+              </div>
               <div purpose="comparison-column" v-else>
                 <p>Additional purchase</p>
               </div>
@@ -968,7 +973,7 @@
               <div purpose="fleet-column">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
-              <div purpose="comparison-column" v-if="['tanium'].includes(comparisonModeForSecurity)">
+              <div purpose="comparison-column" v-if="['tanium', 'defender'].includes(comparisonModeForSecurity)">
                 <p>Additional purchase</p>
               </div>
               <div purpose="comparison-column" v-else-if="['qualys'].includes(comparisonModeForSecurity)">
