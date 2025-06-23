@@ -140,6 +140,7 @@ data:
 If you have a Fleet premium license that you'd like to configure.
 
 - Create and apply secret for the fleet-license
+
 ```yaml
 ---
 apiVersion: v1
@@ -190,6 +191,7 @@ ingress:
 ```
 
 - Update the `values.yaml` to include the details for the secret you've created containing the Fleet Premium license.
+
 ```yaml
 ...
 fleet:
@@ -201,6 +203,7 @@ fleet:
 ```
 
 - Update `values.yaml` to include the details for MySQL
+
 ```yaml
 ...
 ## Section: database
@@ -228,6 +231,7 @@ database:
 ```
 
 - Update `values.yaml` to include the details for Redis
+
 ```yaml
 ...
 ## Section: cache
@@ -263,6 +267,7 @@ To configure preferences for Fleet for use in Terraform, including secret names,
 ```txt
 hostname = "chart-example.local"
 ```
+
 ```txt
 ingress = {
     enabled = true
@@ -286,6 +291,7 @@ ingress = {
 ```
 
 - Update the `main.tf` to include the details for the secret you've created containing the Fleet Premium license.
+
 ```txt
 ...
     fleet = {
@@ -298,6 +304,7 @@ ingress = {
 ```
 
 - Update `main.tf` to include the details for MySQL
+
 ```txt
 ...
 database = {
@@ -324,6 +331,7 @@ database = {
 ```
 
 - Update `main.tf` to include the details for Redis
+
 ```txt
 ...
   cache = {
