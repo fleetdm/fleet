@@ -38,12 +38,7 @@ Different platforms often require different tools, creating a patchwork of solut
 
 Fleet eliminates this duplication **by design**.
 
-The same `fleetd` agent powers MDM, deploys software, runs queries, and surfaces known vulnerabilities, available patches, and out-of-date software—across all your endpoints.
-
-<!-- Consider reworking the above paragraph, as noted. Here's a lighter option:
-The `fleetd` agent isn't just for one job. It’s your device manager, vulnerability scanner, software deployer, and inventory system—all in one. -->
-
-This unified approach transforms how IT and security teams collaborate:
+The `fleetd` agent isn't just for one job. It’s your device manager, vulnerability scanner, software deployer, and inventory system—all in one. This unified approach transforms how IT and security teams collaborate:
 
 - No more “reach across the aisle” syncs
 - Both teams operate from the same real-time dataset
@@ -73,11 +68,7 @@ Because Fleet is built on open source foundations, you maintain **complete visib
 - How it's processed  
 - How it flows into your security and IT tools  
 
-You can write custom queries, fine-tune data collection, and export results into the systems your teams already rely on.
-
-<!-- Keep this? If your audience is compliance/security folks, it's relevant. Otherwise, could cut or condense. -->
-
-This is especially valuable for **compliance-focused organizations**:
+You can write custom queries, fine-tune data collection, and export results into the systems your teams already rely on. This is especially valuable for **compliance-focused organizations**:
 
 - Audit what Fleet collects  
 - Modify queries to meet regulatory requirements  
@@ -101,8 +92,6 @@ With Fleet, those silos disappear.
 - One vulnerability view  
 
 IT teams work from a **single clean interface**, security monitors **one dashboard**, and executives see **unified reporting**.
-
-<!-- Reworked from the original suggestion you didn’t like. Let me know if you want a more informal tone. -->
 
 This also benefits orgs with hybrid cloud or BYOD strategies—support the tools your people actually use, without sacrificing security or control.
 
@@ -129,11 +118,9 @@ Fleet provides the foundation for this collaboration by eliminating artificial b
 
 ---
 
-**Want to learn more?**  
-Reach out directly to me or the team at Fleet!
+**Want to learn more?** 
 
-<!-- Calendly link could work, especially if you're posting this on a blog or campaign page. Consider framing it like:
-[Book a quick intro call](https://calendly.com/your-link) — we’ll show you how Fleet can work for your team. -->
+[Book a quick intro call](https://fleetdm.com/contact) — we’ll show you how Fleet can work for your team.
 
 <meta name="articleTitle" value="One agent. Fewer tools. Fewer gaps.">
 <meta name="authorFullName" value="Harrison Ravazzolo">
