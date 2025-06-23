@@ -1005,6 +1005,7 @@
           <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="mobileDropdownMenuSelectPurposeForSecurity">
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'rapid'">Rapid 7</div>
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div>
+            <div class="dropdown-item" @click="comparisonModeForSecurity = 'defender'">Defender</div>
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'tanium'">Tanium</div>
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'qualys'">Qualys</div>
             <div class="dropdown-item" @click="comparisonModeForSecurity = 'tenable'">Tenable</div>
@@ -1022,8 +1023,8 @@
               <div purpose="feature-status" v-if="['rapid', 'crowdstrike', 'tanium'].includes(comparisonModeForSecurity)">
                 <p>Proprietary</p>
               </div>
-              <div purpose="feature-status" v-else-if="['qualys', 'tenable'].includes(comparisonModeForSecurity)">
-                <p>Proprietary / Bring your own</p>
+              <div purpose="feature-status" v-else-if="['qualys', 'tenable', 'defender'].includes(comparisonModeForSecurity)">
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
           </div>
@@ -1104,7 +1105,7 @@
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
               <div purpose="feature-status">
-                <p>Out of the box</p>
+                <img style="height: 14px; width: 14px;" alt="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
           </div>
@@ -1124,7 +1125,7 @@
             </div>
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="feature-status" v-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
               <div purpose="feature-status" v-else>
@@ -1171,7 +1172,7 @@
               <div purpose="feature-status" v-if="comparisonModeForSecurity === 'tanium'">
                 <p>Mobile not supported</p>
               </div>
-              <div purpose="feature-status" v-else-if="comparisonModeForSecurity === 'qualys'">
+              <div purpose="feature-status" v-else-if="['qualys', 'defender'].includes(comparisonModeForSecurity)">
                 <img class="mx-auto" alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
               </div>
               <div purpose="feature-status" v-else>
@@ -1223,6 +1224,10 @@
               <div purpose="feature-status" v-else-if="comparisonModeForSecurity === 'qualys'">
                 <p>Mobile not supported</p>
               </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForSecurity === 'defender'">
+                <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
+                <img src="/images/os-linux-black-50-16x16@2x.png" alt="linux logo" >
+              </div>
               <div purpose="feature-status" v-else>
                 <p>Additional purchase</p>
               </div>
@@ -1239,7 +1244,7 @@
             </div>
             <div purpose="feature-table-row">
               <div>{{comparisonModeFriendlyNames[comparisonModeForSecurity]}}</div>
-              <div purpose="feature-status" v-if="['tanium'].includes(comparisonModeForSecurity)">
+              <div purpose="feature-status" v-if="['tanium', 'defender'].includes(comparisonModeForSecurity)">
                 <p>Additional purchase</p>
               </div>
               <div purpose="feature-status" v-else-if="['qualys'].includes(comparisonModeForSecurity)">
