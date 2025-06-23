@@ -2417,8 +2417,6 @@ func buildConfigProfilesWindowsQuery(
 		return "", false
 	}
 	sb.WriteString("</SyncBody>")
-	input := sb.String()
-	fmt.Printf("Input for MDM Windows profiles: %s\n", input) // Debugging line, can be removed later
 	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String()), true
 }
 

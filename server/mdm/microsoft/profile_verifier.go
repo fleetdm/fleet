@@ -181,10 +181,17 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds
 				return
 			}
 		default:
-			// We don't know how to compare this so we're going to assume it was equal since it had
-			// a good status code
-			level.Debug(logger).Log("msg", "Windows profile is not WLAN XML or ADMX but returned a 2XX result, marking it verified", "profile", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
-			equal = true
+			// VPNv2 CSPs have multiple XML based complex elements within which in some cases can come back
+			// slightly different than the supplied data. Because of this our verification is currently
+			// limited to verifying that we get a 2XX status code from querying the given LocURI
+			// which at least ensures that the VPN config is valid and the setting in question is applied
+			// though the exact data is not verified.
+			// TODO: Consider improving this by creating more complex verification like is done for
+			// WLAN XML for each of the XML-based VPNv2 settings
+			if IsVPNV2CSP(locURI) {
+				level.Debug(logger).Log("msg", "Windows VPNv2 CSP has 2XX result but data is not an exact match, marking it verified", "profile", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
+				equal = true
+			}
 		}
 		if !equal {
 			level.Debug(logger).Log("msg", "Windows profile verification failed", "profile", profile.Name, "host_id", host.ID)
@@ -258,6 +265,14 @@ func IsWin32OrDesktopBridgeADMXCSP(locURI string) bool {
 	normalizedLocURI := strings.ToLower(locURI)
 	if strings.HasPrefix(normalizedLocURI, "./vendor/msft/policy/config/") || strings.HasPrefix(normalizedLocURI, "./user/vendor/msft/policy/config/") || strings.HasPrefix(normalizedLocURI, "./device/vendor/msft/policy/config/") {
 		return strings.Contains(normalizedLocURI, "~")
+	}
+	return false
+}
+
+func IsVPNV2CSP(locURI string) bool {
+	normalizedLocURI := strings.ToLower(locURI)
+	if strings.HasPrefix(normalizedLocURI, "./vendor/msft/vpnv2/") || strings.HasPrefix(normalizedLocURI, "./device/vendor/msft/vpnv2/") || strings.HasPrefix(normalizedLocURI, "./user/vendor/msft/vpnv2/") {
+		return true
 	}
 	return false
 }
