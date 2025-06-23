@@ -432,6 +432,19 @@ Estimation points represent the effort required to complete a task. After access
 
 > Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop [iteratively](https://fleetdm.com/handbook/company#results) and deliver bite-sized functionality on more predictable time scales.
 
+### T-shirt sizes
+
+T-shirt sizes represent a rough estimate on the effort required to complete a task. T-shirt sizes are used to understand the level-of-effort before the task has gone through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+
+[Estimation points](#estimation-points) are used if a task has already gone through drafting.
+
+| T-shirt size | Time               |
+|:---|:-----------------------------|
+| XS | ≤1 week for 1 contributor     |
+| S  | 1 sprint for 1 contributor   |
+| M  | 1 sprint for 2 contributors  |
+| L  | 1 sprint for the whole team  |
+| XL | ≥1 sprint for the whole team |
 
 ## High-priority user stories and bugs
 
