@@ -1738,6 +1738,10 @@ func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var users []fleet.HostUser
 	for _, row := range rows {
+		if row["uid"] == "" {
+			// Under certain circumstances, broken users can come back with empty UIDs. We don't want them
+			continue
+		}
 		uid, err := strconv.Atoi(row["uid"])
 		if err != nil {
 			// Chrome returns uids that are much larger than a 32 bit int, ignore this.
