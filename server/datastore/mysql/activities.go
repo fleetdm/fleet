@@ -140,6 +140,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.user_id,
 			a.created_at,
 			a.activity_type,
+			a.api_only,
 			a.user_name as name,
 			a.streamed,
 			a.user_email,
