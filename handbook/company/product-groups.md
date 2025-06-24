@@ -245,6 +245,20 @@ Anyone in the product group can initiate an air guitar session.
   - Keep it open for future consideration.
   - Discard if it is invalidated through the process.
 
+#### T-shirt sizing (capacity planning)
+
+T-shirt sizes represent a rough estimate on the effort required to complete a task. Sometimes, T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting.
+
+[Estimation points](#estimation-points) are used if a task has already gone through drafting.
+
+| T-shirt size | Time               |
+|:---|:-----------------------------|
+| XS | ≤1 week for 1 contributor     |
+| S  | 1 sprint for 1 contributor   |
+| M  | 1 sprint for 2 contributors  |
+| L  | 1 sprint for the whole team  |
+| XL | ≥1 sprint for the whole team |
+
 
 ### Implementing
 
