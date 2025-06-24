@@ -3047,6 +3047,7 @@ Returns the information of the specified host.
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
+	        "scope": "device",	
           "detail": ""
         }
       ]
@@ -3269,6 +3270,7 @@ If `hostname` is specified when there is more than one host with the same hostna
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
+          "scope": "device",
           "detail": ""
         }
       ]
@@ -3463,6 +3465,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
+          "scope": "device",
           "detail": ""
         }
       ]
@@ -5411,6 +5414,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "team_id": 0,
       "name": "Example macOS profile",
       "platform": "darwin",
+      "scope": "device",
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
@@ -5427,6 +5431,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "team_id": 0,
       "name": "Example Windows profile",
       "platform": "windows",
+      "scope": "device",
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)",
