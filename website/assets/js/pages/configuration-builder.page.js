@@ -303,6 +303,72 @@ parasails.registerPage('configuration-builder', {
           }
         ]
       },
+      {
+        categoryName: 'Software & updates',
+        categorySlug: 'macos-software-and-updates',
+        subcategories: [
+          {
+            subcategoryName: 'Gatekeeper',
+            subcategorySlug: 'macos-gatekeeper',
+            description: 'Settings related to Gatekeeper',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/systempolicycontrol',
+            payloads: [
+              {
+                name: 'Enable Gatekeeper',
+                uniqueSlug: 'macos-enable-gatekeeper',
+                tooltip: 'If true, enables Gatekeeper. If false, disables Gatekeeper.',
+                category: 'Gatekeeper',
+                payload: 'Control',
+                payloadType: 'com.apple.systempolicy.control',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableAssessment',
+                  trueValue: '<true/>',
+                  falseValue: '<false/>',
+                },
+              },
+              {
+                name: 'Allow identified developers',
+                uniqueSlug: 'macos-allow-identified-developers',
+                tooltip: 'If true, enables Gatekeeper’s “Mac App Store and identified developers” option. \n If false, enables Gatekeeper’s “Mac App Store” option.',
+                category: 'Gatekeeper',
+                payload: 'Control',
+                payloadType: 'com.apple.systempolicy.control',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AllowIdentifiedDevelopers',
+                  trueValue: '<true/>',
+                  falseValue: '<false/>',
+                },
+              },
+              {
+                name: 'Enable XProtect malware upload',
+                uniqueSlug: 'macos-enable-xprotect-malware-upload',
+                tooltip: 'If false, prevents Gatekeeper from prompting the user to upload blocked malware to Apple for purposes of improving malware detection.',
+                category: 'Gatekeeper',
+                payload: 'Control',
+                payloadType: 'com.apple.systempolicy.control',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableXProtectMalwareUpload',
+                  trueValue: '<true/>',
+                  falseValue: '<false/>',
+                },
+              },
+            ]
+          },
+
+        ]
+      }
     ],
     // windows payloads
     windowsCategoriesAndPayloads: [
