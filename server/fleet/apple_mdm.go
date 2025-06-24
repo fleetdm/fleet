@@ -347,6 +347,7 @@ type MDMAppleProfilePayload struct {
 	CommandUUID       string             `db:"command_uuid"`
 	IgnoreError       bool               `db:"ignore_error"`
 	Scope             PayloadScope       `db:"scope"`
+	DeviceEnrolledAt  *time.Time         `db:"device_enrolled_at"`
 }
 
 // DidNotInstallOnHost indicates whether this profile was not installed on the host (and
@@ -727,6 +728,13 @@ type MDMAppleHostDeclaration struct {
 
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
+
+	// Scope of the declaration payload (user or system).
+	Scope PayloadScope `db:"scope" json:"-"`
+
+	// DeviceEnrolledAt is the timestamp when the device (host) was enrolled in
+	// MDM.
+	DeviceEnrolledAt *time.Time `db:"device_enrolled_at" json:"-"`
 }
 
 func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {
