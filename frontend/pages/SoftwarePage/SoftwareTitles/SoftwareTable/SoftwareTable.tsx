@@ -281,8 +281,9 @@ const SoftwareTable = ({
   };
 
   const renderCustomControls = () => {
-    // Hidden when viewing versions table
-    if (showVersions) {
+    // Hidden when viewing versions table or viewing "All teams" 
+    // or Fleet Free
+    if (showVersions || teamId === undefined) {
       return null;
     }
 
@@ -293,7 +294,6 @@ const SoftwareTable = ({
           value={softwareFilter}
           className={`${baseClass}__software-filter`}
           options={SOFTWARE_TITLES_DROPDOWN_OPTIONS}
-          isDisabled={teamId === undefined}
           onChange={(newValue: SingleValue<CustomOptionType>) =>
             newValue &&
             handleCustomFilterDropdownChange(
