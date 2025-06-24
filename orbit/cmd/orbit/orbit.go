@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	fleethttpsig "github.com/fleetdm/fleet/v4/ee/or
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/tee"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
@@ -989,6 +990,7 @@ func main() {
 
 		var signerWrapper func(*http.Client) *http.Client
 		if key != nil {
+			// TODO: move this section to httpsig package
 			cryptoSigner, err := key.Signer()
 			if err != nil {
 				return fmt.Errorf("error getting TPM-backed signer: %w", err)
@@ -1015,7 +1017,7 @@ func main() {
 			// Get serial number as hex string
 			certSN := strings.ToUpper(cert.SerialNumber.Text(16))
 			signer, err := httpsig.NewSigner(httpsig.SigningProfile{
-				Algorithm: httpsig.Algo_ECDSA_P384_SHA384, // TODO: allow to use P256
+				Algorithm: httpsig.Algo_ECDSA_P384_SHA384, // TODO: allow to use P256: check the cert.PublicKey curve
 				// We are not using @target-uri in the signature so that we don't run into issues with HTTPS forwarding and proxies (http vs https).
 				Fields:   httpsig.Fields("@method", "@authority", "@path", "@query", "content-digest"),
 				Metadata: []httpsig.Metadata{httpsig.MetaKeyID, httpsig.MetaCreated, httpsig.MetaNonce},
@@ -1029,6 +1031,66 @@ func main() {
 			signerWrapper = func(client *http.Client) *http.Client {
 				return httpsig.NewHTTPClient(client, signer, nil)
 			}
+
+			// TODO: Move this into its own package/function
+			// TODO: Check if 127.0.0.1 or ::1 exists and use the appropriate one.
+			proxy, err := fleethttpsig.NewProxy(fleetURL, signer)
+			if err != nil {
+				return fmt.Errorf("create TLS proxy: %w", err)
+			}
+
+			addSubsystem(&g, "httpsig proxy", &wrapSubsystem{
+				execute: func() error {
+					log.Info().
+						Str("addr", fmt.Sprintf("127.0.0.1:%d", proxy.Port)).
+						Str("target", c.String("fleet-url")).
+						Msg("using HTTP signing proxy")
+					err := proxy.Serve()
+					return err
+				},
+				interrupt: func(_ error) {
+					if err := proxy.Close(); err != nil {
+						log.Error().Err(err).Msg("close proxy")
+					}
+				},
+			})
+
+			// Directory to store proxy related assets
+			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+			if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
+				return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
+			}
+
+			certPath = filepath.Join(proxyDirectory, "fleet.crt")
+
+			// Write cert that proxy uses
+			err = os.WriteFile(certPath, []byte(fleethttpsig.ServerCert), os.FileMode(0o644))
+			if err != nil {
+				return fmt.Errorf("write server cert: %w", err)
+			}
+
+			// Rewrite URL to the proxy URL. Note the proxy handles any URL
+			// prefix so we don't need to carry that over here.
+			// We use 127.0.0.1 and NOT localhost due to security.
+			// A misconfigured /etc/hosts could resolve localhost to something unexpected.
+			parsedURL := &url.URL{
+				Scheme: "https",
+				Host:   fmt.Sprintf("127.0.0.1:%d", proxy.Port),
+			}
+
+			// Check and log if there are any errors with TLS connection.
+			pool, err := certificate.LoadPEM(certPath)
+			if err != nil {
+				return fmt.Errorf("load certificate: %w", err)
+			}
+			if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
+				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
+			}
+
+			options = append(options,
+				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
+				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
+			)
 		}
 
 		orbitClient, err := service.NewOrbitClient(

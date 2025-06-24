@@ -1333,7 +1333,8 @@ the way that the Fleet server works.
 				}
 
 				// TODO: Figure out a cleaner approach here. Use standard Go middleware approach.
-				if strings.Contains(req.URL.Path, "/api/fleet/orbit/") && !strings.HasSuffix(req.URL.Path, "/api/fleet/orbit/ping") {
+				if (strings.Contains(req.URL.Path, "/api/fleet/orbit/") && !strings.HasSuffix(req.URL.Path, "/api/fleet/orbit/ping")) ||
+					strings.Contains(req.URL.Path, "/api/v1/osquery/") {
 					result, err := verifier.Verify(req)
 					if err != nil {
 						level.Error(logger).Log("msg", "failed to verify request signature", "path", req.URL.Path, "err", err)
