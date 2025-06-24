@@ -76,7 +76,7 @@ func (ds *Datastore) NewActivity(
 			cmdUUID = vppPtrAct.CommandUUID
 			hostID = vppPtrAct.HostID
 		}
-		if vppAct.Status == string(fleet.SoftwareInstallFailed) {
+		if vppAct.Status != string(fleet.SoftwareInstalled) {
 			// NOTE: ideally this would be called in the same transaction as storing
 			// the nanomdm command results, but the current design doesn't allow for
 			// that with the nano store being a distinct entity to our datastore (we

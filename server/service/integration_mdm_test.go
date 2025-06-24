@@ -12222,6 +12222,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	checkInstallFleetdCommandSent(mdmDevice, true)
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, selfServiceHost, s.ds)
+	s.runWorker()
+	checkInstallFleetdCommandSent(selfServiceDevice, true)
 	selfServiceToken := "selfservicetoken"
 	updateDeviceTokenForHost(t, s.ds, selfServiceHost.ID, selfServiceToken)
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
@@ -12440,13 +12442,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		}
 	}
 
-	// time.Sleep(3 * time.Second)
-
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "host_vpp_software_installs")
-		return nil
-	})
-
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
@@ -12613,10 +12608,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.Equal(t, 1, countResp.Count)
 
 			// send an idle request to grab the command uuid
+			// checkInstallFleetdCommandSent(mdmClient, true)
 			cmd, err = mdmClient.Idle()
 			require.NoError(t, err)
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			fmt.Printf("cmd: %v\n", cmd)
 			installCmdUUID = cmd.CommandUUID
 
 			if install.deviceToken != "" {
