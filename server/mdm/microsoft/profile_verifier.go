@@ -87,7 +87,9 @@ func VerifyHostMDMProfiles(ctx context.Context, logger log.Logger, ds fleet.Prof
 		return ctxerr.Wrap(ctx, err, "transforming policy results")
 	}
 
-	verified, missing, err := compareResultsToExpectedProfiles(ctx, logger, ds, host, profileResults)
+	existingProfiles, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+
+	verified, missing, err := compareResultsToExpectedProfiles(ctx, logger, ds, host, profileResults, existingProfiles)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "comparing results to expected profiles")
 	}
@@ -140,10 +142,17 @@ func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.P
 }
 
 func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds fleet.ProfileVerificationStore, host *fleet.Host,
-	profileResults profileResultsTransform,
+	profileResults profileResultsTransform, existingProfiles []fleet.HostMDMWindowsProfile,
 ) (verified map[string]struct{}, missing map[string]struct{}, err error) {
 	missing = map[string]struct{}{}
 	verified = map[string]struct{}{}
+
+	// Map existing profiles for this host by UUID for easier lookup for certain edge cases
+	windowsProfilesByID := make(map[string]fleet.HostMDMWindowsProfile, len(existingProfiles))
+	for _, existingProfile := range existingProfiles {
+		windowsProfilesByID[existingProfile.ProfileUUID] = existingProfile
+	}
+
 	err = LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
 		// if we didn't get a status for a LocURI, mark the profile as missing.
 		gotStatus, ok := profileResults.cmdRefToStatus[ref]
@@ -160,11 +169,14 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds
 		switch {
 		case !strings.HasPrefix(gotStatus, "2"):
 			equal = false
-			// For unknown reasons these always return a 404 so mark as equal in that case.
-			// See comments on functions below for further details
+			// For unknown reasons these always return a 404 so mark as equal in that case if
+			// the profile is verifying(meaning MDM protocol returned a good status) or verified
 			if gotStatus == "404" && (IsADMXInstallConfigOperationCSP(locURI) || IsWin32OrDesktopBridgeADMXCSP(locURI)) {
-				level.Debug(logger).Log("msg", "ADMX policy install operation or Win32/Desktop Bridge ADMX policy returned 404, marking as verified", "profile_uuid", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
-				equal = true
+				if existingProfile, ok := windowsProfilesByID[profile.ProfileUUID]; ok && existingProfile.Status != nil &&
+					(*existingProfile.Status == fleet.MDMDeliveryVerified || *existingProfile.Status == fleet.MDMDeliveryVerifying) {
+					level.Debug(logger).Log("msg", "ADMX policy install operation or Win32/Desktop Bridge ADMX policy returned 404, marking as verified", "profile_uuid", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
+					equal = true
+				}
 			}
 		case wantData == gotResults:
 			equal = true

@@ -145,6 +145,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 	cases := []struct {
 		name              string
 		hostProfiles      []hostProfile
+		existingProfiles  []fleet.HostMDMWindowsProfile
 		report            []osqueryReport
 		toVerify          []string
 		toFail            []string
@@ -428,7 +429,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toRetry:  []string{},
 		},
 		{
-			name: `win32/desktop bridge ADMX profile 404s but is marked verified`,
+			name: `win32/desktop bridge ADMX profile 404s and is marked for retry since it was previously undelivered`,
 			hostProfiles: []hostProfile{
 				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
 					{
@@ -442,6 +443,135 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
 					},
 				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s and is marked for retry since it was previously nil delivery status`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      nil,
+				},
+			},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s and is marked for retry since it was previously pending`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryPending,
+				},
+			},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{},
+			toFail:   []string{},
+			toRetry:  []string{"N1"},
+		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s but is marked verified since it was previously verifying`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryVerifying,
+				},
+			},
+			report: []osqueryReport{{
+				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
+			}, {
+				"N1", "404", "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company", "",
+			}},
+			toVerify: []string{"N1"},
+			toFail:   []string{},
+			toRetry:  []string{},
+		},
+		{
+			name: `win32/desktop bridge ADMX profile 404s but is marked verified since it was previously verifying`,
+			hostProfiles: []hostProfile{
+				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
+					{
+						Verb:   "Replace",
+						LocURI: "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename",
+						Data:   "some ADMX policy file data",
+					},
+					{
+						Verb:   "Replace",
+						LocURI: "./Device/Vendor/MSFT/Policy/Config/employee~Policy~DefaultCategory/company",
+						Data:   `<![CDATA[<enabled/> <data id="company" value="foocorp"/>]]>`,
+					},
+				}), 0},
+			},
+			existingProfiles: []fleet.HostMDMWindowsProfile{
+				{
+					ProfileUUID: "uuid-N1",
+					Name:        "N1",
+					Status:      &fleet.MDMDeliveryVerified,
+				},
 			},
 			report: []osqueryReport{{
 				"N1", "404", "./Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/employee/Policy/employeeAdmxFilename", "",
@@ -516,12 +646,17 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				out := map[string]*fleet.ExpectedMDMProfile{}
 				for _, profile := range tt.hostProfiles {
 					out[profile.Name] = &fleet.ExpectedMDMProfile{
+						ProfileUUID:         "uuid-" + profile.Name,
 						Name:                profile.Name,
 						RawProfile:          profile.RawContents,
 						EarliestInstallDate: installDate,
 					}
 				}
 				return out, nil
+			}
+
+			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+				return tt.existingProfiles, nil
 			}
 
 			ds.UpdateHostMDMProfilesVerificationFunc = func(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error {
@@ -552,8 +687,10 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				VerifyHostMDMProfiles(context.Background(), log.NewNopLogger(), ds, &fleet.Host{DetailUpdatedAt: time.Now()}, out))
 			require.True(t, ds.UpdateHostMDMProfilesVerificationFuncInvoked)
 			require.True(t, ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked)
+			require.True(t, ds.GetHostMDMWindowsProfilesFuncInvoked)
 			ds.UpdateHostMDMProfilesVerificationFuncInvoked = false
 			ds.GetHostMDMProfilesExpectedForVerificationFuncInvoked = false
+			ds.GetHostMDMWindowsProfilesFuncInvoked = false
 		})
 	}
 }
