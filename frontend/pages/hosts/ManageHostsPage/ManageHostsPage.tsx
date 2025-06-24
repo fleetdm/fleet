@@ -171,6 +171,11 @@ const ManageHostsPage = ({
 
   const { setResetSelectedRows } = useContext(TableContext);
 
+  const shouldStripScriptBatchExecParamOnTeamChange = (
+    newTeamId?: number,
+    curTeamId?: number
+  ) => newTeamId !== curTeamId;
+
   const {
     currentTeamId,
     isAllTeamsSelected,
@@ -193,11 +198,8 @@ const ManageHostsPage = ({
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
         newTeamId === API_ALL_TEAMS_ID,
       // remove batch script summary results filters on team change
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: (newTeamId?: number) =>
-        newTeamId !== currentTeamId,
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: (
-        newTeamId?: number
-      ) => newTeamId !== currentTeamId,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripScriptBatchExecParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripScriptBatchExecParamOnTeamChange,
     },
   });
 

@@ -21,23 +21,37 @@ type OnTeamChangeFuncShouldStripParam = (
   teamIdForApi: number | undefined
 ) => boolean;
 
+type OnTeamChangeFuncShouldStripParamConsiderCurTeam = (
+  newTeamid: number | undefined,
+  curTeamId: number | undefined
+) => boolean;
+
 type OnTeamChangeFuncShouldReplaceParam = (
   teamIdForApi: number | undefined
 ) => [boolean, string];
+
+type ChangeTeamOverrideParamFn =
+  | OnTeamChangeFuncShouldReplaceParam
+  | OnTeamChangeFuncShouldStripParam
+  | OnTeamChangeFuncShouldStripParamConsiderCurTeam;
+
+const considersCurTeam = (
+  fn: ChangeTeamOverrideParamFn
+): fn is OnTeamChangeFuncShouldStripParamConsiderCurTeam => fn.length === 2;
 
 /**
  * This type is used to define functions that determine whether a query parameter should be stripped or replaced
  * when the team id changes.
  *
- * The key is the name of the query parameter and the value is a function that receives the new team
- * id with a return type of either:
- *  - boolean indicating whether the query parameter should be stripped
- *  - tuple of a boolean and a string, where the boolean indicates whether the query parameter should be replaced
- *    and the string is the new value for the query parameter
+ * The key is the name of the query parameter
+ * The value is a function that receives the new team id and optionally the current team id, and returns either:
+ *  - a boolean indicating whether the query parameter should be stripped, or
+ *  - a tuple of a boolean and a string, where the boolean indicates whether the query parameter should be replaced
+ *    and the string is the new value for the query parameter (TODO - support considering curTeamId)
  */
 export type IConfigOverrideParamsOnTeamChange = Record<
   string,
-  OnTeamChangeFuncShouldReplaceParam | OnTeamChangeFuncShouldStripParam
+  ChangeTeamOverrideParamFn
 >;
 
 const splitQueryStringParts = (queryString: string) =>
@@ -51,6 +65,7 @@ const joinQueryStringParts = (parts: string[]) =>
 const rebuildQueryStringWithTeamId = (
   queryString: string,
   newTeamId: number,
+  curTeamId: number | undefined,
   configAdditionalParams?: IConfigOverrideParamsOnTeamChange
 ) => {
   const parts = splitQueryStringParts(queryString);
@@ -91,7 +106,12 @@ const rebuildQueryStringWithTeamId = (
       let shouldReplace = false;
       let replaceString = "";
 
-      const val = fn(newTeamId);
+      let val;
+      if (considersCurTeam(fn)) {
+        val = fn(newTeamId, curTeamId);
+      } else {
+        val = fn(newTeamId);
+      }
       if (Array.isArray(val)) {
         [shouldReplace, replaceString] = val;
       } else if (typeof val === "boolean") {
@@ -362,7 +382,7 @@ export const useTeamIdParam = ({
   );
 
   const handleTeamChange = useCallback(
-    (teamId: number) => {
+    (newTeamId: number) => {
       // TODO: This results in a warning that TableProvider is being updated while
       // rendering a different component (the component that invokes the useTeamIdParam hook).
       // This requires further investigation but is not currently causing any known issues.
@@ -377,7 +397,8 @@ export const useTeamIdParam = ({
           .concat(
             rebuildQueryStringWithTeamId(
               search,
-              teamId,
+              newTeamId,
+              currentTeam?.id,
               overrideParamsOnTeamChange
             )
           )
@@ -385,11 +406,12 @@ export const useTeamIdParam = ({
       );
     },
     [
-      overrideParamsOnTeamChange,
       resetSelectedRowsOnTeamChange,
       router,
       pathname,
       search,
+      currentTeam?.id,
+      overrideParamsOnTeamChange,
       hash,
       setResetSelectedRows,
     ]
