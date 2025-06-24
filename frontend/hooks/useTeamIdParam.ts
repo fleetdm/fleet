@@ -232,13 +232,25 @@ const isValidTeamId = ({
   includeAllTeams,
   includeNoTeam,
   teamId,
+  isPrimoMode,
 }: {
   userTeams: ITeamSummary[];
   includeAllTeams: boolean;
   includeNoTeam: boolean;
   teamId: number;
+  isPrimoMode: boolean;
 }) => {
-  if (
+  if (isPrimoMode) {
+    // teamId at this point for all teams will be coerced to -1
+    if (
+      (includeNoTeam && teamId !== APP_CONTEXT_NO_TEAM_ID) ||
+      (includeAllTeams && teamId !== APP_CONTEXT_ALL_TEAMS_ID)
+    ) {
+      return false;
+    }
+    // not handling the case where neither All teams nor No teams included, which doesn't exist in
+    // the app
+  } else if (
     (teamId === APP_CONTEXT_ALL_TEAMS_ID && !includeAllTeams) ||
     (teamId === APP_CONTEXT_NO_TEAM_ID && !includeNoTeam) ||
     !userTeams?.find((t) => t.id === teamId)
@@ -260,11 +272,13 @@ const shouldRedirectToDefaultTeam = ({
   includeAllTeams,
   includeNoTeam,
   query,
+  isPrimoMode,
 }: {
   userTeams: ITeamSummary[];
   includeAllTeams: boolean;
   includeNoTeam: boolean;
   query: { team_id?: string };
+  isPrimoMode: boolean;
 }) => {
   const teamIdString = query?.team_id || "";
   const parsedTeamId = parseInt(teamIdString, 10);
@@ -283,6 +297,7 @@ const shouldRedirectToDefaultTeam = ({
     includeAllTeams,
     includeNoTeam,
     teamId: coerceAllTeamsId(teamIdString),
+    isPrimoMode,
   });
 };
 
@@ -396,6 +411,7 @@ export const useTeamIdParam = ({
         includeNoTeam,
         query,
         userTeams,
+        isPrimoMode,
       })
     ) {
       handleTeamChange(defaultTeam.id);
