@@ -249,7 +249,7 @@ Anyone in the product group can initiate an air guitar session.
 
 T-shirt sizes represent a rough estimate on the effort required to complete a task. Sometimes, T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting.
 
-[Estimation points](#estimation-points) are used if a task has already gone through drafting.
+[Estimation points](https://fleetdm.com/handbook/company/communications#estimation-points) are used if a task has already gone through drafting.
 
 | T-shirt size | Time               |
 |:---|:-----------------------------|
