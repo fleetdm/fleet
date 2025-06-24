@@ -181,7 +181,7 @@ const getDefaultTeam = ({
       } else if (includeAllTeams) {
         defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
       } else {
-        // this case should never be reached, there are no pages that support neighther "All teams"
+        // this case should never be reached, there are no pages that support neither "All teams"
         // nor "No team"
         return undefined;
       }
@@ -242,15 +242,15 @@ const isValidTeamId = ({
 }) => {
   if (isPrimoMode) {
     // teamId at this point for all teams will be coerced to -1
-    if (
-      (includeNoTeam && teamId !== APP_CONTEXT_NO_TEAM_ID) ||
-      (includeAllTeams && teamId !== APP_CONTEXT_ALL_TEAMS_ID)
-    ) {
-      return false;
+    if (includeNoTeam) {
+      return teamId === APP_CONTEXT_NO_TEAM_ID;
     }
-    // not handling the case where neither All teams nor No teams included, which doesn't exist in
-    // the app
-  } else if (
+    if (includeAllTeams) {
+      return teamId === APP_CONTEXT_ALL_TEAMS_ID;
+    }
+    // neither includeNoTeam nor includeAllTeam error state handled at top of hook
+  }
+  if (
     (teamId === APP_CONTEXT_ALL_TEAMS_ID && !includeAllTeams) ||
     (teamId === APP_CONTEXT_NO_TEAM_ID && !includeNoTeam) ||
     !userTeams?.find((t) => t.id === teamId)
@@ -395,10 +395,14 @@ export const useTeamIdParam = ({
     ]
   );
 
+  if (!includeAllTeams && !includeNoTeam) {
+    // fail loudly
+    throw new Error("All pages should include All teams and/or No team");
+  }
   // reconcile router location and redirect to default team as applicable
   let isRouteOk = false;
   if (isFreeTier) {
-    // free tier should never have team_id param - change to "All teams"
+    // free tier should never have team_id param, so change to "All teams"
     if (query.team_id) {
       handleTeamChange(-1); // -1 because all pages on Free actually function as if on "All teams", even when not supported e.g. Controls
     } else {
