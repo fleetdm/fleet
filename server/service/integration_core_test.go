@@ -1788,11 +1788,19 @@ func (s *integrationTestSuite) TestListHosts() {
 
 	// Filter by inexistent software.
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(9999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_version_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(9999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.Software)
+
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusNotFound, &resp, "software_title_id", fmt.Sprint(9999))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_title_id", fmt.Sprint(9999))
+	require.Len(t, resp.Hosts, 0)
+	assert.Nil(t, resp.SoftwareTitle)
 
 	// Filter by non-existent team.
 	resp = listHostsResponse{}
@@ -3236,6 +3244,13 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hosts[0].UUID), nil, http.StatusOK, &getResp)
+	require.NotNil(t, getResp.Host.TeamID)
+	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
+	require.NotNil(t, getResp.Host.TeamName)
+	require.Equal(t, tm1.Name, *getResp.Host.TeamName)
+
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[1].ID), nil, http.StatusOK, &getResp)
 	require.NotNil(t, getResp.Host.TeamID)
 	require.Equal(t, tm1.ID, *getResp.Host.TeamID)
@@ -7295,7 +7310,6 @@ func (s *integrationTestSuite) TestAppConfig() {
 	assert.Contains(t, errMsg, "missing or invalid license")
 }
 
-// TODO(lucas): Add tests here.
 func (s *integrationTestSuite) TestQuerySpecs() {
 	t := s.T()
 
@@ -10554,7 +10568,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		App: config.AppConfig{
 			EnableScheduledQueryStats: true,
 		},
-	}, appConfig, &appConfig.Features)
+	}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
@@ -10709,7 +10723,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 			"installed_path": "C:\\Program Files\\Wireshark",
 		},
 	}
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		log.NewNopLogger(),
@@ -10845,7 +10859,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w1 bytes.Buffer
 	logger1 := log.NewJSONLogger(&w1)
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger1,
@@ -10880,7 +10894,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 			"last_opened_at": "foobar",
 		},
 	}
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	var w2 bytes.Buffer
 	logger2 := log.NewJSONLogger(&w2)
 	err = detailQueries["software_windows"].DirectIngestFunc(
@@ -10920,7 +10934,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w3 bytes.Buffer
 	logger3 := log.NewJSONLogger(&w3)
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features)
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger3,
@@ -13270,13 +13284,15 @@ func (s *integrationTestSuite) TestHostCertificates() {
 	}
 	certs := make([]*fleet.HostCertificateRecord, 0, len(certNames))
 	for i, name := range certNames {
+		sha1Sum := sha1.Sum([]byte(name)) // nolint:gosec
 		certs = append(certs, &fleet.HostCertificateRecord{
 			HostID:         host.ID,
 			CommonName:     name,
-			SHA1Sum:        sha1.New().Sum([]byte(name)), // nolint: gosec
+			SHA1Sum:        sha1Sum[:],
 			SubjectCountry: "s" + name,
 			IssuerCountry:  "i" + name,
 			NotValidAfter:  notValidAfterTimes[i],
+			Source:         fleet.SystemHostCertificate,
 		})
 	}
 	require.NoError(t, s.ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs))
@@ -13292,6 +13308,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		require.Equal(t, "s"+want, cert.Subject.Country)
 		require.NotNil(t, cert.Issuer)
 		require.Equal(t, "i"+want, cert.Issuer.Country)
+		require.Equal(t, fleet.SystemHostCertificate, cert.Source)
 	}
 
 	certResp = listHostCertificatesResponse{}
@@ -13306,6 +13323,7 @@ func (s *integrationTestSuite) TestHostCertificates() {
 		require.Equal(t, "s"+want, cert.Subject.Country)
 		require.NotNil(t, cert.Issuer)
 		require.Equal(t, "i"+want, cert.Issuer.Country)
+		require.Equal(t, fleet.SystemHostCertificate, cert.Source)
 	}
 
 	// non-existing host
@@ -13445,4 +13463,24 @@ func (s *integrationTestSuite) TestHostReenrollWithSameHostRowRefetchOsquery() {
 		require.Len(t, hostResponse.Host.EndUsers, 0)
 		require.Equal(t, oldHosts[i].ID, h.ID)
 	}
+}
+
+func (s *integrationTestSuite) TestConditionalAccessOnlyCloud() {
+	t := s.T()
+
+	var resp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &resp)
+	require.False(t, resp.License.ManagedCloud)
+
+	// Microsoft compliance partner APIs should fail if the setting is not set (only set on Cloud).
+	var r conditionalAccessMicrosoftCreateResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
+		MicrosoftTenantID: "foobar",
+	}, http.StatusBadRequest, &r)
+	var c conditionalAccessMicrosoftConfirmResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
+		http.StatusBadRequest, &c)
+	var d conditionalAccessMicrosoftDeleteResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{},
+		http.StatusBadRequest, &d)
 }

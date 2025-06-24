@@ -51,7 +51,7 @@ const getIntegrationSettingsNavItems = (
     },
   ];
 
-  if (isManagedCloud && featureFlags.allowConditionalAccess === "true") {
+  if (isManagedCloud) {
     items.push({
       title: "Conditional access",
       urlSection: "conditional-access",

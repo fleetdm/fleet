@@ -1884,6 +1884,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryPending,
 			Checksum:          []byte("csum"),
+			Scope:             fleet.PayloadScopeSystem,
 		},
 	})
 	require.NoError(t, err)
@@ -2372,6 +2373,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 					OperationType:     operationType,
 					Status:            status,
 					Checksum:          []byte("csum"),
+					Scope:             fleet.PayloadScopeSystem,
 				},
 			})
 			require.NoError(t, err)
@@ -5438,7 +5440,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features)
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{})
 
 	// simulate osquery reporting mdm information
 	rows := []map[string]string{
@@ -5766,7 +5768,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features)
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{})
 
 	// simulate osquery reporting mdm information, doesn't change anything
 	rows := []map[string]string{
@@ -13644,6 +13646,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		Status:            badProfile.Status,
 		Detail:            badProfile.Detail,
 		Checksum:          []byte("checksum"),
+		Scope:             fleet.PayloadScopeSystem,
 	}, {
 		ProfileUUID:       goodProfile.ProfileUUID,
 		ProfileIdentifier: goodProfile.Identifier,
@@ -13654,6 +13657,7 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		Status:            goodProfile.Status,
 		Detail:            goodProfile.Detail,
 		Checksum:          []byte("checksum"),
+		Scope:             fleet.PayloadScopeSystem,
 	}})
 	require.NoError(t, err)
 	err = s.ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
@@ -13706,11 +13710,14 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	require.NoError(t, err)
 	assert.Contains(t, string(errBody), "not implemented")
 
-	// Configure a bad SCEP URL
+	// Configure a bad SCEP URL using local test server
+	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
+	defer cleanup()
+
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 	appConf.Integrations.NDESSCEPProxy.Valid = true
-	appConf.Integrations.NDESSCEPProxy.Value.URL = "https://httpstat.us/410"
+	appConf.Integrations.NDESSCEPProxy.Value.URL = testServer.URL
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(t, err)
 
@@ -13860,8 +13867,11 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	ctx := context.Background()
 	digiCertServer := createMockDigiCertServer(t)
 
-	// Add DigiCert integration with bad URL
-	caBad := getDigiCertIntegration("https://httpstat.us/410", "ca")
+	// Add DigiCert integration with bad URL using local test server
+	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
+	defer cleanup()
+
+	caBad := getDigiCertIntegration(testServer.URL, "ca")
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
 			"digicert": []fleet.DigiCertIntegration{caBad},
@@ -14551,8 +14561,11 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	scepServer := scep_server.StartTestSCEPServer(t)
 	scepServerURL := scepServer.URL + "/scep"
 
-	// Add custom SCEP integration with bad URL
-	caBad := getCustomSCEPIntegration("https://httpstat.us/410", "ca")
+	// Add custom SCEP integration with bad URL using local test server
+	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
+	defer cleanup()
+
+	caBad := getCustomSCEPIntegration(testServer.URL, "ca")
 	appConfig := map[string]interface{}{
 		"integrations": map[string]interface{}{
 			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{caBad},
@@ -14734,6 +14747,99 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	scepServer := scep_server.StartTestSCEPServer(t)
 	scepServerURL := scepServer.URL + "/scep"
 
+	// parseSCEPProfile returns the parsed SCEP profile along with the identifier from the profile URL
+	parseSCEPProfile := func(t *testing.T, raw []byte, scepConfig fleet.CustomSCEPProxyIntegration) (SCEPProfileContent, string) {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(raw, &fullCmd))
+		require.NotNil(t, fullCmd.Command)
+		require.NotNil(t, fullCmd.Command.InstallProfile)
+		rawProfile := fullCmd.Command.InstallProfile.Payload
+		if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
+			p7, err := pkcs7.Parse(rawProfile)
+			require.NoError(t, err)
+			require.NoError(t, p7.Verify())
+			rawProfile = p7.Content
+		}
+		var scepProfile SCEPProfileContent
+		require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
+
+		require.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0].PayloadType)
+		require.Equal(t, scepConfig.Challenge, scepProfile.PayloadContent[0].PayloadContent.Challenge)
+		expectBaseURL := s.server.URL + apple_mdm.SCEPProxyPath
+		require.True(t, strings.HasPrefix(scepProfile.PayloadContent[0].PayloadContent.URL, expectBaseURL))
+		identifier := strings.TrimPrefix(scepProfile.PayloadContent[0].PayloadContent.URL, expectBaseURL)
+
+		return scepProfile, identifier
+	}
+
+	// parseIdentifier is a helper function to parse the identifier from the SCEP profile and check
+	// components of the identifier against expected values. It returns the SCEP challenge.
+	parseIdentifier := func(t *testing.T, identifier, wantHostUUID, wantProfUUID, wantSCEPName string) string {
+		parts := strings.Split(identifier, url.PathEscape(","))
+		require.Len(t, parts, 4)
+		require.Equal(t, wantHostUUID, parts[0])
+		require.Equal(t, wantProfUUID, parts[1])
+		require.Equal(t, wantSCEPName, parts[2])
+		gotChallenge := parts[3]
+		require.NotEmpty(t, gotChallenge, "Challenge should not be empty in the identifier")
+		return gotChallenge
+	}
+
+	// checkChallenge is a helper function to check if the challenge exists in the database.
+	checkChallenge := func(t *testing.T, challenge string, expectFound bool) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var foundChallenge string
+			stmt := "SELECT challenge FROM challenges where challenge = ?"
+			err := sqlx.GetContext(context.Background(), q, &foundChallenge, stmt, challenge)
+			switch {
+			case errors.Is(err, sql.ErrNoRows):
+				require.False(t, expectFound)
+				require.Empty(t, foundChallenge)
+				return nil
+			default:
+				require.NoError(t, err, "Failed to check challenge existence in the database")
+				require.True(t, expectFound, fmt.Sprintf("found challenge %s, but expected not to find it", foundChallenge))
+				require.NotEmpty(t, foundChallenge, "challenge should not be empty in the database")
+				return nil
+			}
+		})
+	}
+
+	// checkProfileInstallStatus is a helper function to check the status of a profile in the host
+	// response. It asserts that the profile with the given name exists, checks its status,
+	// operation type, and detail. It returns the profile UUID for further checks.
+	checkProfileInstallStatus := func(t *testing.T, hostResp getDeviceHostResponse, profileName string, wantStatus fleet.MDMDeliveryStatus, wantDetail string) string {
+		var found bool
+		require.NotNil(t, hostResp.Host.MDM.Profiles)
+		var profileUUID string
+		for _, prof := range *hostResp.Host.MDM.Profiles {
+			if prof.Name == profileName {
+				found = true
+				require.Equal(t, wantStatus, *prof.Status)
+				require.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
+				require.Contains(t, prof.Detail, wantDetail)
+				profileUUID = prof.ProfileUUID
+				break
+			}
+		}
+		require.True(t, found)
+		return profileUUID
+	}
+
+	// verifySCEPProfile is a helper function to verify the SCEP profile in the host profiles.
+	verifySCEPProfile := func(t *testing.T, host *fleet.Host, hostProf fleet.HostMacOSProfile, wantProfUUID string, wantCAName string) {
+		hostProfs := map[string]*fleet.HostMacOSProfile{
+			hostProf.Identifier: &hostProf,
+		}
+		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, hostProfs))
+		prof, err := s.ds.GetHostMDMCertificateProfile(context.Background(), host.UUID, wantProfUUID, wantCAName)
+		require.NoError(t, err)
+		require.NotNil(t, prof)
+		require.Equal(t, wantCAName, prof.CAName)
+		require.Equal(t, fleet.CAConfigCustomSCEPProxy, prof.Type)
+		require.Equal(t, fleet.MDMDeliveryVerified, *prof.Status)
+	}
+
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
@@ -14797,42 +14903,15 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	s.awaitTriggerProfileSchedule(t)
 	getHostResp := getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	var found bool
-	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	var profileUUID string
-	for _, prof := range *getHostResp.Host.MDM.Profiles {
-		if prof.Name == "N0" {
-			found = true
-			assert.Equal(t, fleet.MDMDeliveryPending, *prof.Status)
-			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
-			assert.Empty(t, prof.Detail)
-			profileUUID = prof.ProfileUUID
-			break
-		}
-	}
-	assert.True(t, found)
+	profileUUID := checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryPending, "")
 
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	require.NotNil(t, cmd, "Expecting SCEP profile")
-	var fullCmd micromdm.CommandPayload
-	require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-	require.NotNil(t, fullCmd.Command)
-	require.NotNil(t, fullCmd.Command.InstallProfile)
-	rawProfile := fullCmd.Command.InstallProfile.Payload
-	if !bytes.HasPrefix(rawProfile, []byte("<?xml")) {
-		p7, err := pkcs7.Parse(rawProfile)
-		require.NoError(t, err)
-		require.NoError(t, p7.Verify())
-		rawProfile = p7.Content
-	}
 
-	var scepProfile SCEPProfileContent
-	require.NoError(t, plist.Unmarshal(rawProfile, &scepProfile))
-	assert.Equal(t, "com.apple.security.scep", scepProfile.PayloadContent[0].PayloadType)
-	assert.Equal(t, ca0.Challenge, scepProfile.PayloadContent[0].PayloadContent.Challenge)
-	identifier := url.PathEscape(host.UUID + "," + profileUUID + "," + "scepName")
-	assert.Equal(t, s.server.URL+apple_mdm.SCEPProxyPath+identifier, scepProfile.PayloadContent[0].PayloadContent.URL)
+	_, identifier := parseSCEPProfile(t, cmd.Raw, ca0)
+	gotChallenge := parseIdentifier(t, identifier, host.UUID, profileUUID, "scepName")
+	checkChallenge(t, gotChallenge, true)
 
 	// /////////////////////////////////////
 	// Test SCEP traffic being sent by host
@@ -14841,6 +14920,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	body, err := io.ReadAll(scepRes.Body)
 	require.NoError(t, err)
 	assert.Equal(t, scepserver.DefaultCACaps, string(body))
+	// Check that the challenge is still in the database (only deleted after PKIOperation)
+	checkChallenge(t, gotChallenge, true)
 
 	// GetCACert
 	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusOK, nil, "operation", "GetCACert")
@@ -14849,6 +14930,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	certs, err := x509.ParseCertificates(body)
 	require.NoError(t, err)
 	assert.Len(t, certs, 1)
+	// Check that the challenge is still in the database (only deleted after PKIOperation)
+	checkChallenge(t, gotChallenge, true)
 
 	// PKIOperation
 	data, err := os.ReadFile("./testdata/PKCSReq.der")
@@ -14864,21 +14947,185 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	pkiMessage, err := scep.ParsePKIMessage(body, scep.WithCACerts(certs))
 	require.NoError(t, err)
 	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
+	// Check that the challenge is removed from the database after PKIOperation
+	checkChallenge(t, gotChallenge, false)
 
-	// Host acknowledges the profile and we mark it as verified
+	// Host acknowledges the profile and it is marked as verifying
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 	assert.Nil(t, cmd)
-	hostProfs := map[string]*fleet.HostMacOSProfile{
-		"I0": {Identifier: "I0", DisplayName: "N0", InstallDate: time.Now()},
-	}
-	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, hostProfs))
-	prof, err := s.ds.GetHostMDMCertificateProfile(context.Background(), host.UUID, profileUUID, "scepName")
+
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	profileUUIDTest := checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryVerifying, "")
+	require.Equal(t, profileUUID, profileUUIDTest, "Expected the same profile UUID after re-sending the SCEP profile")
+
+	// Try again, it should fail because the profile is not pending
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	// Failed challenge doesn't resend the SCEP profile unless it is pending
+	s.awaitTriggerProfileSchedule(t)
+	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
-	require.NotNil(t, prof)
-	assert.Equal(t, "scepName", prof.CAName)
-	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, prof.Type)
-	assert.Equal(t, fleet.MDMDeliveryVerified, *prof.Status)
+	require.Nil(t, cmd, "Not expecting SCEP profile")
+
+	// Mark the profile as pending so that it can be resent
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := "UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?"
+		r, err := q.ExecContext(context.Background(), stmt, nil, host.UUID, profileUUID)
+		require.NoError(t, err, "Failed to update profile status in the database")
+		rowsAffected, _ := r.RowsAffected()
+		require.Equal(t, int64(1), rowsAffected, "Expected to update 1 row for the profile status")
+		return nil
+	})
+
+	// Try to do SCEP with deleted challenge, it will fail because challenge is no longer in the datastore
+	// but a new challenge will be generated and the profile resent
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	// Check profile status, raw status will be nil (awaiting the reconcile job)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status string
+		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
+		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
+		require.NoError(t, err)
+		require.Empty(t, status, "Expected profile status to be nil after re-sending the SCEP profile")
+		return nil
+	})
+	// Reconcile profiles, raw status becomes pending
+	s.awaitTriggerProfileSchedule(t)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status string
+		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
+		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.MDMDeliveryPending), status, "Expected profile status to be pending after re-sending the SCEP profile")
+		return nil
+	})
+
+	// Device checks in again and should receive the SCEP profile
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting SCEP profile")
+	// Status should still be pending because we haven't acknowledged the profile command yet
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status string
+		stmt := "SELECT coalesce(status, '')  FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
+		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.MDMDeliveryPending), status, "Expected profile status to be pending after re-sending the SCEP profile")
+		return nil
+	})
+
+	// Identifier should be different, and the challenge should be different
+	_, identifier2 := parseSCEPProfile(t, cmd.Raw, ca0)
+	require.NotEqual(t, identifier, identifier2, "Expected a different identifier after re-sending the SCEP profile")
+	gotChallenge2 := parseIdentifier(t, identifier2, host.UUID, profileUUID, "scepName")
+	require.NotEqual(t, gotChallenge, gotChallenge2, "Expected a new challenge after re-sending the SCEP profile")
+	checkChallenge(t, gotChallenge, false) // old challenge deleted
+	checkChallenge(t, gotChallenge2, true) // new challenge added
+
+	// Check the host details
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	profileUUID2 := checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryPending, "")
+	require.Equal(t, profileUUID, profileUUID2, "Expected the same profile UUID after re-sending the SCEP profile")
+
+	// Expire the challenge so that the next PKIOperation fails
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := "UPDATE challenges SET created_at = ? WHERE challenge = ?"
+		res, err := q.ExecContext(context.Background(), stmt, time.Now().Add(-2*time.Hour), gotChallenge2)
+		require.NoError(t, err, "Failed to expire the challenge in the database")
+		rowsAffected, _ := res.RowsAffected()
+		require.Equal(t, int64(1), rowsAffected, "Expected to update 1 row for the challenge")
+		return nil
+	})
+
+	// Do SCEP again, it should fail because the challenge is expired but a new challenge should be
+	// generated and the profile resent
+	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier2, nil, http.StatusBadRequest, nil, "operation",
+		"PKIOperation", "message", message)
+	// Check profile status, raw status will be empty (awaiting the reconcile job)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status string
+		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
+		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
+		require.NoError(t, err)
+		require.Empty(t, status, "Expected profile status to be empty after re-sending the SCEP profile")
+		return nil
+	})
+
+	// Check hosts details, derived status should still be pending
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	profileUUID2 = checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryPending, "")
+	require.Equal(t, profileUUID, profileUUID2, "Expected the same profile UUID after re-sending the SCEP profile")
+
+	// Reconcile profiles, raw status becomes pending
+	s.awaitTriggerProfileSchedule(t)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status string
+		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
+		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.MDMDeliveryPending), status, "Expected profile status to be pending after re-sending the SCEP profile")
+		return nil
+	})
+
+	// Device checks in again and should receive the SCEP profile
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd, "Expecting SCEP profile")
+	// Status should still be pending because we haven't acknowledged the profile command yet
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var status string
+		stmt := "SELECT coalesce(status, '') FROM host_mdm_apple_profiles WHERE host_uuid = ? AND profile_uuid = ?"
+		err := sqlx.GetContext(context.Background(), q, &status, stmt, host.UUID, profileUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(fleet.MDMDeliveryPending), status, "Expected profile status to be pending after re-sending the SCEP profile")
+		return nil
+	})
+
+	// Identifier should be different, and the challenge should be different
+	_, identifier3 := parseSCEPProfile(t, cmd.Raw, ca0)
+	require.NotEqual(t, identifier2, identifier3, "Expected a different identifier after re-sending the SCEP profile")
+	gotChallenge3 := parseIdentifier(t, identifier3, host.UUID, profileUUID, "scepName")
+	require.NotEqual(t, gotChallenge2, gotChallenge3, "Expected a new challenge after re-sending the SCEP profile")
+	checkChallenge(t, gotChallenge, false)  // old challenge deleted
+	checkChallenge(t, gotChallenge2, false) // old challenge deleted
+	checkChallenge(t, gotChallenge3, true)  // new challenge added
+
+	scepRes = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier3, nil, http.StatusOK, nil, "operation",
+		"PKIOperation", "message", message)
+	body, err = io.ReadAll(scepRes.Body)
+	require.NoError(t, err)
+	pkiMessage, err = scep.ParsePKIMessage(body, scep.WithCACerts(certs))
+	require.NoError(t, err)
+	assert.Equal(t, scep.CertRep, pkiMessage.MessageType)
+
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+	assert.Nil(t, cmd)
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	profileUUID3 := checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryVerifying, "")
+	require.Equal(t, profileUUID2, profileUUID3, "Expected the same profile UUID after acknowledging the SCEP profile")
+
+	verifySCEPProfile(t, host, fleet.HostMacOSProfile{
+		Identifier:  "I0",
+		DisplayName: "N0",
+		InstallDate: time.Now(),
+	}, profileUUID, "scepName")
+
+	getHostResp = getDeviceHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	profileUUID4 := checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryVerified, "")
+	require.Equal(t, profileUUID3, profileUUID4, "Expected the same profile UUID after verifying the SCEP profile")
+
+	// No more commands pending
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
 
 	// ////////////////////////////////////////////
 	// Remove the CAs and try to re-send the profile
@@ -14898,18 +15145,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	s.awaitTriggerProfileSchedule(t)
 	getHostResp = getDeviceHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	found = false
-	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	for _, prof := range *getHostResp.Host.MDM.Profiles {
-		if prof.Name == "N0" {
-			found = true
-			assert.Equal(t, fleet.MDMDeliveryFailed, *prof.Status)
-			assert.Equal(t, fleet.MDMOperationTypeInstall, prof.OperationType)
-			assert.Contains(t, prof.Detail, "scepName certificate authority doesn't exist")
-			break
-		}
-	}
-	assert.True(t, found)
+	checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryFailed,
+		"scepName certificate authority doesn't exist")
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
@@ -16650,4 +16887,18 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
 	require.Empty(t, titleResponse.SoftwareTitle.AppStoreApp.Categories)
+}
+
+// createTestServerWithStatusCode creates a local HTTP test server that always returns the specified status code.
+// The server should be closed after use by calling the returned cleanup function.
+func createTestServerWithStatusCode(statusCode int) (*httptest.Server, func()) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(statusCode)
+	}))
+
+	cleanup := func() {
+		server.Close()
+	}
+
+	return server, cleanup
 }

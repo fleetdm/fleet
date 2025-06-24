@@ -26,7 +26,7 @@ func Up_20250502222222(tx *sql.Tx) error {
 	createStmt := `
 CREATE TABLE IF NOT EXISTS legacy_host_mdm_enroll_refs (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	host_uuid VARCHAR(36) NOT NULL,
+	host_uuid VARCHAR(255) NOT NULL,
 	enroll_ref VARCHAR(36) NOT NULL,
 	INDEX idx_legacy_enroll_refs_host_uuid (host_uuid)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS legacy_host_mdm_enroll_refs (
 	createStmt += `
 CREATE TABLE IF NOT EXISTS legacy_host_mdm_idp_accounts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	host_uuid VARCHAR(36) NOT NULL,
+	host_uuid VARCHAR(255) NOT NULL,
 	email VARCHAR(255) NOT NULL,
 	account_uuid VARCHAR(36) NULL,
 	host_id INT UNSIGNED NULL,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS legacy_host_mdm_idp_accounts (
 	createStmt += `
 CREATE TABLE IF NOT EXISTS host_mdm_idp_accounts (
 	id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	host_uuid VARCHAR(36) NOT NULL,
+	host_uuid VARCHAR(255) NOT NULL,
 	account_uuid VARCHAR(36) NOT NULL DEFAULT '',
 	created_at DATETIME (6) NOT NULL DEFAULT NOW(6),
 	updated_at DATETIME (6) NOT NULL DEFAULT NOW(6) ON UPDATE NOW(6),

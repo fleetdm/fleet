@@ -33,8 +33,19 @@ jobs:
       with:
         egress-policy: audit
 
-    - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-    - uses: gaurav-nelson/github-action-markdown-link-check@d53a906aa6b22b8979d33bc86170567e619495ec # v1.0.15
+    - name: Checkout Code
+      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+    - name: Verify Markdown documentation is free of "here" and "click here" link anchors
+      run: |
+        if [[ $(grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .) ]]; then
+          echo '❌ fail: links found with "here" or "click here" anchors in Markdown files'
+          grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .
+          exit 1
+        fi
+
+    - name: Check links
+      uses: gaurav-nelson/github-action-markdown-link-check@d53a906aa6b22b8979d33bc86170567e619495ec # v1.0.15
       with:
         use-quiet-mode: 'yes'
         config-file: .github/workflows/config/markdown-link-check-config.json

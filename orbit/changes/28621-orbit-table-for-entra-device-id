@@ -1,0 +1,1 @@
+* Added `app_sso_platform` table to get Platform SSO extensions state information.

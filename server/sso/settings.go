@@ -54,7 +54,9 @@ type Settings struct {
 	// to the IDP
 	AssertionConsumerServiceURL string
 	SessionStore                SessionStore
-	OriginalURL                 string
+	// SessionTTL determines how long (in seconds) a user has to complete SSO before the session is purged from Fleet
+	SessionTTL  uint
+	OriginalURL string
 }
 
 func GetMetadata(config *fleet.SSOProviderSettings) (*Metadata, error) {

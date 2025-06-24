@@ -242,6 +242,9 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 	}
 	filename := pkger.ConventionalFileName(info)
+	if opt.CustomOutfile != "" {
+		filename = opt.CustomOutfile
+	}
 	if opt.NativeTooling {
 		filename = filepath.Join("build", filename)
 	}

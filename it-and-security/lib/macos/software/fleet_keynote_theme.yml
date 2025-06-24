@@ -1,0 +1,5 @@
+hash_sha256: d720f17d6646bfc399b6e818eb04a3d097975e4996dc701706e46e6d16be0d45
+self_service: true
+categories:
+labels_include_any:
+  - "Keynote installed"

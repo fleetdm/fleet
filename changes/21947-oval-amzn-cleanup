@@ -1,0 +1,1 @@
+* Cleaned up false-positive vulnerabilities on Amazon Linux 2 hosts reported in Fleet <= 4.55

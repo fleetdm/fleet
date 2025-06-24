@@ -157,6 +157,7 @@ SELECT
 	profile_uuid,
 	team_id,
 	name,
+	scope,
 	platform,
 	identifier,
 	checksum,
@@ -167,6 +168,7 @@ FROM (
 		profile_uuid,
 		team_id,
 		name,
+		scope,
 		'darwin' as platform,
 		identifier,
 		checksum,
@@ -184,6 +186,7 @@ FROM (
 		profile_uuid,
 		team_id,
 		name,
+		'' as scope,
 		'windows' as platform,
 		'' as identifier,
 		'' as checksum,
@@ -201,6 +204,7 @@ FROM (
 		declaration_uuid AS profile_uuid,
 		team_id,
 		name,
+		scope,
 		'darwin' AS platform,
 		identifier,
 		token AS checksum,
@@ -818,7 +822,6 @@ HAVING
 
 UNION
 
-
 -- label-based profiles where the host is a member of at least one of the labels (include-any)
 SELECT
 	mwcp.profile_uuid AS profile_uuid,
@@ -857,6 +860,7 @@ HAVING
 }
 
 func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID uint, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
+	// TODO This will need to be updated to support scopes
 	stmt := `
 -- profiles without labels
 SELECT
@@ -1549,7 +1553,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, any relevant filters, and the
+	// query used in isAppleHostConnectedToFleetMDM.
 	const appleStmt = `
 	  SELECT ne.id
 	  FROM nano_enrollments ne
@@ -1566,7 +1571,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, and any relevant filters, and the
+	// query used in isWindowsHostConnectedToFleetMDM.
 	const winStmt = `
 	  SELECT mwe.host_uuid
 	  FROM mdm_windows_enrollments mwe
@@ -1584,11 +1590,13 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
-	mp, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{host})
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
+	if host.Platform == "windows" {
+		return isWindowsHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
+	} else if host.Platform == "darwin" || host.Platform == "ipados" || host.Platform == "ios" {
+		return isAppleHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
 	}
-	return mp[host.UUID], nil
+
+	return false, nil
 }
 
 func batchSetProfileVariableAssociationsDB(

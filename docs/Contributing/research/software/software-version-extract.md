@@ -61,7 +61,7 @@ $ emit fleet-osquery.msi | ./pyenv/bin/xtmsi MsiTables.json | jq '.Property[] | 
 }
 ```
 
-A partial implementation that reads the CFB format can be found [here](https://github.com/fleetdm/fleet/blob/85ee1f7bb9fe33ece20aca0f38678fb5390d3e9c/pkg/file/msi.go).
+A partial implementation that reads the CFB format can be found in the [MSI metadata extraction code](https://github.com/fleetdm/fleet/blob/main/pkg/file/msi.go).
 
 ### Apple Disk Image (.dmg)
 
@@ -136,7 +136,7 @@ file input:
 - Firefox treats it as a folder, and won't let you select it as a unit (screenshot)
 - Safari and Chrome automatically compresses the folder in zip format (screenshot)
 
-A full implementation that reads the name and version from `Info.plist` can be found [here](https://github.com/fleetdm/fleet/blob/85ee1f7bb9fe33ece20aca0f38678fb5390d3e9c/pkg/file/app.go).
+A full implementation that reads the name and version from `Info.plist` can be found [in the application bundle extraction code](https://github.com/fleetdm/fleet/blob/85ee1f7bb9fe33ece20aca0f38678fb5390d3e9c/pkg/file/app.go).
 
 ### PKG installers (.pkg)
 
@@ -145,11 +145,11 @@ Under the hood, `.pkg` installers are compressed files in `xar` format.
 PKG installers are required to have a [Distribution](https://developer.apple.com/library/archive/documentation/DeveloperTools/Reference/DistributionDefinitionRef/Chapters/Distribution_XML_Ref.html) file from which we can extract the name and version.
 
 A full implementation that reads the name and version from the `Distribution` file
-can be found [here](https://github.com/fleetdm/fleet/blob/85ee1f7bb9fe33ece20aca0f38678fb5390d3e9c/pkg/file/xar.go).
+can be found in the [XAR metadata extraction code](https://github.com/fleetdm/fleet/blob/85ee1f7bb9fe33ece20aca0f38678fb5390d3e9c/pkg/file/xar.go).
 
 ### Portable Executable (.exe)
 
-The PE format is well documented in [here](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format)
+Microsoft has [documentation for the PE format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format).
 
 The Go standard library provides a `"debug/pe"` package that we could use as a starting point, but it's not really tailored to our use case.
 
@@ -162,7 +162,7 @@ For the PoC, I used a Go library that's a bit heavy but does the heavy lifting f
 Deb files are `ar` archives that contain a `control.tar` archive with
 meta-information, including name and version.
 
-Code that extracts the values can be found [here](https://github.com/sassoftware/relic/blob/6c510a666832163a5d02587bda8be970d5e29b8c/lib/signdeb/control.go#L38-L39)
+Code that extracts the values is included in the [relic](https://github.com/sassoftware/relic/blob/6c510a666832163a5d02587bda8be970d5e29b8c/lib/signdeb/control.go#L38-L39) library.
 
 ## Additional considerations
 

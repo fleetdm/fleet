@@ -681,13 +681,11 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		result = result["global_integrations"].(map[string]interface{})
 	} else {
 		result = result["team_integrations"].(map[string]interface{})
-		if result["google_calendar"] != nil {
-			result = map[string]interface{}{
-				"google_calendar": result["google_calendar"],
-			}
-		} else {
-			result = nil
-		}
+
+		// We currently don't support configuring Jira and Zendesk integrations on the team.
+		delete(result, "jira")
+		delete(result, "zendesk")
+
 		// Team integrations don't have secrets right now, so just return as-is.
 		return result, nil
 	}
@@ -1018,13 +1016,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	result := make([]map[string]interface{}, len(policies))
 	for i, policy := range policies {
 		policySpec := map[string]interface{}{
-			jsonFieldName(t, "Name"):                  policy.Name,
-			jsonFieldName(t, "Description"):           policy.Description,
-			jsonFieldName(t, "Resolution"):            policy.Resolution,
-			jsonFieldName(t, "Query"):                 policy.Query,
-			jsonFieldName(t, "Platform"):              policy.Platform,
-			jsonFieldName(t, "Critical"):              policy.Critical,
-			jsonFieldName(t, "CalendarEventsEnabled"): policy.CalendarEventsEnabled,
+			jsonFieldName(t, "Name"):                     policy.Name,
+			jsonFieldName(t, "Description"):              policy.Description,
+			jsonFieldName(t, "Resolution"):               policy.Resolution,
+			jsonFieldName(t, "Query"):                    policy.Query,
+			jsonFieldName(t, "Platform"):                 policy.Platform,
+			jsonFieldName(t, "Critical"):                 policy.Critical,
+			jsonFieldName(t, "CalendarEventsEnabled"):    policy.CalendarEventsEnabled,
+			jsonFieldName(t, "ConditionalAccessEnabled"): policy.ConditionalAccessEnabled,
 		}
 		// Handle software automation.
 		if policy.InstallSoftware != nil {

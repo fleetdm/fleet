@@ -29,9 +29,9 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 The Digital Experience department is directly responsible for the culture, training, framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, contracts, compliance, receiving and responding to legal notices, SOC2, deal desk, project management processes, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding.
 
-> _**Note:**: Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance)._
+> Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance)._
 
-> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
+> If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
 
 ### Respond to a "Contact us" submission
@@ -682,7 +682,8 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
       [email subject]
       link: drive.google.com/[destinationFolderID]
    ```
-
+   
+<!-- Weekly update is now automated. See https://zapier.com/webintent/edit-zap/302812151
 ### Send the weekly update
 
 We like to be open about milestones and announcements. Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
@@ -703,7 +704,7 @@ We like to be open about milestones and announcements. Every Friday, e-group mem
 3. In the "Weekly update" column (column E) for that row, double-click into that cell and change the "⚡️" to "🔭" in the beginning of the formula.  
 4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
 5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
-
+-->
 
 ### Prepare for the All hands
 
@@ -934,7 +935,8 @@ Once a week, the Apprentice will review the "community activity report" and add 
 
 ### Schedule travel for the CEO
 
-The Apprentice schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
+The Apprentice will verify daily that the CEO's calendar is accurate for any commitment or booked travel. The Apprentice is the DRI for scheduling all travel arrangements for the CEO, including flights, hotels, and reservations if needed. The CEO's traveling preferences in descending order of importance are:
+  - Mark the CEO as OOO (Out Of Office) IMMEDIATELY to avoid conflicts, as soon as travel is even tentitively planned.
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
   - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
@@ -942,6 +944,7 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
   - Default to carry-on only, no checked bags.  (For trips longer than 5 nights, add 1 checked bag.)
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
+  - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
 
 
 ### Schedule CEO interview
@@ -989,6 +992,16 @@ Use the following steps to confirm CEO shadow dates:
 4. Attend the next "🐈‍⬛🌪️ Roundup (~ceo)" meeting to make the CEO aware of the dates and confirm the "shadowability" of external and nonrecurring internal meetings.
 
 > After the team member notifies the Head of Digital Experience (via Slack), the Head of DigExp will bring the dates to the next "🐈‍⬛🌪️ Roundup (~ceo)".
+
+
+### Monitor compliance tests
+
+1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
+2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
+3. Click on a test, then click on "Tasks".  
+4. Click on "Create task." Then, "Create GitHub issue."
+5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the "#g-digital-experience" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, Fleet's CTO, or the Head of Digital Experience. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 
 ### Check GitHub terms
