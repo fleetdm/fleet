@@ -728,13 +728,6 @@ type MDMAppleHostDeclaration struct {
 
 	// SecretsUpdatedAt is the timestamp when the secrets were last updated or when this declaration was uploaded.
 	SecretsUpdatedAt *time.Time `db:"secrets_updated_at" json:"-"`
-
-	// Scope of the declaration payload (user or system).
-	Scope PayloadScope `db:"scope" json:"-"`
-
-	// DeviceEnrolledAt is the timestamp when the device (host) was enrolled in
-	// MDM.
-	DeviceEnrolledAt *time.Time `db:"device_enrolled_at" json:"-"`
 }
 
 func (p MDMAppleHostDeclaration) Equal(other MDMAppleHostDeclaration) bool {

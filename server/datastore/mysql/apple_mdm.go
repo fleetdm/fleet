@@ -5679,9 +5679,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
                 ds.secrets_updated_at,
                 ds.declaration_uuid,
                 ds.declaration_identifier,
-                ds.declaration_name,
-                ds.scope,
-                ds.device_enrolled_at
+                ds.declaration_name
             FROM
                 %s
         )
@@ -5694,9 +5692,7 @@ func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtC
                 hmae.secrets_updated_at,
                 hmae.declaration_uuid,
                 hmae.declaration_identifier,
-                hmae.declaration_name,
-                hmae.scope,
-                NULL as device_enrolled_at
+                hmae.declaration_name
             FROM
                 %s
         )
