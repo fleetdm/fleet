@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { findLastIndex, over, trimStart } from "lodash";
+import { findLastIndex, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
@@ -161,22 +161,39 @@ const getDefaultTeam = ({
   includeAllTeams,
   includeNoTeam,
   userTeams,
+  isPrimoMode,
 }: {
   currentUser: IUser | null;
   includeAllTeams: boolean;
   includeNoTeam: boolean;
   userTeams?: ITeamSummary[];
+  isPrimoMode: boolean;
 }) => {
   if (!currentUser || !userTeams?.length) {
     return undefined;
   }
   if (permissions.isOnGlobalTeam(currentUser)) {
     let defaultTeam: ITeamSummary | undefined;
-    if (includeAllTeams) {
-      defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
-    }
-    if (!defaultTeam && includeNoTeam) {
-      defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+    if (isPrimoMode) {
+      // in Primo mode "No team" takes precedence
+      if (includeNoTeam) {
+        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+      } else if (includeAllTeams) {
+        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
+      } else {
+        // this case should never be reached, there are no pages that support neighther "All teams"
+        // nor "No team"
+        return undefined;
+      }
+    } else {
+      // normally "All teams" takes precedence
+      if (includeAllTeams) {
+        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
+      }
+      if (!defaultTeam && includeNoTeam) {
+        // default to No team when "All teams" not included and no team is included
+        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+      }
     }
 
     return defaultTeam || userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
@@ -299,7 +316,9 @@ export const useTeamIdParam = ({
     isFreeTier,
     isPremiumTier,
     setCurrentTeam: setContextTeam,
+    config,
   } = useContext(AppContext);
+  const isPrimoMode = config?.partnerships?.enable_primo || false;
 
   const { setResetSelectedRows } = useContext(TableContext);
 
@@ -316,8 +335,9 @@ export const useTeamIdParam = ({
         includeAllTeams,
         includeNoTeam,
         userTeams,
+        isPrimoMode,
       }),
-    [currentUser, includeAllTeams, includeNoTeam, userTeams]
+    [currentUser, includeAllTeams, includeNoTeam, isPrimoMode, userTeams]
   );
 
   const currentTeam = useMemo(
@@ -335,6 +355,8 @@ export const useTeamIdParam = ({
         setResetSelectedRows(true);
       }
 
+      // `replace` instead of `push` is okay here since we don't want users to be able to go back to
+      // the invalid route we are replacing
       router.replace(
         pathname
           .concat(
@@ -361,9 +383,9 @@ export const useTeamIdParam = ({
   // reconcile router location and redirect to default team as applicable
   let isRouteOk = false;
   if (isFreeTier) {
-    // free tier should never have team_id param
+    // free tier should never have team_id param - change to "All teams"
     if (query.team_id) {
-      handleTeamChange(-1); // remove team_id param from url
+      handleTeamChange(-1); // -1 because all pages on Free actually function as if on "All teams", even when not supported e.g. Controls
     } else {
       isRouteOk = true;
     }
@@ -389,7 +411,8 @@ export const useTeamIdParam = ({
   }, [contextTeam?.id, currentTeam, isRouteOk, setContextTeam]);
 
   return {
-    // essentially `currentTeamIdForAppContext`, where -1: all teams, 0: no team, and positive integers: team ids
+    // essentially `currentTeamIdForAppContext`, where -1 represents all teams, 0 represents no
+    // team, and positive integers represent all teams other than the "no team" team
     currentTeamId: currentTeam?.id,
     currentTeamName: currentTeam?.name,
     currentTeamSummary: currentTeam,
@@ -397,6 +420,8 @@ export const useTeamIdParam = ({
     isAnyTeamSelected: isAnyTeamSelected(currentTeam?.id),
     isAllTeamsSelected:
       !isAnyTeamSelected(currentTeam?.id) && currentTeam?.id !== 0,
+    /** isRouteOk indicates whether the team currently indicated by the url params is valid for the
+     * current user and tier */
     isRouteOk,
     isTeamAdmin:
       !!currentTeam?.id && permissions.isTeamAdmin(currentUser, currentTeam.id),
