@@ -2032,6 +2032,45 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: >
+    CIS - Ensure 'Network security: Restrict NTLM: Audit Incoming NTLM Traffic' is set to 'Enable auditing for all accounts'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows the auditing of incoming NTLM traffic. Events for this setting are recorded in the operational event log (e.g. Applications and Services Log\Microsoft\Windows\NTLM).
+    The recommended state for this setting is: 'Enable auditing for all accounts'.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enable auditing for all accounts:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Network security: Restrict NTLM: Audit Incoming NTLM Traffic'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0\AuditReceivingNTLMTraffic' AND data = 2);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Network security: Restrict NTLM: Outgoing NTLM traffic to remote servers' is set to 'Audit all' or higher
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting allows the auditing of outgoing NTLM traffic. Events for this setting are recorded in the operational event log (e.g. Applications and Services Log\Microsoft\Windows\NTLM).
+    The recommended state for this setting is: 'Audit all'. Configuring this setting to 'Deny All' also conforms to the benchmark.
+    Note: Configuring this setting to Deny All is more secure, however it could have a
+    negative impact on applications that still require NTLM. Test carefully before
+    implementing the Deny All value.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to 'Audit all' or higher:
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\Security Options\Restrict NTLM: Outgoing NTLM traffic to remote servers'
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Lsa\MSV1_0\RestrictSendingNTLMTraffic' AND data = 2);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure 'System cryptography Force strong key protection for user keys stored on the computer' is set to 'User is prompted when the key is first used or higher'
   platforms: win10
   platform: windows
@@ -4396,6 +4435,28 @@ apiVersion: v1
 kind: policy
 spec:
   name: >
+    CIS - Ensure 'Enable Certificate Padding' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures whether the WinVerifyTrust function performs strict
+    Windows Authenticode signature verification for Portable Executable files (PE files). If
+    enabled, PE files will be considered "unsigned" if Windows identifies content in them
+    that does not conform to the Authenticode specification.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Enable Certificate Padding'
+    Note: This Group Policy path does not exist by default. An additional Group Policy template (SecGuide.admx/adml) is required
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\Wintrust\Config\EnableCertPaddingCheck' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
     CIS - Ensure 'Enable Structured Exception Handling Overwrite Protection (SEHOP)' is set to 'Enabled'
   platforms: win10
   platform: windows
@@ -5502,7 +5563,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GroupPolicy.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoBackgroundPolicy' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Group Policy\{827D319E-6EAC-11D2-A4EA-00C04F79F83A}\NoBackgroundPolicy' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
   contributors: rachelelysia
@@ -5521,7 +5582,7 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\System\Group Policy\Configure registry policy processing'
     Note: This Group Policy path may not exist by default. It is provided by the Group Policy template GroupPolicy.admx/adml that is included with the Microsoft Windows 8.0 & Server 2012 (non-R2) Administrative Templates (or newer).
   query: |
-    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\Group Policy\\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoGPOListChanges' AND data = 0);
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Group Policy\{35378EAC-683F-11D2-A89A-00C04FBBCFA2}\NoGPOListChanges' AND data = 0);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_domain_joined_required
   contributors: marcosd4h
@@ -5874,6 +5935,256 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_BitLocker, CIS_group_policy_template_required
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Configure password backup directory' is set to 'Enabled: Active Directory' or 'Enabled: Azure Active Directory'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures which directory Windows LAPS will use to back up the local admin account password.
+    The recommended state for this setting is: Enabled: Active Directory or Enabled: Azure Active Directory.
+    Note: Organizations that utilize third-party commercial software to manage unique & complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note 2: Windows LAPS does not support standalone computers - they must be joined to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+    Note 3: Windows LAPS does not support simultaneous storage of the local admin password in both directory types.
+    Note 4: If the setting is configured and the managed device is not joined to the configured directory type, the local administrator password will not be managed by Windows LAPS.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Active Directory or Enabled: Azure Active Directory:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Configure password backup directory'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LAPS.admx/adml' that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v3.0 (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\BackupDirectory' AND data IN (1, 2));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Do not allow password expiration time longer than required by policy' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures whether the password age dictated by the Windows LAPS "Password Settings" policy is enforced and cannot be extended manually (only shortened) by an authorized technician.
+    If an expiration is detected, the password is changed immediately, and password expiration is set according to policy.
+    The recommended state for this setting is: Enabled.
+    Note: Organizations that utilize third-party commercial software to manage unique & complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note 2: Windows LAPS does not support standalone computers - they must be joined to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Do not allow password expiration time longer than required by policy'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LAPS.admx/adml' that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v3.0 (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS:PwdExpirationProtectionEnabled' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Enable password encryption' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting controls whether the Windows LAPS managed password is encrypted before being sent to Active Directory.
+    The recommended state for this setting is: Enabled.
+    Note: Organizations that utilize third-party commercial software to manage unique & complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note 2: Windows LAPS does not support standalone computers - they must be joined to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+    Note 3: This setting has no effect unless the password has been configured to be backed up to Active Directory, and the Active Directory domain functional level is at Windows Server 2016 or above.
+    Note 4: This setting has no relevance (but is harmless) when storing Windows LAPS passwords to Entra ID (formerly Azure Active Directory) as it automatically encrypts all Windows LAPS passwords.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Enable password encryption'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LAPS.admx/adml' that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v3.0 (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\ADPasswordEncryptionEnabled' AND data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Password Settings: Password Complexity' is set to 'Enabled: Large letters + small letters + numbers + special characters'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures the Windows LAPS Password Settings policy for password complexity.
+    Each additional character in a password increases its complexity exponentially. For
+    instance, a seven-character, all lower-case alphabetic password would have 26 to the
+    power of 7 (approximately 8 x 10 to the power of 9 or 8 billion) possible combinations.
+    At 1,000,000 attempts per second (a capability of many password-cracking utilities), it
+    would only take 133 minutes to crack. A seven-character alphabetic password with case
+    sensitivity has 52 to the power of 7 combinations. A seven-character case-sensitive
+    alphanumeric password without punctuation has 627 combinations. An eight-character
+    password has 26 to the power of 8 (or 2 x 10 to the power of 11) possible combinations.
+    Although this might seem to be a large number, at 1,000,000 attempts per second it
+    would take only 59 hours to try all possible passwords. Remember, these times will
+    significantly increase for passwords that use ALT characters and other special keyboard
+    characters such as "!" or "@". Proper use of the password settings can help make it
+    difficult to mount a brute force attack.
+    The recommended state for this setting is: Enabled: Large letters + small letters +
+    numbers + special characters.
+
+    Note: Organizations that utilize third-party commercial software to manage unique &
+    complex local Administrator passwords on domain members may opt to disregard these
+    LAPS recommendations.
+    Note 2: Windows LAPS does not support standalone computers - they must be joined
+    to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled, and configure the Password Complexity option to Large letters + small letters + numbers + special characters:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Password Settings'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LAPS.admx/adml' that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v3.0 (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\PasswordComplexity' AND data = 4);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Password Settings: Password Length' is set to 'Enabled: 15 or more'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures the Windows LAPS Password Settings policy for password length.
+    Each additional character in a password increases its complexity exponentially. For
+    instance, a seven-character, all lower-case alphabetic password would have 26 to the
+    power of 7 (approximately 8 x 10 to the power of 9 or 8 billion) possible combinations.
+    At 1,000,000 attempts per second (a capability of many password-cracking utilities), it
+    would only take 133 minutes to crack. A seven-character alphabetic password with case
+    sensitivity has 52 to the power of 7 combinations. A seven-character case-sensitive
+    alphanumeric password without punctuation has 627 combinations. An eight-character
+    password has 26 to the power of 8 (or 2 x 10 to the power of 11) possible combinations.
+    Although this might seem to be a large number, at 1,000,000 attempts per second it
+    would take only 59 hours to try all possible passwords. Remember, these times will
+    significantly increase for passwords that use ALT characters and other special keyboard
+    characters such as "!" or "@". Proper use of the password settings can help make it
+    difficult to mount a brute force attack.
+    The recommended state for this setting is: Enabled: 15 or more.
+
+    Note: Organizations that utilize third-party commercial software to manage unique &
+    complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note 2: Windows LAPS does not support standalone computers - they must be joined
+    to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled, and configure the Password Length option to 15 or more:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Password Settings'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LAPS.admx/adml' that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v3.0 (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\PasswordLength' AND data = 15);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Password Settings: Password Age (Days)' is set to 'Enabled: 30 or fewer'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting configures the Windows LAPS Password Settings policy for password length.
+    Each additional character in a password increases its complexity exponentially. For
+    instance, a seven-character, all lower-case alphabetic password would have 26 to the
+    power of 7 (approximately 8 x 10 to the power of 9 or 8 billion) possible combinations.
+    At 1,000,000 attempts per second (a capability of many password-cracking utilities), it
+    would only take 133 minutes to crack. A seven-character alphabetic password with case
+    sensitivity has 52 to the power of 7 combinations. A seven-character case-sensitive
+    alphanumeric password without punctuation has 627 combinations. An eight-character
+    password has 26 to the power of 8 (or 2 x 10 to the power of 11) possible combinations.
+    Although this might seem to be a large number, at 1,000,000 attempts per second it
+    would take only 59 hours to try all possible passwords. Remember, these times will
+    significantly increase for passwords that use ALT characters and other special keyboard
+    characters such as "!" or "@". Proper use of the password settings can help make it
+    difficult to mount a brute force attack.
+    The recommended state for this setting is: Enabled: 30 or fewer.
+
+    Note: Organizations that utilize third-party commercial software to manage unique &
+    complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note 2: Windows LAPS does not support standalone computers - they must be joined
+    to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled, and configure the Password Age (Days) option to 30 or fewer:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Password Settings'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LAPS.admx/adml' that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v3.0 (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\PasswordAgeDays' AND data = 30);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Post-authentication actions: Grace period (hours)' is set to 'Enabled: 8 or fewer hours, but not 0'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy settings configures post-authentication actions which will be executed after
+    detecting an authentication by the Windows LAPS managed account. The Grace period
+    refers to the amount of time (hours) to wait after an authentication before executing the
+    specified post-authentication actions.
+    The recommended state for this setting is: Enabled: 8 or fewer hours, but not 0.
+    Note: Organizations that utilize third-party commercial software to manage unique &
+    complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note 2: Windows LAPS does not support standalone computers - they must be joined
+    to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+    Note 3: If this policy is set to 0 it prevents all post-authentication actions from occurring.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: 8 or fewer hours, but not 0:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Post-authentication actions: Grace period (hours)'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LAPS.admx/adml' that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v3.0 (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\PostAuthenticationResetDelay' AND data <= 8 AND data != 0 );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Post-authentication actions: Actions' is set to 'Enabled: Reset the password and logoff the managed account' or higher
+  platforms: win10
+  platform: windows
+  description: |
+    This policy settings configures post-authentication actions which will be executed after
+    detecting an authentication by the LAPS managed account. The Action refers to actions
+    to take upon expiry of the grace period before executing the specified post-authentication actions.
+    Post-authentication actions:
+      • Reset password: upon expiry of the grace period, the managed account password will be reset.
+      • Reset the password and logoff the managed account: upon expiry of the grace period, the managed account password will be reset and any interactive logon sessions using the managed account will terminated.
+      • Reset the password and reboot the device: upon expiry of the grace period, the managed account password will be reset and the managed device will be immediately rebooted.
+
+    Warning: After an interactive logon session is terminated, other authenticated sessions
+    using the Windows LAPS managed account may still be active. The only way to ensure
+    that the previous password is no longer in use is to reboot the OS.
+    The recommended state for this setting is: Enabled: Reset the password and logoff
+    the managed account or higher.
+
+    Note: Organizations that utilize third-party commercial software to manage unique &
+    complex local Administrator passwords on domain members may opt to disregard these LAPS recommendations.
+    Note 2: Windows LAPS does not support standalone computers - they must be joined to an Active Directory domain or Entra ID (formerly Azure Active Directory).
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled: Reset the password and logoff the managed account or higher:
+    'Computer Configuration\Policies\Administrative Templates\System\LAPS\Post-authentication actions: Actions'
+    Note: This Group Policy path may not exist by default. It is provided by the Group Policy
+    template 'LAPS.admx/adml' that is included with the Microsoft Windows 11 Release 22H2 Administrative Templates v3.0 (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\LAPS\PostAuthenticationActions' AND data IN (3, 5));
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
@@ -8245,6 +8556,27 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
   contributors: sharon-fdm
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Scan packed executables' is set to 'Enabled'
+  platforms: win10
+  platform: windows
+  description: |
+    This policy setting manages whether or not Microsoft Defender Antivirus scans packed
+    executables. Packed executables are executable files that contain compressed code.
+    The recommended state for this setting is: Enabled.
+  resolution: |
+    To establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Microsoft Defender Antivirus\Scan\Scan packed executables'
+    Note: This Group Policy path is provided by the Group Policy template
+    'WindowsDefender.admx/adml' that is included with the Microsoft Windows 8.1 and Server 2012 R2 Administrative Templates (or newer).
+  query: |
+    SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Scan\DisablePackedExeScanning' AND data = 0);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
 ---
 apiVersion: v1
 kind: policy
