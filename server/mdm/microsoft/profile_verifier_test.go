@@ -582,26 +582,6 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 			toFail:   []string{},
 			toRetry:  []string{},
 		},
-		{
-			name: `VPNV2 profile xml returns 200 but differently formatted data and is marked verified`,
-			hostProfiles: []hostProfile{
-				{"N1", syncml.ForTestWithData([]syncml.TestCommand{
-					{
-						Verb:   "Add",
-						LocURI: "./Vendor/MSFT/VPNv2/fleet-test-vpn/ProfileXML",
-						Data: `&lt;VPNProfile&gt;
-    &lt;ProfileName&gt;fleet-test-vpn&lt;/ProfileName&gt;
-&lt;/VPNProfile&gt;`,
-					},
-				}), 0},
-			},
-			report: []osqueryReport{{
-				"N1", "200", "./Vendor/MSFT/VPNv2/fleet-test-vpn/ProfileXML", `&lt;VPNProfile&gt;&lt;ProfileName&gt;fleet-test-vpn&lt;/ProfileName&gt;&lt;/VPNProfile&gt;`,
-			}},
-			toVerify: []string{"N1"},
-			toFail:   []string{},
-			toRetry:  []string{},
-		},
 	}
 
 	for _, tt := range cases {
@@ -810,62 +790,6 @@ func TestIsADMXInstallConfigOperationCSP(t *testing.T) {
 			if strings.HasPrefix(tc.locURI, "./Vendor/") {
 				explicitlyDeviceScopedLocURI := strings.Replace(tc.locURI, "./Vendor/", "./Device/Vendor/", 1)
 				result = IsADMXInstallConfigOperationCSP(explicitlyDeviceScopedLocURI)
-				require.Equal(t, tc.expected, result, "Expected same result for explicitly and implicitly device scoped locURIs")
-			}
-		})
-	}
-}
-
-func TestIsVPNV2CSP(t *testing.T) {
-	testCases := []struct {
-		name     string
-		locURI   string
-		expected bool
-	}{
-		{
-			name:     "VPNV2 CSP with ProfileXML",
-			locURI:   "./Vendor/MSFT/VPNv2/fleet-test-vpn/ProfileXML",
-			expected: true,
-		},
-		{
-			name:     "VPNV2 CSP with ProfileXML",
-			locURI:   "./User/Vendor/MSFT/VPNv2/fleet-test-vpn/ProfileXML",
-			expected: true,
-		},
-		{
-			name:     "VPNV2 CSP deeper path",
-			locURI:   "./User/Vendor/MSFT/VPNv2/fleet-test-vpn/sometest/someothertest/anXMLThing",
-			expected: true,
-		},
-		{
-			name:     "VPN",
-			locURI:   "./User/Vendor/MSFT/VPN/fleet-test-vpn",
-			expected: false,
-		},
-		{
-			name:     "Unrelated policy path",
-			locURI:   "./Vendor/MSFT/Policy/VPNv2",
-			expected: false,
-		},
-		{
-			name:     "Incomplete VPNv2 path",
-			locURI:   "./Vendor/MSFT/VPNv2",
-			expected: false,
-		},
-		{
-			name:     "empty string",
-			locURI:   "",
-			expected: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := IsVPNV2CSP(tc.locURI)
-			require.Equal(t, tc.expected, result)
-			if strings.HasPrefix(tc.locURI, "./Vendor/") {
-				explicitlyDeviceScopedLocURI := strings.Replace(tc.locURI, "./Vendor/", "./Device/Vendor/", 1)
-				result = IsVPNV2CSP(explicitlyDeviceScopedLocURI)
 				require.Equal(t, tc.expected, result, "Expected same result for explicitly and implicitly device scoped locURIs")
 			}
 		})
