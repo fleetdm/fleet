@@ -511,9 +511,11 @@ const HostDetailsPage = ({
     }
   );
 
-  const featuresConfig = host?.team_id
-    ? teams?.find((t) => t.id === host.team_id)?.features
-    : config?.features;
+  // Ensure using global config if team_id is stored but downgrade to fleet free
+  const featuresConfig =
+    host?.team_id && isPremiumTier
+      ? teams?.find((t) => t.id === host.team_id)?.features
+      : config?.features;
 
   const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
     const mdmConfig = host?.team_id
