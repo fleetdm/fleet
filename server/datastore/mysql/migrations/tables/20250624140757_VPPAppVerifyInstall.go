@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250616140757, Down_20250616140757)
+	MigrationClient.AddMigration(Up_20250624140757, Down_20250624140757)
 }
 
-func Up_20250616140757(tx *sql.Tx) error {
+func Up_20250624140757(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 	ALTER TABLE host_vpp_software_installs
 		ADD COLUMN verification_command_uuid VARCHAR(127) NULL,
@@ -23,6 +23,6 @@ func Up_20250616140757(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250616140757(tx *sql.Tx) error {
+func Down_20250624140757(tx *sql.Tx) error {
 	return nil
 }
