@@ -78,7 +78,7 @@ These are command lines that will be run _after_ the generated uninstall script 
 
 ### Testing
 
-Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updates to existing apps, skip to step 5.
+Fleet tests every Fleet-maintained app. For new apps, start at step 1. For updates to existing apps, skip to step 6.
 
 1. When a pull request (PR) is opened in `inputs/`, the [#g-software Product Designer (PD)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added as reviewer.
 2. The PD is responsible for making sure that the `name` for the new app matches the name that shows up in Fleet's software inventory. If the name doesn't match or if the name is not user-friendly, the PD will bring it to #g-software design review. This way, when the app is added to Fleet, the app will be matched with the app that comes back in software inventory.
