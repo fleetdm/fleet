@@ -6598,8 +6598,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 
-	// user-scoped profiles have been ignored for now
-	// TODO(mna): change behavior in future PR, we want them pending (NULL) immediately
+	// user-scoped profiles show up as status nil (no user-enrollment yet)
 	assertHostProfiles([]hostProfile{
 		{
 			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
@@ -6609,6 +6608,24 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
 		},
 	})
 
@@ -6637,6 +6654,24 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
 		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
 	})
 
 	// create the user-enrollment
@@ -6646,7 +6681,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 
-	// user-scoped profiles have been added
+	// user-scoped profiles have been added as pending (not nil)
 	assertHostProfiles([]hostProfile{
 		{
 			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,

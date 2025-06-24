@@ -8257,6 +8257,7 @@ func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
 			assert.NotEmpty(t, p.Checksum)
 			p.Checksum = nil
 			p.SecretsUpdatedAt = nil
+			p.DeviceEnrolledAt = nil
 		}
 		require.ElementsMatch(t, want, got)
 	}
