@@ -88,6 +88,9 @@ func VerifyHostMDMProfiles(ctx context.Context, logger log.Logger, ds fleet.Prof
 	}
 
 	existingProfiles, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting existing windows host profiles")
+	}
 
 	verified, missing, err := compareResultsToExpectedProfiles(ctx, logger, ds, host, profileResults, existingProfiles)
 	if err != nil {
