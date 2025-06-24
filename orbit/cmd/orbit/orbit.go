@@ -1640,10 +1640,11 @@ func (d *desktopRunner) Execute() error {
 				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
 				return true
 			}
-
 			if loggedInUser == nil {
+				log.Debug().Msg("No GUI user found, skipping fleet-desktop start")
 				return true
 			}
+			log.Debug().Msg(fmt.Sprintf("Found GUI user: %v, attempting fleet-desktop start", loggedInUser))
 
 			if *loggedInUser != "" {
 				opts = append(opts, execuser.WithUser(*loggedInUser))

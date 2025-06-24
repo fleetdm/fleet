@@ -4,10 +4,10 @@
 package user
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -22,8 +22,14 @@ func UserLoggedInViaGui() (*string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get login user: %w", err)
 	}
+	// Bail out if the user is gdm or root, since they aren't GUI users.
 	if user.Name == "gdm" || user.Name == "root" {
-		return nil, nil // gdm is the default user for GDM login manager, not a real user.
+		return nil, nil
+	}
+	// Check if the user has a GUI session.
+	_, err = GetUserDisplaySessionType(strconv.FormatInt(user.ID, 10))
+	if err != nil {
+		return nil, nil
 	}
 	return &user.Name, nil
 }
@@ -83,18 +89,53 @@ func parseIDOutput(s string) (int64, error) {
 	return uid, nil
 }
 
-var whoLineRegexp = regexp.MustCompile(`(\w+)\s+(:\d+)\s+`)
+// getUserDisplaySessionType returns the display session type (X11 or Wayland) of the given user.
+func GetUserDisplaySessionType(uid string) (guiSessionType, error) {
+	cmd := exec.Command("loginctl", "show-user", uid, "-p", "Display", "--value")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return 0, fmt.Errorf("run 'loginctl' to get user GUI session: %w", err)
+	}
+	guiSessionID := strings.TrimSpace(stdout.String())
+	if guiSessionID == "" {
+		return 0, nil
+	}
+	cmd = exec.Command("loginctl", "show-session", guiSessionID, "-p", "Type", "--value")
+	stdout.Reset()
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return 0, fmt.Errorf("run 'loginctl' to get user GUI session type: %w", err)
+	}
+	guiSessionType := strings.TrimSpace(stdout.String())
+	switch guiSessionType {
+	case "":
+		return 0, errors.New("empty GUI session type")
+	case "x11":
+		return GuiSessionTypeX11, nil
+	case "wayland":
+		return GuiSessionTypeWayland, nil
+	case "tty":
+		return 0, fmt.Errorf("user is logged in via TTY, not GUI")
+	default:
+		return 0, fmt.Errorf("unknown GUI session type: %q", guiSessionType)
+	}
+}
 
 type guiSessionType int
 
 const (
-	guiSessionTypeX11 guiSessionType = iota + 1
-	guiSessionTypeWayland
+	GuiSessionTypeX11 guiSessionType = iota + 1
+	GuiSessionTypeWayland
+	GuiSessionTypeTty
 )
 
 func (s guiSessionType) String() string {
-	if s == guiSessionTypeX11 {
+	if s == GuiSessionTypeX11 {
 		return "x11"
+	}
+	if s == GuiSessionTypeTty {
+		return "tty"
 	}
 	return "wayland"
 }

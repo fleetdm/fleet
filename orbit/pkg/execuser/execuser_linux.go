@@ -129,16 +129,19 @@ func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 
 	// Get user's display session type (x11 vs. wayland).
 	uid := strconv.FormatInt(user.ID, 10)
-	userDisplaySessionType, err := getUserDisplaySessionType(uid)
+	userDisplaySessionType, err := userpkg.GetUserDisplaySessionType(uid)
+	if userDisplaySessionType == userpkg.GuiSessionTypeTty {
+		return nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
+	}
 	if err != nil {
 		// Wayland is the default for most distributions, thus we assume
 		// wayland if we couldn't determine the session type.
 		log.Error().Err(err).Msg("assuming wayland session")
-		userDisplaySessionType = guiSessionTypeWayland
+		userDisplaySessionType = userpkg.GuiSessionTypeWayland
 	}
 
 	var display string
-	if userDisplaySessionType == guiSessionTypeX11 {
+	if userDisplaySessionType == userpkg.GuiSessionTypeX11 {
 		x11Display, err := getUserX11Display(user.Name)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get X11 display, using default :0")
@@ -174,7 +177,7 @@ func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 
 	args := argsForSudo(user, opts)
 
-	if userDisplaySessionType == guiSessionTypeWayland {
+	if userDisplaySessionType == userpkg.GuiSessionTypeWayland {
 		args = append(args, "WAYLAND_DISPLAY="+display)
 		// For xdg-open to work on a Wayland session we still need to set the DISPLAY variable.
 		x11Display := ":" + strings.TrimPrefix(display, "wayland-")
@@ -222,37 +225,6 @@ func (s guiSessionType) String() string {
 		return "x11"
 	}
 	return "wayland"
-}
-
-// getUserDisplaySessionType returns the display session type (X11 or Wayland) of the given user.
-func getUserDisplaySessionType(uid string) (guiSessionType, error) {
-	cmd := exec.Command("loginctl", "show-user", uid, "-p", "Display", "--value")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return 0, fmt.Errorf("run 'loginctl' to get user GUI session: %w", err)
-	}
-	guiSessionID := strings.TrimSpace(stdout.String())
-	if guiSessionID == "" {
-		return 0, errors.New("empty GUI session")
-	}
-	cmd = exec.Command("loginctl", "show-session", guiSessionID, "-p", "Type", "--value")
-	stdout.Reset()
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return 0, fmt.Errorf("run 'loginctl' to get user GUI session type: %w", err)
-	}
-	guiSessionType := strings.TrimSpace(stdout.String())
-	switch guiSessionType {
-	case "":
-		return 0, errors.New("empty GUI session type")
-	case "x11":
-		return guiSessionTypeX11, nil
-	case "wayland":
-		return guiSessionTypeWayland, nil
-	default:
-		return 0, fmt.Errorf("unknown GUI session type: %q", guiSessionType)
-	}
 }
 
 // getUserWaylandDisplay returns the value to set on WAYLAND_DISPLAY for the given user.
