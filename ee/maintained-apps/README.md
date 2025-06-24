@@ -90,7 +90,7 @@ go run cmd/maintained-apps/main.go
 
 4. At this time, @eashaw and a Product Designer are added to the PR. Eric adds the icon for [fleetdm.com/app-library](https://fleetdm.com/app-library).
 5. If the app is a new app, add an icon for the app to the PR. To add the icon, add the SVG as a comment to the PR and then ask the contributor to add the SVG to their PR [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-3728cfaafa50a41f6b017a4ef6ab64f7ce99034a9e90ed46421670f76a2db17f). Also, ask them to update the `index.ts` file [like this](https://github.com/fleetdm/fleet/pull/28332/files#diff-628095892e1d16090be1db6cc1a5c9cebc65248c32a8b1312385394818f2907b).
-6. The [QA Engineer](https://fleetdm.com/handbook/company/product-groups#software-group) is responsible for testing the app. 
+6. [Quality Assurance (QA)](https://fleetdm.com/handbook/company/product-groups#software-group) is responsible for testing the app. 
 7. When testing, update the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the following value:
 
 ```
