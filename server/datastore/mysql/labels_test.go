@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -96,6 +97,7 @@ func TestLabels(t *testing.T) {
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
+		{"UpdateLabelMembershipByHostCriteria", testUpdateLabelMembershipByHostCriteria},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -2008,4 +2010,93 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.ID, hosts[0].ID)
 	require.Equal(t, host2.ID, hosts[1].ID)
 	require.Equal(t, host3.ID, hosts[2].ID)
+}
+
+type TestHostVitalsLabel struct {
+	fleet.Label
+}
+
+func (t *TestHostVitalsLabel) CalculateHostVitalsQuery() (string, []interface{}, error) {
+	return "SELECT %s FROM %s JOIN host_users ON (host_users.host_id = hosts.id) WHERE host_users.username = ?", []interface{}{"user1"}, nil
+}
+
+func (t *TestHostVitalsLabel) GetLabel() *fleet.Label {
+	return &t.Label
+}
+
+func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hosts := make([]*fleet.Host, 4)
+	for i := 1; i <= 4; i++ {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  ptr.String(fmt.Sprintf("%d", i)),
+			NodeKey:        ptr.String(fmt.Sprintf("%d", i)),
+			UUID:           fmt.Sprintf("uuid%d", i),
+			Hostname:       fmt.Sprintf("host%d.local", i),
+			HardwareSerial: fmt.Sprintf("hwd%d", i),
+			Platform:       "darwin",
+		})
+		require.NoError(t, err)
+		hosts[i-1] = host
+	}
+	// Add users to the hosts
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+		INSERT INTO host_users (host_id, uid, username) VALUES 
+		(?, ?, ?), 
+		(?, ?, ?), 
+		(?, ?, ?), 
+		(?, ?, ?),
+		(?, ?, ?)`,
+			hosts[0].ID, 1, "user1",
+			hosts[1].ID, 2, "user2",
+			hosts[2].ID, 1, "user1",
+			hosts[2].ID, 3, "user3",
+			hosts[3].ID, 3, "user3")
+		return err
+	})
+
+	criteria, err := json.Marshal(&fleet.HostVitalCriteria{
+		Vital: ptr.String("username"),
+		Value: ptr.String("user1"),
+	})
+	require.NoError(t, err)
+
+	var id uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		result, err := q.ExecContext(context.Background(),
+			"INSERT INTO labels (name, description, platform, label_type, label_membership_type) VALUES (?, ?, ?, ?, ?)",
+			"test host vitals label", "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals)
+		if err != nil {
+			return err
+		}
+		id64, err := result.LastInsertId()
+		if err != nil {
+			return err
+		}
+		id = uint(id64) // nolint:gosec
+		return nil
+	})
+
+	label := &TestHostVitalsLabel{
+		Label: fleet.Label{
+			ID:                  id,
+			Name:                "Test Host Vitals Label",
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  ptr.RawMessage(criteria),
+		},
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	_, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label, filter)
+	require.NoError(t, err)
+
+	// Check that the label has the correct hosts
+	hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hostsInLabel, 2) // host1, host2, and host4 should be in the label
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[2].ID}, []uint{hostsInLabel[0].ID, hostsInLabel[1].ID})
 }

@@ -1279,10 +1279,13 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		if label.Platform != "" {
 			labelSpec[jsonFieldName(t, "Platform")] = label.Platform
 		}
-		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
-			labelSpec[jsonFieldName(t, "Query")] = label.Query
-		} else {
+		switch label.LabelMembershipType {
+		case fleet.LabelMembershipTypeManual:
 			labelSpec[jsonFieldName(t, "Hosts")] = label.Hosts
+		case fleet.LabelMembershipTypeDynamic:
+			labelSpec[jsonFieldName(t, "Query")] = label.Query
+		case fleet.LabelMembershipTypeHostVitals:
+			labelSpec[jsonFieldName(t, "HostVitalsCriteria")] = label.HostVitalsCriteria
 		}
 
 		result = append(result, labelSpec)

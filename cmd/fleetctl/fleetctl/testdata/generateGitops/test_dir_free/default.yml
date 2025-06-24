@@ -39,6 +39,12 @@ labels:
   - host2
   label_membership_type: manual
   name: Label B
+- criteria:
+    value: some-group
+    vital: end_user_idp_groups
+  description: Label C description
+  label_membership_type: host_vitals
+  name: Label C
 org_settings:
   features:
     additional_queries:
