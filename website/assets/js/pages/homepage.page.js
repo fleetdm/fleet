@@ -36,6 +36,7 @@ parasails.registerPage('homepage', {
       crowdstrike: 'Crowdstrike',
       qualys: 'Qualys',
       tenable: 'Tenable',
+      defender: 'Defender',
     }
   },
 

@@ -245,7 +245,7 @@ setup_extensions_load() {
     fi
 }
 
-# Function to schedule orbit restart in background or restart immediately
+# Function to schedule orbit restart using detached child process or restart immediately
 handle_orbit_restart() {
     if [[ "$IMMEDIATE_RESTART" == "immediate" ]]; then
         log "Immediate restart requested - restarting orbit service now..."
@@ -256,116 +256,35 @@ handle_orbit_restart() {
     fi
 }
 
-# Function to restart orbit immediately with multiple methods
+# Function to restart orbit immediately 
 restart_orbit_immediate() {
-    # Check if orbit service exists
-    if launchctl list | grep -q "com.fleetdm.orbit"; then
-        log "Attempting orbit restart using kickstart method..."
-        if launchctl kickstart -k system/com.fleetdm.orbit; then
-            log "Orbit service kickstart successful"
-            
-            # Wait a moment and check if service is running
-            sleep 3
-            if launchctl list | grep -q "com.fleetdm.orbit"; then
-                log "Orbit service is running"
-                return 0
-            else
-                log "Warning: Orbit service may not be running after kickstart"
-            fi
-        else
-            log "Warning: Kickstart method failed"
-        fi
-        
-        # Try alternative restart method
-        log "Attempting orbit restart using stop/start method..."
-        if launchctl stop system/com.fleetdm.orbit; then
-            log "Orbit service stopped"
-            sleep 2
-            if launchctl start system/com.fleetdm.orbit; then
-                log "Orbit service started"
-                sleep 2
-                if launchctl list | grep -q "com.fleetdm.orbit"; then
-                    log "Orbit service is running after stop/start"
-                    return 0
-                else
-                    log "Warning: Orbit service not running after start"
-                fi
-            else
-                log "Warning: Failed to start orbit service"
-            fi
-        else
-            log "Warning: Failed to stop orbit service"
-        fi
-        
-        # Try process-based restart as last resort
-        log "Attempting process-based restart..."
-        local orbit_pid
-        orbit_pid=$(pgrep -f "orbit" | head -1)
-        if [[ -n "$orbit_pid" ]]; then
-            log "Found orbit process PID: $orbit_pid"
-            if kill -TERM "$orbit_pid"; then
-                log "Sent TERM signal to orbit process"
-                sleep 3
-                # The service should auto-restart via launchd
-                if launchctl list | grep -q "com.fleetdm.orbit"; then
-                    log "Orbit service restarted via process termination"
-                    return 0
-                fi
-            fi
-        fi
-        
-        log "Warning: All restart methods failed or orbit is not responding properly"
-    else
-        log "Warning: Orbit service not found"
-    fi
+    log "Restarting orbit service immediately..."
+    launchctl kickstart -k system/com.fleetdm.orbit
+    log "Orbit service restart command executed"
 }
 
-# Function to schedule orbit restart
+# Function to schedule orbit restart using detached child process
 schedule_orbit_restart() {
-    # Check if orbit service exists
-    if launchctl list | grep -q "com.fleetdm.orbit"; then
-        log "Orbit service found. Scheduling restart in 5 seconds..."
-        
-        # Create a properly detached background process that Fleet won't wait for
-        # Using nohup and redirecting all output to prevent Fleet from waiting
-        nohup bash -c "
-            sleep 5
-            echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Starting scheduled orbit restart...\" >> /var/log/macos_compatibility_installer.log 2>&1
-            
-            # Try kickstart method first
-            if launchctl kickstart -k system/com.fleetdm.orbit >> /var/log/macos_compatibility_installer.log 2>&1; then
-                echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Orbit kickstart successful\" >> /var/log/macos_compatibility_installer.log 2>&1
-                sleep 3
-                if launchctl list | grep -q \"com.fleetdm.orbit\" >> /var/log/macos_compatibility_installer.log 2>&1; then
-                    echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Orbit service restarted successfully\" >> /var/log/macos_compatibility_installer.log 2>&1
-                    exit 0
-                fi
-            fi
-            
-            # Try stop/start method if kickstart failed
-            echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Kickstart failed, trying stop/start method...\" >> /var/log/macos_compatibility_installer.log 2>&1
-            if launchctl stop system/com.fleetdm.orbit >> /var/log/macos_compatibility_installer.log 2>&1; then
-                sleep 2
-                if launchctl start system/com.fleetdm.orbit >> /var/log/macos_compatibility_installer.log 2>&1; then
-                    sleep 2
-                    if launchctl list | grep -q \"com.fleetdm.orbit\" >> /var/log/macos_compatibility_installer.log 2>&1; then
-                        echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Orbit service restarted via stop/start\" >> /var/log/macos_compatibility_installer.log 2>&1
-                        exit 0
-                    fi
-                fi
-            fi
-            
-            echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Warning: All restart methods failed\" >> /var/log/macos_compatibility_installer.log 2>&1
-        " >/dev/null 2>&1 &
-        
-        # Disown the process so the script can exit cleanly
-        disown
-        
-        log "Orbit restart scheduled for 5 seconds after script completion"
-        log "Check /var/log/macos_compatibility_installer.log for restart status"
-    else
-        log "Warning: Orbit service not found. Extension will load on next orbit startup."
-    fi
+    log "Scheduling orbit restart in 10 seconds (detached process method)..."
+    
+    # Start detached child process that will handle the restart
+    bash -c "bash $0 __restart_orbit >/dev/null 2>/dev/null </dev/null &"
+    
+    log "Orbit restart scheduled for 10 seconds after script completion"
+    log "Check /var/log/macos_compatibility_installer.log for restart status"
+}
+
+# Function to handle the detached restart process
+handle_detached_restart() {
+    # This runs in the detached child process
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting detached restart process..." >> /var/log/macos_compatibility_installer.log 2>&1
+    
+    # Wait for parent process to complete and report success
+    sleep 10
+    
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Executing orbit restart..." >> /var/log/macos_compatibility_installer.log 2>&1
+    launchctl kickstart -k system/com.fleetdm.orbit >> /var/log/macos_compatibility_installer.log 2>&1
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Orbit restart command executed" >> /var/log/macos_compatibility_installer.log 2>&1
 }
 
 # Function to cleanup on failure
@@ -390,6 +309,12 @@ trap cleanup_on_failure ERR
 
 # Main execution
 main() {
+    # Handle detached restart process
+    if [[ "$1" == "__restart_orbit" ]]; then
+        handle_detached_restart
+        exit 0
+    fi
+    
     log "=== macOS Compatibility Extension Installer Started ==="
     if [[ "$IMMEDIATE_RESTART" == "immediate" ]]; then
         log "Mode: Immediate restart (manual execution)"
@@ -433,7 +358,7 @@ main() {
     if [[ "$IMMEDIATE_RESTART" == "immediate" ]]; then
         log "Orbit service has been restarted immediately"
     else
-        log "Orbit service restart has been scheduled for 5 seconds"
+        log "Orbit service restart has been scheduled for 10 seconds"
     fi
     echo ""
 }

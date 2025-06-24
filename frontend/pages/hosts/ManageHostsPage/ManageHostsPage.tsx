@@ -2004,18 +2004,19 @@ const ManageHostsPage = ({
         totalFilteredHostsCount !== undefined && (
           <RunScriptBatchModal
             runByFilters={isAllMatchingHostsSelected}
-            // run script batch supports only these filters, plust team id
+            // run script batch supports only these filters, plus team id
             filters={{
               query: searchQuery || undefined,
               label_id: isNaN(Number(labelID)) ? undefined : Number(labelID),
               status: status || undefined,
             }}
-            // when running by filter, modal needs this count to report number of targeted hosts
+            // when running by filter, modal needs this count to report the number of targeted hosts
             totalFilteredHostsCount={totalFilteredHostsCount}
-            // when running by selected hosts, modal can use length of this array to report number of targeted
+            // when running by selected hosts, modal can use the length of this array to report the number of targeted
             // hosts
             selectedHostIds={selectedHostIds}
             teamId={currentTeamId}
+            isFreeTier={isFreeTier}
             onCancel={toggleRunScriptBatchModal}
           />
         )}

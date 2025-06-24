@@ -1,10 +1,9 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
-import ReactTooltip from "react-tooltip";
-import { uniqueId } from "lodash";
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
+import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -18,15 +17,35 @@ type InstallType =
   | "automatic"
   | "automaticSelfService";
 
-interface installIconConfig {
-  iconName: IconNames;
-  tooltip: (automaticInstallPolicyCount?: number) => JSX.Element;
+export type PageContext = "deviceUser" | "hostDetails" | "hostDetailsLibrary";
+
+interface InstallIconTooltip {
+  automaticInstallPoliciesCount?: number;
+  pageContext?: PageContext;
 }
 
-const installIconMap: Record<InstallType, installIconConfig> = {
+interface InstallIconConfig {
+  iconName: IconNames;
+  tooltip: ({
+    automaticInstallPoliciesCount,
+    pageContext,
+  }: InstallIconTooltip) => JSX.Element;
+}
+
+const getPolicyTooltip = (count = 0) =>
+  count === 1
+    ? "A policy triggers install."
+    : `${count} policies trigger install.`;
+
+const installIconMap: Record<InstallType, InstallIconConfig> = {
   manual: {
     iconName: "install",
-    tooltip: () => <>Software can be installed on Host details page.</>,
+    tooltip: ({ pageContext }) => (
+      <>
+        Software can be installed on the{" "}
+        {pageContext === "hostDetails" ? "Library tab" : "Host details page"}.
+      </>
+    ),
   },
   selfService: {
     iconName: "user",
@@ -34,23 +53,19 @@ const installIconMap: Record<InstallType, installIconConfig> = {
   },
   automatic: {
     iconName: "refresh",
-    tooltip: (count = 0) => (
-      <>
-        {count === 1
-          ? "A policy triggers install."
-          : `${count} policies trigger install.`}
-      </>
+    tooltip: ({ automaticInstallPoliciesCount = 0 }) => (
+      <>{getPolicyTooltip(automaticInstallPoliciesCount)}</>
     ),
   },
   automaticSelfService: {
     iconName: "automatic-self-service",
-    tooltip: (count = 0) => (
+    tooltip: ({ automaticInstallPoliciesCount = 0 }) => (
       <>
-        {count === 1
-          ? "A policy triggers install."
-          : `${count} policies trigger install.`}{" "}
-        <br /> End users can reinstall from
-        <br /> <b>Fleet Desktop {">"} Self-service</b>.
+        {getPolicyTooltip(automaticInstallPoliciesCount)}
+        <br />
+        End users can reinstall from
+        <br />
+        <b>Fleet Desktop {">"} Self-service</b>.
       </>
     ),
   },
@@ -58,49 +73,56 @@ const installIconMap: Record<InstallType, installIconConfig> = {
 
 interface IInstallIconWithTooltipProps {
   isSelfService: boolean;
-  installType?: "manual" | "automatic";
   automaticInstallPoliciesCount?: number;
+  pageContext?: PageContext;
 }
+
+const getInstallIconType = (
+  isSelfService: boolean,
+  automaticInstallPoliciesCount = 0
+): InstallType => {
+  if (automaticInstallPoliciesCount > 0) {
+    return isSelfService ? "automaticSelfService" : "automatic";
+  }
+  return isSelfService ? "selfService" : "manual";
+};
 
 const InstallIconWithTooltip = ({
   isSelfService,
-  installType,
   automaticInstallPoliciesCount,
+  pageContext,
 }: IInstallIconWithTooltipProps) => {
-  let iconType: InstallType = "manual";
-  if (installType === "automatic") {
-    iconType = isSelfService ? "automaticSelfService" : "automatic";
-  } else if (isSelfService) {
-    iconType = "selfService";
+  const iconType = getInstallIconType(
+    isSelfService,
+    automaticInstallPoliciesCount
+  );
+
+  // Don't show installer icon on host software library page
+  if (iconType === "manual" && pageContext === "hostDetailsLibrary") {
+    return null;
   }
 
-  const tooltipId = uniqueId();
+  const { iconName, tooltip } = installIconMap[iconType];
+  const tipContent = tooltip({
+    automaticInstallPoliciesCount,
+    pageContext,
+  });
 
   return (
     <div className={`${baseClass}__install-icon-with-tooltip`}>
-      <div
-        className={`${baseClass}__install-icon-tooltip`}
-        data-tip
-        data-for={tooltipId}
+      <TooltipWrapper
+        tipContent={tipContent}
+        showArrow
+        underline={false}
+        position="top"
+        tipOffset={12}
       >
         <Icon
-          name={installIconMap[iconType].iconName}
+          name={iconName}
           className={`${baseClass}__install-icon`}
           color="ui-fleet-black-50"
         />
-      </div>
-      <ReactTooltip
-        className={`${baseClass}__install-tooltip`}
-        place="top"
-        effect="solid"
-        backgroundColor="#3e4771"
-        id={tooltipId}
-        data-html
-      >
-        <span className={`${baseClass}__install-tooltip-text`}>
-          {installIconMap[iconType].tooltip(automaticInstallPoliciesCount)}
-        </span>
-      </ReactTooltip>
+      </TooltipWrapper>
     </div>
   );
 };
@@ -111,14 +133,12 @@ interface ISoftwareNameCellProps {
   /** pass in a `path` that this cell will link to */
   path?: string;
   router?: InjectedRouter;
-  /** Open details modal onClick */
-  myDevicePage?: boolean;
-  hasPackage?: boolean;
+  pageContext?: PageContext;
+  hasInstaller?: boolean;
   isSelfService?: boolean;
-  installType?: "manual" | "automatic";
+  automaticInstallPoliciesCount?: number;
   /** e.g. app_store_app's override default icons with URLs */
   iconUrl?: string;
-  automaticInstallPoliciesCount?: number;
 }
 
 const SoftwareNameCell = ({
@@ -126,15 +146,14 @@ const SoftwareNameCell = ({
   source,
   path,
   router,
-  myDevicePage = false,
-  hasPackage = false,
+  pageContext,
+  hasInstaller = false,
   isSelfService = false,
-  installType,
-  iconUrl,
   automaticInstallPoliciesCount,
+  iconUrl,
 }: ISoftwareNameCellProps) => {
-  // My device page > Software
-  if (myDevicePage && !isSelfService) {
+  // My device page > Software fake link as entire row opens a modal
+  if (pageContext === "deviceUser" && !isSelfService) {
     return (
       <LinkCell
         tooltipTruncate
@@ -144,9 +163,7 @@ const SoftwareNameCell = ({
     );
   }
 
-  // NO path or router means it's not clickable. return
-  // a non-clickable cell early
-  // e.g. My device page > SelfService
+  // Non-clickable cell if no router/path (e.g. My device page > SelfService)
   if (!router || !path) {
     return (
       <div className={baseClass}>
@@ -171,11 +188,11 @@ const SoftwareNameCell = ({
       prefix={<SoftwareIcon name={name} source={source} url={iconUrl} />}
       value={name}
       suffix={
-        hasPackage ? (
+        hasInstaller ? (
           <InstallIconWithTooltip
             isSelfService={isSelfService}
-            installType={installType}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
+            pageContext={pageContext}
           />
         ) : undefined
       }

@@ -6,5 +6,3 @@
   run_script:
     path: ../scripts/install-macos-compatibility-extension.sh
   platform: darwin
-  labels_include_any:
-    - Santa test devices
