@@ -12196,10 +12196,30 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Installation flow
 
+	checkInstallFleetdCommandSent := func(mdmDevice *mdmtest.TestAppleMDMClient, wantCommand bool) {
+		foundInstallFleetdCommand := false
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			var fullCmd micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
+				foundInstallFleetdCommand = true
+				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.Equal(t, wantCommand, foundInstallFleetdCommand)
+	}
+
 	// Create a couple of hosts
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.runWorker()
+	checkInstallFleetdCommandSent(mdmDevice, true)
 	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, selfServiceHost, s.ds)
 	selfServiceToken := "selfservicetoken"
@@ -12339,6 +12359,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	assert.NotNil(t, cmd)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
+		fmt.Printf("cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
 		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
@@ -12382,20 +12403,49 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
 	require.Equal(t, 1, countResp.Count)
 
+	s.runWorker()
+
 	// Simulate successful installation on the host
-	var cmdUUID string
+	var installCmdUUID string
 	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
+		fmt.Printf("1 cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
 		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			cmdUUID = cmd.CommandUUID
+			installCmdUUID = cmd.CommandUUID
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
 		}
 	}
+
+	s.runWorker()
+
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		fmt.Printf("2 cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
+		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+		case "InstalledApplicationList":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{{Name: addedApp.Name, BundleIdentifier: addedApp.BundleIdentifier, Version: addedApp.LatestVersion}})
+			require.NoError(t, err)
+		default:
+			fmt.Printf("processing cmd: %v\n", cmd)
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
+	// time.Sleep(3 * time.Second)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "host_vpp_software_installs")
+		return nil
+	})
 
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
@@ -12414,7 +12464,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			mdmHost.DisplayName(),
 			addedApp.Name,
 			addedApp.AdamID,
-			cmdUUID,
+			installCmdUUID,
 			fleet.SoftwareInstalled,
 		),
 		0,
@@ -12435,7 +12485,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, got1.Status)
 	require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
-	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
+	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 	require.Equal(t, got2.Name, "App 2")
 	require.NotNil(t, got2.Status)
@@ -12462,7 +12512,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, got1.Status)
 	require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
-	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
+	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 
 	// Filter the self-service apps for that host
@@ -12567,11 +12617,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.NoError(t, err)
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			cmdUUID = cmd.CommandUUID
+			installCmdUUID = cmd.CommandUUID
 
 			if install.deviceToken != "" {
 				var cmdResResp getMDMCommandResultsResponse
-				res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, cmdUUID), nil, http.StatusOK)
+				res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, installCmdUUID), nil, http.StatusOK)
 				err = json.NewDecoder(res.Body).Decode(&cmdResResp)
 				require.NoError(t, err)
 				require.Len(t, cmdResResp.Results, 0)
@@ -12599,7 +12649,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					installHost.DisplayName(),
 					app.Name,
 					app.AdamID,
-					cmdUUID,
+					installCmdUUID,
 					fleet.SoftwareInstallPending,
 					install.deviceToken != "",
 				),
@@ -12614,14 +12664,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 			if install.deviceToken != "" {
 				var cmdResResp getMDMCommandResultsResponse
-				res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, cmdUUID), nil, http.StatusOK)
+				res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, installCmdUUID), nil, http.StatusOK)
 				err = json.NewDecoder(res.Body).Decode(&cmdResResp)
 				require.NoError(t, err)
 				require.Len(t, cmdResResp.Results, 1)
 				require.Equal(t, "Acknowledged", cmdResResp.Results[0].Status)
 
 				s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/foobar/results", install.deviceToken), nil, http.StatusNotFound)
-				s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/foobar/software/commands/%s/results", cmdUUID), nil, http.StatusNotFound)
+				s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/foobar/software/commands/%s/results", installCmdUUID), nil, http.StatusNotFound)
 			}
 
 			listResp = listHostsResponse{}
@@ -12641,7 +12691,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					installHost.DisplayName(),
 					app.Name,
 					app.AdamID,
-					cmdUUID,
+					installCmdUUID,
 					fleet.SoftwareInstalled,
 					install.deviceToken != "",
 				),
@@ -12663,7 +12713,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 					require.Equal(t, got1.AppStoreApp.Version, app.LatestVersion)
 					require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
-					require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
+					require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
 					require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 					foundInstalledApp = true
 				}

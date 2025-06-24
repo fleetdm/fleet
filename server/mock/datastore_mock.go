@@ -488,15 +488,15 @@ type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleI
 
 type UpdateVPPInstallVerificationCommandFunc func(ctx context.Context, installUUID string, verifyCommandUUID string) error
 
-type SetVPPInstallAsVerifiedFunc func(ctx context.Context, installUUID string) error
+type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installUUID string) error
 
 type UpdateVPPInstallVerificationCommandByVerifyUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
 
 type GetPendingMDMCommandsByHostFunc func(ctx context.Context, hostUUID string, commandType string) ([]string, error)
 
-type GetVPPInstallAckTimeByVerificationUUIDFunc func(ctx context.Context, verificationUUID string) (*time.Time, error)
+type GetVPPInstallByVerificationUUIDFunc func(ctx context.Context, verificationUUID string) (*fleet.HostVPPSoftwareInstall, error)
 
-type SetVPPInstallAsFailedFunc func(ctx context.Context, verificationUUID string) error
+type SetVPPInstallAsFailedFunc func(ctx context.Context, hostID uint, installUUID string) error
 
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
@@ -2113,8 +2113,8 @@ type DataStore struct {
 	GetPendingMDMCommandsByHostFunc        GetPendingMDMCommandsByHostFunc
 	GetPendingMDMCommandsByHostFuncInvoked bool
 
-	GetVPPInstallAckTimeByVerificationUUIDFunc        GetVPPInstallAckTimeByVerificationUUIDFunc
-	GetVPPInstallAckTimeByVerificationUUIDFuncInvoked bool
+	GetVPPInstallByVerificationUUIDFunc        GetVPPInstallByVerificationUUIDFunc
+	GetVPPInstallByVerificationUUIDFuncInvoked bool
 
 	SetVPPInstallAsFailedFunc        SetVPPInstallAsFailedFunc
 	SetVPPInstallAsFailedFuncInvoked bool
@@ -5112,11 +5112,11 @@ func (s *DataStore) UpdateVPPInstallVerificationCommand(ctx context.Context, ins
 	return s.UpdateVPPInstallVerificationCommandFunc(ctx, installUUID, verifyCommandUUID)
 }
 
-func (s *DataStore) SetVPPInstallAsVerified(ctx context.Context, installUUID string) error {
+func (s *DataStore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error {
 	s.mu.Lock()
 	s.SetVPPInstallAsVerifiedFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetVPPInstallAsVerifiedFunc(ctx, installUUID)
+	return s.SetVPPInstallAsVerifiedFunc(ctx, hostID, installUUID)
 }
 
 func (s *DataStore) UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error {
@@ -5133,18 +5133,18 @@ func (s *DataStore) GetPendingMDMCommandsByHost(ctx context.Context, hostUUID st
 	return s.GetPendingMDMCommandsByHostFunc(ctx, hostUUID, commandType)
 }
 
-func (s *DataStore) GetVPPInstallAckTimeByVerificationUUID(ctx context.Context, verificationUUID string) (*time.Time, error) {
+func (s *DataStore) GetVPPInstallByVerificationUUID(ctx context.Context, verificationUUID string) (*fleet.HostVPPSoftwareInstall, error) {
 	s.mu.Lock()
-	s.GetVPPInstallAckTimeByVerificationUUIDFuncInvoked = true
+	s.GetVPPInstallByVerificationUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPInstallAckTimeByVerificationUUIDFunc(ctx, verificationUUID)
+	return s.GetVPPInstallByVerificationUUIDFunc(ctx, verificationUUID)
 }
 
-func (s *DataStore) SetVPPInstallAsFailed(ctx context.Context, verificationUUID string) error {
+func (s *DataStore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error {
 	s.mu.Lock()
 	s.SetVPPInstallAsFailedFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetVPPInstallAsFailedFunc(ctx, verificationUUID)
+	return s.SetVPPInstallAsFailedFunc(ctx, hostID, installUUID)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {

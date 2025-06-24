@@ -13,12 +13,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -53,6 +55,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -3381,6 +3384,7 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: at the top of commandandreportresults ", "raw", cmdResult.Raw)
 	if cmdResult.Status == "Idle" {
 		// NOTE: iPhone/iPad devices that are still enroled in Fleet's MDM but have
 		// been deleted from Fleet (no host entry) will still send checkin
@@ -3507,10 +3511,12 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+			slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: first ack check ")
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Then this isn't a VPP install, so no activity generated
+					fmt.Println("IS IT HERE???")
 					return nil, nil
 				}
 
@@ -3523,13 +3529,14 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
+			slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: in the if ")
 			// Only send a new InstalledApplicationList command if there's not one in flight
 			pendingCmds, err := svc.ds.GetPendingMDMCommandsByHost(r.Context, cmdResult.UDID, "InstalledApplicationList")
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}
 			if len(pendingCmds) == 0 {
-
+				slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: sending installed application list ")
 				cmdUUID := uuid.NewString()
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
@@ -3786,8 +3793,9 @@ func NewInstalledApplicationListResultsHandler(
 			return nil
 		}
 
+		var poll bool
 		for _, a := range installedApps {
-
+			// TODO(JVE): should only pull if it's not verified/failed already
 			install, err := ds.GetVPPInstallByVerificationUUID(ctx, installedAppResult.UUID())
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: getting install record")
@@ -3797,6 +3805,7 @@ func NewInstalledApplicationListResultsHandler(
 				if err := ds.SetVPPInstallAsVerified(ctx, install.HostID, install.InstallCommandUUID); err != nil {
 					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
 				}
+
 				continue
 			}
 
@@ -3808,21 +3817,13 @@ func NewInstalledApplicationListResultsHandler(
 				continue
 			}
 
-			// Pause to avoid sending too many commands at once
-			time.Sleep(verifyRequestDelay)
-			pendingCmds, err := ds.GetPendingMDMCommandsByHost(ctx, installedAppResult.HostUUID(), "InstalledApplicationList")
+			poll = true
+		}
+
+		if poll {
+			err := worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID())
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: get pending mdm commands by host")
-			}
-			// Only send a new list command if none are in flight. If there's one in
-			// flight, the install will be verified by that one.
-			if len(pendingCmds) == 0 {
-				newListCmdUUID := uuid.NewString()
-				if err := ds.UpdateVPPInstallVerificationCommandByVerifyUUID(ctx, installedAppResult.UUID(), newListCmdUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "update install record in installed application list handler")
-				}
-				commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, newListCmdUUID)
-				level.Debug(logger).Log("msg", "new installed application list command sent", "uuid", newListCmdUUID)
+				return ctxerr.Wrap(ctx, err, "queueing vpp install verification job")
 			}
 		}
 
