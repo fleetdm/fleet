@@ -281,7 +281,7 @@ const SoftwareTable = ({
   };
 
   const renderCustomControls = () => {
-    // Hidden when viewing versions table or viewing "All teams" 
+    // Hidden when viewing versions table or viewing "All teams"
     // or Fleet Free
     if (showVersions || teamId === undefined) {
       return null;
