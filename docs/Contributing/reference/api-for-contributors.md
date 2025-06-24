@@ -789,9 +789,6 @@ None.
   "terms_expired": false,
   "macos_team": 1,
   "ios_team": 2,
-  "ipados_team": 3,
-  "ios_team_for_personal_hosts_id": 4,
-  "ipados_team_for_personal_hosts_id": 4
 }
 ```
 
