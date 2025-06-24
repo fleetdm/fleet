@@ -58,7 +58,7 @@ describe("Software table", () => {
     expect(screen.queryByText("Available for install")).toBeNull();
   });
 
-  it("Renders the page-wide empty state when no software are present hiding available for install dropdown filter", () => {
+  it("Renders the page-wide empty state when no software are present hiding 'Available for install' filter", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -108,7 +108,7 @@ describe("Software table", () => {
     expect(screen.queryByText("Available for install")).toBeNull();
   });
 
-  it("Renders the page-wide empty state hiding available for install dropdown when search query does not exist but versions toggle is applied", () => {
+  it("Renders the page-wide empty state hiding 'Available for install' filter when search query does not exist but versions toggle is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -154,7 +154,7 @@ describe("Software table", () => {
     expect(screen.queryByText("Available for install")).toBeNull();
   });
 
-  it("Renders the empty search state and 'Available for install' dropdown when search query does not exist but dropdown is applied", () => {
+  it("Renders the empty search state and 'Available for install' filter when search query does not exist but filter is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -203,7 +203,7 @@ describe("Software table", () => {
     expect(screen.getByText("Available for install")).toBeInTheDocument();
   });
 
-  it("Renders the empty search state and dropdown filter when search query does not exist but vulnerability filter is applied", () => {
+  it("Renders the empty search state and 'Available for install' filter when search query does not exist but vulnerability filter is applied", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -252,7 +252,7 @@ describe("Software table", () => {
     expect(screen.getByText("All software")).toBeInTheDocument();
   });
 
-  it("does not render 'Available for install' dropdown filter when team id is undefined (Fleet Free/All teams)", () => {
+  it("does not render 'Available for install' filter when team id is undefined (Fleet Free/All teams)", () => {
     const render = createCustomRenderer({
       context: {
         app: {
