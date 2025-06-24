@@ -257,4 +257,4 @@ For `lib/team-name/profiles/company-portal-single-signon-extension.mobileconfig`
 <meta name="authorGitHubUsername" value="lucasmrod">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-06-20">
-<meta name="description" value="Entra conditional access integration">
+<meta name="description" value="Learn how managed cloud customers can use Microsoft Entra conditional access with Fleet.">
