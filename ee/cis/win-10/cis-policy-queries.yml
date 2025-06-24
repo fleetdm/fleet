@@ -779,10 +779,10 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to an empty list
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a service'
   query: |
-    SELECT 1 FROM cis_audit where item = "2.2.29" AND value = ",";
+    SELECT 1 FROM cis_audit where item = "2.2.29" AND value IN (",", "WDAGUtilityAccount,");
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, english-support-only
-  contributors: marcosd4h  
+  contributors: marcosd4h
 ---
 apiVersion: v1
 kind: policy
@@ -3247,7 +3247,7 @@ spec:
     The recommended state for this setting is: Yes.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Yes:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Domain Profile\Logging Customize\Log dropped packets'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security\Windows Firewall Properties\Domain Profile\Logging Customize\Log dropped packets'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\DomainProfile\Logging\LogDroppedPackets' and data == 1);
   purpose: Informational
@@ -3361,7 +3361,7 @@ spec:
     The recommended state for this setting is: 16,384 KB or greater.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to 16,384 KB or greater:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Size limit (KB)'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Size limit (KB)'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogFileSize' and CAST(data AS INTEGER) >= 16384 );
   purpose: Informational
@@ -3380,7 +3380,7 @@ spec:
     The recommended state for this setting is: Yes.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Yes:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Log dropped packets'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Log dropped packets'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogDroppedPackets' and data == 1);
   purpose: Informational
@@ -3399,7 +3399,7 @@ spec:
     The recommended state for this setting is: Yes.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Yes:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Log successful connections'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security\Windows Firewall Properties\Private Profile\Logging Customize\Log successful connections'
   query: |
     SELECT 1 FROM registry WHERE (path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PrivateProfile\\Logging\LogSuccessfulConnections' and data == 1);
   purpose: Informational
@@ -3553,7 +3553,7 @@ spec:
     The recommended state for this setting is: Yes.
   resolution: |
     To establish the recommended configuration via GP, set the following UI path to Yes:
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Firewall with Advanced Security\Windows Firewall with Advanced Security\Windows Firewall Properties\Public Profile\Logging Customize\Log dropped packets'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Windows Defender Firewall with Advanced Security\Windows Defender Firewall with Advanced Security\Windows Firewall Properties\Public Profile\Logging Customize\Log dropped packets'
   query: |
     SELECT * FROM registry WHERE (key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\WindowsFirewall\\PublicProfile\\Logging\LogDroppedPackets' and data == 1);
   purpose: Informational
