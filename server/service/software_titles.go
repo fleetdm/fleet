@@ -177,9 +177,6 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 
 			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to team you don't have permissions to view.")
 		}
-		if fleet.IsNotFound(err) {
-			return nil, err // return unwrapped so the caller can check IsNotFound when doing the host software filter
-		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
 
