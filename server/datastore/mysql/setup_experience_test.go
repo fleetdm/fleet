@@ -554,16 +554,9 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
 	require.NoError(t, err)
 
-	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
-	_ = vpp1
-	require.NoError(t, err)
-
-	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
-	_ = vpp2
-	require.NoError(t, err)
-
-	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
-	_ = vpp3
+	// iOS version of app1, has the same adam ID
+	app4 := &fleet.VPPApp{Name: "vpp_app_1: iOS", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, &team1.ID)
 	require.NoError(t, err)
 
 	titleSoftware := make(map[string]uint)
@@ -574,7 +567,7 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	for _, title := range softwareTitles {
 		if title.AppStoreApp != nil {
-			titleVPP[title.AppStoreApp.AppStoreID] = title.ID
+			titleVPP[title.AppStoreApp.AppStoreID+":"+title.AppStoreApp.Platform] = title.ID
 		} else if title.SoftwarePackage != nil {
 			titleSoftware[title.SoftwarePackage.Name] = title.ID
 		}
@@ -609,7 +602,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[2].AppStoreApp.InstallDuringSetup)
 
 	// Single vpp app replaces installer
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1"]})
+	// This VPP app has darwin and ios versions, which shouldn't keep users from adding the darwin one.
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["1:darwin"]})
 	require.NoError(t, err)
 
 	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, team1.ID, fleet.ListOptions{})
@@ -642,8 +636,8 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	require.ErrorContains(t, err, "unsupported")
 
 	// ios vpp app
-	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["2"]})
-	require.ErrorContains(t, err, "unsupported")
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["2:ios"]})
+	require.ErrorContains(t, err, "not available")
 
 	// wrong team
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, team1.ID, []uint{titleVPP["3"]})

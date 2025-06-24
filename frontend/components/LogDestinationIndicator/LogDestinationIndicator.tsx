@@ -7,6 +7,7 @@ import { LogDestination } from "interfaces/config";
 interface ILogDestinationIndicatorProps {
   logDestination: LogDestination;
   webhookDestination?: string;
+  filesystemDestination?: string;
   excludeTooltip?: boolean;
 }
 
@@ -20,6 +21,7 @@ const generateClassTag = (rawValue: string): string => {
 const LogDestinationIndicator = ({
   logDestination,
   webhookDestination,
+  filesystemDestination,
   excludeTooltip = false,
 }: ILogDestinationIndicatorProps) => {
   const classTag = generateClassTag(logDestination);
@@ -59,8 +61,8 @@ const LogDestinationIndicator = ({
         return (
           <>
             Each time a query runs, the data is sent to <br />
-            /var/log/osquery/osqueryd.snapshots.log <br />
-            in each host&apos;s filesystem.
+            {filesystemDestination} <br />
+            on the server&apos;s filesystem.
           </>
         );
       case "firehose":

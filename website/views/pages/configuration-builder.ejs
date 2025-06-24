@@ -72,15 +72,20 @@
       %>
       <div purpose="category-selector" >
         <div purpose="category-options" v-if="selectedPlatform === 'windows'">
-          <a @click="clickExpandCategory('windows-privacy-and-security')" :class="[expandedCategory === 'windows-privacy-and-security' ? 'selected' : '' ]">Privacy & security</a>
-          <div purpose="subcategories" v-if="expandedCategory === 'windows-privacy-and-security'">
-            <a @click="clickSelectPayloadCategory('windows-device-lock')">Device lock</a>
+          <div v-for="category in windowsCategoriesAndPayloads">
+            <a @click="clickExpandCategory(category.categorySlug)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]" >{{category.categoryName}}</a>
+
+            <div purpose="subcategories" v-if="expandedCategory === category.categorySlug">
+              <a @click="clickSelectPayloadCategory(subcategory)" v-for="subcategory in category.subcategories">{{subcategory.subcategoryName}}</a>
+            </div>
           </div>
         </div>
         <div purpose="category-options" v-if="selectedPlatform === 'macos'">
-          <a @click="clickExpandCategory('macos-privacy-and-security')" :class="[expandedCategory === 'macos-privacy-and-security' ? 'selected' : '' ]">Privacy & security</a>
-          <div purpose="subcategories" v-if="expandedCategory === 'macos-privacy-and-security'">
-            <a @click="clickSelectPayloadCategory('macos-device-lock')">Device lock</a>
+          <div v-for="category in macosCategoriesAndPayloads">
+            <a @click="clickExpandCategory(category.categorySlug)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]" >{{category.categoryName}}</a>
+            <div purpose="subcategories" v-if="expandedCategory === category.categorySlug">
+              <a @click="clickSelectPayloadCategory(subcategory)" v-for="subcategory in category.subcategories">{{subcategory.subcategoryName}}</a>
+            </div>
           </div>
         </div>
       </div>
@@ -93,87 +98,22 @@
       %>
       <div purpose="selected-subcategory-and-options">
         <div purpose="selected-subcategory" :class="[selectedPayloadCategory ? 'slide-in' : '' ]">
-          <div v-if="selectedPayloadCategory === 'macos-device-lock'">
+          <div v-if="selectedPayloadCategory">
             <div purpose="subcategory-header">
-              <h2>Device lock</h2>
+              <h2>{{selectedPayloadCategory.subcategoryName}}</h2>
               <p class="mb-0">
-                Settings related to screen lock and passwords. <a target="_blank" href="https://developer.apple.com/documentation/devicemanagement/passcode">Learn more</a>
+                {{selectedPayloadCategory.description}} <a target="_blank" :href="selectedPayloadCategory.learnMoreLinkUrl" v-if="selectedPayloadCategory.learnMoreLinkUrl">Learn more</a>
               </p>
             </div>
             <div purpose="subcategory-options">
-              <div purpose="option">
-                <label for="macos-enable-force-pin" >
-                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['macos-enable-force-pin'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
-                  <input type="checkbox" v-model="selectedPayloadSettings['macos-enable-force-pin']" id="macos-enable-force-pin" @input="clickSelectPayload('macos-enable-force-pin')">
-                  Require device password
+              <div purpose="option" v-for="payload in selectedPayloadCategory.payloads">
+
+                <label :for="payload.uniqueSlug" >
+                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings[payload.uniqueSlug] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
+                  <input type="checkbox" v-model="selectedPayloadSettings[payload.uniqueSlug]" :id="payload.uniqueSlug" @input="clickSelectPayload(payload.uniqueSlug)">
+                  {{payload.name}}
                 </label>
-                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Require a password to unlock the device">
-              </div>
-              <div purpose="option">
-                <label for="macos-enable-allow-simple-pin" >
-                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['macos-enable-allow-simple-pin'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
-                  <input type="checkbox" v-model="selectedPayloadSettings['macos-enable-allow-simple-pin']" id="macos-enable-allow-simple-pin" @input="clickSelectPayload('macos-enable-allow-simple-pin')">
-                  Allow simple password
-                </label>
-                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.">
-              </div>
-              <div purpose="option">
-                <label for="macos-max-inactivity" >
-                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['macos-max-inactivity'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
-                  <input type="checkbox" v-model="selectedPayloadSettings['macos-max-inactivity']" id="macos-max-inactivity" @input="clickSelectPayload('macos-max-inactivity')">
-                  Max inactivity time before device locks
-                </label>
-                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The number of minues a device can remain inactive before a password is required to unlock the device.">
-              </div>
-              <div purpose="option">
-                <label for="macos-min-length" >
-                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['macos-min-length'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
-                  <input type="checkbox" v-model="selectedPayloadSettings['macos-min-length']" id="macos-min-length" @input="clickSelectPayload('macos-min-length')">
-                  Min passcode length
-                </label>
-                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The minimum number of characters a device's password must be">
-              </div>
-            </div>
-          </div>
-          <div v-if="selectedPayloadCategory === 'windows-device-lock'">
-            <div purpose="subcategory-header">
-              <h2>Device lock</h2>
-              <p class="mb-0">
-                Settings related to screen lock and passwords. <a target="_blank" href="https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock">Learn more</a>
-              </p>
-            </div>
-            <div purpose="subcategory-options">
-              <div purpose="option">
-                <label for="windows-device-lock-enable-device-lock" >
-                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-enable-device-lock'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
-                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-enable-device-lock']" id="windows-device-lock-enable-device-lock" @input="clickSelectPayload('windows-device-lock-enable-device-lock')">
-                  Enable device lock
-                </label>
-                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Require a password to unlock the device">
-              </div>
-              <div purpose="option">
-                <label for="windows-device-lock-require-alphanumeric-device-password" >
-                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-require-alphanumeric-device-password'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
-                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-require-alphanumeric-device-password']" id="windows-device-lock-require-alphanumeric-device-password" @input="clickSelectPayload('windows-device-lock-require-alphanumeric-device-password')">
-                  Require alphanumeric device password
-                </label>
-                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The minimum completxity for device passwords">
-              </div>
-              <div purpose="option">
-                <label for="windows-device-lock-max-inactivity-before-device-locks" >
-                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-max-inactivity-before-device-locks'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
-                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-max-inactivity-before-device-locks']" id="windows-device-lock-max-inactivity-before-device-locks" @input="clickSelectPayload('windows-device-lock-max-inactivity-before-device-locks')">
-                  Max inactivity time before device locks
-                </label>
-                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The number of seconds a device can remain inactive before a password is required to unlock the device.">
-              </div>
-              <div purpose="option">
-                <label for="windows-device-lock-min-password-length" >
-                  <span purpose="custom-checkbox" :class="[selectedPayloadSettings['windows-device-lock-min-password-length'] ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
-                  <input type="checkbox" v-model="selectedPayloadSettings['windows-device-lock-min-password-length']" id="windows-device-lock-min-password-length" @input="clickSelectPayload('windows-device-lock-min-password-length')">
-                  Min password length
-                </label>
-                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="The minimum number of characters a device's password must be">
+                <img style="margin-left: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" :title="payload.tooltip" v-if="payload.tooltip">
               </div>
             </div>
           </div>

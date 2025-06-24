@@ -190,7 +190,7 @@ module.exports.custom = {
 
     // 💝 Fleet-maintained apps
     'ee/maintained-apps/inputs': 'mostlikelee',
-    'ee/maintained-apps/outputs': 'eugkuo',
+    'ee/maintained-apps/outputs': 'noahtalerman',
   },
 
   // FUTURE: Support DRIs for confidential and other repos (except see other note above about a consolidated way to do it, to reduce these 4-6 config keys into one)

@@ -1555,7 +1555,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, any relevant filters, and the
+	// query used in isAppleHostConnectedToFleetMDM.
 	const appleStmt = `
 	  SELECT ne.id
 	  FROM nano_enrollments ne
@@ -1572,7 +1573,8 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 
 	// NOTE: if you change any of the conditions in this query, please
 	// update the `hostMDMSelect` constant too, which has a
-	// `connected_to_fleet` condition, and any relevant filters.
+	// `connected_to_fleet` condition, and any relevant filters, and the
+	// query used in isWindowsHostConnectedToFleetMDM.
 	const winStmt = `
 	  SELECT mwe.host_uuid
 	  FROM mdm_windows_enrollments mwe
@@ -1590,11 +1592,13 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
-	mp, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{host})
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
+	if host.Platform == "windows" {
+		return isWindowsHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
+	} else if host.Platform == "darwin" || host.Platform == "ipados" || host.Platform == "ios" {
+		return isAppleHostConnectedToFleetMDM(ctx, ds.reader(ctx), host)
 	}
-	return mp[host.UUID], nil
+
+	return false, nil
 }
 
 func batchSetProfileVariableAssociationsDB(

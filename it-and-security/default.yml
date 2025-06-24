@@ -85,6 +85,7 @@ queries:
   - path: ./lib/all/queries/collect-operating-system-information.yml
   - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/queries/detect-apns-certificate.yml
+  - path: ./lib/macos/queries/collect-macos-compatibility-data.yml
 controls: 
   enable_disk_encryption: true
   macos_migration:
@@ -103,3 +104,4 @@ labels:
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
   - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
   - path: ./lib/all/labels/keynote-installed.yml
+  - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
