@@ -411,10 +411,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   const renderHeaderDescription = () => {
+    let suffix;
+    if (!globalConfig?.partnerships?.enable_primo) {
+      suffix = isAllTeamsSelected ? "for all hosts" : "on this team";
+    }
     return (
       <p>
         Manage software and search for installed software, OS, and
-        vulnerabilities {isAllTeamsSelected ? "for all hosts" : "on this team"}.
+        vulnerabilities{suffix}.
       </p>
     );
   };
