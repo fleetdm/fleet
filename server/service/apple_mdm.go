@@ -13,14 +13,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
-	"runtime"
 	"slices"
 	"sort"
 	"strconv"
@@ -3175,7 +3173,6 @@ func NewMDMAppleCheckinAndCommandService(ds fleet.Datastore, commander *apple_md
 }
 
 func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType string, handler fleet.CommandHandler) {
-	// TODO(JVE): validate the command type, we should probably have a dedicated Go type and const set
 	svc.commandHandlers[commandType] = append(svc.commandHandlers[commandType], handler)
 }
 
@@ -3384,7 +3381,6 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
-	slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: at the top of commandandreportresults ", "raw", cmdResult.Raw)
 	if cmdResult.Status == "Idle" {
 		// NOTE: iPhone/iPad devices that are still enroled in Fleet's MDM but have
 		// been deleted from Fleet (no host entry) will still send checkin
@@ -3511,7 +3507,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
-			slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: first ack check ")
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
 			if err != nil {
 				if fleet.IsNotFound(err) {
@@ -3529,15 +3524,14 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
-			slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: in the if ")
 			// Only send a new InstalledApplicationList command if there's not one in flight
 			pendingCmds, err := svc.ds.GetPendingMDMCommandsByHost(r.Context, cmdResult.UDID, "InstalledApplicationList")
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}
 			if len(pendingCmds) == 0 {
-				slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: sending installed application list ")
 				cmdUUID := uuid.NewString()
+				cmdUUID = fleet.RefetchVPPAppInstallsCommandUUIDPrefix + cmdUUID
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID, true); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
 				}
@@ -3779,6 +3773,11 @@ func NewInstalledApplicationListResultsHandler(
 		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
 		if !ok {
 			return ctxerr.New(ctx, "unexpected results type")
+		}
+
+		// Then it's not a command sent by Fleet, so skip it
+		if !strings.HasPrefix(installedAppResult.UUID(), fleet.RefetchVPPAppInstallsCommandUUIDPrefix) {
+			return nil
 		}
 
 		installedApps := installedAppResult.InstalledApps()
