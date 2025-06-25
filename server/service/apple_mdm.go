@@ -4089,6 +4089,7 @@ func ReconcileAppleProfiles(
 	for _, p := range toRemove {
 		// Exclude profiles that are also marked for installation.
 		if _, ok := profileIntersection.GetMatchingProfileInDesiredState(p); ok {
+			// TODO EJM may need "move profile" logic here
 			hostProfilesToCleanup = append(hostProfilesToCleanup, p)
 			continue
 		}
