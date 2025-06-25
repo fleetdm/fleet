@@ -1,1 +1,0 @@
-- Changed to using DeleteObject S3 api for GCP interoperability
