@@ -3778,15 +3778,10 @@ func NewInstalledApplicationListResultsHandler(
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
 		if !ok {
-			return fmt.Errorf("unexpected results type")
+			return ctxerr.New(ctx, "unexpected results type")
 		}
 
 		installedApps := installedAppResult.InstalledApps()
-		// TODO(JVE): remove this debug logging
-		fmt.Println("Raw:")
-		fmt.Println(string(installedAppResult.Raw()))
-		fmt.Println()
-		fmt.Printf("r.InstalledApps: %v\n", installedApps)
 
 		if len(installedApps) == 0 {
 			// Nothing to do

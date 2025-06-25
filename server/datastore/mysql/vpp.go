@@ -1799,7 +1799,7 @@ WHERE command_uuid = ?
 	`
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, installUUID); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, installUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "set vpp install as verified")
 		}
 
