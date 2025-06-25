@@ -4456,6 +4456,13 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 `POST /api/v1/fleet/hosts/123/wipe`
 
+##### Optional request body
+
+```json
+{ "windows": { "wipe_type": "doWipe" } }
+```
+
+
 ##### Default response
 
 `Status: 200`
