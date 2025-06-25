@@ -63,7 +63,7 @@ func (v *VPPVerification) verifyVPPInstalls(ctx context.Context, hostUUID, verif
 		if err := v.Datastore.UpdateVPPInstallVerificationCommandByVerifyUUID(ctx, verificationCommandUUID, newListCmdUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "update install record")
 		}
-		err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID)
+		err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID, true)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "sending installed application list command in verify")
 		}

@@ -3538,7 +3538,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if len(pendingCmds) == 0 {
 				slog.With("filename", "server/service/apple_mdm.go", "func", func() string { counter, _, _, _ := runtime.Caller(1); return runtime.FuncForPC(counter).Name() }()).Info("JVE_LOG: sending installed application list ")
 				cmdUUID := uuid.NewString()
-				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID); err != nil {
+				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID, true); err != nil {
 					return nil, ctxerr.Wrap(r.Context, err, "sending list app command to verify install")
 				}
 
