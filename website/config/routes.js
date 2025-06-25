@@ -798,6 +798,9 @@ module.exports.routes = {
   'GET /announcements/nvd-api-2.0': '/announcements/nvd-api-2-0',
   'GET /releases/osquery-5.11.0': '/releases/osquery-5-11-0',
   'GET /releases/osquery-5.8.1': '/releases/osquery-5-8-1',
+  'GET /announcements/one-agent-fewer-tools-fewer-gaps': '/articles/one-agent-fewer-tools-fewer-gaps',
+  'GET /announcements/i-work-in-operations-i-deployed-fleet-in-minutes': '/articles/i-work-in-operations-i-deployed-fleet-in-minutes',
+  'GET /announcements/not-everything-runs-in-kubernete': '/articles/not-everything-runs-in-kubernete',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
