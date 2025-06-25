@@ -453,7 +453,7 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 
 ### Grant equity
 
-Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/digital-experience#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
+Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/digital-experience#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose). Any offer of equity >2500 shares must be approved by the CEO.  Offers of equity >0.25% must be approved by the board.
 
 Doing an equity grant involves:
 - Executing a board consent
