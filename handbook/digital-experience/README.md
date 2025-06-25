@@ -546,7 +546,7 @@ Then, to finalize a new advisor after signing is complete:
 
 ### Approve a new position
 
-When review is requested on a proposal to open a new position, the Apprentice to the CEO will complete the following steps when reviewing the pull request:
+When review is requested on a proposal to open a new position, the Head of Digital Experience will complete the following steps when reviewing the pull request:
 1. Confirm the new row in "Fleeties" has a manager, job title, and department, that it doesn't have any corrupted spreadsheet formulas or formatting, and that the start date is set to the first Monday of the next month.
 2. Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. Ballpark and document compensation research for the role based on 
@@ -724,7 +724,7 @@ We like to be open about milestones and announcements. Every Friday, e-group mem
 The day before the All hands, Mike will prepare slides that reflect the CEO vision and focus. 
 
 
-#### Share recording of all hands meeting
+### Share recording of all hands meeting
 
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
@@ -936,7 +936,6 @@ Once a week, the Apprentice will review the "community activity report" and add 
 ### Schedule travel for the CEO
 
 The Apprentice will verify daily that the CEO's calendar is accurate for any commitment or booked travel. The Apprentice is the DRI for scheduling all travel arrangements for the CEO, including flights, hotels, and reservations if needed. The CEO's traveling preferences in descending order of importance are:
-  - Mark the CEO as OOO (Out Of Office) IMMEDIATELY to avoid conflicts, as soon as travel is even tentitively planned.
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
   - Don't upgrade seats (unless there's a cheap upgrade that gets a non-middle seat, or if a flight is longer than 5 hours.  Even then, never buy a seat upgrade that costs >$100.)
