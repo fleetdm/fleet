@@ -6,7 +6,7 @@ _Available in Fleet Premium._
 
 Fleet currently gathers your end user's IdP username when [end users log in](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication) during the automatic enrollment (DEP) setup process.  
 
-By connecting Fleet to your IdP to sync user data, you can add additional information, like the end user's groups and full name to your host data in Fleet. This allows you to leverage IdP information as variables in macOS configuration profiles. See [this guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#step-4-add-pkcs-12-configuration-profile-to-fleet) for deploying a wifi certificate for an example. 
+By connecting Fleet to your IdP to sync user data, you can add additional information, like the end user's groups and full name to your host data in Fleet. This allows you to leverage IdP information as variables in macOS configuration profiles to, for example, [deploy a WiFi certificate](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#step-4-add-pkcs-12-configuration-profile-to-fleet).
 
 Fleet currently supports syncing data with [Okta](#okta). [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), more are coming soon.
 
