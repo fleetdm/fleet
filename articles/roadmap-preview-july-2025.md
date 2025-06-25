@@ -14,11 +14,11 @@ For Security Engineers:
 - 📄 Deploy certificates for Wi-Fi and VPN on Windows and Linux computers
 
 For IT Admins:
+- 🍏 Account-based user enrollment for personal Apple devices (BYOD)
 - 👨‍💻 100 Fleet-maintained apps for macOS & Windows (50 each)
 - 📅 Patch apps when end users are free
 - 👔 Custom new Windows and Linux setup
 - 💻 Host vitals as variables in scripts and configuration profiles
-- 🍏 Account-based user enrollment for personal Apple devices (BYOD)
 - 🤖 Configuration profiles, OS updates, and software management for BYOD Android
 - ⏳ See upcoming and past MDM command history
 
