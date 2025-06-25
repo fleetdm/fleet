@@ -84,7 +84,7 @@ func main() {
 			continue
 		}
 
-		existance, err := doesAppExists(maintainedApp.Name, maintainedApp.Version)
+		existance, err := doesAppExists(app.Name, maintainedApp.Version)
 		if err != nil {
 			fmt.Printf("Error checking if app exists: %v\n", err)
 			continue
@@ -101,7 +101,7 @@ func main() {
 			continue
 		}
 
-		existance, err = doesAppExists(maintainedApp.Name, maintainedApp.Version)
+		existance, err = doesAppExists(app.Name, maintainedApp.Version)
 		if err != nil {
 			fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
 			continue
