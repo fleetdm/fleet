@@ -3511,7 +3511,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Then this isn't a VPP install, so no activity generated
-					fmt.Println("IS IT HERE???")
 					return nil, nil
 				}
 

@@ -12362,7 +12362,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	assert.NotNil(t, cmd)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		fmt.Printf("cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
 		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
@@ -12414,7 +12413,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		fmt.Printf("1 cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
 		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
@@ -12430,16 +12428,13 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		fmt.Printf("2 cmd.Command.RequestType: %v\n", cmd.Command.RequestType)
 		switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
 		case "InstalledApplicationList":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			cmd, err = mdmDevice.AcknowledgeInstalledApplicationList(mdmDevice.UUID, cmd.CommandUUID, []fleet.Software{{Name: addedApp.Name, BundleIdentifier: addedApp.BundleIdentifier, Version: addedApp.LatestVersion}})
 			require.NoError(t, err)
 		default:
-			fmt.Printf("processing cmd: %v\n", cmd)
-			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-			require.NoError(t, err)
+			require.Fail(t, "unexpected command type", cmd.Command.RequestType)
 		}
 	}
 
@@ -12614,7 +12609,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.NoError(t, err)
 			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			fmt.Printf("cmd: %v\n", cmd)
 			installCmdUUID = cmd.CommandUUID
 
 			if install.deviceToken != "" {
