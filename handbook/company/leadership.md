@@ -257,6 +257,9 @@ This section is about hiring a new core team member, or fleetie, for an already 
 
 > **To hire an already planned position at Fleet**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) and complete the steps for the hiring manager.
 
+## Approving an equity offer
+
+Any offer of equity >2500 shares must be approved by the CEO.  Offers of equity >0.25% must be approved by the board.  
 
 ## Create a 30-60-90 day plan
 
