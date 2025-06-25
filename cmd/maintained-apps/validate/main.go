@@ -58,7 +58,6 @@ func main() {
 		return nil
 	}()
 
-	var errors []error
 	for _, app := range apps {
 		if app.Platform != operatingSystem {
 			continue
@@ -66,7 +65,7 @@ func main() {
 		fmt.Print("Validating app: ", app.Name, " (", app.Slug, ")\n")
 		appJson, err := getAppJson(app.Slug)
 		if err != nil {
-			errors = append(errors, err)
+			fmt.Printf("Error getting app json manifest: %v\n", err)
 			continue
 		}
 
@@ -74,52 +73,45 @@ func main() {
 
 		err = DownloadMaintainedApp(maintainedApp)
 		if err != nil {
-			errors = append(errors, err)
+			fmt.Printf("Error downloading maintained app: %v\n", err)
 			continue
 		}
 
 		fmt.Print("Executing install script...\n")
 		err = executeScript(maintainedApp.InstallScript)
 		if err != nil {
-			errors = append(errors, err)
+			fmt.Printf("Error executing install script: %v\n", err)
 			continue
 		}
 
 		existance, err := doesAppExists(maintainedApp.Name, maintainedApp.Version)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("checking if app exists: %w", err))
+			fmt.Printf("Error checking if app exists: %v\n", err)
 			continue
 		}
 		if !existance {
-			errors = append(errors, fmt.Errorf("app '%s' version '%s' was not found by osquery", maintainedApp.Name, maintainedApp.Version))
+			fmt.Printf("App version '%s' was not found by osquery\n", maintainedApp.Version)
 			continue
 		}
 
 		fmt.Print("Executing uninstall script...\n")
 		err = executeScript(maintainedApp.UninstallScript)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("uninstalling app '%s': %w", maintainedApp.Name, err))
+			fmt.Printf("Error uninstalling app: %v\n", err)
 			continue
 		}
 
 		existance, err = doesAppExists(maintainedApp.Name, maintainedApp.Version)
 		if err != nil {
-			errors = append(errors, fmt.Errorf("checking if app exists after uninstall: %w", err))
+			fmt.Printf("Error checking if app exists after uninstall: %v\n", err)
 			continue
 		}
 		if existance {
-			errors = append(errors, fmt.Errorf("app '%s' version '%s' was found after uninstall", maintainedApp.Name, maintainedApp.Version))
+			fmt.Printf("App version '%s' was found after uninstall\n", maintainedApp.Version)
 			continue
 		}
 
 		fmt.Print("All checks passed for app: ", app.Name, "\n")
-	}
-
-	if len(errors) > 0 {
-		fmt.Printf("Validation completed with %d errors:\n", len(errors))
-		for _, err := range errors {
-			fmt.Println(" -", err)
-		}
 	}
 }
 
@@ -249,14 +241,11 @@ func doesAppExists(appName, appVersion string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	fmt.Printf("Looking for app: %s, version: %s\n", appName, appVersion)
 	cmd := exec.CommandContext(ctx, "osqueryi", "--json", `
-    SELECT name, path 
+    SELECT name, path, bundle_short_version, bundle_version 
     FROM apps
     WHERE name LIKE '%`+appName+`%'
-    AND (
-      bundle_short_version LIKE '%`+appVersion+`%'
-      OR bundle_version LIKE '%`+appVersion+`%'
-    )
   `)
 	output, err := cmd.Output()
 	if err != nil {
@@ -264,13 +253,24 @@ func doesAppExists(appName, appVersion string) (bool, error) {
 	}
 
 	type AppResult struct {
-		Name string `json:"name"`
-		Path string `json:"path"`
+		Name           string `json:"name"`
+		Path           string `json:"path"`
+		Version        string `json:"bundle_short_version"`
+		BundledVersion string `json:"bundle_version"`
 	}
 	var results []AppResult
 	if err := json.Unmarshal(output, &results); err != nil {
 		return false, fmt.Errorf("parsing osquery JSON output: %w", err)
 	}
 
-	return len(results) > 0, nil
+	if len(results) > 0 {
+		for _, result := range results {
+			fmt.Printf("Found app: '%s' at %s, Version: %s, Bundled Version: %s\n", result.Name, result.Path, result.Version, result.BundledVersion)
+			if result.Version == appVersion || result.BundledVersion == appVersion {
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
 }
