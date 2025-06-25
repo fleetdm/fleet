@@ -125,6 +125,6 @@ Fleet provides the foundation for this collaboration by eliminating artificial b
 <meta name="articleTitle" value="One agent. Fewer tools. Fewer gaps.">
 <meta name="authorFullName" value="Harrison Ravazzolo">
 <meta name="authorGitHubUsername" value="harrisonravazzolo">
-<meta name="category" value="announcements">
+<meta name="category" value="articles">
 <meta name="publishedOn" value="2025-06-23">
 <meta name="description" value="Managing devices and vulnerabilities shouldn't mean installing two different agents—or paying for two different platforms.">
