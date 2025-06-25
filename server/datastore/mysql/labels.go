@@ -234,9 +234,7 @@ func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hv
 		return nil, ctxerr.Wrap(ctx, err, "UpdateLabelMembershipByHostCriteria transaction")
 	}
 
-	// Update the label with the new host count.
-	updatedLabel, _, err := ds.labelDB(ctx, label.ID, teamFilter, ds.writer(ctx))
-	return updatedLabel, err
+	return label, err
 }
 
 func batchHostIds(hostIds []uint) [][]uint {
