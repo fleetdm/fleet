@@ -2091,7 +2091,7 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	_, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label, filter)
+	_, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
 	require.NoError(t, err)
 
 	// Check that the label has the correct hosts

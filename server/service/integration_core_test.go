@@ -4719,7 +4719,7 @@ func (s *integrationTestSuite) TestLabels() {
 			assert.Equal(t, `["group_good"]`, string(queryValuesJson))
 
 			// Update label membership.
-			_, err = s.ds.UpdateLabelMembershipByHostCriteria(context.Background(), label, filter)
+			_, err = s.ds.UpdateLabelMembershipByHostCriteria(context.Background(), label)
 			require.NoError(t, err)
 
 			// Verify that the label has the correct hosts.

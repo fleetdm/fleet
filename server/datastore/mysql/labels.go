@@ -185,7 +185,7 @@ VALUES ` + strings.Join(placeholders, ", ")
 }
 
 // Update label membership for a host vitals label.
-func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel, teamFilter fleet.TeamFilter) (*fleet.Label, error) {
+func (ds *Datastore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error) {
 	// Get the label data.
 	label := hvl.GetLabel()
 
