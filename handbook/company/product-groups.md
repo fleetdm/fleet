@@ -257,7 +257,7 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 | S  | 1 sprint for 1 contributor   |
 | M  | 1 sprint for 2 contributors  |
 | L  | 1 sprint for the whole team  |
-| XL | ≥1 sprint for the whole team |
+| XL | >1 sprint for the whole team |
 
 
 ### Implementing
