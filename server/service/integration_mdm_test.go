@@ -195,9 +195,15 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		Log:       wlog,
 		Commander: mdmCommander,
 	}
+	vppVerifyJob := &worker.VPPVerification{
+		Datastore: s.ds,
+		Log:       wlog,
+		Commander: mdmCommander,
+	}
 	workr := worker.NewWorker(s.ds, wlog)
 	workr.TestIgnoreUnknownJobs = true
-	workr.Register(macosJob, appleMDMJob)
+	workr.Register(macosJob, appleMDMJob, vppVerifyJob)
+
 	s.worker = workr
 
 	// clear the jobs queue of any pending jobs generated via DB migrations
@@ -12441,6 +12447,15 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var types []string
+		err := sqlx.SelectContext(context.Background(), q, &types, "SELECT activity_type FROM upcoming_activities WHERE host_id = ?", mdmHost.ID)
+		require.NoError(t, err)
+
+		require.Empty(t, types)
+
+		return nil
+	})
 	require.Len(t, listResp.Hosts, 1)
 	countResp = countHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
@@ -12570,14 +12585,28 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		hostCount      int
 		deviceToken    string
 	}{
-		"iOS app install": {installHost: iOSHost, titleID: iOSTitleID, mdmClient: iOSMdmClient, app: iOSApp, hostCount: 1},
+		"iOS app install": {
+			installHost: iOSHost,
+			titleID:     iOSTitleID,
+			mdmClient:   iOSMdmClient,
+			app:         iOSApp,
+			hostCount:   1,
+		},
 		"iPadOS app install": {
-			installHost: iPadOSHost, titleID: iPadOSTitleID, mdmClient: iPadOSMdmClient, app: iPadOSApp,
-			extraAvailable: 1, hostCount: 1,
+			installHost:    iPadOSHost,
+			titleID:        iPadOSTitleID,
+			mdmClient:      iPadOSMdmClient,
+			app:            iPadOSApp,
+			extraAvailable: 1,
+			hostCount:      1,
 		},
 		"macOS app install": {
-			installHost: selfServiceHost, titleID: macOSTitleID, mdmClient: selfServiceDevice, app: macOSApp,
-			hostCount: 2, deviceToken: selfServiceToken,
+			installHost: selfServiceHost,
+			titleID:     macOSTitleID,
+			mdmClient:   selfServiceDevice,
+			app:         macOSApp,
+			hostCount:   2,
+			deviceToken: selfServiceToken,
 		},
 	}
 
@@ -12604,7 +12633,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.Equal(t, 1, countResp.Count)
 
 			// send an idle request to grab the command uuid
-			// checkInstallFleetdCommandSent(mdmClient, true)
 			cmd, err = mdmClient.Idle()
 			require.NoError(t, err)
 			var fullCmd micromdm.CommandPayload
@@ -12631,9 +12659,9 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 				return res
 			}
 			require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", activitiesToString(hostActivitiesResp.Activities))
-			assert.Equal(t, hostActivitiesResp.Activities[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
-			assert.EqualValues(t, 1, hostActivitiesResp.Count)
-			assert.JSONEq(
+			require.Equal(t, hostActivitiesResp.Activities[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
+			require.EqualValues(t, 1, hostActivitiesResp.Count)
+			require.JSONEq(
 				t,
 				fmt.Sprintf(
 					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
@@ -12651,8 +12679,23 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			// Simulate successful installation on the host
 			cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
-			// No further commands expected
-			assert.Nil(t, cmd)
+
+			// Process InstalledApplicationList command for install verification
+			s.runWorker()
+
+			cmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+			for cmd != nil {
+				var fullCmd micromdm.CommandPayload
+				switch cmd.Command.RequestType { //nolint:gocritic // ignore singleCaseSwitch
+				case "InstalledApplicationList":
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{{Name: app.Name, BundleIdentifier: app.BundleIdentifier, Version: app.LatestVersion}})
+					require.NoError(t, err)
+				default:
+					require.Fail(t, "unexpected command type", cmd.Command.RequestType)
+				}
+			}
 
 			if install.deviceToken != "" {
 				var cmdResResp getMDMCommandResultsResponse
@@ -12669,11 +12712,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
-			assert.Len(t, listResp.Hosts, install.hostCount)
+			require.Len(t, listResp.Hosts, install.hostCount)
 			countResp = countHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
 				fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(titleID))
-			assert.Equal(t, install.hostCount, countResp.Count)
+			require.Equal(t, install.hostCount, countResp.Count)
 
 			s.lastActivityMatches(
 				fleet.ActivityInstalledAppStoreApp{}.ActivityName(),

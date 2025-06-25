@@ -3444,7 +3444,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 	// Check if this is a result of a "refetch" command sent to iPhones/iPads
 	// to fetch their device information periodically.
-	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) {
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchBaseCommandUUIDPrefix) && !strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchVPPAppInstallsCommandUUIDPrefix) {
 		return svc.handleRefetch(r, cmdResult)
 	}
 
@@ -3547,15 +3547,16 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, ctxerr.Wrap(r.Context, err, "failed to mark host as non longer awaiting configuration")
 		}
 	case "InstalledApplicationList":
-		// TODO(JVE): might need another special command UUID prefix to distinguish b/w Fleet
-		// lifecycle commands and ad-hoc commands sent by users
 		level.Debug(svc.logger).Log("msg", "calling handlers for InstalledApplicationList")
 		res, err := NewInstalledApplicationListResult(r.Context, cmdResult.Raw, cmdResult.CommandUUID, cmdResult.UDID)
 		if err != nil {
-			return nil, err
+			return nil, ctxerr.Wrap(r.Context, err, "new installed application list result")
 		}
 
+		fmt.Printf("svc.commandHandlers: %v\n", svc.commandHandlers)
+
 		for _, f := range svc.commandHandlers["InstalledApplicationList"] {
+			fmt.Printf("f: %v\n", f)
 			if err := f(r.Context, res); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "InstalledApplicationList handler failed")
 			}
@@ -3769,10 +3770,12 @@ func NewInstalledApplicationListResultsHandler(
 	verifyTimeout, verifyRequestDelay time.Duration,
 ) func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
 	return func(ctx context.Context, commandResults fleet.MDMCommandResults) error {
+		fmt.Printf("commandResults: %v\n", commandResults)
 		installedAppResult, ok := commandResults.(InstalledApplicationListResult)
 		if !ok {
 			return ctxerr.New(ctx, "unexpected results type")
 		}
+		fmt.Printf("installedAppResult: %v\n", installedAppResult)
 
 		// Then it's not a command sent by Fleet, so skip it
 		if !strings.HasPrefix(installedAppResult.UUID(), fleet.RefetchVPPAppInstallsCommandUUIDPrefix) {
@@ -3804,7 +3807,7 @@ func NewInstalledApplicationListResultsHandler(
 
 			if install.InstallCommandAckAt != nil && time.Since(*install.InstallCommandAckAt) > verifyTimeout {
 				if err := ds.SetVPPInstallAsFailed(ctx, install.HostID, install.InstallCommandUUID); err != nil {
-					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install verified")
+					return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: set vpp install failed")
 				}
 
 				continue
@@ -3816,7 +3819,7 @@ func NewInstalledApplicationListResultsHandler(
 		if poll {
 			err := worker.QueueVPPInstallVerificationJob(ctx, ds, logger, worker.VerifyVPPTask, verifyRequestDelay, installedAppResult.HostUUID(), installedAppResult.UUID())
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "queueing vpp install verification job")
+				return ctxerr.Wrap(ctx, err, "InstalledApplicationList handler: queueing vpp install verification job")
 			}
 		}
 
