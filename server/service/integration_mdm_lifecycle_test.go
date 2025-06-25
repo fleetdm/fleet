@@ -1084,3 +1084,53 @@ func (s *integrationMDMTestSuite) TestRefetchAfterReenrollIOSNoDelete() {
 
 	// TODO: Do we care about manually triggered host refetch (where refetch_requested=true)?
 }
+
+// TestMDMLockHostUnenrolled tests that we cannot lock a macOS host that is not enrolled in MDM.
+// See https://github.com/fleetdm/fleet/issues/30192
+func (s *integrationMDMTestSuite) TestMDMLockHostUnenrolled() {
+	t := s.T()
+
+	// create a global enroll secret
+	globalSecret := "global_secret"
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: globalSecret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	hwModel := "MacBookPro14,3"
+	mdmDevice := mdmtest.NewTestMDMClientAppleOTA(
+		s.server.URL,
+		"global_secret",
+		hwModel,
+	)
+	require.NoError(t, mdmDevice.Enroll())
+
+	hostByIdentifierResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", mdmDevice.UUID), nil, http.StatusOK, &hostByIdentifierResp)
+	require.Equal(t, hwModel, hostByIdentifierResp.Host.HardwareModel)
+	hostID := hostByIdentifierResp.Host.ID
+
+	// mark the host as unenrolled in MDM
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `
+			UPDATE nano_enrollments
+			SET enabled = 0
+			WHERE id = ?
+		`, mdmDevice.UUID)
+		return err
+	})
+
+	// try to lock the host, it should fail because the host is not enrolled
+	res := s.Do(
+		"POST",
+		fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostID),
+		nil,
+		http.StatusUnprocessableEntity,
+	)
+	defer res.Body.Close()
+
+	e := extractServerErrorText(res.Body)
+	require.Contains(t, e, "Can't lock the host because it doesn't have MDM turned on")
+}

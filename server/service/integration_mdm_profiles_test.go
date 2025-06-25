@@ -6521,3 +6521,300 @@ func forceSetAppleHostDeclarationStatus(t *testing.T, ds *mysql.Datastore, hostU
 		return err
 	})
 }
+
+func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	// create a macOS host, will enroll only with device
+	host, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// create some profiles, system- and user-scoped
+	payloadScopeSystem := fleet.PayloadScopeSystem
+	payloadScopeUser := fleet.PayloadScopeUser
+	profiles := []fleet.MDMProfileBatchPayload{
+		{Name: "A1", Contents: scopedMobileconfigForTest("A1", "A1", &payloadScopeSystem)},
+		{Name: "A2", Contents: scopedMobileconfigForTest("A2", "A2", &payloadScopeUser)},
+		{Name: "A3", Contents: scopedMobileconfigForTest("A3", "A3", &payloadScopeUser)},
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, http.StatusNoContent)
+
+	// ensure we are at least 1s after the profiles uploaded-at timestamp
+	time.Sleep(time.Second)
+
+	// list the profiles to get the UUIDs
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
+	profNameToPayload := make(map[string]*fleet.MDMConfigProfilePayload)
+	for _, prof := range listResp.Profiles {
+		if len(prof.Checksum) == 0 {
+			// not important, but must not be empty or it causes issues when forcing a status
+			prof.Checksum = []byte("checksum")
+		}
+		profNameToPayload[prof.Name] = prof
+		t.Logf("profile %s: %s", prof.Name, prof.ProfileUUID)
+	}
+
+	type hostProfile struct {
+		ProfileUUID       string  `db:"profile_uuid"`
+		ProfileIdentifier string  `db:"profile_identifier"`
+		ProfileName       string  `db:"profile_name"`
+		Status            *string `db:"status"`
+		OperationType     *string `db:"operation_type"`
+		Retries           int     `db:"retries"`
+		Scope             string  `db:"scope"`
+	}
+	assertHostProfiles := func(want []hostProfile) {
+		var got []hostProfile
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			// for the purpose of this test, we ignore the Fleet-internal profiles
+			// (we only care about the custom profiles)
+			return sqlx.SelectContext(t.Context(), q, &got, `
+				SELECT profile_uuid, profile_identifier, profile_name, status, operation_type, retries, scope
+				FROM host_mdm_apple_profiles
+				WHERE host_uuid = ? AND profile_identifier NOT IN (?, ?)`,
+				host.UUID, mobileconfig.FleetdConfigPayloadIdentifier, mobileconfig.FleetCARootConfigPayloadIdentifier)
+		})
+		require.ElementsMatch(t, want, got)
+	}
+
+	forceProfileUploadeddAtTimestamp := func(ident string, ts time.Time) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles
+				SET uploaded_at = ? WHERE identifier = ?`, ts, ident)
+			return err
+		})
+	}
+
+	// cron job hasn't run yet, so no profile exist for the host
+	assertHostProfiles([]hostProfile{})
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// user-scoped profiles have been ignored for now
+	// TODO(mna): change behavior in future PR, we want them pending (NULL) immediately
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+	})
+
+	// verify the profiles, only the system one is reported as installed
+	host.DetailUpdatedAt = time.Now().UTC()
+	err := s.ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host, map[string]*fleet.HostMacOSProfile{
+		profNameToPayload["A1"].Identifier: {
+			DisplayName: profNameToPayload["A1"].Name,
+			Identifier:  profNameToPayload["A1"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+	})
+	require.NoError(t, err)
+
+	// user-scoped profiles were left untouched
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+	})
+
+	// create the user-enrollment
+	err = device.UserEnroll()
+	require.NoError(t, err)
+
+	// trigger a profile sync
+	s.awaitTriggerProfileSchedule(t)
+
+	// user-scoped profiles have been added
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+
+	// verify the profiles, A3 is missing but still within the grace period
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host, map[string]*fleet.HostMacOSProfile{
+		profNameToPayload["A1"].Identifier: {
+			DisplayName: profNameToPayload["A1"].Name,
+			Identifier:  profNameToPayload["A1"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+		profNameToPayload["A2"].Identifier: {
+			DisplayName: profNameToPayload["A2"].Name,
+			Identifier:  profNameToPayload["A2"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+	})
+	require.NoError(t, err)
+
+	// A2 is now verified, A3 is still pending
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+
+	// rewind the uploaded_at timestamp of A3 so it is not in the grace period
+	forceProfileUploadeddAtTimestamp(profNameToPayload["A3"].Identifier, time.Now().Add(-24*time.Hour))
+
+	// report as still missing
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host, map[string]*fleet.HostMacOSProfile{
+		profNameToPayload["A1"].Identifier: {
+			DisplayName: profNameToPayload["A1"].Name,
+			Identifier:  profNameToPayload["A1"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+		profNameToPayload["A2"].Identifier: {
+			DisplayName: profNameToPayload["A2"].Name,
+			Identifier:  profNameToPayload["A2"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+	})
+	require.NoError(t, err)
+
+	// A3 is now missing and retries
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            nil,
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           1,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+
+	s.awaitTriggerProfileSchedule(t)
+
+	// force-set it to Verifying so that by being missing again it goes to failed
+	// (it doesn't go to failed if it is pending)
+	forceSetAppleHostProfileStatus(t, s.ds, host.UUID,
+		test.ToMDMAppleConfigProfile(profNameToPayload["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host, map[string]*fleet.HostMacOSProfile{
+		profNameToPayload["A1"].Identifier: {
+			DisplayName: profNameToPayload["A1"].Name,
+			Identifier:  profNameToPayload["A1"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+		profNameToPayload["A2"].Identifier: {
+			DisplayName: profNameToPayload["A2"].Name,
+			Identifier:  profNameToPayload["A2"].Identifier,
+			InstallDate: time.Now().UTC(),
+		},
+	})
+	require.NoError(t, err)
+
+	assertHostProfiles([]hostProfile{
+		{
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,
+			ProfileName:       profNameToPayload["A1"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeSystem),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A2"].Identifier,
+			ProfileName:       profNameToPayload["A2"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           0,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+		{
+			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
+			ProfileIdentifier: profNameToPayload["A3"].Identifier,
+			ProfileName:       profNameToPayload["A3"].Name,
+			Status:            ptr.String(string(fleet.MDMDeliveryFailed)),
+			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Retries:           1,
+			Scope:             string(fleet.PayloadScopeUser),
+		},
+	})
+}

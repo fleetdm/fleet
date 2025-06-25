@@ -65,7 +65,7 @@ const PoliciesTable = ({
       "Add policies to detect device health issues and trigger automations.",
   };
 
-  if (isPremiumTier) {
+  if (isPremiumTier && !config?.partnerships?.enable_primo) {
     if (
       currentTeam?.id === null ||
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID

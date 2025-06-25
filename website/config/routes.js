@@ -103,6 +103,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /articles/*': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'community',
+    }
+  },
+
   'GET /success-stories': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
@@ -922,6 +930,7 @@ module.exports.routes = {
   'GET /learn-more-about/macos-distribution-packages': 'https://scriptingosx.com/2017/09/on-distribution-packages/',
   'GET /learn-more-about/self-service-software': '/guides/software-self-service',
   'GET /learn-more-about/request-hydrant-certificate': '/docs/rest-api#request-certificate',
+  'GET /learn-more-about/yaml-software-setup-experience': '/docs/configuration/yaml-files#self-service-labels-categories-and-setup-experience',
 
   // Sitemap
   // =============================================================================================================

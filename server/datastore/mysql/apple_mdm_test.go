@@ -2079,14 +2079,28 @@ VALUES
 }
 
 func nanoEnrollUserOnly(t *testing.T, ds *Datastore, host *fleet.Host) {
+	userUUID := host.UUID + ":" + uuid.NewString()
+
 	_, err := ds.writer(t.Context()).Exec(`
+INSERT INTO nano_users
+	(id, device_id, user_short_name, user_long_name)
+VALUES
+	(?, ?, ?, ?)`,
+		userUUID,
+		host.UUID,
+		"alice",
+		"alice:"+userUUID,
+	)
+	require.NoError(t, err)
+
+	_, err = ds.writer(t.Context()).Exec(`
 INSERT INTO nano_enrollments
 	(id, device_id, user_id, type, topic, push_magic, token_hex)
 VALUES
 	(?, ?, ?, ?, ?, ?, ?)`,
-		host.UUID+":Device",
+		userUUID,
 		host.UUID,
-		nil,
+		userUUID,
 		"User",
 		host.UUID+".topic",
 		host.UUID+".magic",
@@ -8188,6 +8202,16 @@ func testGetNanoMDMEnrollmentTimes(t *testing.T, ds *Datastore) {
 
 func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+
+	// unknown host uuid
+	userEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, "no-such-host")
+	require.NoError(t, err)
+	require.Nil(t, userEnrollment)
+
+	username, err := ds.GetNanoMDMUserEnrollmentUsername(ctx, "no-such-host")
+	require.NoError(t, err)
+	require.Empty(t, username)
+
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
 		OsqueryHostID: ptr.String("1337"),
@@ -8203,9 +8227,12 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	require.Nil(t, lastMDMEnrolledAt)
 	require.Nil(t, lastMDMSeenAt)
 
-	userEnrollment, err := ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
+	userEnrollment, err = ds.GetNanoMDMUserEnrollment(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Nil(t, userEnrollment)
+	username, err = ds.GetNanoMDMUserEnrollmentUsername(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, username)
 
 	// add user and device enrollment for this device. Timestamps should not be updated so nothing
 	// returned yet
@@ -8217,6 +8244,10 @@ func testGetNanoMDMUserEnrollment(t *testing.T, ds *Datastore) {
 	require.Equal(t, host.UUID, userEnrollment.DeviceID)
 	require.True(t, userEnrollment.Enabled)
 	require.Equal(t, "User", userEnrollment.Type)
+
+	username, err = ds.GetNanoMDMUserEnrollmentUsername(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, "alice", username)
 }
 
 func testMDMAppleProfileLabels(t *testing.T, ds *Datastore) {
