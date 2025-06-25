@@ -27,8 +27,8 @@ describe("InstallStatusCell - component", () => {
           status: "installed",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -44,8 +44,8 @@ describe("InstallStatusCell - component", () => {
           status: "pending_install",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
         isHostOnline
       />
     );
@@ -65,8 +65,8 @@ describe("InstallStatusCell - component", () => {
           status: "pending_install",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -85,8 +85,8 @@ describe("InstallStatusCell - component", () => {
           status: "pending_uninstall",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
         isHostOnline
       />
     );
@@ -106,8 +106,8 @@ describe("InstallStatusCell - component", () => {
           status: "pending_uninstall",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -126,8 +126,8 @@ describe("InstallStatusCell - component", () => {
           status: "failed_install",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -144,8 +144,8 @@ describe("InstallStatusCell - component", () => {
           status: "failed_uninstall",
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -164,8 +164,8 @@ describe("InstallStatusCell - component", () => {
           status: null,
           software_package: testSoftwarePackage,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -182,8 +182,8 @@ describe("InstallStatusCell - component", () => {
           status: null,
           software_package: { ...testSoftwarePackage, self_service: false },
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -204,8 +204,8 @@ describe("InstallStatusCell - component", () => {
             self_service: true,
           },
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -222,8 +222,8 @@ describe("InstallStatusCell - component", () => {
           status: null,
           app_store_app: createMockHostAppStoreApp({ self_service: true }),
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 
@@ -243,8 +243,8 @@ describe("InstallStatusCell - component", () => {
           app_store_app: null,
           software_package: null,
         })}
-        onShowSSInstallDetails={noop}
-        onShowSSUninstallDetails={noop}
+        onShowInstallDetails={noop}
+        onShowUninstallDetails={noop}
       />
     );
 

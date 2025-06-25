@@ -337,8 +337,8 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: IStatusCellProps) => (
         <InstallerStatusCell
           software={cellProps.row.original}
-          onShowSSInstallDetails={onShowInstallDetails}
-          onShowSSUninstallDetails={onShowUninstallDetails}
+          onShowInstallDetails={onShowInstallDetails}
+          onShowUninstallDetails={onShowUninstallDetails}
           isSelfService
         />
       ),

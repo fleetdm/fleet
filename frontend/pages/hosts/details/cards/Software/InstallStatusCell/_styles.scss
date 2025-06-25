@@ -10,15 +10,11 @@
     gap: $pad-small;
   }
 
-  &__status-tooltip {
-    text-align: center;
+  &__item-status-button {
+    font-weight: $regular;
   }
 
-  &__status-tooltip-text {
-    font-size: $xx-small;
-  }
-
-  .component__tooltip-wrapper {
-    margin: 0;
+  .react-tooltip {
+    max-width: 200px; // Less hanging words
   }
 }
