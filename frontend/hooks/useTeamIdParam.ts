@@ -268,7 +268,7 @@ const isValidTeamId = ({
     if (includeAllTeams) {
       return teamId === APP_CONTEXT_ALL_TEAMS_ID;
     }
-    // neither includeNoTeam nor includeAllTeam error state handled at top of hook
+    // neither included - this is the case in a number of settings pages
   }
   if (
     (teamId === APP_CONTEXT_ALL_TEAMS_ID && !includeAllTeams) ||
@@ -417,10 +417,6 @@ export const useTeamIdParam = ({
     ]
   );
 
-  if (!includeAllTeams && !includeNoTeam) {
-    // fail loudly
-    throw new Error("All pages should include All teams and/or No team");
-  }
   // reconcile router location and redirect to default team as applicable
   let isRouteOk = false;
   if (isFreeTier) {
