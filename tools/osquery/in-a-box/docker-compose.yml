@@ -1,6 +1,7 @@
 volumes:
   data01:
     driver: local
+  data-minio:
 
 networks:
   fleet-preview:
@@ -35,6 +36,10 @@ services:
     platform: linux/x86_64
     command: sh -c "/usr/bin/fleet prepare db --no-prompt && /usr/bin/fleet serve"
     environment:
+      FLEET_SOFTWARE_INSTALLER_S3_BUCKET: software-installers
+      FLEET_SOFTWARE_INSTALLER_S3_ACCESS_KEY_ID: minio
+      FLEET_SOFTWARE_INSTALLER_S3_SECRET_ACCESS_KEY: minio123!
+      FLEET_SOFTWARE_INSTALLER_S3_ENDPOINT_URL: http://minio:9000
       FLEET_MYSQL_ADDRESS: mysql01:3306
       FLEET_MYSQL_DATABASE: fleet
       FLEET_MYSQL_USERNAME: fleet
@@ -89,6 +94,10 @@ services:
     platform: linux/x86_64
     command: sh -c "/usr/bin/fleet prepare db --no-prompt && /usr/bin/fleet serve"
     environment:
+      FLEET_SOFTWARE_INSTALLER_S3_BUCKET: software-installers
+      FLEET_SOFTWARE_INSTALLER_S3_ACCESS_KEY_ID: minio
+      FLEET_SOFTWARE_INSTALLER_S3_SECRET_ACCESS_KEY: minio123!
+      FLEET_SOFTWARE_INSTALLER_S3_ENDPOINT_URL: http://minio:9000
       FLEET_MYSQL_ADDRESS: mysql01:3306
       FLEET_MYSQL_DATABASE: fleet
       FLEET_MYSQL_USERNAME: fleet
@@ -115,5 +124,19 @@ services:
       - ./config:/config
     ports:
       - "1337:1337"
+    networks:
+      - fleet-preview
+
+  minio:
+    image: quay.io/minio/minio
+    command: sh -c 'mkdir -p /data/software-installers && /usr/bin/minio server /data --console-address ":9001"'
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123!
+    volumes:
+      - data-minio:/data
     networks:
       - fleet-preview
