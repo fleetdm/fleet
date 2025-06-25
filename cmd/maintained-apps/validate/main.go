@@ -34,20 +34,20 @@ func main() {
 		fmt.Printf("GOOS environment variable is not set. Using system detected: '%s'\n", operatingSystem)
 	}
 	if operatingSystem != "darwin" && operatingSystem != "windows" {
-		fmt.Fprintln(os.Stderr, "Unsupported operating system:", operatingSystem)
+		fmt.Printf("Unsupported operating system: %s\n", operatingSystem)
 		os.Exit(1)
 	}
 
 	apps, err := getListOfApps()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
+		fmt.Printf("Error getting list of apps: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Create a temporary directory to store downloaded apps
 	tmpDir, err = os.MkdirTemp("", "fma-validate-")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "creating temporary directory: %v", err)
+		fmt.Printf("Error creating temporary directory: %v\n", err)
 		os.Exit(1)
 	}
 	defer func() error {
@@ -112,7 +112,14 @@ func main() {
 			continue
 		}
 
-		fmt.Print("All checks passed for app: ", maintainedApp.Name, "\n")
+		fmt.Print("All checks passed for app: ", app.Name, "\n")
+	}
+
+	if len(errors) > 0 {
+		fmt.Printf("Validation completed with %d errors:\n", len(errors))
+		for _, err := range errors {
+			fmt.Println(" -", err)
+		}
 	}
 }
 
