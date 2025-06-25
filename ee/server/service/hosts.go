@@ -75,11 +75,9 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 			return "", ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
 		}
 		if !connected {
-			if fleet.IsNotFound(err) {
-				return "", ctxerr.Wrap(
-					ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
-				)
-			}
+			return "", ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
+			)
 		}
 
 	case "windows", "linux":
