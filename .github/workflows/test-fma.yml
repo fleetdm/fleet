@@ -1,7 +1,11 @@
 name: Test Fleet Maintained Apps
 
-on:
-  workflow_dispatch: # Manual trigger
+#on:
+#  workflow_dispatch: # Manual trigger
+on: 
+  push:
+    branches:
+      - 30037-test-fmas
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
