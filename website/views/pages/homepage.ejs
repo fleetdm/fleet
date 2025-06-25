@@ -784,9 +784,9 @@
                 {{comparisonModeFriendlyNames[comparisonModeForSecurity]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
               </div>
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurposeForSecurity">
+                <div class="dropdown-item" @click="comparisonModeForSecurity = 'defender'">Defender</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'rapid'">Rapid 7</div>
-                <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div>
-                <!-- <div class="dropdown-item" @click="comparisonModeForSecurity = 'defender'">Defender</div> -->
+                <!-- <div class="dropdown-item" @click="comparisonModeForSecurity = 'crowdstrike'">Crowdstrike</div> -->
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'tanium'">Tanium</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'qualys'">Qualys</div>
                 <div class="dropdown-item" @click="comparisonModeForSecurity = 'tenable'">Tenable</div>

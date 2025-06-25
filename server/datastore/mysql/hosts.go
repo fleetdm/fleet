@@ -1101,7 +1101,11 @@ func (ds *Datastore) applyHostFilters(
 			switch {
 			case fleet.IsNotFound(err):
 				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter)
-				if err != nil {
+				if fleet.IsNotFound(err) {
+					// Neither installer nor VPP app exists → immediately return 0 hosts safelysts
+					softwareFilter = "FALSE"
+					break
+				} else if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
 				}
 				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)

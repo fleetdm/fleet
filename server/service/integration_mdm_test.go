@@ -11071,7 +11071,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	// Valid token
 	orgName := "Fleet Device Management Inc."
 	token := "mycooltoken"
-	expDate := "2025-06-24T15:50:50+0000"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
 	var vppRes uploadVPPTokenResponse
