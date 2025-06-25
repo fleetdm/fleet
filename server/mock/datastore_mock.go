@@ -492,7 +492,7 @@ type SetVPPInstallAsVerifiedFunc func(ctx context.Context, hostID uint, installU
 
 type UpdateVPPInstallVerificationCommandByVerifyUUIDFunc func(ctx context.Context, oldVerifyUUID string, verifyCommandUUID string) error
 
-type GetPendingMDMCommandsByHostFunc func(ctx context.Context, hostUUID string, commandType string) ([]string, error)
+type GetAcknowledgedMDMCommandsByHostFunc func(ctx context.Context, hostUUID string, commandType string) ([]string, error)
 
 type GetVPPInstallByVerificationUUIDFunc func(ctx context.Context, verificationUUID string) (*fleet.HostVPPSoftwareInstall, error)
 
@@ -2110,8 +2110,8 @@ type DataStore struct {
 	UpdateVPPInstallVerificationCommandByVerifyUUIDFunc        UpdateVPPInstallVerificationCommandByVerifyUUIDFunc
 	UpdateVPPInstallVerificationCommandByVerifyUUIDFuncInvoked bool
 
-	GetPendingMDMCommandsByHostFunc        GetPendingMDMCommandsByHostFunc
-	GetPendingMDMCommandsByHostFuncInvoked bool
+	GetAcknowledgedMDMCommandsByHostFunc        GetAcknowledgedMDMCommandsByHostFunc
+	GetAcknowledgedMDMCommandsByHostFuncInvoked bool
 
 	GetVPPInstallByVerificationUUIDFunc        GetVPPInstallByVerificationUUIDFunc
 	GetVPPInstallByVerificationUUIDFuncInvoked bool
@@ -5126,11 +5126,11 @@ func (s *DataStore) UpdateVPPInstallVerificationCommandByVerifyUUID(ctx context.
 	return s.UpdateVPPInstallVerificationCommandByVerifyUUIDFunc(ctx, oldVerifyUUID, verifyCommandUUID)
 }
 
-func (s *DataStore) GetPendingMDMCommandsByHost(ctx context.Context, hostUUID string, commandType string) ([]string, error) {
+func (s *DataStore) GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID string, commandType string) ([]string, error) {
 	s.mu.Lock()
-	s.GetPendingMDMCommandsByHostFuncInvoked = true
+	s.GetAcknowledgedMDMCommandsByHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPendingMDMCommandsByHostFunc(ctx, hostUUID, commandType)
+	return s.GetAcknowledgedMDMCommandsByHostFunc(ctx, hostUUID, commandType)
 }
 
 func (s *DataStore) GetVPPInstallByVerificationUUID(ctx context.Context, verificationUUID string) (*fleet.HostVPPSoftwareInstall, error) {

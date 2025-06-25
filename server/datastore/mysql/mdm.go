@@ -1966,7 +1966,7 @@ GROUP BY
 	return counts, nil
 }
 
-func (ds *Datastore) GetPendingMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error) {
+func (ds *Datastore) GetAcknowledgedMDMCommandsByHost(ctx context.Context, hostUUID, commandType string) ([]string, error) {
 	stmt := `
 SELECT
     nvq.command_uuid AS command_uuid

@@ -52,7 +52,7 @@ func (v *VPPVerification) Run(ctx context.Context, argsJSON json.RawMessage) err
 }
 
 func (v *VPPVerification) verifyVPPInstalls(ctx context.Context, hostUUID, verificationCommandUUID string) error {
-	pendingCmds, err := v.Datastore.GetPendingMDMCommandsByHost(ctx, hostUUID, "InstalledApplicationList")
+	pendingCmds, err := v.Datastore.GetAcknowledgedMDMCommandsByHost(ctx, hostUUID, "InstalledApplicationList")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get pending mdm commands by host")
 	}

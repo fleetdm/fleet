@@ -3524,11 +3524,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged {
 			// Only send a new InstalledApplicationList command if there's not one in flight
-			pendingCmds, err := svc.ds.GetPendingMDMCommandsByHost(r.Context, cmdResult.UDID, "InstalledApplicationList")
+			ackCmds, err := svc.ds.GetAcknowledgedMDMCommandsByHost(r.Context, cmdResult.UDID, "InstalledApplicationList")
 			if err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "get pending mdm commands by host")
 			}
-			if len(pendingCmds) == 0 {
+			if len(ackCmds) == 0 {
 				cmdUUID := uuid.NewString()
 				cmdUUID = fleet.RefetchVPPAppInstallsCommandUUIDPrefix + cmdUUID
 				if err := svc.commander.InstalledApplicationList(r.Context, []string{cmdResult.UDID}, cmdUUID, true); err != nil {
