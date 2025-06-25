@@ -1,4 +1,5 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useContext } from "react";
+import { AppContext } from "context/app";
 import { InjectedRouter } from "react-router";
 
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
@@ -100,6 +101,8 @@ const HostSoftwareTable = ({
   isMyDevicePage,
   onShowSoftwareDetails,
 }: IHostSoftwareTableProps) => {
+  const { isPremiumTier } = useContext(AppContext);
+
   const handleFilterDropdownChange = useCallback(
     (selectedFilter: SingleValue<CustomOptionType>) => {
       const newParams: QueryParams = {
@@ -308,7 +311,7 @@ const HostSoftwareTable = ({
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
         customControl={
-          !isMyDevicePage && showFilterHeaders
+          isPremiumTier && !isMyDevicePage && showFilterHeaders
             ? memoizedFilterDropdown
             : undefined
         }
